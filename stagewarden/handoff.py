@@ -12,14 +12,14 @@ MODEL_BACKENDS = {
     "local": {"provider": "ollama", "label": "local/ollama"},
     "cheap": {"provider": "openrouter", "label": "cheap/openrouter"},
     "chatgpt": {"provider": "ChatGPT", "label": "chatgpt/chatgpt-plan"},
-    "gpt": {"provider": "GPT-5.4", "label": "gpt/GPT-5.4"},
+    "openai": {"provider": "GPT-5.4", "label": "openai/GPT-5.4"},
     "claude": {"provider": "Claude Sonnet", "label": "claude/sonnet"},
 }
 
 MODEL_TOKEN_ENV = {
     "cheap": "OPENROUTER_API_KEY",
     "chatgpt": "CHATGPT_TOKEN",
-    "gpt": "OPENAI_API_KEY",
+    "openai": "OPENAI_API_KEY",
     "claude": "ANTHROPIC_API_KEY",
 }
 

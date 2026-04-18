@@ -262,15 +262,15 @@ class ExecutorTests(unittest.TestCase):
             config = AgentConfig(workspace_root=Path(tmp_dir))
             memory = MemoryStore()
             router = ModelRouter()
-            router.configure(enabled_models=["gpt", "local"], preferred_model="gpt")
+            router.configure(enabled_models=["openai", "local"], preferred_model="openai")
             handoff = FakeHandoff(
                 [
                     {
                         "ok": False,
-                        "model": "gpt",
-                        "backend": "gpt/GPT-5.4",
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
                         "prompt": "x",
-                        "command": "run_model gpt x",
+                        "command": "run_model openai x",
                         "output": "",
                         "error": "You've hit your usage limit. Try again at 8:05 PM.",
                     },
@@ -296,7 +296,7 @@ class ExecutorTests(unittest.TestCase):
             )
             prefs = ModelPreferences.load(Path(tmp_dir) / ".stagewarden_models.json")
             self.assertTrue(outcome.ok)
-            self.assertIn("gpt", prefs.blocked_until_by_model or {})
+            self.assertIn("openai", prefs.blocked_until_by_model or {})
             self.assertIsNone(prefs.preferred_model)
 
     def test_executor_retries_same_model_with_next_account_after_limit(self) -> None:
@@ -304,33 +304,33 @@ class ExecutorTests(unittest.TestCase):
             root = Path(tmp_dir)
             config = AgentConfig(workspace_root=root)
             prefs = ModelPreferences.default()
-            prefs.enabled_models = ["gpt", "local"]
-            prefs.preferred_model = "gpt"
-            prefs.add_account("gpt", "work", "OPENAI_API_KEY_WORK")
-            prefs.add_account("gpt", "personal", "OPENAI_API_KEY_PERSONAL")
-            prefs.set_active_account("gpt", "work")
+            prefs.enabled_models = ["openai", "local"]
+            prefs.preferred_model = "openai"
+            prefs.add_account("openai", "work", "OPENAI_API_KEY_WORK")
+            prefs.add_account("openai", "personal", "OPENAI_API_KEY_PERSONAL")
+            prefs.set_active_account("openai", "work")
             prefs.save(config.model_prefs_path)
             memory = MemoryStore()
             router = ModelRouter()
-            router.configure(enabled_models=["gpt", "local"], preferred_model="gpt")
+            router.configure(enabled_models=["openai", "local"], preferred_model="openai")
             handoff = FakeHandoff(
                 [
                     {
                         "ok": False,
-                        "model": "gpt",
-                        "backend": "gpt/GPT-5.4",
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
                         "prompt": "x",
-                        "command": "run_model gpt x",
+                        "command": "run_model openai x",
                         "account": "work",
                         "output": "",
                         "error": "You've hit your usage limit. Try again at 8:05 PM.",
                     },
                     {
                         "ok": True,
-                        "model": "gpt",
-                        "backend": "gpt/GPT-5.4",
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
                         "prompt": "x",
-                        "command": "run_model gpt x",
+                        "command": "run_model openai x",
                         "account": "personal",
                         "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
                         "error": "",
@@ -342,9 +342,9 @@ class ExecutorTests(unittest.TestCase):
             outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
             updated = ModelPreferences.load(config.model_prefs_path)
             self.assertTrue(outcome.ok)
-            self.assertIn("RUN_MODEL: gpt:work", handoff.calls[0])
-            self.assertIn("RUN_MODEL: gpt:personal", handoff.calls[1])
-            self.assertIn("gpt:work", updated.blocked_until_by_account or {})
+            self.assertIn("RUN_MODEL: openai:work", handoff.calls[0])
+            self.assertIn("RUN_MODEL: openai:personal", handoff.calls[1])
+            self.assertIn("openai:work", updated.blocked_until_by_account or {})
 
     def test_executor_rejects_dry_run_completion_as_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

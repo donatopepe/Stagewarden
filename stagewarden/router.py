@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class ModelRouter:
-    ORDER = ("local", "cheap", "chatgpt", "gpt", "claude")
+    ORDER = ("local", "cheap", "chatgpt", "openai", "claude")
 
     def __init__(self) -> None:
         self.enabled_models = set(self.ORDER)
@@ -90,8 +90,8 @@ class ModelRouter:
 
     def escalate(self, current: str) -> str:
         if current == "chatgpt":
-            return self._best_available("gpt")
-        if current == "gpt":
+            return self._best_available("openai")
+        if current == "openai":
             return self._best_available("claude")
         try:
             index = self.ORDER.index(current)
@@ -105,10 +105,10 @@ class ModelRouter:
     def fallback_for_api_failure(self, current: str) -> str:
         if current == "chatgpt":
             return self._best_available("cheap")
-        if current == "gpt":
+        if current == "openai":
             return self._best_available("chatgpt")
         if current == "claude":
-            return self._best_available("gpt")
+            return self._best_available("openai")
         if current == "cheap":
             return self._best_available("local")
         return self._best_available("local")

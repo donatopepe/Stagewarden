@@ -95,9 +95,9 @@ Inside the shell:
 ```text
 stagewarden> help
 stagewarden> models
-stagewarden> model use gpt
-stagewarden> model block gpt until 2026-05-01T18:30
-stagewarden> model unblock gpt
+stagewarden> model use openai
+stagewarden> model block openai until 2026-05-01T18:30
+stagewarden> model unblock openai
 stagewarden> status
 stagewarden> mode caveman ultra
 stagewarden> mode normal
@@ -109,9 +109,9 @@ stagewarden> quit
 Model control:
 
 - `models` shows enabled, active, preferred, blocked, and backend state.
-- `model use <local|cheap|chatgpt|gpt|claude>` pins a preferred model.
-- `model add <local|cheap|chatgpt|gpt|claude>` enables a model.
-- `model remove <local|cheap|chatgpt|gpt|claude>` disables a model.
+- `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
+- `model add <local|cheap|chatgpt|openai|claude>` enables a model.
+- `model remove <local|cheap|chatgpt|openai|claude>` disables a model.
 - `model block <model> until YYYY-MM-DDTHH:MM` blocks a model until a date and time.
 - `model unblock <model>` removes a temporary block.
 - `model clear` restores automatic routing.
@@ -124,31 +124,31 @@ Stagewarden can keep multiple account profiles for the same provider. Secrets ar
 
 ```text
 stagewarden> account login chatgpt personale
-stagewarden> account add gpt lavoro OPENAI_API_KEY_WORK
-stagewarden> account add gpt personale OPENAI_API_KEY_PERSONAL
-stagewarden> account login gpt lavoro
-stagewarden> account use gpt lavoro
-stagewarden> account block gpt lavoro until 2026-05-01T18:30
-stagewarden> account unblock gpt lavoro
+stagewarden> account add openai lavoro OPENAI_API_KEY_WORK
+stagewarden> account add openai personale OPENAI_API_KEY_PERSONAL
+stagewarden> account login openai lavoro
+stagewarden> account use openai lavoro
+stagewarden> account block openai lavoro until 2026-05-01T18:30
+stagewarden> account unblock openai lavoro
 stagewarden> accounts
 ```
 
 Runtime behavior:
 
-- `chatgpt` is a provider distinct from `gpt`.
+- `chatgpt` is a provider distinct from `openai`.
 - `chatgpt` expects a ChatGPT session token and maps it to `CHATGPT_TOKEN` for the backend subprocess.
 - `claude` can now use the same browser-callback login pattern for profile tokens.
-- Stagewarden calls `RUN_MODEL: gpt:lavoro <prompt>` internally.
+- Stagewarden calls `RUN_MODEL: openai:lavoro <prompt>` internally.
 - For ChatGPT plan access it calls `RUN_MODEL: chatgpt:personale <prompt>` internally.
-- The external `run_model` command still receives `run_model gpt "<prompt>"`.
+- The external `run_model` command still receives `run_model openai "<prompt>"`.
 - For ChatGPT plan access the external command receives `run_model chatgpt "<prompt>"`.
-- Stagewarden sets `STAGEWARDEN_MODEL_ACCOUNT=lavoro` and `STAGEWARDEN_MODEL_TARGET=gpt:lavoro`.
+- Stagewarden sets `STAGEWARDEN_MODEL_ACCOUNT=lavoro` and `STAGEWARDEN_MODEL_TARGET=openai:lavoro`.
 - If `OPENAI_API_KEY_WORK` exists, Stagewarden maps it to `OPENAI_API_KEY` only for that subprocess.
 - `account login <model> <profile>` starts a local browser flow, opens a Stagewarden login page on `127.0.0.1`, opens the provider page, and saves the resulting token in macOS Keychain when available.
 - If no environment variable mapping exists, Stagewarden loads the saved profile token and maps it to the provider env var only for the subprocess.
 - The browser flow accepts either a localhost callback with `token` or `code`, or a manual completion form on the local Stagewarden page when the provider does not redirect automatically.
 - For `chatgpt`, `account login chatgpt <profile>` opens the local login page plus ChatGPT in the browser.
-- `account login claude <profile>` and `account login gpt <profile>` use the same local browser flow.
+- `account login claude <profile>` and `account login openai <profile>` use the same local browser flow.
 - If one account reports a usage limit, Stagewarden blocks that account until the reported time and retries another account for the same model before falling back to another model.
 
 Git history commands:
