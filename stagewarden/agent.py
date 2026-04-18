@@ -130,6 +130,24 @@ class Agent:
         for iterations in range(1, self.config.max_steps + 1):
             current = self._next_pending_step(plan)
             if current is None:
+                for step in plan:
+                    if step.status == "completed":
+                        self.project_handoff.close_issues_for_step(
+                            step_id=step.id,
+                            resolution="project closed with controlled completion",
+                        )
+                self.project_handoff.clear_exception_plan_if_recovered()
+                pid.status = "closed"
+                pid.outcome = "All planned stages completed."
+                self._save_pid(pid)
+                self.project_handoff.close_run(
+                    task=effective_task,
+                    success=True,
+                    plan_status=self._plan_status(plan),
+                    git_head=self._git_head(),
+                    outcome=pid.outcome,
+                )
+                self._save_handoff()
                 self._save_memory()
                 self._trace(
                     phase="finish",
