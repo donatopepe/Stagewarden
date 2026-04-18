@@ -42,7 +42,7 @@ class Planner:
             )
 
         self._apply_handoff_context(steps, task=task, project_handoff=project_handoff)
-        return steps
+        return self._compress_completed_prefix(steps)
 
     def _apply_handoff_context(
         self,
@@ -112,6 +112,26 @@ class Planner:
         if "analyze" in lower or "inspect" in lower:
             return "The agent can state concrete findings and, where possible, verify them with a real command."
         return "The step yields a concrete artifact or wet-run observation."
+
+    def _compress_completed_prefix(self, steps: list[PlanStep]) -> list[PlanStep]:
+        completed_prefix: list[PlanStep] = []
+        remaining = list(steps)
+        while remaining and remaining[0].status == "completed":
+            completed_prefix.append(remaining.pop(0))
+
+        if len(completed_prefix) < 2:
+            return steps
+
+        closed_summary = "; ".join(step.title for step in completed_prefix)
+        archived = PlanStep(
+            id="stage-archive-1",
+            title=f"Closed stages {completed_prefix[0].id}-{completed_prefix[-1].id}",
+            instruction=f"historical completed stages compressed from handoff context: {closed_summary}",
+            validation="Historical handoff stages already completed and closed under PRINCE2 stage control.",
+            status="completed",
+            wet_run_required=False,
+        )
+        return [archived, *remaining]
 
     def _parse_plan_status(self, value: str) -> dict[str, str]:
         statuses: dict[str, str] = {}
