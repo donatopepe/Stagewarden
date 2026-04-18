@@ -137,18 +137,17 @@ Runtime behavior:
 
 - `chatgpt` is a provider distinct from `openai`.
 - `chatgpt` expects a ChatGPT session token and maps it to `CHATGPT_TOKEN` for the backend subprocess.
-- `claude` can now use the same browser-callback login pattern for profile tokens.
 - Stagewarden calls `RUN_MODEL: openai:lavoro <prompt>` internally.
 - For ChatGPT plan access it calls `RUN_MODEL: chatgpt:personale <prompt>` internally.
 - The external `run_model` command still receives `run_model openai "<prompt>"`.
 - For ChatGPT plan access the external command receives `run_model chatgpt "<prompt>"`.
 - Stagewarden sets `STAGEWARDEN_MODEL_ACCOUNT=lavoro` and `STAGEWARDEN_MODEL_TARGET=openai:lavoro`.
 - If `OPENAI_API_KEY_WORK` exists, Stagewarden maps it to `OPENAI_API_KEY` only for that subprocess.
-- `account login <model> <profile>` starts a local browser flow, opens a Stagewarden login page on `127.0.0.1`, opens the provider page, and saves the resulting token in macOS Keychain when available.
+- `account login <model> <profile>` starts provider login and saves credentials in macOS Keychain when available. For `chatgpt` and `openai`, Stagewarden uses a Codex-style device-code OAuth flow.
 - If no environment variable mapping exists, Stagewarden loads the saved profile token and maps it to the provider env var only for the subprocess.
-- The browser flow accepts either a localhost callback with `token` or `code`, or a manual completion form on the local Stagewarden page when the provider does not redirect automatically.
-- For `chatgpt`, `account login chatgpt <profile>` opens the local login page plus ChatGPT in the browser.
-- `account login claude <profile>` and `account login openai <profile>` use the same local browser flow.
+- `chatgpt` and `openai` store OAuth-style credential payloads, not a copy-pasted browser token.
+- For `chatgpt` and `openai`, `account login <profile>` follows the Codex-style account flow using device authorization and token exchange.
+- For providers like `claude`, interactive browser callback login is disabled; use `account env` with the provider's official API key or credentials.
 - If one account reports a usage limit, Stagewarden blocks that account until the reported time and retries another account for the same model before falling back to another model.
 
 Git history commands:

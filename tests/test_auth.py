@@ -3,26 +3,10 @@ from __future__ import annotations
 import os
 import unittest
 
-from stagewarden.auth import BrowserCallbackFlow, OpenAIDeviceCodeFlow
+from stagewarden.auth import OpenAIDeviceCodeFlow
 
 
-class BrowserAuthFlowTests(unittest.TestCase):
-    def test_browser_flow_renders_manual_completion_page(self) -> None:
-        flow = BrowserCallbackFlow(model="openai", account="lavoro", timeout_seconds=5)
-        page = flow._render_launch_page()
-        self.assertIn("Stagewarden browser login", page)
-        self.assertIn('action="/complete"', page)
-        self.assertIn("Open provider login page", page)
-        self.assertIn(flow.state, page)
-
-    def test_browser_flow_accepts_manual_token_params(self) -> None:
-        flow = BrowserCallbackFlow(model="openai", account="lavoro", timeout_seconds=5)
-        ok, _body, status = flow._consume_params({"state": [flow.state], "token": ["manual-browser-token"]})
-        self.assertTrue(ok)
-        self.assertEqual(status, 200)
-        self.assertTrue(flow._result.ok)
-        self.assertEqual(flow._result.token, "manual-browser-token")
-        self.assertEqual(flow._result.message, "Browser flow completed.")
+class OpenAIDeviceCodeFlowTests(unittest.TestCase):
 
     def test_openai_device_code_flow_uses_mock_endpoints(self) -> None:
         original_client = os.environ.get("STAGEWARDEN_OPENAI_CLIENT_ID")

@@ -27,14 +27,40 @@ chmod +x "$RUN_STUB"
 rm -rf "$STORE_DIR"
 mkdir -p "$STORE_DIR"
 
-echo "[1/3] Simulated Stagewarden login for chatgpt profile"
+echo "[1/3] Simulated Codex-style device login for chatgpt profile"
 LOGIN_OUTPUT=$(
   printf 'account login chatgpt personale\naccounts\nmodels\nexit\n' | \
     STAGEWARDEN_SECRET_STORE_DIR="$STORE_DIR" \
-    STAGEWARDEN_SKIP_BROWSER=1 \
-    STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN="chatgpt-session-token" \
+    STAGEWARDEN_OPENAI_CLIENT_ID="client-id" \
     PYTHONPATH="$PROJECT_DIR" \
-    python3 -m stagewarden.main --interactive --max-steps 1
+    python3 - <<'PY'
+from io import StringIO
+from pathlib import Path
+
+from stagewarden.auth import AuthResult
+from stagewarden.config import AgentConfig
+from stagewarden.main import run_interactive_shell
+import stagewarden.main as main_module
+
+original_run = main_module.OpenAIDeviceCodeFlow.run
+
+def fake_run(self):
+    return AuthResult(
+        True,
+        "Device code login completed.",
+        token="access-token-123",
+        secret_payload='{"access_token":"access-token-123","refresh_token":"refresh-token-123","id_token":"id-token-123"}',
+    )
+
+main_module.OpenAIDeviceCodeFlow.run = fake_run
+try:
+    input_stream = StringIO("account login chatgpt personale\naccounts\nmodels\nexit\n")
+    output_stream = StringIO()
+    run_interactive_shell(AgentConfig(workspace_root=Path("."), max_steps=1), input_stream=input_stream, output_stream=output_stream)
+    print(output_stream.getvalue(), end="")
+finally:
+    main_module.OpenAIDeviceCodeFlow.run = original_run
+PY
 )
 printf '%s\n' "$LOGIN_OUTPUT"
 

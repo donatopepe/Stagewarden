@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import getpass
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
 from .agent import Agent
-from .auth import BrowserCallbackFlow, OpenAIDeviceCodeFlow
+from .auth import OpenAIDeviceCodeFlow
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
@@ -77,9 +76,9 @@ def interactive_help_text() -> str:
             "- account add <model> <name> [ENV_VAR]",
             "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
             "- account login <model> <name>",
-            "  Start a local browser login flow, open the provider page, and save the resulting token in the OS secret store.",
+            "  Log in to a provider and save credentials in the OS secret store. chatgpt/openai use device-code OAuth.",
             "- account login-device <chatgpt|openai> <name>",
-            "  Start a device-code login flow compatible with the Codex-style OpenAI auth model.",
+            "  Alias for the Codex-style OpenAI/ChatGPT device-code login.",
             "- account logout <model> <name>",
             "  Delete the saved token for one profile.",
             "- account env <model> <name> <ENV_VAR>",
@@ -371,41 +370,34 @@ def _handle_account_command(
             model, name = parts[2], parts[3]
             if model not in LOGIN_URLS:
                 return f"Login is not supported for model '{model}'. Use account env for this provider."
-            prefs.add_account(model, name)
-            if model not in prefs.enabled_models:
-                prefs.enabled_models.append(model)
-            if model in LOGIN_URLS:
-                callback = BrowserCallbackFlow(model=model, account=name).run()
-                if not callback.ok:
-                    return callback.message
-                saved = SecretStore().save_token(model, name, callback.token)
-                if not saved.ok:
-                    return saved.message
-                prefs.set_active_account(model, name)
-                _save_model_preferences(config, prefs)
-                _apply_model_preferences(agent, config)
-                return f"{callback.message}\nSaved token for {model}:{name}."
-            return f"Login is not supported for model '{model}'. Use account env for this provider."
-        if action == "login-device":
-            if len(parts) != 4:
-                return "Usage: account login-device <chatgpt|openai> <name>"
-            model, name = parts[2], parts[3]
             if model not in {"chatgpt", "openai"}:
-                return "Device code login is supported only for chatgpt and openai."
+                return f"Interactive login is not supported for model '{model}'. Use account env or provider API keys."
             prefs.add_account(model, name)
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
             result = OpenAIDeviceCodeFlow(model=model, account=name).run()
             if not result.ok:
                 return result.message
-            payload = result.secret_payload or result.token
-            saved = SecretStore().save_token(model, name, payload)
+            saved = SecretStore().save_token(model, name, result.secret_payload or result.token)
             if not saved.ok:
                 return saved.message
             prefs.set_active_account(model, name)
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
             return f"{result.message}\nSaved token for {model}:{name}."
+        if action == "login-device":
+            if len(parts) != 4:
+                return "Usage: account login-device <chatgpt|openai> <name>"
+            model, name = parts[2], parts[3]
+            if model not in {"chatgpt", "openai"}:
+                return "Device code login is supported only for chatgpt and openai."
+            return _handle_account_command(
+                f"account login {model} {name}",
+                agent,
+                config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
         if action == "logout":
             if len(parts) != 4:
                 return "Usage: account logout <model> <name>"
@@ -468,24 +460,6 @@ def _account_usage() -> str:
         "account use <model> <name> | account remove <model> <name> | "
         "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | account clear <model>"
     )
-
-
-def _prompt_secret(prompt: str, *, input_stream: TextIO | None = None, output_stream: TextIO | None = None) -> str:
-    source = input_stream or sys.stdin
-    sink = output_stream or sys.stdout
-    if source is sys.stdin and getattr(source, "isatty", lambda: False)():
-        return getpass.getpass(prompt)
-    sink.write(prompt)
-    sink.flush()
-    return source.readline().strip()
-
-
-def _secret_prompt_for_model(model: str, account: str) -> str:
-    if model == "chatgpt":
-        return f"Paste ChatGPT token for {model}:{account}: "
-    if model == "claude":
-        return f"Paste Claude token for {model}:{account}: "
-    return f"Paste token for {model}:{account}: "
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
