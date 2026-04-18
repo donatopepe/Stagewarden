@@ -116,6 +116,17 @@ Model control:
 
 Stagewarden also records online model usage-limit messages such as `try again at 8:05 PM` and automatically blocks that model until the reported local time.
 
+Git history commands:
+
+```text
+stagewarden> git status
+stagewarden> git log 10
+stagewarden> git history stagewarden/main.py 20
+stagewarden> git show --stat HEAD
+```
+
+The autonomous executor can also call `git_status`, `git_log`, `git_show`, and `git_file_history` as first-class tool actions when it needs to inspect modification history before deciding or changing code.
+
 Caveman mode:
 
 ```text

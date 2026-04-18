@@ -25,6 +25,33 @@ class ToolTests(unittest.TestCase):
             self.assertTrue(committed.ok, committed.error)
             self.assertFalse(tool.has_changes())
 
+    def test_git_tool_exposes_status_log_show_and_file_history(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = GitTool(AgentConfig(workspace_root=root))
+            self.assertTrue(tool.ensure_ready().ok)
+
+            (root / "hello.txt").write_text("hello\n", encoding="utf-8")
+            first = tool.commit_if_changed("test: first")
+            self.assertTrue(first.ok, first.error)
+            (root / "hello.txt").write_text("hello again\n", encoding="utf-8")
+            second = tool.commit_if_changed("test: second")
+            self.assertTrue(second.ok, second.error)
+
+            status = tool.status()
+            log = tool.log(limit=5)
+            show = tool.show(revision="HEAD", stat=True)
+            history = tool.file_history("hello.txt", limit=5)
+
+            self.assertTrue(status.ok, status.error)
+            self.assertIn("##", status.stdout)
+            self.assertTrue(log.ok, log.error)
+            self.assertIn("test: second", log.stdout)
+            self.assertTrue(show.ok, show.error)
+            self.assertIn("hello.txt", show.stdout)
+            self.assertTrue(history.ok, history.error)
+            self.assertIn("test: first", history.stdout)
+
     def test_file_tool_search_and_list(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

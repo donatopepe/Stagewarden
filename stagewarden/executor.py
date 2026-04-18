@@ -248,9 +248,13 @@ Available actions and required fields:
 9. patch_files -> {{"type":"patch_files","diff":"unified diff with one or more files"}}
 10. list_files -> {{"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}}
 11. search_files -> {{"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}}
-12. git_diff -> {{"type":"git_diff"}}
-13. git_commit -> {{"type":"git_commit","message":"commit message"}}
-14. complete -> {{"type":"complete","message":"why the current step is done"}}
+12. git_status -> {{"type":"git_status"}}
+13. git_diff -> {{"type":"git_diff"}}
+14. git_log -> {{"type":"git_log","limit":20,"path":"optional-relative-path"}}
+15. git_show -> {{"type":"git_show","revision":"HEAD","stat":true}}
+16. git_file_history -> {{"type":"git_file_history","path":"relative/path","limit":20}}
+17. git_commit -> {{"type":"git_commit","message":"commit message"}}
+18. complete -> {{"type":"complete","message":"why the current step is done"}}
 
 Respond with strict JSON:
 {{
@@ -405,6 +409,22 @@ Respond with strict JSON:
             result = self.git.diff()
             return {"ok": result.ok, "message": result.stdout or result.error or "No diff.", "error_type": "git_error"}
 
+        if action_type == "git_status":
+            result = self.git.status()
+            return {"ok": result.ok, "message": result.stdout or result.error or "Clean working tree.", "error_type": "git_error"}
+
+        if action_type == "git_log":
+            result = self.git.log(limit=int(action.get("limit", 20)), path=action.get("path") or None)
+            return {"ok": result.ok, "message": result.stdout or result.error or "No git history.", "error_type": "git_error"}
+
+        if action_type == "git_show":
+            result = self.git.show(revision=action.get("revision", "HEAD"), stat=bool(action.get("stat", False)))
+            return {"ok": result.ok, "message": result.stdout or result.error or "No revision details.", "error_type": "git_error"}
+
+        if action_type == "git_file_history":
+            result = self.git.file_history(action.get("path", ""), limit=int(action.get("limit", 20)))
+            return {"ok": result.ok, "message": result.stdout or result.error or "No file history.", "error_type": "git_error"}
+
         if action_type == "git_commit":
             result = self.git.commit(action.get("message", "Agent commit"))
             return {"ok": result.ok, "message": result.stdout or result.error or "Committed.", "error_type": "git_error"}
@@ -442,7 +462,11 @@ Respond with strict JSON:
             "patch_files",
             "list_files",
             "search_files",
+            "git_status",
             "git_diff",
+            "git_log",
+            "git_show",
+            "git_file_history",
             "git_commit",
         }:
             return True
