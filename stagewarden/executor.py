@@ -60,34 +60,50 @@ class Executor:
         model = self.router.choose_model(task, step.instruction, failure_count)
         prompt = self._build_prompt(task=task, step=step, plan=plan, last_observation=last_observation)
 
-        result = self.handoff.execute(format_run_model(model, prompt))
+        self._configure_handoff_accounts()
+        account = self._select_account(model)
+        if self._accounts_configured(model) and account is None:
+            model = self.router.fallback_for_api_failure(model)
+            account = self._select_account(model)
+        result = self.handoff.execute(format_run_model(model, prompt, account=account))
         if not result.ok:
-            self._record_model_block_if_present(model, result.error or result.output)
-            fallback_model = self.router.fallback_for_api_failure(model)
-            fallback = self.handoff.execute(format_run_model(fallback_model, prompt))
-            if not fallback.ok:
-                self._record_model_block_if_present(fallback_model, fallback.error or fallback.output)
-                self.memory.record_attempt(
-                    iteration=iteration,
-                    step_id=step.id,
-                    model=fallback_model,
-                    action_type="model_error",
-                    action_signature=f"handoff:{model}->{fallback_model}",
-                    success=False,
-                    observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
-                    error_type="api_failure",
-                )
-                return StepOutcome(
-                    ok=False,
-                    step_completed=False,
-                    model=fallback_model,
-                    action_type="model_error",
-                    observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
-                    error_type="api_failure",
-                    prince2_assessment=None,
-                )
-            result = fallback
-            model = fallback_model
+            self._record_model_block_if_present(model, result.error or result.output, account=account)
+            alternate_account = self._next_account(model, account)
+            if alternate_account:
+                alternate = self.handoff.execute(format_run_model(model, prompt, account=alternate_account))
+                if alternate.ok:
+                    result = alternate
+                    account = alternate_account
+                else:
+                    self._record_model_block_if_present(model, alternate.error or alternate.output, account=alternate_account)
+                    result = alternate
+            if not result.ok:
+                fallback_model = self.router.fallback_for_api_failure(model)
+                fallback_account = self._select_account(fallback_model)
+                fallback = self.handoff.execute(format_run_model(fallback_model, prompt, account=fallback_account))
+                if not fallback.ok:
+                    self._record_model_block_if_present(fallback_model, fallback.error or fallback.output, account=fallback_account)
+                    self.memory.record_attempt(
+                        iteration=iteration,
+                        step_id=step.id,
+                        model=fallback_model,
+                        action_type="model_error",
+                        action_signature=f"handoff:{model}->{fallback_model}",
+                        success=False,
+                        observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
+                        error_type="api_failure",
+                    )
+                    return StepOutcome(
+                        ok=False,
+                        step_completed=False,
+                        model=fallback_model,
+                        action_type="model_error",
+                        observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
+                        error_type="api_failure",
+                        prince2_assessment=None,
+                    )
+                result = fallback
+                model = fallback_model
 
         parsed = self._parse_model_json(result.output)
         if not parsed["ok"]:
@@ -176,15 +192,44 @@ class Executor:
             prince2_assessment=prince2_assessment,
         )
 
-    def _record_model_block_if_present(self, model: str, message: str) -> None:
+    def _configure_handoff_accounts(self) -> None:
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+        except OSError:
+            return
+        self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
+
+    def _select_account(self, model: str) -> str | None:
+        try:
+            return ModelPreferences.load(self.config.model_prefs_path).account_for_model(model)
+        except (OSError, ValueError, TypeError):
+            return None
+
+    def _accounts_configured(self, model: str) -> bool:
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+            return bool((prefs.accounts_by_model or {}).get(model))
+        except (OSError, ValueError, TypeError):
+            return False
+
+    def _next_account(self, model: str, current: str | None) -> str | None:
+        try:
+            return ModelPreferences.load(self.config.model_prefs_path).next_account_for_model(model, current)
+        except (OSError, ValueError, TypeError):
+            return None
+
+    def _record_model_block_if_present(self, model: str, message: str, *, account: str | None = None) -> None:
         until = extract_blocked_until(message)
         if not until:
             return
         try:
             prefs = ModelPreferences.load(self.config.model_prefs_path)
-            prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
-            prefs.blocked_until_by_model[model] = until
-            if prefs.preferred_model == model:
+            if account:
+                prefs.block_account(model, account, until)
+            else:
+                prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
+                prefs.blocked_until_by_model[model] = until
+            if prefs.preferred_model == model and not prefs.account_for_model(model):
                 prefs.preferred_model = None
             prefs.save(self.config.model_prefs_path)
             self.router.configure(

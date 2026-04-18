@@ -55,10 +55,22 @@ class ModelPreferences:
     enabled_models: list[str]
     preferred_model: str | None = None
     blocked_until_by_model: dict[str, str] | None = None
+    accounts_by_model: dict[str, list[str]] | None = None
+    active_account_by_model: dict[str, str] | None = None
+    blocked_until_by_account: dict[str, str] | None = None
+    env_var_by_account: dict[str, str] | None = None
 
     @classmethod
     def default(cls) -> "ModelPreferences":
-        return cls(enabled_models=list(SUPPORTED_MODELS), preferred_model=None, blocked_until_by_model={})
+        return cls(
+            enabled_models=list(SUPPORTED_MODELS),
+            preferred_model=None,
+            blocked_until_by_model={},
+            accounts_by_model={},
+            active_account_by_model={},
+            blocked_until_by_account={},
+            env_var_by_account={},
+        )
 
     def normalize(self) -> "ModelPreferences":
         enabled = [item for item in self.enabled_models if item in SUPPORTED_MODELS]
@@ -70,9 +82,39 @@ class ModelPreferences:
             for model, until in (self.blocked_until_by_model or {}).items()
             if model in SUPPORTED_MODELS and self._is_valid_date(until)
         }
+        accounts_by_model: dict[str, list[str]] = {}
+        for model, accounts in (self.accounts_by_model or {}).items():
+            if model not in SUPPORTED_MODELS:
+                continue
+            normalized_accounts = []
+            for account in accounts:
+                account_name = str(account).strip()
+                if self._is_valid_account_name(account_name) and account_name not in normalized_accounts:
+                    normalized_accounts.append(account_name)
+            if normalized_accounts:
+                accounts_by_model[model] = normalized_accounts
+        active_account_by_model = {
+            str(model): str(account)
+            for model, account in (self.active_account_by_model or {}).items()
+            if model in accounts_by_model and str(account) in accounts_by_model[model]
+        }
+        blocked_until_by_account = {
+            str(key): str(until)
+            for key, until in (self.blocked_until_by_account or {}).items()
+            if self._is_valid_account_key(key) and self._is_valid_date(until)
+        }
+        env_var_by_account = {
+            str(key): str(value)
+            for key, value in (self.env_var_by_account or {}).items()
+            if self._is_valid_account_key(key) and self._is_valid_env_name(str(value))
+        }
         self.enabled_models = enabled
         self.preferred_model = preferred
         self.blocked_until_by_model = blocked
+        self.accounts_by_model = accounts_by_model
+        self.active_account_by_model = active_account_by_model
+        self.blocked_until_by_account = blocked_until_by_account
+        self.env_var_by_account = env_var_by_account
         return self
 
     def is_blocked(self, model: str, at_time: datetime | None = None) -> bool:
@@ -85,13 +127,110 @@ class ModelPreferences:
     def active_models(self, at_time: datetime | None = None) -> list[str]:
         return [model for model in self.enabled_models if not self.is_blocked(model, at_time=at_time)]
 
+    def add_account(self, model: str, account: str, env_var: str | None = None) -> None:
+        self._validate_model(model)
+        self._validate_account(account)
+        self.accounts_by_model = dict(self.accounts_by_model or {})
+        accounts = list(self.accounts_by_model.get(model, []))
+        if account not in accounts:
+            accounts.append(account)
+        self.accounts_by_model[model] = accounts
+        self.active_account_by_model = dict(self.active_account_by_model or {})
+        self.active_account_by_model.setdefault(model, account)
+        if env_var:
+            self.set_account_env(model, account, env_var)
+        self.normalize()
+
+    def remove_account(self, model: str, account: str) -> None:
+        self._validate_model(model)
+        self.accounts_by_model = dict(self.accounts_by_model or {})
+        accounts = [item for item in self.accounts_by_model.get(model, []) if item != account]
+        if accounts:
+            self.accounts_by_model[model] = accounts
+        else:
+            self.accounts_by_model.pop(model, None)
+        self.active_account_by_model = dict(self.active_account_by_model or {})
+        if self.active_account_by_model.get(model) == account:
+            if accounts:
+                self.active_account_by_model[model] = accounts[0]
+            else:
+                self.active_account_by_model.pop(model, None)
+        key = account_key(model, account)
+        self.blocked_until_by_account = dict(self.blocked_until_by_account or {})
+        self.blocked_until_by_account.pop(key, None)
+        self.env_var_by_account = dict(self.env_var_by_account or {})
+        self.env_var_by_account.pop(key, None)
+        self.normalize()
+
+    def set_active_account(self, model: str, account: str | None) -> None:
+        self._validate_model(model)
+        self.active_account_by_model = dict(self.active_account_by_model or {})
+        if account is None:
+            self.active_account_by_model.pop(model, None)
+            self.normalize()
+            return
+        if account not in (self.accounts_by_model or {}).get(model, []):
+            raise ValueError(f"Account '{account}' is not configured for model '{model}'.")
+        self.active_account_by_model[model] = account
+        self.normalize()
+
+    def set_account_env(self, model: str, account: str, env_var: str) -> None:
+        self._validate_model(model)
+        self._validate_account(account)
+        if not self._is_valid_env_name(env_var):
+            raise ValueError("Environment variable name must contain only letters, numbers, and underscores.")
+        self.env_var_by_account = dict(self.env_var_by_account or {})
+        self.env_var_by_account[account_key(model, account)] = env_var
+
+    def account_for_model(self, model: str, at_time: datetime | None = None) -> str | None:
+        accounts = list((self.accounts_by_model or {}).get(model, []))
+        if not accounts:
+            return None
+        preferred = (self.active_account_by_model or {}).get(model)
+        if preferred in accounts and not self.is_account_blocked(model, preferred, at_time=at_time):
+            return preferred
+        for account in accounts:
+            if not self.is_account_blocked(model, account, at_time=at_time):
+                return account
+        return None
+
+    def next_account_for_model(self, model: str, current: str | None, at_time: datetime | None = None) -> str | None:
+        accounts = list((self.accounts_by_model or {}).get(model, []))
+        for account in accounts:
+            if account != current and not self.is_account_blocked(model, account, at_time=at_time):
+                return account
+        return None
+
+    def is_account_blocked(self, model: str, account: str, at_time: datetime | None = None) -> bool:
+        raw = (self.blocked_until_by_account or {}).get(account_key(model, account))
+        if not raw:
+            return False
+        check_time = at_time or datetime.now()
+        return check_time <= datetime.fromisoformat(raw)
+
+    def block_account(self, model: str, account: str, until: str) -> None:
+        self._validate_model(model)
+        self._validate_account(account)
+        if not self._is_valid_date(until):
+            raise ValueError("Invalid date/time. Use YYYY-MM-DDTHH:MM.")
+        self.blocked_until_by_account = dict(self.blocked_until_by_account or {})
+        self.blocked_until_by_account[account_key(model, account)] = until
+
+    def unblock_account(self, model: str, account: str) -> None:
+        self.blocked_until_by_account = dict(self.blocked_until_by_account or {})
+        self.blocked_until_by_account.pop(account_key(model, account), None)
+
     def as_dict(self) -> dict[str, object]:
         return {
             "_format": "stagewarden_model_preferences",
-            "_version": 2,
+            "_version": 3,
             "enabled_models": list(self.enabled_models),
             "preferred_model": self.preferred_model,
             "blocked_until_by_model": dict(self.blocked_until_by_model or {}),
+            "accounts_by_model": {model: list(accounts) for model, accounts in (self.accounts_by_model or {}).items()},
+            "active_account_by_model": dict(self.active_account_by_model or {}),
+            "blocked_until_by_account": dict(self.blocked_until_by_account or {}),
+            "env_var_by_account": dict(self.env_var_by_account or {}),
         }
 
     def save(self, path: Path) -> None:
@@ -109,7 +248,42 @@ class ModelPreferences:
             blocked_until_by_model={
                 str(key): str(value) for key, value in payload.get("blocked_until_by_model", {}).items()
             },
+            accounts_by_model={
+                str(key): [str(item) for item in value]
+                for key, value in payload.get("accounts_by_model", {}).items()
+                if isinstance(value, list)
+            },
+            active_account_by_model={
+                str(key): str(value) for key, value in payload.get("active_account_by_model", {}).items()
+            },
+            blocked_until_by_account={
+                str(key): str(value) for key, value in payload.get("blocked_until_by_account", {}).items()
+            },
+            env_var_by_account={
+                str(key): str(value) for key, value in payload.get("env_var_by_account", {}).items()
+            },
         ).normalize()
+
+    def _validate_model(self, model: str) -> None:
+        if model not in SUPPORTED_MODELS:
+            raise ValueError(f"Unsupported model '{model}'.")
+
+    def _validate_account(self, account: str) -> None:
+        if not self._is_valid_account_name(account):
+            raise ValueError("Account name must contain only letters, numbers, dot, dash, and underscore.")
+
+    @staticmethod
+    def _is_valid_account_name(value: str) -> bool:
+        return bool(re.fullmatch(r"[A-Za-z0-9_.-]+", str(value)))
+
+    @staticmethod
+    def _is_valid_env_name(value: str) -> bool:
+        return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", str(value)))
+
+    @classmethod
+    def _is_valid_account_key(cls, value: str) -> bool:
+        model, separator, account = str(value).partition(":")
+        return bool(separator and model in SUPPORTED_MODELS and cls._is_valid_account_name(account))
 
     @staticmethod
     def _is_valid_date(value: str) -> bool:
@@ -118,3 +292,7 @@ class ModelPreferences:
             return True
         except ValueError:
             return False
+
+
+def account_key(model: str, account: str) -> str:
+    return f"{model}:{account}"

@@ -299,6 +299,51 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("gpt", prefs.blocked_until_by_model or {})
             self.assertIsNone(prefs.preferred_model)
 
+    def test_executor_retries_same_model_with_next_account_after_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["gpt", "local"]
+            prefs.preferred_model = "gpt"
+            prefs.add_account("gpt", "work", "OPENAI_API_KEY_WORK")
+            prefs.add_account("gpt", "personal", "OPENAI_API_KEY_PERSONAL")
+            prefs.set_active_account("gpt", "work")
+            prefs.save(config.model_prefs_path)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": False,
+                        "model": "gpt",
+                        "backend": "gpt/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model gpt x",
+                        "account": "work",
+                        "output": "",
+                        "error": "You've hit your usage limit. Try again at 8:05 PM.",
+                    },
+                    {
+                        "ok": True,
+                        "model": "gpt",
+                        "backend": "gpt/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model gpt x",
+                        "account": "personal",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
+            updated = ModelPreferences.load(config.model_prefs_path)
+            self.assertTrue(outcome.ok)
+            self.assertIn("RUN_MODEL: gpt:work", handoff.calls[0])
+            self.assertIn("RUN_MODEL: gpt:personal", handoff.calls[1])
+            self.assertIn("gpt:work", updated.blocked_until_by_account or {})
+
     def test_executor_rejects_dry_run_completion_as_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))

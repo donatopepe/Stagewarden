@@ -10,7 +10,7 @@ from .agent import Agent
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
-from .modelprefs import ModelPreferences, SUPPORTED_MODELS
+from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
 
@@ -69,6 +69,22 @@ def interactive_help_text() -> str:
             "  Remove the temporary block from a model.",
             "- model clear",
             "  Clear the preferred model and restore automatic routing.",
+            "- accounts",
+            "  Show configured account profiles for each model.",
+            "- account add <model> <name> [ENV_VAR]",
+            "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
+            "- account env <model> <name> <ENV_VAR>",
+            "  Set or change the environment variable used as token source for a profile.",
+            "- account use <model> <name>",
+            "  Prefer one account profile for a model.",
+            "- account remove <model> <name>",
+            "  Remove an account profile.",
+            "- account block <model> <name> until YYYY-MM-DDTHH:MM",
+            "  Temporarily block one account profile after usage limits.",
+            "- account unblock <model> <name>",
+            "  Remove a temporary account block.",
+            "- account clear <model>",
+            "  Clear the preferred account for one model.",
             "",
             "Caveman commands:",
             "- /caveman help",
@@ -102,6 +118,10 @@ def interactive_help_text() -> str:
             "- stagewarden> model use gpt",
             "- stagewarden> model remove claude",
             "- stagewarden> model block gpt until 2026-05-01T18:30",
+            "- stagewarden> account add gpt lavoro OPENAI_API_KEY_WORK",
+            "- stagewarden> account add gpt personale OPENAI_API_KEY_PERSONAL",
+            "- stagewarden> account use gpt lavoro",
+            "- stagewarden> account block gpt lavoro until 2026-05-01T18:30",
             "- stagewarden> model unblock gpt",
             "- stagewarden> status",
             "- stagewarden> mode caveman ultra",
@@ -135,7 +155,8 @@ def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferen
     return prefs
 
 
-def _render_model_status(agent: Agent) -> str:
+def _render_model_status(agent: Agent, config: AgentConfig) -> str:
+    prefs = _load_model_preferences(config)
     status = agent.router.status()
     lines = ["Model configuration:"]
     for model in SUPPORTED_MODELS:
@@ -146,8 +167,40 @@ def _render_model_status(agent: Agent) -> str:
         active = " active" if model in status["active_models"] else " inactive"
         preferred = " preferred" if status["preferred_model"] == model else ""
         lines.append(f"- {model}: {enabled}{active}{preferred}{blocked} ({backend})")
+        account_lines = _render_account_lines(prefs, model)
+        lines.extend(account_lines)
     if status["preferred_model"] is None:
         lines.append("- preferred_model: automatic routing")
+    return "\n".join(lines)
+
+
+def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
+    lines: list[str] = []
+    accounts = (prefs.accounts_by_model or {}).get(model, [])
+    active_account = (prefs.active_account_by_model or {}).get(model)
+    for account in accounts:
+        key = account_key(model, account)
+        blocked_until = (prefs.blocked_until_by_account or {}).get(key)
+        env_var = (prefs.env_var_by_account or {}).get(key)
+        active = " active-account" if active_account == account else ""
+        blocked = f" blocked-until={blocked_until}" if blocked_until else ""
+        env_text = f" env={env_var}" if env_var else ""
+        lines.append(f"  account {account}:{active}{blocked}{env_text}")
+    return lines
+
+
+def _render_accounts(config: AgentConfig) -> str:
+    prefs = _load_model_preferences(config)
+    lines = ["Account profiles:"]
+    found = False
+    for model in SUPPORTED_MODELS:
+        rendered = _render_account_lines(prefs, model)
+        if rendered:
+            found = True
+            lines.append(f"- {model}")
+            lines.extend(rendered)
+    if not found:
+        lines.append("- none configured")
     return "\n".join(lines)
 
 
@@ -162,7 +215,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- memory: {config.memory_path.name}",
         f"- trace: {config.trace_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
-        _render_model_status(agent),
+        _render_model_status(agent, config),
     ]
     return "\n".join(lines)
 
@@ -179,7 +232,7 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
         return None
     if parts[0] == "models":
         _apply_model_preferences(agent, config)
-        return _render_model_status(agent)
+        return _render_model_status(agent, config)
     if parts[0] != "model":
         return None
     if len(parts) < 2:
@@ -267,6 +320,86 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
         return str(exc)
 
     return "Usage: model use <name> | model add <name> | model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | model unblock <name> | model clear"
+
+
+def _handle_account_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
+    parts = command.split()
+    if not parts:
+        return None
+    if parts[0] == "accounts":
+        return _render_accounts(config)
+    if parts[0] != "account":
+        return None
+    if len(parts) < 2:
+        return _account_usage()
+
+    action = parts[1]
+    prefs = _load_model_preferences(config)
+    try:
+        if action == "add":
+            if len(parts) not in {4, 5}:
+                return "Usage: account add <model> <name> [ENV_VAR]"
+            model, name = parts[2], parts[3]
+            prefs.add_account(model, name, env_var=parts[4] if len(parts) == 5 else None)
+            if model not in prefs.enabled_models:
+                prefs.enabled_models.append(model)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            return f"Added account {model}:{name}."
+        if action == "env":
+            if len(parts) != 5:
+                return "Usage: account env <model> <name> <ENV_VAR>"
+            model, name, env_var = parts[2], parts[3], parts[4]
+            if name not in (prefs.accounts_by_model or {}).get(model, []):
+                prefs.add_account(model, name)
+            prefs.set_account_env(model, name, env_var)
+            _save_model_preferences(config, prefs)
+            return f"Set token env for {model}:{name} to {env_var}."
+        if action == "use":
+            if len(parts) != 4:
+                return "Usage: account use <model> <name>"
+            model, name = parts[2], parts[3]
+            prefs.set_active_account(model, name)
+            _save_model_preferences(config, prefs)
+            return f"Active account for {model} set to {name}."
+        if action == "remove":
+            if len(parts) != 4:
+                return "Usage: account remove <model> <name>"
+            model, name = parts[2], parts[3]
+            prefs.remove_account(model, name)
+            _save_model_preferences(config, prefs)
+            return f"Removed account {model}:{name}."
+        if action == "block":
+            if len(parts) != 6 or parts[4] != "until":
+                return "Usage: account block <model> <name> until YYYY-MM-DDTHH:MM"
+            model, name, until = parts[2], parts[3], parts[5]
+            prefs.block_account(model, name, until)
+            _save_model_preferences(config, prefs)
+            return f"Blocked account {model}:{name} until {until}."
+        if action == "unblock":
+            if len(parts) != 4:
+                return "Usage: account unblock <model> <name>"
+            model, name = parts[2], parts[3]
+            prefs.unblock_account(model, name)
+            _save_model_preferences(config, prefs)
+            return f"Unblocked account {model}:{name}."
+        if action == "clear":
+            if len(parts) != 3:
+                return "Usage: account clear <model>"
+            prefs.set_active_account(parts[2], None)
+            _save_model_preferences(config, prefs)
+            return f"Cleared active account for {parts[2]}."
+    except ValueError as exc:
+        return str(exc)
+    return _account_usage()
+
+
+def _account_usage() -> str:
+    return (
+        "Usage: accounts | account add <model> <name> [ENV_VAR] | account env <model> <name> <ENV_VAR> | "
+        "account use <model> <name> | account remove <model> <name> | "
+        "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | account clear <model>"
+    )
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
@@ -400,6 +533,11 @@ def run_interactive_shell(
         model_message = _handle_model_command(command, agent, config)
         if model_message is not None:
             sink.write(f"{model_message}\n")
+            sink.flush()
+            continue
+        account_message = _handle_account_command(command, agent, config)
+        if account_message is not None:
+            sink.write(f"{account_message}\n")
             sink.flush()
             continue
         mode_message = _handle_mode_command(command, agent, config)
