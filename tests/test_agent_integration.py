@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,8 +33,13 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertTrue(result.ok)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
             self.assertTrue((Path(tmp_dir) / ".git").exists())
-            log = os.popen(f"git -C {tmp_dir} log --oneline").read()
-            self.assertIn("stagewarden:", log)
+            log = subprocess.run(
+                ["git", "-C", tmp_dir, "log", "--oneline"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertIn("stagewarden:", log.stdout)
 
 
 if __name__ == "__main__":
