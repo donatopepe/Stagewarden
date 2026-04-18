@@ -410,6 +410,10 @@ class TraceAndCliTests(unittest.TestCase):
                 "plan_status": "step-1:completed,step-2:completed,step-3:in_progress",
                 "git_head": "def456",
                 "git_head_baseline": "abc123",
+                "risk_register": [{"risk": "Regression from patch execution", "status": "open"}],
+                "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "validation pending"}],
+                "quality_register": [{"step_id": "step-2", "status": "passed", "evidence": "file updated"}],
+                "exception_plan": [],
                 "updated_at": "2026-04-18T18:30:00+00:00",
                 "entries": [],
             }
@@ -431,6 +435,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("pid_boundary: project_status=executing", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
+            self.assertIn("registers: risks=1 issues=1 quality=1", rendered)
             self.assertIn("Boundary recommendation:", rendered)
             self.assertIn("Caveman mode active. Level: ultra.", rendered)
             self.assertIn("mode: caveman ultra", rendered)

@@ -67,6 +67,8 @@ class PersistenceTests(unittest.TestCase):
                 step_status="in_progress",
                 git_head="abc123",
             )
+            handoff.record_issue(step_id="step-1", severity="medium", summary="failing test still open")
+            handoff.record_quality(step_id="step-1", status="observed", evidence="pytest -q executed")
             handoff.complete_step(
                 iteration=1,
                 task="fix tests",
@@ -83,6 +85,8 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(loaded.task, "fix tests")
             self.assertEqual(loaded.git_head, "def456")
             self.assertEqual(len(loaded.entries), 3)
+            self.assertEqual(len(loaded.issue_register), 1)
+            self.assertEqual(len(loaded.quality_register), 1)
 
 
 if __name__ == "__main__":
