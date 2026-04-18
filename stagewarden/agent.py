@@ -10,6 +10,7 @@ from .ljson import dump_file
 from .memory import MemoryStore
 from .planner import Planner, PlanStep
 from .prince2 import Prince2AgentPolicy
+from .project_handoff import ProjectHandoff
 from .router import ModelRouter
 from .tools.git import GitTool
 
@@ -35,11 +36,13 @@ class Agent:
         self.router = ModelRouter()
         self.handoff = HandoffManager(timeout_seconds=config.model_timeout_seconds)
         self.planner = Planner()
+        self.project_handoff = self._load_handoff()
         self.executor = Executor(
             config=config,
             router=self.router,
             handoff=self.handoff,
             memory=self.memory,
+            project_handoff=self.project_handoff,
         )
 
     def run(self, task: str) -> AgentResult:
@@ -67,6 +70,19 @@ class Agent:
         last_observation = "Task received."
         iterations = 0
         self.trace_records = []
+        start_head = self._git_head()
+        self.project_handoff.start_run(
+            task=effective_task,
+            plan_status=self._plan_status(plan),
+            git_head=start_head,
+        )
+        self.project_handoff.record_plan(
+            task=effective_task,
+            plan_status=self._plan_status(plan),
+            checklist=checklist.as_dict(),
+            git_head=start_head,
+        )
+        self._save_handoff()
         self._trace(
             phase="start",
             iteration=0,
@@ -84,6 +100,14 @@ class Agent:
             pid.status = "rejected"
             pid.outcome = "Rejected by PRINCE2 governance gate before execution."
             self._save_pid(pid)
+            self.project_handoff.close_run(
+                task=effective_task,
+                success=False,
+                plan_status=self._plan_status(plan),
+                git_head=self._git_head(),
+                outcome="Task rejected by PRINCE2 governance gate before execution.",
+            )
+            self._save_handoff()
             self._save_memory()
             self._trace(
                 phase="finish",
@@ -129,6 +153,26 @@ class Agent:
             if self.memory.should_abort_step(current.id):
                 current.status = "failed"
                 last_observation = "Aborted repeated loop for current step."
+                self.project_handoff.begin_step(
+                    iteration=iterations,
+                    task=effective_task,
+                    step_id=current.id,
+                    step_title=current.title,
+                    step_status=current.status,
+                    git_head=self._git_head(),
+                )
+                self.project_handoff.complete_step(
+                    iteration=iterations,
+                    task=effective_task,
+                    step_id=current.id,
+                    step_title=current.title,
+                    step_status=current.status,
+                    model="none",
+                    action_type="abort_step",
+                    observation=last_observation,
+                    git_head=self._git_head(),
+                )
+                self._save_handoff()
                 self._trace(
                     phase="abort_step",
                     iteration=iterations,
@@ -142,6 +186,15 @@ class Agent:
                 )
                 continue
 
+            self.project_handoff.begin_step(
+                iteration=iterations,
+                task=effective_task,
+                step_id=current.id,
+                step_title=current.title,
+                step_status=current.status,
+                git_head=self._git_head(),
+            )
+            self._save_handoff()
             outcome = self.executor.execute_step(
                 task=effective_task,
                 step=current,
@@ -168,6 +221,17 @@ class Agent:
                     current.status = "failed"
                 else:
                     current.status = "in_progress"
+            self.project_handoff.complete_step(
+                iteration=iterations,
+                task=effective_task,
+                step_id=current.id,
+                step_title=current.title,
+                step_status=current.status,
+                model=outcome.model,
+                action_type=outcome.action_type,
+                observation=outcome.observation,
+                git_head=self._git_head(),
+            )
             self._trace(
                 phase="step_result",
                 iteration=iterations,
@@ -187,12 +251,28 @@ class Agent:
                 plan_status=self._plan_status(plan),
             )
             self._save_memory()
-            self._git_snapshot(f"stagewarden: step {current.id} {current.status}")
+            snapshot_message = self._git_snapshot(f"stagewarden: step {current.id} {current.status}")
+            if snapshot_message:
+                self.project_handoff.record_git_snapshot(
+                    iteration=iterations,
+                    task=effective_task,
+                    message=snapshot_message,
+                    git_head=self._git_head(),
+                )
+            self._save_handoff()
 
         success = all(step.status == "completed" for step in plan)
         pid.status = "closed" if success else "exception"
         pid.outcome = "All planned stages completed." if success else "Run stopped before controlled closure."
         self._save_pid(pid)
+        self.project_handoff.close_run(
+            task=effective_task,
+            success=success,
+            plan_status=self._plan_status(plan),
+            git_head=self._git_head(),
+            outcome=pid.outcome or "",
+        )
+        self._save_handoff()
         self._save_memory()
         self._trace(
             phase="finish",
@@ -233,9 +313,21 @@ class Agent:
         except (OSError, ValueError, TypeError):
             return MemoryStore()
 
+    def _load_handoff(self) -> ProjectHandoff:
+        try:
+            return ProjectHandoff.load(self.config.handoff_path)
+        except (OSError, ValueError, TypeError):
+            return ProjectHandoff()
+
     def _save_memory(self) -> None:
         try:
             self.memory.save(self.config.memory_path)
+        except OSError:
+            pass
+
+    def _save_handoff(self) -> None:
+        try:
+            self.project_handoff.save(self.config.handoff_path)
         except OSError:
             pass
 
@@ -350,6 +442,12 @@ class Agent:
                 return ""
             return f"Git snapshot: {result.stdout.splitlines()[-1] if result.stdout else message}"
         return f"Git snapshot failed: {result.error}"
+
+    def _git_head(self) -> str | None:
+        result = self.git.head()
+        if result.ok and result.stdout:
+            return result.stdout.strip()
+        return None
 
     def _trace(self, **record: object) -> None:
         self.trace_records.append(record)

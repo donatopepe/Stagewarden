@@ -42,9 +42,13 @@ class TraceAndCliTests(unittest.TestCase):
             agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
             agent.run("simple task")
             self.assertTrue((root / ".stagewarden_trace.ljson").exists())
+            self.assertTrue((root / ".stagewarden_handoff.json").exists())
             payload = json.loads((root / ".stagewarden_trace.ljson").read_text())
             self.assertIn("_fields", payload)
             self.assertGreaterEqual(len(decode(payload)), 1)
+            handoff_payload = json.loads((root / ".stagewarden_handoff.json").read_text())
+            self.assertEqual(handoff_payload.get("_format"), "stagewarden_project_handoff")
+            self.assertIn("entries", handoff_payload)
 
     def test_load_file_roundtrip_from_dumped_ljson(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -400,6 +404,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Stagewarden status:", rendered)
             self.assertIn("mode: normal", rendered)
+            self.assertIn("handoff: .stagewarden_handoff.json", rendered)
             self.assertIn("Caveman mode active. Level: ultra.", rendered)
             self.assertIn("mode: caveman ultra", rendered)
             self.assertIn("Caveman mode disabled.", rendered)

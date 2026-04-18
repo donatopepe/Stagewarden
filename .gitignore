@@ -52,3 +52,4 @@ Applications/
 .ollama/
 .qt/
 .vscode/
+.stagewarden_handoff.json
