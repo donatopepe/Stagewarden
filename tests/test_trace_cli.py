@@ -163,12 +163,23 @@ class TraceAndCliTests(unittest.TestCase):
             root = Path(tmp_dir)
             store = root / "secrets"
             original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
-            original_skip = os.environ.get("STAGEWARDEN_SKIP_BROWSER")
-            original_auto = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN")
             os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
-            os.environ["STAGEWARDEN_SKIP_BROWSER"] = "1"
-            os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = "openai-browser-token"
             try:
+                import stagewarden.main as main_module
+
+                original_run = main_module.OpenAIDeviceCodeFlow.run
+
+                def fake_run(self):  # noqa: ANN001
+                    from stagewarden.auth import AuthResult
+
+                    return AuthResult(
+                        True,
+                        "Device code login completed.",
+                        token="access-token-123",
+                        secret_payload='{"access_token":"access-token-123","refresh_token":"refresh-token-123"}',
+                    )
+
+                main_module.OpenAIDeviceCodeFlow.run = fake_run
                 config = AgentConfig(workspace_root=root, max_steps=1)
                 input_stream = StringIO("account login openai lavoro\naccounts\nexit\n")
                 output_stream = StringIO()
@@ -179,23 +190,17 @@ class TraceAndCliTests(unittest.TestCase):
 
                 loaded = SecretStore().load_token("openai", "lavoro")
             finally:
+                main_module.OpenAIDeviceCodeFlow.run = original_run
                 if original_store is None:
                     os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
                 else:
                     os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
-                if original_skip is None:
-                    os.environ.pop("STAGEWARDEN_SKIP_BROWSER", None)
-                else:
-                    os.environ["STAGEWARDEN_SKIP_BROWSER"] = original_skip
-                if original_auto is None:
-                    os.environ.pop("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN", None)
-                else:
-                    os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = original_auto
 
             self.assertEqual(code, 0)
             self.assertEqual((prefs.active_account_by_model or {}).get("openai"), "lavoro")
             self.assertTrue(loaded.ok, loaded.message)
-            self.assertEqual(loaded.secret, "openai-browser-token")
+            self.assertIn('"refresh_token":"refresh-token-123"', loaded.secret)
+            self.assertIn("Device code login completed.", rendered)
             self.assertIn("token=stored", rendered)
 
     def test_interactive_shell_logs_in_chatgpt_account_and_saves_session_token(self) -> None:
@@ -203,12 +208,23 @@ class TraceAndCliTests(unittest.TestCase):
             root = Path(tmp_dir)
             store = root / "secrets"
             original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
-            original_skip = os.environ.get("STAGEWARDEN_SKIP_BROWSER")
-            original_auto = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN")
             os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
-            os.environ["STAGEWARDEN_SKIP_BROWSER"] = "1"
-            os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = "chatgpt-session-token"
             try:
+                import stagewarden.main as main_module
+
+                original_run = main_module.OpenAIDeviceCodeFlow.run
+
+                def fake_run(self):  # noqa: ANN001
+                    from stagewarden.auth import AuthResult
+
+                    return AuthResult(
+                        True,
+                        "Device code login completed.",
+                        token="access-token-123",
+                        secret_payload='{"access_token":"access-token-123","refresh_token":"refresh-token-123","id_token":"id-token-123"}',
+                    )
+
+                main_module.OpenAIDeviceCodeFlow.run = fake_run
                 config = AgentConfig(workspace_root=root, max_steps=1)
                 input_stream = StringIO("account login chatgpt personale\naccounts\nexit\n")
                 output_stream = StringIO()
@@ -219,23 +235,17 @@ class TraceAndCliTests(unittest.TestCase):
 
                 loaded = SecretStore().load_token("chatgpt", "personale")
             finally:
+                main_module.OpenAIDeviceCodeFlow.run = original_run
                 if original_store is None:
                     os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
                 else:
                     os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
-                if original_skip is None:
-                    os.environ.pop("STAGEWARDEN_SKIP_BROWSER", None)
-                else:
-                    os.environ["STAGEWARDEN_SKIP_BROWSER"] = original_skip
-                if original_auto is None:
-                    os.environ.pop("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN", None)
-                else:
-                    os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = original_auto
 
             self.assertEqual(code, 0)
             self.assertEqual((prefs.active_account_by_model or {}).get("chatgpt"), "personale")
             self.assertTrue(loaded.ok, loaded.message)
-            self.assertEqual(loaded.secret, "chatgpt-session-token")
+            self.assertIn('"id_token":"id-token-123"', loaded.secret)
+            self.assertIn("Device code login completed.", rendered)
             self.assertIn("token=stored", rendered)
 
     def test_interactive_shell_logs_in_openai_account_with_device_code(self) -> None:
@@ -294,45 +304,17 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn('"refresh_token":"refresh-token-123"', loaded.secret)
             self.assertIn("Device code login completed.", rendered)
 
-    def test_interactive_shell_logs_in_claude_account_and_saves_session_token(self) -> None:
+    def test_interactive_shell_rejects_interactive_claude_login(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            store = root / "secrets"
-            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
-            original_skip = os.environ.get("STAGEWARDEN_SKIP_BROWSER")
-            original_auto = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN")
-            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
-            os.environ["STAGEWARDEN_SKIP_BROWSER"] = "1"
-            os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = "claude-session-token"
-            try:
-                config = AgentConfig(workspace_root=root, max_steps=1)
-                input_stream = StringIO("account login claude lavoro\naccounts\nexit\n")
-                output_stream = StringIO()
-                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
-                rendered = output_stream.getvalue()
-                prefs = ModelPreferences.load(root / ".stagewarden_models.json")
-                from stagewarden.secrets import SecretStore
-
-                loaded = SecretStore().load_token("claude", "lavoro")
-            finally:
-                if original_store is None:
-                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
-                else:
-                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
-                if original_skip is None:
-                    os.environ.pop("STAGEWARDEN_SKIP_BROWSER", None)
-                else:
-                    os.environ["STAGEWARDEN_SKIP_BROWSER"] = original_skip
-                if original_auto is None:
-                    os.environ.pop("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN", None)
-                else:
-                    os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = original_auto
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("account login claude lavoro\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
 
             self.assertEqual(code, 0)
-            self.assertEqual((prefs.active_account_by_model or {}).get("claude"), "lavoro")
-            self.assertTrue(loaded.ok, loaded.message)
-            self.assertEqual(loaded.secret, "claude-session-token")
-            self.assertIn("token=stored", rendered)
+            self.assertIn("Interactive login is not supported for model 'claude'.", rendered)
 
     def test_interactive_shell_supports_caveman_alias_help(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
