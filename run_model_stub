@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import re
+import sys
+
+
+def extract(prompt: str, field: str) -> str:
+    match = re.search(rf"^{re.escape(field)}=(.+)$", prompt, re.MULTILINE)
+    return match.group(1).strip() if match else ""
+
+
+def detect_target_file(text: str) -> str | None:
+    match = re.search(r"file named ([A-Za-z0-9._/\-]+)", text, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return None
+
+
+def main() -> int:
+    if len(sys.argv) < 3:
+        print(json.dumps({"error": "usage: run_model_stub <model> <prompt>"}))
+        return 1
+
+    _model = sys.argv[1]
+    prompt = sys.argv[2]
+    instruction = extract(prompt, "instruction").lower()
+    task_match = re.search(r"Task:\n(.+?)\n\nCurrent step:", prompt, re.DOTALL)
+    task = task_match.group(1).strip() if task_match else ""
+    previous = re.search(r"Previous observation:\n(.+?)\n\nRecent memory:", prompt, re.DOTALL)
+    previous_observation = previous.group(1).strip().lower() if previous else ""
+
+    action: dict[str, str]
+    if instruction.startswith("analyze") or instruction.startswith("inspect"):
+        action = {"type": "complete", "message": "Analisi completata."}
+    elif instruction.startswith("implement") or instruction.startswith("create") or instruction.startswith("build"):
+        target = detect_target_file(f"{instruction} {task}") or "stub_output.txt"
+        action = {
+            "type": "write_file",
+            "path": target,
+            "content": "created by run_model_stub\n",
+        }
+    elif instruction.startswith("validate"):
+        if "wrote file" in previous_observation or "patched file" in previous_observation:
+            action = {"type": "complete", "message": "Validazione completata."}
+        else:
+            action = {"type": "shell", "command": "pwd"}
+    else:
+        action = {"type": "complete", "message": "Passo completato."}
+
+    print(json.dumps({"summary": "stub response", "action": action}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

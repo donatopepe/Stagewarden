@@ -1,0 +1,127 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from agent_cli.config import AgentConfig
+from agent_cli.tools.files import FileTool
+from agent_cli.tools.shell import ShellTool
+from agent_cli.textcodec import detect_confusables
+
+
+class ToolTests(unittest.TestCase):
+    def test_file_tool_search_and_list(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "src").mkdir()
+            (root / "src" / "main.py").write_text("print('hello')\nname = 'x'\n")
+            (root / "README.md").write_text("hello\n")
+            tool = FileTool(AgentConfig(workspace_root=root))
+
+            listed = tool.list_files(pattern="*.py")
+            self.assertTrue(listed.ok)
+            self.assertIn("src/main.py", listed.content)
+
+            found = tool.search("hello", glob="*.md")
+            self.assertTrue(found.ok)
+            self.assertIn("README.md:1:hello", found.content)
+
+    def test_shell_tool_returns_preview_and_duration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))
+            result = tool.run("python3 -c \"print('ok')\"")
+            self.assertTrue(result.ok)
+            self.assertIn("exit_code=0", result.output_preview)
+            self.assertGreaterEqual(result.duration_ms, 0)
+
+    def test_shell_tool_persistent_session(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))
+            created = tool.create_session()
+            self.assertTrue(created.ok)
+            session_id = created.session_id
+
+            first = tool.send_session(session_id, "pwd")
+            self.assertTrue(first.ok)
+            self.assertIn("session_id=", first.output_preview)
+
+            second = tool.send_session(session_id, "python3 -c \"print('alive')\"")
+            self.assertTrue(second.ok)
+            self.assertIn("alive", second.stdout)
+
+            closed = tool.close_session(session_id)
+            self.assertTrue(closed.ok)
+
+    def test_file_tool_patch_files_add_update_delete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "keep.txt").write_text("before\n")
+            (root / "delete.txt").write_text("old\n")
+            tool = FileTool(AgentConfig(workspace_root=root))
+            diff = "\n".join(
+                [
+                    "--- a/keep.txt",
+                    "+++ b/keep.txt",
+                    "@@ -1,1 +1,1 @@",
+                    "-before",
+                    "+after",
+                    "--- /dev/null",
+                    "+++ b/new.txt",
+                    "@@ -0,0 +1,1 @@",
+                    "+created",
+                    "--- a/delete.txt",
+                    "+++ /dev/null",
+                    "@@ -1,1 +0,0 @@",
+                    "-old",
+                ]
+            )
+            result = tool.patch_files(diff)
+            self.assertTrue(result.ok)
+            self.assertEqual((root / "keep.txt").read_text(), "after\n")
+            self.assertEqual((root / "new.txt").read_text(), "created\n")
+            self.assertFalse((root / "delete.txt").exists())
+
+    def test_file_tool_writes_ascii_safe_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = FileTool(AgentConfig(workspace_root=root, strict_ascii_output=True))
+            result = tool.write("unicode.txt", "Màrio Привет 你好 Ω")
+            self.assertTrue(result.ok)
+            content = (root / "unicode.txt").read_text(encoding="utf-8")
+            self.assertEqual(content, r"M\xe0rio \u041f\u0440\u0438\u0432\u0435\u0442 \u4f60\u597d \u03a9")
+
+    def test_file_tool_can_allow_unicode_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = FileTool(AgentConfig(workspace_root=root, strict_ascii_output=False))
+            result = tool.write("unicode.data", "Màrio Привет 你好 Ω")
+            self.assertTrue(result.ok)
+            content = (root / "unicode.data").read_text(encoding="utf-8")
+            self.assertEqual(content, "Màrio Привет 你好 Ω")
+
+    def test_sensitive_file_forces_ascii_even_when_unicode_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = FileTool(AgentConfig(workspace_root=root, strict_ascii_output=False))
+            result = tool.write(".state.json", "Привет")
+            self.assertTrue(result.ok)
+            self.assertIn("sensitive_file_ascii_forced", result.warnings or [])
+            content = (root / ".state.json").read_text(encoding="utf-8")
+            self.assertEqual(content, r"\u041f\u0440\u0438\u0432\u0435\u0442")
+
+    def test_shell_output_is_ascii_safe_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir), strict_ascii_output=True))
+            result = tool.run("python3 -c \"print('Привет Ω')\"")
+            self.assertTrue(result.ok)
+            self.assertIn(r"\u041f\u0440\u0438\u0432\u0435\u0442", result.stdout)
+            self.assertIn(r"\u03a9", result.stdout)
+
+    def test_confusable_detection_warns_on_mixed_scripts(self) -> None:
+        warnings = detect_confusables("AΑ pр")
+        self.assertTrue(any(item.startswith("mixed_scripts:") for item in warnings))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-cli"
+version = "0.1.0"
+description = "Production-grade CLI coding agent with agent loop, routing, and handoff support."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Donato Pepe" }]
+license = "MIT"
+dependencies = []
+
+[project.scripts]
+agent-cli = "agent_cli.main:main"
+
+[tool.setuptools]
+include-package-data = true
+license-files = ["LICENSE"]
+
+[tool.setuptools.packages.find]
+include = ["agent_cli*"]
