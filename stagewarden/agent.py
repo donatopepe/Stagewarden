@@ -254,6 +254,12 @@ class Agent:
                     lesson_type="success" if outcome.step_completed else "observation",
                     lesson=outcome.observation,
                 )
+                if outcome.step_completed:
+                    self.project_handoff.close_issues_for_step(
+                        step_id=current.id,
+                        resolution="step completed with wet-run evidence",
+                    )
+                    self.project_handoff.clear_exception_plan_if_recovered()
             else:
                 severity = "high" if current.status == "failed" else "medium"
                 self.project_handoff.record_issue(
