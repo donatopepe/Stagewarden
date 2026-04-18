@@ -254,6 +254,9 @@ class Prince2AgentPolicy:
             "wrote file",
             "patched file",
             "patched files",
+            "exit_code=0",
+            "wet-run validation passed",
+            "stdout:",
         )
         if not any(marker in lowered for marker in strong_markers):
             reasons.append("Completion message does not clearly confirm the product outcome.")
