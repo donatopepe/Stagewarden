@@ -480,6 +480,21 @@ class ExecutorTests(unittest.TestCase):
                 observation="working tree clean",
                 git_head="abc123",
             )
+            project_handoff.record_issue(
+                step_id="step-1",
+                severity="medium",
+                summary="validation pending",
+            )
+            project_handoff.record_quality(
+                step_id="step-1",
+                status="passed",
+                evidence="working tree clean",
+            )
+            project_handoff.record_lesson(
+                step_id="step-1",
+                lesson_type="success",
+                lesson="git inspection should precede file edits",
+            )
             handoff = FakeHandoff(
                 [
                     {
@@ -507,6 +522,14 @@ class ExecutorTests(unittest.TestCase):
             prompt = handoff.calls[0]
             self.assertIn("Implicit project handoff context:", prompt)
             self.assertIn("Stage boundary view:", prompt)
+            self.assertIn("PRINCE2 registers:", prompt)
+            self.assertIn("Risks:", prompt)
+            self.assertIn("Issues:", prompt)
+            self.assertIn("Quality:", prompt)
+            self.assertIn("Lessons:", prompt)
+            self.assertIn("Exception plan:", prompt)
+            self.assertIn("validation pending", prompt)
+            self.assertIn("git inspection should precede file edits", prompt)
             self.assertIn("Recent handoff log:", prompt)
             self.assertIn("Recent execution log:", prompt)
             self.assertIn("working tree clean", prompt)

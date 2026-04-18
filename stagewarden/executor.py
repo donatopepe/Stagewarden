@@ -328,6 +328,11 @@ class Executor:
         memory_summary = self.memory.summarize()
         execution_log = self.memory.detailed_summary()
         handoff_log = self.project_handoff.detailed_summary()
+        risk_register = self.project_handoff.rendered_risks()
+        issue_register = self.project_handoff.rendered_issues()
+        quality_register = self.project_handoff.rendered_quality()
+        lessons_log = self.project_handoff.rendered_lessons()
+        exception_plan = self.project_handoff.rendered_exception_plan()
         return f"""{self.config.system_prompt}
 
 Task:
@@ -338,6 +343,22 @@ Implicit project handoff context:
 
 Stage boundary view:
 {self.project_handoff.rendered_stage_view()}
+
+PRINCE2 registers:
+Risks:
+{risk_register}
+
+Issues:
+{issue_register}
+
+Quality:
+{quality_register}
+
+Lessons:
+{lessons_log}
+
+Exception plan:
+{exception_plan}
 
 Recent handoff log:
 {handoff_log}
