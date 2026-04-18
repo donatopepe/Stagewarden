@@ -5,12 +5,26 @@ import unittest
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
+from stagewarden.tools.git import GitTool
 from stagewarden.tools.files import FileTool
 from stagewarden.tools.shell import ShellTool
 from stagewarden.textcodec import detect_confusables
 
 
 class ToolTests(unittest.TestCase):
+    def test_git_tool_initializes_repository_and_commits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = GitTool(AgentConfig(workspace_root=root))
+            ready = tool.ensure_ready()
+            self.assertTrue(ready.ok, ready.error)
+            self.assertTrue((root / ".git").exists())
+
+            (root / "hello.txt").write_text("hello\n", encoding="utf-8")
+            committed = tool.commit_if_changed("test: commit hello")
+            self.assertTrue(committed.ok, committed.error)
+            self.assertFalse(tool.has_changes())
+
     def test_file_tool_search_and_list(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

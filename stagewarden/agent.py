@@ -11,6 +11,7 @@ from .memory import MemoryStore
 from .planner import Planner, PlanStep
 from .prince2 import Prince2AgentPolicy
 from .router import ModelRouter
+from .tools.git import GitTool
 
 
 @dataclass(slots=True)
@@ -24,6 +25,8 @@ class Agent:
     def __init__(self, config: AgentConfig) -> None:
         self.config = config
         self.base_system_prompt = config.system_prompt
+        self.git = GitTool(config)
+        self._ensure_git_governance()
         self.memory = self._load_memory()
         self.caveman = CavemanManager()
         self.caveman_state = self.caveman.load_state(config)
@@ -112,7 +115,10 @@ class Agent:
                     plan_status=self._plan_status(plan),
                 )
                 self._save_trace()
+                git_result = self._git_snapshot("stagewarden: complete agent run")
                 message = self._format_summary(plan, success=True)
+                if git_result:
+                    message = f"{message}\n{git_result}"
                 if directive.active:
                     message = self.caveman.format_text(message, directive.level)
                 return AgentResult(True, iterations - 1, message)
@@ -181,6 +187,7 @@ class Agent:
                 plan_status=self._plan_status(plan),
             )
             self._save_memory()
+            self._git_snapshot(f"stagewarden: step {current.id} {current.status}")
 
         success = all(step.status == "completed" for step in plan)
         pid.status = "closed" if success else "exception"
@@ -197,7 +204,10 @@ class Agent:
             plan_status=self._plan_status(plan),
         )
         self._save_trace()
+        git_result = self._git_snapshot("stagewarden: finish agent run")
         message = self._format_summary(plan, success=success)
+        if git_result:
+            message = f"{message}\n{git_result}"
         if directive.active:
             message = self.caveman.format_text(message, directive.level)
         return AgentResult(success, iterations, message)
@@ -240,7 +250,9 @@ class Agent:
             if not directive.argument:
                 return AgentResult(False, 0, "Missing file path for caveman compress.")
             try:
-                return AgentResult(True, 0, self.caveman.compress_file(directive.argument, self.config))
+                message = self.caveman.compress_file(directive.argument, self.config)
+                git_message = self._git_snapshot("stagewarden: caveman compress")
+                return AgentResult(True, 0, f"{message}\n{git_message}" if git_message else message)
             except (OSError, ValueError) as exc:
                 return AgentResult(False, 0, str(exc))
         if directive.command == "commit":
@@ -317,6 +329,27 @@ class Agent:
             pid.save(self.config.prince2_pid_path)
         except OSError:
             pass
+
+    def _ensure_git_governance(self) -> None:
+        if not self.config.enforce_git:
+            return
+        ready = self.git.ensure_ready()
+        if not ready.ok:
+            raise RuntimeError(ready.error or "Git prerequisite failed.")
+        if self.config.auto_git_commit:
+            baseline = self.git.commit_if_changed("stagewarden: initialize workspace")
+            if not baseline.ok:
+                raise RuntimeError(baseline.error or "Git baseline commit failed.")
+
+    def _git_snapshot(self, message: str) -> str:
+        if not self.config.enforce_git or not self.config.auto_git_commit:
+            return ""
+        result = self.git.commit_if_changed(message)
+        if result.ok:
+            if "No changes" in result.stdout:
+                return ""
+            return f"Git snapshot: {result.stdout.splitlines()[-1] if result.stdout else message}"
+        return f"Git snapshot failed: {result.error}"
 
     def _trace(self, **record: object) -> None:
         self.trace_records.append(record)

@@ -24,6 +24,13 @@ Install locally:
 python3 -m pip install -e .
 ```
 
+Prerequisites:
+
+- Python 3.11+
+- Git installed and available in `PATH`
+
+Git is mandatory. Stagewarden initializes a repository automatically when needed and commits local snapshots of agent actions.
+
 Quick setup:
 
 macOS/Linux:

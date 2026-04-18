@@ -12,6 +12,7 @@ class SetupScriptTests(unittest.TestCase):
         script = ROOT / "scripts" / "setup_unix.sh"
         content = script.read_text(encoding="utf-8")
         self.assertTrue(script.exists())
+        self.assertIn("command -v git", content)
         self.assertIn("pip install --user -e", content)
         self.assertIn("Stagewarden installed.", content)
 
@@ -19,6 +20,7 @@ class SetupScriptTests(unittest.TestCase):
         script = ROOT / "scripts" / "setup_windows.ps1"
         content = script.read_text(encoding="utf-8")
         self.assertTrue(script.exists())
+        self.assertIn("Get-Command git", content)
         self.assertIn("pip install --user -e", content)
         self.assertIn("SetEnvironmentVariable", content)
 

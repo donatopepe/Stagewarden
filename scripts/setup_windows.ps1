@@ -1,6 +1,11 @@
 $ErrorActionPreference = "Stop"
 
 $ProjectDir = Resolve-Path (Join-Path $PSScriptRoot "..")
+
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    throw "git not found. Install Git for Windows before installing Stagewarden."
+}
+
 $Python = $env:PYTHON_BIN
 if (-not $Python) {
     $Python = "py"
