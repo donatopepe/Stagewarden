@@ -425,6 +425,14 @@ class ProjectHandoff:
             item["resolved_at"] = _utc_now()
             item["resolution"] = resolution[:240]
 
+    def close_all_open_issues(self, *, resolution: str) -> None:
+        for item in self.issue_register:
+            if str(item.get("status", "open")).strip().lower() == "closed":
+                continue
+            item["status"] = "closed"
+            item["resolved_at"] = _utc_now()
+            item["resolution"] = resolution[:240]
+
     def clear_exception_plan_if_recovered(self) -> None:
         if not self.exception_plan:
             return
