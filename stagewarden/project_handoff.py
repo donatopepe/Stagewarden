@@ -238,6 +238,63 @@ class ProjectHandoff:
             )
         return "\n".join(lines)
 
+    def stage_view(self) -> dict[str, object]:
+        status_by_step = self._parse_plan_status(self.plan_status)
+        closed_steps = [step_id for step_id, status in status_by_step.items() if status == "completed"]
+        active_step = None
+        if self.current_step_id and self.current_step_status in {"pending", "in_progress", "failed", "exception"}:
+            active_step = {
+                "id": self.current_step_id,
+                "title": self.current_step_title,
+                "status": self.current_step_status,
+                "latest_observation": self.latest_observation,
+            }
+        git_boundary = {
+            "baseline": self.git_head_baseline or "unknown",
+            "current": self.git_head or "unknown",
+        }
+        pid_boundary = {
+            "project_status": self.status or "unknown",
+            "plan_status": self.plan_status or "unknown",
+            "updated_at": self.updated_at,
+        }
+        return {
+            "closed_steps": closed_steps,
+            "active_step": active_step,
+            "git_boundary": git_boundary,
+            "pid_boundary": pid_boundary,
+        }
+
+    def rendered_stage_view(self) -> str:
+        view = self.stage_view()
+        closed_steps = view["closed_steps"]
+        active_step = view["active_step"]
+        git_boundary = view["git_boundary"]
+        pid_boundary = view["pid_boundary"]
+        lines = ["Stage view:"]
+        if closed_steps:
+            lines.append(f"- closed_stages: {', '.join(closed_steps)}")
+        else:
+            lines.append("- closed_stages: none")
+        if active_step:
+            lines.append(
+                f"- active_stage: {active_step['id']} [{active_step['status']}] "
+                f"{active_step['title'] or 'untitled'}"
+            )
+            observation = str(active_step.get("latest_observation", "")).strip()
+            if observation:
+                lines.append(f"- active_observation: {observation[:200]}")
+        else:
+            lines.append("- active_stage: none")
+        lines.append(
+            f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}"
+        )
+        lines.append(
+            f"- pid_boundary: project_status={pid_boundary['project_status']} "
+            f"plan_status={pid_boundary['plan_status']} updated_at={pid_boundary['updated_at']}"
+        )
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",
@@ -258,6 +315,18 @@ class ProjectHandoff:
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         write_text_utf8(path, dumps_ascii(self.as_dict(), indent=2))
+
+    def _parse_plan_status(self, value: str) -> dict[str, str]:
+        statuses: dict[str, str] = {}
+        for item in (value or "").split(","):
+            key, separator, status = item.partition(":")
+            if not separator:
+                continue
+            clean_key = key.strip()
+            clean_status = status.strip()
+            if clean_key and clean_status:
+                statuses[clean_key] = clean_status
+        return statuses
 
     @classmethod
     def load(cls, path: Path) -> "ProjectHandoff":
