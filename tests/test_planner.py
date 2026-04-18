@@ -60,6 +60,49 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(steps[1].id, "step-3")
         self.assertTrue(steps[1].title.startswith("Resume "))
 
+    def test_create_plan_includes_register_context_on_active_step(self) -> None:
+        planner = Planner()
+        handoff = ProjectHandoff(
+            task="inspect the repo and implement a fix and validate the result",
+            status="executing",
+            current_step_id="step-2",
+            current_step_title="2. Implement a fix",
+            current_step_status="in_progress",
+            latest_observation="found failing assertion in router tests",
+            plan_status="step-1:completed,step-2:in_progress,step-3:pending",
+            risk_register=[{"risk": "Regression from router patch", "status": "open"}],
+            issue_register=[{"summary": "validation pending", "status": "open"}],
+            quality_register=[{"status": "passed", "evidence": "router file updated"}],
+            lessons_log=[{"lesson": "inspect git state before patching"}],
+        )
+        steps = planner.create_plan(
+            "inspect the repo and implement a fix and validate the result",
+            project_handoff=handoff,
+        )
+        self.assertIn("open_risks=Regression from router patch", steps[1].instruction)
+        self.assertIn("open_issues=validation pending", steps[1].instruction)
+        self.assertIn("quality_baseline=passed:router file updated", steps[1].instruction)
+        self.assertIn("lesson=inspect git state before patching", steps[1].instruction)
+        self.assertIn("PRINCE2 register context", steps[1].validation)
+
+    def test_create_plan_includes_exception_plan_when_project_in_exception(self) -> None:
+        planner = Planner()
+        handoff = ProjectHandoff(
+            task="inspect the repo and implement a fix and validate the result",
+            status="exception",
+            current_step_id="step-2",
+            current_step_title="2. Implement a fix",
+            current_step_status="failed",
+            latest_observation="tests failed after patch",
+            plan_status="step-1:completed,step-2:failed,step-3:pending",
+            exception_plan=["review failing test output", "prepare corrective patch"],
+        )
+        steps = planner.create_plan(
+            "inspect the repo and implement a fix and validate the result",
+            project_handoff=handoff,
+        )
+        self.assertIn("exception_plan=review failing test output; prepare corrective patch", steps[1].instruction)
+
 
 if __name__ == "__main__":
     unittest.main()
