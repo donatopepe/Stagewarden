@@ -240,7 +240,7 @@ class ShellTool:
         return shutil.which("pwsh") or shutil.which("powershell") or shutil.which("cmd") or "powershell"
 
     def _resolve_cwd(self, cwd: str | None) -> Path:
-        return Path(cwd).resolve() if cwd else self.config.workspace_root_resolved
+        return self.config.resolve_path(cwd) if cwd else self.config.workspace_root_resolved
 
     def _read_until_marker(self, process: subprocess.Popen[bytes], marker: str, timeout_seconds: int) -> str:
         assert process.stdout is not None

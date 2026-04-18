@@ -76,6 +76,22 @@ class ToolTests(unittest.TestCase):
             self.assertIn("exit_code=0", result.output_preview)
             self.assertGreaterEqual(result.duration_ms, 0)
 
+    def test_shell_tool_resolves_relative_cwd_inside_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "sub").mkdir()
+            tool = ShellTool(AgentConfig(workspace_root=root))
+            result = tool.run("pwd", cwd="sub")
+            self.assertTrue(result.ok, result.error)
+            self.assertEqual(Path(result.stdout).resolve(), (root / "sub").resolve())
+
+    def test_shell_tool_rejects_cwd_outside_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))
+            result = tool.run("pwd", cwd="..")
+            self.assertFalse(result.ok)
+            self.assertIn("outside the workspace", result.error)
+
     def test_shell_tool_builds_windows_command_args(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))

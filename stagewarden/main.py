@@ -316,6 +316,19 @@ def _handle_git_command(command: str, config: AgentConfig) -> str | None:
 def _parse_limit(raw: str, *, default: int) -> int:
     if not raw:
         return default
+
+
+def _default_ljson_encode_path(source: Path, *, gzip_enabled: bool) -> Path:
+    if gzip_enabled:
+        return source.with_suffix(".ljson.gz")
+    return source.with_suffix(".ljson")
+
+
+def _default_ljson_decode_path(source: Path) -> Path:
+    if source.suffix == ".gz":
+        without_gzip = source.with_suffix("")
+        return without_gzip.with_suffix(".json")
+    return source.with_suffix(".json")
     try:
         return max(1, min(int(raw), 200))
     except ValueError:
@@ -415,10 +428,11 @@ def main() -> int:
     )
 
     if args.ljson_encode:
-        records = loads_text(read_text_utf8(Path(args.ljson_encode)))
+        source = Path(args.ljson_encode)
+        records = loads_text(read_text_utf8(source))
         if not isinstance(records, list):
             raise SystemExit("Input for --ljson-encode must be a JSON array.")
-        target = Path(args.ljson_output) if args.ljson_output else Path(args.ljson_encode).with_suffix(".ljson")
+        target = Path(args.ljson_output) if args.ljson_output else _default_ljson_encode_path(source, gzip_enabled=args.ljson_gzip)
         dump_file(
             target,
             records,
@@ -429,8 +443,9 @@ def main() -> int:
         return 0
 
     if args.ljson_decode:
-        records = load_file(args.ljson_decode, gzipped=args.ljson_gzip or str(args.ljson_decode).endswith(".gz"))
-        target = Path(args.ljson_output) if args.ljson_output else Path(args.ljson_decode).with_suffix(".json")
+        source = Path(args.ljson_decode)
+        records = load_file(source, gzipped=args.ljson_gzip or str(source).endswith(".gz"))
+        target = Path(args.ljson_output) if args.ljson_output else _default_ljson_decode_path(source)
         write_text_utf8(target, dumps_ascii(records, indent=2))
         print(str(target))
         return 0
