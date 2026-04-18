@@ -12,6 +12,7 @@ from .handoff import MODEL_BACKENDS
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
+from .tools.git import GitTool
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -81,6 +82,18 @@ def interactive_help_text() -> str:
             "- caveman help | caveman on [level] | caveman off",
             "- caveman commit | caveman review | caveman compress <file>",
             "",
+            "Git commands:",
+            "- git status",
+            "  Show branch and working-tree changes.",
+            "- git log [limit]",
+            "  Show recent commits, default 20.",
+            "- git history <path> [limit]",
+            "  Show commit history for one file or directory.",
+            "- git show [revision]",
+            "  Show a revision, default HEAD.",
+            "- git show --stat [revision]",
+            "  Show revision summary with file stats.",
+            "",
             "Task execution:",
             "- Any other input is executed as a task in the current workspace.",
             "",
@@ -95,6 +108,10 @@ def interactive_help_text() -> str:
             "- stagewarden> mode normal",
             "- stagewarden> caveman on ultra",
             "- stagewarden> /caveman review",
+            "- stagewarden> git status",
+            "- stagewarden> git log 5",
+            "- stagewarden> git history stagewarden/main.py 10",
+            "- stagewarden> git show --stat HEAD",
             "- stagewarden> fix failing tests in router.py",
         ]
     )
@@ -269,6 +286,42 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     return "Usage: mode caveman <level> | mode normal"
 
 
+def _handle_git_command(command: str, config: AgentConfig) -> str | None:
+    parts = command.split()
+    if not parts or parts[0] != "git":
+        return None
+    tool = GitTool(config)
+    if len(parts) == 2 and parts[1] == "status":
+        result = tool.status()
+        return result.stdout or result.error or "Clean working tree."
+    if len(parts) in {2, 3} and parts[1] == "log":
+        limit = _parse_limit(parts[2] if len(parts) == 3 else "", default=20)
+        result = tool.log(limit=limit)
+        return result.stdout or result.error or "No git history."
+    if parts[1] == "history":
+        if len(parts) not in {3, 4}:
+            return "Usage: git history <path> [limit]"
+        limit = _parse_limit(parts[3] if len(parts) == 4 else "", default=20)
+        result = tool.file_history(parts[2], limit=limit)
+        return result.stdout or result.error or "No file history."
+    if parts[1] == "show":
+        stat = "--stat" in parts[2:]
+        revision_parts = [item for item in parts[2:] if item != "--stat"]
+        revision = revision_parts[0] if revision_parts else "HEAD"
+        result = tool.show(revision=revision, stat=stat)
+        return result.stdout or result.error or "No revision details."
+    return "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]"
+
+
+def _parse_limit(raw: str, *, default: int) -> int:
+    if not raw:
+        return default
+    try:
+        return max(1, min(int(raw), 200))
+    except ValueError:
+        return default
+
+
 def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
     lowered = command.lower().strip()
     if lowered in {"help", "commands"}:
@@ -339,6 +392,11 @@ def run_interactive_shell(
         mode_message = _handle_mode_command(command, agent, config)
         if mode_message is not None:
             sink.write(f"{mode_message}\n")
+            sink.flush()
+            continue
+        git_message = _handle_git_command(command, config)
+        if git_message is not None:
+            sink.write(f"{git_message}\n")
             sink.flush()
             continue
 

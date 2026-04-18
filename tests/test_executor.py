@@ -12,6 +12,7 @@ from stagewarden.memory import MemoryStore
 from stagewarden.modelprefs import ModelPreferences, extract_blocked_until
 from stagewarden.planner import PlanStep
 from stagewarden.router import ModelRouter
+from stagewarden.tools.git import GitTool
 
 
 class FakeHandoff:
@@ -186,6 +187,36 @@ class ExecutorTests(unittest.TestCase):
             outcome = executor.execute_step(task="list python files", step=step, plan=[step], iteration=1, last_observation="none")
             self.assertTrue(outcome.ok)
             self.assertIn("b.py", outcome.observation)
+
+    def test_executor_can_query_git_history(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            git = GitTool(config)
+            self.assertTrue(git.ensure_ready().ok)
+            (root / "tracked.txt").write_text("tracked\n")
+            self.assertTrue(git.commit_if_changed("test: tracked").ok)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {"summary": "inspect git history", "action": {"type": "git_file_history", "path": "tracked.txt", "limit": 5}}
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="History", instruction="inspect git history", validation="history exists")
+            outcome = executor.execute_step(task="inspect history", step=step, plan=[step], iteration=1, last_observation="none")
+            self.assertTrue(outcome.ok)
+            self.assertIn("test: tracked", outcome.observation)
 
     def test_executor_can_patch_multiple_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

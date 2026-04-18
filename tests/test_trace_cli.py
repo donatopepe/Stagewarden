@@ -47,6 +47,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Examples:", rendered)
             self.assertIn("model use <local|cheap|gpt|claude>", rendered)
             self.assertIn("model block <local|cheap|gpt|claude> until YYYY-MM-DDTHH:MM", rendered)
+            self.assertIn("Git commands:", rendered)
+            self.assertIn("git history <path> [limit]", rendered)
             self.assertIn("Model configuration:", rendered)
             self.assertIn("Session closed.", rendered)
 
@@ -132,6 +134,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("mode: caveman ultra", rendered)
             self.assertIn("Caveman mode disabled.", rendered)
             self.assertFalse((root / ".stagewarden_caveman.json").exists())
+
+    def test_interactive_shell_can_query_git_history(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            agent = Agent(config)
+            (root / "tracked.txt").write_text("tracked\n")
+            self.assertTrue(agent.git.commit_if_changed("test: tracked").ok)
+
+            input_stream = StringIO("git status\ngit log 5\ngit history tracked.txt 5\ngit show --stat HEAD\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("test: tracked", rendered)
+            self.assertIn("tracked.txt", rendered)
+            self.assertIn("Session closed.", rendered)
 
 
 if __name__ == "__main__":

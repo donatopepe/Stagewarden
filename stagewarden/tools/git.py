@@ -72,8 +72,37 @@ class GitTool:
     def diff(self, *, staged: bool = False) -> GitResult:
         return self._run(["git", "diff", "--cached"] if staged else ["git", "diff"])
 
+    def status(self) -> GitResult:
+        return self._run(["git", "status", "--short", "--branch"])
+
     def status_porcelain(self) -> GitResult:
         return self._run(["git", "status", "--porcelain"])
+
+    def log(self, *, limit: int = 20, path: str | None = None) -> GitResult:
+        safe_limit = self._safe_limit(limit)
+        command = [
+            "git",
+            "log",
+            "--oneline",
+            "--decorate",
+            f"--max-count={safe_limit}",
+        ]
+        if path:
+            command.extend(["--", path])
+        return self._run(command)
+
+    def show(self, *, revision: str = "HEAD", stat: bool = False) -> GitResult:
+        rev = revision.strip() or "HEAD"
+        command = ["git", "show", "--no-ext-diff"]
+        if stat:
+            command.append("--stat")
+        command.append(rev)
+        return self._run(command)
+
+    def file_history(self, path: str, *, limit: int = 20) -> GitResult:
+        if not path.strip():
+            return GitResult(False, error="Path is required for git file history.")
+        return self.log(limit=limit, path=path)
 
     def has_changes(self) -> bool:
         result = self.status_porcelain()
@@ -101,6 +130,9 @@ class GitTool:
         if not self.has_changes():
             return GitResult(True, stdout="No changes to commit.")
         return self.commit(message)
+
+    def _safe_limit(self, limit: int) -> int:
+        return max(1, min(int(limit), 200))
 
     def _run(self, command: list[str], *, cwd: str | None = None) -> GitResult:
         try:
