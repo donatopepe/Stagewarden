@@ -326,6 +326,7 @@ class Executor:
             for item in plan
         )
         memory_summary = self.memory.summarize()
+        execution_log = self.memory.detailed_summary()
         handoff_log = self.project_handoff.detailed_summary()
         return f"""{self.config.system_prompt}
 
@@ -337,6 +338,9 @@ Implicit project handoff context:
 
 Recent handoff log:
 {handoff_log}
+
+Recent execution log:
+{execution_log}
 
 Current step:
 id={step.id}
