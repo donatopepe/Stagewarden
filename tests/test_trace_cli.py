@@ -82,8 +82,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Model commands:", rendered)
             self.assertIn("Caveman commands:", rendered)
             self.assertIn("Examples:", rendered)
-            self.assertIn("model use <local|cheap|gpt|claude>", rendered)
-            self.assertIn("model block <local|cheap|gpt|claude> until YYYY-MM-DDTHH:MM", rendered)
+            self.assertIn("model use <local|cheap|chatgpt|gpt|claude>", rendered)
+            self.assertIn("model block <local|cheap|chatgpt|gpt|claude> until YYYY-MM-DDTHH:MM", rendered)
             self.assertIn("Git commands:", rendered)
             self.assertIn("git history <path> [limit]", rendered)
             self.assertIn("Model configuration:", rendered)
@@ -190,6 +190,41 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(loaded.ok, loaded.message)
             self.assertEqual(loaded.secret, "secret-token")
             self.assertIn("Browser skipped.", rendered)
+            self.assertIn("token=stored", rendered)
+
+    def test_interactive_shell_logs_in_chatgpt_account_and_saves_session_token(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            store = root / "secrets"
+            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            original_skip = os.environ.get("STAGEWARDEN_SKIP_BROWSER")
+            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
+            os.environ["STAGEWARDEN_SKIP_BROWSER"] = "1"
+            try:
+                config = AgentConfig(workspace_root=root, max_steps=1)
+                input_stream = StringIO("account login chatgpt personale\nchatgpt-session-token\naccounts\nexit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+                rendered = output_stream.getvalue()
+                prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+                from stagewarden.secrets import SecretStore
+
+                loaded = SecretStore().load_token("chatgpt", "personale")
+            finally:
+                if original_store is None:
+                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
+                else:
+                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
+                if original_skip is None:
+                    os.environ.pop("STAGEWARDEN_SKIP_BROWSER", None)
+                else:
+                    os.environ["STAGEWARDEN_SKIP_BROWSER"] = original_skip
+
+            self.assertEqual(code, 0)
+            self.assertEqual((prefs.active_account_by_model or {}).get("chatgpt"), "personale")
+            self.assertTrue(loaded.ok, loaded.message)
+            self.assertEqual(loaded.secret, "chatgpt-session-token")
+            self.assertIn("Paste ChatGPT token for chatgpt:personale:", rendered)
             self.assertIn("token=stored", rendered)
 
     def test_interactive_shell_supports_caveman_alias_help(self) -> None:

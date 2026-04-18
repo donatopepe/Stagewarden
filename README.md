@@ -109,9 +109,9 @@ stagewarden> quit
 Model control:
 
 - `models` shows enabled, active, preferred, blocked, and backend state.
-- `model use <local|cheap|gpt|claude>` pins a preferred model.
-- `model add <local|cheap|gpt|claude>` enables a model.
-- `model remove <local|cheap|gpt|claude>` disables a model.
+- `model use <local|cheap|chatgpt|gpt|claude>` pins a preferred model.
+- `model add <local|cheap|chatgpt|gpt|claude>` enables a model.
+- `model remove <local|cheap|chatgpt|gpt|claude>` disables a model.
 - `model block <model> until YYYY-MM-DDTHH:MM` blocks a model until a date and time.
 - `model unblock <model>` removes a temporary block.
 - `model clear` restores automatic routing.
@@ -123,6 +123,7 @@ Account profiles:
 Stagewarden can keep multiple account profiles for the same provider. Secrets are not stored in the repository or model config; profiles store only the environment variable name that already contains the token.
 
 ```text
+stagewarden> account login chatgpt personale
 stagewarden> account add gpt lavoro OPENAI_API_KEY_WORK
 stagewarden> account add gpt personale OPENAI_API_KEY_PERSONAL
 stagewarden> account login gpt lavoro
@@ -134,12 +135,17 @@ stagewarden> accounts
 
 Runtime behavior:
 
+- `chatgpt` is a provider distinct from `gpt`.
+- `chatgpt` expects a ChatGPT session token and maps it to `CHATGPT_TOKEN` for the backend subprocess.
 - Stagewarden calls `RUN_MODEL: gpt:lavoro <prompt>` internally.
+- For ChatGPT plan access it calls `RUN_MODEL: chatgpt:personale <prompt>` internally.
 - The external `run_model` command still receives `run_model gpt "<prompt>"`.
+- For ChatGPT plan access the external command receives `run_model chatgpt "<prompt>"`.
 - Stagewarden sets `STAGEWARDEN_MODEL_ACCOUNT=lavoro` and `STAGEWARDEN_MODEL_TARGET=gpt:lavoro`.
 - If `OPENAI_API_KEY_WORK` exists, Stagewarden maps it to `OPENAI_API_KEY` only for that subprocess.
 - `account login <model> <profile>` opens the provider key page, asks for the token, and saves it in macOS Keychain when available.
 - If no environment variable mapping exists, Stagewarden loads the saved profile token and maps it to the provider env var only for the subprocess.
+- For `chatgpt`, `account login chatgpt <profile>` opens ChatGPT and stores the ChatGPT token/session string for that profile.
 - If one account reports a usage limit, Stagewarden blocks that account until the reported time and retries another account for the same model before falling back to another model.
 
 Git history commands:
