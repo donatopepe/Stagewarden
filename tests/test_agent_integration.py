@@ -14,15 +14,64 @@ from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 
 
+def write_success_stub(root: Path) -> Path:
+    path = root / "run_model_success_stub.py"
+    path.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "from __future__ import annotations",
+                "import json",
+                "import re",
+                "import sys",
+                "",
+                "def extract(prompt: str, field: str) -> str:",
+                '    match = re.search(rf"^{re.escape(field)}=(.+)$", prompt, re.MULTILINE)',
+                "    return match.group(1).strip() if match else ''",
+                "",
+                "def detect_target_file(text: str) -> str | None:",
+                '    match = re.search(r"file named ([A-Za-z0-9._/\\\\-]+)", text, re.IGNORECASE)',
+                "    return match.group(1) if match else None",
+                "",
+                "def main() -> int:",
+                "    if len(sys.argv) < 3:",
+                "        print(json.dumps({'error': 'usage: stub <model> <prompt>'}))",
+                "        return 1",
+                "    prompt = sys.argv[2]",
+                "    instruction = extract(prompt, 'instruction').lower()",
+                "    task_match = re.search(r'Task:\\n(.+?)\\n\\nImplicit project handoff context:', prompt, re.DOTALL)",
+                "    task = task_match.group(1).strip() if task_match else ''",
+                "    if instruction.startswith('analyze') or instruction.startswith('inspect') or instruction.startswith('resume 1.') or instruction.startswith('resume 3.'):",
+                "        action = {'type': 'complete', 'message': 'analysis validated exit_code=0'}",
+                "    elif 'implement' in instruction or 'create' in instruction or 'build' in instruction or instruction.startswith('resume 2.'):",
+                "        target = detect_target_file(f'{instruction} {task}') or 'stub_output.txt'",
+                "        action = {'type': 'write_file', 'path': target, 'content': 'created by test stub\\n'}",
+                "    else:",
+                "        action = {'type': 'complete', 'message': 'validation completed exit_code=0'}",
+                "    print(json.dumps({'summary': 'stub response', 'action': action}))",
+                "    return 0",
+                "",
+                "if __name__ == '__main__':",
+                "    raise SystemExit(main())",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
 class AgentIntegrationTests(unittest.TestCase):
     def test_agent_completes_task_with_stub_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_success_stub(root)
             original = os.environ.get("RUN_MODEL_BIN")
-            os.environ["RUN_MODEL_BIN"] = "/Users/donato/run_model_stub"
+            os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
                 agent = Agent(
                     AgentConfig(
-                        workspace_root=Path(tmp_dir),
+                        workspace_root=root,
                         max_steps=10,
                         verbose=False,
                     )
@@ -35,12 +84,12 @@ class AgentIntegrationTests(unittest.TestCase):
                     os.environ["RUN_MODEL_BIN"] = original
 
             self.assertTrue(result.ok)
-            self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
-            self.assertTrue((Path(tmp_dir) / ".git").exists())
+            self.assertTrue((root / "hello.txt").exists())
+            self.assertTrue((root / ".git").exists())
             self.assertIn("Stage boundary:", result.message)
             self.assertIn("boundary_decision:", result.message)
             log = subprocess.run(
-                ["git", "-C", tmp_dir, "log", "--oneline"],
+                ["git", "-C", str(root), "log", "--oneline"],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -74,6 +123,7 @@ class AgentIntegrationTests(unittest.TestCase):
     def test_agent_verbose_output_shows_handoff_runtime_details(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            stub = write_success_stub(root)
             prefs = ModelPreferences.default()
             prefs.enabled_models = ["openai", "local"]
             prefs.preferred_model = "openai"
@@ -83,7 +133,7 @@ class AgentIntegrationTests(unittest.TestCase):
 
             original = os.environ.get("RUN_MODEL_BIN")
             original_key = os.environ.get("OPENAI_API_KEY_WORK")
-            os.environ["RUN_MODEL_BIN"] = "/Users/donato/run_model_stub"
+            os.environ["RUN_MODEL_BIN"] = str(stub)
             os.environ["OPENAI_API_KEY_WORK"] = "work-token"
             try:
                 output = StringIO()
