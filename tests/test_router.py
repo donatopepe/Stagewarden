@@ -29,6 +29,16 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(router.fallback_for_api_failure("chatgpt"), "cheap")
         self.assertEqual(router.fallback_for_api_failure("openai"), "chatgpt")
 
+    def test_router_chooses_provider_specific_variants(self) -> None:
+        router = ModelRouter()
+        self.assertEqual(router.choose_variant("claude", "list files", "inspect workspace"), "haiku")
+        self.assertEqual(router.choose_variant("claude", "debug a complex traceback in production", "implement fix"), "opus")
+        self.assertEqual(router.choose_variant("claude", "design architecture roadmap", "planner stage"), "opusplan")
+        self.assertEqual(router.choose_variant("openai", "list files", "inspect workspace"), "gpt-5.4-mini")
+        self.assertEqual(router.choose_variant("openai", "debug a complex traceback in production", "implement fix"), "gpt-5.4")
+        self.assertEqual(router.choose_variant("chatgpt", "list files", "inspect workspace"), "codex-mini-latest")
+        self.assertEqual(router.choose_variant("chatgpt", "debug a complex traceback in production", "implement fix"), "gpt-5.3-codex")
+
 
 if __name__ == "__main__":
     unittest.main()

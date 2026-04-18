@@ -113,6 +113,30 @@ class ModelRouter:
             return self._best_available("local")
         return self._best_available("local")
 
+    def choose_variant(self, model: str, task: str, step_text: str, failure_count: int = 0) -> str | None:
+        profile = self._task_profile(task, step_text)
+        if model == "claude":
+            if profile["planning"]:
+                return "opusplan"
+            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
+                return "opus"
+            if profile["complexity"] <= 1 and not profile["risky"]:
+                return "haiku"
+            return "sonnet"
+        if model == "openai":
+            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
+                return "gpt-5.4"
+            if profile["complexity"] <= 1 and not profile["risky"]:
+                return "gpt-5.4-mini"
+            return "gpt-5.2-codex"
+        if model == "chatgpt":
+            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
+                return "gpt-5.3-codex"
+            if profile["complexity"] <= 1 and not profile["risky"]:
+                return "codex-mini-latest"
+            return "gpt-5.1-codex-mini"
+        return None
+
     def _best_available(self, preferred: str) -> str:
         active_models = self._active_models()
         if preferred in active_models:
@@ -129,6 +153,31 @@ class ModelRouter:
             if candidate in active_models:
                 return candidate
         return next(iter(active_models), self.ORDER[0])
+
+    def _task_profile(self, task: str, step_text: str) -> dict[str, object]:
+        text = f"{task} {step_text}".lower()
+        debug_tokens = ("debug", "failure", "bug", "traceback", "regression")
+        complex_tokens = ("refactor", "complex", "architecture", "handoff", "planner", "executor")
+        risky_tokens = ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")
+        planning_tokens = ("plan", "planner", "design", "architecture", "roadmap")
+
+        complexity = 0
+        if len(text.split()) > 35:
+            complexity += 1
+        if any(token in text for token in debug_tokens):
+            complexity += 2
+        if any(token in text for token in complex_tokens):
+            complexity += 1
+        if any(token in text for token in ("test", "implement", "modify", "handoff", "router", "planner")):
+            complexity += 1
+
+        return {
+            "text": text,
+            "complexity": complexity,
+            "debug": any(token in text for token in debug_tokens),
+            "risky": any(token in text for token in risky_tokens),
+            "planning": any(token in text for token in planning_tokens),
+        }
 
     def _active_models(self) -> set[str]:
         now = datetime.now()

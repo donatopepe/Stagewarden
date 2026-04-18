@@ -60,10 +60,24 @@ class Executor:
         model = self.router.choose_model(task, step.instruction, failure_count)
         prompt = self._build_prompt(task=task, step=step, plan=plan, last_observation=last_observation)
 
-        self._configure_handoff_accounts()
+        prefs = self._configure_handoff_accounts()
+        self._configure_handoff_variant(
+            prefs=prefs,
+            model=model,
+            task=task,
+            step_text=step.instruction,
+            failure_count=failure_count,
+        )
         account = self._select_account(model)
         if self._accounts_configured(model) and account is None:
             model = self.router.fallback_for_api_failure(model)
+            self._configure_handoff_variant(
+                prefs=prefs,
+                model=model,
+                task=task,
+                step_text=step.instruction,
+                failure_count=failure_count,
+            )
             account = self._select_account(model)
         result = self.handoff.execute(format_run_model(model, prompt, account=account))
         if not result.ok:
@@ -79,6 +93,13 @@ class Executor:
                     result = alternate
             if not result.ok:
                 fallback_model = self.router.fallback_for_api_failure(model)
+                self._configure_handoff_variant(
+                    prefs=prefs,
+                    model=fallback_model,
+                    task=task,
+                    step_text=step.instruction,
+                    failure_count=failure_count + 1,
+                )
                 fallback_account = self._select_account(fallback_model)
                 fallback = self.handoff.execute(format_run_model(fallback_model, prompt, account=fallback_account))
                 if not fallback.ok:
@@ -192,13 +213,33 @@ class Executor:
             prince2_assessment=prince2_assessment,
         )
 
-    def _configure_handoff_accounts(self) -> None:
+    def _configure_handoff_accounts(self) -> ModelPreferences:
         try:
             prefs = ModelPreferences.load(self.config.model_prefs_path)
         except OSError:
-            return
+            prefs = ModelPreferences.default()
         self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
         self.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
+        return prefs
+
+    def _configure_handoff_variant(
+        self,
+        *,
+        prefs: ModelPreferences,
+        model: str,
+        task: str,
+        step_text: str,
+        failure_count: int,
+    ) -> None:
+        pinned = prefs.variant_for_model(model)
+        if pinned:
+            self.handoff.model_variant_by_model[model] = pinned
+            return
+        auto_variant = self.router.choose_variant(model, task, step_text, failure_count)
+        if auto_variant:
+            self.handoff.model_variant_by_model[model] = auto_variant
+        else:
+            self.handoff.model_variant_by_model.pop(model, None)
 
     def _select_account(self, model: str) -> str | None:
         try:

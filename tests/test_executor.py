@@ -19,6 +19,8 @@ class FakeHandoff:
     def __init__(self, outputs: list[dict[str, object]]) -> None:
         self.outputs = outputs
         self.calls: list[str] = []
+        self.model_variant_by_model: dict[str, str] = {}
+        self.account_env_by_target: dict[str, str] = {}
 
     def execute(self, command: str):  # noqa: ANN001
         self.calls.append(command)
@@ -383,6 +385,65 @@ class ExecutorTests(unittest.TestCase):
             self.assertFalse(outcome.ok)
             self.assertFalse(outcome.step_completed)
             self.assertEqual(outcome.error_type, "wet_run_required")
+
+    def test_executor_sets_automatic_provider_variant_when_not_pinned(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "claude",
+                        "backend": "claude/sonnet",
+                        "prompt": "x",
+                        "command": "run_model claude x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    }
+                ]
+            )
+            router = ModelRouter()
+            router.configure(enabled_models=["claude"], preferred_model="claude")
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback in production", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual(handoff.model_variant_by_model.get("claude"), "opus")
+
+    def test_executor_keeps_pinned_provider_variant(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["claude"]
+            prefs.preferred_model = "claude"
+            prefs.set_variant("claude", "sonnet")
+            prefs.save(root / ".stagewarden_models.json")
+
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "claude",
+                        "backend": "claude/sonnet",
+                        "prompt": "x",
+                        "command": "run_model claude x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    }
+                ]
+            )
+            router = ModelRouter()
+            router.configure(enabled_models=["claude"], preferred_model="claude")
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback in production", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual(handoff.model_variant_by_model.get("claude"), "sonnet")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import subprocess
 from dataclasses import dataclass
@@ -144,14 +145,14 @@ def canonicalize_model_variant(model: str, variant: str) -> str:
     if clean in available_model_variants(model):
         return clean
     if model in {"openai", "chatgpt"}:
-        if not shlex.quote(clean) or not all(ch.isalnum() or ch in "._:-" for ch in clean):
+        if not re.fullmatch(r"[A-Za-z0-9._:-]+", clean):
             raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
         return clean
     if model == "claude":
-        if not all(ch.isalnum() or ch in "._:-[]@" for ch in clean):
+        if not re.fullmatch(r"[A-Za-z0-9._:@\-\[\]]+", clean):
             raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
         return clean
-    if not all(ch.isalnum() or ch in "._:-/[]@" for ch in clean):
+    if not re.fullmatch(r"[A-Za-z0-9._:@/\-\[\]]+", clean):
         raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
     return clean
 
