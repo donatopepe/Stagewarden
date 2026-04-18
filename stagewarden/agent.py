@@ -132,12 +132,9 @@ class Agent:
             if current is None:
                 success = all(step.status == "completed" for step in plan)
                 if success:
-                    for step in plan:
-                        if step.status == "completed":
-                            self.project_handoff.close_issues_for_step(
-                                step_id=step.id,
-                                resolution="project closed with controlled completion",
-                            )
+                    self.project_handoff.close_all_open_issues(
+                        resolution="project closed with controlled completion",
+                    )
                     self.project_handoff.clear_exception_plan_if_recovered()
                 pid.status = "closed" if success else "exception"
                 pid.outcome = "All planned stages completed." if success else "Run stopped before controlled closure."
