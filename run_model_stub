@@ -33,7 +33,7 @@ def main() -> int:
 
     action: dict[str, str]
     if instruction.startswith("analyze") or instruction.startswith("inspect"):
-        action = {"type": "complete", "message": "Analisi completata."}
+        action = {"type": "shell", "command": "pwd"}
     elif instruction.startswith("implement") or instruction.startswith("create") or instruction.startswith("build"):
         target = detect_target_file(f"{instruction} {task}") or "stub_output.txt"
         action = {
@@ -43,11 +43,11 @@ def main() -> int:
         }
     elif instruction.startswith("validate"):
         if "wrote file" in previous_observation or "patched file" in previous_observation:
-            action = {"type": "complete", "message": "Validazione completata."}
+            action = {"type": "shell", "command": "python3 -c \"from pathlib import Path; assert any(Path('.').iterdir()); print('wet-run validation passed')\""}
         else:
             action = {"type": "shell", "command": "pwd"}
     else:
-        action = {"type": "complete", "message": "Passo completato."}
+        action = {"type": "shell", "command": "pwd"}
 
     print(json.dumps({"summary": "stub response", "action": action}))
     return 0
