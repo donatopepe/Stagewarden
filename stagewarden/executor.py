@@ -25,6 +25,10 @@ class StepOutcome:
     model: str
     action_type: str
     observation: str
+    account: str | None = None
+    variant: str | None = None
+    git_head_before: str | None = None
+    git_head_after: str | None = None
     error_type: str | None = None
     prince2_assessment: dict[str, Any] | None = None
 
@@ -61,6 +65,7 @@ class Executor:
     ) -> StepOutcome:
         failure_count = self.memory.failure_count(step.id)
         model = self.router.choose_model(task, step.instruction, failure_count)
+        git_head_before = self._git_head()
         prompt = self._build_prompt(task=task, step=step, plan=plan, last_observation=last_observation)
 
         prefs = self._configure_handoff_accounts()
@@ -123,11 +128,16 @@ class Executor:
                         model=fallback_model,
                         action_type="model_error",
                         observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        git_head_before=git_head_before,
+                        git_head_after=self._git_head(),
                         error_type="api_failure",
                         prince2_assessment=None,
                     )
                 result = fallback
                 model = fallback_model
+                account = fallback_account
 
         parsed = self._parse_model_json(result.output)
         if not parsed["ok"]:
@@ -147,6 +157,10 @@ class Executor:
                 model=model,
                 action_type="invalid_output",
                 observation=parsed["error"],
+                account=account,
+                variant=self.handoff.model_variant_by_model.get(model),
+                git_head_before=git_head_before,
+                git_head_after=self._git_head(),
                 error_type="invalid_output",
                 prince2_assessment=None,
             )
@@ -202,6 +216,10 @@ class Executor:
                 model=escalated_model,
                 action_type=action_type,
                 observation=observation["message"],
+                account=account,
+                variant=self.handoff.model_variant_by_model.get(model),
+                git_head_before=git_head_before,
+                git_head_after=self._git_head(),
                 error_type=error_type,
                 prince2_assessment=prince2_assessment,
             )
@@ -212,6 +230,10 @@ class Executor:
             model=model,
             action_type=action_type,
             observation=observation["message"],
+            account=account,
+            variant=self.handoff.model_variant_by_model.get(model),
+            git_head_before=git_head_before,
+            git_head_after=self._git_head(),
             error_type=error_type,
             prince2_assessment=prince2_assessment,
         )
@@ -243,6 +265,12 @@ class Executor:
             self.handoff.model_variant_by_model[model] = auto_variant
         else:
             self.handoff.model_variant_by_model.pop(model, None)
+
+    def _git_head(self) -> str | None:
+        result = self.git.head()
+        if result.ok and result.stdout:
+            return result.stdout.strip()
+        return None
 
     def _select_account(self, model: str) -> str | None:
         try:
@@ -298,6 +326,7 @@ class Executor:
             for item in plan
         )
         memory_summary = self.memory.summarize()
+        handoff_log = self.project_handoff.detailed_summary()
         return f"""{self.config.system_prompt}
 
 Task:
@@ -305,6 +334,9 @@ Task:
 
 Implicit project handoff context:
 {self.project_handoff.summary()}
+
+Recent handoff log:
+{handoff_log}
 
 Current step:
 id={step.id}

@@ -222,6 +222,22 @@ class ProjectHandoff:
             )
         return "\n".join(lines)
 
+    def detailed_summary(self, limit: int = 8) -> str:
+        if not self.entries:
+            return "No handoff log entries."
+        lines = []
+        for entry in self.entries[-limit:]:
+            details = ""
+            observation = str(entry.details.get("observation", "")).strip()
+            if observation:
+                details = f" observation={observation[:160]}"
+            lines.append(
+                f"[{entry.phase}] iter={entry.iteration} step={entry.step_id or '-'} "
+                f"status={entry.step_status or '-'} model={entry.model or '-'} "
+                f"action={entry.action_type or '-'} head={entry.git_head or 'unknown'}{details}"
+            )
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",

@@ -205,7 +205,17 @@ class Agent:
             )
 
             if self.config.verbose:
-                print(f"  model={outcome.model} action={outcome.action_type} ok={outcome.ok}")
+                account_text = outcome.account or "-"
+                variant_text = outcome.variant or "provider-default"
+                head_before = outcome.git_head_before or "unknown"
+                head_after = outcome.git_head_after or "unknown"
+                print(
+                    "  "
+                    f"model={outcome.model} variant={variant_text} account={account_text} "
+                    f"action={outcome.action_type} ok={outcome.ok}"
+                )
+                print(f"  git_head_before={head_before}")
+                print(f"  git_head_after={head_after}")
                 print(f"  observation={outcome.observation[:300]}")
 
             last_observation = outcome.observation

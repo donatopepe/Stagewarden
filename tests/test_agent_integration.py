@@ -4,10 +4,13 @@ import os
 import subprocess
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
+from stagewarden.modelprefs import ModelPreferences
 
 
 class AgentIntegrationTests(unittest.TestCase):
@@ -40,6 +43,48 @@ class AgentIntegrationTests(unittest.TestCase):
                 check=False,
             )
             self.assertIn("stagewarden:", log.stdout)
+
+    def test_agent_verbose_output_shows_handoff_runtime_details(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["openai", "local"]
+            prefs.preferred_model = "openai"
+            prefs.add_account("openai", "work", "OPENAI_API_KEY_WORK")
+            prefs.set_variant("openai", "gpt-5.4-mini")
+            prefs.save(root / ".stagewarden_models.json")
+
+            original = os.environ.get("RUN_MODEL_BIN")
+            original_key = os.environ.get("OPENAI_API_KEY_WORK")
+            os.environ["RUN_MODEL_BIN"] = "/Users/donato/run_model_stub"
+            os.environ["OPENAI_API_KEY_WORK"] = "work-token"
+            try:
+                output = StringIO()
+                with redirect_stdout(output):
+                    agent = Agent(
+                        AgentConfig(
+                            workspace_root=root,
+                            max_steps=10,
+                            verbose=True,
+                        )
+                    )
+                    result = agent.run("create a file named hello.txt")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+                if original_key is None:
+                    os.environ.pop("OPENAI_API_KEY_WORK", None)
+                else:
+                    os.environ["OPENAI_API_KEY_WORK"] = original_key
+
+            rendered = output.getvalue()
+            self.assertTrue(result.ok)
+            self.assertIn("variant=gpt-5.4-mini", rendered)
+            self.assertIn("account=work", rendered)
+            self.assertIn("git_head_before=", rendered)
+            self.assertIn("git_head_after=", rendered)
 
 
 if __name__ == "__main__":
