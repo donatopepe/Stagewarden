@@ -13,6 +13,7 @@ from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
+from .project_handoff import ProjectHandoff
 from .secrets import LOGIN_URLS, SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
@@ -54,6 +55,8 @@ def interactive_help_text() -> str:
             "  Start a fresh in-memory agent session in the same workspace.",
             "- status",
             "  Show workspace, mode, model routing, and state file locations.",
+            "- handoff",
+            "  Show the current persisted PRINCE2 handoff context for this workspace.",
             "- commands",
             "  Alias for help.",
             "",
@@ -146,6 +149,7 @@ def interactive_help_text() -> str:
             "- stagewarden> account block openai lavoro until 2026-05-01T18:30",
             "- stagewarden> model unblock openai",
             "- stagewarden> status",
+            "- stagewarden> handoff",
             "- stagewarden> mode caveman ultra",
             "- stagewarden> mode normal",
             "- stagewarden> caveman on ultra",
@@ -238,6 +242,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     _apply_model_preferences(agent, config)
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
+    handoff = ProjectHandoff.load(config.handoff_path)
     lines = [
         "Stagewarden status:",
         f"- workspace: {config.workspace_root}",
@@ -247,7 +252,26 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- handoff: {config.handoff_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
         _render_model_status(agent, config),
+        "Handoff summary:",
+        handoff.summary(),
     ]
+    return "\n".join(lines)
+
+
+def _render_handoff(config: AgentConfig) -> str:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    lines = [
+        "Project handoff:",
+        handoff.summary(),
+    ]
+    if handoff.entries:
+        lines.append("Recent handoff entries:")
+        for entry in handoff.entries[-8:]:
+            lines.append(
+                f"- [{entry.phase}] iter={entry.iteration} step={entry.step_id or '-'} "
+                f"status={entry.step_status or '-'} model={entry.model or '-'} "
+                f"head={entry.git_head or 'unknown'}"
+            )
     return "\n".join(lines)
 
 
@@ -561,6 +585,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return None
     if parts[0] == "status":
         return _render_status(agent, config)
+    if parts[0] == "handoff":
+        return _render_handoff(config)
     if parts[0] != "mode":
         return None
     if len(parts) == 2 and parts[1] == "normal":

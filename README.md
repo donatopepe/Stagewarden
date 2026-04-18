@@ -14,6 +14,7 @@ Caratteristiche principali:
 - planner and executor split
 - model routing and escalation
 - `RUN_MODEL:` handoff execution
+- persistent PRINCE2 project handoff context with implicit resume
 - shell, file, and git tools
 - cross-platform shell execution on macOS, Linux, and Windows
 - local stub support for smoke tests
@@ -37,6 +38,14 @@ Git behavior:
 - Runtime files are added to `.gitignore`.
 - Stagewarden creates local commits for workspace snapshots during agent execution.
 - If `git` is missing, the agent refuses to start.
+
+PRINCE2 handoff behavior:
+
+- Stagewarden treats handoff as the live project context, not as an optional resume command.
+- The agent plans in the handoff context, executes one controlled action, updates the same handoff, and records the current `git HEAD`.
+- The handoff file is persisted as `.stagewarden_handoff.json`.
+- Resume is implicit: each new run inherits the latest project handoff context for the workspace.
+- The executor prompt always includes the current project handoff summary, so planning and execution stay aligned to the same controlled context.
 
 Validation behavior:
 
