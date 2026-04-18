@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
 from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
+from stagewarden.modelprefs import ModelPreferences, extract_blocked_until
 from stagewarden.planner import PlanStep
 from stagewarden.router import ModelRouter
 
@@ -24,6 +26,19 @@ class FakeHandoff:
 
 
 class ExecutorTests(unittest.TestCase):
+    def test_extracts_chatgpt_usage_limit_time(self) -> None:
+        message = (
+            "You've hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), "
+            "visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 8:05 PM."
+        )
+        until = extract_blocked_until(message, now=datetime(2026, 4, 18, 19, 0))
+        self.assertEqual(until, "2026-04-18T20:05")
+
+    def test_extracts_chatgpt_usage_limit_time_next_day_if_passed(self) -> None:
+        message = "You've hit your usage limit. Try again at 8:05 PM."
+        until = extract_blocked_until(message, now=datetime(2026, 4, 18, 21, 0))
+        self.assertEqual(until, "2026-04-19T20:05")
+
     def test_executor_writes_file_from_model_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
@@ -210,6 +225,48 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertEqual((root / "a.txt").read_text(), "hello world\n")
             self.assertEqual((root / "b.txt").read_text(), "new file\n")
+
+    def test_executor_persists_model_block_from_usage_limit_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["gpt", "local"], preferred_model="gpt")
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": False,
+                        "model": "gpt",
+                        "backend": "gpt/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model gpt x",
+                        "output": "",
+                        "error": "You've hit your usage limit. Try again at 8:05 PM.",
+                    },
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "done"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="analyze simple task", validation="done")
+            outcome = executor.execute_step(
+                task="analyze task",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+            prefs = ModelPreferences.load(Path(tmp_dir) / ".stagewarden_models.json")
+            self.assertTrue(outcome.ok)
+            self.assertIn("gpt", prefs.blocked_until_by_model or {})
+            self.assertIsNone(prefs.preferred_model)
 
 
 if __name__ == "__main__":

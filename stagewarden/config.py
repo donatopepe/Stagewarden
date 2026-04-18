@@ -18,6 +18,7 @@ class AgentConfig:
     caveman_state_filename: str = ".stagewarden_caveman.json"
     trace_filename: str = ".stagewarden_trace.ljson"
     prince2_pid_filename: str = ".stagewarden_prince2_pid.json"
+    model_prefs_filename: str = ".stagewarden_models.json"
     sensitive_ascii_patterns: tuple[str, ...] = (
         ".json",
         ".ljson",
@@ -98,3 +99,7 @@ class AgentConfig:
     @property
     def prince2_pid_path(self) -> Path:
         return (self.workspace_root / self.prince2_pid_filename).resolve()
+
+    @property
+    def model_prefs_path(self) -> Path:
+        return (self.workspace_root / self.model_prefs_filename).resolve()
