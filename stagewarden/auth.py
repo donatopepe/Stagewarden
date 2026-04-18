@@ -29,7 +29,10 @@ class BrowserCallbackFlow:
         self._event = threading.Event()
 
     def run(self) -> AuthResult:
-        server = self._start_server()
+        try:
+            server = self._start_server()
+        except PermissionError:
+            return self._fallback_without_listener()
         callback_url = f"http://127.0.0.1:{server.server_port}/callback"
         try:
             self._open_browser(callback_url)
@@ -51,6 +54,21 @@ class BrowserCallbackFlow:
         finally:
             server.shutdown()
             server.server_close()
+
+    def _fallback_without_listener(self) -> AuthResult:
+        token = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN", "").strip()
+        if token:
+            return AuthResult(True, "Local callback listener unavailable; used configured callback token.", token=token)
+        code = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_CODE", "").strip()
+        if code:
+            exchanged = self._exchange_code(code, "http://127.0.0.1/callback")
+            if exchanged.ok:
+                exchanged.message = "Local callback listener unavailable; used configured authorization code."
+            return exchanged
+        return AuthResult(
+            False,
+            "Unable to bind local callback listener on 127.0.0.1. Run outside the sandbox or configure callback automation.",
+        )
 
     def _start_server(self) -> ThreadingHTTPServer:
         flow = self
