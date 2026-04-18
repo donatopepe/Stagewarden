@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-cli"
+name = "stagewarden"
 version = "0.1.0"
-description = "Production-grade CLI coding agent with agent loop, routing, and handoff support."
+description = "A production-grade CLI coding agent that plans, executes, validates, and escalates work with Codex-style loops, safe tool use, and PRINCE2-aligned control."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Donato Pepe" }]
@@ -13,6 +13,7 @@ license = "MIT"
 dependencies = []
 
 [project.scripts]
+stagewarden = "agent_cli.main:main"
 agent-cli = "agent_cli.main:main"
 
 [tool.setuptools]
