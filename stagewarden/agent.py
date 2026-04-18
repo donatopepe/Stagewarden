@@ -8,6 +8,7 @@ from .executor import Executor
 from .handoff import HandoffManager
 from .ljson import dump_file
 from .memory import MemoryStore
+from .modelprefs import ModelPreferences
 from .planner import Planner, PlanStep
 from .prince2 import Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
@@ -44,6 +45,7 @@ class Agent:
             memory=self.memory,
             project_handoff=self.project_handoff,
         )
+        self._apply_workspace_model_preferences()
 
     def run(self, task: str) -> AgentResult:
         self.executor.config.system_prompt = self.base_system_prompt
@@ -322,6 +324,19 @@ class Agent:
             return MemoryStore.load(self.config.memory_path)
         except (OSError, ValueError, TypeError):
             return MemoryStore()
+
+    def _apply_workspace_model_preferences(self) -> None:
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+        except (OSError, ValueError, TypeError):
+            return
+        self.router.configure(
+            enabled_models=prefs.enabled_models,
+            preferred_model=prefs.preferred_model,
+            blocked_until_by_model=prefs.blocked_until_by_model or {},
+        )
+        self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
+        self.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
 
     def _load_handoff(self) -> ProjectHandoff:
         try:
