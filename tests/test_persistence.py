@@ -69,6 +69,7 @@ class PersistenceTests(unittest.TestCase):
             )
             handoff.record_issue(step_id="step-1", severity="medium", summary="failing test still open")
             handoff.record_quality(step_id="step-1", status="observed", evidence="pytest -q executed")
+            handoff.record_lesson(step_id="step-1", lesson_type="observation", lesson="pytest exposed an unstable assertion")
             handoff.complete_step(
                 iteration=1,
                 task="fix tests",
@@ -87,6 +88,7 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(len(loaded.entries), 3)
             self.assertEqual(len(loaded.issue_register), 1)
             self.assertEqual(len(loaded.quality_register), 1)
+            self.assertEqual(len(loaded.lessons_log), 1)
 
 
 if __name__ == "__main__":

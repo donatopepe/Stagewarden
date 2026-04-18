@@ -58,6 +58,7 @@ class ProjectHandoff:
     risk_register: list[dict[str, str]] = field(default_factory=list)
     issue_register: list[dict[str, str]] = field(default_factory=list)
     quality_register: list[dict[str, str]] = field(default_factory=list)
+    lessons_log: list[dict[str, str]] = field(default_factory=list)
     exception_plan: list[str] = field(default_factory=list)
     updated_at: str = field(default_factory=_utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
@@ -221,7 +222,9 @@ class ProjectHandoff:
             f"plan_status={self.plan_status or 'unknown'}",
             f"current_step={self.current_step_id or 'none'}",
             f"git_head={self.git_head or 'unknown'}",
-            f"registers=risks:{len(self.risk_register)} issues:{len(self.issue_register)} quality:{len(self.quality_register)}",
+            "registers="
+            f"risks:{len(self.risk_register)} issues:{len(self.issue_register)} "
+            f"quality:{len(self.quality_register)} lessons:{len(self.lessons_log)}",
         ]
         for entry in self.entries[-limit:]:
             lines.append(
@@ -306,7 +309,9 @@ class ProjectHandoff:
         )
         lines.append(f"- boundary_decision: {boundary_decision}")
         lines.append(
-            f"- registers: risks={len(self.risk_register)} issues={len(self.issue_register)} quality={len(self.quality_register)}"
+            "- registers: "
+            f"risks={len(self.risk_register)} issues={len(self.issue_register)} "
+            f"quality={len(self.quality_register)} lessons={len(self.lessons_log)}"
         )
         if self.exception_plan:
             lines.append(f"- exception_plan: {' | '.join(self.exception_plan[:3])}")
@@ -352,6 +357,17 @@ class ProjectHandoff:
             lines.append(f"- {item}")
         return "\n".join(lines)
 
+    def rendered_lessons(self) -> str:
+        lines = ["Lessons log:"]
+        if not self.lessons_log:
+            lines.append("- none")
+            return "\n".join(lines)
+        for item in self.lessons_log:
+            lines.append(
+                f"- [{item.get('type', 'lesson')}] {item.get('step_id', '-')} :: {item.get('lesson', '')}"
+            )
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",
@@ -368,6 +384,7 @@ class ProjectHandoff:
             "risk_register": list(self.risk_register),
             "issue_register": list(self.issue_register),
             "quality_register": list(self.quality_register),
+            "lessons_log": list(self.lessons_log),
             "exception_plan": list(self.exception_plan),
             "updated_at": self.updated_at,
             "entries": [entry.as_dict() for entry in self.entries],
@@ -385,6 +402,11 @@ class ProjectHandoff:
     def record_quality(self, *, step_id: str, status: str, evidence: str) -> None:
         self.quality_register.append(
             {"step_id": step_id, "status": status, "evidence": evidence[:240], "recorded_at": _utc_now()}
+        )
+
+    def record_lesson(self, *, step_id: str, lesson_type: str, lesson: str) -> None:
+        self.lessons_log.append(
+            {"step_id": step_id, "type": lesson_type, "lesson": lesson[:240], "recorded_at": _utc_now()}
         )
 
     def _seed_risk_register(self, risks: list[Any]) -> None:
@@ -450,6 +472,7 @@ class ProjectHandoff:
             risk_register=[dict(item) for item in payload.get("risk_register", []) if isinstance(item, dict)],
             issue_register=[dict(item) for item in payload.get("issue_register", []) if isinstance(item, dict)],
             quality_register=[dict(item) for item in payload.get("quality_register", []) if isinstance(item, dict)],
+            lessons_log=[dict(item) for item in payload.get("lessons_log", []) if isinstance(item, dict)],
             exception_plan=[str(item) for item in payload.get("exception_plan", [])],
             updated_at=str(payload.get("updated_at", _utc_now())),
         )
