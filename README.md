@@ -28,9 +28,3 @@ Run:
 ```bash
 stagewarden "create a file named hello.txt"
 ```
-
-Knowledge base locale:
-
-- Studio PRINCE2: [study/PRINCE2_Archivio_Studio.md](/Users/donato/study/PRINCE2_Archivio_Studio.md)
-- Specifica agente allineata a PRINCE2: [study/PRINCE2_Agent_Project_Spec.md](/Users/donato/study/PRINCE2_Agent_Project_Spec.md)
-- PRINCE2 exam cram: [study/PRINCE2_Agent_Exam_Cram.md](/Users/donato/study/PRINCE2_Agent_Exam_Cram.md)
