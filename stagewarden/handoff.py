@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import subprocess
@@ -181,5 +182,16 @@ class HandoffManager:
         elif provider_env:
             loaded = SecretStore().load_token(model, account)
             if loaded.ok:
-                env[provider_env] = loaded.secret
+                token = loaded.secret
+                try:
+                    payload = json.loads(loaded.secret)
+                except json.JSONDecodeError:
+                    payload = None
+                if isinstance(payload, dict):
+                    access_token = str(payload.get("access_token", "")).strip()
+                    if access_token:
+                        env[provider_env] = access_token
+                    env["STAGEWARDEN_AUTH_TOKENS_JSON"] = loaded.secret
+                else:
+                    env[provider_env] = token
         return env

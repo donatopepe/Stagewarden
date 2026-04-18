@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TextIO
 
 from .agent import Agent
-from .auth import BrowserCallbackFlow
+from .auth import BrowserCallbackFlow, OpenAIDeviceCodeFlow
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
@@ -78,6 +78,8 @@ def interactive_help_text() -> str:
             "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
             "- account login <model> <name>",
             "  Start a local browser login flow, open the provider page, and save the resulting token in the OS secret store.",
+            "- account login-device <chatgpt|openai> <name>",
+            "  Start a device-code login flow compatible with the Codex-style OpenAI auth model.",
             "- account logout <model> <name>",
             "  Delete the saved token for one profile.",
             "- account env <model> <name> <ENV_VAR>",
@@ -384,6 +386,26 @@ def _handle_account_command(
                 _apply_model_preferences(agent, config)
                 return f"{callback.message}\nSaved token for {model}:{name}."
             return f"Login is not supported for model '{model}'. Use account env for this provider."
+        if action == "login-device":
+            if len(parts) != 4:
+                return "Usage: account login-device <chatgpt|openai> <name>"
+            model, name = parts[2], parts[3]
+            if model not in {"chatgpt", "openai"}:
+                return "Device code login is supported only for chatgpt and openai."
+            prefs.add_account(model, name)
+            if model not in prefs.enabled_models:
+                prefs.enabled_models.append(model)
+            result = OpenAIDeviceCodeFlow(model=model, account=name).run()
+            if not result.ok:
+                return result.message
+            payload = result.secret_payload or result.token
+            saved = SecretStore().save_token(model, name, payload)
+            if not saved.ok:
+                return saved.message
+            prefs.set_active_account(model, name)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            return f"{result.message}\nSaved token for {model}:{name}."
         if action == "logout":
             if len(parts) != 4:
                 return "Usage: account logout <model> <name>"
@@ -441,6 +463,7 @@ def _handle_account_command(
 def _account_usage() -> str:
     return (
         "Usage: accounts | account add <model> <name> [ENV_VAR] | account login <model> <name> | "
+        "account login-device <chatgpt|openai> <name> | "
         "account logout <model> <name> | account env <model> <name> <ENV_VAR> | "
         "account use <model> <name> | account remove <model> <name> | "
         "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | account clear <model>"
