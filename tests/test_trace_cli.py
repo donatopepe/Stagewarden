@@ -163,11 +163,13 @@ class TraceAndCliTests(unittest.TestCase):
             store = root / "secrets"
             original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
             original_skip = os.environ.get("STAGEWARDEN_SKIP_BROWSER")
+            original_auto = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN")
             os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
             os.environ["STAGEWARDEN_SKIP_BROWSER"] = "1"
+            os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = "gpt-browser-token"
             try:
                 config = AgentConfig(workspace_root=root, max_steps=1)
-                input_stream = StringIO("account login gpt lavoro\nsecret-token\naccounts\nexit\n")
+                input_stream = StringIO("account login gpt lavoro\naccounts\nexit\n")
                 output_stream = StringIO()
                 code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
                 rendered = output_stream.getvalue()
@@ -184,12 +186,15 @@ class TraceAndCliTests(unittest.TestCase):
                     os.environ.pop("STAGEWARDEN_SKIP_BROWSER", None)
                 else:
                     os.environ["STAGEWARDEN_SKIP_BROWSER"] = original_skip
+                if original_auto is None:
+                    os.environ.pop("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN", None)
+                else:
+                    os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = original_auto
 
             self.assertEqual(code, 0)
             self.assertEqual((prefs.active_account_by_model or {}).get("gpt"), "lavoro")
             self.assertTrue(loaded.ok, loaded.message)
-            self.assertEqual(loaded.secret, "secret-token")
-            self.assertIn("Browser skipped.", rendered)
+            self.assertEqual(loaded.secret, "gpt-browser-token")
             self.assertIn("token=stored", rendered)
 
     def test_interactive_shell_logs_in_chatgpt_account_and_saves_session_token(self) -> None:

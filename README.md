@@ -144,10 +144,11 @@ Runtime behavior:
 - For ChatGPT plan access the external command receives `run_model chatgpt "<prompt>"`.
 - Stagewarden sets `STAGEWARDEN_MODEL_ACCOUNT=lavoro` and `STAGEWARDEN_MODEL_TARGET=gpt:lavoro`.
 - If `OPENAI_API_KEY_WORK` exists, Stagewarden maps it to `OPENAI_API_KEY` only for that subprocess.
-- `account login <model> <profile>` opens the provider key page, asks for the token, and saves it in macOS Keychain when available.
+- `account login <model> <profile>` starts a local browser flow, opens a Stagewarden login page on `127.0.0.1`, opens the provider page, and saves the resulting token in macOS Keychain when available.
 - If no environment variable mapping exists, Stagewarden loads the saved profile token and maps it to the provider env var only for the subprocess.
-- For `chatgpt`, `account login chatgpt <profile>` opens ChatGPT and stores the ChatGPT token/session string for that profile.
-- `account login claude <profile>` follows the same callback-login structure for Claude profile tokens.
+- The browser flow accepts either a localhost callback with `token` or `code`, or a manual completion form on the local Stagewarden page when the provider does not redirect automatically.
+- For `chatgpt`, `account login chatgpt <profile>` opens the local login page plus ChatGPT in the browser.
+- `account login claude <profile>` and `account login gpt <profile>` use the same local browser flow.
 - If one account reports a usage limit, Stagewarden blocks that account until the reported time and retries another account for the same model before falling back to another model.
 
 Git history commands:

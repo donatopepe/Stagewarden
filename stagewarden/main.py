@@ -77,7 +77,7 @@ def interactive_help_text() -> str:
             "- account add <model> <name> [ENV_VAR]",
             "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
             "- account login <model> <name>",
-            "  Open provider token page, prompt for token, and save it in the OS secret store.",
+            "  Start a local browser login flow, open the provider page, and save the resulting token in the OS secret store.",
             "- account logout <model> <name>",
             "  Delete the saved token for one profile.",
             "- account env <model> <name> <ENV_VAR>",
@@ -372,7 +372,7 @@ def _handle_account_command(
             prefs.add_account(model, name)
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
-            if model in {"chatgpt", "claude"}:
+            if model in LOGIN_URLS:
                 callback = BrowserCallbackFlow(model=model, account=name).run()
                 if not callback.ok:
                     return callback.message
@@ -383,19 +383,7 @@ def _handle_account_command(
                 _save_model_preferences(config, prefs)
                 _apply_model_preferences(agent, config)
                 return f"{callback.message}\nSaved token for {model}:{name}."
-            browser = SecretStore().open_login_page(model)
-            token = _prompt_secret(
-                _secret_prompt_for_model(model, name),
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            saved = SecretStore().save_token(model, name, token)
-            if not saved.ok:
-                return saved.message
-            prefs.set_active_account(model, name)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"{browser.message}\nSaved token for {model}:{name}."
+            return f"Login is not supported for model '{model}'. Use account env for this provider."
         if action == "logout":
             if len(parts) != 4:
                 return "Usage: account logout <model> <name>"
