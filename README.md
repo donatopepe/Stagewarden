@@ -23,6 +23,31 @@ Install locally:
 python3 -m pip install -e .
 ```
 
+Quick setup:
+
+macOS/Linux:
+
+```bash
+sh setup.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\setup.ps1
+```
+
+Platform-specific setup scripts:
+
+```bash
+sh scripts/setup_macos.sh
+sh scripts/setup_linux.sh
+```
+
+```powershell
+.\scripts\setup_windows.ps1
+```
+
 Run:
 
 ```bash
@@ -43,6 +68,9 @@ stagewarden> models
 stagewarden> model use gpt
 stagewarden> model block gpt until 2026-05-01T18:30
 stagewarden> model unblock gpt
+stagewarden> status
+stagewarden> mode caveman ultra
+stagewarden> mode normal
 stagewarden> caveman on ultra
 stagewarden> fix failing tests
 stagewarden> quit
@@ -63,6 +91,9 @@ Stagewarden also records online model usage-limit messages such as `try again at
 Caveman mode:
 
 ```text
+stagewarden> status
+stagewarden> mode caveman ultra
+stagewarden> mode normal
 stagewarden> caveman help
 stagewarden> caveman on ultra
 stagewarden> caveman review
