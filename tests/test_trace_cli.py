@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from io import StringIO
@@ -12,6 +13,26 @@ from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.main import run_interactive_shell
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def run_main_in_cwd(cwd: Path, *args: str) -> int:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT)
+    completed = subprocess.run(
+        ["python3", "-m", "stagewarden.main", *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise AssertionError(completed.stderr or completed.stdout)
+    return completed.returncode
 
 
 class TraceAndCliTests(unittest.TestCase):
@@ -31,6 +52,22 @@ class TraceAndCliTests(unittest.TestCase):
             sample = root / "sample.ljson"
             sample.write_text(json.dumps({"_version": 1, "_fields": ["id"], "data": [[1], [2]]}))
             self.assertEqual(load_file(sample), [{"id": 1}, {"id": 2}])
+
+    def test_ljson_cli_uses_clear_default_gzip_suffixes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source = root / "records.json"
+            source.write_text(json.dumps([{"id": 1, "name": "Mario"}]), encoding="utf-8")
+
+            encoded_code = run_main_in_cwd(root, "--ljson-encode", str(source), "--ljson-gzip")
+            encoded = root / "records.ljson.gz"
+            self.assertEqual(encoded_code, 0)
+            self.assertTrue(encoded.exists())
+
+            decoded_code = run_main_in_cwd(root, "--ljson-decode", str(encoded))
+            decoded = root / "records.json"
+            self.assertEqual(decoded_code, 0)
+            self.assertEqual(json.loads(decoded.read_text(encoding="utf-8")), [{"id": 1, "name": "Mario"}])
 
     def test_interactive_shell_handles_help_and_exit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
