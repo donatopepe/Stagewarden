@@ -13,12 +13,12 @@ license = "MIT"
 dependencies = []
 
 [project.scripts]
-stagewarden = "agent_cli.main:main"
-agent-cli = "agent_cli.main:main"
+stagewarden = "stagewarden.main:main"
+agent-cli = "stagewarden.main:main"
 
 [tool.setuptools]
 include-package-data = true
 license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
-include = ["agent_cli*"]
+include = ["stagewarden*", "agent_cli*"]

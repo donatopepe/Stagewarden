@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from agent_cli.ljson import benchmark_sizes
+from stagewarden.ljson import benchmark_sizes
 
 
 def build_dataset(size: int = 500) -> list[dict[str, object]]:

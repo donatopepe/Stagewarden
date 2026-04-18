@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from agent_cli.ljson import LJSONOptions, decode, encode, stream_encode
+from stagewarden.ljson import LJSONOptions, decode, encode, stream_encode
 
 
 def main() -> None:
