@@ -130,19 +130,21 @@ class Agent:
         for iterations in range(1, self.config.max_steps + 1):
             current = self._next_pending_step(plan)
             if current is None:
-                for step in plan:
-                    if step.status == "completed":
-                        self.project_handoff.close_issues_for_step(
-                            step_id=step.id,
-                            resolution="project closed with controlled completion",
-                        )
-                self.project_handoff.clear_exception_plan_if_recovered()
-                pid.status = "closed"
-                pid.outcome = "All planned stages completed."
+                success = all(step.status == "completed" for step in plan)
+                if success:
+                    for step in plan:
+                        if step.status == "completed":
+                            self.project_handoff.close_issues_for_step(
+                                step_id=step.id,
+                                resolution="project closed with controlled completion",
+                            )
+                    self.project_handoff.clear_exception_plan_if_recovered()
+                pid.status = "closed" if success else "exception"
+                pid.outcome = "All planned stages completed." if success else "Run stopped before controlled closure."
                 self._save_pid(pid)
                 self.project_handoff.close_run(
                     task=effective_task,
-                    success=True,
+                    success=success,
                     plan_status=self._plan_status(plan),
                     git_head=self._git_head(),
                     outcome=pid.outcome,
@@ -153,19 +155,19 @@ class Agent:
                     phase="finish",
                     iteration=iterations - 1,
                     task=effective_task,
-                    success=True,
+                    success=success,
                     prince2_stage_boundary=checklist.stage_boundary_review,
                     prince2_pid=pid.as_dict(),
                     plan_status=self._plan_status(plan),
                 )
                 self._save_trace()
                 git_result = self._git_snapshot("stagewarden: complete agent run")
-                message = self._format_summary(plan, success=True)
+                message = self._format_summary(plan, success=success)
                 if git_result:
                     message = f"{message}\n{git_result}"
                 if directive.active:
                     message = self.caveman.format_text(message, directive.level)
-                return AgentResult(True, iterations - 1, message)
+                return AgentResult(success, iterations - 1, message)
 
             if self.config.verbose:
                 print(f"[step {iterations}] {current.id} :: {current.title} [{current.status}]")

@@ -113,7 +113,7 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertIn("git_head_before=", rendered)
             self.assertIn("git_head_after=", rendered)
 
-    def test_agent_closes_matching_open_issues_after_successful_step(self) -> None:
+    def test_agent_closes_matching_open_issues_on_immediate_project_closure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             handoff = ProjectHandoff(
@@ -121,9 +121,9 @@ class AgentIntegrationTests(unittest.TestCase):
                 status="exception",
                 current_step_id="step-3",
                 current_step_title="3. Validate the implementation",
-                current_step_status="in_progress",
-                latest_observation="validation pending",
-                plan_status="step-1:completed,step-2:completed,step-3:in_progress",
+                current_step_status="completed",
+                latest_observation="validation completed",
+                plan_status="step-1:completed,step-2:completed,step-3:completed",
                 issue_register=[
                     {"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}
                 ],
@@ -131,16 +131,8 @@ class AgentIntegrationTests(unittest.TestCase):
             )
             handoff.save(root / ".stagewarden_handoff.json")
 
-            original = os.environ.get("RUN_MODEL_BIN")
-            os.environ["RUN_MODEL_BIN"] = "/Users/donato/run_model_stub"
-            try:
-                agent = Agent(AgentConfig(workspace_root=root, max_steps=10, verbose=False))
-                result = agent.run("create a file named hello.txt")
-            finally:
-                if original is None:
-                    os.environ.pop("RUN_MODEL_BIN", None)
-                else:
-                    os.environ["RUN_MODEL_BIN"] = original
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=10, verbose=False))
+            result = agent.run("create a file named hello.txt")
 
             self.assertTrue(result.ok)
             saved = ProjectHandoff.load(root / ".stagewarden_handoff.json")
