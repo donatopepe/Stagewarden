@@ -5,9 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_cli.agent import Agent
-from agent_cli.config import AgentConfig
-from agent_cli.prince2 import Prince2AgentPolicy
+from stagewarden.agent import Agent
+from stagewarden.config import AgentConfig
+from stagewarden.prince2 import Prince2AgentPolicy
 
 
 class Prince2Tests(unittest.TestCase):
@@ -30,7 +30,7 @@ class Prince2Tests(unittest.TestCase):
             root = Path(tmp_dir)
             agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
             agent.run("simple task")
-            payload = json.loads((root / ".agent_cli_trace.ljson").read_text(encoding="utf-8"))
+            payload = json.loads((root / ".stagewarden_trace.ljson").read_text(encoding="utf-8"))
             fields = payload["_fields"]
             self.assertIn("prince2_checklist", fields)
 

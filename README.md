@@ -29,11 +29,6 @@ Run:
 stagewarden "create a file named hello.txt"
 ```
 
-Compatibilita:
-
-- `stagewarden` e il comando principale
-- `agent-cli` resta disponibile come alias compatibile
-
 Knowledge base locale:
 
 - Studio PRINCE2: [study/PRINCE2_Archivio_Studio.md](/Users/donato/study/PRINCE2_Archivio_Studio.md)

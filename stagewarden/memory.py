@@ -95,7 +95,7 @@ class MemoryStore:
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
-            "_format": "agent_cli_memory",
+            "_format": "stagewarden_memory",
             "_version": 1,
             "attempts_ljson": encode_ljson(
                 [asdict(item) for item in self.attempts],

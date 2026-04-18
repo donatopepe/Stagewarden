@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_cli.agent import Agent
-from agent_cli.config import AgentConfig
+from stagewarden.agent import Agent
+from stagewarden.config import AgentConfig
 
 
 class AgentIntegrationTests(unittest.TestCase):

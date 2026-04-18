@@ -5,11 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_cli.config import AgentConfig
-from agent_cli.executor import Executor
-from agent_cli.memory import MemoryStore
-from agent_cli.planner import PlanStep
-from agent_cli.router import ModelRouter
+from stagewarden.config import AgentConfig
+from stagewarden.executor import Executor
+from stagewarden.memory import MemoryStore
+from stagewarden.planner import PlanStep
+from stagewarden.router import ModelRouter
 
 
 class FakeHandoff:

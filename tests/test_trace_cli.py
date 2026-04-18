@@ -5,9 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_cli.agent import Agent
-from agent_cli.config import AgentConfig
-from agent_cli.ljson import decode, load_file
+from stagewarden.agent import Agent
+from stagewarden.config import AgentConfig
+from stagewarden.ljson import decode, load_file
 
 
 class TraceAndCliTests(unittest.TestCase):
@@ -16,8 +16,8 @@ class TraceAndCliTests(unittest.TestCase):
             root = Path(tmp_dir)
             agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
             agent.run("simple task")
-            self.assertTrue((root / ".agent_cli_trace.ljson").exists())
-            payload = json.loads((root / ".agent_cli_trace.ljson").read_text())
+            self.assertTrue((root / ".stagewarden_trace.ljson").exists())
+            payload = json.loads((root / ".stagewarden_trace.ljson").read_text())
             self.assertIn("_fields", payload)
             self.assertGreaterEqual(len(decode(payload)), 1)
 

@@ -5,9 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_cli.agent import Agent
-from agent_cli.caveman import CavemanManager
-from agent_cli.config import AgentConfig
+from stagewarden.agent import Agent
+from stagewarden.caveman import CavemanManager
+from stagewarden.config import AgentConfig
 
 
 class CavemanTests(unittest.TestCase):
@@ -43,7 +43,7 @@ class CavemanTests(unittest.TestCase):
             agent = Agent(AgentConfig(workspace_root=root))
             result = agent.run("/caveman ultra")
             self.assertTrue(result.ok)
-            state = json.loads((root / ".agent_cli_caveman.json").read_text())
+            state = json.loads((root / ".stagewarden_caveman.json").read_text())
             self.assertTrue(state["active"])
             self.assertEqual(state["level"], "ultra")
 
@@ -59,7 +59,7 @@ class CavemanTests(unittest.TestCase):
             agent.run("/caveman lite")
             result = agent.run("stop caveman")
             self.assertTrue(result.ok)
-            self.assertFalse((root / ".agent_cli_caveman.json").exists())
+            self.assertFalse((root / ".stagewarden_caveman.json").exists())
 
     def test_compress_validation_rejects_non_natural_language_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -76,7 +76,7 @@ class CavemanTests(unittest.TestCase):
             agent = Agent(AgentConfig(workspace_root=root))
             result = agent.run("/caveman compress notes.md")
             self.assertTrue(result.ok)
-            self.assertFalse((root / ".agent_cli_caveman.json").exists())
+            self.assertFalse((root / ".stagewarden_caveman.json").exists())
 
 
 if __name__ == "__main__":

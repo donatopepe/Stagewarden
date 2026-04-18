@@ -6,7 +6,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from agent_cli.handoff import HandoffManager, format_run_model, parse_run_model_command
+from stagewarden.handoff import HandoffManager, format_run_model, parse_run_model_command
 
 
 class HandoffTests(unittest.TestCase):

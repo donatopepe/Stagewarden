@@ -4,10 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_cli.config import AgentConfig
-from agent_cli.tools.files import FileTool
-from agent_cli.tools.shell import ShellTool
-from agent_cli.textcodec import detect_confusables
+from stagewarden.config import AgentConfig
+from stagewarden.tools.files import FileTool
+from stagewarden.tools.shell import ShellTool
+from stagewarden.textcodec import detect_confusables
 
 
 class ToolTests(unittest.TestCase):

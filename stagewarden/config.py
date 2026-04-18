@@ -14,10 +14,10 @@ class AgentConfig:
     verbose: bool = False
     prefer_local: bool = True
     strict_ascii_output: bool = True
-    memory_filename: str = ".agent_cli_memory.json"
-    caveman_state_filename: str = ".agent_cli_caveman.json"
-    trace_filename: str = ".agent_cli_trace.ljson"
-    prince2_pid_filename: str = ".agent_cli_prince2_pid.json"
+    memory_filename: str = ".stagewarden_memory.json"
+    caveman_state_filename: str = ".stagewarden_caveman.json"
+    trace_filename: str = ".stagewarden_trace.ljson"
+    prince2_pid_filename: str = ".stagewarden_prince2_pid.json"
     sensitive_ascii_patterns: tuple[str, ...] = (
         ".json",
         ".ljson",

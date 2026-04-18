@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from agent_cli.planner import Planner
+from stagewarden.planner import Planner
 
 
 class PlannerTests(unittest.TestCase):
