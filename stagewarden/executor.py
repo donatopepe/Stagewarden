@@ -130,9 +130,17 @@ class Executor:
         )
 
         if ok and not step_completed:
-            validator = self._check_validation(step, observation["message"])
+            validator = self._check_validation(step, observation["message"], action_type=action_type)
             if validator:
                 step_completed = True
+
+        if ok and step_completed and not self._has_wet_run_evidence(action_type, observation["message"]):
+            ok = False
+            step_completed = False
+            error_type = "wet_run_required"
+            observation["message"] = (
+                f"{observation['message']}\nWet-run gate failed: dry-run or narrative completion is not valid evidence."
+            )
 
         prince2_assessment = None
         if ok and step_completed and prince2_checklist is not None:
@@ -196,7 +204,8 @@ class Executor:
         last_observation: str,
     ) -> str:
         plan_lines = "\n".join(
-            f"- {item.id}: {item.title} [{item.status}] validation={item.validation}" for item in plan
+            f"- {item.id}: {item.title} [{item.status}] validation={item.validation} wet_run_required={item.wet_run_required}"
+            for item in plan
         )
         memory_summary = self.memory.summarize()
         return f"""{self.config.system_prompt}
@@ -209,6 +218,7 @@ id={step.id}
 title={step.title}
 instruction={step.instruction}
 validation={step.validation}
+wet_run_required={step.wet_run_required}
 
 Plan:
 {plan_lines}
@@ -218,6 +228,13 @@ Previous observation:
 
 Recent memory:
 {memory_summary}
+
+Validation policy:
+- Always create or update relevant verification tests/checks for code or behavior changes.
+- A dry-run is not a valid checkpoint by itself.
+- A step may complete only after real wet-run evidence: executed tests, executed commands, observed files, or real tool output.
+- If a wet-run is blocked, find a feasible alternative wet-run instead of accepting dry-run completion.
+- Use complete only after the current step has real validation evidence.
 
 Available actions and required fields:
 1. shell -> {{"type":"shell","command":"...","cwd":"optional-relative-path"}}
@@ -397,7 +414,9 @@ Respond with strict JSON:
 
         return {"ok": False, "message": f"Unsupported action type: {action_type}", "error_type": "invalid_output"}
 
-    def _check_validation(self, step: PlanStep, observation: str) -> bool:
+    def _check_validation(self, step: PlanStep, observation: str, *, action_type: str = "") -> bool:
+        if not self._has_wet_run_evidence(action_type, observation):
+            return False
         lower = observation.lower()
         if any(token in lower for token in ("error", "failed", "traceback", "not found", "denied")):
             return False
@@ -406,6 +425,40 @@ Respond with strict JSON:
         if "wrote file" in lower or "patched file" in lower:
             return True
         return False
+
+    def _has_wet_run_evidence(self, action_type: str, observation: str) -> bool:
+        lowered = observation.lower()
+        if "dry-run" in lowered or "dry run" in lowered or "--dry-run" in lowered:
+            return False
+        if action_type in {
+            "shell",
+            "shell_session_send",
+            "read_file",
+            "write_file",
+            "apply_patch",
+            "patch_file",
+            "patch_files",
+            "list_files",
+            "search_files",
+            "git_diff",
+            "git_commit",
+        }:
+            return True
+        wet_markers = (
+            "exit_code=0",
+            "passed",
+            "tests passed",
+            "ran ",
+            "wrote file",
+            "patched file",
+            "patched files",
+            "found",
+            "exists",
+            "validated",
+            "validazione completata",
+            "validation completed",
+        )
+        return any(marker in lowered for marker in wet_markers)
 
     def simulation_snapshot(self) -> dict[str, Any]:
         return {

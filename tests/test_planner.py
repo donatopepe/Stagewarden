@@ -14,6 +14,7 @@ class PlannerTests(unittest.TestCase):
             self.assertTrue(step.id.startswith("step-"))
             self.assertTrue(step.instruction)
             self.assertTrue(step.validation)
+            self.assertTrue(step.wet_run_required)
             self.assertEqual(step.status, "pending")
 
 
