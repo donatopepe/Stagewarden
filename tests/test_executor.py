@@ -11,6 +11,7 @@ from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.modelprefs import ModelPreferences, extract_blocked_until
 from stagewarden.planner import PlanStep
+from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.router import ModelRouter
 from stagewarden.tools.git import GitTool
 
@@ -444,6 +445,60 @@ class ExecutorTests(unittest.TestCase):
 
             self.assertTrue(outcome.ok)
             self.assertEqual(handoff.model_variant_by_model.get("claude"), "sonnet")
+
+    def test_executor_prompt_includes_handoff_context_and_log(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            project_handoff = ProjectHandoff()
+            project_handoff.start_run(task="fix failing tests", plan_status="step-1:pending", git_head="abc123")
+            project_handoff.begin_step(
+                iteration=1,
+                task="fix failing tests",
+                step_id="step-1",
+                step_title="1. Analyze",
+                step_status="in_progress",
+                git_head="abc123",
+            )
+            project_handoff.complete_step(
+                iteration=1,
+                task="fix failing tests",
+                step_id="step-1",
+                step_title="1. Analyze",
+                step_status="completed",
+                model="openai",
+                action_type="git_status",
+                observation="working tree clean",
+                git_head="abc123",
+            )
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=handoff,
+                memory=memory,
+                project_handoff=project_handoff,
+            )
+            step = PlanStep(id="step-2", title="Implement", instruction="implement fix", validation="done")
+            outcome = executor.execute_step(task="fix failing tests", step=step, plan=[step], iteration=2, last_observation="working tree clean")
+
+            self.assertTrue(outcome.ok)
+            prompt = handoff.calls[0]
+            self.assertIn("Implicit project handoff context:", prompt)
+            self.assertIn("Recent handoff log:", prompt)
+            self.assertIn("working tree clean", prompt)
 
 
 if __name__ == "__main__":
