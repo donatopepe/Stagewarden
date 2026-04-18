@@ -420,6 +420,8 @@ Respond with strict JSON:
         lower = observation.lower()
         if any(token in lower for token in ("error", "failed", "traceback", "not found", "denied")):
             return False
+        if "exit_code=0" in lower:
+            return True
         if step.validation.lower().startswith("a command") and observation:
             return True
         if "wrote file" in lower or "patched file" in lower:
