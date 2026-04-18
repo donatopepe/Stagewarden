@@ -132,6 +132,31 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(prefs.preferred_model, "cheap")
             self.assertIn("cheap", prefs.enabled_models)
 
+    def test_interactive_shell_manages_model_accounts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO(
+                "account add gpt lavoro OPENAI_API_KEY_WORK\n"
+                "account add gpt personale OPENAI_API_KEY_PERSONAL\n"
+                "account use gpt personale\n"
+                "account block gpt lavoro until 2026-05-01T18:30\n"
+                "accounts\n"
+                "models\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            self.assertEqual(code, 0)
+            self.assertEqual((prefs.active_account_by_model or {}).get("gpt"), "personale")
+            self.assertEqual((prefs.env_var_by_account or {}).get("gpt:lavoro"), "OPENAI_API_KEY_WORK")
+            self.assertIn("gpt:lavoro", prefs.blocked_until_by_account or {})
+            self.assertIn("account personale:", rendered)
+            self.assertIn("active-account", rendered)
+            self.assertIn("env=OPENAI_API_KEY_WORK", rendered)
+
     def test_interactive_shell_supports_caveman_alias_help(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
