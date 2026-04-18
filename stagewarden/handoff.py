@@ -5,6 +5,8 @@ import shlex
 import subprocess
 from dataclasses import dataclass
 
+from .secrets import SecretStore
+
 
 MODEL_BACKENDS = {
     "local": {"provider": "ollama", "label": "local/ollama"},
@@ -174,4 +176,8 @@ class HandoffManager:
         provider_env = MODEL_TOKEN_ENV.get(model)
         if source_env and provider_env and source_env in os.environ:
             env[provider_env] = os.environ[source_env]
+        elif provider_env:
+            loaded = SecretStore().load_token(model, account)
+            if loaded.ok:
+                env[provider_env] = loaded.secret
         return env

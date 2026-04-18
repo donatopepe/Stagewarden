@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,7 @@ from .config import AgentConfig
 from .handoff import MODEL_BACKENDS
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
+from .secrets import LOGIN_URLS, SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
 
@@ -73,6 +75,10 @@ def interactive_help_text() -> str:
             "  Show configured account profiles for each model.",
             "- account add <model> <name> [ENV_VAR]",
             "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
+            "- account login <model> <name>",
+            "  Open provider token page, prompt for token, and save it in the OS secret store.",
+            "- account logout <model> <name>",
+            "  Delete the saved token for one profile.",
             "- account env <model> <name> <ENV_VAR>",
             "  Set or change the environment variable used as token source for a profile.",
             "- account use <model> <name>",
@@ -119,6 +125,7 @@ def interactive_help_text() -> str:
             "- stagewarden> model remove claude",
             "- stagewarden> model block gpt until 2026-05-01T18:30",
             "- stagewarden> account add gpt lavoro OPENAI_API_KEY_WORK",
+            "- stagewarden> account login gpt lavoro",
             "- stagewarden> account add gpt personale OPENAI_API_KEY_PERSONAL",
             "- stagewarden> account use gpt lavoro",
             "- stagewarden> account block gpt lavoro until 2026-05-01T18:30",
@@ -182,10 +189,11 @@ def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
         key = account_key(model, account)
         blocked_until = (prefs.blocked_until_by_account or {}).get(key)
         env_var = (prefs.env_var_by_account or {}).get(key)
+        keychain = " token=stored" if SecretStore().has_token(model, account) else ""
         active = " active-account" if active_account == account else ""
         blocked = f" blocked-until={blocked_until}" if blocked_until else ""
         env_text = f" env={env_var}" if env_var else ""
-        lines.append(f"  account {account}:{active}{blocked}{env_text}")
+        lines.append(f"  account {account}:{active}{blocked}{env_text}{keychain}")
     return lines
 
 
@@ -322,7 +330,14 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
     return "Usage: model use <name> | model add <name> | model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | model unblock <name> | model clear"
 
 
-def _handle_account_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
+def _handle_account_command(
+    command: str,
+    agent: Agent,
+    config: AgentConfig,
+    *,
+    input_stream: TextIO | None = None,
+    output_stream: TextIO | None = None,
+) -> str | None:
     parts = command.split()
     if not parts:
         return None
@@ -346,6 +361,34 @@ def _handle_account_command(command: str, agent: Agent, config: AgentConfig) -> 
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
             return f"Added account {model}:{name}."
+        if action == "login":
+            if len(parts) != 4:
+                return "Usage: account login <model> <name>"
+            model, name = parts[2], parts[3]
+            if model not in LOGIN_URLS:
+                return f"Login is not supported for model '{model}'. Use account env for this provider."
+            prefs.add_account(model, name)
+            if model not in prefs.enabled_models:
+                prefs.enabled_models.append(model)
+            browser = SecretStore().open_login_page(model)
+            token = _prompt_secret(
+                f"Paste token for {model}:{name}: ",
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            saved = SecretStore().save_token(model, name, token)
+            if not saved.ok:
+                return saved.message
+            prefs.set_active_account(model, name)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            return f"{browser.message}\nSaved token for {model}:{name}."
+        if action == "logout":
+            if len(parts) != 4:
+                return "Usage: account logout <model> <name>"
+            model, name = parts[2], parts[3]
+            result = SecretStore().delete_token(model, name)
+            return result.message
         if action == "env":
             if len(parts) != 5:
                 return "Usage: account env <model> <name> <ENV_VAR>"
@@ -396,10 +439,21 @@ def _handle_account_command(command: str, agent: Agent, config: AgentConfig) -> 
 
 def _account_usage() -> str:
     return (
-        "Usage: accounts | account add <model> <name> [ENV_VAR] | account env <model> <name> <ENV_VAR> | "
+        "Usage: accounts | account add <model> <name> [ENV_VAR] | account login <model> <name> | "
+        "account logout <model> <name> | account env <model> <name> <ENV_VAR> | "
         "account use <model> <name> | account remove <model> <name> | "
         "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | account clear <model>"
     )
+
+
+def _prompt_secret(prompt: str, *, input_stream: TextIO | None = None, output_stream: TextIO | None = None) -> str:
+    source = input_stream or sys.stdin
+    sink = output_stream or sys.stdout
+    if source is sys.stdin and getattr(source, "isatty", lambda: False)():
+        return getpass.getpass(prompt)
+    sink.write(prompt)
+    sink.flush()
+    return source.readline().strip()
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
@@ -535,7 +589,7 @@ def run_interactive_shell(
             sink.write(f"{model_message}\n")
             sink.flush()
             continue
-        account_message = _handle_account_command(command, agent, config)
+        account_message = _handle_account_command(command, agent, config, input_stream=source, output_stream=sink)
         if account_message is not None:
             sink.write(f"{account_message}\n")
             sink.flush()

@@ -125,6 +125,7 @@ Stagewarden can keep multiple account profiles for the same provider. Secrets ar
 ```text
 stagewarden> account add gpt lavoro OPENAI_API_KEY_WORK
 stagewarden> account add gpt personale OPENAI_API_KEY_PERSONAL
+stagewarden> account login gpt lavoro
 stagewarden> account use gpt lavoro
 stagewarden> account block gpt lavoro until 2026-05-01T18:30
 stagewarden> account unblock gpt lavoro
@@ -137,6 +138,8 @@ Runtime behavior:
 - The external `run_model` command still receives `run_model gpt "<prompt>"`.
 - Stagewarden sets `STAGEWARDEN_MODEL_ACCOUNT=lavoro` and `STAGEWARDEN_MODEL_TARGET=gpt:lavoro`.
 - If `OPENAI_API_KEY_WORK` exists, Stagewarden maps it to `OPENAI_API_KEY` only for that subprocess.
+- `account login <model> <profile>` opens the provider key page, asks for the token, and saves it in macOS Keychain when available.
+- If no environment variable mapping exists, Stagewarden loads the saved profile token and maps it to the provider env var only for the subprocess.
 - If one account reports a usage limit, Stagewarden blocks that account until the reported time and retries another account for the same model before falling back to another model.
 
 Git history commands:
