@@ -10,6 +10,7 @@ from .memory import MemoryStore
 from .modelprefs import ModelPreferences, extract_blocked_until
 from .planner import PlanStep
 from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
+from .project_handoff import ProjectHandoff
 from .router import ModelRouter
 from .textcodec import dumps_ascii, loads_text
 from .tools.files import FileTool
@@ -36,11 +37,13 @@ class Executor:
         router: ModelRouter,
         handoff: HandoffManager,
         memory: MemoryStore,
+        project_handoff: ProjectHandoff | None = None,
     ) -> None:
         self.config = config
         self.router = router
         self.handoff = handoff
         self.memory = memory
+        self.project_handoff = project_handoff or ProjectHandoff()
         self.shell = ShellTool(config)
         self.files = FileTool(config)
         self.git = GitTool(config)
@@ -299,6 +302,9 @@ class Executor:
 
 Task:
 {task}
+
+Implicit project handoff context:
+{self.project_handoff.summary()}
 
 Current step:
 id={step.id}

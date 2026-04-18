@@ -244,6 +244,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- mode: {mode}",
         f"- memory: {config.memory_path.name}",
         f"- trace: {config.trace_path.name}",
+        f"- handoff: {config.handoff_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
         _render_model_status(agent, config),
     ]

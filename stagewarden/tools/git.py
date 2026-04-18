@@ -22,6 +22,7 @@ class GitTool:
         ".stagewarden_trace.ljson",
         ".stagewarden_prince2_pid.json",
         ".stagewarden_models.json",
+        ".stagewarden_handoff.json",
     )
 
     def __init__(self, config: AgentConfig) -> None:
@@ -103,6 +104,10 @@ class GitTool:
         if not path.strip():
             return GitResult(False, error="Path is required for git file history.")
         return self.log(limit=limit, path=path)
+
+    def head(self, *, revision: str = "HEAD") -> GitResult:
+        rev = revision.strip() or "HEAD"
+        return self._run(["git", "rev-parse", rev])
 
     def has_changes(self) -> bool:
         result = self.status_porcelain()
