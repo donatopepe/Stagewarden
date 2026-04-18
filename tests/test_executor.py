@@ -450,6 +450,15 @@ class ExecutorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
             memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="openai",
+                action_type="git_status",
+                action_signature='{"type":"git_status"}',
+                success=True,
+                observation="working tree clean",
+            )
             project_handoff = ProjectHandoff()
             project_handoff.start_run(task="fix failing tests", plan_status="step-1:pending", git_head="abc123")
             project_handoff.begin_step(
@@ -498,6 +507,7 @@ class ExecutorTests(unittest.TestCase):
             prompt = handoff.calls[0]
             self.assertIn("Implicit project handoff context:", prompt)
             self.assertIn("Recent handoff log:", prompt)
+            self.assertIn("Recent execution log:", prompt)
             self.assertIn("working tree clean", prompt)
 
 

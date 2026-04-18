@@ -85,6 +85,19 @@ class MemoryStore:
             )
         return "\n".join(lines)
 
+    def detailed_summary(self, limit: int = 8) -> str:
+        if not self.attempts:
+            return "No execution log."
+        lines: list[str] = []
+        for item in self.attempts[-limit:]:
+            status = "ok" if item.success else f"failed:{item.error_type or 'unknown'}"
+            observation = item.observation.strip().replace("\n", " ")
+            lines.append(
+                f"[iter={item.iteration}] step={item.step_id} model={item.model} "
+                f"action={item.action_type} status={status} observation={observation[:160]}"
+            )
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "attempts": [asdict(item) for item in self.attempts],
