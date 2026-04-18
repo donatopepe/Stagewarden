@@ -90,6 +90,25 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(len(loaded.quality_register), 1)
             self.assertEqual(len(loaded.lessons_log), 1)
 
+    def test_project_handoff_can_close_step_issues_and_clear_exception_plan(self) -> None:
+        handoff = ProjectHandoff(
+            current_step_id="step-1",
+            current_step_status="completed",
+            issue_register=[
+                {"step_id": "step-1", "severity": "medium", "summary": "validation pending", "status": "open"},
+                {"step_id": "step-2", "severity": "high", "summary": "other issue", "status": "open"},
+            ],
+            exception_plan=["review boundary for step-1"],
+        )
+        handoff.close_issues_for_step(step_id="step-1", resolution="step completed with wet-run evidence")
+        self.assertEqual(handoff.issue_register[0]["status"], "closed")
+        self.assertIn("resolution", handoff.issue_register[0])
+        self.assertEqual(handoff.issue_register[1]["status"], "open")
+
+        handoff.issue_register[1]["status"] = "closed"
+        handoff.clear_exception_plan_if_recovered()
+        self.assertEqual(handoff.exception_plan, [])
+
 
 if __name__ == "__main__":
     unittest.main()

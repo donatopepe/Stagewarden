@@ -11,6 +11,7 @@ from pathlib import Path
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.modelprefs import ModelPreferences
+from stagewarden.project_handoff import ProjectHandoff
 
 
 class AgentIntegrationTests(unittest.TestCase):
@@ -111,6 +112,42 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertIn("account=work", rendered)
             self.assertIn("git_head_before=", rendered)
             self.assertIn("git_head_after=", rendered)
+
+    def test_agent_closes_matching_open_issues_after_successful_step(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = ProjectHandoff(
+                task="create a file named hello.txt",
+                status="exception",
+                current_step_id="step-3",
+                current_step_title="3. Validate the implementation",
+                current_step_status="in_progress",
+                latest_observation="validation pending",
+                plan_status="step-1:completed,step-2:completed,step-3:in_progress",
+                issue_register=[
+                    {"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}
+                ],
+                exception_plan=["review boundary for step-3"],
+            )
+            handoff.save(root / ".stagewarden_handoff.json")
+
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = "/Users/donato/run_model_stub"
+            try:
+                agent = Agent(AgentConfig(workspace_root=root, max_steps=10, verbose=False))
+                result = agent.run("create a file named hello.txt")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertTrue(result.ok)
+            saved = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            matching = [item for item in saved.issue_register if item.get("step_id") == "step-3"]
+            self.assertTrue(matching)
+            self.assertTrue(all(item.get("status") == "closed" for item in matching))
+            self.assertEqual(saved.exception_plan, [])
 
 
 if __name__ == "__main__":

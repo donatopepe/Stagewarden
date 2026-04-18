@@ -415,6 +415,27 @@ class ProjectHandoff:
             {"step_id": step_id, "type": lesson_type, "lesson": lesson[:240], "recorded_at": _utc_now()}
         )
 
+    def close_issues_for_step(self, *, step_id: str, resolution: str) -> None:
+        for item in self.issue_register:
+            if str(item.get("step_id", "")).strip() != step_id:
+                continue
+            if str(item.get("status", "open")).strip().lower() == "closed":
+                continue
+            item["status"] = "closed"
+            item["resolved_at"] = _utc_now()
+            item["resolution"] = resolution[:240]
+
+    def clear_exception_plan_if_recovered(self) -> None:
+        if not self.exception_plan:
+            return
+        open_issues = [
+            item
+            for item in self.issue_register
+            if str(item.get("status", "open")).strip().lower() != "closed"
+        ]
+        if self.current_step_status == "completed" and not open_issues:
+            self.exception_plan = []
+
     def _seed_risk_register(self, risks: list[Any]) -> None:
         if self.risk_register:
             return
