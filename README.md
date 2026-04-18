@@ -96,6 +96,9 @@ Inside the shell:
 stagewarden> help
 stagewarden> models
 stagewarden> model use openai
+stagewarden> model list claude
+stagewarden> model variant claude opus
+stagewarden> model variant openai gpt-5.4-mini
 stagewarden> model block openai until 2026-05-01T18:30
 stagewarden> model unblock openai
 stagewarden> status
@@ -111,10 +114,19 @@ Model control:
 - `models` shows enabled, active, preferred, blocked, and backend state.
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
+- `model list <provider>` shows the official aliases or model IDs supported for that provider.
+- `model variant <provider> <variant>` pins a provider-specific model alias or model ID.
+- `model variant-clear <provider>` clears the variant override and returns to the provider default.
 - `model remove <local|cheap|chatgpt|openai|claude>` disables a model.
 - `model block <model> until YYYY-MM-DDTHH:MM` blocks a model until a date and time.
 - `model unblock <model>` removes a temporary block.
 - `model clear` restores automatic routing.
+
+Provider model selection is aligned to public provider behavior:
+
+- `openai` and `chatgpt` accept explicit OpenAI model IDs such as `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.1-codex`, and `codex-mini-latest`.
+- `claude` accepts Claude Code style aliases such as `default`, `sonnet`, `opus`, `haiku`, `sonnet[1m]`, and `opusplan`.
+- Stagewarden passes the selected variant to the backend via `STAGEWARDEN_MODEL_VARIANT` and the provider-native env var such as `OPENAI_MODEL` or `ANTHROPIC_MODEL`.
 
 Stagewarden also records online model usage-limit messages such as `try again at 8:05 PM` and automatically blocks that model until the reported local time.
 
@@ -177,11 +189,8 @@ stagewarden> caveman off
 
 Acknowledgements:
 
-- The Caveman mode and related command ergonomics were inspired by [caveman](https://github.com/JuliusBrussee/caveman) by Julius Brussee.
-- Stagewarden is an independent project and does not include Caveman source code.
-
-Credits:
-
-- UX direction and agent-loop ergonomics were influenced by Codex-style CLI workflows.
-- Caveman-inspired command ergonomics and mode design draw from [caveman](https://github.com/JuliusBrussee/caveman) by Julius Brussee.
+- Thanks to Julius Brussee for [caveman](https://github.com/JuliusBrussee/caveman), which influenced the Caveman mode and parts of the command ergonomics.
+- Thanks to the public OpenAI Codex CLI sources and documentation for clarifying authentication and provider-model selection patterns.
+- Thanks to the public Claude Code sources and Anthropic documentation for the provider-specific model aliasing and credential-handling references.
+- Stagewarden is an independent project and does not include source code from Caveman, Codex CLI, or Claude Code.
 - Stagewarden implementation, package structure, routing, handoff system, persistence, tests, and project integration are original work for this repository.
