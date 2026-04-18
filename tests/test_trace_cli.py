@@ -12,7 +12,7 @@ from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.modelprefs import ModelPreferences
-from stagewarden.main import run_interactive_shell
+from stagewarden.main import _render_boundary, run_interactive_shell
 
 
 ROOT = Path(__file__).resolve().parents[1]
