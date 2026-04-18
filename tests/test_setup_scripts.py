@@ -14,7 +14,9 @@ class SetupScriptTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertIn("command -v git", content)
         self.assertIn("pip install --user -e", content)
-        self.assertIn("Stagewarden installed.", content)
+        self.assertIn("source launcher", content)
+        self.assertIn("PYTHONPATH", content)
+        self.assertIn("Stagewarden installed (", content)
 
     def test_windows_setup_script_exists_and_updates_path(self) -> None:
         script = ROOT / "scripts" / "setup_windows.ps1"
@@ -22,6 +24,8 @@ class SetupScriptTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertIn("Get-Command git", content)
         self.assertIn("pip install --user -e", content)
+        self.assertIn("source launcher", content)
+        self.assertIn("PYTHONPATH", content)
         self.assertIn("SetEnvironmentVariable", content)
 
 
