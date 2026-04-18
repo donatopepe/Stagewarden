@@ -10,6 +10,11 @@ node_modules/
 .agent_cli_caveman.json
 .agent_cli_trace.ljson
 .agent_cli_prince2_pid.json
+.stagewarden_memory.json
+.stagewarden_caveman.json
+.stagewarden_trace.ljson
+.stagewarden_prince2_pid.json
+.stagewarden_models.json
 
 hello.txt
 homebrew_install_log.txt
