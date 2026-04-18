@@ -31,6 +31,13 @@ Prerequisites:
 
 Git is mandatory. Stagewarden initializes a repository automatically when needed and commits local snapshots of agent actions.
 
+Git behavior:
+
+- If the workspace has no `.git`, Stagewarden runs `git init` automatically.
+- Runtime files are added to `.gitignore`.
+- Stagewarden creates local commits for workspace snapshots during agent execution.
+- If `git` is missing, the agent refuses to start.
+
 Quick setup:
 
 macOS/Linux:
