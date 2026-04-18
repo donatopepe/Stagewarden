@@ -48,6 +48,8 @@ def interactive_help_text() -> str:
             "  Close the interactive session.",
             "- reset",
             "  Start a fresh in-memory agent session in the same workspace.",
+            "- status",
+            "  Show workspace, mode, model routing, and state file locations.",
             "- commands",
             "  Alias for help.",
             "",
@@ -74,6 +76,8 @@ def interactive_help_text() -> str:
             "- /caveman review",
             "- /caveman compress <file>",
             "- stop caveman | normal mode",
+            "- mode caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra>",
+            "- mode normal",
             "- caveman help | caveman on [level] | caveman off",
             "- caveman commit | caveman review | caveman compress <file>",
             "",
@@ -86,6 +90,9 @@ def interactive_help_text() -> str:
             "- stagewarden> model remove claude",
             "- stagewarden> model block gpt until 2026-05-01T18:30",
             "- stagewarden> model unblock gpt",
+            "- stagewarden> status",
+            "- stagewarden> mode caveman ultra",
+            "- stagewarden> mode normal",
             "- stagewarden> caveman on ultra",
             "- stagewarden> /caveman review",
             "- stagewarden> fix failing tests in router.py",
@@ -124,6 +131,22 @@ def _render_model_status(agent: Agent) -> str:
         lines.append(f"- {model}: {enabled}{active}{preferred}{blocked} ({backend})")
     if status["preferred_model"] is None:
         lines.append("- preferred_model: automatic routing")
+    return "\n".join(lines)
+
+
+def _render_status(agent: Agent, config: AgentConfig) -> str:
+    _apply_model_preferences(agent, config)
+    caveman_state = agent.caveman.load_state(config)
+    mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
+    lines = [
+        "Stagewarden status:",
+        f"- workspace: {config.workspace_root}",
+        f"- mode: {mode}",
+        f"- memory: {config.memory_path.name}",
+        f"- trace: {config.trace_path.name}",
+        f"- model_config: {config.model_prefs_path.name}",
+        _render_model_status(agent),
+    ]
     return "\n".join(lines)
 
 
@@ -229,6 +252,23 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
     return "Usage: model use <name> | model add <name> | model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | model unblock <name> | model clear"
 
 
+def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
+    parts = command.split()
+    if not parts:
+        return None
+    if parts[0] == "status":
+        return _render_status(agent, config)
+    if parts[0] != "mode":
+        return None
+    if len(parts) == 2 and parts[1] == "normal":
+        result = agent.run("normal mode")
+        return result.message
+    if len(parts) == 3 and parts[1] == "caveman":
+        result = agent.run(f"/caveman {parts[2]}")
+        return result.message
+    return "Usage: mode caveman <level> | mode normal"
+
+
 def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
     lowered = command.lower().strip()
     if lowered in {"help", "commands"}:
@@ -294,6 +334,11 @@ def run_interactive_shell(
         model_message = _handle_model_command(command, agent, config)
         if model_message is not None:
             sink.write(f"{model_message}\n")
+            sink.flush()
+            continue
+        mode_message = _handle_mode_command(command, agent, config)
+        if mode_message is not None:
+            sink.write(f"{mode_message}\n")
             sink.flush()
             continue
 

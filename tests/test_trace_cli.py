@@ -117,6 +117,22 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual((prefs.blocked_until_by_model or {}).get("gpt"), "2026-05-01T18:30")
             self.assertIn("blocked-until=2026-05-01T18:30", rendered)
 
+    def test_interactive_shell_status_and_mode_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("status\nmode caveman ultra\nstatus\nmode normal\nstatus\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Stagewarden status:", rendered)
+            self.assertIn("mode: normal", rendered)
+            self.assertIn("Caveman mode active. Level: ultra.", rendered)
+            self.assertIn("mode: caveman ultra", rendered)
+            self.assertIn("Caveman mode disabled.", rendered)
+            self.assertFalse((root / ".stagewarden_caveman.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
