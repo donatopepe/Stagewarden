@@ -198,6 +198,7 @@ class Executor:
         except OSError:
             return
         self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
+        self.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
 
     def _select_account(self, model: str) -> str | None:
         try:

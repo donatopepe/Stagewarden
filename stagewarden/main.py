@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -9,7 +10,7 @@ from typing import TextIO
 from .agent import Agent
 from .auth import OpenAIDeviceCodeFlow
 from .config import AgentConfig
-from .handoff import MODEL_BACKENDS
+from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
 from .secrets import LOGIN_URLS, SecretStore
@@ -63,6 +64,12 @@ def interactive_help_text() -> str:
             "  Set the preferred model and persist it in this workspace.",
             "- model add <local|cheap|chatgpt|openai|claude>",
             "  Enable a model in this workspace.",
+            "- model list <local|cheap|chatgpt|openai|claude>",
+            "  Show the official aliases or recommended model IDs for one provider.",
+            "- model variant <local|cheap|chatgpt|openai|claude> <variant>",
+            "  Pin the provider-specific model variant or alias for that provider.",
+            "- model variant-clear <local|cheap|chatgpt|openai|claude>",
+            "  Clear the provider-specific variant and return to the provider default.",
             "- model remove <local|cheap|chatgpt|openai|claude>",
             "  Disable a model in this workspace.",
             "- model block <local|cheap|chatgpt|openai|claude> until YYYY-MM-DDTHH:MM",
@@ -83,6 +90,8 @@ def interactive_help_text() -> str:
             "  Delete the saved token for one profile.",
             "- account env <model> <name> <ENV_VAR>",
             "  Set or change the environment variable used as token source for a profile.",
+            "- account import <model> <name> [PATH]",
+            "  Import credentials from a provider-owned credentials file. For claude the default is ~/.claude/.credentials.json or $CLAUDE_CONFIG_DIR/.credentials.json.",
             "- account use <model> <name>",
             "  Prefer one account profile for a model.",
             "- account remove <model> <name>",
@@ -125,6 +134,9 @@ def interactive_help_text() -> str:
             "- stagewarden> models",
             "- stagewarden> account login chatgpt personale",
             "- stagewarden> model use openai",
+            "- stagewarden> model list claude",
+            "- stagewarden> model variant claude opus",
+            "- stagewarden> model variant openai gpt-5.4-mini",
             "- stagewarden> model remove claude",
             "- stagewarden> model block openai until 2026-05-01T18:30",
             "- stagewarden> account add openai lavoro OPENAI_API_KEY_WORK",
@@ -155,6 +167,11 @@ def _save_model_preferences(config: AgentConfig, prefs: ModelPreferences) -> Non
     prefs.normalize().save(config.model_prefs_path)
 
 
+def _sync_handoff_preferences(agent: Agent, prefs: ModelPreferences) -> None:
+    agent.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
+    agent.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
+
+
 def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferences:
     prefs = _load_model_preferences(config)
     agent.router.configure(
@@ -162,6 +179,7 @@ def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferen
         preferred_model=prefs.preferred_model,
         blocked_until_by_model=prefs.blocked_until_by_model or {},
     )
+    _sync_handoff_preferences(agent, prefs)
     return prefs
 
 
@@ -176,7 +194,8 @@ def _render_model_status(agent: Agent, config: AgentConfig) -> str:
         blocked = f" blocked-until={blocked_until}" if blocked_until else ""
         active = " active" if model in status["active_models"] else " inactive"
         preferred = " preferred" if status["preferred_model"] == model else ""
-        lines.append(f"- {model}: {enabled}{active}{preferred}{blocked} ({backend})")
+        variant = prefs.variant_for_model(model) or "provider-default"
+        lines.append(f"- {model}: {enabled}{active}{preferred}{blocked} variant={variant} ({backend})")
         account_lines = _render_account_lines(prefs, model)
         lines.extend(account_lines)
     if status["preferred_model"] is None:
@@ -247,7 +266,7 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
     if parts[0] != "model":
         return None
     if len(parts) < 2:
-        return "Usage: model use <name> | model add <name> | model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | model unblock <name> | model clear"
+        return _model_usage()
 
     action = parts[1]
     prefs = _load_model_preferences(config)
@@ -264,6 +283,36 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
             return f"Preferred model set to {model}."
+        if action == "list":
+            if len(parts) != 3:
+                return "Usage: model list <name>"
+            model = parts[2]
+            if model not in SUPPORTED_MODELS:
+                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            variants = ", ".join(available_model_variants(model))
+            source = MODEL_VARIANT_CATALOG[model]["source"]
+            return f"Available variants for {model}: {variants}\nSource: {source}"
+        if action == "variant":
+            if len(parts) != 4:
+                return "Usage: model variant <name> <variant>"
+            model, variant = parts[2], parts[3]
+            if model not in SUPPORTED_MODELS:
+                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            canonical = canonicalize_model_variant(model, variant)
+            prefs.set_variant(model, canonical)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            return f"Variant for {model} set to {canonical}."
+        if action == "variant-clear":
+            if len(parts) != 3:
+                return "Usage: model variant-clear <name>"
+            model = parts[2]
+            if model not in SUPPORTED_MODELS:
+                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            prefs.clear_variant(model)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            return f"Variant for {model} cleared. Provider default restored."
         if action == "add":
             if len(parts) != 3:
                 return "Usage: model add <name>"
@@ -330,7 +379,16 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
     except ValueError as exc:
         return str(exc)
 
-    return "Usage: model use <name> | model add <name> | model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | model unblock <name> | model clear"
+    return _model_usage()
+
+
+def _model_usage() -> str:
+    return (
+        "Usage: model use <name> | model add <name> | model list <name> | "
+        "model variant <name> <variant> | model variant-clear <name> | "
+        "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
+        "model unblock <name> | model clear"
+    )
 
 
 def _handle_account_command(
@@ -413,6 +471,30 @@ def _handle_account_command(
             prefs.set_account_env(model, name, env_var)
             _save_model_preferences(config, prefs)
             return f"Set token env for {model}:{name} to {env_var}."
+        if action == "import":
+            if len(parts) not in {4, 5}:
+                return "Usage: account import <model> <name> [PATH]"
+            model, name = parts[2], parts[3]
+            if model != "claude":
+                return f"Import is not supported for model '{model}'."
+            path = Path(parts[4]) if len(parts) == 5 else _default_claude_credentials_path()
+            if path is None:
+                return "No default Claude credentials path is available. Pass an explicit path."
+            if not path.exists():
+                return f"Credentials file not found: {path}"
+            payload = read_text_utf8(path).strip()
+            if not payload:
+                return f"Credentials file is empty: {path}"
+            prefs.add_account(model, name)
+            if model not in prefs.enabled_models:
+                prefs.enabled_models.append(model)
+            saved = SecretStore().save_token(model, name, payload)
+            if not saved.ok:
+                return saved.message
+            prefs.set_active_account(model, name)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            return f"Imported credentials for {model}:{name} from {path}."
         if action == "use":
             if len(parts) != 4:
                 return "Usage: account use <model> <name>"
@@ -456,10 +538,20 @@ def _account_usage() -> str:
     return (
         "Usage: accounts | account add <model> <name> [ENV_VAR] | account login <model> <name> | "
         "account login-device <chatgpt|openai> <name> | "
-        "account logout <model> <name> | account env <model> <name> <ENV_VAR> | "
+        "account logout <model> <name> | account env <model> <name> <ENV_VAR> | account import <model> <name> [PATH] | "
         "account use <model> <name> | account remove <model> <name> | "
         "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | account clear <model>"
     )
+
+
+def _default_claude_credentials_path() -> Path | None:
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    if config_dir:
+        return Path(config_dir) / ".credentials.json"
+    home = Path.home()
+    if not str(home):
+        return None
+    return home / ".claude" / ".credentials.json"
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:

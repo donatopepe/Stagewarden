@@ -187,6 +187,122 @@ class HandoffTests(unittest.TestCase):
         self.assertIn('"token": "access-token-123"', result.output)
         self.assertIn('\\"refresh_token\\":\\"refresh-token-123\\"', result.output)
 
+    def test_handoff_maps_claude_auth_token_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stub = Path(tmp_dir) / "run_model_test_stub"
+            stub.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env python3
+                    import json
+                    import os
+                    print(json.dumps({
+                        "api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
+                        "auth_token": os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
+                    }))
+                    """
+                )
+            )
+            stub.chmod(0o755)
+            original_bin = os.environ.get("RUN_MODEL_BIN")
+            original_token = os.environ.get("CLAUDE_AUTH_TOKEN_WORK")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            os.environ["CLAUDE_AUTH_TOKEN_WORK"] = "claude-auth-token"
+            try:
+                manager = HandoffManager(timeout_seconds=5)
+                manager.account_env_by_target = {"claude:work": "CLAUDE_AUTH_TOKEN_WORK"}
+                result = manager.execute(format_run_model("claude", "prompt", account="work"))
+            finally:
+                if original_bin is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original_bin
+                if original_token is None:
+                    os.environ.pop("CLAUDE_AUTH_TOKEN_WORK", None)
+                else:
+                    os.environ["CLAUDE_AUTH_TOKEN_WORK"] = original_token
+
+        self.assertTrue(result.ok, result.error)
+        self.assertIn('"auth_token": "claude-auth-token"', result.output)
+        self.assertIn('"api_key": ""', result.output)
+
+    def test_handoff_passes_provider_model_variant_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stub = Path(tmp_dir) / "run_model_test_stub"
+            stub.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env python3
+                    import json
+                    import os
+                    print(json.dumps({
+                        "variant": os.environ.get("STAGEWARDEN_MODEL_VARIANT", ""),
+                        "openai_model": os.environ.get("OPENAI_MODEL", ""),
+                    }))
+                    """
+                )
+            )
+            stub.chmod(0o755)
+            original_bin = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                manager = HandoffManager(timeout_seconds=5)
+                manager.model_variant_by_model = {"openai": "gpt-5.4-mini"}
+                result = manager.execute(format_run_model("openai", "prompt"))
+            finally:
+                if original_bin is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original_bin
+
+        self.assertTrue(result.ok, result.error)
+        self.assertIn('"variant": "gpt-5.4-mini"', result.output)
+        self.assertIn('"openai_model": "gpt-5.4-mini"', result.output)
+
+    def test_handoff_loads_claude_json_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stub = Path(tmp_dir) / "run_model_test_stub"
+            store = Path(tmp_dir) / "secrets"
+            stub.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env python3
+                    import json
+                    import os
+                    print(json.dumps({
+                        "api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
+                        "auth_token": os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
+                        "payload": os.environ.get("STAGEWARDEN_AUTH_TOKENS_JSON", ""),
+                    }))
+                    """
+                )
+            )
+            stub.chmod(0o755)
+            original_bin = os.environ.get("RUN_MODEL_BIN")
+            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
+            try:
+                from stagewarden.secrets import SecretStore
+
+                payload = '{"auth_token":"claude-subscription-token","api_key":"console-key"}'
+                saved = SecretStore().save_token("claude", "work", payload)
+                self.assertTrue(saved.ok, saved.message)
+                result = HandoffManager(timeout_seconds=5).execute(format_run_model("claude", "prompt", account="work"))
+            finally:
+                if original_bin is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original_bin
+                if original_store is None:
+                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
+                else:
+                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
+
+        self.assertTrue(result.ok, result.error)
+        self.assertIn('"auth_token": "claude-subscription-token"', result.output)
+        self.assertIn('"api_key": "console-key"', result.output)
+
 
 if __name__ == "__main__":
     unittest.main()
