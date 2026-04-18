@@ -49,6 +49,7 @@ PRINCE2 handoff behavior:
 - The executor prompt also includes the active PRINCE2 registers: risks, issues, quality evidence, lessons learned, and any current exception plan.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
 - `handoff` shows the full persisted project context, while `boundary` shows only the current PRINCE2 stage-boundary recommendation.
+- `boundary` now blocks closure when open issues remain and prefers an explicit exception-path decision when an exception plan is active.
 
 Validation behavior:
 
