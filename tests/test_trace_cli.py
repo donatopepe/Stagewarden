@@ -198,11 +198,13 @@ class TraceAndCliTests(unittest.TestCase):
             store = root / "secrets"
             original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
             original_skip = os.environ.get("STAGEWARDEN_SKIP_BROWSER")
+            original_auto = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN")
             os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
             os.environ["STAGEWARDEN_SKIP_BROWSER"] = "1"
+            os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = "chatgpt-session-token"
             try:
                 config = AgentConfig(workspace_root=root, max_steps=1)
-                input_stream = StringIO("account login chatgpt personale\nchatgpt-session-token\naccounts\nexit\n")
+                input_stream = StringIO("account login chatgpt personale\naccounts\nexit\n")
                 output_stream = StringIO()
                 code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
                 rendered = output_stream.getvalue()
@@ -219,12 +221,15 @@ class TraceAndCliTests(unittest.TestCase):
                     os.environ.pop("STAGEWARDEN_SKIP_BROWSER", None)
                 else:
                     os.environ["STAGEWARDEN_SKIP_BROWSER"] = original_skip
+                if original_auto is None:
+                    os.environ.pop("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN", None)
+                else:
+                    os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = original_auto
 
             self.assertEqual(code, 0)
             self.assertEqual((prefs.active_account_by_model or {}).get("chatgpt"), "personale")
             self.assertTrue(loaded.ok, loaded.message)
             self.assertEqual(loaded.secret, "chatgpt-session-token")
-            self.assertIn("Paste ChatGPT token for chatgpt:personale:", rendered)
             self.assertIn("token=stored", rendered)
 
     def test_interactive_shell_supports_caveman_alias_help(self) -> None:
