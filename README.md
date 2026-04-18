@@ -15,6 +15,7 @@ Caratteristiche principali:
 - model routing and escalation
 - `RUN_MODEL:` handoff execution
 - shell, file, and git tools
+- cross-platform shell execution on macOS, Linux, and Windows
 - local stub support for smoke tests
 
 Install locally:
@@ -47,6 +48,12 @@ sh scripts/setup_linux.sh
 ```powershell
 .\scripts\setup_windows.ps1
 ```
+
+Shell execution:
+
+- macOS/Linux use `bash` when available, otherwise `sh`.
+- Windows uses PowerShell when available, otherwise `cmd`.
+- Shell sessions are persistent within an agent run and constrained to the workspace.
 
 Run:
 

@@ -35,6 +35,30 @@ class ToolTests(unittest.TestCase):
             self.assertIn("exit_code=0", result.output_preview)
             self.assertGreaterEqual(result.duration_ms, 0)
 
+    def test_shell_tool_builds_windows_command_args(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))
+            tool.is_windows = True
+            tool._windows_shell = lambda: "powershell"  # type: ignore[method-assign]
+            args = tool._command_args("python --version")
+            self.assertEqual(args[:5], ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy"])
+            self.assertIn("-Command", args)
+            self.assertEqual(args[-1], "python --version")
+
+    def test_shell_tool_builds_windows_cmd_args(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))
+            tool.is_windows = True
+            tool._windows_shell = lambda: "cmd"  # type: ignore[method-assign]
+            self.assertEqual(tool._command_args("dir"), ["cmd", "/d", "/s", "/c", "dir"])
+
+    def test_shell_tool_builds_unix_session_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))
+            tool.is_windows = False
+            payload = tool._session_payload("pwd", "MARK").decode()
+            self.assertIn("printf 'MARK:%s", payload)
+
     def test_shell_tool_persistent_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))

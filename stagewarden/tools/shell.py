@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import platform
 import selectors
+import shutil
 import subprocess
 import time
 import uuid
@@ -38,6 +40,8 @@ class ShellTool:
     def __init__(self, config: AgentConfig) -> None:
         self.config = config
         self.sessions: dict[str, ShellSession] = {}
+        self.os_name = platform.system().lower()
+        self.is_windows = self.os_name == "windows"
 
     def run(self, command: str, cwd: str | None = None) -> ShellResult:
         command = command.strip()
@@ -49,10 +53,9 @@ class ShellTool:
         started = time.monotonic()
         try:
             completed = subprocess.run(
-                command,
+                self._command_args(command),
                 cwd=run_cwd,
-                shell=True,
-                executable="/bin/bash",
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=self.config.shell_timeout_seconds,
@@ -88,7 +91,7 @@ class ShellTool:
         session_id = uuid.uuid4().hex[:12]
         try:
             process = subprocess.Popen(
-                ["/bin/bash", "--noprofile", "--norc"],
+                self._interactive_shell_args(),
                 cwd=run_cwd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -122,8 +125,8 @@ class ShellTool:
         if session.process.poll() is not None:
             return ShellResult(False, command, session.cwd, -1, error="Shell session is closed.", session_id=session_id)
 
-        marker = f"__AGENT_CLI_EXIT__:{uuid.uuid4().hex}"
-        payload = f"{command}\nprintf '{marker}:%s\\n' $?\n".encode()
+        marker = f"__STAGEWARDEN_EXIT__:{uuid.uuid4().hex}"
+        payload = self._session_payload(command, marker)
         started = time.monotonic()
         try:
             assert session.process.stdin is not None
@@ -205,6 +208,36 @@ class ShellTool:
         if not self.config.is_within_workspace(run_cwd):
             return ShellResult(False, command, str(run_cwd), -1, error="Working directory is outside the workspace.")
         return None
+
+    def _command_args(self, command: str) -> list[str]:
+        if self.is_windows:
+            shell = self._windows_shell()
+            if shell.endswith("cmd.exe") or shell.lower() == "cmd":
+                return [shell, "/d", "/s", "/c", command]
+            return [shell, "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command]
+        shell = shutil.which("bash") or shutil.which("sh") or "/bin/sh"
+        if Path(shell).name == "bash":
+            return [shell, "-lc", command]
+        return [shell, "-c", command]
+
+    def _interactive_shell_args(self) -> list[str]:
+        if self.is_windows:
+            shell = self._windows_shell()
+            if shell.endswith("cmd.exe") or shell.lower() == "cmd":
+                return [shell, "/d", "/q"]
+            return [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass"]
+        shell = shutil.which("bash") or shutil.which("sh") or "/bin/sh"
+        if Path(shell).name == "bash":
+            return [shell, "--noprofile", "--norc"]
+        return [shell]
+
+    def _session_payload(self, command: str, marker: str) -> bytes:
+        if self.is_windows:
+            return f"{command}\nWrite-Output \"{marker}:$LASTEXITCODE\"\n".encode()
+        return f"{command}\nprintf '{marker}:%s\\n' $?\n".encode()
+
+    def _windows_shell(self) -> str:
+        return shutil.which("pwsh") or shutil.which("powershell") or shutil.which("cmd") or "powershell"
 
     def _resolve_cwd(self, cwd: str | None) -> Path:
         return Path(cwd).resolve() if cwd else self.config.workspace_root_resolved
