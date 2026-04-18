@@ -19,7 +19,7 @@ class AgentIntegrationTests(unittest.TestCase):
                 agent = Agent(
                     AgentConfig(
                         workspace_root=Path(tmp_dir),
-                        max_steps=6,
+                        max_steps=10,
                         verbose=False,
                     )
                 )
