@@ -50,6 +50,7 @@ PRINCE2 handoff behavior:
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
 - `handoff` shows the full persisted project context, while `boundary` shows only the current PRINCE2 stage-boundary recommendation.
 - `boundary` now blocks closure when open issues remain and prefers an explicit exception-path decision when an exception plan is active.
+- On controlled project closure, Stagewarden now closes remaining open issues and risks and clears the exception plan when the project has recovered.
 
 Validation behavior:
 
