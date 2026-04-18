@@ -55,6 +55,10 @@ class ProjectHandoff:
     plan_status: str = ""
     git_head: str | None = None
     git_head_baseline: str | None = None
+    risk_register: list[dict[str, str]] = field(default_factory=list)
+    issue_register: list[dict[str, str]] = field(default_factory=list)
+    quality_register: list[dict[str, str]] = field(default_factory=list)
+    exception_plan: list[str] = field(default_factory=list)
     updated_at: str = field(default_factory=_utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
 
@@ -85,6 +89,7 @@ class ProjectHandoff:
         self.status = "planned"
         self.plan_status = plan_status
         self.git_head = git_head
+        self._seed_risk_register(checklist.get("risks", []))
         self.updated_at = _utc_now()
         self.entries.append(
             HandoffEntry(
@@ -191,6 +196,8 @@ class ProjectHandoff:
         self.plan_status = plan_status
         self.latest_observation = outcome
         self.git_head = git_head
+        if not success:
+            self._build_exception_plan()
         self.updated_at = _utc_now()
         self.entries.append(
             HandoffEntry(
@@ -214,6 +221,7 @@ class ProjectHandoff:
             f"plan_status={self.plan_status or 'unknown'}",
             f"current_step={self.current_step_id or 'none'}",
             f"git_head={self.git_head or 'unknown'}",
+            f"registers=risks:{len(self.risk_register)} issues:{len(self.issue_register)} quality:{len(self.quality_register)}",
         ]
         for entry in self.entries[-limit:]:
             lines.append(
@@ -297,6 +305,11 @@ class ProjectHandoff:
             f"plan_status={pid_boundary['plan_status']} updated_at={pid_boundary['updated_at']}"
         )
         lines.append(f"- boundary_decision: {boundary_decision}")
+        lines.append(
+            f"- registers: risks={len(self.risk_register)} issues={len(self.issue_register)} quality={len(self.quality_register)}"
+        )
+        if self.exception_plan:
+            lines.append(f"- exception_plan: {' | '.join(self.exception_plan[:3])}")
         return "\n".join(lines)
 
     def as_dict(self) -> dict[str, Any]:
@@ -312,6 +325,10 @@ class ProjectHandoff:
             "plan_status": self.plan_status,
             "git_head": self.git_head,
             "git_head_baseline": self.git_head_baseline,
+            "risk_register": list(self.risk_register),
+            "issue_register": list(self.issue_register),
+            "quality_register": list(self.quality_register),
+            "exception_plan": list(self.exception_plan),
             "updated_at": self.updated_at,
             "entries": [entry.as_dict() for entry in self.entries],
         }
@@ -319,6 +336,37 @@ class ProjectHandoff:
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         write_text_utf8(path, dumps_ascii(self.as_dict(), indent=2))
+
+    def record_issue(self, *, step_id: str, severity: str, summary: str) -> None:
+        self.issue_register.append(
+            {"step_id": step_id, "severity": severity, "summary": summary[:240], "recorded_at": _utc_now()}
+        )
+
+    def record_quality(self, *, step_id: str, status: str, evidence: str) -> None:
+        self.quality_register.append(
+            {"step_id": step_id, "status": status, "evidence": evidence[:240], "recorded_at": _utc_now()}
+        )
+
+    def _seed_risk_register(self, risks: list[Any]) -> None:
+        if self.risk_register:
+            return
+        for item in risks:
+            text = str(item).strip()
+            if not text:
+                continue
+            self.risk_register.append(
+                {"risk": text[:240], "status": "open", "recorded_at": _utc_now()}
+            )
+
+    def _build_exception_plan(self) -> None:
+        if self.exception_plan:
+            return
+        current_step = self.current_step_id or "unknown-step"
+        self.exception_plan = [
+            f"review boundary for {current_step}",
+            "inspect latest issue register and failed observations",
+            "prepare controlled corrective action with wet-run validation",
+        ]
 
     def _parse_plan_status(self, value: str) -> dict[str, str]:
         statuses: dict[str, str] = {}
@@ -359,6 +407,10 @@ class ProjectHandoff:
             plan_status=str(payload.get("plan_status", "")),
             git_head=str(payload["git_head"]) if payload.get("git_head") else None,
             git_head_baseline=str(payload["git_head_baseline"]) if payload.get("git_head_baseline") else None,
+            risk_register=[dict(item) for item in payload.get("risk_register", []) if isinstance(item, dict)],
+            issue_register=[dict(item) for item in payload.get("issue_register", []) if isinstance(item, dict)],
+            quality_register=[dict(item) for item in payload.get("quality_register", []) if isinstance(item, dict)],
+            exception_plan=[str(item) for item in payload.get("exception_plan", [])],
             updated_at=str(payload.get("updated_at", _utc_now())),
         )
         for item in payload.get("entries", []):

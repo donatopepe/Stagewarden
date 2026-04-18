@@ -155,6 +155,11 @@ class Agent:
             if self.memory.should_abort_step(current.id):
                 current.status = "failed"
                 last_observation = "Aborted repeated loop for current step."
+                self.project_handoff.record_issue(
+                    step_id=current.id,
+                    severity="high",
+                    summary="Repeated loop exceeded acceptable control tolerance.",
+                )
                 self.project_handoff.begin_step(
                     iteration=iterations,
                     task=effective_task,
@@ -233,6 +238,19 @@ class Agent:
                     current.status = "failed"
                 else:
                     current.status = "in_progress"
+            if outcome.ok:
+                self.project_handoff.record_quality(
+                    step_id=current.id,
+                    status="passed" if outcome.step_completed else "observed",
+                    evidence=outcome.observation,
+                )
+            else:
+                severity = "high" if current.status == "failed" else "medium"
+                self.project_handoff.record_issue(
+                    step_id=current.id,
+                    severity=severity,
+                    summary=outcome.observation,
+                )
             self.project_handoff.complete_step(
                 iteration=iterations,
                 task=effective_task,

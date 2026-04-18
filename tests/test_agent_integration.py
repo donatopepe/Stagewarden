@@ -46,6 +46,30 @@ class AgentIntegrationTests(unittest.TestCase):
             )
             self.assertIn("stagewarden:", log.stdout)
 
+    def test_agent_failure_summary_contains_exception_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = "/Users/donato/run_model_stub"
+            try:
+                agent = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=2,
+                        verbose=False,
+                    )
+                )
+                result = agent.run("create a file named hello.txt")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertFalse(result.ok)
+            self.assertIn("Stage boundary:", result.message)
+            self.assertIn("exception_plan:", result.message)
+
     def test_agent_verbose_output_shows_handoff_runtime_details(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
