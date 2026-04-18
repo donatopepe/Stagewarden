@@ -46,6 +46,7 @@ PRINCE2 handoff behavior:
 - The handoff file is persisted as `.stagewarden_handoff.json`.
 - Resume is implicit: each new run inherits the latest project handoff context for the workspace.
 - The executor prompt always includes the current project handoff summary, so planning and execution stay aligned to the same controlled context.
+- `handoff` shows the full persisted project context, while `boundary` shows only the current PRINCE2 stage-boundary recommendation.
 
 Validation behavior:
 
@@ -111,6 +112,7 @@ stagewarden> model variant openai gpt-5.4-mini
 stagewarden> model block openai until 2026-05-01T18:30
 stagewarden> model unblock openai
 stagewarden> status
+stagewarden> boundary
 stagewarden> mode caveman ultra
 stagewarden> mode normal
 stagewarden> caveman on ultra
