@@ -18,9 +18,9 @@ class HandoffTests(unittest.TestCase):
         self.assertIsNone(account)
 
     def test_parse_and_format_account_target(self) -> None:
-        command = format_run_model("gpt", "hello", account="work")
+        command = format_run_model("openai", "hello", account="work")
         model, prompt, account = parse_run_model_command(command)
-        self.assertEqual(model, "gpt")
+        self.assertEqual(model, "openai")
         self.assertEqual(prompt, "hello")
         self.assertEqual(account, "work")
 
@@ -46,8 +46,8 @@ class HandoffTests(unittest.TestCase):
             os.environ["OPENAI_API_KEY_WORK"] = "work-token"
             try:
                 manager = HandoffManager(timeout_seconds=5)
-                manager.account_env_by_target = {"gpt:work": "OPENAI_API_KEY_WORK"}
-                result = manager.execute(format_run_model("gpt", "prompt", account="work"))
+                manager.account_env_by_target = {"openai:work": "OPENAI_API_KEY_WORK"}
+                result = manager.execute(format_run_model("openai", "prompt", account="work"))
             finally:
                 if original is None:
                     os.environ.pop("RUN_MODEL_BIN", None)
@@ -128,9 +128,9 @@ class HandoffTests(unittest.TestCase):
             try:
                 from stagewarden.secrets import SecretStore
 
-                saved = SecretStore().save_token("gpt", "work", "saved-token")
+                saved = SecretStore().save_token("openai", "work", "saved-token")
                 self.assertTrue(saved.ok, saved.message)
-                result = HandoffManager(timeout_seconds=5).execute(format_run_model("gpt", "prompt", account="work"))
+                result = HandoffManager(timeout_seconds=5).execute(format_run_model("openai", "prompt", account="work"))
             finally:
                 if original_bin is None:
                     os.environ.pop("RUN_MODEL_BIN", None)

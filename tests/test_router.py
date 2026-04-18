@@ -24,10 +24,10 @@ class RouterTests(unittest.TestCase):
         router = ModelRouter()
         self.assertEqual(router.choose_model("x", "y", failure_count=2), "chatgpt")
         self.assertEqual(router.choose_model("x", "y", failure_count=3), "claude")
-        self.assertEqual(router.escalate("chatgpt"), "gpt")
-        self.assertEqual(router.escalate("gpt"), "claude")
+        self.assertEqual(router.escalate("chatgpt"), "openai")
+        self.assertEqual(router.escalate("openai"), "claude")
         self.assertEqual(router.fallback_for_api_failure("chatgpt"), "cheap")
-        self.assertEqual(router.fallback_for_api_failure("gpt"), "chatgpt")
+        self.assertEqual(router.fallback_for_api_failure("openai"), "chatgpt")
 
 
 if __name__ == "__main__":

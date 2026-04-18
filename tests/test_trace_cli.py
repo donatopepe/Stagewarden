@@ -82,8 +82,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Model commands:", rendered)
             self.assertIn("Caveman commands:", rendered)
             self.assertIn("Examples:", rendered)
-            self.assertIn("model use <local|cheap|chatgpt|gpt|claude>", rendered)
-            self.assertIn("model block <local|cheap|chatgpt|gpt|claude> until YYYY-MM-DDTHH:MM", rendered)
+            self.assertIn("model use <local|cheap|chatgpt|openai|claude>", rendered)
+            self.assertIn("model block <local|cheap|chatgpt|openai|claude> until YYYY-MM-DDTHH:MM", rendered)
             self.assertIn("Git commands:", rendered)
             self.assertIn("git history <path> [limit]", rendered)
             self.assertIn("Model configuration:", rendered)
@@ -137,10 +137,10 @@ class TraceAndCliTests(unittest.TestCase):
             root = Path(tmp_dir)
             config = AgentConfig(workspace_root=root, max_steps=1)
             input_stream = StringIO(
-                "account add gpt lavoro OPENAI_API_KEY_WORK\n"
-                "account add gpt personale OPENAI_API_KEY_PERSONAL\n"
-                "account use gpt personale\n"
-                "account block gpt lavoro until 2026-05-01T18:30\n"
+                "account add openai lavoro OPENAI_API_KEY_WORK\n"
+                "account add openai personale OPENAI_API_KEY_PERSONAL\n"
+                "account use openai personale\n"
+                "account block openai lavoro until 2026-05-01T18:30\n"
                 "accounts\n"
                 "models\n"
                 "exit\n"
@@ -150,9 +150,9 @@ class TraceAndCliTests(unittest.TestCase):
             rendered = output_stream.getvalue()
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
             self.assertEqual(code, 0)
-            self.assertEqual((prefs.active_account_by_model or {}).get("gpt"), "personale")
-            self.assertEqual((prefs.env_var_by_account or {}).get("gpt:lavoro"), "OPENAI_API_KEY_WORK")
-            self.assertIn("gpt:lavoro", prefs.blocked_until_by_account or {})
+            self.assertEqual((prefs.active_account_by_model or {}).get("openai"), "personale")
+            self.assertEqual((prefs.env_var_by_account or {}).get("openai:lavoro"), "OPENAI_API_KEY_WORK")
+            self.assertIn("openai:lavoro", prefs.blocked_until_by_account or {})
             self.assertIn("account personale:", rendered)
             self.assertIn("active-account", rendered)
             self.assertIn("env=OPENAI_API_KEY_WORK", rendered)
@@ -166,17 +166,17 @@ class TraceAndCliTests(unittest.TestCase):
             original_auto = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN")
             os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
             os.environ["STAGEWARDEN_SKIP_BROWSER"] = "1"
-            os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = "gpt-browser-token"
+            os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = "openai-browser-token"
             try:
                 config = AgentConfig(workspace_root=root, max_steps=1)
-                input_stream = StringIO("account login gpt lavoro\naccounts\nexit\n")
+                input_stream = StringIO("account login openai lavoro\naccounts\nexit\n")
                 output_stream = StringIO()
                 code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
                 rendered = output_stream.getvalue()
                 prefs = ModelPreferences.load(root / ".stagewarden_models.json")
                 from stagewarden.secrets import SecretStore
 
-                loaded = SecretStore().load_token("gpt", "lavoro")
+                loaded = SecretStore().load_token("openai", "lavoro")
             finally:
                 if original_store is None:
                     os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
@@ -192,9 +192,9 @@ class TraceAndCliTests(unittest.TestCase):
                     os.environ["STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN"] = original_auto
 
             self.assertEqual(code, 0)
-            self.assertEqual((prefs.active_account_by_model or {}).get("gpt"), "lavoro")
+            self.assertEqual((prefs.active_account_by_model or {}).get("openai"), "lavoro")
             self.assertTrue(loaded.ok, loaded.message)
-            self.assertEqual(loaded.secret, "gpt-browser-token")
+            self.assertEqual(loaded.secret, "openai-browser-token")
             self.assertIn("token=stored", rendered)
 
     def test_interactive_shell_logs_in_chatgpt_account_and_saves_session_token(self) -> None:
@@ -292,13 +292,13 @@ class TraceAndCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             config = AgentConfig(workspace_root=root, max_steps=1)
-            input_stream = StringIO("model block gpt until 2026-05-01T18:30\nmodels\nexit\n")
+            input_stream = StringIO("model block openai until 2026-05-01T18:30\nmodels\nexit\n")
             output_stream = StringIO()
             code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
             rendered = output_stream.getvalue()
             self.assertEqual(code, 0)
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
-            self.assertEqual((prefs.blocked_until_by_model or {}).get("gpt"), "2026-05-01T18:30")
+            self.assertEqual((prefs.blocked_until_by_model or {}).get("openai"), "2026-05-01T18:30")
             self.assertIn("blocked-until=2026-05-01T18:30", rendered)
 
     def test_interactive_shell_status_and_mode_commands(self) -> None:
