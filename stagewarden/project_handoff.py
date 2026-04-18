@@ -258,11 +258,13 @@ class ProjectHandoff:
             "plan_status": self.plan_status or "unknown",
             "updated_at": self.updated_at,
         }
+        boundary_decision = self._boundary_decision(status_by_step)
         return {
             "closed_steps": closed_steps,
             "active_step": active_step,
             "git_boundary": git_boundary,
             "pid_boundary": pid_boundary,
+            "boundary_decision": boundary_decision,
         }
 
     def rendered_stage_view(self) -> str:
@@ -271,6 +273,7 @@ class ProjectHandoff:
         active_step = view["active_step"]
         git_boundary = view["git_boundary"]
         pid_boundary = view["pid_boundary"]
+        boundary_decision = view["boundary_decision"]
         lines = ["Stage view:"]
         if closed_steps:
             lines.append(f"- closed_stages: {', '.join(closed_steps)}")
@@ -293,6 +296,7 @@ class ProjectHandoff:
             f"- pid_boundary: project_status={pid_boundary['project_status']} "
             f"plan_status={pid_boundary['plan_status']} updated_at={pid_boundary['updated_at']}"
         )
+        lines.append(f"- boundary_decision: {boundary_decision}")
         return "\n".join(lines)
 
     def as_dict(self) -> dict[str, Any]:
@@ -327,6 +331,18 @@ class ProjectHandoff:
             if clean_key and clean_status:
                 statuses[clean_key] = clean_status
         return statuses
+
+    def _boundary_decision(self, status_by_step: dict[str, str]) -> str:
+        if not status_by_step:
+            return "review_boundary:no_plan_status"
+        values = list(status_by_step.values())
+        if all(status == "completed" for status in values):
+            return "close_project"
+        if any(status in {"failed", "exception"} for status in values):
+            return "review_boundary:exception_path"
+        if any(status in {"pending", "in_progress"} for status in values):
+            return "continue_current_stage"
+        return "review_boundary:manual_check"
 
     @classmethod
     def load(cls, path: Path) -> "ProjectHandoff":

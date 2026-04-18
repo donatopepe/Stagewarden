@@ -506,9 +506,11 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             prompt = handoff.calls[0]
             self.assertIn("Implicit project handoff context:", prompt)
+            self.assertIn("Stage boundary view:", prompt)
             self.assertIn("Recent handoff log:", prompt)
             self.assertIn("Recent execution log:", prompt)
             self.assertIn("working tree clean", prompt)
+            self.assertIn("boundary_decision: continue_current_stage", prompt)
 
 
 if __name__ == "__main__":
