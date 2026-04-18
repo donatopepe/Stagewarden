@@ -316,6 +316,10 @@ def _handle_git_command(command: str, config: AgentConfig) -> str | None:
 def _parse_limit(raw: str, *, default: int) -> int:
     if not raw:
         return default
+    try:
+        return max(1, min(int(raw), 200))
+    except ValueError:
+        return default
 
 
 def _default_ljson_encode_path(source: Path, *, gzip_enabled: bool) -> Path:
@@ -329,10 +333,6 @@ def _default_ljson_decode_path(source: Path) -> Path:
         without_gzip = source.with_suffix("")
         return without_gzip.with_suffix(".json")
     return source.with_suffix(".json")
-    try:
-        return max(1, min(int(raw), 200))
-    except ValueError:
-        return default
 
 
 def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
