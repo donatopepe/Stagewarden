@@ -109,6 +109,18 @@ class PersistenceTests(unittest.TestCase):
         handoff.clear_exception_plan_if_recovered()
         self.assertEqual(handoff.exception_plan, [])
 
+    def test_project_handoff_can_close_all_open_risks(self) -> None:
+        handoff = ProjectHandoff(
+            risk_register=[
+                {"risk": "regression risk", "status": "open"},
+                {"risk": "deployment risk", "status": "closed"},
+            ]
+        )
+        handoff.close_all_open_risks(resolution="project closed with controlled completion")
+        self.assertEqual(handoff.risk_register[0]["status"], "closed")
+        self.assertIn("resolution", handoff.risk_register[0])
+        self.assertEqual(handoff.risk_register[1]["status"], "closed")
+
 
 if __name__ == "__main__":
     unittest.main()

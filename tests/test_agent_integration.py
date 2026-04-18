@@ -174,6 +174,9 @@ class AgentIntegrationTests(unittest.TestCase):
                 current_step_status="completed",
                 latest_observation="validation completed",
                 plan_status="step-1:completed,step-2:completed,step-3:completed",
+                risk_register=[
+                    {"risk": "regression from final patch", "status": "open"},
+                ],
                 issue_register=[
                     {"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}
                 ],
@@ -189,6 +192,7 @@ class AgentIntegrationTests(unittest.TestCase):
             matching = [item for item in saved.issue_register if item.get("step_id") == "step-3"]
             self.assertTrue(matching)
             self.assertTrue(all(item.get("status") == "closed" for item in matching))
+            self.assertTrue(all(item.get("status") == "closed" for item in saved.risk_register))
             self.assertEqual(saved.exception_plan, [])
 
 

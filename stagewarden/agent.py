@@ -132,6 +132,9 @@ class Agent:
             if current is None:
                 success = all(step.status == "completed" for step in plan)
                 if success:
+                    self.project_handoff.close_all_open_risks(
+                        resolution="project closed with controlled completion",
+                    )
                     self.project_handoff.close_all_open_issues(
                         resolution="project closed with controlled completion",
                     )
