@@ -36,6 +36,8 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertTrue(result.ok)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
             self.assertTrue((Path(tmp_dir) / ".git").exists())
+            self.assertIn("Stage boundary:", result.message)
+            self.assertIn("boundary_decision:", result.message)
             log = subprocess.run(
                 ["git", "-C", tmp_dir, "log", "--oneline"],
                 capture_output=True,

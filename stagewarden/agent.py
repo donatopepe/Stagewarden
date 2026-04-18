@@ -314,6 +314,8 @@ class Agent:
         lines = ["Agent run completed." if success else "Agent run stopped before completion."]
         for step in plan:
             lines.append(f"- {step.id}: {step.status} :: {step.title}")
+        lines.append("Stage boundary:")
+        lines.append(self.project_handoff.rendered_stage_view())
         if not success:
             lines.append("Recent memory:")
             lines.append(self.memory.summarize())
