@@ -458,6 +458,55 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Caveman mode disabled.", rendered)
             self.assertFalse((root / ".stagewarden_caveman.json").exists())
 
+    def test_boundary_uses_exception_plan_when_project_is_in_exception(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "exception",
+                "current_step_id": "step-2",
+                "current_step_title": "Resume 2. Implement fix",
+                "current_step_status": "exception",
+                "latest_observation": "tests still failing after patch",
+                "plan_status": "step-1:completed,step-2:exception,step-3:pending",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "issue_register": [{"step_id": "step-2", "severity": "high", "summary": "tests still failing", "status": "open"}],
+                "exception_plan": ["review failing tests", "prepare corrective patch"],
+                "updated_at": "2026-04-18T18:30:00+00:00",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            rendered = _render_boundary(config)
+            self.assertIn("review_boundary:exception_plan", rendered)
+
+    def test_boundary_blocks_project_close_when_open_issues_remain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "closed",
+                "current_step_id": "step-3",
+                "current_step_title": "3. Validate",
+                "current_step_status": "completed",
+                "latest_observation": "tests passed but one release issue remains open",
+                "plan_status": "step-1:completed,step-2:completed,step-3:completed",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "release note missing", "status": "open"}],
+                "updated_at": "2026-04-18T18:30:00+00:00",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            rendered = _render_boundary(config)
+            self.assertIn("review_boundary:open_issues", rendered)
+
     def test_interactive_shell_can_query_git_history(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -396,7 +396,13 @@ class ProjectHandoff:
 
     def record_issue(self, *, step_id: str, severity: str, summary: str) -> None:
         self.issue_register.append(
-            {"step_id": step_id, "severity": severity, "summary": summary[:240], "recorded_at": _utc_now()}
+            {
+                "step_id": step_id,
+                "severity": severity,
+                "summary": summary[:240],
+                "status": "open",
+                "recorded_at": _utc_now(),
+            }
         )
 
     def record_quality(self, *, step_id: str, status: str, evidence: str) -> None:
@@ -445,11 +451,20 @@ class ProjectHandoff:
     def _boundary_decision(self, status_by_step: dict[str, str]) -> str:
         if not status_by_step:
             return "review_boundary:no_plan_status"
+        open_issues = [
+            item
+            for item in self.issue_register
+            if str(item.get("status", "open")).strip().lower() != "closed"
+        ]
+        if self.status == "exception" and self.exception_plan:
+            return "review_boundary:exception_plan"
         values = list(status_by_step.values())
-        if all(status == "completed" for status in values):
-            return "close_project"
         if any(status in {"failed", "exception"} for status in values):
             return "review_boundary:exception_path"
+        if all(status == "completed" for status in values):
+            if open_issues:
+                return "review_boundary:open_issues"
+            return "close_project"
         if any(status in {"pending", "in_progress"} for status in values):
             return "continue_current_stage"
         return "review_boundary:manual_check"
