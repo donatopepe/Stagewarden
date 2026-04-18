@@ -311,6 +311,8 @@ class ExecutorTests(unittest.TestCase):
             prefs.set_active_account("gpt", "work")
             prefs.save(config.model_prefs_path)
             memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["gpt", "local"], preferred_model="gpt")
             handoff = FakeHandoff(
                 [
                     {
@@ -335,7 +337,7 @@ class ExecutorTests(unittest.TestCase):
                     },
                 ]
             )
-            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
             step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
             outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
             updated = ModelPreferences.load(config.model_prefs_path)
