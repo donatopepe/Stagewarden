@@ -57,6 +57,8 @@ def interactive_help_text() -> str:
             "  Show workspace, mode, model routing, and state file locations.",
             "- handoff",
             "  Show the current persisted PRINCE2 handoff context for this workspace.",
+            "- boundary",
+            "  Show only the current PRINCE2 stage boundary recommendation.",
             "- commands",
             "  Alias for help.",
             "",
@@ -150,6 +152,7 @@ def interactive_help_text() -> str:
             "- stagewarden> model unblock openai",
             "- stagewarden> status",
             "- stagewarden> handoff",
+            "- stagewarden> boundary",
             "- stagewarden> mode caveman ultra",
             "- stagewarden> mode normal",
             "- stagewarden> caveman on ultra",
@@ -274,6 +277,16 @@ def _render_handoff(config: AgentConfig) -> str:
                 f"head={entry.git_head or 'unknown'}"
             )
     return "\n".join(lines)
+
+
+def _render_boundary(config: AgentConfig) -> str:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return "\n".join(
+        [
+            "Boundary recommendation:",
+            handoff.rendered_stage_view(),
+        ]
+    )
 
 
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
@@ -588,6 +601,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_status(agent, config)
     if parts[0] == "handoff":
         return _render_handoff(config)
+    if parts[0] == "boundary":
+        return _render_boundary(config)
     if parts[0] != "mode":
         return None
     if len(parts) == 2 and parts[1] == "normal":
