@@ -67,12 +67,13 @@ class Planner:
 
         current_step_id = project_handoff.current_step_id
         if not current_step_id:
+            self._apply_register_context(steps, project_handoff=project_handoff)
             return
         for step in steps:
             if step.id != current_step_id:
                 continue
             if step.status == "completed":
-                return
+                break
             observation = project_handoff.latest_observation.strip()
             continuation_note = (
                 f"continue from persisted handoff context for: {step.instruction}"
@@ -82,7 +83,67 @@ class Planner:
             step.instruction = continuation_note
             if not step.title.lower().startswith("resume"):
                 step.title = f"Resume {step.title}"
+            break
+
+        self._apply_register_context(steps, project_handoff=project_handoff)
+
+    def _apply_register_context(self, steps: list[PlanStep], *, project_handoff: ProjectHandoff) -> None:
+        target = next((step for step in steps if step.status in {"pending", "in_progress", "failed"}), None)
+        if target is None:
             return
+
+        notes: list[str] = []
+        if project_handoff.risk_register:
+            open_risks = [
+                item.get("risk", "").strip()
+                for item in project_handoff.risk_register
+                if item.get("status", "open").strip().lower() != "closed" and item.get("risk")
+            ]
+            if open_risks:
+                notes.append(f"open_risks={'; '.join(open_risks[:2])}")
+
+        if project_handoff.issue_register:
+            open_issues = [
+                item.get("summary", "").strip()
+                for item in project_handoff.issue_register
+                if item.get("status", "open").strip().lower() != "closed" and item.get("summary")
+            ]
+            if open_issues:
+                notes.append(f"open_issues={'; '.join(open_issues[:2])}")
+
+        if project_handoff.quality_register:
+            latest_quality = next(
+                (
+                    item
+                    for item in reversed(project_handoff.quality_register)
+                    if item.get("evidence") or item.get("status")
+                ),
+                None,
+            )
+            if latest_quality:
+                evidence = latest_quality.get("evidence", "").strip()
+                status = latest_quality.get("status", "").strip()
+                if evidence or status:
+                    notes.append(f"quality_baseline={status}:{evidence}".strip(":"))
+
+        if project_handoff.lessons_log:
+            latest_lesson = next(
+                (
+                    item.get("lesson", "").strip()
+                    for item in reversed(project_handoff.lessons_log)
+                    if item.get("lesson")
+                ),
+                "",
+            )
+            if latest_lesson:
+                notes.append(f"lesson={latest_lesson}")
+
+        if project_handoff.exception_plan and project_handoff.status == "exception":
+            notes.append(f"exception_plan={'; '.join(project_handoff.exception_plan[:2])}")
+
+        if notes:
+            target.instruction = f"{target.instruction} | {' | '.join(notes)}"
+            target.validation = f"{target.validation} Use PRINCE2 register context to close open risks, issues, and quality gaps."
 
     def _extract_chunks(self, task: str) -> list[str]:
         normalized = re.sub(r"\s+", " ", task).strip()
