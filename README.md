@@ -38,6 +38,13 @@ Git behavior:
 - Stagewarden creates local commits for workspace snapshots during agent execution.
 - If `git` is missing, the agent refuses to start.
 
+Validation behavior:
+
+- Every implementation must include relevant verification checks or tests.
+- Dry-runs are not valid completion checkpoints by themselves.
+- Steps close only with wet-run evidence such as executed tests, real commands, observed files, or real tool output.
+- If the obvious wet-run is blocked, Stagewarden must find another feasible wet-run instead of accepting dry-run completion.
+
 Quick setup:
 
 macOS/Linux:

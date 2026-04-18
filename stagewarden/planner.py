@@ -11,6 +11,7 @@ class PlanStep:
     instruction: str
     validation: str
     status: str = "pending"
+    wet_run_required: bool = True
 
 
 class Planner:
@@ -34,6 +35,7 @@ class Planner:
                     title=title,
                     instruction=chunk.strip(),
                     validation=validation,
+                    wet_run_required=True,
                 )
             )
 
@@ -61,9 +63,9 @@ class Planner:
     def _validation_for_chunk(self, chunk: str) -> str:
         lower = chunk.lower()
         if "test" in lower or "validate" in lower:
-            return "A command or observable result confirms the step passed."
+            return "A real wet-run command or observable result confirms the step passed; dry-run alone is not valid."
         if "implement" in lower or "build" in lower or "create" in lower:
-            return "The target files or behavior exist and are internally consistent."
+            return "The target files or behavior exist and a real wet-run verifies the change."
         if "analyze" in lower or "inspect" in lower:
-            return "The agent can state concrete findings needed for the next step."
-        return "The step yields a concrete artifact or observation."
+            return "The agent can state concrete findings and, where possible, verify them with a real command."
+        return "The step yields a concrete artifact or wet-run observation."

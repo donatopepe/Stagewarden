@@ -249,7 +249,7 @@ class ExecutorTests(unittest.TestCase):
                         "backend": "local/ollama",
                         "prompt": "x",
                         "command": "run_model local x",
-                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "done"}}),
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
                         "error": "",
                     },
                 ]
@@ -267,6 +267,44 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertIn("gpt", prefs.blocked_until_by_model or {})
             self.assertIsNone(prefs.preferred_model)
+
+    def test_executor_rejects_dry_run_completion_as_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "dry-run only",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "dry-run passed but no wet-run was executed",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Validate", instruction="validate result", validation="wet-run required")
+            outcome = executor.execute_step(
+                task="validate task",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+            self.assertFalse(outcome.ok)
+            self.assertFalse(outcome.step_completed)
+            self.assertEqual(outcome.error_type, "wet_run_required")
 
 
 if __name__ == "__main__":
