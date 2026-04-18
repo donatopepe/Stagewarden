@@ -39,6 +39,27 @@ class PlannerTests(unittest.TestCase):
         self.assertIn("continue from persisted handoff context", steps[1].instruction)
         self.assertIn("failing assertion", steps[1].instruction)
 
+    def test_create_plan_compresses_completed_prefix_from_handoff(self) -> None:
+        planner = Planner()
+        handoff = ProjectHandoff(
+            task="inspect the repo and implement a fix and validate the result",
+            status="executing",
+            current_step_id="step-3",
+            current_step_title="3. Validate the result",
+            current_step_status="in_progress",
+            latest_observation="implementation finished, validation pending",
+            plan_status="step-1:completed,step-2:completed,step-3:in_progress",
+        )
+        steps = planner.create_plan(
+            "inspect the repo and implement a fix and validate the result",
+            project_handoff=handoff,
+        )
+        self.assertEqual(steps[0].id, "stage-archive-1")
+        self.assertEqual(steps[0].status, "completed")
+        self.assertIn("historical completed stages compressed", steps[0].instruction)
+        self.assertEqual(steps[1].id, "step-3")
+        self.assertTrue(steps[1].title.startswith("Resume "))
+
 
 if __name__ == "__main__":
     unittest.main()
