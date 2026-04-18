@@ -13,6 +13,8 @@ class AgentConfig:
     shell_timeout_seconds: int = 120
     verbose: bool = False
     prefer_local: bool = True
+    enforce_git: bool = True
+    auto_git_commit: bool = True
     strict_ascii_output: bool = True
     memory_filename: str = ".stagewarden_memory.json"
     caveman_state_filename: str = ".stagewarden_caveman.json"

@@ -9,6 +9,11 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v git >/dev/null 2>&1; then
+  echo "git not found. Install git before installing Stagewarden." >&2
+  exit 1
+fi
+
 "$PYTHON_BIN" -m pip install --user -e "$PROJECT_DIR"
 
 USER_BIN=$("$PYTHON_BIN" - <<'PY'

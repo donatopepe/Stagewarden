@@ -31,6 +31,9 @@ class AgentIntegrationTests(unittest.TestCase):
 
             self.assertTrue(result.ok)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
+            self.assertTrue((Path(tmp_dir) / ".git").exists())
+            log = os.popen(f"git -C {tmp_dir} log --oneline").read()
+            self.assertIn("stagewarden:", log)
 
 
 if __name__ == "__main__":
