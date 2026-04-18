@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from agent_cli.router import ModelRouter
+from stagewarden.router import ModelRouter
 
 
 class RouterTests(unittest.TestCase):

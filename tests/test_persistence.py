@@ -5,9 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent_cli.agent import Agent
-from agent_cli.config import AgentConfig
-from agent_cli.memory import MemoryStore
+from stagewarden.agent import Agent
+from stagewarden.config import AgentConfig
+from stagewarden.memory import MemoryStore
 
 
 class PersistenceTests(unittest.TestCase):
@@ -32,7 +32,7 @@ class PersistenceTests(unittest.TestCase):
     def test_agent_loads_existing_memory_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             workspace = Path(tmp_dir)
-            memory_path = workspace / ".agent_cli_memory.json"
+            memory_path = workspace / ".stagewarden_memory.json"
             payload = {
                 "attempts": [
                     {

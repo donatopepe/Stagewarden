@@ -96,7 +96,7 @@ class Prince2PID:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "_format": "agent_cli_prince2_pid",
+            "_format": "stagewarden_prince2_pid",
             "_version": self.version,
             "task": self.task,
             "business_case": self.business_case,

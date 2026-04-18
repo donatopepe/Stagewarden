@@ -5,9 +5,9 @@ import unittest
 from dataclasses import asdict
 from pathlib import Path
 
-from agent_cli.ljson import LJSONOptions, benchmark_sizes, decode, decode_json_bytes, encode, encode_json_bytes, stream_decode, stream_encode
-from agent_cli.textcodec import dumps_ascii, to_ascii_safe_text, detect_confusables
-from agent_cli.memory import AttemptRecord, MemoryStore
+from stagewarden.ljson import LJSONOptions, benchmark_sizes, decode, decode_json_bytes, encode, encode_json_bytes, stream_decode, stream_encode
+from stagewarden.textcodec import dumps_ascii, to_ascii_safe_text, detect_confusables
+from stagewarden.memory import AttemptRecord, MemoryStore
 
 
 class LJSONTests(unittest.TestCase):

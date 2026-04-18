@@ -67,7 +67,7 @@ L’agente usa LJSON di default per:
 
 - persistenza dei tentativi in `MemoryStore`
 - snapshot di simulazione dell’`Executor`
-- trace del loop agente in `.agent_cli_trace.ljson`
+- trace del loop agente in `.stagewarden_trace.ljson`
 - benchmark dimensione vs JSON standard
 
 ## CLI

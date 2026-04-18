@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from agent_cli.memory import MemoryStore
+from stagewarden.memory import MemoryStore
 
 
 class MemoryTests(unittest.TestCase):
