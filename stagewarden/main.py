@@ -372,7 +372,7 @@ def _handle_account_command(
             prefs.add_account(model, name)
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
-            if model == "chatgpt":
+            if model in {"chatgpt", "claude"}:
                 callback = BrowserCallbackFlow(model=model, account=name).run()
                 if not callback.ok:
                     return callback.message
@@ -472,6 +472,8 @@ def _prompt_secret(prompt: str, *, input_stream: TextIO | None = None, output_st
 def _secret_prompt_for_model(model: str, account: str) -> str:
     if model == "chatgpt":
         return f"Paste ChatGPT token for {model}:{account}: "
+    if model == "claude":
+        return f"Paste Claude token for {model}:{account}: "
     return f"Paste token for {model}:{account}: "
 
 

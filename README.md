@@ -137,6 +137,7 @@ Runtime behavior:
 
 - `chatgpt` is a provider distinct from `gpt`.
 - `chatgpt` expects a ChatGPT session token and maps it to `CHATGPT_TOKEN` for the backend subprocess.
+- `claude` can now use the same browser-callback login pattern for profile tokens.
 - Stagewarden calls `RUN_MODEL: gpt:lavoro <prompt>` internally.
 - For ChatGPT plan access it calls `RUN_MODEL: chatgpt:personale <prompt>` internally.
 - The external `run_model` command still receives `run_model gpt "<prompt>"`.
@@ -146,6 +147,7 @@ Runtime behavior:
 - `account login <model> <profile>` opens the provider key page, asks for the token, and saves it in macOS Keychain when available.
 - If no environment variable mapping exists, Stagewarden loads the saved profile token and maps it to the provider env var only for the subprocess.
 - For `chatgpt`, `account login chatgpt <profile>` opens ChatGPT and stores the ChatGPT token/session string for that profile.
+- `account login claude <profile>` follows the same callback-login structure for Claude profile tokens.
 - If one account reports a usage limit, Stagewarden blocks that account until the reported time and retries another account for the same model before falling back to another model.
 
 Git history commands:
