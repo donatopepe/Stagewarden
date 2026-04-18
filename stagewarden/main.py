@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TextIO
 
 from .agent import Agent
+from .auth import BrowserCallbackFlow
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
@@ -371,6 +372,17 @@ def _handle_account_command(
             prefs.add_account(model, name)
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
+            if model == "chatgpt":
+                callback = BrowserCallbackFlow(model=model, account=name).run()
+                if not callback.ok:
+                    return callback.message
+                saved = SecretStore().save_token(model, name, callback.token)
+                if not saved.ok:
+                    return saved.message
+                prefs.set_active_account(model, name)
+                _save_model_preferences(config, prefs)
+                _apply_model_preferences(agent, config)
+                return f"{callback.message}\nSaved token for {model}:{name}."
             browser = SecretStore().open_login_page(model)
             token = _prompt_secret(
                 _secret_prompt_for_model(model, name),
