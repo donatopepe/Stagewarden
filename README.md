@@ -29,6 +29,48 @@ Run:
 stagewarden "create a file named hello.txt"
 ```
 
+Interactive shell:
+
+```bash
+stagewarden
+```
+
+Inside the shell:
+
+```text
+stagewarden> help
+stagewarden> models
+stagewarden> model use gpt
+stagewarden> model block gpt until 2026-05-01T18:30
+stagewarden> model unblock gpt
+stagewarden> caveman on ultra
+stagewarden> fix failing tests
+stagewarden> quit
+```
+
+Model control:
+
+- `models` shows enabled, active, preferred, blocked, and backend state.
+- `model use <local|cheap|gpt|claude>` pins a preferred model.
+- `model add <local|cheap|gpt|claude>` enables a model.
+- `model remove <local|cheap|gpt|claude>` disables a model.
+- `model block <model> until YYYY-MM-DDTHH:MM` blocks a model until a date and time.
+- `model unblock <model>` removes a temporary block.
+- `model clear` restores automatic routing.
+
+Stagewarden also records online model usage-limit messages such as `try again at 8:05 PM` and automatically blocks that model until the reported local time.
+
+Caveman mode:
+
+```text
+stagewarden> caveman help
+stagewarden> caveman on ultra
+stagewarden> caveman review
+stagewarden> caveman commit
+stagewarden> caveman compress notes.md
+stagewarden> caveman off
+```
+
 Acknowledgements:
 
 - The Caveman mode and related command ergonomics were inspired by [caveman](https://github.com/JuliusBrussee/caveman) by Julius Brussee.
