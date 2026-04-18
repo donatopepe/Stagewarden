@@ -429,6 +429,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("active_stage: step-3 [in_progress]", rendered)
             self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("pid_boundary: project_status=executing", rendered)
+            self.assertIn("boundary_decision: continue_current_stage", rendered)
             self.assertIn("Caveman mode active. Level: ultra.", rendered)
             self.assertIn("mode: caveman ultra", rendered)
             self.assertIn("Caveman mode disabled.", rendered)

@@ -336,6 +336,9 @@ Task:
 Implicit project handoff context:
 {self.project_handoff.summary()}
 
+Stage boundary view:
+{self.project_handoff.rendered_stage_view()}
+
 Recent handoff log:
 {handoff_log}
 
