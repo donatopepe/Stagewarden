@@ -83,8 +83,11 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Caveman commands:", rendered)
             self.assertIn("Examples:", rendered)
             self.assertIn("model use <local|cheap|chatgpt|openai|claude>", rendered)
+            self.assertIn("model list <local|cheap|chatgpt|openai|claude>", rendered)
+            self.assertIn("model variant <local|cheap|chatgpt|openai|claude> <variant>", rendered)
             self.assertIn("model block <local|cheap|chatgpt|openai|claude> until YYYY-MM-DDTHH:MM", rendered)
             self.assertIn("account login-device <chatgpt|openai> <name>", rendered)
+            self.assertIn("account import <model> <name> [PATH]", rendered)
             self.assertIn("Git commands:", rendered)
             self.assertIn("git history <path> [limit]", rendered)
             self.assertIn("Model configuration:", rendered)
@@ -132,6 +135,22 @@ class TraceAndCliTests(unittest.TestCase):
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
             self.assertEqual(prefs.preferred_model, "cheap")
             self.assertIn("cheap", prefs.enabled_models)
+
+    def test_interactive_shell_persists_provider_model_variant(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("model variant claude opus\nmodel list claude\nmodels\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(code, 0)
+            self.assertEqual((prefs.variant_by_model or {}).get("claude"), "opus")
+            self.assertIn("Available variants for claude:", rendered)
+            self.assertIn("opusplan", rendered)
+            self.assertIn("variant=opus", rendered)
 
     def test_interactive_shell_manages_model_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -315,6 +334,36 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertIn("Interactive login is not supported for model 'claude'.", rendered)
+
+    def test_interactive_shell_can_import_claude_credentials_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            store = root / "secrets"
+            credentials = root / ".credentials.json"
+            credentials.write_text('{"auth_token":"claude-subscription-token","api_key":"console-key"}', encoding="utf-8")
+            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
+            try:
+                config = AgentConfig(workspace_root=root, max_steps=1)
+                input_stream = StringIO(f"account import claude lavoro {credentials}\naccounts\nexit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+                rendered = output_stream.getvalue()
+                prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+                from stagewarden.secrets import SecretStore
+
+                loaded = SecretStore().load_token("claude", "lavoro")
+            finally:
+                if original_store is None:
+                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
+                else:
+                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
+
+            self.assertEqual(code, 0)
+            self.assertEqual((prefs.active_account_by_model or {}).get("claude"), "lavoro")
+            self.assertTrue(loaded.ok, loaded.message)
+            self.assertIn('"auth_token":"claude-subscription-token"', loaded.secret)
+            self.assertIn("Imported credentials for claude:lavoro", rendered)
 
     def test_interactive_shell_supports_caveman_alias_help(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

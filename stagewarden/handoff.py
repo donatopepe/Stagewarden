@@ -17,11 +17,69 @@ MODEL_BACKENDS = {
     "claude": {"provider": "Claude Sonnet", "label": "claude/sonnet"},
 }
 
+MODEL_VARIANT_CATALOG = {
+    "local": {
+        "variants": ("provider-default",),
+        "source": "workspace/provider setting",
+    },
+    "cheap": {
+        "variants": ("provider-default",),
+        "source": "workspace/provider setting",
+    },
+    "chatgpt": {
+        "variants": (
+            "provider-default",
+            "codex-mini-latest",
+            "gpt-5.1-codex",
+            "gpt-5.1-codex-mini",
+            "gpt-5.2-codex",
+            "gpt-5.3-codex",
+            "gpt-5.4",
+            "gpt-5.4-mini",
+            "gpt-5.4-nano",
+        ),
+        "source": "OpenAI Codex/OpenAI models docs",
+    },
+    "openai": {
+        "variants": (
+            "provider-default",
+            "gpt-5.4",
+            "gpt-5.4-mini",
+            "gpt-5.4-nano",
+            "gpt-5.3-codex",
+            "gpt-5.2-codex",
+            "gpt-5.1-codex",
+            "gpt-5.1-codex-mini",
+            "codex-mini-latest",
+        ),
+        "source": "OpenAI models docs",
+    },
+    "claude": {
+        "variants": (
+            "default",
+            "sonnet",
+            "opus",
+            "haiku",
+            "sonnet[1m]",
+            "opusplan",
+        ),
+        "source": "Claude Code model configuration docs",
+    },
+}
+
 MODEL_TOKEN_ENV = {
     "cheap": "OPENROUTER_API_KEY",
     "chatgpt": "CHATGPT_TOKEN",
     "openai": "OPENAI_API_KEY",
     "claude": "ANTHROPIC_API_KEY",
+}
+
+MODEL_NAME_ENV = {
+    "local": "OLLAMA_MODEL",
+    "cheap": "OPENROUTER_MODEL",
+    "chatgpt": "OPENAI_MODEL",
+    "openai": "OPENAI_MODEL",
+    "claude": "ANTHROPIC_MODEL",
 }
 
 
@@ -72,11 +130,38 @@ def format_run_model(model: str, prompt: str, *, account: str | None = None) -> 
     return f"RUN_MODEL: {target} {prompt}"
 
 
+def available_model_variants(model: str) -> tuple[str, ...]:
+    entry = MODEL_VARIANT_CATALOG.get(model)
+    if not entry:
+        raise ValueError(f"Unsupported model '{model}'.")
+    return tuple(str(item) for item in entry["variants"])
+
+
+def canonicalize_model_variant(model: str, variant: str) -> str:
+    clean = str(variant).strip()
+    if not clean:
+        raise ValueError("Model variant cannot be empty.")
+    if clean in available_model_variants(model):
+        return clean
+    if model in {"openai", "chatgpt"}:
+        if not shlex.quote(clean) or not all(ch.isalnum() or ch in "._:-" for ch in clean):
+            raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
+        return clean
+    if model == "claude":
+        if not all(ch.isalnum() or ch in "._:-[]@" for ch in clean):
+            raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
+        return clean
+    if not all(ch.isalnum() or ch in "._:-/[]@" for ch in clean):
+        raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
+    return clean
+
+
 class HandoffManager:
     def __init__(self, timeout_seconds: int = 120) -> None:
         self.timeout_seconds = timeout_seconds
         self.run_model_binary = os.environ.get("RUN_MODEL_BIN", "run_model")
         self.account_env_by_target: dict[str, str] = {}
+        self.model_variant_by_model: dict[str, str] = {}
 
     def execute(self, command: str) -> ModelResult:
         model, prompt, account = parse_run_model_command(command)
@@ -170,6 +255,12 @@ class HandoffManager:
 
     def _build_env(self, model: str, account: str | None) -> dict[str, str]:
         env = dict(os.environ)
+        variant = self.model_variant_by_model.get(model)
+        if variant:
+            env["STAGEWARDEN_MODEL_VARIANT"] = variant
+            provider_model_env = MODEL_NAME_ENV.get(model)
+            if provider_model_env:
+                env[provider_model_env] = variant
         if not account:
             return env
         target = f"{model}:{account}"
@@ -178,7 +269,10 @@ class HandoffManager:
         source_env = self.account_env_by_target.get(target)
         provider_env = MODEL_TOKEN_ENV.get(model)
         if source_env and provider_env and source_env in os.environ:
-            env[provider_env] = os.environ[source_env]
+            if model == "claude" and "AUTH_TOKEN" in source_env.upper():
+                env["ANTHROPIC_AUTH_TOKEN"] = os.environ[source_env]
+            else:
+                env[provider_env] = os.environ[source_env]
         elif provider_env:
             loaded = SecretStore().load_token(model, account)
             if loaded.ok:
@@ -188,6 +282,20 @@ class HandoffManager:
                 except json.JSONDecodeError:
                     payload = None
                 if isinstance(payload, dict):
+                    if model == "claude":
+                        api_key = str(
+                            payload.get("api_key", "") or payload.get("anthropic_api_key", "")
+                        ).strip()
+                        auth_token = str(
+                            payload.get("auth_token", "") or payload.get("anthropic_auth_token", "")
+                        ).strip()
+                        if api_key:
+                            env["ANTHROPIC_API_KEY"] = api_key
+                        if auth_token:
+                            env["ANTHROPIC_AUTH_TOKEN"] = auth_token
+                        if api_key or auth_token:
+                            env["STAGEWARDEN_AUTH_TOKENS_JSON"] = loaded.secret
+                            return env
                     access_token = str(payload.get("access_token", "")).strip()
                     if access_token:
                         env[provider_env] = access_token

@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .handoff import MODEL_BACKENDS
+from .handoff import MODEL_BACKENDS, canonicalize_model_variant
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
 
@@ -55,6 +55,7 @@ class ModelPreferences:
     enabled_models: list[str]
     preferred_model: str | None = None
     blocked_until_by_model: dict[str, str] | None = None
+    variant_by_model: dict[str, str] | None = None
     accounts_by_model: dict[str, list[str]] | None = None
     active_account_by_model: dict[str, str] | None = None
     blocked_until_by_account: dict[str, str] | None = None
@@ -66,6 +67,7 @@ class ModelPreferences:
             enabled_models=list(SUPPORTED_MODELS),
             preferred_model=None,
             blocked_until_by_model={},
+            variant_by_model={},
             accounts_by_model={},
             active_account_by_model={},
             blocked_until_by_account={},
@@ -82,6 +84,14 @@ class ModelPreferences:
             for model, until in (self.blocked_until_by_model or {}).items()
             if model in SUPPORTED_MODELS and self._is_valid_date(until)
         }
+        variants: dict[str, str] = {}
+        for model, variant in (self.variant_by_model or {}).items():
+            if model not in SUPPORTED_MODELS:
+                continue
+            try:
+                variants[str(model)] = canonicalize_model_variant(str(model), str(variant))
+            except ValueError:
+                continue
         accounts_by_model: dict[str, list[str]] = {}
         for model, accounts in (self.accounts_by_model or {}).items():
             if model not in SUPPORTED_MODELS:
@@ -111,6 +121,7 @@ class ModelPreferences:
         self.enabled_models = enabled
         self.preferred_model = preferred
         self.blocked_until_by_model = blocked
+        self.variant_by_model = variants
         self.accounts_by_model = accounts_by_model
         self.active_account_by_model = active_account_by_model
         self.blocked_until_by_account = blocked_until_by_account
@@ -140,6 +151,22 @@ class ModelPreferences:
         if env_var:
             self.set_account_env(model, account, env_var)
         self.normalize()
+
+    def set_variant(self, model: str, variant: str) -> None:
+        self._validate_model(model)
+        self.variant_by_model = dict(self.variant_by_model or {})
+        self.variant_by_model[model] = canonicalize_model_variant(model, variant)
+        self.normalize()
+
+    def clear_variant(self, model: str) -> None:
+        self._validate_model(model)
+        self.variant_by_model = dict(self.variant_by_model or {})
+        self.variant_by_model.pop(model, None)
+        self.normalize()
+
+    def variant_for_model(self, model: str) -> str | None:
+        self._validate_model(model)
+        return (self.variant_by_model or {}).get(model)
 
     def remove_account(self, model: str, account: str) -> None:
         self._validate_model(model)
@@ -223,10 +250,11 @@ class ModelPreferences:
     def as_dict(self) -> dict[str, object]:
         return {
             "_format": "stagewarden_model_preferences",
-            "_version": 3,
+            "_version": 4,
             "enabled_models": list(self.enabled_models),
             "preferred_model": self.preferred_model,
             "blocked_until_by_model": dict(self.blocked_until_by_model or {}),
+            "variant_by_model": dict(self.variant_by_model or {}),
             "accounts_by_model": {model: list(accounts) for model, accounts in (self.accounts_by_model or {}).items()},
             "active_account_by_model": dict(self.active_account_by_model or {}),
             "blocked_until_by_account": dict(self.blocked_until_by_account or {}),
@@ -248,6 +276,7 @@ class ModelPreferences:
             blocked_until_by_model={
                 str(key): str(value) for key, value in payload.get("blocked_until_by_model", {}).items()
             },
+            variant_by_model={str(key): str(value) for key, value in payload.get("variant_by_model", {}).items()},
             accounts_by_model={
                 str(key): [str(item) for item in value]
                 for key, value in payload.get("accounts_by_model", {}).items()
