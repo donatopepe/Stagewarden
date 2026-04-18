@@ -312,6 +312,46 @@ class ProjectHandoff:
             lines.append(f"- exception_plan: {' | '.join(self.exception_plan[:3])}")
         return "\n".join(lines)
 
+    def rendered_risks(self) -> str:
+        lines = ["Risk register:"]
+        if not self.risk_register:
+            lines.append("- none")
+            return "\n".join(lines)
+        for item in self.risk_register:
+            lines.append(f"- [{item.get('status', 'unknown')}] {item.get('risk', '')}")
+        return "\n".join(lines)
+
+    def rendered_issues(self) -> str:
+        lines = ["Issue register:"]
+        if not self.issue_register:
+            lines.append("- none")
+            return "\n".join(lines)
+        for item in self.issue_register:
+            lines.append(
+                f"- [{item.get('severity', 'unknown')}] {item.get('step_id', '-')} :: {item.get('summary', '')}"
+            )
+        return "\n".join(lines)
+
+    def rendered_quality(self) -> str:
+        lines = ["Quality register:"]
+        if not self.quality_register:
+            lines.append("- none")
+            return "\n".join(lines)
+        for item in self.quality_register:
+            lines.append(
+                f"- [{item.get('status', 'unknown')}] {item.get('step_id', '-')} :: {item.get('evidence', '')}"
+            )
+        return "\n".join(lines)
+
+    def rendered_exception_plan(self) -> str:
+        lines = ["Exception plan:"]
+        if not self.exception_plan:
+            lines.append("- none")
+            return "\n".join(lines)
+        for item in self.exception_plan:
+            lines.append(f"- {item}")
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",

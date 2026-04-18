@@ -59,6 +59,8 @@ def interactive_help_text() -> str:
             "  Show the current persisted PRINCE2 handoff context for this workspace.",
             "- boundary",
             "  Show only the current PRINCE2 stage boundary recommendation.",
+            "- risks | issues | quality | exception",
+            "  Show the dedicated PRINCE2 registers from the persisted handoff.",
             "- commands",
             "  Alias for help.",
             "",
@@ -153,6 +155,10 @@ def interactive_help_text() -> str:
             "- stagewarden> status",
             "- stagewarden> handoff",
             "- stagewarden> boundary",
+            "- stagewarden> risks",
+            "- stagewarden> issues",
+            "- stagewarden> quality",
+            "- stagewarden> exception",
             "- stagewarden> mode caveman ultra",
             "- stagewarden> mode normal",
             "- stagewarden> caveman on ultra",
@@ -287,6 +293,22 @@ def _render_boundary(config: AgentConfig) -> str:
             handoff.rendered_stage_view(),
         ]
     )
+
+
+def _render_risks(config: AgentConfig) -> str:
+    return ProjectHandoff.load(config.handoff_path).rendered_risks()
+
+
+def _render_issues(config: AgentConfig) -> str:
+    return ProjectHandoff.load(config.handoff_path).rendered_issues()
+
+
+def _render_quality(config: AgentConfig) -> str:
+    return ProjectHandoff.load(config.handoff_path).rendered_quality()
+
+
+def _render_exception(config: AgentConfig) -> str:
+    return ProjectHandoff.load(config.handoff_path).rendered_exception_plan()
 
 
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
@@ -603,6 +625,14 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_handoff(config)
     if parts[0] == "boundary":
         return _render_boundary(config)
+    if parts[0] == "risks":
+        return _render_risks(config)
+    if parts[0] == "issues":
+        return _render_issues(config)
+    if parts[0] == "quality":
+        return _render_quality(config)
+    if parts[0] == "exception":
+        return _render_exception(config)
     if parts[0] != "mode":
         return None
     if len(parts) == 2 and parts[1] == "normal":
