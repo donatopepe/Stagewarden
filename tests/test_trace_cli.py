@@ -397,6 +397,22 @@ class TraceAndCliTests(unittest.TestCase):
     def test_interactive_shell_status_and_mode_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-3",
+                "current_step_title": "Resume 3. Validate result",
+                "current_step_status": "in_progress",
+                "latest_observation": "implementation completed, wet-run pending",
+                "plan_status": "step-1:completed,step-2:completed,step-3:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "updated_at": "2026-04-18T18:30:00+00:00",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             config = AgentConfig(workspace_root=root, max_steps=1)
             input_stream = StringIO("status\nhandoff\nmode caveman ultra\nstatus\nmode normal\nstatus\nexit\n")
             output_stream = StringIO()
@@ -408,6 +424,11 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("handoff: .stagewarden_handoff.json", rendered)
             self.assertIn("Handoff summary:", rendered)
             self.assertIn("Project handoff:", rendered)
+            self.assertIn("Stage view:", rendered)
+            self.assertIn("closed_stages: step-1, step-2", rendered)
+            self.assertIn("active_stage: step-3 [in_progress]", rendered)
+            self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
+            self.assertIn("pid_boundary: project_status=executing", rendered)
             self.assertIn("Caveman mode active. Level: ultra.", rendered)
             self.assertIn("mode: caveman ultra", rendered)
             self.assertIn("Caveman mode disabled.", rendered)

@@ -263,6 +263,7 @@ def _render_handoff(config: AgentConfig) -> str:
     lines = [
         "Project handoff:",
         handoff.summary(),
+        handoff.rendered_stage_view(),
     ]
     if handoff.entries:
         lines.append("Recent handoff entries:")
