@@ -68,7 +68,7 @@ class Agent:
             f"{self.executor.config.system_prompt}\n\nPRINCE2 agent policy:\n{checklist.render_for_prompt()}"
         )
 
-        plan = self.planner.create_plan(effective_task)
+        plan = self.planner.create_plan(effective_task, project_handoff=self.project_handoff)
         last_observation = "Task received."
         iterations = 0
         self.trace_records = []

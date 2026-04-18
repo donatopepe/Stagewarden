@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .project_handoff import ProjectHandoff
+
 
 @dataclass(slots=True)
 class PlanStep:
@@ -15,7 +17,7 @@ class PlanStep:
 
 
 class Planner:
-    def create_plan(self, task: str) -> list[PlanStep]:
+    def create_plan(self, task: str, *, project_handoff: ProjectHandoff | None = None) -> list[PlanStep]:
         chunks = self._extract_chunks(task)
         steps: list[PlanStep] = []
 
@@ -39,7 +41,48 @@ class Planner:
                 )
             )
 
+        self._apply_handoff_context(steps, task=task, project_handoff=project_handoff)
         return steps
+
+    def _apply_handoff_context(
+        self,
+        steps: list[PlanStep],
+        *,
+        task: str,
+        project_handoff: ProjectHandoff | None,
+    ) -> None:
+        if not project_handoff or not steps:
+            return
+        if not project_handoff.task or project_handoff.task.strip() != task.strip():
+            return
+
+        status_by_step = self._parse_plan_status(project_handoff.plan_status)
+        for step in steps:
+            previous_status = status_by_step.get(step.id)
+            if previous_status in {"pending", "in_progress", "completed", "failed"}:
+                step.status = previous_status
+
+        if project_handoff.status not in {"executing", "planned", "exception"}:
+            return
+
+        current_step_id = project_handoff.current_step_id
+        if not current_step_id:
+            return
+        for step in steps:
+            if step.id != current_step_id:
+                continue
+            if step.status == "completed":
+                return
+            observation = project_handoff.latest_observation.strip()
+            continuation_note = (
+                f"continue from persisted handoff context for: {step.instruction}"
+            )
+            if observation:
+                continuation_note += f" | latest_observation={observation[:160]}"
+            step.instruction = continuation_note
+            if not step.title.lower().startswith("resume"):
+                step.title = f"Resume {step.title}"
+            return
 
     def _extract_chunks(self, task: str) -> list[str]:
         normalized = re.sub(r"\s+", " ", task).strip()
@@ -69,3 +112,15 @@ class Planner:
         if "analyze" in lower or "inspect" in lower:
             return "The agent can state concrete findings and, where possible, verify them with a real command."
         return "The step yields a concrete artifact or wet-run observation."
+
+    def _parse_plan_status(self, value: str) -> dict[str, str]:
+        statuses: dict[str, str] = {}
+        for item in (value or "").split(","):
+            key, separator, status = item.partition(":")
+            if not separator:
+                continue
+            clean_key = key.strip()
+            clean_status = status.strip()
+            if clean_key and clean_status:
+                statuses[clean_key] = clean_status
+        return statuses
