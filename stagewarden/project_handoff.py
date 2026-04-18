@@ -441,7 +441,7 @@ class ProjectHandoff:
             for item in self.issue_register
             if str(item.get("status", "open")).strip().lower() != "closed"
         ]
-        if self.current_step_status == "completed" and not open_issues:
+        if not open_issues:
             self.exception_plan = []
 
     def _seed_risk_register(self, risks: list[Any]) -> None:
