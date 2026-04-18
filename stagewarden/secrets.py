@@ -11,6 +11,7 @@ from pathlib import Path
 
 LOGIN_URLS = {
     "cheap": "https://openrouter.ai/settings/keys",
+    "chatgpt": "https://chatgpt.com/",
     "gpt": "https://platform.openai.com/api-keys",
     "claude": "https://console.anthropic.com/settings/keys",
 }

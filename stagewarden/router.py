@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class ModelRouter:
-    ORDER = ("local", "cheap", "gpt", "claude")
+    ORDER = ("local", "cheap", "chatgpt", "gpt", "claude")
 
     def __init__(self) -> None:
         self.enabled_models = set(self.ORDER)
@@ -61,12 +61,12 @@ class ModelRouter:
         if failure_count >= 3:
             return self._best_available("claude")
         if failure_count >= 2:
-            return self._best_available("gpt")
+            return self._best_available("chatgpt")
 
         text = f"{task} {step_text}".lower()
         risky_tokens = ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")
         if any(token in text for token in risky_tokens):
-            return self._best_available("gpt")
+            return self._best_available("chatgpt")
         complexity = 0
         debug_tokens = ("debug", "failure", "bug", "traceback", "regression")
         complex_tokens = ("refactor", "complex", "architecture", "handoff", "planner", "executor")
@@ -81,14 +81,16 @@ class ModelRouter:
             complexity += 1
 
         if any(token in text for token in debug_tokens) and any(token in text for token in ("complex", "traceback")):
-            return self._best_available("gpt")
+            return self._best_available("chatgpt")
         if complexity <= 1:
             return self._best_available("local")
         if complexity <= 3:
             return self._best_available("cheap")
-        return self._best_available("gpt")
+        return self._best_available("chatgpt")
 
     def escalate(self, current: str) -> str:
+        if current == "chatgpt":
+            return self._best_available("gpt")
         if current == "gpt":
             return self._best_available("claude")
         try:
@@ -101,8 +103,10 @@ class ModelRouter:
         return self._best_available(current)
 
     def fallback_for_api_failure(self, current: str) -> str:
-        if current == "gpt":
+        if current == "chatgpt":
             return self._best_available("cheap")
+        if current == "gpt":
+            return self._best_available("chatgpt")
         if current == "claude":
             return self._best_available("gpt")
         if current == "cheap":

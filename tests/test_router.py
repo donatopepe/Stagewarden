@@ -13,19 +13,21 @@ class RouterTests(unittest.TestCase):
     def test_complex_debug_task_prefers_gpt(self) -> None:
         router = ModelRouter()
         model = router.choose_model("debug a complex traceback in production", "implement fix")
-        self.assertEqual(model, "gpt")
+        self.assertEqual(model, "chatgpt")
 
     def test_risky_task_prefers_gpt(self) -> None:
         router = ModelRouter()
         model = router.choose_model("update auth flow in production", "review and validate")
-        self.assertEqual(model, "gpt")
+        self.assertEqual(model, "chatgpt")
 
     def test_failure_escalation_progression(self) -> None:
         router = ModelRouter()
-        self.assertEqual(router.choose_model("x", "y", failure_count=2), "gpt")
+        self.assertEqual(router.choose_model("x", "y", failure_count=2), "chatgpt")
         self.assertEqual(router.choose_model("x", "y", failure_count=3), "claude")
+        self.assertEqual(router.escalate("chatgpt"), "gpt")
         self.assertEqual(router.escalate("gpt"), "claude")
-        self.assertEqual(router.fallback_for_api_failure("gpt"), "cheap")
+        self.assertEqual(router.fallback_for_api_failure("chatgpt"), "cheap")
+        self.assertEqual(router.fallback_for_api_failure("gpt"), "chatgpt")
 
 
 if __name__ == "__main__":

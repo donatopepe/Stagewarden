@@ -34,7 +34,7 @@ class HandoffTests(unittest.TestCase):
                     import json
                     import os
                     import sys
-                    print(json.dumps({"summary":"ok","account":os.environ.get("STAGEWARDEN_MODEL_ACCOUNT",""),"token":os.environ.get("OPENAI_API_KEY",""),"action":{"type":"complete","message":"done"}}))
+                    print(json.dumps({"summary":"ok","account":os.environ.get("STAGEWARDEN_MODEL_ACCOUNT",""),"token":os.environ.get("OPENAI_API_KEY","") or os.environ.get("CHATGPT_TOKEN",""),"action":{"type":"complete","message":"done"}}))
                     """
                 )
             )
@@ -66,6 +66,45 @@ class HandoffTests(unittest.TestCase):
         self.assertIn('"type": "complete"', result.output)
         self.assertIn('"account": "work"', result.output)
         self.assertIn('"token": "work-token"', result.output)
+
+    def test_handoff_passes_chatgpt_token_to_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stub = Path(tmp_dir) / "run_model_test_stub"
+            store = Path(tmp_dir) / "secrets"
+            stub.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env python3
+                    import json
+                    import os
+                    print(json.dumps({"account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""), "token": os.environ.get("CHATGPT_TOKEN", "")}))
+                    """
+                )
+            )
+            stub.chmod(0o755)
+            original_bin = os.environ.get("RUN_MODEL_BIN")
+            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
+            try:
+                from stagewarden.secrets import SecretStore
+
+                saved = SecretStore().save_token("chatgpt", "personal", "chatgpt-session-token")
+                self.assertTrue(saved.ok, saved.message)
+                result = HandoffManager(timeout_seconds=5).execute(format_run_model("chatgpt", "prompt", account="personal"))
+            finally:
+                if original_bin is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original_bin
+                if original_store is None:
+                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
+                else:
+                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
+
+        self.assertTrue(result.ok, result.error)
+        self.assertIn('"account": "personal"', result.output)
+        self.assertIn('"token": "chatgpt-session-token"', result.output)
 
     def test_handoff_loads_saved_account_token_when_env_mapping_is_absent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

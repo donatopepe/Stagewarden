@@ -59,15 +59,15 @@ def interactive_help_text() -> str:
             "Model commands:",
             "- models",
             "  Show enabled models, preferred model, and backend mapping.",
-            "- model use <local|cheap|gpt|claude>",
+            "- model use <local|cheap|chatgpt|gpt|claude>",
             "  Set the preferred model and persist it in this workspace.",
-            "- model add <local|cheap|gpt|claude>",
+            "- model add <local|cheap|chatgpt|gpt|claude>",
             "  Enable a model in this workspace.",
-            "- model remove <local|cheap|gpt|claude>",
+            "- model remove <local|cheap|chatgpt|gpt|claude>",
             "  Disable a model in this workspace.",
-            "- model block <local|cheap|gpt|claude> until YYYY-MM-DDTHH:MM",
+            "- model block <local|cheap|chatgpt|gpt|claude> until YYYY-MM-DDTHH:MM",
             "  Keep the model in the list but block routing to it until the given date and time.",
-            "- model unblock <local|cheap|gpt|claude>",
+            "- model unblock <local|cheap|chatgpt|gpt|claude>",
             "  Remove the temporary block from a model.",
             "- model clear",
             "  Clear the preferred model and restore automatic routing.",
@@ -121,6 +121,7 @@ def interactive_help_text() -> str:
             "",
             "Examples:",
             "- stagewarden> models",
+            "- stagewarden> account login chatgpt personale",
             "- stagewarden> model use gpt",
             "- stagewarden> model remove claude",
             "- stagewarden> model block gpt until 2026-05-01T18:30",
@@ -372,7 +373,7 @@ def _handle_account_command(
                 prefs.enabled_models.append(model)
             browser = SecretStore().open_login_page(model)
             token = _prompt_secret(
-                f"Paste token for {model}:{name}: ",
+                _secret_prompt_for_model(model, name),
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
@@ -454,6 +455,12 @@ def _prompt_secret(prompt: str, *, input_stream: TextIO | None = None, output_st
     sink.write(prompt)
     sink.flush()
     return source.readline().strip()
+
+
+def _secret_prompt_for_model(model: str, account: str) -> str:
+    if model == "chatgpt":
+        return f"Paste ChatGPT token for {model}:{account}: "
+    return f"Paste token for {model}:{account}: "
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
