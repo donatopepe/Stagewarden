@@ -10,6 +10,8 @@ import webbrowser
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from .secrets import LOGIN_URLS
+
 
 @dataclass(slots=True)
 class AuthResult:
@@ -34,8 +36,9 @@ class BrowserCallbackFlow:
         except PermissionError:
             return self._fallback_without_listener()
         callback_url = f"http://127.0.0.1:{server.server_port}/callback"
+        launch_url = f"http://127.0.0.1:{server.server_port}/"
         try:
-            self._open_browser(callback_url)
+            self._open_browser(launch_url, callback_url)
             self._trigger_auto_callback(callback_url)
             if not self._event.wait(self.timeout_seconds):
                 return AuthResult(
@@ -77,38 +80,21 @@ class BrowserCallbackFlow:
             def do_GET(self) -> None:  # noqa: N802
                 parsed = urllib.parse.urlparse(self.path)
                 if parsed.path != "/callback":
-                    self._write(
-                        200,
-                        (
-                            "<html><body><h1>Stagewarden login waiting</h1>"
-                            f"<p>Model: {flow.model}</p>"
-                            f"<p>Account: {flow.account}</p>"
-                            f"<p>Callback path: /callback?state={flow.state}&token=...</p>"
-                            "</body></html>"
-                        ),
-                    )
+                    self._write(200, flow._render_launch_page())
                     return
                 params = urllib.parse.parse_qs(parsed.query)
-                if params.get("state", [""])[0] != flow.state:
-                    flow._result = AuthResult(False, "Invalid callback state.")
-                    flow._event.set()
-                    self._write(400, "<html><body><h1>Invalid state</h1></body></html>")
+                ok, body, status = flow._consume_params(params)
+                self._write(status, body)
+
+            def do_POST(self) -> None:  # noqa: N802
+                if self.path != "/complete":
+                    self._write(404, "<html><body><h1>Not found</h1></body></html>")
                     return
-                token = params.get("token", [""])[0].strip()
-                code = params.get("code", [""])[0].strip()
-                if token:
-                    flow._result = AuthResult(True, "Browser callback completed.", token=token)
-                    flow._event.set()
-                    self._write(200, "<html><body><h1>Login completed</h1>You can return to Stagewarden.</body></html>")
-                    return
-                if code:
-                    flow._result = AuthResult(True, "Authorization code received.", code=code)
-                    flow._event.set()
-                    self._write(200, "<html><body><h1>Code received</h1>You can return to Stagewarden.</body></html>")
-                    return
-                flow._result = AuthResult(False, "Callback missing token or code.")
-                flow._event.set()
-                self._write(400, "<html><body><h1>Missing token or code</h1></body></html>")
+                content_length = int(self.headers.get("Content-Length", "0") or "0")
+                raw = self.rfile.read(content_length).decode("utf-8") if content_length else ""
+                params = urllib.parse.parse_qs(raw)
+                ok, body, status = flow._consume_params(params)
+                self._write(status, body)
 
             def log_message(self, format: str, *args: object) -> None:  # noqa: A003
                 return
@@ -123,24 +109,77 @@ class BrowserCallbackFlow:
 
         return ThreadingHTTPServer(("127.0.0.1", 0), Handler)
 
-    def _open_browser(self, callback_url: str) -> None:
+    def _open_browser(self, launch_url: str, callback_url: str) -> None:
         template = (
             os.environ.get(f"STAGEWARDEN_{self.model.upper()}_LOGIN_URL_TEMPLATE")
             or os.environ.get("STAGEWARDEN_LOGIN_URL_TEMPLATE")
         )
+        if os.environ.get("STAGEWARDEN_SKIP_BROWSER") == "1":
+            return
+        webbrowser.open(launch_url)
         if template:
-            url = template.format(
+            provider_url = template.format(
                 callback_url=callback_url,
                 callback_url_encoded=urllib.parse.quote(callback_url, safe=""),
                 state=self.state,
                 model=self.model,
                 account=self.account,
             )
-        else:
-            url = f"http://127.0.0.1:{urllib.parse.urlparse(callback_url).port}/?state={self.state}"
-        if os.environ.get("STAGEWARDEN_SKIP_BROWSER") == "1":
-            return
-        webbrowser.open(url)
+            webbrowser.open_new_tab(provider_url)
+
+    def _consume_params(self, params: dict[str, list[str]]) -> tuple[bool, str, int]:
+        if params.get("state", [""])[0] != self.state:
+            self._result = AuthResult(False, "Invalid callback state.")
+            self._event.set()
+            return False, "<html><body><h1>Invalid state</h1></body></html>", 400
+        token = params.get("token", [""])[0].strip()
+        code = params.get("code", [""])[0].strip()
+        if token:
+            self._result = AuthResult(True, "Browser flow completed.", token=token)
+            self._event.set()
+            return True, "<html><body><h1>Login completed</h1>You can return to Stagewarden.</body></html>", 200
+        if code:
+            self._result = AuthResult(True, "Authorization code received.", code=code)
+            self._event.set()
+            return True, "<html><body><h1>Code received</h1>You can return to Stagewarden.</body></html>", 200
+        self._result = AuthResult(False, "Callback missing token or code.")
+        self._event.set()
+        return False, "<html><body><h1>Missing token or code</h1></body></html>", 400
+
+    def _render_launch_page(self) -> str:
+        provider_url = LOGIN_URLS.get(self.model, "")
+        callback_hint = f"/callback?state={self.state}&token=..."
+        provider_link = ""
+        if provider_url:
+            provider_link = f'<p><a href="{self._escape_html(provider_url)}" target="_blank" rel="noreferrer">Open provider login page</a></p>'
+        return (
+            "<html><body>"
+            "<h1>Stagewarden browser login</h1>"
+            f"<p>Model: {self._escape_html(self.model)}</p>"
+            f"<p>Account: {self._escape_html(self.account)}</p>"
+            f"{provider_link}"
+            "<p>If the provider can redirect to localhost, complete login and return here automatically.</p>"
+            "<p>If not, paste a token or authorization code below to finish the login in the browser.</p>"
+            f"<p>Callback hint: <code>{self._escape_html(callback_hint)}</code></p>"
+            f'<form method="post" action="/complete">'
+            f'<input type="hidden" name="state" value="{self._escape_html(self.state)}"/>'
+            '<label>Token<br/><input type="password" name="token" style="width: 32rem" autocomplete="off"/></label>'
+            "<br/><br/>"
+            '<label>Authorization code<br/><input type="text" name="code" style="width: 32rem" autocomplete="off"/></label>'
+            "<br/><br/>"
+            '<button type="submit">Complete login</button>'
+            "</form>"
+            "</body></html>"
+        )
+
+    def _escape_html(self, value: str) -> str:
+        return (
+            value.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&#39;")
+        )
 
     def _trigger_auto_callback(self, callback_url: str) -> None:
         token = os.environ.get("STAGEWARDEN_AUTH_AUTO_CALLBACK_TOKEN", "").strip()
