@@ -73,10 +73,10 @@ L’agente usa LJSON di default per:
 ## CLI
 
 ```bash
-agent-cli --ljson-encode records.json
-agent-cli --ljson-encode records.json --ljson-numeric --ljson-output records.ljson
-agent-cli --ljson-decode records.ljson
-agent-cli --ljson-benchmark records.json
+stagewarden --ljson-encode records.json
+stagewarden --ljson-encode records.json --ljson-numeric --ljson-output records.ljson
+stagewarden --ljson-decode records.ljson
+stagewarden --ljson-benchmark records.json
 ```
 
 ## JavaScript

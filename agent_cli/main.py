@@ -10,8 +10,8 @@ from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="agent-cli", description="Production-grade CLI coding agent.")
-    parser.add_argument("task", nargs="?", default="", help='Task to execute, for example: agent-cli "fix the failing tests"')
+    parser = argparse.ArgumentParser(prog="stagewarden", description="Stagewarden: production-grade CLI coding agent.")
+    parser.add_argument("task", nargs="?", default="", help='Task to execute, for example: stagewarden "fix the failing tests"')
     parser.add_argument("--max-steps", type=int, default=20, help="Maximum agent loop iterations.")
     parser.add_argument("--verbose", action="store_true", help="Print step-by-step logs.")
     parser.add_argument("--strict-ascii-output", dest="strict_ascii_output", action="store_true", default=True, help="Escape ambiguous non-ASCII characters in structured and generated text output.")
