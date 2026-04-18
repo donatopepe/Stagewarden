@@ -89,6 +89,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("- handoff", rendered)
             self.assertIn("- boundary", rendered)
             self.assertIn("- risks | issues | quality | exception", rendered)
+            self.assertIn("- lessons", rendered)
             self.assertIn("model use <local|cheap|chatgpt|openai|claude>", rendered)
             self.assertIn("model list <local|cheap|chatgpt|openai|claude>", rendered)
             self.assertIn("model variant <local|cheap|chatgpt|openai|claude> <variant>", rendered)
@@ -414,6 +415,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "risk_register": [{"risk": "Regression from patch execution", "status": "open"}],
                 "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "validation pending"}],
                 "quality_register": [{"step_id": "step-2", "status": "passed", "evidence": "file updated"}],
+                "lessons_log": [{"step_id": "step-2", "type": "success", "lesson": "file update pattern is reusable"}],
                 "exception_plan": ["review boundary for step-3", "prepare corrective action"],
                 "updated_at": "2026-04-18T18:30:00+00:00",
                 "entries": [],
@@ -421,7 +423,7 @@ class TraceAndCliTests(unittest.TestCase):
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             config = AgentConfig(workspace_root=root, max_steps=1)
             input_stream = StringIO(
-                "status\nhandoff\nboundary\nrisks\nissues\nquality\nexception\n"
+                "status\nhandoff\nboundary\nrisks\nissues\nquality\nexception\nlessons\n"
                 "mode caveman ultra\nstatus\nmode normal\nstatus\nexit\n"
             )
             output_stream = StringIO()
@@ -439,16 +441,18 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("pid_boundary: project_status=executing", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
-            self.assertIn("registers: risks=1 issues=1 quality=1", rendered)
+            self.assertIn("registers: risks=1 issues=1 quality=1 lessons=1", rendered)
             self.assertIn("Boundary recommendation:", rendered)
             self.assertIn("Risk register:", rendered)
             self.assertIn("Issue register:", rendered)
             self.assertIn("Quality register:", rendered)
             self.assertIn("Exception plan:", rendered)
+            self.assertIn("Lessons log:", rendered)
             self.assertIn("Regression from patch execution", rendered)
             self.assertIn("validation pending", rendered)
             self.assertIn("file updated", rendered)
             self.assertIn("review boundary for step-3", rendered)
+            self.assertIn("file update pattern is reusable", rendered)
             self.assertIn("Caveman mode active. Level: ultra.", rendered)
             self.assertIn("mode: caveman ultra", rendered)
             self.assertIn("Caveman mode disabled.", rendered)

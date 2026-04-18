@@ -61,6 +61,8 @@ def interactive_help_text() -> str:
             "  Show only the current PRINCE2 stage boundary recommendation.",
             "- risks | issues | quality | exception",
             "  Show the dedicated PRINCE2 registers from the persisted handoff.",
+            "- lessons",
+            "  Show the persistent lessons log derived from execution outcomes.",
             "- commands",
             "  Alias for help.",
             "",
@@ -159,6 +161,7 @@ def interactive_help_text() -> str:
             "- stagewarden> issues",
             "- stagewarden> quality",
             "- stagewarden> exception",
+            "- stagewarden> lessons",
             "- stagewarden> mode caveman ultra",
             "- stagewarden> mode normal",
             "- stagewarden> caveman on ultra",
@@ -309,6 +312,10 @@ def _render_quality(config: AgentConfig) -> str:
 
 def _render_exception(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_exception_plan()
+
+
+def _render_lessons(config: AgentConfig) -> str:
+    return ProjectHandoff.load(config.handoff_path).rendered_lessons()
 
 
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
@@ -633,6 +640,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_quality(config)
     if parts[0] == "exception":
         return _render_exception(config)
+    if parts[0] == "lessons":
+        return _render_lessons(config)
     if parts[0] != "mode":
         return None
     if len(parts) == 2 and parts[1] == "normal":

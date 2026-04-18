@@ -160,6 +160,11 @@ class Agent:
                     severity="high",
                     summary="Repeated loop exceeded acceptable control tolerance.",
                 )
+                self.project_handoff.record_lesson(
+                    step_id=current.id,
+                    lesson_type="failure",
+                    lesson="Repeated loop indicates the current stage needs a revised control approach or exception plan.",
+                )
                 self.project_handoff.begin_step(
                     iteration=iterations,
                     task=effective_task,
@@ -244,12 +249,22 @@ class Agent:
                     status="passed" if outcome.step_completed else "observed",
                     evidence=outcome.observation,
                 )
+                self.project_handoff.record_lesson(
+                    step_id=current.id,
+                    lesson_type="success" if outcome.step_completed else "observation",
+                    lesson=outcome.observation,
+                )
             else:
                 severity = "high" if current.status == "failed" else "medium"
                 self.project_handoff.record_issue(
                     step_id=current.id,
                     severity=severity,
                     summary=outcome.observation,
+                )
+                self.project_handoff.record_lesson(
+                    step_id=current.id,
+                    lesson_type="failure",
+                    lesson=outcome.observation,
                 )
             self.project_handoff.complete_step(
                 iteration=iterations,
