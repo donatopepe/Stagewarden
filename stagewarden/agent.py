@@ -23,6 +23,7 @@ class AgentResult:
 class Agent:
     def __init__(self, config: AgentConfig) -> None:
         self.config = config
+        self.base_system_prompt = config.system_prompt
         self.memory = self._load_memory()
         self.caveman = CavemanManager()
         self.caveman_state = self.caveman.load_state(config)
@@ -39,6 +40,7 @@ class Agent:
         )
 
     def run(self, task: str) -> AgentResult:
+        self.executor.config.system_prompt = self.base_system_prompt
         directive = self.caveman.parse(task)
         special = self._handle_caveman_command(directive)
         if special is not None:
@@ -51,11 +53,11 @@ class Agent:
         pid = self.prince2.build_pid(effective_task, checklist)
         if directive.active:
             self.executor.config.system_prompt = self.caveman.augment_system_prompt(
-                self.config.system_prompt,
+                self.base_system_prompt,
                 directive.level,
             )
         self.executor.config.system_prompt = (
-            f"{self.config.system_prompt}\n\nPRINCE2 agent policy:\n{checklist.render_for_prompt()}"
+            f"{self.executor.config.system_prompt}\n\nPRINCE2 agent policy:\n{checklist.render_for_prompt()}"
         )
 
         plan = self.planner.create_plan(effective_task)

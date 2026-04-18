@@ -28,3 +28,14 @@ Run:
 ```bash
 stagewarden "create a file named hello.txt"
 ```
+
+Acknowledgements:
+
+- The Caveman mode and related command ergonomics were inspired by [caveman](https://github.com/JuliusBrussee/caveman) by Julius Brussee.
+- Stagewarden is an independent project and does not include Caveman source code.
+
+Credits:
+
+- UX direction and agent-loop ergonomics were influenced by Codex-style CLI workflows.
+- Caveman-inspired command ergonomics and mode design draw from [caveman](https://github.com/JuliusBrussee/caveman) by Julius Brussee.
+- Stagewarden implementation, package structure, routing, handoff system, persistence, tests, and project integration are original work for this repository.

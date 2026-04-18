@@ -7,6 +7,7 @@ from typing import Any
 from .config import AgentConfig
 from .handoff import HandoffManager, format_run_model
 from .memory import MemoryStore
+from .modelprefs import ModelPreferences, extract_blocked_until
 from .planner import PlanStep
 from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
 from .router import ModelRouter
@@ -61,9 +62,11 @@ class Executor:
 
         result = self.handoff.execute(format_run_model(model, prompt))
         if not result.ok:
+            self._record_model_block_if_present(model, result.error or result.output)
             fallback_model = self.router.fallback_for_api_failure(model)
             fallback = self.handoff.execute(format_run_model(fallback_model, prompt))
             if not fallback.ok:
+                self._record_model_block_if_present(fallback_model, fallback.error or fallback.output)
                 self.memory.record_attempt(
                     iteration=iteration,
                     step_id=step.id,
@@ -164,6 +167,25 @@ class Executor:
             error_type=error_type,
             prince2_assessment=prince2_assessment,
         )
+
+    def _record_model_block_if_present(self, model: str, message: str) -> None:
+        until = extract_blocked_until(message)
+        if not until:
+            return
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+            prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
+            prefs.blocked_until_by_model[model] = until
+            if prefs.preferred_model == model:
+                prefs.preferred_model = None
+            prefs.save(self.config.model_prefs_path)
+            self.router.configure(
+                enabled_models=prefs.enabled_models,
+                preferred_model=prefs.preferred_model,
+                blocked_until_by_model=prefs.blocked_until_by_model,
+            )
+        except OSError:
+            return
 
     def _build_prompt(
         self,
