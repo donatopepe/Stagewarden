@@ -541,6 +541,19 @@ Validation:
 
 - CLI tests parse models/accounts JSON output and verify preferred model, account activity, and token-store state.
 
+### Permissions JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden permissions --json`.
+- Output exposes workspace, session, and effective permission policy without relying on text rendering.
+
+Validation:
+
+- CLI tests parse permissions JSON output and verify workspace mode and allow/ask/deny rules.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot

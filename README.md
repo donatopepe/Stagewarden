@@ -277,6 +277,7 @@ Model action schema:
 Interactive permission commands:
 
 - `permissions` shows the active workspace permission settings.
+- `stagewarden permissions --json` exposes workspace, session, and effective permission policy in machine-readable form.
 - `permission mode <default|accept_edits|plan|auto|dont_ask>` changes the workspace default permission mode.
 - `permission session mode <default|accept_edits|plan|auto|dont_ask>` changes the permission mode only for the current shell session.
 - `permission allow <rule>` adds an allow rule.

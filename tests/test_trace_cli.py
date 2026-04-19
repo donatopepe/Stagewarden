@@ -375,6 +375,28 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(payload["models"][0]["accounts"][0]["active"])
             self.assertTrue(payload["models"][0]["accounts"][0]["token_stored"])
 
+    def test_permissions_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            settings = {
+                "permissions": {
+                    "defaultMode": "plan",
+                    "allow": ["shell:git status"],
+                    "ask": ["file:secret.txt"],
+                    "deny": ["shell:rm"],
+                }
+            }
+            (root / ".stagewarden_settings.json").write_text(json.dumps(settings), encoding="utf-8")
+            completed = run_main_capture(root, "permissions", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "permissions")
+            self.assertEqual(payload["report"]["workspace"]["mode"], "plan")
+            self.assertEqual(payload["report"]["workspace"]["allow"], ["shell:git status"])
+            self.assertEqual(payload["report"]["workspace"]["ask"], ["file:secret.txt"])
+            self.assertEqual(payload["report"]["workspace"]["deny"], ["shell:rm"])
+
     def test_boundary_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
