@@ -255,12 +255,6 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
-    stage_view = handoff.stage_view()
-    active_step = stage_view["active_step"]
-    active_stage = "none"
-    if isinstance(active_step, dict):
-        active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
-    git_boundary = stage_view["git_boundary"]
     lines = [
         "Stagewarden status:",
         f"- workspace: {config.workspace_root}",
@@ -272,35 +266,17 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_model_status(agent, config),
         "Handoff summary:",
         handoff.summary(),
-        "Governance status:",
-        handoff.rendered_register_status_summary(),
-        f"Stage health: {handoff.rendered_stage_health()}",
-        f"Next action: {handoff.rendered_next_action()}",
-        f"Active stage: {active_stage}",
-        f"Git boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
-        f"Boundary decision: {stage_view['boundary_decision']}",
+        handoff.rendered_operational_posture(),
     ]
     return "\n".join(lines)
 
 
 def _render_handoff(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
-    stage_view = handoff.stage_view()
-    active_step = stage_view["active_step"]
-    active_stage = "none"
-    if isinstance(active_step, dict):
-        active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
-    git_boundary = stage_view["git_boundary"]
     lines = [
         "Project handoff:",
         handoff.summary(),
-        "Governance status:",
-        handoff.rendered_register_status_summary(),
-        f"Stage health: {handoff.rendered_stage_health()}",
-        f"Next action: {handoff.rendered_next_action()}",
-        f"Active stage: {active_stage}",
-        f"Git boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
-        f"Boundary decision: {stage_view['boundary_decision']}",
+        handoff.rendered_operational_posture(),
         handoff.rendered_stage_view(),
     ]
     if handoff.entries:
