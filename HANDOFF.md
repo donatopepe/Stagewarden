@@ -385,7 +385,6 @@ Validation:
 
 1. Richer model usage/cost reporting.
 2. Resume command wet-run integration with a fake model binary.
-3. Cost/budget section in final summary output.
 
 ## Recently Completed
 
@@ -417,6 +416,21 @@ Implemented behaviour:
 Validation:
 
 - CLI tests parse the JSON output and verify provider and policy fields.
+
+### Final Summary Cost/Budget
+
+Status: implemented
+
+Implemented behaviour:
+
+- Final agent summaries now include a dedicated `Cost and budget:` section.
+- The section reports routing policy, per-model usage counts, highest cost tier reached, and failed model call count.
+- The summary is driven by execution memory so it reflects the actual run, not static configuration.
+
+Validation:
+
+- Memory tests cover budget summary rendering.
+- Agent integration tests verify the final user-facing summary includes the budget section.
 
 ## Recently Completed
 
