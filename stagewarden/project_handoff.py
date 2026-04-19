@@ -307,8 +307,9 @@ class ProjectHandoff:
         boundary_decision = self._boundary_decision(status_by_step)
         register_statuses = self._register_status_summary()
         backlog_statuses = self._implementation_backlog_status_summary()
+        recovery_state = self._recovery_state(status_by_step, backlog_statuses)
         stage_health = self._stage_health(boundary_decision, active_step, register_statuses, backlog_statuses)
-        next_action = self._next_action(boundary_decision, active_step, stage_health, backlog_statuses)
+        next_action = self._next_action(boundary_decision, active_step, stage_health, backlog_statuses, recovery_state)
         return {
             "closed_steps": closed_steps,
             "active_step": active_step,
@@ -317,6 +318,7 @@ class ProjectHandoff:
             "boundary_decision": boundary_decision,
             "register_statuses": register_statuses,
             "backlog_statuses": backlog_statuses,
+            "recovery_state": recovery_state,
             "stage_health": stage_health,
             "next_action": next_action,
         }
@@ -330,6 +332,7 @@ class ProjectHandoff:
         boundary_decision = view["boundary_decision"]
         register_statuses = view["register_statuses"]
         backlog_statuses = view["backlog_statuses"]
+        recovery_state = view["recovery_state"]
         stage_health = view["stage_health"]
         next_action = view["next_action"]
         lines = ["Stage view:"]
@@ -355,6 +358,7 @@ class ProjectHandoff:
             f"plan_status={pid_boundary['plan_status']} updated_at={pid_boundary['updated_at']}"
         )
         lines.append(f"- stage_health: {stage_health}")
+        lines.append(f"- recovery_state: {recovery_state}")
         lines.append(f"- boundary_decision: {boundary_decision}")
         lines.append(f"- next_action: {next_action}")
         lines.append(
@@ -417,6 +421,7 @@ class ProjectHandoff:
                 "Operational posture:",
                 f"- governance: {self.rendered_register_status_summary()}",
                 f"- stage_health: {view['stage_health']}",
+                f"- recovery_state: {view['recovery_state']}",
                 f"- next_action: {view['next_action']}",
                 f"- active_stage: {active_stage}",
                 f"- implementation_backlog_open: {backlog_statuses['ready'] + backlog_statuses['planned'] + backlog_statuses['in_progress'] + backlog_statuses['blocked']}",
@@ -648,7 +653,12 @@ class ProjectHandoff:
         active_step: dict[str, object] | None,
         stage_health: str,
         backlog_statuses: dict[str, int],
+        recovery_state: str,
     ) -> str:
+        if recovery_state == "recovery_active":
+            return "execute recovery lane and confirm wet-run before re-baseline"
+        if recovery_state == "recovery_cleared":
+            return "clear exception controls and resume planned stages"
         if stage_health == "exception":
             return "execute exception plan and re-baseline the current stage"
         if stage_health == "blocked":
@@ -701,6 +711,24 @@ class ProjectHandoff:
         if any(status in {"pending", "planned", "ready", "in_progress"} for status in values):
             return "continue_current_stage"
         return "review_boundary:manual_check"
+
+    def _recovery_state(self, status_by_step: dict[str, str], backlog_statuses: dict[str, int]) -> str:
+        recovery_statuses = {
+            step_id: status
+            for step_id, status in status_by_step.items()
+            if step_id.startswith("recovery-step-")
+        }
+        if recovery_statuses:
+            values = list(recovery_statuses.values())
+            if any(status in {"ready", "in_progress", "planned", "pending"} for status in values):
+                return "recovery_active"
+            if all(status == "completed" for status in values):
+                return "recovery_cleared"
+        if self.status == "exception" and self.exception_plan:
+            return "exception_active"
+        if backlog_statuses["blocked"] > 0:
+            return "exception_active"
+        return "none"
 
     def _implementation_backlog_status_summary(self) -> dict[str, int]:
         counts = {"ready": 0, "planned": 0, "in_progress": 0, "blocked": 0, "done": 0}
