@@ -367,6 +367,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "- handoff",
             "- handoff export | handoff md",
+            "- board | stage review",
             "- resume",
             "- resume --show",
             "- resume --clear",
@@ -380,6 +381,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> handoff",
+            "- stagewarden> board",
             "- stagewarden> resume --show",
             "- stagewarden> resume --clear",
             "- stagewarden> boundary",
@@ -1011,6 +1013,57 @@ def _boundary_report(config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _board_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    stage_view = handoff.stage_view()
+    register_statuses = stage_view["register_statuses"]
+    business_justification = "viable"
+    if handoff.status == "exception":
+        business_justification = "at_risk"
+    if stage_view["boundary_decision"] == "review_boundary:open_issues":
+        business_justification = "review_required"
+    if stage_view["boundary_decision"] == "close_project":
+        recommendation = "close"
+    elif stage_view["recovery_state"] in {"exception_active", "recovery_active", "recovery_cleared"}:
+        recommendation = "recover"
+    elif register_statuses["issues_open"] > 0 or stage_view["boundary_decision"].startswith("review_boundary:"):
+        recommendation = "review"
+    else:
+        recommendation = "continue"
+    return {
+        "command": "board",
+        "task": handoff.task or "none",
+        "business_justification": business_justification,
+        "boundary_decision": stage_view["boundary_decision"],
+        "open_issues": register_statuses["issues_open"],
+        "open_risks": register_statuses["risks_open"],
+        "quality_open": register_statuses["quality_open"],
+        "quality_accepted": register_statuses["quality_accepted"],
+        "recovery_state": stage_view["recovery_state"],
+        "recommended_authorization": recommendation,
+        "next_action": stage_view["next_action"],
+        "stage_view": stage_view,
+    }
+
+
+def _render_board(config: AgentConfig) -> str:
+    report = _board_report(config)
+    lines = [
+        "Board review:",
+        f"- task: {report['task']}",
+        f"- business_justification: {report['business_justification']}",
+        f"- boundary_decision: {report['boundary_decision']}",
+        f"- open_issues: {report['open_issues']}",
+        f"- open_risks: {report['open_risks']}",
+        f"- quality_open: {report['quality_open']}",
+        f"- quality_accepted: {report['quality_accepted']}",
+        f"- recovery_state: {report['recovery_state']}",
+        f"- recommended_authorization: {report['recommended_authorization']}",
+        f"- next_action: {report['next_action']}",
+    ]
+    return "\n".join(lines)
+
+
 def _render_permissions(config: AgentConfig) -> str:
     workspace_settings = PermissionSettings.load(config.settings_path)
     session_settings = config.session_permission_settings
@@ -1503,6 +1556,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         if len(parts) == 2 and parts[1] in {"md", "export"}:
             return _export_handoff_markdown(config)
         return _render_handoff(config)
+    if parts[0] == "board" or command == "stage review":
+        return _render_board(config)
     if parts[0] == "boundary":
         return _render_boundary(config)
     if parts[0] == "risks":
@@ -2130,6 +2185,12 @@ def main() -> int:
             print(dumps_ascii({"command": "permissions", "report": _permissions_report(config)}, indent=2))
         else:
             print(_render_permissions(config))
+        return 0
+    if task in {"board", "stage review"}:
+        if args.json:
+            print(dumps_ascii(_board_report(config), indent=2))
+        else:
+            print(_render_board(config))
         return 0
     if task in {"sessions", "session list"}:
         agent = _configure_agent_for_workspace(config)

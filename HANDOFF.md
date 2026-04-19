@@ -264,11 +264,11 @@ Validation:
 
 ### 10. Board Review Command
 
-Status: planned
+Status: implemented
 
 Add a PRINCE2 board-level summary command.
 
-Required behaviour:
+Implemented behaviour:
 
 - Command: `board` or `stage review`.
 - Show business justification, current boundary decision, open issues, open risks, quality status, recovery state, and recommended authorization.

@@ -1561,6 +1561,62 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("review_boundary:open_issues", rendered)
             self.assertIn("issues_open=1 issues_closed=0", rendered)
 
+    def test_board_review_recommends_close_for_clean_closed_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "release project",
+                "status": "closed",
+                "current_step_id": "step-3",
+                "current_step_status": "completed",
+                "plan_status": "step-1:completed,step-2:completed,step-3:completed",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "board", "--json")
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["recommended_authorization"], "close")
+
+    def test_board_review_recommends_review_when_open_issues_remain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "release project",
+                "status": "closed",
+                "current_step_id": "step-3",
+                "current_step_status": "completed",
+                "plan_status": "step-1:completed,step-2:completed,step-3:completed",
+                "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "release note missing", "status": "open"}],
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "stage review", "--json")
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["recommended_authorization"], "review")
+
+    def test_board_review_recommends_recover_when_recovery_is_active(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "exception",
+                "current_step_id": "recovery-step-1",
+                "current_step_status": "in_progress",
+                "plan_status": "step-1:completed,step-2:failed,recovery-step-1:in_progress",
+                "exception_plan": ["review failing tests"],
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "board", "--json")
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["recommended_authorization"], "recover")
+
     def test_interactive_shell_can_query_git_history(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
