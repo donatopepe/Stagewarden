@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ljson-gzip", action="store_true", help="Write gzipped LJSON when encoding.")
     parser.add_argument("--ljson-benchmark", metavar="JSON_PATH", help="Benchmark standard JSON vs LJSON for a JSON array file.")
     parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
+    parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
     return parser
 
 
@@ -534,51 +535,135 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
-def _render_doctor(config: AgentConfig) -> str:
-    lines = ["Stagewarden doctor:"]
+def _doctor_report(config: AgentConfig) -> dict[str, object]:
     python_ok = sys.version_info >= (3, 11)
-    python_status = "OK" if python_ok else "FAIL"
-    lines.append(
-        f"- Python: {python_status} {platform.python_version()} "
-        f"(required >=3.11, executable={sys.executable})"
-    )
+    report: dict[str, object] = {
+        "command": "doctor",
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "python": {
+            "ok": python_ok,
+            "status": "OK" if python_ok else "FAIL",
+            "version": platform.python_version(),
+            "required": ">=3.11",
+            "executable": sys.executable,
+        },
+        "git": {},
+        "path_launcher": {},
+        "repository": {},
+        "providers": [],
+        "policy": {
+            "silent_install": False,
+            "note": "no prerequisites are installed silently by doctor.",
+        },
+    }
 
     git_path = shutil.which("git")
     if git_path:
         git_available = GitTool(config).ensure_available()
         if git_available.ok:
             version = git_available.stdout.strip() or "git available"
-            lines.append(f"- Git: OK {version} ({git_path})")
+            report["git"] = {
+                "ok": True,
+                "status": "OK",
+                "message": version,
+                "path": git_path,
+            }
         else:
-            lines.append(f"- Git: FAIL {git_available.error or 'git is not usable'}")
+            report["git"] = {
+                "ok": False,
+                "status": "FAIL",
+                "message": git_available.error or "git is not usable",
+                "path": git_path,
+            }
     else:
-        lines.append("- Git: FAIL git executable not found in PATH. Install git before running Stagewarden.")
+        report["git"] = {
+            "ok": False,
+            "status": "FAIL",
+            "message": "git executable not found in PATH. Install git before running Stagewarden.",
+            "path": None,
+        }
 
     launcher = shutil.which("stagewarden")
     if launcher:
-        lines.append(f"- PATH launcher: OK {launcher}")
+        report["path_launcher"] = {
+            "ok": True,
+            "status": "OK",
+            "path": launcher,
+            "message": launcher,
+        }
     else:
-        lines.append("- PATH launcher: WARN `stagewarden` not found in PATH; run setup.sh/setup.ps1 or use python -m stagewarden.main.")
+        report["path_launcher"] = {
+            "ok": False,
+            "status": "WARN",
+            "path": None,
+            "message": "`stagewarden` not found in PATH; run setup.sh/setup.ps1 or use python -m stagewarden.main.",
+        }
 
     repo_probe = GitTool(config)._run(["git", "rev-parse", "--is-inside-work-tree"])
     if repo_probe.ok and repo_probe.stdout.strip() == "true":
-        lines.append("- Repository: OK current workspace is a git worktree")
+        report["repository"] = {
+            "ok": True,
+            "status": "OK",
+            "message": "current workspace is a git worktree",
+        }
     else:
-        lines.append("- Repository: WARN current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup.")
+        report["repository"] = {
+            "ok": False,
+            "status": "WARN",
+            "message": "current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup.",
+        }
 
-    lines.append("Provider capabilities:")
+    providers: list[dict[str, object]] = []
     for model in REGISTRY_MODELS:
         capability = provider_capability(model)
         token_state = "n/a"
         if capability.token_env:
             token_state = "set" if os.environ.get(capability.token_env) else f"missing:{capability.token_env}"
-        lines.append(
-            f"- {model}: auth={capability.auth_type} profiles={'yes' if capability.supports_account_profiles else 'no'} "
-            f"browser_login={'yes' if capability.supports_browser_login else 'no'} api_key={'yes' if capability.supports_api_key else 'no'} "
-            f"token_env={token_state} default_model={capability.default_model}"
+        providers.append(
+            {
+                "provider": model,
+                "auth": capability.auth_type,
+                "profiles": capability.supports_account_profiles,
+                "browser_login": capability.supports_browser_login,
+                "api_key": capability.supports_api_key,
+                "token_env": token_state,
+                "default_model": capability.default_model,
+            }
         )
+    report["providers"] = providers
+    return report
 
-    lines.append("- Policy: no prerequisites are installed silently by doctor.")
+
+def _render_doctor(config: AgentConfig) -> str:
+    report = _doctor_report(config)
+    python_info = report["python"]
+    git_info = report["git"]
+    path_info = report["path_launcher"]
+    repo_info = report["repository"]
+    providers = report["providers"]
+    policy_info = report["policy"]
+    lines = ["Stagewarden doctor:"]
+    lines.append(
+        f"- Python: {python_info['status']} {python_info['version']} "
+        f"(required {python_info['required']}, executable={python_info['executable']})"
+    )
+    if git_info.get("ok"):
+        lines.append(f"- Git: OK {git_info['message']} ({git_info['path']})")
+    else:
+        lines.append(f"- Git: FAIL {git_info['message']}")
+    if path_info.get("ok"):
+        lines.append(f"- PATH launcher: OK {path_info['message']}")
+    else:
+        lines.append(f"- PATH launcher: WARN {path_info['message']}")
+    lines.append(f"- Repository: {repo_info['status']} {repo_info['message']}")
+    lines.append("Provider capabilities:")
+    for provider in providers:
+        lines.append(
+            f"- {provider['provider']}: auth={provider['auth']} profiles={'yes' if provider['profiles'] else 'no'} "
+            f"browser_login={'yes' if provider['browser_login'] else 'no'} api_key={'yes' if provider['api_key'] else 'no'} "
+            f"token_env={provider['token_env']} default_model={provider['default_model']}"
+        )
+    lines.append(f"- Policy: {policy_info['note']}")
     return "\n".join(lines)
 
 
@@ -1656,8 +1741,12 @@ def main() -> int:
     elif args.interactive or not task:
         return run_interactive_shell(config)
     if task == "doctor":
+        report = _doctor_report(config)
         rendered = _render_doctor(config)
-        print(rendered)
+        if args.json:
+            print(dumps_ascii(report, indent=2))
+        else:
+            print(rendered)
         return 0 if _doctor_ok(rendered) else 1
 
     agent = _configure_agent_for_workspace(config)
