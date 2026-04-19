@@ -13,6 +13,7 @@ from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
+from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .project_handoff import ProjectHandoff
 from .secrets import LOGIN_URLS, SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
@@ -63,6 +64,18 @@ def interactive_help_text() -> str:
             "  Show the dedicated PRINCE2 registers from the persisted handoff.",
             "- lessons",
             "  Show the persistent lessons log derived from execution outcomes.",
+            "- permissions",
+            "  Show the active workspace permission settings.",
+            "- permission mode <default|accept_edits|plan|auto|dont_ask>",
+            "  Set the default permission mode for this workspace.",
+            "- permission allow <rule>",
+            "  Add an allow rule to the workspace permission settings.",
+            "- permission ask <rule>",
+            "  Add an ask rule to the workspace permission settings.",
+            "- permission deny <rule>",
+            "  Add a deny rule to the workspace permission settings.",
+            "- permission reset",
+            "  Reset workspace permission settings to defaults.",
             "- commands",
             "  Alias for help.",
             "",
@@ -162,6 +175,10 @@ def interactive_help_text() -> str:
             "- stagewarden> quality",
             "- stagewarden> exception",
             "- stagewarden> lessons",
+            "- stagewarden> permissions",
+            "- stagewarden> permission mode plan",
+            "- stagewarden> permission allow shell:git status",
+            "- stagewarden> permission deny shell:rm",
             "- stagewarden> mode caveman ultra",
             "- stagewarden> mode normal",
             "- stagewarden> caveman on ultra",
@@ -264,6 +281,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- handoff: {config.handoff_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
         _render_model_status(agent, config),
+        _render_permissions(config),
         "Handoff summary:",
         handoff.summary(),
         handoff.rendered_operational_posture(),
@@ -298,6 +316,16 @@ def _render_boundary(config: AgentConfig) -> str:
             handoff.rendered_stage_view(),
         ]
     )
+
+
+def _render_permissions(config: AgentConfig) -> str:
+    settings = PermissionSettings.load(config.settings_path)
+    lines = ["Permission settings:"]
+    lines.append(f"- mode: {settings.default_mode}")
+    lines.append(f"- allow: {', '.join(settings.allow) if settings.allow else 'none'}")
+    lines.append(f"- ask: {', '.join(settings.ask) if settings.ask else 'none'}")
+    lines.append(f"- deny: {', '.join(settings.deny) if settings.deny else 'none'}")
+    return "\n".join(lines)
 
 
 def _render_risks(config: AgentConfig) -> str:
@@ -644,6 +672,10 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_exception(config)
     if parts[0] == "lessons":
         return _render_lessons(config)
+    if parts[0] == "permissions":
+        return _render_permissions(config)
+    if parts[0] == "permission":
+        return _handle_permission_command(parts, config)
     if parts[0] != "mode":
         return None
     if len(parts) == 2 and parts[1] == "normal":
@@ -653,6 +685,41 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         result = agent.run(f"/caveman {parts[2]}")
         return result.message
     return "Usage: mode caveman <level> | mode normal"
+
+
+def _handle_permission_command(parts: list[str], config: AgentConfig) -> str:
+    settings = PermissionSettings.load(config.settings_path)
+    if len(parts) < 2:
+        return (
+            "Usage: permissions | permission mode <mode> | permission allow <rule> | "
+            "permission ask <rule> | permission deny <rule> | permission reset"
+        )
+    action = parts[1]
+    if action == "mode":
+        if len(parts) != 3:
+            return f"Usage: permission mode <{'|'.join(VALID_PERMISSION_MODES)}>"
+        mode = parts[2].strip().lower().replace("-", "_")
+        if mode not in VALID_PERMISSION_MODES:
+            return f"Unsupported permission mode '{parts[2]}'."
+        settings.default_mode = mode
+        settings.normalize().save(config.settings_path)
+        return f"Permission mode set to {mode}."
+    if action in {"allow", "ask", "deny"}:
+        if len(parts) < 3:
+            return f"Usage: permission {action} <rule>"
+        rule = " ".join(parts[2:]).strip()
+        target = getattr(settings, action)
+        if rule not in target:
+            target.append(rule)
+        settings.normalize().save(config.settings_path)
+        return f"Added {action} rule: {rule}"
+    if action == "reset":
+        PermissionSettings().save(config.settings_path)
+        return "Permission settings reset."
+    return (
+        "Usage: permissions | permission mode <mode> | permission allow <rule> | "
+        "permission ask <rule> | permission deny <rule> | permission reset"
+    )
 
 
 def _handle_git_command(command: str, config: AgentConfig) -> str | None:
