@@ -220,6 +220,7 @@ Project handoff:
 - Runtime handoff remains in `.stagewarden_handoff.json`; `HANDOFF.md` tracks the durable roadmap and Codex/Claude-inspired implementation backlog.
 - Use `handoff export` or `handoff md` to update the generated runtime section in `HANDOFF.md` from the current runtime handoff.
 - Every model prompt includes bounded references to `.stagewarden_handoff.json`, `.stagewarden_memory.json`, and `.stagewarden_trace.ljson`, plus recovery state, backlog status, git boundary, and dirty state.
+- `resume --show` previews the current handoff target, `resume --clear` archives and resets handoff, and `resume` reruns the task stored in handoff after reloading the context.
 
 Tool transcript:
 

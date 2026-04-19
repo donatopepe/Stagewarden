@@ -666,6 +666,63 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Caveman mode disabled.", rendered)
             self.assertFalse((root / ".stagewarden_caveman.json").exists())
 
+    def test_interactive_shell_resume_show_uses_current_handoff_step(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-7",
+                "current_step_title": "Validate",
+                "current_step_status": "in_progress",
+                "latest_observation": "wet-run pending",
+                "plan_status": "step-7:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("resume --show\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Resume target:", rendered)
+            self.assertIn("- task: fix failing tests", rendered)
+            self.assertIn("- current_step: step-7", rendered)
+            self.assertIn("active_stage: step-7 [in_progress]", rendered)
+
+    def test_interactive_shell_resume_clear_archives_handoff_without_git_delete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-7",
+                "current_step_status": "in_progress",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("resume --clear\nhandoff\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            archives = list(root.glob(".stagewarden_handoff.archive.*.json"))
+
+            self.assertEqual(code, 0)
+            self.assertEqual(len(archives), 1)
+            self.assertIn("Archived handoff", rendered)
+            self.assertIn("No active handoff context.", rendered)
+            archived = json.loads(archives[0].read_text(encoding="utf-8"))
+            self.assertEqual(archived.get("current_step_id"), "step-7")
+
     def test_interactive_shell_exports_runtime_handoff_markdown_with_redaction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

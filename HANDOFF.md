@@ -205,22 +205,21 @@ Validation:
 
 ### 7. Resume Command Over Handoff
 
-Status: planned
+Status: implemented
 
 Even though Stagewarden uses implicit handoff resume, add explicit commands for operator control.
 
-Required behaviour:
+Implemented behaviour:
 
-- `resume` starts from current handoff context.
-- `resume --show` prints what will be resumed.
-- `resume --clear` archives current handoff and starts fresh.
+- `resume` reloads current handoff context into the active agent and reruns the task stored in handoff.
+- `resume --show` prints task, current step, next action, and stage view.
+- `resume --clear` archives current handoff as `.stagewarden_handoff.archive.<timestamp>.json` and starts fresh.
 - Preserve implicit resume as default.
 
 Validation:
 
-- Resume command uses existing `current_step_id`.
-- Clear command does not delete git history.
-- Archived handoff remains inspectable.
+- CLI tests verify `resume --show` uses existing `current_step_id`.
+- CLI tests verify `resume --clear` archives the old handoff, creates a fresh context, and leaves the archive inspectable.
 
 ### 8. Recovery Closure Gate
 
@@ -374,11 +373,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Resume command over handoff.
-2. Cost-aware execution budget.
-3. CLI help snapshot tests for Caveman category, if Caveman help changes.
-4. Doctor command and prerequisite checks.
-5. Richer model usage/cost reporting.
+1. Cost-aware execution budget.
+2. CLI help snapshot tests for Caveman category, if Caveman help changes.
+3. Doctor command and prerequisite checks.
+4. Richer model usage/cost reporting.
+5. Resume command wet-run integration with a fake model binary.
 
 ## Recently Completed
 
