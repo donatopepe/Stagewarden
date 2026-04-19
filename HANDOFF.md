@@ -594,6 +594,19 @@ Validation:
 
 - CLI tests parse export/reset JSON output and verify target/archive metadata.
 
+### Overview Command
+
+Status: implemented
+
+Implemented behaviour:
+
+- Added `overview` as a compact operational command for operators.
+- Added `stagewarden overview --json` as a single machine-readable snapshot aggregating status, board, handoff, model usage, and transcript signals.
+
+Validation:
+
+- CLI tests parse overview JSON and verify authorization, model-usage totals, transcript count, and handoff task.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot

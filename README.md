@@ -89,6 +89,7 @@ PRINCE2 handoff behavior:
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
 - `stagewarden board --json` or `stagewarden "stage review" --json` exposes the PRINCE2 board-level authorization recommendation.
+- `stagewarden overview --json` aggregates status, board review, handoff, transcript, and model-usage signals into a single machine-readable snapshot.
 - `stagewarden risks|issues|quality|exception|lessons|todo --json` exposes PRINCE2 registers and backlog in machine-readable form.
 - The executor prompt also includes the active PRINCE2 registers: risks, issues, quality evidence, lessons learned, and any current exception plan.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
