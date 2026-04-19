@@ -266,6 +266,8 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_model_status(agent, config),
         "Handoff summary:",
         handoff.summary(),
+        "Governance status:",
+        handoff.rendered_register_status_summary(),
     ]
     return "\n".join(lines)
 
@@ -275,6 +277,8 @@ def _render_handoff(config: AgentConfig) -> str:
     lines = [
         "Project handoff:",
         handoff.summary(),
+        "Governance status:",
+        handoff.rendered_register_status_summary(),
         handoff.rendered_stage_view(),
     ]
     if handoff.entries:

@@ -54,6 +54,7 @@ PRINCE2 handoff behavior:
 - On controlled project closure, Stagewarden also finalizes quality evidence by marking remaining quality entries as accepted.
 - `boundary` and `handoff` now show both register counts and register closure state, so you can see open vs closed risks/issues and open vs accepted quality evidence.
 - The final agent summary now includes a governance status line that tells you whether closure is `clean` or still has residual open controls.
+- The interactive `status` and `handoff` views now include the same governance status line for consistency with the final agent summary.
 
 Validation behavior:
 
