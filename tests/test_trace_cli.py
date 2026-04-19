@@ -353,7 +353,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "boundary")
-            self.assertEqual(payload["stage_view"]["boundary_decision"], "exception_plan_required")
+            self.assertEqual(payload["stage_view"]["boundary_decision"], "review_boundary:exception_plan")
             self.assertEqual(payload["stage_view"]["recovery_state"], "exception_active")
 
     def test_interactive_shell_doctor_command(self) -> None:
