@@ -226,6 +226,8 @@ class Agent:
                 )
                 continue
 
+            if current.status == "ready":
+                current.status = "in_progress"
             self.project_handoff.begin_step(
                 iteration=iterations,
                 task=effective_task,
@@ -284,6 +286,7 @@ class Agent:
                     lesson=outcome.observation,
                 )
                 if outcome.step_completed:
+                    self._promote_next_ready_step(plan)
                     self.project_handoff.close_issues_for_step(
                         step_id=current.id,
                         resolution="step completed with wet-run evidence",
@@ -376,7 +379,7 @@ class Agent:
 
     def _next_pending_step(self, plan: list[PlanStep]) -> PlanStep | None:
         for step in plan:
-            if step.status in {"pending", "in_progress"}:
+            if step.status in {"ready", "in_progress"}:
                 return step
         return None
 
@@ -441,6 +444,16 @@ class Agent:
                 for step in plan
             ]
         )
+
+    def _promote_next_ready_step(self, plan: list[PlanStep]) -> None:
+        if any(step.status == "in_progress" for step in plan):
+            return
+        if any(step.status == "ready" for step in plan):
+            return
+        for step in plan:
+            if step.status == "planned":
+                step.status = "ready"
+                return
 
     def _handle_caveman_command(self, directive: CavemanDirective) -> AgentResult | None:
         if directive.command == "help":

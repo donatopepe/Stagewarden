@@ -12,7 +12,7 @@ class PlanStep:
     title: str
     instruction: str
     validation: str
-    status: str = "pending"
+    status: str = "planned"
     wet_run_required: bool = True
 
 
@@ -37,11 +37,13 @@ class Planner:
                     title=title,
                     instruction=chunk.strip(),
                     validation=validation,
+                    status="planned",
                     wet_run_required=True,
                 )
             )
 
         self._apply_handoff_context(steps, task=task, project_handoff=project_handoff)
+        self._promote_ready_step(steps)
         return self._compress_completed_prefix(steps)
 
     def _apply_handoff_context(
@@ -59,8 +61,8 @@ class Planner:
         status_by_step = self._parse_plan_status(project_handoff.plan_status)
         for step in steps:
             previous_status = status_by_step.get(step.id)
-            if previous_status in {"pending", "in_progress", "completed", "failed"}:
-                step.status = previous_status
+            if previous_status in {"pending", "planned", "ready", "in_progress", "completed", "failed"}:
+                step.status = self._normalize_status(previous_status)
 
         if project_handoff.status not in {"executing", "planned", "exception"}:
             return
@@ -88,7 +90,7 @@ class Planner:
         self._apply_register_context(steps, project_handoff=project_handoff)
 
     def _apply_register_context(self, steps: list[PlanStep], *, project_handoff: ProjectHandoff) -> None:
-        target = next((step for step in steps if step.status in {"pending", "in_progress", "failed"}), None)
+        target = next((step for step in steps if step.status in {"ready", "in_progress", "failed"}), None)
         if target is None:
             return
 
@@ -205,3 +207,21 @@ class Planner:
             if clean_key and clean_status:
                 statuses[clean_key] = clean_status
         return statuses
+
+    def _promote_ready_step(self, steps: list[PlanStep]) -> None:
+        if any(step.status == "in_progress" for step in steps):
+            return
+        if any(step.status == "ready" for step in steps):
+            return
+        for step in steps:
+            if step.status in {"planned", "pending"}:
+                step.status = "ready"
+                return
+
+    def _normalize_status(self, status: str) -> str:
+        value = status.strip().lower()
+        if value == "pending":
+            return "planned"
+        if value in {"planned", "ready", "in_progress", "completed", "failed"}:
+            return value
+        return "planned"

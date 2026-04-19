@@ -11,12 +11,12 @@ class PlannerTests(unittest.TestCase):
         planner = Planner()
         steps = planner.create_plan("inspect the repo and implement a fix and validate the result")
         self.assertGreaterEqual(len(steps), 3)
-        for step in steps:
+        for index, step in enumerate(steps):
             self.assertTrue(step.id.startswith("step-"))
             self.assertTrue(step.instruction)
             self.assertTrue(step.validation)
             self.assertTrue(step.wet_run_required)
-            self.assertEqual(step.status, "pending")
+            self.assertEqual(step.status, "ready" if index == 0 else "planned")
 
     def test_create_plan_restores_step_status_from_handoff(self) -> None:
         planner = Planner()
@@ -35,6 +35,7 @@ class PlannerTests(unittest.TestCase):
         )
         self.assertEqual(steps[0].status, "completed")
         self.assertEqual(steps[1].status, "in_progress")
+        self.assertEqual(steps[2].status, "planned")
         self.assertTrue(steps[1].title.startswith("Resume "))
         self.assertIn("continue from persisted handoff context", steps[1].instruction)
         self.assertIn("failing assertion", steps[1].instruction)
@@ -69,7 +70,7 @@ class PlannerTests(unittest.TestCase):
             current_step_title="2. Implement a fix",
             current_step_status="in_progress",
             latest_observation="found failing assertion in router tests",
-            plan_status="step-1:completed,step-2:in_progress,step-3:pending",
+            plan_status="step-1:completed,step-2:in_progress,step-3:planned",
             risk_register=[{"risk": "Regression from router patch", "status": "open"}],
             issue_register=[{"summary": "validation pending", "status": "open"}],
             quality_register=[{"status": "passed", "evidence": "router file updated"}],
@@ -94,7 +95,7 @@ class PlannerTests(unittest.TestCase):
             current_step_title="2. Implement a fix",
             current_step_status="failed",
             latest_observation="tests failed after patch",
-            plan_status="step-1:completed,step-2:failed,step-3:pending",
+            plan_status="step-1:completed,step-2:failed,step-3:planned",
             exception_plan=["review failing test output", "prepare corrective patch"],
         )
         steps = planner.create_plan(
@@ -102,6 +103,21 @@ class PlannerTests(unittest.TestCase):
             project_handoff=handoff,
         )
         self.assertIn("exception_plan=review failing test output; prepare corrective patch", steps[1].instruction)
+
+    def test_create_plan_promotes_first_non_completed_stage_to_ready(self) -> None:
+        planner = Planner()
+        handoff = ProjectHandoff(
+            task="inspect the repo and implement a fix and validate the result",
+            status="planned",
+            plan_status="step-1:completed,step-2:planned,step-3:planned",
+        )
+        steps = planner.create_plan(
+            "inspect the repo and implement a fix and validate the result",
+            project_handoff=handoff,
+        )
+        self.assertEqual(steps[0].status, "completed")
+        self.assertEqual(steps[1].status, "ready")
+        self.assertEqual(steps[2].status, "planned")
 
 
 if __name__ == "__main__":

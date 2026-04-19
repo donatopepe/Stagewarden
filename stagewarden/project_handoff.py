@@ -698,7 +698,7 @@ class ProjectHandoff:
             if open_issues:
                 return "review_boundary:open_issues"
             return "close_project"
-        if any(status in {"pending", "in_progress"} for status in values):
+        if any(status in {"pending", "planned", "ready", "in_progress"} for status in values):
             return "continue_current_stage"
         return "review_boundary:manual_check"
 
