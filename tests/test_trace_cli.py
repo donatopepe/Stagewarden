@@ -19,6 +19,53 @@ from stagewarden.main import _render_boundary, _render_handoff, run_interactive_
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def write_success_stub(root: Path) -> Path:
+    path = root / "run_model_success_stub.py"
+    path.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "from __future__ import annotations",
+                "import json",
+                "import re",
+                "import sys",
+                "",
+                "def extract(prompt: str, field: str) -> str:",
+                '    match = re.search(rf"^{re.escape(field)}=(.+)$", prompt, re.MULTILINE)',
+                "    return match.group(1).strip() if match else ''",
+                "",
+                "def detect_target_file(text: str) -> str | None:",
+                '    match = re.search(r\"file named ([A-Za-z0-9._/\\\\-]+)\", text, re.IGNORECASE)',
+                "    return match.group(1) if match else None",
+                "",
+                "def main() -> int:",
+                "    if len(sys.argv) < 3:",
+                "        print(json.dumps({'error': 'usage: stub <model> <prompt>'}))",
+                "        return 1",
+                "    prompt = sys.argv[2]",
+                "    instruction = extract(prompt, 'instruction').lower()",
+                "    task_match = re.search(r'Task:\\n(.+?)\\n\\nImplicit project handoff context:', prompt, re.DOTALL)",
+                "    task = task_match.group(1).strip() if task_match else ''",
+                "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
+                "        action = {'type': 'complete', 'message': 'analysis validated exit_code=0'}",
+                "    elif 'implement' in instruction or 'create' in instruction or 'build' in instruction or 'continue from persisted handoff context' in instruction:",
+                "        target = detect_target_file(f'{instruction} {task}') or 'stub_output.txt'",
+                "        action = {'type': 'write_file', 'path': target, 'content': 'created by test stub\\n'}",
+                "    else:",
+                "        action = {'type': 'complete', 'message': 'validation completed exit_code=0'}",
+                "    print(json.dumps({'summary': 'stub response', 'action': action}))",
+                "    return 0",
+                "",
+                "if __name__ == '__main__':",
+                "    raise SystemExit(main())",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
 def run_main_in_cwd(cwd: Path, *args: str) -> int:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT)
@@ -841,6 +888,47 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("No active handoff context.", rendered)
             archived = json.loads(archives[0].read_text(encoding="utf-8"))
             self.assertEqual(archived.get("current_step_id"), "step-7")
+
+    def test_interactive_shell_resume_executes_wet_run_from_persisted_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_success_stub(root)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "create a file named resumed.txt",
+                "status": "executing",
+                "current_step_id": "step-2",
+                "current_step_title": "2. Implement create a file named resumed.txt",
+                "current_step_status": "in_progress",
+                "latest_observation": "inspection completed, implementation pending",
+                "plan_status": "step-1:completed,step-2:in_progress,step-3:planned",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                config = AgentConfig(workspace_root=root, max_steps=10)
+                input_stream = StringIO("resume\nexit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            rendered = output_stream.getvalue()
+            updated = json.loads((root / ".stagewarden_handoff.json").read_text(encoding="utf-8"))
+            self.assertEqual(code, 0)
+            self.assertTrue((root / "resumed.txt").exists())
+            self.assertIn("Resumed from handoff step step-2.", rendered)
+            self.assertIn("Agent run completed.", rendered)
+            self.assertIn("Cost and budget:", rendered)
+            self.assertEqual(updated.get("status"), "closed")
 
     def test_interactive_shell_exports_runtime_handoff_markdown_with_redaction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
