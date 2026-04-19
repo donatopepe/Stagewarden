@@ -28,6 +28,7 @@ class AgentConfig:
     model_prefs_filename: str = ".stagewarden_models.json"
     handoff_filename: str = ".stagewarden_handoff.json"
     settings_filename: str = ".stagewarden_settings.json"
+    history_filename: str = ".stagewarden_history"
     sensitive_ascii_patterns: tuple[str, ...] = (
         ".json",
         ".ljson",
@@ -133,3 +134,7 @@ class AgentConfig:
     @property
     def settings_path(self) -> Path:
         return (self.workspace_root / self.settings_filename).resolve()
+
+    @property
+    def history_path(self) -> Path:
+        return (self.workspace_root / self.history_filename).resolve()

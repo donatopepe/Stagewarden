@@ -12,8 +12,8 @@ from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
+from stagewarden.main import _interactive_completion_candidates, _render_boundary, _render_handoff, run_interactive_shell
 from stagewarden.modelprefs import ModelPreferences
-from stagewarden.main import _render_boundary, _render_handoff, run_interactive_shell
 from stagewarden.secrets import SecretStore
 
 
@@ -523,6 +523,27 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["open_issues"], 1)
             self.assertEqual(payload["model_failures"], 1)
             self.assertEqual(payload["transcript_entries"], 1)
+
+    def test_interactive_completion_candidates_include_core_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            matches = _interactive_completion_candidates("he", config)
+            self.assertIn("help", matches)
+            self.assertIn("health", matches)
+
+    def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "tracked.txt").write_text("hello\n", encoding="utf-8")
+            (root / "docs").mkdir()
+            (root / "docs" / "notes.md").write_text("note\n", encoding="utf-8")
+            config = AgentConfig(workspace_root=root)
+
+            history_matches = _interactive_completion_candidates("git history tr", config)
+            patch_matches = _interactive_completion_candidates("patch preview do", config)
+
+            self.assertIn("git history tracked.txt", history_matches)
+            self.assertIn("patch preview docs/", patch_matches)
 
     def test_git_cli_json_outputs_are_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

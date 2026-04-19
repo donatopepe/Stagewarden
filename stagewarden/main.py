@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import os
 import platform
 import re
@@ -9,6 +10,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, TextIO
+
+try:
+    import readline
+except ImportError:  # pragma: no cover - platform dependent
+    readline = None
 
 from .agent import Agent
 from .auth import OpenAIDeviceCodeFlow
@@ -23,6 +29,99 @@ from .project_handoff import ProjectHandoff
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
+
+
+INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
+    "help",
+    "help core",
+    "help models",
+    "help accounts",
+    "help permissions",
+    "help handoff",
+    "help git",
+    "help caveman",
+    "help ljson",
+    "exit",
+    "quit",
+    "reset",
+    "overview",
+    "health",
+    "status",
+    "doctor",
+    "handoff",
+    "handoff export",
+    "handoff md",
+    "board",
+    "stage review",
+    "resume",
+    "resume --show",
+    "resume --clear",
+    "boundary",
+    "risks",
+    "issues",
+    "quality",
+    "exception",
+    "lessons",
+    "transcript",
+    "trace",
+    "todo",
+    "models",
+    "models usage",
+    "cost",
+    "accounts",
+    "permissions",
+    "sessions",
+    "session list",
+    "session create",
+    "session send last",
+    "session close last",
+    "patch preview",
+    "git status",
+    "git log",
+    "git history",
+    "git show",
+    "git show --stat",
+    "model use",
+    "model add",
+    "model remove",
+    "model list",
+    "model variant",
+    "model variant-clear",
+    "model block",
+    "model unblock",
+    "model clear",
+    "account add",
+    "account login",
+    "account login-device",
+    "account import",
+    "account env",
+    "account use",
+    "account logout",
+    "account remove",
+    "account block",
+    "account unblock",
+    "account clear",
+    "permission mode",
+    "permission allow",
+    "permission ask",
+    "permission deny",
+    "permission reset",
+    "permission session mode",
+    "permission session allow",
+    "permission session ask",
+    "permission session deny",
+    "permission session reset",
+    "mode normal",
+    "mode caveman",
+    "mode plan",
+    "mode auto",
+    "mode accept-edits",
+    "mode dont-ask",
+    "mode default",
+    "caveman help",
+    "caveman on",
+    "caveman off",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1986,6 +2085,75 @@ def _default_ljson_decode_path(source: Path) -> Path:
     return source.with_suffix(".json")
 
 
+def _workspace_relative_candidates(config: AgentConfig, partial: str) -> list[str]:
+    workspace = config.workspace_root.resolve()
+    partial = partial.strip()
+    candidate = workspace / partial if partial else workspace
+    parent = candidate.parent if partial and not partial.endswith("/") else candidate
+    if not parent.exists() or not parent.is_dir():
+        return []
+    base_prefix = candidate.name if partial and not partial.endswith("/") else ""
+    suggestions: list[str] = []
+    for item in sorted(parent.iterdir(), key=lambda path: path.name.lower()):
+        if base_prefix and not item.name.lower().startswith(base_prefix.lower()):
+            continue
+        try:
+            relative = item.relative_to(workspace)
+        except ValueError:
+            continue
+        text = relative.as_posix()
+        if item.is_dir():
+            text += "/"
+        suggestions.append(text)
+    return suggestions
+
+
+def _interactive_completion_candidates(text: str, config: AgentConfig) -> list[str]:
+    normalized = text.lstrip()
+    lowered = normalized.lower()
+    path_prefixes = ("git history ", "patch preview ", "session create ")
+    for prefix in path_prefixes:
+        if lowered.startswith(prefix):
+            partial = normalized[len(prefix) :]
+            return [f"{prefix}{entry}" for entry in _workspace_relative_candidates(config, partial)]
+    if lowered.startswith("git show "):
+        return [item for item in ("git show HEAD", "git show --stat HEAD") if item.startswith(lowered)]
+    matches = [phrase for phrase in INTERACTIVE_COMMAND_PHRASES if phrase.startswith(lowered)]
+    return matches
+
+
+def _configure_readline(config: AgentConfig) -> bool:
+    if readline is None:
+        return False
+    history_path = config.history_path
+    try:
+        readline.set_history_length(1000)
+        readline.set_completer_delims(" \t\n")
+        readline.parse_and_bind("tab: complete")
+        if history_path.exists():
+            readline.read_history_file(str(history_path))
+
+        def completer(text: str, state: int) -> str | None:
+            buffer = readline.get_line_buffer()
+            candidates = _interactive_completion_candidates(buffer, config)
+            if state < len(candidates):
+                return candidates[state]
+            return None
+
+        readline.set_completer(completer)
+
+        def save_history() -> None:
+            try:
+                readline.write_history_file(str(history_path))
+            except OSError:
+                pass
+
+        atexit.register(save_history)
+        return True
+    except Exception:
+        return False
+
+
 def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
     lowered = command.lower().strip()
     if lowered in {"help", "commands"}:
@@ -2113,6 +2281,8 @@ def run_interactive_shell(
 
     sink.write(f"Stagewarden interactive shell in {config.workspace_root}\n")
     sink.write("Type 'help' for commands.\n")
+    if source is sys.stdin and sink is sys.stdout and _configure_readline(config):
+        sink.write(f"History file: {config.history_path.name}\n")
     sink.flush()
 
     while True:

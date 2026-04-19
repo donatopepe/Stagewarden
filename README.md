@@ -172,6 +172,8 @@ Interactive shell:
 stagewarden
 ```
 
+On terminals with `readline` support, the shell also keeps a per-workspace history in `.stagewarden_history` and enables TAB completion for core commands plus selected workspace-path commands such as `git history` and `patch preview`.
+
 Inside the shell:
 
 ```text
