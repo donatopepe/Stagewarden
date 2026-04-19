@@ -164,9 +164,12 @@ stagewarden> issues
 stagewarden> quality
 stagewarden> exception
 stagewarden> lessons
+stagewarden> todo
 stagewarden> permissions
 stagewarden> permission mode plan
+stagewarden> permission session mode auto
 stagewarden> permission allow shell:git status
+stagewarden> permission session allow shell:python3 -m pytest
 stagewarden> mode plan
 stagewarden> mode auto
 stagewarden> mode accept-edits
@@ -208,11 +211,19 @@ Interactive permission commands:
 
 - `permissions` shows the active workspace permission settings.
 - `permission mode <default|accept_edits|plan|auto|dont_ask>` changes the workspace default permission mode.
+- `permission session mode <default|accept_edits|plan|auto|dont_ask>` changes the permission mode only for the current shell session.
 - `permission allow <rule>` adds an allow rule.
 - `permission ask <rule>` adds an ask rule.
 - `permission deny <rule>` adds a deny rule.
+- `permission session allow <rule>`, `permission session ask <rule>`, and `permission session deny <rule>` add temporary session-only rules.
+- `permission session reset` clears all session permission overrides.
 - `permission reset` resets the workspace permission file to defaults.
 - `mode plan|auto|accept-edits|dont-ask|default` is a fast alias for changing the workspace permission mode.
+
+Handoff tracking:
+
+- `handoff` now includes the persisted implementation backlog alongside stage posture, registers, and git boundary context.
+- `todo` prints the current implementation backlog derived from the active PRINCE2 plan and kept in sync while the agent runs.
 
 Account profiles:
 
