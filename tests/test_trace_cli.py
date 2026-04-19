@@ -11,6 +11,7 @@ from pathlib import Path
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
+from stagewarden.memory import MemoryStore
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.main import _render_boundary, _render_handoff, run_interactive_shell
 
@@ -339,6 +340,41 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Patch preview:", rendered)
             self.assertIn("update target.txt", rendered)
             self.assertEqual((root / "target.txt").read_text(encoding="utf-8"), "before\n")
+
+    def test_interactive_shell_renders_model_usage_and_cost_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="local",
+                action_type="read_file",
+                action_signature='{"type":"read_file"}',
+                success=True,
+                observation="ok",
+            )
+            memory.record_attempt(
+                iteration=2,
+                step_id="step-2",
+                model="claude",
+                action_type="complete",
+                action_signature='{"type":"complete"}',
+                success=False,
+                observation="failed",
+                error_type="api_failure",
+            )
+            memory.save(config.memory_path)
+            input_stream = StringIO("models usage\ncost\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("local: calls=1 failures=0", rendered)
+            self.assertIn("claude: calls=1 failures=1", rendered)
+            self.assertGreaterEqual(rendered.count("Model usage:"), 2)
 
     def test_interactive_shell_manages_model_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

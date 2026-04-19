@@ -191,6 +191,7 @@ Interactive help is topic-based: `help` shows compact categories, while `help mo
 Model control:
 
 - `models` shows enabled, active, preferred, blocked, and backend state.
+- `models usage` or `cost` shows persisted model call counts, failures, step coverage, cost tiers, and the routing budget policy.
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
 - `model list <provider>` shows the official aliases or model IDs and provider capabilities for that provider.

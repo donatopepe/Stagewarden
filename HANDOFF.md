@@ -335,20 +335,22 @@ Validation:
 
 ### 14. Cost-Aware Execution Budget
 
-Status: planned
+Status: implemented
 
 Make cost control explicit in router and handoff.
 
-Required behaviour:
+Implemented behaviour:
 
-- Track model usage count by run.
-- Record model chosen per step in handoff.
-- Add budget policy: prefer local, then cheap, then GPT/Claude for complex/failing tasks.
-- Expose `cost` or `models usage` shell command.
+- Track model usage counts from persisted execution attempts.
+- Record model chosen per step in handoff through existing step completion entries.
+- Expose budget policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.
+- Expose `models usage` and `cost` shell commands.
 
 Validation:
 
-- Simple tasks choose local first.
+- Memory tests cover model usage counts, failures, step coverage, and cost tiers.
+- CLI tests cover `models usage` and `cost` alias.
+- Existing router tests continue to validate local-first/simple-task routing.
 - Failures escalate according to policy.
 - Usage summary is visible in shell.
 
@@ -373,11 +375,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Cost-aware execution budget.
-2. CLI help snapshot tests for Caveman category, if Caveman help changes.
-3. Doctor command and prerequisite checks.
-4. Richer model usage/cost reporting.
-5. Resume command wet-run integration with a fake model binary.
+1. CLI help snapshot tests for Caveman category, if Caveman help changes.
+2. Doctor command and prerequisite checks.
+3. Richer model usage/cost reporting.
+4. Resume command wet-run integration with a fake model binary.
+5. Provider capability checks in `doctor`.
 
 ## Recently Completed
 
