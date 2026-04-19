@@ -255,6 +255,7 @@ Tool transcript:
 Persistent shell sessions:
 
 - `sessions` or `session list` shows active shell sessions for the current Stagewarden process.
+- `stagewarden sessions --json` exposes active shell sessions for the current Stagewarden process in machine-readable form.
 - `session create [cwd]` starts a persistent shell in the workspace or a relative directory.
 - `session send <id|last> <command>` runs one command in that session and returns marker-based output with exit code.
 - `session close <id|last>` closes the session.

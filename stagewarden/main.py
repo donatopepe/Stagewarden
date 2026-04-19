@@ -1754,6 +1754,24 @@ def _resolve_shell_session_id(agent: Agent, requested: str) -> str | None:
     return requested if requested in sessions else None
 
 
+def _shell_sessions_report(agent: Agent) -> dict[str, object]:
+    items: list[dict[str, str]] = []
+    for session_id, session in sorted(agent.executor.shell.sessions.items()):
+        state = "closed" if session.process.poll() is not None else "running"
+        items.append(
+            {
+                "id": session_id,
+                "cwd": session.cwd,
+                "state": state,
+            }
+        )
+    return {
+        "command": "sessions",
+        "count": len(items),
+        "items": items,
+    }
+
+
 def _parse_limit(raw: str, *, default: int) -> int:
     if not raw:
         return default
@@ -2073,6 +2091,14 @@ def main() -> int:
             print(dumps_ascii({"command": "permissions", "report": _permissions_report(config)}, indent=2))
         else:
             print(_render_permissions(config))
+        return 0
+    if task in {"sessions", "session list"}:
+        agent = _configure_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_shell_sessions_report(agent), indent=2))
+        else:
+            shell_session_message = _handle_shell_session_command(task, agent)
+            print(shell_session_message or "No active shell sessions.")
         return 0
     if task.startswith("git "):
         if args.json:
