@@ -57,6 +57,7 @@ PRINCE2 handoff behavior:
 - The interactive `status` and `handoff` views now include the same governance status line for consistency with the final agent summary.
 - The interactive `status` and `handoff` views also show the current boundary decision directly, so you can see status plus control decision without switching to `boundary`.
 - The interactive `status` and `handoff` views now also show the active stage in compact form.
+- The interactive `status` and `handoff` views now also show the compact git boundary (baseline HEAD vs current HEAD).
 
 Validation behavior:
 

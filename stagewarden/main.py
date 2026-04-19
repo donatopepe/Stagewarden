@@ -260,6 +260,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     active_stage = "none"
     if isinstance(active_step, dict):
         active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
+    git_boundary = stage_view["git_boundary"]
     lines = [
         "Stagewarden status:",
         f"- workspace: {config.workspace_root}",
@@ -274,6 +275,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         "Governance status:",
         handoff.rendered_register_status_summary(),
         f"Active stage: {active_stage}",
+        f"Git boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
         f"Boundary decision: {stage_view['boundary_decision']}",
     ]
     return "\n".join(lines)
@@ -286,12 +288,14 @@ def _render_handoff(config: AgentConfig) -> str:
     active_stage = "none"
     if isinstance(active_step, dict):
         active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
+    git_boundary = stage_view["git_boundary"]
     lines = [
         "Project handoff:",
         handoff.summary(),
         "Governance status:",
         handoff.rendered_register_status_summary(),
         f"Active stage: {active_stage}",
+        f"Git boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
         f"Boundary decision: {stage_view['boundary_decision']}",
         handoff.rendered_stage_view(),
     ]
