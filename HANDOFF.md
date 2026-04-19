@@ -74,6 +74,7 @@ Latest pushed baseline at the time of this handoff:
 - Recovery lane: exception plans generate explicit `recovery-step-*` stages.
 - Recovery resume: recovery stages can be resumed from handoff.
 - Recovery boundary states: `exception_active`, `recovery_active`, `recovery_cleared`, `none`.
+- Recovery closure gate: completed recovery lanes close open issues/risks, clear exception controls, close covered failed stages, and resume normal planned stages.
 
 ## Codex/Claude-Inspired Behaviours To Apply
 
@@ -218,22 +219,22 @@ Validation:
 
 ### 8. Recovery Closure Gate
 
-Status: planned
+Status: implemented
 
 Make `recovery_cleared` perform a formal PRINCE2 closure action instead of only rendering next action.
 
-Required behaviour:
+Implemented behaviour:
 
-- When all `recovery-step-*` stages complete, require a closure step to clear exception controls.
-- Close relevant high-severity issues only after wet-run evidence.
-- Clear exception plan only when recovery is accepted.
-- Promote next planned normal stage to `ready`.
+- When all `recovery-step-*` stages complete with wet-run evidence, the agent closes the recovery gate.
+- Open issues and risks are closed with recovery evidence.
+- Failed non-recovery stages covered by recovery are marked completed.
+- Exception plan is cleared only after recovery evidence closes open issues.
+- The next planned normal stage is promoted to `ready`.
 
 Validation:
 
-- Recovery completion without wet-run remains blocked.
-- Recovery completion with wet-run clears exception plan.
-- Next normal stage becomes `ready`.
+- Integration tests cover a project starting in exception, executing recovery steps, closing registers, clearing exception plan, and completing the resumed normal stage.
+- Wet-run gate remains enforced by the executor before any recovery stage can complete.
 
 ### 9. Handoff Markdown Auto-Update
 
@@ -368,11 +369,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Recovery closure gate.
-2. Handoff Markdown auto-export.
-3. Safer command classification.
-4. Stronger patch application UX.
-5. Provider capability registry.
+1. Handoff Markdown auto-export.
+2. Safer command classification.
+3. Stronger patch application UX.
+4. Provider capability registry.
+5. Approval prompt refinements for multi-command shell sessions.
 
 ## Validation Standard
 
