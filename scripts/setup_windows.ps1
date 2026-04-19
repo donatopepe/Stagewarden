@@ -44,3 +44,9 @@ if ($CurrentPath -notlike "*$ScriptsDir*") {
 
 Write-Host "Stagewarden installed ($InstallMode)."
 Write-Host "Run: stagewarden"
+& $Python @PythonArgs -m stagewarden.main doctor *> $null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Post-install check: stagewarden doctor OK"
+} else {
+    Write-Host "Next: run 'stagewarden doctor' to validate Python, git, PATH, repo, and provider setup."
+}

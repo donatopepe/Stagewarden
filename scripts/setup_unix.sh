@@ -43,3 +43,8 @@ esac
 
 echo "Stagewarden installed ($INSTALL_MODE)."
 echo "Run: stagewarden"
+if "$PYTHON_BIN" -m stagewarden.main doctor >/dev/null 2>&1; then
+  echo "Post-install check: stagewarden doctor OK"
+else
+  echo "Next: run 'stagewarden doctor' to validate Python, git, PATH, repo, and provider setup."
+fi
