@@ -86,6 +86,8 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertTrue(result.ok)
             self.assertTrue((root / "hello.txt").exists())
             self.assertTrue((root / ".git").exists())
+            self.assertIn("Cost and budget:", result.message)
+            self.assertIn("policy: prefer local, then cheap", result.message)
             self.assertIn("Operational posture:", result.message)
             self.assertIn("governance=clean", result.message)
             self.assertIn("Stage boundary:", result.message)
@@ -119,6 +121,7 @@ class AgentIntegrationTests(unittest.TestCase):
                     os.environ["RUN_MODEL_BIN"] = original
 
             self.assertFalse(result.ok)
+            self.assertIn("Cost and budget:", result.message)
             self.assertIn("Operational posture:", result.message)
             self.assertIn("governance=residual", result.message)
             self.assertIn("Stage boundary:", result.message)

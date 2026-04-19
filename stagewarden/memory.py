@@ -181,6 +181,51 @@ class MemoryStore:
         lines.append("Budget policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.")
         return "\n".join(lines)
 
+    def budget_summary(self) -> str:
+        if not self.attempts:
+            return "\n".join(
+                [
+                    "Cost and budget:",
+                    "- no model attempts recorded",
+                    "- policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+                ]
+            )
+        cost_rank = {
+            "free/local": 0,
+            "low": 1,
+            "plan": 2,
+            "high": 3,
+            "high/fallback": 4,
+        }
+        cost_tiers = {
+            "local": "free/local",
+            "cheap": "low",
+            "chatgpt": "plan",
+            "openai": "high",
+            "claude": "high/fallback",
+        }
+        counts: dict[str, int] = {}
+        failures: dict[str, int] = {}
+        for attempt in self.attempts:
+            counts[attempt.model] = counts.get(attempt.model, 0) + 1
+            if not attempt.success:
+                failures[attempt.model] = failures.get(attempt.model, 0) + 1
+        ordered_models = sorted(counts, key=lambda item: (cost_rank.get(cost_tiers.get(item, "high/fallback"), 99), item))
+        usage = ", ".join(f"{model}={counts[model]}" for model in ordered_models)
+        highest_model = max(
+            ordered_models,
+            key=lambda item: cost_rank.get(cost_tiers.get(item, "high/fallback"), 99),
+        )
+        total_failures = sum(failures.values())
+        lines = [
+            "Cost and budget:",
+            "- policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+            f"- usage: {usage}",
+            f"- highest_tier_used: {cost_tiers.get(highest_model, 'unknown')} ({highest_model})",
+            f"- failed_model_calls: {total_failures}",
+        ]
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "attempts": [asdict(item) for item in self.attempts],
