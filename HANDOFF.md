@@ -609,6 +609,17 @@ Validation:
 
 ## Recently Completed
 
+## Autonomous Backlog
+
+- Shell UX hardening:
+  add persistent interactive history, command completion, and later conversational streaming.
+- Git control tightening:
+  add per-step checkpoint commits with explicit PRINCE2 boundary annotations.
+- Provider/account resilience:
+  improve profile rotation and fallback when one account or model family is blocked.
+- Report ergonomics:
+  add a final `report` command suitable for GitHub issues, summaries, and project closure notes.
+
 ### Caveman Help Snapshot
 
 Status: implemented
@@ -623,6 +634,22 @@ Validation:
 - CLI test verifies Caveman help still exposes levels, aliases, and review/commit/compress commands.
 
 ## Recently Completed
+
+### Interactive Shell History And Completion
+
+Status: implemented
+
+Implemented behaviour:
+
+- Added optional `readline` integration for the interactive shell.
+- Interactive sessions now persist history per workspace in `.stagewarden_history` when `readline` is available.
+- Added TAB completion for core shell commands and targeted workspace-path completion for `git history`, `patch preview`, and `session create`.
+- The feature degrades safely on platforms without `readline`; the shell still works normally without history/completion.
+
+Validation:
+
+- CLI tests verify command completion candidates include core shell commands.
+- CLI tests verify workspace-path completion candidates for `git history` and `patch preview`.
 
 ### Health Command
 
