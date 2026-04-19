@@ -54,6 +54,7 @@ Latest pushed baseline at the time of this handoff:
 - Fast mode aliases: `mode plan`, `mode auto`, `mode accept-edits`, `mode dont-ask`, `mode default`.
 - Session-only permissions: `permission session mode`, `permission session allow|ask|deny`, `permission session reset`.
 - Live permission refresh: active agent tools reload permission policy after shell permission changes.
+- Approval prompt flow: interactive `ask` decisions support `y`, `n`, `always`, `session`, and `deny`; non-interactive tools remain fail-closed.
 - Shell execution across OS families: POSIX shell, PowerShell, cmd fallback.
 - File tools: read, write, patch, patch files, list, search.
 - Wet-run enforcement: dry-run or narrative completion is not accepted as final checkpoint.
@@ -79,24 +80,25 @@ These are the implementation items still worth applying, based on prior source/r
 
 ### 1. Approval Prompt Flow
 
-Status: planned
+Status: implemented
 
 Implement an interactive approval flow similar to Codex/Claude tool approvals.
 
-Required behaviour:
+Implemented behaviour:
 
-- When permission decision is `ask`, the shell should prompt the user with a concise approval request.
-- Supported answers should include `y`, `n`, `always`, `session`, and `deny`.
-- `always` should persist an allow rule in `.stagewarden_settings.json`.
-- `session` should add a session-only allow rule.
-- `deny` should optionally persist deny rules.
-- Non-interactive mode must fail closed for `ask`.
+- When permission decision is `ask`, the interactive shell prompts the user with capability, target, and rule.
+- Supported answers: `y`, `n`, `always`, `session`, and `deny`.
+- `always` persists an allow rule in `.stagewarden_settings.json` and removes the matching ask rule.
+- `session` adds a session-only allow rule.
+- `deny` persists a deny rule.
+- Non-interactive tools remain fail-closed for `ask`.
 
 Validation:
 
-- Unit tests for workspace allow persistence.
-- Unit tests for session allow without file persistence.
-- Integration test where a write command is blocked until approved.
+- Unit tests cover allow precedence over matching ask rules.
+- CLI tests cover `session` approval without workspace allow persistence.
+- CLI tests cover `always` approval with workspace allow persistence and ask removal.
+- Tool tests confirm non-interactive ask remains blocked.
 
 ### 2. Tool Invocation Transcript
 
@@ -365,11 +367,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Approval prompt flow for `ask` permissions.
-2. Tool invocation transcript command.
-3. Recovery closure gate.
-4. Handoff Markdown auto-export.
-5. Safer command classification.
+1. Tool invocation transcript command.
+2. Recovery closure gate.
+3. Handoff Markdown auto-export.
+4. Safer command classification.
+5. Stronger patch application UX.
 
 ## Validation Standard
 
