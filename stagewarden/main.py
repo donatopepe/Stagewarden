@@ -729,8 +729,9 @@ def _handle_resume_command(command: str, agent: Agent, config: AgentConfig) -> s
         handoff = _load_handoff_into_agent(agent, config)
         if not handoff.task:
             return "No task in handoff to resume.\n" + _render_resume_show(config)
+        resumed_step_id = handoff.current_step_id or "none"
         result = agent.run(handoff.task)
-        return f"Resumed from handoff step {handoff.current_step_id or 'none'}.\n{result.message}"
+        return f"Resumed from handoff step {resumed_step_id}.\n{result.message}"
     if len(parts) == 2 and parts[1] == "--show":
         return _render_resume_show(config)
     if len(parts) == 2 and parts[1] == "--clear":
