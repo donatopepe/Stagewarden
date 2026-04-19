@@ -14,6 +14,7 @@ from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.main import _render_boundary, _render_handoff, run_interactive_shell
+from stagewarden.secrets import SecretStore
 
 
 ROOT = Path(__file__).resolve().parents[1]
