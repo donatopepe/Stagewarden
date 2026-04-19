@@ -484,6 +484,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("local: calls=1 failures=0", rendered)
             self.assertIn("claude: calls=1 failures=1", rendered)
+            self.assertIn("totals: calls=2 failures=1 steps=2 failure_rate=50.00%", rendered)
+            self.assertIn("routing: last_model=claude highest_tier=high/fallback highest_model=claude escalation_path=local -> claude", rendered)
             self.assertGreaterEqual(rendered.count("Model usage:"), 2)
 
     def test_interactive_shell_manages_model_accounts(self) -> None:

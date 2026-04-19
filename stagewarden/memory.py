@@ -154,9 +154,7 @@ class MemoryStore:
             )
         return "\n".join(lines)
 
-    def model_usage_summary(self) -> str:
-        if not self.attempts:
-            return "Model usage:\n- no model attempts recorded"
+    def model_usage_stats(self) -> dict[str, Any]:
         cost_tiers = {
             "local": "free/local",
             "cheap": "low",
@@ -164,25 +162,98 @@ class MemoryStore:
             "openai": "high",
             "claude": "high/fallback",
         }
+        cost_rank = {
+            "free/local": 0,
+            "low": 1,
+            "plan": 2,
+            "high": 3,
+            "high/fallback": 4,
+            "unknown": 99,
+        }
+        if not self.attempts:
+            return {
+                "models": [],
+                "totals": {
+                    "calls": 0,
+                    "failures": 0,
+                    "steps": 0,
+                    "failure_rate": "0.00",
+                    "highest_tier": "none",
+                    "highest_tier_model": "none",
+                    "last_model": "none",
+                    "escalation_path": "none",
+                },
+            }
+
         counts: dict[str, int] = {}
         failures: dict[str, int] = {}
         steps: dict[str, set[str]] = {}
+        ordered_models: list[str] = []
         for attempt in self.attempts:
             counts[attempt.model] = counts.get(attempt.model, 0) + 1
             steps.setdefault(attempt.model, set()).add(attempt.step_id)
             if not attempt.success:
                 failures[attempt.model] = failures.get(attempt.model, 0) + 1
+            if not ordered_models or ordered_models[-1] != attempt.model:
+                ordered_models.append(attempt.model)
+
+        models = [
+            {
+                "model": model,
+                "calls": counts[model],
+                "failures": failures.get(model, 0),
+                "steps": len(steps.get(model, set())),
+                "cost_tier": cost_tiers.get(model, "unknown"),
+            }
+            for model in sorted(counts, key=lambda item: (cost_rank.get(cost_tiers.get(item, "unknown"), 99), item))
+        ]
+        highest_model = max(
+            counts,
+            key=lambda item: cost_rank.get(cost_tiers.get(item, "unknown"), 99),
+        )
+        total_calls = len(self.attempts)
+        total_failures = sum(failures.values())
+        total_steps = len({attempt.step_id for attempt in self.attempts})
+        failure_rate = f"{(total_failures / total_calls) * 100:.2f}" if total_calls else "0.00"
+        return {
+            "models": models,
+            "totals": {
+                "calls": total_calls,
+                "failures": total_failures,
+                "steps": total_steps,
+                "failure_rate": failure_rate,
+                "highest_tier": cost_tiers.get(highest_model, "unknown"),
+                "highest_tier_model": highest_model,
+                "last_model": self.attempts[-1].model,
+                "escalation_path": " -> ".join(ordered_models) if ordered_models else "none",
+            },
+        }
+
+    def model_usage_summary(self) -> str:
+        stats = self.model_usage_stats()
+        if not stats["models"]:
+            return "Model usage:\n- no model attempts recorded"
         lines = ["Model usage:"]
-        for model in sorted(counts, key=lambda item: (cost_tiers.get(item, "unknown"), item)):
+        for model_stat in stats["models"]:
             lines.append(
-                f"- {model}: calls={counts[model]} failures={failures.get(model, 0)} "
-                f"steps={len(steps.get(model, set()))} cost_tier={cost_tiers.get(model, 'unknown')}"
+                f"- {model_stat['model']}: calls={model_stat['calls']} failures={model_stat['failures']} "
+                f"steps={model_stat['steps']} cost_tier={model_stat['cost_tier']}"
             )
+        totals = stats["totals"]
+        lines.append(
+            f"- totals: calls={totals['calls']} failures={totals['failures']} "
+            f"steps={totals['steps']} failure_rate={totals['failure_rate']}%"
+        )
+        lines.append(
+            f"- routing: last_model={totals['last_model']} highest_tier={totals['highest_tier']} "
+            f"highest_model={totals['highest_tier_model']} escalation_path={totals['escalation_path']}"
+        )
         lines.append("Budget policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.")
         return "\n".join(lines)
 
     def budget_summary(self) -> str:
-        if not self.attempts:
+        stats = self.model_usage_stats()
+        if not stats["models"]:
             return "\n".join(
                 [
                     "Cost and budget:",
@@ -190,39 +261,16 @@ class MemoryStore:
                     "- policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
                 ]
             )
-        cost_rank = {
-            "free/local": 0,
-            "low": 1,
-            "plan": 2,
-            "high": 3,
-            "high/fallback": 4,
-        }
-        cost_tiers = {
-            "local": "free/local",
-            "cheap": "low",
-            "chatgpt": "plan",
-            "openai": "high",
-            "claude": "high/fallback",
-        }
-        counts: dict[str, int] = {}
-        failures: dict[str, int] = {}
-        for attempt in self.attempts:
-            counts[attempt.model] = counts.get(attempt.model, 0) + 1
-            if not attempt.success:
-                failures[attempt.model] = failures.get(attempt.model, 0) + 1
-        ordered_models = sorted(counts, key=lambda item: (cost_rank.get(cost_tiers.get(item, "high/fallback"), 99), item))
-        usage = ", ".join(f"{model}={counts[model]}" for model in ordered_models)
-        highest_model = max(
-            ordered_models,
-            key=lambda item: cost_rank.get(cost_tiers.get(item, "high/fallback"), 99),
-        )
-        total_failures = sum(failures.values())
+        totals = stats["totals"]
+        usage = ", ".join(f"{item['model']}={item['calls']}" for item in stats["models"])
         lines = [
             "Cost and budget:",
             "- policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
             f"- usage: {usage}",
-            f"- highest_tier_used: {cost_tiers.get(highest_model, 'unknown')} ({highest_model})",
-            f"- failed_model_calls: {total_failures}",
+            f"- highest_tier_used: {totals['highest_tier']} ({totals['highest_tier_model']})",
+            f"- failed_model_calls: {totals['failures']}",
+            f"- failure_rate: {totals['failure_rate']}%",
+            f"- escalation_path: {totals['escalation_path']}",
         ]
         return "\n".join(lines)
 
