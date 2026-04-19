@@ -140,9 +140,10 @@ Prerequisite check:
 
 ```bash
 stagewarden doctor
+stagewarden doctor --json
 ```
 
-`doctor` validates Python 3.11+, Git availability, PATH launcher visibility, repository state, and provider capabilities/token env expectations without installing anything or initializing git.
+`doctor` validates Python 3.11+, Git availability, PATH launcher visibility, repository state, and provider capabilities/token env expectations without installing anything or initializing git. Use `stagewarden doctor --json` for machine-readable automation output.
 
 Shell execution:
 

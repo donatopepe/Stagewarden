@@ -123,6 +123,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("no prerequisites are installed silently", completed.stdout)
             self.assertFalse((root / ".git").exists())
 
+    def test_doctor_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "doctor", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "doctor")
+            self.assertEqual(payload["python"]["status"], "OK")
+            self.assertTrue(payload["git"]["ok"])
+            self.assertIn("silent_install", payload["policy"])
+            self.assertFalse(payload["policy"]["silent_install"])
+            providers = {entry["provider"]: entry for entry in payload["providers"]}
+            self.assertIn("chatgpt", providers)
+            self.assertEqual(providers["chatgpt"]["auth"], "chatgpt_plan_oauth")
+            self.assertIn("default_model", providers["openai"])
+            self.assertFalse((root / ".git").exists())
+
     def test_interactive_shell_doctor_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)

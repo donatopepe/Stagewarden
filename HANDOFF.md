@@ -385,8 +385,7 @@ Validation:
 
 1. Richer model usage/cost reporting.
 2. Resume command wet-run integration with a fake model binary.
-3. Optional doctor JSON output for automation.
-4. Cost/budget section in final summary output.
+3. Cost/budget section in final summary output.
 
 ## Recently Completed
 
@@ -404,6 +403,20 @@ Validation:
 
 - Setup script tests cover doctor invocation wiring and Unix fallback execution path.
 - Full suite remains green after the setup changes.
+
+### Doctor JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- `stagewarden doctor --json` emits a stable machine-readable report for automation.
+- The JSON report includes Python, Git, PATH launcher, repository state, provider capabilities, and policy flags.
+- Human-readable `stagewarden doctor` output remains unchanged for operators.
+
+Validation:
+
+- CLI tests parse the JSON output and verify provider and policy fields.
 
 ## Recently Completed
 
