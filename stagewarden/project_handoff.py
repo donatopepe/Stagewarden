@@ -359,6 +359,25 @@ class ProjectHandoff:
         view = self.stage_view()
         return str(view["next_action"])
 
+    def rendered_operational_posture(self) -> str:
+        view = self.stage_view()
+        active_step = view["active_step"]
+        active_stage = "none"
+        if isinstance(active_step, dict):
+            active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
+        git_boundary = view["git_boundary"]
+        return "\n".join(
+            [
+                "Operational posture:",
+                f"- governance: {self.rendered_register_status_summary()}",
+                f"- stage_health: {view['stage_health']}",
+                f"- next_action: {view['next_action']}",
+                f"- active_stage: {active_stage}",
+                f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
+                f"- boundary_decision: {view['boundary_decision']}",
+            ]
+        )
+
     def rendered_risks(self) -> str:
         lines = ["Risk register:"]
         if not self.risk_register:

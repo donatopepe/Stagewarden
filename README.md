@@ -60,6 +60,7 @@ PRINCE2 handoff behavior:
 - The interactive `status` and `handoff` views now also show the compact git boundary (baseline HEAD vs current HEAD).
 - The interactive views now also show a compact `stage health` indicator such as `active`, `at_risk`, `exception`, or `ready_to_close`.
 - The interactive views now also show a compact `next action` recommendation derived from the boundary decision and current stage state.
+- The final summary, `status`, and `handoff` now reuse the same compact `operational posture` block so the high-level reading stays consistent across views.
 
 Validation behavior:
 
