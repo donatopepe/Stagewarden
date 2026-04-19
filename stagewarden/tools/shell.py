@@ -43,7 +43,10 @@ class ShellTool:
         self.sessions: dict[str, ShellSession] = {}
         self.os_name = platform.system().lower()
         self.is_windows = self.os_name == "windows"
-        self.permissions = PermissionPolicy.load(config.settings_path)
+        self.permissions = PermissionPolicy.load(config.settings_path, config.session_permission_settings)
+
+    def refresh_permissions(self) -> None:
+        self.permissions = PermissionPolicy.load(self.config.settings_path, self.config.session_permission_settings)
 
     def run(self, command: str, cwd: str | None = None) -> ShellResult:
         command = command.strip()
