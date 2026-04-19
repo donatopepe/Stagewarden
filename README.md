@@ -153,6 +153,7 @@ stagewarden> help
 stagewarden> help models
 stagewarden> help handoff
 stagewarden> models
+stagewarden> patch preview changes.diff
 stagewarden> model use openai
 stagewarden> model list claude
 stagewarden> model variant claude opus
@@ -235,6 +236,7 @@ Persistent shell sessions:
 Patch workflow:
 
 - Model actions can use `preview_patch_files` to validate a unified multi-file diff and get a per-file summary without writing.
+- Interactive shell users can run `patch preview <diff-file>` to validate a unified diff file without writing.
 - `patch_files` applies the same unified diff format and reports `add`, `update`, and `delete` entries per path.
 - Duplicate targets in the same diff are rejected before writes, preventing ambiguous multi-hunk edits.
 - In `plan` mode patch preview is allowed, while actual file writes remain blocked.

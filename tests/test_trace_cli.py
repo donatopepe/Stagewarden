@@ -313,6 +313,33 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Plan mode allows analysis only.", rendered)
             self.assertFalse((root / "out.txt").exists())
 
+    def test_interactive_shell_previews_patch_file_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "target.txt").write_text("before\n", encoding="utf-8")
+            (root / "changes.diff").write_text(
+                "\n".join(
+                    [
+                        "--- a/target.txt",
+                        "+++ b/target.txt",
+                        "@@ -1,1 +1,1 @@",
+                        "-before",
+                        "+after",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("permission session mode plan\npatch preview changes.diff\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Patch preview:", rendered)
+            self.assertIn("update target.txt", rendered)
+            self.assertEqual((root / "target.txt").read_text(encoding="utf-8"), "before\n")
+
     def test_interactive_shell_manages_model_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

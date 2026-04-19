@@ -373,11 +373,27 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Patch preview command in the interactive shell, if direct manual preview becomes useful.
-2. Model context files.
-3. Resume command over handoff.
-4. Cost-aware execution budget.
-5. CLI help snapshot tests for Caveman category, if Caveman help changes.
+1. Model context files.
+2. Resume command over handoff.
+3. Cost-aware execution budget.
+4. CLI help snapshot tests for Caveman category, if Caveman help changes.
+5. Doctor command and prerequisite checks.
+
+## Recently Completed
+
+### Patch Preview Command
+
+Status: implemented
+
+Implemented behaviour:
+
+- Interactive shell command `patch preview <diff-file>` reads a unified diff file from the workspace.
+- The command validates the diff through `preview_patch_files` and returns per-file summaries without writing.
+- The command works in plan mode because it performs only read/validation operations.
+
+Validation:
+
+- CLI test covers plan-mode preview and verifies target file contents remain unchanged.
 
 ## Validation Standard
 
