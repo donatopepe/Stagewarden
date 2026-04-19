@@ -167,6 +167,11 @@ stagewarden> lessons
 stagewarden> permissions
 stagewarden> permission mode plan
 stagewarden> permission allow shell:git status
+stagewarden> mode plan
+stagewarden> mode auto
+stagewarden> mode accept-edits
+stagewarden> mode dont-ask
+stagewarden> mode default
 stagewarden> mode caveman ultra
 stagewarden> mode normal
 stagewarden> caveman on ultra
@@ -207,6 +212,7 @@ Interactive permission commands:
 - `permission ask <rule>` adds an ask rule.
 - `permission deny <rule>` adds a deny rule.
 - `permission reset` resets the workspace permission file to defaults.
+- `mode plan|auto|accept-edits|dont-ask|default` is a fast alias for changing the workspace permission mode.
 
 Account profiles:
 

@@ -497,6 +497,35 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads((root / ".stagewarden_settings.json").read_text(encoding="utf-8"))
             self.assertEqual(payload["permissions"]["defaultMode"], "plan")
 
+    def test_interactive_shell_mode_aliases_manage_permission_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO(
+                "mode plan\n"
+                "status\n"
+                "mode auto\n"
+                "mode accept-edits\n"
+                "mode dont-ask\n"
+                "mode default\n"
+                "permissions\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Permission mode set to plan.", rendered)
+            self.assertIn("Permission mode set to auto.", rendered)
+            self.assertIn("Permission mode set to accept_edits.", rendered)
+            self.assertIn("Permission mode set to dont_ask.", rendered)
+            self.assertIn("Permission mode set to default.", rendered)
+            self.assertIn("mode: plan", rendered)
+            self.assertIn("Permission settings:", rendered)
+            self.assertIn("mode: default", rendered)
+            payload = json.loads((root / ".stagewarden_settings.json").read_text(encoding="utf-8"))
+            self.assertEqual(payload["permissions"]["defaultMode"], "default")
+
     def test_boundary_uses_exception_plan_when_project_is_in_exception(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
