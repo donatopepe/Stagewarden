@@ -107,15 +107,31 @@ class ProjectHandoff:
 
     def sync_implementation_backlog(self, items: list[dict[str, str]]) -> None:
         backlog: list[dict[str, str]] = []
+        seen_active = False
+        blocked_mode = self.status == "exception" or any(
+            str(entry.get("status", "open")).strip().lower() != "closed" and str(entry.get("severity", "")).strip().lower() == "high"
+            for entry in self.issue_register
+        )
         for item in items:
             step_id = str(item.get("step_id", "")).strip()
             if not step_id:
                 continue
+            raw_status = str(item.get("status", "pending")).strip().lower()
+            backlog_status = "planned"
+            if raw_status in {"completed", "done"}:
+                backlog_status = "done"
+            elif raw_status == "failed":
+                backlog_status = "blocked" if blocked_mode else "ready"
+            elif raw_status == "in_progress":
+                backlog_status = "in_progress"
+                seen_active = True
+            elif raw_status == "pending":
+                backlog_status = "ready" if not seen_active else "planned"
             backlog.append(
                 {
                     "step_id": step_id,
                     "title": str(item.get("title", "")).strip()[:160],
-                    "status": str(item.get("status", "pending")).strip()[:32],
+                    "status": backlog_status,
                     "validation": str(item.get("validation", "")).strip()[:240],
                 }
             )
@@ -290,8 +306,9 @@ class ProjectHandoff:
         }
         boundary_decision = self._boundary_decision(status_by_step)
         register_statuses = self._register_status_summary()
-        stage_health = self._stage_health(boundary_decision, active_step, register_statuses)
-        next_action = self._next_action(boundary_decision, active_step, stage_health)
+        backlog_statuses = self._implementation_backlog_status_summary()
+        stage_health = self._stage_health(boundary_decision, active_step, register_statuses, backlog_statuses)
+        next_action = self._next_action(boundary_decision, active_step, stage_health, backlog_statuses)
         return {
             "closed_steps": closed_steps,
             "active_step": active_step,
@@ -299,6 +316,7 @@ class ProjectHandoff:
             "pid_boundary": pid_boundary,
             "boundary_decision": boundary_decision,
             "register_statuses": register_statuses,
+            "backlog_statuses": backlog_statuses,
             "stage_health": stage_health,
             "next_action": next_action,
         }
@@ -311,6 +329,7 @@ class ProjectHandoff:
         pid_boundary = view["pid_boundary"]
         boundary_decision = view["boundary_decision"]
         register_statuses = view["register_statuses"]
+        backlog_statuses = view["backlog_statuses"]
         stage_health = view["stage_health"]
         next_action = view["next_action"]
         lines = ["Stage view:"]
@@ -350,6 +369,12 @@ class ProjectHandoff:
             f"issues_open={register_statuses['issues_open']} issues_closed={register_statuses['issues_closed']} "
             f"quality_open={register_statuses['quality_open']} quality_accepted={register_statuses['quality_accepted']}"
         )
+        lines.append(
+            "- backlog_status: "
+            f"ready={backlog_statuses['ready']} planned={backlog_statuses['planned']} "
+            f"in_progress={backlog_statuses['in_progress']} blocked={backlog_statuses['blocked']} "
+            f"done={backlog_statuses['done']}"
+        )
         if self.exception_plan:
             lines.append(f"- exception_plan: {' | '.join(self.exception_plan[:3])}")
         return "\n".join(lines)
@@ -382,6 +407,7 @@ class ProjectHandoff:
     def rendered_operational_posture(self) -> str:
         view = self.stage_view()
         active_step = view["active_step"]
+        backlog_statuses = view["backlog_statuses"]
         active_stage = "none"
         if isinstance(active_step, dict):
             active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
@@ -393,7 +419,8 @@ class ProjectHandoff:
                 f"- stage_health: {view['stage_health']}",
                 f"- next_action: {view['next_action']}",
                 f"- active_stage: {active_stage}",
-                f"- implementation_backlog_open: {sum(1 for item in self.implementation_backlog if str(item.get('status', '')).strip().lower() != 'completed')}",
+                f"- implementation_backlog_open: {backlog_statuses['ready'] + backlog_statuses['planned'] + backlog_statuses['in_progress'] + backlog_statuses['blocked']}",
+                f"- implementation_backlog_blocked: {backlog_statuses['blocked']}",
                 f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
                 f"- boundary_decision: {view['boundary_decision']}",
             ]
@@ -456,8 +483,9 @@ class ProjectHandoff:
             lines.append("- none")
             return "\n".join(lines)
         for item in self.implementation_backlog:
+            normalized_status = self._normalize_backlog_status(str(item.get("status", "")))
             lines.append(
-                f"- [{item.get('status', 'unknown')}] {item.get('step_id', '-')} :: "
+                f"- [{normalized_status}] {item.get('step_id', '-')} :: "
                 f"{item.get('title', '')} | validation={item.get('validation', '')}"
             )
         return "\n".join(lines)
@@ -600,9 +628,12 @@ class ProjectHandoff:
         boundary_decision: str,
         active_step: dict[str, object] | None,
         register_statuses: dict[str, int],
+        backlog_statuses: dict[str, int],
     ) -> str:
         if self.status == "exception" or boundary_decision.startswith("review_boundary:exception"):
             return "exception"
+        if backlog_statuses["blocked"] > 0:
+            return "blocked"
         if register_statuses["issues_open"] > 0 or self.exception_plan:
             return "at_risk"
         if active_step:
@@ -616,15 +647,24 @@ class ProjectHandoff:
         boundary_decision: str,
         active_step: dict[str, object] | None,
         stage_health: str,
+        backlog_statuses: dict[str, int],
     ) -> str:
         if stage_health == "exception":
             return "execute exception plan and re-baseline the current stage"
+        if stage_health == "blocked":
+            return "resolve blocking issues and promote the next ready stage"
         if boundary_decision == "review_boundary:open_issues":
             return "close remaining open issues before project closure"
         if boundary_decision == "close_project":
             return "authorize project closure"
         if active_step:
             return f"continue {active_step.get('id', 'current-step')}"
+        if backlog_statuses["ready"] > 0:
+            next_ready = next(
+                (item.get("step_id", "next-step") for item in self.implementation_backlog if str(item.get("status", "")).strip().lower() == "ready"),
+                "next-step",
+            )
+            return f"start {next_ready}"
         if stage_health == "stable":
             return "review current handoff and confirm next stage"
         return "review boundary and decide next controlled action"
@@ -661,6 +701,30 @@ class ProjectHandoff:
         if any(status in {"pending", "in_progress"} for status in values):
             return "continue_current_stage"
         return "review_boundary:manual_check"
+
+    def _implementation_backlog_status_summary(self) -> dict[str, int]:
+        counts = {"ready": 0, "planned": 0, "in_progress": 0, "blocked": 0, "done": 0}
+        for item in self.implementation_backlog:
+            status = self._normalize_backlog_status(str(item.get("status", "")))
+            if status in counts:
+                counts[status] += 1
+        return counts
+
+    def _normalize_backlog_status(self, raw: str) -> str:
+        status = raw.strip().lower()
+        if status in {"completed", "done", "closed", "accepted"}:
+            return "done"
+        if status in {"failed", "blocked"}:
+            return "blocked"
+        if status in {"in_progress", "active", "executing"}:
+            return "in_progress"
+        if status in {"ready", "pending"}:
+            return "ready"
+        if status in {"planned", "queued"}:
+            return "planned"
+        if status in {"exception"}:
+            return "blocked"
+        return status or "planned"
 
     @classmethod
     def load(cls, path: Path) -> "ProjectHandoff":

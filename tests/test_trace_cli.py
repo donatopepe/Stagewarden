@@ -12,7 +12,7 @@ from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.modelprefs import ModelPreferences
-from stagewarden.main import _render_boundary, run_interactive_shell
+from stagewarden.main import _render_boundary, _render_handoff, run_interactive_shell
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -448,6 +448,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("next_action: continue step-3", rendered)
             self.assertIn("active_stage: step-3 [in_progress]", rendered)
             self.assertIn("implementation_backlog_open: 1", rendered)
+            self.assertIn("implementation_backlog_blocked: 0", rendered)
             self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
             self.assertIn("Project handoff:", rendered)
@@ -462,6 +463,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("next_action: continue step-3", rendered)
             self.assertIn("registers: risks=1 issues=1 quality=1 lessons=1 backlog=3", rendered)
             self.assertIn("register_status: risks_open=1 risks_closed=0 issues_open=1 issues_closed=0 quality_open=1 quality_accepted=0", rendered)
+            self.assertIn("backlog_status: ready=0 planned=0 in_progress=1 blocked=0 done=2", rendered)
+            self.assertIn("[done] step-1 :: Inspect tests | validation=Real command output captured.", rendered)
+            self.assertIn("[done] step-2 :: Patch implementation | validation=Files changed and verified.", rendered)
             self.assertIn("[in_progress] step-3 :: Validate result | validation=Wet-run tests pass.", rendered)
             self.assertIn("Boundary recommendation:", rendered)
             self.assertIn("Risk register:", rendered)
@@ -589,6 +593,39 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("stage_health: exception", rendered)
             self.assertIn("next_action: execute exception plan and re-baseline the current stage", rendered)
             self.assertIn("review_boundary:exception_plan", rendered)
+
+    def test_handoff_marks_backlog_as_blocked_when_high_severity_issue_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-2",
+                "current_step_title": "Resume 2. Implement fix",
+                "current_step_status": "failed",
+                "latest_observation": "test environment still blocked",
+                "plan_status": "step-1:completed,step-2:failed,step-3:pending",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "issue_register": [{"step_id": "step-2", "severity": "high", "summary": "critical blocker remains", "status": "open"}],
+                "implementation_backlog": [
+                    {"step_id": "step-1", "title": "Inspect tests", "status": "done", "validation": "Real command output captured."},
+                    {"step_id": "step-2", "title": "Patch implementation", "status": "blocked", "validation": "Blocking issue resolved and wet-run passes."},
+                    {"step_id": "step-3", "title": "Validate result", "status": "planned", "validation": "Wet-run tests pass."},
+                ],
+                "updated_at": "2026-04-18T18:30:00+00:00",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            rendered = _render_handoff(config)
+            self.assertIn("stage_health: exception", rendered)
+            self.assertIn("next_action: execute exception plan and re-baseline the current stage", rendered)
+            self.assertIn("implementation_backlog_blocked: 1", rendered)
+            self.assertIn("backlog_status: ready=0 planned=1 in_progress=0 blocked=1 done=1", rendered)
+            self.assertIn("[blocked] step-2 :: Patch implementation | validation=Blocking issue resolved and wet-run passes.", rendered)
 
     def test_boundary_blocks_project_close_when_open_issues_remain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
