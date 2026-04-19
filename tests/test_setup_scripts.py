@@ -20,6 +20,7 @@ class SetupScriptTests(unittest.TestCase):
         self.assertIn("source launcher", content)
         self.assertIn("PYTHONPATH", content)
         self.assertIn("Stagewarden installed (", content)
+        self.assertIn("stagewarden.main doctor", content)
 
     def test_windows_setup_script_exists_and_updates_path(self) -> None:
         script = ROOT / "scripts" / "setup_windows.ps1"
@@ -30,6 +31,7 @@ class SetupScriptTests(unittest.TestCase):
         self.assertIn("source launcher", content)
         self.assertIn("PYTHONPATH", content)
         self.assertIn("SetEnvironmentVariable", content)
+        self.assertIn("stagewarden.main doctor", content)
 
     def test_unix_setup_falls_back_to_source_launcher_when_editable_install_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -77,6 +79,7 @@ class SetupScriptTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertTrue(launcher.exists())
             self.assertIn("source launcher", completed.stdout)
+            self.assertIn("Post-install check: stagewarden doctor OK", completed.stdout)
             smoke = subprocess.run(
                 [str(launcher), "--help"],
                 cwd=ROOT,
