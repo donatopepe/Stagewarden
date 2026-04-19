@@ -116,57 +116,49 @@ class Executor:
                 failure_count=failure_count,
             )
             account = self._select_account(model)
-        result = self.handoff.execute(format_run_model(model, prompt, account=account))
+        result, account = self._execute_with_account_failover(model=model, prompt=prompt, account=account)
         if not result.ok:
-            self._record_model_block_if_present(model, result.error or result.output, account=account)
-            alternate_account = self._next_account(model, account)
-            if alternate_account:
-                alternate = self.handoff.execute(format_run_model(model, prompt, account=alternate_account))
-                if alternate.ok:
-                    result = alternate
-                    account = alternate_account
-                else:
-                    self._record_model_block_if_present(model, alternate.error or alternate.output, account=alternate_account)
-                    result = alternate
-            if not result.ok:
-                fallback_model = self.router.fallback_for_api_failure(model)
-                self._configure_handoff_variant(
-                    prefs=prefs,
+            fallback_model = self.router.fallback_for_api_failure(model)
+            self._configure_handoff_variant(
+                prefs=prefs,
+                model=fallback_model,
+                task=task,
+                step_text=step.instruction,
+                failure_count=failure_count + 1,
+            )
+            fallback_account = self._select_account(fallback_model)
+            fallback, fallback_account = self._execute_with_account_failover(
+                model=fallback_model,
+                prompt=prompt,
+                account=fallback_account,
+            )
+            if not fallback.ok:
+                self.memory.record_attempt(
+                    iteration=iteration,
+                    step_id=step.id,
                     model=fallback_model,
-                    task=task,
-                    step_text=step.instruction,
-                    failure_count=failure_count + 1,
+                    action_type="model_error",
+                    action_signature=f"handoff:{model}->{fallback_model}",
+                    success=False,
+                    observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
+                    error_type="api_failure",
                 )
-                fallback_account = self._select_account(fallback_model)
-                fallback = self.handoff.execute(format_run_model(fallback_model, prompt, account=fallback_account))
-                if not fallback.ok:
-                    self._record_model_block_if_present(fallback_model, fallback.error or fallback.output, account=fallback_account)
-                    self.memory.record_attempt(
-                        iteration=iteration,
-                        step_id=step.id,
-                        model=fallback_model,
-                        action_type="model_error",
-                        action_signature=f"handoff:{model}->{fallback_model}",
-                        success=False,
-                        observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
-                        error_type="api_failure",
-                    )
-                    return StepOutcome(
-                        ok=False,
-                        step_completed=False,
-                        model=fallback_model,
-                        action_type="model_error",
-                        observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
-                        account=fallback_account,
-                        variant=self.handoff.model_variant_by_model.get(fallback_model),
-                        git_head_before=git_head_before,
-                        git_head_after=self._git_head(),
-                        error_type="api_failure",
-                        prince2_assessment=None,
-                    )
-                result = fallback
-                model = fallback_model
-                account = fallback_account
+                return StepOutcome(
+                    ok=False,
+                    step_completed=False,
+                    model=fallback_model,
+                    action_type="model_error",
+                    observation=f"Primary model error: {result.error}\nFallback model error: {fallback.error}",
+                    account=fallback_account,
+                    variant=self.handoff.model_variant_by_model.get(fallback_model),
+                    git_head_before=git_head_before,
+                    git_head_after=self._git_head(),
+                    error_type="api_failure",
+                    prince2_assessment=None,
+                )
+            result = fallback
+            model = fallback_model
+            account = fallback_account
 
         parsed = self._parse_model_json(result.output)
         if not parsed["ok"]:
@@ -306,6 +298,22 @@ class Executor:
             return ModelPreferences.load(self.config.model_prefs_path).account_for_model(model)
         except (OSError, ValueError, TypeError):
             return None
+
+    def _execute_with_account_failover(self, *, model: str, prompt: str, account: str | None):
+        current_account = account
+        result = self.handoff.execute(format_run_model(model, prompt, account=current_account))
+        tried: set[str] = set()
+        if current_account:
+            tried.add(current_account)
+        while not result.ok:
+            self._record_model_block_if_present(model, result.error or result.output, account=current_account)
+            next_account = self._next_account(model, current_account)
+            if next_account is None or next_account in tried:
+                break
+            current_account = next_account
+            tried.add(current_account)
+            result = self.handoff.execute(format_run_model(model, prompt, account=current_account))
+        return result, current_account
 
     def _accounts_configured(self, model: str) -> bool:
         try:

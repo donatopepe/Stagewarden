@@ -613,8 +613,6 @@ Validation:
 
 - Shell UX hardening:
   add persistent interactive history, command completion, and later conversational streaming.
-- Provider/account resilience:
-  improve profile rotation and fallback when one account or model family is blocked.
 
 ### Caveman Help Snapshot
 
@@ -630,6 +628,21 @@ Validation:
 - CLI test verifies Caveman help still exposes levels, aliases, and review/commit/compress commands.
 
 ## Recently Completed
+
+### Multi-Account Failover Across Primary And Fallback Models
+
+Status: implemented
+
+Implemented behaviour:
+
+- The executor now iterates across all available non-blocked accounts for the selected model instead of stopping after a single alternate profile.
+- The same account failover logic now also applies to the fallback model after a primary model failure.
+- Usage-limit messages continue to block the specific account that failed, and the next eligible account is tried automatically.
+
+Validation:
+
+- Executor tests verify repeated same-model account failover until success.
+- Executor tests verify fallback-model account failover when the first fallback account is also blocked.
 
 ### PRINCE2 Git Step Checkpoints
 

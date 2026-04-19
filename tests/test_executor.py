@@ -492,6 +492,127 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("RUN_MODEL: openai:personal", handoff.calls[1])
             self.assertIn("openai:work", updated.blocked_until_by_account or {})
 
+    def test_executor_retries_all_available_accounts_on_same_model_until_success(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["openai", "local"]
+            prefs.preferred_model = "openai"
+            prefs.add_account("openai", "work", "OPENAI_API_KEY_WORK")
+            prefs.add_account("openai", "personal", "OPENAI_API_KEY_PERSONAL")
+            prefs.add_account("openai", "backup", "OPENAI_API_KEY_BACKUP")
+            prefs.set_active_account("openai", "work")
+            prefs.save(config.model_prefs_path)
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["openai", "local"], preferred_model="openai")
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": False,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "account": "work",
+                        "output": "",
+                        "error": "You've hit your usage limit. Try again at 8:05 PM.",
+                    },
+                    {
+                        "ok": False,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "account": "personal",
+                        "output": "",
+                        "error": "You've hit your usage limit. Try again at 8:05 PM.",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "account": "backup",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
+            updated = ModelPreferences.load(config.model_prefs_path)
+            self.assertTrue(outcome.ok)
+            self.assertIn("RUN_MODEL: openai:work", handoff.calls[0])
+            self.assertIn("RUN_MODEL: openai:personal", handoff.calls[1])
+            self.assertIn("RUN_MODEL: openai:backup", handoff.calls[2])
+            self.assertIn("openai:work", updated.blocked_until_by_account or {})
+            self.assertIn("openai:personal", updated.blocked_until_by_account or {})
+
+    def test_executor_retries_fallback_model_with_next_account_after_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["openai", "chatgpt", "local"]
+            prefs.preferred_model = "openai"
+            prefs.add_account("openai", "primary", "OPENAI_API_KEY_PRIMARY")
+            prefs.set_active_account("openai", "primary")
+            prefs.add_account("chatgpt", "work", "CHATGPT_TOKEN_WORK")
+            prefs.add_account("chatgpt", "backup", "CHATGPT_TOKEN_BACKUP")
+            prefs.set_active_account("chatgpt", "work")
+            prefs.save(config.model_prefs_path)
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["openai", "chatgpt", "local"], preferred_model="openai")
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": False,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "account": "primary",
+                        "output": "",
+                        "error": "You've hit your usage limit. Try again at 8:05 PM.",
+                    },
+                    {
+                        "ok": False,
+                        "model": "chatgpt",
+                        "backend": "chatgpt/GPT-5",
+                        "prompt": "x",
+                        "command": "run_model chatgpt x",
+                        "account": "work",
+                        "output": "",
+                        "error": "You've hit your usage limit. Try again at 8:05 PM.",
+                    },
+                    {
+                        "ok": True,
+                        "model": "chatgpt",
+                        "backend": "chatgpt/GPT-5",
+                        "prompt": "x",
+                        "command": "run_model chatgpt x",
+                        "account": "backup",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
+            updated = ModelPreferences.load(config.model_prefs_path)
+            self.assertTrue(outcome.ok)
+            self.assertIn("RUN_MODEL: openai:primary", handoff.calls[0])
+            self.assertIn("RUN_MODEL: chatgpt:work", handoff.calls[1])
+            self.assertIn("RUN_MODEL: chatgpt:backup", handoff.calls[2])
+            self.assertIn("openai:primary", updated.blocked_until_by_account or {})
+            self.assertIn("chatgpt:work", updated.blocked_until_by_account or {})
+
     def test_executor_rejects_dry_run_completion_as_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
