@@ -776,6 +776,42 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("tool=files", rendered)
             self.assertIn("action=write_file", rendered)
 
+    def test_interactive_shell_streams_model_output_live(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = root / "run_model_stream_stub.py"
+            stub.write_text(
+                "\n".join(
+                    [
+                        "#!/usr/bin/env python3",
+                        "import sys",
+                        "sys.stdout.write('{\"summary\":\"ok\",')",
+                        "sys.stdout.flush()",
+                        "sys.stdout.write('\"action\":{\"type\":\"complete\",\"message\":\"validation completed exit_code=0\"}}')",
+                        "sys.stdout.flush()",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                config = AgentConfig(workspace_root=root, max_steps=4)
+                input_stream = StringIO("analyze repo structure\nquit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("[model-stream local]", rendered)
+            self.assertIn('"summary":"ok"', rendered)
+
     def test_interactive_shell_permission_ask_can_be_approved_for_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

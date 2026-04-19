@@ -2361,6 +2361,7 @@ def run_interactive_shell(
     source = input_stream or sys.stdin
     sink = output_stream or sys.stdout
     agent = _configure_agent_for_workspace(config)
+    agent.handoff.stream_callback = lambda chunk: (sink.write(chunk), sink.flush())
     config.permission_approver = _make_permission_approver(
         config=config,
         input_stream=source,
@@ -2393,6 +2394,7 @@ def run_interactive_shell(
         if command == "reset":
             config.session_permission_settings = None
             agent = _configure_agent_for_workspace(config)
+            agent.handoff.stream_callback = lambda chunk: (sink.write(chunk), sink.flush())
             config.permission_approver = _make_permission_approver(
                 config=config,
                 input_stream=source,

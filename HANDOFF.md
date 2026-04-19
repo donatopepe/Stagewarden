@@ -611,8 +611,6 @@ Validation:
 
 ## Autonomous Backlog
 
-- Shell UX hardening:
-  add persistent interactive history, command completion, and later conversational streaming.
 
 ### Caveman Help Snapshot
 
@@ -628,6 +626,21 @@ Validation:
 - CLI test verifies Caveman help still exposes levels, aliases, and review/commit/compress commands.
 
 ## Recently Completed
+
+### Interactive Model Streaming In Shell
+
+Status: implemented
+
+Implemented behaviour:
+
+- Interactive shell sessions now forward live `run_model` stdout through a streaming callback while still capturing the full final payload for strict JSON parsing.
+- Streaming is attached only to the interactive shell agent path; non-interactive CLI commands keep the previous buffered behavior.
+- Stream output is prefixed with a compact marker such as `[model-stream local]`.
+
+Validation:
+
+- Handoff tests verify the streaming callback receives live model output.
+- Interactive shell tests verify streamed model output is visible during task execution.
 
 ### Multi-Account Failover Across Primary And Fallback Models
 
