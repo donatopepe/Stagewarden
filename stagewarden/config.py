@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
-from .permissions import PermissionSettings
+from .permissions import PermissionDecision, PermissionSettings
 
 
 @dataclass(slots=True)
@@ -19,6 +20,7 @@ class AgentConfig:
     auto_git_commit: bool = True
     strict_ascii_output: bool = True
     session_permission_settings: PermissionSettings | None = None
+    permission_approver: Callable[[str, str, PermissionDecision], bool] | None = None
     memory_filename: str = ".stagewarden_memory.json"
     caveman_state_filename: str = ".stagewarden_caveman.json"
     trace_filename: str = ".stagewarden_trace.ljson"

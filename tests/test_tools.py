@@ -221,6 +221,15 @@ class ToolTests(unittest.TestCase):
         self.assertTrue(policy.decide("file:write", "allowed.txt").allowed)
         self.assertFalse(policy.decide("file:write", "blocked.txt").allowed)
 
+    def test_permission_policy_explicit_allow_overrides_matching_ask_rule(self) -> None:
+        policy = PermissionPolicy(
+            PermissionSettings(
+                allow=["file:allowed.txt"],
+                ask=["file:allowed.txt"],
+            )
+        )
+        self.assertTrue(policy.decide("file:write", "allowed.txt").allowed)
+
     def test_shell_tool_enforces_plan_mode_from_settings_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -119,6 +119,69 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
 
+    def test_interactive_shell_permission_ask_can_be_approved_for_session(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = "/Users/donato/Stagewarden/run_model_stub"
+            try:
+                config = AgentConfig(workspace_root=root, max_steps=6)
+                input_stream = StringIO(
+                    "permission ask file:hello.txt\n"
+                    "create a file named hello.txt\n"
+                    "session\n"
+                    "permissions\n"
+                    "quit\n"
+                )
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertTrue((root / "hello.txt").exists())
+            self.assertIn("Permission approval required:", rendered)
+            self.assertIn("Permission approved for this session: file:hello.txt", rendered)
+            self.assertIn("session allow: file:hello.txt", rendered)
+            payload = json.loads((root / ".stagewarden_settings.json").read_text(encoding="utf-8"))
+            self.assertEqual(payload["permissions"]["ask"], ["file:hello.txt"])
+            self.assertEqual(payload["permissions"]["allow"], [])
+
+    def test_interactive_shell_permission_ask_can_be_persisted_as_always_allow(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = "/Users/donato/Stagewarden/run_model_stub"
+            try:
+                config = AgentConfig(workspace_root=root, max_steps=6)
+                input_stream = StringIO(
+                    "permission ask file:hello.txt\n"
+                    "create a file named hello.txt\n"
+                    "always\n"
+                    "permissions\n"
+                    "quit\n"
+                )
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertTrue((root / "hello.txt").exists())
+            self.assertIn("Permission persisted as allow rule: file:hello.txt", rendered)
+            self.assertIn("workspace allow: file:hello.txt", rendered)
+            payload = json.loads((root / ".stagewarden_settings.json").read_text(encoding="utf-8"))
+            self.assertEqual(payload["permissions"]["allow"], ["file:hello.txt"])
+            self.assertEqual(payload["permissions"]["ask"], [])
+
     def test_agent_resets_system_prompt_each_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             agent = Agent(AgentConfig(workspace_root=Path(tmp_dir), max_steps=1))

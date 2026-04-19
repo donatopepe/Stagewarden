@@ -93,12 +93,12 @@ class PermissionPolicy:
         for rule in self.settings.deny:
             if self._matches(rule, subject, detail_text):
                 return PermissionDecision(False, f"deny:{rule}", "Denied by permission policy.")
-        for rule in self.settings.ask:
-            if self._matches(rule, subject, detail_text):
-                return PermissionDecision(False, f"ask:{rule}", "Operation requires approval by permission policy.")
         for rule in self.settings.allow:
             if self._matches(rule, subject, detail_text):
                 return PermissionDecision(True, f"allow:{rule}")
+        for rule in self.settings.ask:
+            if self._matches(rule, subject, detail_text):
+                return PermissionDecision(False, f"ask:{rule}", "Operation requires approval by permission policy.")
 
         mode = self.settings.default_mode
         if mode == "plan":
