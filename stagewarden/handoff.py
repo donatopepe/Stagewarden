@@ -2,86 +2,25 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shlex
 import subprocess
 from dataclasses import dataclass
 
+from .provider_registry import (
+    available_model_variants,
+    canonicalize_model_variant,
+    model_backends,
+    model_name_env,
+    model_token_env,
+    model_variant_catalog,
+)
 from .secrets import SecretStore
 
 
-MODEL_BACKENDS = {
-    "local": {"provider": "ollama", "label": "local/ollama"},
-    "cheap": {"provider": "openrouter", "label": "cheap/openrouter"},
-    "chatgpt": {"provider": "ChatGPT", "label": "chatgpt/chatgpt-plan"},
-    "openai": {"provider": "GPT-5.4", "label": "openai/GPT-5.4"},
-    "claude": {"provider": "Claude Sonnet", "label": "claude/sonnet"},
-}
-
-MODEL_VARIANT_CATALOG = {
-    "local": {
-        "variants": ("provider-default",),
-        "source": "workspace/provider setting",
-    },
-    "cheap": {
-        "variants": ("provider-default",),
-        "source": "workspace/provider setting",
-    },
-    "chatgpt": {
-        "variants": (
-            "provider-default",
-            "codex-mini-latest",
-            "gpt-5.1-codex",
-            "gpt-5.1-codex-mini",
-            "gpt-5.2-codex",
-            "gpt-5.3-codex",
-            "gpt-5.4",
-            "gpt-5.4-mini",
-            "gpt-5.4-nano",
-        ),
-        "source": "OpenAI Codex/OpenAI models docs",
-    },
-    "openai": {
-        "variants": (
-            "provider-default",
-            "gpt-5.4",
-            "gpt-5.4-mini",
-            "gpt-5.4-nano",
-            "gpt-5.3-codex",
-            "gpt-5.2-codex",
-            "gpt-5.1-codex",
-            "gpt-5.1-codex-mini",
-            "codex-mini-latest",
-        ),
-        "source": "OpenAI models docs",
-    },
-    "claude": {
-        "variants": (
-            "default",
-            "sonnet",
-            "opus",
-            "haiku",
-            "sonnet[1m]",
-            "opusplan",
-        ),
-        "source": "Claude Code model configuration docs",
-    },
-}
-
-MODEL_TOKEN_ENV = {
-    "cheap": "OPENROUTER_API_KEY",
-    "chatgpt": "CHATGPT_TOKEN",
-    "openai": "OPENAI_API_KEY",
-    "claude": "ANTHROPIC_API_KEY",
-}
-
-MODEL_NAME_ENV = {
-    "local": "OLLAMA_MODEL",
-    "cheap": "OPENROUTER_MODEL",
-    "chatgpt": "OPENAI_MODEL",
-    "openai": "OPENAI_MODEL",
-    "claude": "ANTHROPIC_MODEL",
-}
+MODEL_BACKENDS = model_backends()
+MODEL_VARIANT_CATALOG = model_variant_catalog()
+MODEL_TOKEN_ENV = model_token_env()
+MODEL_NAME_ENV = model_name_env()
 
 
 @dataclass(slots=True)
@@ -129,32 +68,6 @@ def format_run_model(model: str, prompt: str, *, account: str | None = None) -> 
         raise ValueError(f"Unsupported model '{model}'.")
     target = f"{model}:{account}" if account else model
     return f"RUN_MODEL: {target} {prompt}"
-
-
-def available_model_variants(model: str) -> tuple[str, ...]:
-    entry = MODEL_VARIANT_CATALOG.get(model)
-    if not entry:
-        raise ValueError(f"Unsupported model '{model}'.")
-    return tuple(str(item) for item in entry["variants"])
-
-
-def canonicalize_model_variant(model: str, variant: str) -> str:
-    clean = str(variant).strip()
-    if not clean:
-        raise ValueError("Model variant cannot be empty.")
-    if clean in available_model_variants(model):
-        return clean
-    if model in {"openai", "chatgpt"}:
-        if not re.fullmatch(r"[A-Za-z0-9._:-]+", clean):
-            raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
-        return clean
-    if model == "claude":
-        if not re.fullmatch(r"[A-Za-z0-9._:@\-\[\]]+", clean):
-            raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
-        return clean
-    if not re.fullmatch(r"[A-Za-z0-9._:@/\-\[\]]+", clean):
-        raise ValueError(f"Unsupported variant '{variant}' for model '{model}'.")
-    return clean
 
 
 class HandoffManager:

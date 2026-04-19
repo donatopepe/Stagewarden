@@ -224,8 +224,28 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual((prefs.variant_by_model or {}).get("claude"), "opus")
             self.assertIn("Available variants for claude:", rendered)
+            self.assertIn("Auth: anthropic_api_key_or_claude_code_credentials", rendered)
+            self.assertIn("Browser login: no", rendered)
+            self.assertIn("Login hint: Use ANTHROPIC_API_KEY", rendered)
             self.assertIn("opusplan", rendered)
             self.assertIn("variant=opus", rendered)
+
+    def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("model list chatgpt\nmodel list openai\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Auth: chatgpt_plan_oauth", rendered)
+            self.assertIn("API key: no", rendered)
+            self.assertIn("Use account login chatgpt <profile>", rendered)
+            self.assertIn("Auth: openai_api_key", rendered)
+            self.assertIn("API key: yes", rendered)
+            self.assertIn("Prefer OPENAI_API_KEY", rendered)
 
     def test_interactive_shell_manages_model_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -409,6 +429,7 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertIn("Interactive login is not supported for model 'claude'.", rendered)
+            self.assertIn("Use ANTHROPIC_API_KEY", rendered)
 
     def test_interactive_shell_can_import_claude_credentials_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

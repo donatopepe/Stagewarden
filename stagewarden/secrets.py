@@ -8,13 +8,9 @@ import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 
+from .provider_registry import login_urls
 
-LOGIN_URLS = {
-    "cheap": "https://openrouter.ai/settings/keys",
-    "chatgpt": "https://chatgpt.com/",
-    "openai": "https://platform.openai.com/api-keys",
-    "claude": "https://console.anthropic.com/settings/keys",
-}
+LOGIN_URLS = login_urls()
 
 
 @dataclass(slots=True)
