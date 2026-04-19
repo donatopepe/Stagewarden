@@ -445,6 +445,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Operational posture:", rendered)
             self.assertIn("governance=residual", rendered)
             self.assertIn("stage_health: at_risk", rendered)
+            self.assertIn("recovery_state: none", rendered)
             self.assertIn("next_action: continue step-3", rendered)
             self.assertIn("active_stage: step-3 [in_progress]", rendered)
             self.assertIn("implementation_backlog_open: 1", rendered)
@@ -459,6 +460,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("pid_boundary: project_status=executing", rendered)
             self.assertIn("stage_health: at_risk", rendered)
+            self.assertIn("recovery_state: none", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
             self.assertIn("next_action: continue step-3", rendered)
             self.assertIn("registers: risks=1 issues=1 quality=1 lessons=1 backlog=3", rendered)
@@ -591,6 +593,7 @@ class TraceAndCliTests(unittest.TestCase):
             config = AgentConfig(workspace_root=root, max_steps=1)
             rendered = _render_boundary(config)
             self.assertIn("stage_health: exception", rendered)
+            self.assertIn("recovery_state: exception_active", rendered)
             self.assertIn("next_action: execute exception plan and re-baseline the current stage", rendered)
             self.assertIn("review_boundary:exception_plan", rendered)
 
@@ -622,10 +625,74 @@ class TraceAndCliTests(unittest.TestCase):
             config = AgentConfig(workspace_root=root, max_steps=1)
             rendered = _render_handoff(config)
             self.assertIn("stage_health: exception", rendered)
+            self.assertIn("recovery_state: exception_active", rendered)
             self.assertIn("next_action: execute exception plan and re-baseline the current stage", rendered)
             self.assertIn("implementation_backlog_blocked: 1", rendered)
             self.assertIn("backlog_status: ready=0 planned=1 in_progress=0 blocked=1 done=1", rendered)
             self.assertIn("[blocked] step-2 :: Patch implementation | validation=Blocking issue resolved and wet-run passes.", rendered)
+
+    def test_boundary_marks_recovery_lane_as_active(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "exception",
+                "current_step_id": "recovery-step-1",
+                "current_step_title": "Recovery 1. Review failing tests",
+                "current_step_status": "in_progress",
+                "latest_observation": "reviewing corrective action",
+                "plan_status": "step-1:completed,step-2:failed,recovery-step-1:in_progress,recovery-step-2:planned,step-3:planned",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "exception_plan": ["review failing tests", "prepare corrective patch"],
+                "implementation_backlog": [
+                    {"step_id": "step-1", "title": "Inspect tests", "status": "done", "validation": "Real command output captured."},
+                    {"step_id": "step-2", "title": "Patch implementation", "status": "blocked", "validation": "Blocking issue resolved."},
+                    {"step_id": "recovery-step-1", "title": "Recovery 1", "status": "in_progress", "validation": "Wet-run confirms recovery."},
+                    {"step_id": "recovery-step-2", "title": "Recovery 2", "status": "planned", "validation": "Wet-run confirms recovery."},
+                    {"step_id": "step-3", "title": "Validate result", "status": "planned", "validation": "Wet-run tests pass."},
+                ],
+                "updated_at": "2026-04-18T18:30:00+00:00",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            rendered = _render_boundary(config)
+            self.assertIn("recovery_state: recovery_active", rendered)
+            self.assertIn("next_action: execute recovery lane and confirm wet-run before re-baseline", rendered)
+
+    def test_boundary_marks_recovery_lane_as_cleared(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "recovery-step-2",
+                "current_step_title": "Recovery 2. Prepare corrective patch",
+                "current_step_status": "completed",
+                "latest_observation": "recovery wet-run completed",
+                "plan_status": "step-1:completed,step-2:failed,recovery-step-1:completed,recovery-step-2:completed,step-3:ready",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "implementation_backlog": [
+                    {"step_id": "step-1", "title": "Inspect tests", "status": "done", "validation": "Real command output captured."},
+                    {"step_id": "step-2", "title": "Patch implementation", "status": "blocked", "validation": "Blocking issue resolved."},
+                    {"step_id": "recovery-step-1", "title": "Recovery 1", "status": "done", "validation": "Wet-run confirms recovery."},
+                    {"step_id": "recovery-step-2", "title": "Recovery 2", "status": "done", "validation": "Wet-run confirms recovery."},
+                    {"step_id": "step-3", "title": "Validate result", "status": "ready", "validation": "Wet-run tests pass."},
+                ],
+                "updated_at": "2026-04-18T18:30:00+00:00",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            rendered = _render_boundary(config)
+            self.assertIn("recovery_state: recovery_cleared", rendered)
+            self.assertIn("next_action: clear exception controls and resume planned stages", rendered)
 
     def test_boundary_blocks_project_close_when_open_issues_remain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
