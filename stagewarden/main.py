@@ -18,7 +18,7 @@ from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, loa
 from .memory import MemoryStore
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
-from .provider_registry import provider_capability
+from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
 from .project_handoff import ProjectHandoff
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
@@ -565,6 +565,18 @@ def _render_doctor(config: AgentConfig) -> str:
         lines.append("- Repository: OK current workspace is a git worktree")
     else:
         lines.append("- Repository: WARN current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup.")
+
+    lines.append("Provider capabilities:")
+    for model in REGISTRY_MODELS:
+        capability = provider_capability(model)
+        token_state = "n/a"
+        if capability.token_env:
+            token_state = "set" if os.environ.get(capability.token_env) else f"missing:{capability.token_env}"
+        lines.append(
+            f"- {model}: auth={capability.auth_type} profiles={'yes' if capability.supports_account_profiles else 'no'} "
+            f"browser_login={'yes' if capability.supports_browser_login else 'no'} api_key={'yes' if capability.supports_api_key else 'no'} "
+            f"token_env={token_state} default_model={capability.default_model}"
+        )
 
     lines.append("- Policy: no prerequisites are installed silently by doctor.")
     return "\n".join(lines)
