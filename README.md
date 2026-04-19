@@ -207,6 +207,11 @@ Provider model selection is aligned to public provider behavior:
 
 Stagewarden also records online model usage-limit messages such as `try again at 8:05 PM` and automatically blocks that model until the reported local time.
 
+Project handoff:
+
+- The human-readable implementation handoff lives in [`HANDOFF.md`](HANDOFF.md).
+- Runtime handoff remains in `.stagewarden_handoff.json`; `HANDOFF.md` tracks the durable roadmap and Codex/Claude-inspired implementation backlog.
+
 Interactive permission commands:
 
 - `permissions` shows the active workspace permission settings.
