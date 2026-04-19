@@ -527,6 +527,20 @@ Validation:
 
 - CLI tests parse register/backlog JSON output and verify representative fields for each command.
 
+### Models and Accounts JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden models --json`.
+- Non-interactive CLI now supports `stagewarden accounts --json`.
+- Outputs expose provider routing state, preferred model, configured accounts, active account, token-store presence, and env mapping.
+
+Validation:
+
+- CLI tests parse models/accounts JSON output and verify preferred model, account activity, and token-store state.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
