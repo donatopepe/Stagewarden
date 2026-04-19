@@ -249,6 +249,7 @@ def _interactive_help_overview() -> str:
             "Fast examples:",
             "- stagewarden> help models",
             "- stagewarden> models",
+            "- stagewarden> models usage",
             "- stagewarden> session create",
             "- stagewarden> session send last pwd",
             "- stagewarden> patch preview changes.diff",
@@ -297,6 +298,7 @@ def _interactive_help_topic(topic: str) -> str:
             "Model commands",
             "",
             "- models",
+            "- models usage | cost",
             "- model use <local|cheap|chatgpt|openai|claude>",
             "- model add <local|cheap|chatgpt|openai|claude>",
             "- model remove <local|cheap|chatgpt|openai|claude>",
@@ -308,6 +310,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- model clear",
             "",
             "Examples:",
+            "- stagewarden> models usage",
             "- stagewarden> model use openai",
             "- stagewarden> model list claude",
             "- stagewarden> model variant openai gpt-5.4-mini",
@@ -753,6 +756,13 @@ def _render_transcript(config: AgentConfig) -> str:
         return "No tool transcript."
 
 
+def _render_model_usage(config: AgentConfig) -> str:
+    try:
+        return MemoryStore.load(config.memory_path).model_usage_summary()
+    except (OSError, ValueError, TypeError):
+        return "Model usage:\n- no model attempts recorded"
+
+
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     agent = Agent(config)
     _apply_model_preferences(agent, config)
@@ -767,7 +777,13 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
     parts = command.split()
     if not parts:
         return None
+    if parts[0] == "cost":
+        return _render_model_usage(config)
     if parts[0] == "models":
+        if len(parts) == 2 and parts[1] == "usage":
+            return _render_model_usage(config)
+        if len(parts) != 1:
+            return "Usage: models | models usage"
         _apply_model_preferences(agent, config)
         return _render_model_status(agent, config)
     if parts[0] != "model":

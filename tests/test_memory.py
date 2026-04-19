@@ -37,6 +37,35 @@ class MemoryTests(unittest.TestCase):
         )
         self.assertIn("step=step-1", memory.summarize())
 
+    def test_model_usage_summary_counts_calls_failures_and_cost_tiers(self) -> None:
+        memory = MemoryStore()
+        memory.record_attempt(
+            iteration=1,
+            step_id="step-1",
+            model="local",
+            action_type="shell",
+            action_signature='{"type":"shell"}',
+            success=True,
+            observation="ok",
+        )
+        memory.record_attempt(
+            iteration=2,
+            step_id="step-1",
+            model="openai",
+            action_type="shell",
+            action_signature='{"type":"shell"}',
+            success=False,
+            observation="quota",
+            error_type="api_failure",
+        )
+
+        rendered = memory.model_usage_summary()
+
+        self.assertIn("Model usage:", rendered)
+        self.assertIn("local: calls=1 failures=0 steps=1 cost_tier=free/local", rendered)
+        self.assertIn("openai: calls=1 failures=1 steps=1 cost_tier=high", rendered)
+        self.assertIn("Budget policy: prefer local", rendered)
+
     def test_tool_transcript_is_persisted_and_rendered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / ".stagewarden_memory.json"

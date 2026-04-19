@@ -154,6 +154,33 @@ class MemoryStore:
             )
         return "\n".join(lines)
 
+    def model_usage_summary(self) -> str:
+        if not self.attempts:
+            return "Model usage:\n- no model attempts recorded"
+        cost_tiers = {
+            "local": "free/local",
+            "cheap": "low",
+            "chatgpt": "plan",
+            "openai": "high",
+            "claude": "high/fallback",
+        }
+        counts: dict[str, int] = {}
+        failures: dict[str, int] = {}
+        steps: dict[str, set[str]] = {}
+        for attempt in self.attempts:
+            counts[attempt.model] = counts.get(attempt.model, 0) + 1
+            steps.setdefault(attempt.model, set()).add(attempt.step_id)
+            if not attempt.success:
+                failures[attempt.model] = failures.get(attempt.model, 0) + 1
+        lines = ["Model usage:"]
+        for model in sorted(counts, key=lambda item: (cost_tiers.get(item, "unknown"), item)):
+            lines.append(
+                f"- {model}: calls={counts[model]} failures={failures.get(model, 0)} "
+                f"steps={len(steps.get(model, set()))} cost_tier={cost_tiers.get(model, 'unknown')}"
+            )
+        lines.append("Budget policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.")
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "attempts": [asdict(item) for item in self.attempts],
