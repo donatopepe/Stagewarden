@@ -107,7 +107,7 @@ class TraceAndCliTests(unittest.TestCase):
             os.environ["RUN_MODEL_BIN"] = "/Users/donato/Stagewarden/run_model_stub"
             try:
                 config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=6)
-                input_stream = StringIO("create a file named hello.txt\nquit\n")
+                input_stream = StringIO("create a file named hello.txt\ntranscript\nquit\n")
                 output_stream = StringIO()
                 code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
             finally:
@@ -118,6 +118,10 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
+            rendered = output_stream.getvalue()
+            self.assertIn("Tool transcript:", rendered)
+            self.assertIn("tool=files", rendered)
+            self.assertIn("action=write_file", rendered)
 
     def test_interactive_shell_permission_ask_can_be_approved_for_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from stagewarden.memory import MemoryStore
 
@@ -34,6 +36,28 @@ class MemoryTests(unittest.TestCase):
             observation="done",
         )
         self.assertIn("step=step-1", memory.summarize())
+
+    def test_tool_transcript_is_persisted_and_rendered(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / ".stagewarden_memory.json"
+            memory = MemoryStore()
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="shell",
+                action_type="shell",
+                success=True,
+                summary="python3 -m unittest",
+                detail="exit_code=0",
+                duration_ms=12,
+            )
+            memory.save(path)
+            loaded = MemoryStore.load(path)
+            rendered = loaded.transcript_summary()
+            self.assertIn("Tool transcript:", rendered)
+            self.assertIn("tool=shell", rendered)
+            self.assertIn("summary=python3 -m unittest", rendered)
+            self.assertIn("detail=exit_code=0", rendered)
 
 
 if __name__ == "__main__":
