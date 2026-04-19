@@ -226,6 +226,8 @@ Handoff tracking:
 - `todo` prints the current implementation backlog derived from the active PRINCE2 plan and kept in sync while the agent runs.
 - The handoff backlog now uses normalized lifecycle states: `planned`, `ready`, `in_progress`, `blocked`, and `done`.
 - `blocked` backlog items surface alongside exception handling so the shell can distinguish a blocked stage from a clean ready queue.
+- The planner now promotes the first executable stage to `ready`, keeps later stages as `planned`, and the agent loop only starts stages that are `ready` or already `in_progress`.
+- When a stage completes under control, the next `planned` stage is promoted automatically to `ready`.
 
 Account profiles:
 
