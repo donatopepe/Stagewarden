@@ -977,24 +977,78 @@ def _render_risks(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_risks()
 
 
+def _risks_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "risks",
+        "count": len(handoff.risk_register),
+        "items": list(handoff.risk_register),
+    }
+
+
 def _render_issues(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_issues()
+
+
+def _issues_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "issues",
+        "count": len(handoff.issue_register),
+        "items": list(handoff.issue_register),
+    }
 
 
 def _render_quality(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_quality()
 
 
+def _quality_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "quality",
+        "count": len(handoff.quality_register),
+        "items": list(handoff.quality_register),
+    }
+
+
 def _render_exception(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_exception_plan()
+
+
+def _exception_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "exception",
+        "count": len(handoff.exception_plan),
+        "items": list(handoff.exception_plan),
+    }
 
 
 def _render_lessons(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_lessons()
 
 
+def _lessons_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "lessons",
+        "count": len(handoff.lessons_log),
+        "items": list(handoff.lessons_log),
+    }
+
+
 def _render_todo(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_implementation_backlog()
+
+
+def _todo_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "todo",
+        "count": len(handoff.implementation_backlog),
+        "items": list(handoff.implementation_backlog),
+    }
 
 
 def _render_transcript(config: AgentConfig) -> str:
@@ -1899,6 +1953,42 @@ def main() -> int:
             print(dumps_ascii(_boundary_report(config), indent=2))
         else:
             print(_render_boundary(config))
+        return 0
+    if task == "risks":
+        if args.json:
+            print(dumps_ascii(_risks_report(config), indent=2))
+        else:
+            print(_render_risks(config))
+        return 0
+    if task == "issues":
+        if args.json:
+            print(dumps_ascii(_issues_report(config), indent=2))
+        else:
+            print(_render_issues(config))
+        return 0
+    if task == "quality":
+        if args.json:
+            print(dumps_ascii(_quality_report(config), indent=2))
+        else:
+            print(_render_quality(config))
+        return 0
+    if task == "exception":
+        if args.json:
+            print(dumps_ascii(_exception_report(config), indent=2))
+        else:
+            print(_render_exception(config))
+        return 0
+    if task == "lessons":
+        if args.json:
+            print(dumps_ascii(_lessons_report(config), indent=2))
+        else:
+            print(_render_lessons(config))
+        return 0
+    if task == "todo":
+        if args.json:
+            print(dumps_ascii(_todo_report(config), indent=2))
+        else:
+            print(_render_todo(config))
         return 0
     if task in {"transcript", "trace"}:
         if args.json:

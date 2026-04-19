@@ -356,6 +356,48 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["stage_view"]["boundary_decision"], "review_boundary:exception_plan")
             self.assertEqual(payload["stage_view"]["recovery_state"], "exception_active")
 
+    def test_register_cli_json_outputs_are_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-3",
+                "current_step_status": "in_progress",
+                "risk_register": [{"risk": "Regression from patch execution", "status": "open"}],
+                "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}],
+                "quality_register": [{"step_id": "step-2", "status": "passed", "evidence": "file updated"}],
+                "lessons_log": [{"step_id": "step-2", "type": "success", "lesson": "file update pattern is reusable"}],
+                "exception_plan": ["review boundary for step-3"],
+                "implementation_backlog": [
+                    {"step_id": "step-1", "title": "Inspect tests", "status": "done", "validation": "Real command output captured."}
+                ],
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            risks = json.loads(run_main_capture(root, "risks", "--json").stdout)
+            issues = json.loads(run_main_capture(root, "issues", "--json").stdout)
+            quality = json.loads(run_main_capture(root, "quality", "--json").stdout)
+            exception = json.loads(run_main_capture(root, "exception", "--json").stdout)
+            lessons = json.loads(run_main_capture(root, "lessons", "--json").stdout)
+            todo = json.loads(run_main_capture(root, "todo", "--json").stdout)
+
+            self.assertEqual(risks["command"], "risks")
+            self.assertEqual(risks["count"], 1)
+            self.assertEqual(risks["items"][0]["risk"], "Regression from patch execution")
+            self.assertEqual(issues["command"], "issues")
+            self.assertEqual(issues["items"][0]["summary"], "validation pending")
+            self.assertEqual(quality["command"], "quality")
+            self.assertEqual(quality["items"][0]["evidence"], "file updated")
+            self.assertEqual(exception["command"], "exception")
+            self.assertEqual(exception["items"][0], "review boundary for step-3")
+            self.assertEqual(lessons["command"], "lessons")
+            self.assertEqual(lessons["items"][0]["lesson"], "file update pattern is reusable")
+            self.assertEqual(todo["command"], "todo")
+            self.assertEqual(todo["items"][0]["title"], "Inspect tests")
+
     def test_interactive_shell_doctor_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)

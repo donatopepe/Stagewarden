@@ -514,6 +514,19 @@ Validation:
 
 - CLI tests parse status JSON and boundary JSON output and verify mode, stage view, and boundary decisions.
 
+### Register JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `risks`, `issues`, `quality`, `exception`, `lessons`, and `todo` with `--json`.
+- Outputs expose raw PRINCE2 registers and implementation backlog directly from runtime handoff state.
+
+Validation:
+
+- CLI tests parse register/backlog JSON output and verify representative fields for each command.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
