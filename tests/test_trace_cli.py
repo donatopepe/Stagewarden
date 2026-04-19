@@ -247,6 +247,52 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("API key: yes", rendered)
             self.assertIn("Prefer OPENAI_API_KEY", rendered)
 
+    def test_interactive_shell_manages_persistent_shell_sessions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO(
+                "sessions\n"
+                "session create\n"
+                "session list\n"
+                "session send last pwd\n"
+                "session close last\n"
+                "session list\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("No active shell sessions.", rendered)
+            self.assertIn("shell_session_created id=", rendered)
+            self.assertIn("state=running", rendered)
+            self.assertIn("session_id=", rendered)
+            self.assertIn("exit_code=0", rendered)
+            self.assertIn(str(root), rendered)
+            self.assertIn("shell_session_closed id=", rendered)
+
+    def test_interactive_shell_enforces_permission_inside_shell_session(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO(
+                "permission session mode plan\n"
+                "session create\n"
+                "session send last python3 -c \"open('out.txt','w').write('x')\"\n"
+                "session close last\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Session permission mode set to plan.", rendered)
+            self.assertIn("Plan mode allows analysis only.", rendered)
+            self.assertFalse((root / "out.txt").exists())
+
     def test_interactive_shell_manages_model_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

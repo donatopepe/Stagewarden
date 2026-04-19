@@ -91,6 +91,14 @@ def interactive_help_text() -> str:
             "  Clear all temporary session permission overrides.",
             "- permission reset",
             "  Reset workspace permission settings to defaults.",
+            "- sessions | session list",
+            "  List active persistent shell sessions in this process.",
+            "- session create [cwd]",
+            "  Start a persistent shell session in the workspace or relative cwd.",
+            "- session send <id|last> <command>",
+            "  Execute one command inside a persistent shell session with normal permission checks.",
+            "- session close <id|last>",
+            "  Close a persistent shell session.",
             "- commands",
             "  Alias for help.",
             "",
@@ -975,6 +983,54 @@ def _handle_git_command(command: str, config: AgentConfig) -> str | None:
     return "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]"
 
 
+def _handle_shell_session_command(command: str, agent: Agent) -> str | None:
+    parts = command.split(maxsplit=3)
+    if not parts:
+        return None
+    if parts[0] == "sessions":
+        result = agent.executor.shell.list_sessions()
+        return result.output_preview or result.error
+    if parts[0] != "session":
+        return None
+    if len(parts) < 2:
+        return "Usage: session create [cwd] | session list | session send <id|last> <command> | session close <id|last>"
+
+    action = parts[1]
+    if action == "list":
+        result = agent.executor.shell.list_sessions()
+        return result.output_preview or result.error
+    if action == "create":
+        cwd = parts[2] if len(parts) >= 3 else None
+        result = agent.executor.shell.create_session(cwd=cwd)
+        return result.output_preview or result.error
+    if action == "send":
+        if len(parts) != 4:
+            return "Usage: session send <id|last> <command>"
+        session_id = _resolve_shell_session_id(agent, parts[2])
+        if session_id is None:
+            return "Unknown shell session."
+        result = agent.executor.shell.send_session(session_id, parts[3])
+        return result.output_preview or result.error
+    if action == "close":
+        if len(parts) != 3:
+            return "Usage: session close <id|last>"
+        session_id = _resolve_shell_session_id(agent, parts[2])
+        if session_id is None:
+            return "Unknown shell session."
+        result = agent.executor.shell.close_session(session_id)
+        return result.output_preview or result.error
+    return "Usage: session create [cwd] | session list | session send <id|last> <command> | session close <id|last>"
+
+
+def _resolve_shell_session_id(agent: Agent, requested: str) -> str | None:
+    sessions = agent.executor.shell.sessions
+    if requested == "last":
+        if not sessions:
+            return None
+        return next(reversed(sessions))
+    return requested if requested in sessions else None
+
+
 def _parse_limit(raw: str, *, default: int) -> int:
     if not raw:
         return default
@@ -1170,6 +1226,11 @@ def run_interactive_shell(
         git_message = _handle_git_command(command, config)
         if git_message is not None:
             sink.write(f"{git_message}\n")
+            sink.flush()
+            continue
+        shell_session_message = _handle_shell_session_command(command, agent)
+        if shell_session_message is not None:
+            sink.write(f"{shell_session_message}\n")
             sink.flush()
             continue
 

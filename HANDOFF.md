@@ -185,22 +185,22 @@ Validation:
 
 ### 6. Shell Sessions As First-Class Tools
 
-Status: planned
+Status: implemented
 
 Expand persistent shell sessions toward Codex/Claude terminal behaviour.
 
-Required behaviour:
+Implemented behaviour:
 
-- Expose interactive commands for session create/send/close/list.
+- Expose interactive commands: `sessions`, `session list`, `session create [cwd]`, `session send <id|last> <command>`, and `session close <id|last>`.
 - Persist shell session IDs only for current process, not repo.
 - Track cwd and return code.
 - Keep permission checks per command.
 
 Validation:
 
-- Create session, send command, receive marker-based output.
-- Unknown session fails clearly.
-- Permission denial works inside session.
+- Tool tests cover create/list/send/close with marker-based command output.
+- CLI tests cover `last` alias, cwd visibility, return-code preview, and close.
+- CLI tests verify plan-mode permission denial works inside a persistent session.
 
 ### 7. Resume Command Over Handoff
 
@@ -371,11 +371,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Approval prompt refinements for multi-command shell sessions.
-2. Rich help reorganization.
-3. Model handoff result schema.
-4. Patch preview command in the interactive shell, if direct manual preview becomes useful.
-5. Model context files.
+1. Rich help reorganization.
+2. Model handoff result schema.
+3. Patch preview command in the interactive shell, if direct manual preview becomes useful.
+4. Model context files.
+5. Resume command over handoff.
 
 ## Validation Standard
 

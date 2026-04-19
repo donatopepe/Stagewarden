@@ -135,6 +135,21 @@ class ToolTests(unittest.TestCase):
             closed = tool.close_session(session_id)
             self.assertTrue(closed.ok)
 
+    def test_shell_tool_lists_persistent_sessions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))
+            empty = tool.list_sessions()
+            self.assertTrue(empty.ok)
+            self.assertIn("No active shell sessions", empty.output_preview)
+
+            created = tool.create_session()
+            self.assertTrue(created.ok)
+            listed = tool.list_sessions()
+            self.assertTrue(listed.ok)
+            self.assertIn(created.session_id, listed.output_preview)
+            self.assertIn("state=running", listed.output_preview)
+            self.assertTrue(tool.close_session(created.session_id).ok)
+
     def test_file_tool_patch_files_add_update_delete(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
