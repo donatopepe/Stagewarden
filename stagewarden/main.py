@@ -898,6 +898,19 @@ def _render_transcript(config: AgentConfig) -> str:
         return "No tool transcript."
 
 
+def _transcript_report(config: AgentConfig) -> dict[str, object]:
+    try:
+        return {
+            "command": "transcript",
+            "report": MemoryStore.load(config.memory_path).transcript_report(),
+        }
+    except (OSError, ValueError, TypeError):
+        return {
+            "command": "transcript",
+            "report": MemoryStore().transcript_report(),
+        }
+
+
 def _render_model_usage(config: AgentConfig) -> str:
     try:
         return MemoryStore.load(config.memory_path).model_usage_summary()
@@ -1768,6 +1781,12 @@ def main() -> int:
         else:
             print(rendered)
         return 0 if _doctor_ok(rendered) else 1
+    if task in {"transcript", "trace"}:
+        if args.json:
+            print(dumps_ascii(_transcript_report(config), indent=2))
+        else:
+            print(_render_transcript(config))
+        return 0
     if task in {"models usage", "cost"}:
         if args.json:
             print(dumps_ascii(_model_usage_report(config), indent=2))

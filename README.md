@@ -244,6 +244,7 @@ Project handoff:
 Tool transcript:
 
 - `transcript` or `trace` shows recent tool invocations from workspace memory.
+- `stagewarden transcript --json` emits the recent tool transcript in machine-readable form.
 - Transcript entries are persisted in `.stagewarden_memory.json` using LJSON.
 
 Persistent shell sessions:

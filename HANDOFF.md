@@ -472,6 +472,20 @@ Validation:
 
 - CLI tests parse the JSON output and verify totals, failures, and escalation path.
 
+### Transcript JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden transcript --json` and `stagewarden trace --json`.
+- The JSON output exposes recent transcript entries from persisted workspace memory without parsing the text renderer.
+
+Validation:
+
+- Memory tests cover machine-readable transcript reports.
+- CLI tests parse transcript JSON output and verify stored entry fields.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
