@@ -86,6 +86,8 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertTrue(result.ok)
             self.assertTrue((root / "hello.txt").exists())
             self.assertTrue((root / ".git").exists())
+            self.assertIn("Governance status:", result.message)
+            self.assertIn("governance=clean", result.message)
             self.assertIn("Stage boundary:", result.message)
             self.assertIn("boundary_decision:", result.message)
             log = subprocess.run(
@@ -117,6 +119,8 @@ class AgentIntegrationTests(unittest.TestCase):
                     os.environ["RUN_MODEL_BIN"] = original
 
             self.assertFalse(result.ok)
+            self.assertIn("Governance status:", result.message)
+            self.assertIn("governance=residual", result.message)
             self.assertIn("Stage boundary:", result.message)
             self.assertIn("exception_plan:", result.message)
 
@@ -198,6 +202,7 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertTrue(all(item.get("status") == "closed" for item in saved.risk_register))
             self.assertTrue(all(item.get("status") == "accepted" for item in saved.quality_register))
             self.assertEqual(saved.exception_plan, [])
+            self.assertIn("governance=clean", result.message)
 
 
 if __name__ == "__main__":
