@@ -535,6 +535,82 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _permissions_report(config: AgentConfig) -> dict[str, object]:
+    workspace_settings = PermissionSettings.load(config.settings_path)
+    session_settings = config.session_permission_settings
+    effective_settings = workspace_settings.merged(session_settings)
+    return {
+        "workspace": {
+            "mode": workspace_settings.default_mode,
+            "allow": list(workspace_settings.allow),
+            "ask": list(workspace_settings.ask),
+            "deny": list(workspace_settings.deny),
+        },
+        "session": {
+            "mode": None if session_settings is None else session_settings.default_mode,
+            "allow": [] if session_settings is None else list(session_settings.allow),
+            "ask": [] if session_settings is None else list(session_settings.ask),
+            "deny": [] if session_settings is None else list(session_settings.deny),
+        },
+        "effective": {
+            "mode": effective_settings.default_mode,
+            "allow": list(effective_settings.allow),
+            "ask": list(effective_settings.ask),
+            "deny": list(effective_settings.deny),
+        },
+    }
+
+
+def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    status = agent.router.status()
+    models: list[dict[str, object]] = []
+    for model in SUPPORTED_MODELS:
+        capability = provider_capability(model)
+        models.append(
+            {
+                "model": model,
+                "enabled": model in status["enabled_models"],
+                "active": model in status["active_models"],
+                "preferred": status["preferred_model"] == model,
+                "blocked_until": status["blocked_until_by_model"].get(model),
+                "variant": prefs.variant_for_model(model) or "provider-default",
+                "auth": capability.auth_type,
+                "profiles": capability.supports_account_profiles,
+                "backend": MODEL_BACKENDS[model]["label"],
+            }
+        )
+    return {
+        "models": models,
+        "preferred_model": status["preferred_model"],
+    }
+
+
+def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    _apply_model_preferences(agent, config)
+    caveman_state = agent.caveman.load_state(config)
+    mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "status",
+        "workspace": str(config.workspace_root),
+        "mode": mode,
+        "files": {
+            "memory": config.memory_path.name,
+            "trace": config.trace_path.name,
+            "handoff": config.handoff_path.name,
+            "model_config": config.model_prefs_path.name,
+        },
+        "models": _model_status_report(agent, config),
+        "permissions": _permissions_report(config),
+        "handoff": {
+            "summary": handoff.summary(),
+            "operational_posture": handoff.rendered_operational_posture(),
+            "stage_view": handoff.stage_view(),
+        },
+    }
+
+
 def _doctor_report(config: AgentConfig) -> dict[str, object]:
     python_ok = sys.version_info >= (3, 11)
     report: dict[str, object] = {
@@ -861,6 +937,14 @@ def _render_boundary(config: AgentConfig) -> str:
             handoff.rendered_stage_view(),
         ]
     )
+
+
+def _boundary_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "boundary",
+        "stage_view": handoff.stage_view(),
+    }
 
 
 def _render_permissions(config: AgentConfig) -> str:
@@ -1803,6 +1887,19 @@ def main() -> int:
         else:
             print(rendered)
         return 0 if _doctor_ok(rendered) else 1
+    if task == "status":
+        agent = _configure_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_status_report(agent, config), indent=2))
+        else:
+            print(_render_status(agent, config))
+        return 0
+    if task == "boundary":
+        if args.json:
+            print(dumps_ascii(_boundary_report(config), indent=2))
+        else:
+            print(_render_boundary(config))
+        return 0
     if task in {"transcript", "trace"}:
         if args.json:
             print(dumps_ascii(_transcript_report(config), indent=2))
