@@ -580,6 +580,20 @@ Validation:
 
 - CLI tests parse sessions JSON output and verify the empty-state contract.
 
+### Handoff Export and Resume-Clear JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden "handoff export" --json` and `stagewarden "handoff md" --json`.
+- Non-interactive CLI now supports `stagewarden "resume --clear" --json`.
+- Outputs expose target/archive path and operation outcome for automation workflows.
+
+Validation:
+
+- CLI tests parse export/reset JSON output and verify target/archive metadata.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
