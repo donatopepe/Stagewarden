@@ -329,6 +329,51 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("models", payload)
             self.assertIn("permissions", payload)
 
+    def test_models_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.preferred_model = "cheap"
+            prefs.enabled_models = ["local", "cheap"]
+            prefs.set_variant("cheap", "provider-default")
+            prefs.save(root / ".stagewarden_models.json")
+            completed = run_main_capture(root, "models", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "models")
+            self.assertEqual(payload["preferred_model"], "cheap")
+            models = {item["model"]: item for item in payload["models"]}
+            self.assertTrue(models["cheap"]["enabled"])
+            self.assertTrue(models["cheap"]["preferred"])
+
+    def test_accounts_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            store = root / "secrets"
+            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
+            try:
+                prefs = ModelPreferences.default()
+                prefs.add_account("openai", "lavoro", "OPENAI_API_KEY_WORK")
+                prefs.set_active_account("openai", "lavoro")
+                prefs.save(root / ".stagewarden_models.json")
+                SecretStore().save_token("openai", "lavoro", "secret-token")
+                completed = run_main_capture(root, "accounts", "--json")
+            finally:
+                if original_store is None:
+                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
+                else:
+                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "accounts")
+            self.assertEqual(payload["models"][0]["model"], "openai")
+            self.assertEqual(payload["models"][0]["accounts"][0]["name"], "lavoro")
+            self.assertTrue(payload["models"][0]["accounts"][0]["active"])
+            self.assertTrue(payload["models"][0]["accounts"][0]["token_stored"])
+
     def test_boundary_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -211,6 +211,7 @@ Interactive help is topic-based: `help` shows compact categories, while `help mo
 Model control:
 
 - `models` shows enabled, active, preferred, blocked, and backend state.
+- `stagewarden models --json` exposes the same model routing state in machine-readable form.
 - `models usage` or `cost` shows persisted model call counts, failures, step coverage, cost tiers, and the routing budget policy.
 - `stagewarden "models usage" --json` emits the same data in machine-readable form.
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
@@ -248,6 +249,7 @@ Tool transcript:
 
 - `transcript` or `trace` shows recent tool invocations from workspace memory.
 - `stagewarden transcript --json` emits the recent tool transcript in machine-readable form.
+- `stagewarden accounts --json` exposes configured provider profiles, active account, token-store state, and env mapping.
 - Transcript entries are persisted in `.stagewarden_memory.json` using LJSON.
 
 Persistent shell sessions:

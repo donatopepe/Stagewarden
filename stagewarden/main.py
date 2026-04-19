@@ -513,6 +513,30 @@ def _render_accounts(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _accounts_report(config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    models: list[dict[str, object]] = []
+    for model in SUPPORTED_MODELS:
+        accounts = []
+        for account in (prefs.accounts_by_model or {}).get(model, []):
+            key = account_key(model, account)
+            accounts.append(
+                {
+                    "name": account,
+                    "active": (prefs.active_account_by_model or {}).get(model) == account,
+                    "blocked_until": (prefs.blocked_until_by_account or {}).get(key),
+                    "env": (prefs.env_var_by_account or {}).get(key),
+                    "token_stored": SecretStore().has_token(model, account),
+                }
+            )
+        if accounts:
+            models.append({"model": model, "accounts": accounts})
+    return {
+        "command": "accounts",
+        "models": models,
+    }
+
+
 def _render_status(agent: Agent, config: AgentConfig) -> str:
     _apply_model_preferences(agent, config)
     caveman_state = agent.caveman.load_state(config)
@@ -581,6 +605,7 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
             }
         )
     return {
+        "command": "models",
         "models": models,
         "preferred_model": status["preferred_model"],
     }
@@ -1947,6 +1972,19 @@ def main() -> int:
             print(dumps_ascii(_status_report(agent, config), indent=2))
         else:
             print(_render_status(agent, config))
+        return 0
+    if task == "models":
+        agent = _configure_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_model_status_report(agent, config), indent=2))
+        else:
+            print(_render_model_status(agent, config))
+        return 0
+    if task == "accounts":
+        if args.json:
+            print(dumps_ascii(_accounts_report(config), indent=2))
+        else:
+            print(_render_accounts(config))
         return 0
     if task == "boundary":
         if args.json:
