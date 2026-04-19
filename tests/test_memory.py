@@ -64,7 +64,34 @@ class MemoryTests(unittest.TestCase):
         self.assertIn("Model usage:", rendered)
         self.assertIn("local: calls=1 failures=0 steps=1 cost_tier=free/local", rendered)
         self.assertIn("openai: calls=1 failures=1 steps=1 cost_tier=high", rendered)
-        self.assertIn("Budget policy: prefer local", rendered)
+
+    def test_budget_summary_reports_policy_usage_and_highest_tier(self) -> None:
+        memory = MemoryStore()
+        memory.record_attempt(
+            iteration=1,
+            step_id="step-1",
+            model="local",
+            action_type="complete",
+            action_signature="a",
+            success=True,
+            observation="ok",
+        )
+        memory.record_attempt(
+            iteration=2,
+            step_id="step-2",
+            model="openai",
+            action_type="write_file",
+            action_signature="b",
+            success=False,
+            observation="fail",
+            error_type="runtime",
+        )
+        rendered = memory.budget_summary()
+        self.assertIn("Cost and budget:", rendered)
+        self.assertIn("policy: prefer local, then cheap", rendered)
+        self.assertIn("usage: local=1, openai=1", rendered)
+        self.assertIn("highest_tier_used: high (openai)", rendered)
+        self.assertIn("failed_model_calls: 1", rendered)
 
     def test_tool_transcript_is_persisted_and_rendered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
