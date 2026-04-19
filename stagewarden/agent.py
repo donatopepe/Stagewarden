@@ -287,6 +287,8 @@ class Agent:
                 )
                 if outcome.step_completed:
                     self._promote_next_ready_step(plan)
+                    if current.id.startswith("recovery-step-"):
+                        self._close_recovery_gate_if_ready(plan, outcome.observation)
                     self.project_handoff.close_issues_for_step(
                         step_id=current.id,
                         resolution="step completed with wet-run evidence",
@@ -454,6 +456,23 @@ class Agent:
             if step.status == "planned":
                 step.status = "ready"
                 return
+
+    def _close_recovery_gate_if_ready(self, plan: list[PlanStep], observation: str) -> None:
+        recovery_steps = [step for step in plan if step.id.startswith("recovery-step-")]
+        if not recovery_steps:
+            return
+        if any(step.status != "completed" for step in recovery_steps):
+            return
+        resolution = f"recovery lane completed with wet-run evidence: {observation[:180]}"
+        for step in plan:
+            if step.id.startswith("recovery-step-"):
+                continue
+            if step.status == "failed":
+                step.status = "completed"
+        self.project_handoff.close_all_open_issues(resolution=resolution)
+        self.project_handoff.close_all_open_risks(resolution=resolution)
+        self.project_handoff.clear_exception_plan_if_recovered()
+        self._promote_next_ready_step(plan)
 
     def _handle_caveman_command(self, directive: CavemanDirective) -> AgentResult | None:
         if directive.command == "help":

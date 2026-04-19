@@ -204,6 +204,49 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertEqual(saved.exception_plan, [])
             self.assertIn("governance=clean", result.message)
 
+    def test_agent_closes_recovery_gate_after_recovery_lane_wet_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_success_stub(root)
+            handoff = ProjectHandoff(
+                task="inspect the repo and implement a fix and validate the result",
+                status="exception",
+                current_step_id="step-2",
+                current_step_title="2. Implement a fix",
+                current_step_status="failed",
+                latest_observation="tests failed after patch",
+                plan_status="step-1:completed,step-2:failed,step-3:planned",
+                risk_register=[
+                    {"risk": "regression remains after failed patch", "status": "open"},
+                ],
+                issue_register=[
+                    {"step_id": "step-2", "severity": "high", "summary": "tests still failing", "status": "open"},
+                ],
+                exception_plan=["review failing test output", "prepare corrective patch"],
+            )
+            handoff.save(root / ".stagewarden_handoff.json")
+
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                agent = Agent(AgentConfig(workspace_root=root, max_steps=10, verbose=False))
+                result = agent.run("inspect the repo and implement a fix and validate the result")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertTrue(result.ok)
+            saved = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(saved.exception_plan, [])
+            self.assertTrue(all(item.get("status") == "closed" for item in saved.issue_register))
+            self.assertTrue(all(item.get("status") == "closed" for item in saved.risk_register))
+            self.assertIn("recovery-step-1:completed", saved.plan_status)
+            self.assertIn("recovery-step-2:completed", saved.plan_status)
+            self.assertIn("step-2:completed", saved.plan_status)
+            self.assertIn("step-3:completed", saved.plan_status)
+
 
 if __name__ == "__main__":
     unittest.main()
