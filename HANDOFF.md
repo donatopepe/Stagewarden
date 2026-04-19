@@ -19,6 +19,8 @@ The working rule is PRINCE2-style controlled execution:
 - require wet-run validation
 - create recovery lanes for exception paths
 - keep model handoff context available without requiring manual resume
+- adapt governance to task size and risk: small work stays lightweight, complex work gets stronger controls
+- reduce ceremony, never principles
 
 ## Current Baseline
 
@@ -31,6 +33,9 @@ The working rule is PRINCE2-style controlled execution:
 - Runtime permission config: `.stagewarden_settings.json`
 - Runtime trace: `.stagewarden_trace.ljson`
 - Runtime PRINCE2 PID: `.stagewarden_prince2_pid.json`
+- Agent manifesto: `AGENT_MANIFESTO.md`
+- Agent policy: `AGENT_POLICY.md`
+- Machine-readable policy: `AGENT_POLICY.json`
 
 Latest pushed baseline at the time of this handoff:
 

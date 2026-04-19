@@ -8,6 +8,12 @@ Licenza: MIT
 
 Stagewarden is a production-grade CLI coding agent for controlled software delivery, with Codex-style agent loops, multi-model routing, PRINCE2-aligned governance, structured traces, and safe file/shell execution.
 
+Agent policy artifacts:
+
+- `AGENT_MANIFESTO.md`: short operating manifesto
+- `AGENT_POLICY.md`: formal human-readable policy
+- `AGENT_POLICY.json`: machine-readable policy baseline
+
 Caratteristiche principali:
 
 - iterative agent loop
@@ -74,6 +80,8 @@ Minimal example:
 PRINCE2 handoff behavior:
 
 - Stagewarden treats handoff as the live project context, not as an optional resume command.
+- Stagewarden applies PRINCE2 adaptively: small tasks use the lightest viable governance, while complex or risky work increases staged control, validation evidence, and formal checkpoints.
+- The agent does not drop PRINCE2 principles on small tasks; it reduces ceremony, not control intent.
 - The agent plans in the handoff context, executes one controlled action, updates the same handoff, and records the current `git HEAD`.
 - The handoff file is persisted as `.stagewarden_handoff.json`.
 - Resume is implicit: each new run inherits the latest project handoff context for the workspace.
