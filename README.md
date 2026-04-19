@@ -91,6 +91,7 @@ PRINCE2 handoff behavior:
 - `stagewarden board --json` or `stagewarden "stage review" --json` exposes the PRINCE2 board-level authorization recommendation.
 - `stagewarden overview --json` aggregates status, board review, handoff, transcript, and model-usage signals into a single machine-readable snapshot.
 - `stagewarden health --json` exposes a compact readiness snapshot for automation: authorization, boundary decision, open controls, recovery state, and minimal model/transcript signals.
+- `stagewarden report --json` exposes a compact closure/shareable summary with governance state, next action, recent lessons, backlog preview, and model activity.
 - `stagewarden risks|issues|quality|exception|lessons|todo --json` exposes PRINCE2 registers and backlog in machine-readable form.
 - The executor prompt also includes the active PRINCE2 registers: risks, issues, quality evidence, lessons learned, and any current exception plan.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
@@ -149,10 +150,13 @@ stagewarden doctor
 stagewarden doctor --json
 stagewarden health
 stagewarden health --json
+stagewarden report
+stagewarden report --json
 ```
 
 `doctor` validates Python 3.11+, Git availability, PATH launcher visibility, repository state, and provider capabilities/token env expectations without installing anything or initializing git. Use `stagewarden doctor --json` for machine-readable automation output.
 `health` is the compact operational variant for scripts and dashboards when `overview` is too broad and `board` is not enough.
+`report` is the shareable operator summary for issue updates, project closure notes, or quick GitHub-ready status text.
 
 Shell execution:
 
@@ -190,6 +194,7 @@ stagewarden> model block openai until 2026-05-01T18:30
 stagewarden> model unblock openai
 stagewarden> status
 stagewarden> health
+stagewarden> report
 stagewarden> boundary
 stagewarden> risks
 stagewarden> issues

@@ -617,8 +617,6 @@ Validation:
   add per-step checkpoint commits with explicit PRINCE2 boundary annotations.
 - Provider/account resilience:
   improve profile rotation and fallback when one account or model family is blocked.
-- Report ergonomics:
-  add a final `report` command suitable for GitHub issues, summaries, and project closure notes.
 
 ### Caveman Help Snapshot
 
@@ -634,6 +632,22 @@ Validation:
 - CLI test verifies Caveman help still exposes levels, aliases, and review/commit/compress commands.
 
 ## Recently Completed
+
+### Project Report Command
+
+Status: implemented
+
+Implemented behaviour:
+
+- Added `report` as a compact human-readable summary for issue updates, project closure notes, and operator handoff.
+- Added `stagewarden report --json` as a machine-readable summary with task, project status, stage health, governance status, authorization recommendation, next action, open controls, model activity, recent lessons, and backlog preview.
+- Interactive shell now supports `report`.
+- README now documents `report` together with `overview`, `health`, and `board`.
+
+Validation:
+
+- CLI tests parse `report` JSON output and verify task, authorization, issue count, model calls, lessons, and backlog preview.
+- Interactive shell tests verify `report` rendering and backlog visibility.
 
 ### Interactive Shell History And Completion
 

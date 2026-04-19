@@ -524,6 +524,62 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["model_failures"], 1)
             self.assertEqual(payload["transcript_entries"], 1)
 
+    def test_report_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-3",
+                "current_step_status": "in_progress",
+                "plan_status": "step-1:completed,step-2:completed,step-3:in_progress",
+                "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}],
+                "implementation_backlog": [
+                    {"step_id": "next-step", "title": "add release note", "status": "ready", "validation": "release note written"},
+                    {"step_id": "later-step", "title": "finalize smoke test", "status": "planned", "validation": "smoke test passed"},
+                ],
+                "lessons_log": [
+                    {"type": "success", "step_id": "step-2", "lesson": "reuse the stable patch pattern"},
+                ],
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="local",
+                action_type="complete",
+                action_signature="a",
+                success=True,
+                observation="ok",
+            )
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="shell",
+                action_type="shell",
+                success=True,
+                summary="pwd",
+                detail="exit_code=0",
+                duration_ms=10,
+            )
+            memory.save(root / ".stagewarden_memory.json")
+            completed = run_main_capture(root, "report", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "report")
+            self.assertEqual(payload["task"], "fix failing tests")
+            self.assertEqual(payload["recommended_authorization"], "review")
+            self.assertEqual(payload["open_issues"], 1)
+            self.assertEqual(payload["model_calls"], 1)
+            self.assertIn("reuse the stable patch pattern", payload["recent_lessons"][0])
+            self.assertIn("add release note", payload["backlog_preview"][0])
+            self.assertIn("finalize smoke test", payload["backlog_preview"][1])
+
     def test_interactive_completion_candidates_include_core_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
@@ -1355,6 +1411,41 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Health check:", rendered)
             self.assertIn("ready: true", rendered)
             self.assertIn("recommended_authorization: close", rendered)
+
+    def test_interactive_shell_renders_report_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-3",
+                "current_step_title": "Validate result",
+                "current_step_status": "in_progress",
+                "latest_observation": "wet-run pending",
+                "plan_status": "step-1:completed,step-2:completed,step-3:in_progress",
+                "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}],
+                "implementation_backlog": [
+                    {"step_id": "next-step", "title": "add release note", "status": "ready", "validation": "release note written"},
+                ],
+                "lessons_log": [
+                    {"type": "success", "step_id": "step-2", "lesson": "reuse the stable patch pattern"},
+                ],
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("report\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Project report:", rendered)
+            self.assertIn("recommended_authorization: review", rendered)
+            self.assertIn("Backlog preview:", rendered)
+            self.assertIn("add release note", rendered)
 
     def test_interactive_shell_resume_show_uses_current_handoff_step(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
