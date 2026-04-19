@@ -165,22 +165,23 @@ Validation:
 
 ### 5. Provider Capability Registry
 
-Status: planned
+Status: implemented
 
 Move model/provider capabilities into a registry closer to Claude/Codex provider abstractions.
 
-Required behaviour:
+Implemented behaviour:
 
-- Store provider capabilities: auth type, model aliases, default model, context assumptions, supports account profiles, supports browser login, supports API key.
-- Use registry for `model list`, routing, login hints, and fallback.
-- Separate `chatgpt` plan login semantics from OpenAI API key semantics.
+- Provider capabilities are centralized in `stagewarden/provider_registry.py`: auth type, model aliases, default model, context assumptions, account profiles, browser login, API-key support, env vars, URLs, and login hints.
+- `handoff.py`, `modelprefs.py`, `router.py`, `secrets.py`, and CLI model/account rendering consume the registry.
+- `model list` now shows capability metadata in addition to variants.
+- `chatgpt` plan login semantics are explicitly separate from OpenAI API-key semantics.
 - Keep no token scraping and no hidden browser extraction.
 
 Validation:
 
-- Model list tests use registry.
-- Account login help differs for `chatgpt`, `openai`, and `claude`.
-- Routing tests still pass.
+- Provider registry unit tests cover auth/capability data and variant/backend derivation.
+- Model list CLI tests assert different login hints for `chatgpt`, `openai`, and `claude`.
+- Routing and handoff tests still pass.
 
 ### 6. Shell Sessions As First-Class Tools
 
@@ -370,11 +371,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Provider capability registry.
-2. Approval prompt refinements for multi-command shell sessions.
-3. Rich help reorganization.
-4. Model handoff result schema.
-5. Patch preview command in the interactive shell, if direct manual preview becomes useful.
+1. Approval prompt refinements for multi-command shell sessions.
+2. Rich help reorganization.
+3. Model handoff result schema.
+4. Patch preview command in the interactive shell, if direct manual preview becomes useful.
+5. Model context files.
 
 ## Validation Standard
 

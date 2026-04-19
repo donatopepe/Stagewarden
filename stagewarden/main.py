@@ -16,8 +16,9 @@ from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, loa
 from .memory import MemoryStore
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
+from .provider_registry import provider_capability
 from .project_handoff import ProjectHandoff
-from .secrets import LOGIN_URLS, SecretStore
+from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
 
@@ -247,13 +248,16 @@ def _render_model_status(agent: Agent, config: AgentConfig) -> str:
     lines = ["Model configuration:"]
     for model in SUPPORTED_MODELS:
         backend = MODEL_BACKENDS[model]["label"]
+        capability = provider_capability(model)
         enabled = "enabled" if model in status["enabled_models"] else "disabled"
         blocked_until = status["blocked_until_by_model"].get(model)
         blocked = f" blocked-until={blocked_until}" if blocked_until else ""
         active = " active" if model in status["active_models"] else " inactive"
         preferred = " preferred" if status["preferred_model"] == model else ""
         variant = prefs.variant_for_model(model) or "provider-default"
-        lines.append(f"- {model}: {enabled}{active}{preferred}{blocked} variant={variant} ({backend})")
+        auth = capability.auth_type
+        profiles = "profiles=yes" if capability.supports_account_profiles else "profiles=no"
+        lines.append(f"- {model}: {enabled}{active}{preferred}{blocked} variant={variant} auth={auth} {profiles} ({backend})")
         account_lines = _render_account_lines(prefs, model)
         lines.extend(account_lines)
     if status["preferred_model"] is None:
@@ -535,9 +539,24 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
             model = parts[2]
             if model not in SUPPORTED_MODELS:
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            capability = provider_capability(model)
             variants = ", ".join(available_model_variants(model))
             source = MODEL_VARIANT_CATALOG[model]["source"]
-            return f"Available variants for {model}: {variants}\nSource: {source}"
+            return "\n".join(
+                [
+                    f"Available variants for {model}: {variants}",
+                    f"Default variant: {capability.default_model}",
+                    f"Auth: {capability.auth_type}",
+                    f"Account profiles: {'yes' if capability.supports_account_profiles else 'no'}",
+                    f"Browser login: {'yes' if capability.supports_browser_login else 'no'}",
+                    f"API key: {'yes' if capability.supports_api_key else 'no'}",
+                    f"Token env: {capability.token_env or 'none'}",
+                    f"Model env: {capability.model_env or 'none'}",
+                    f"Context: {capability.context_assumption}",
+                    f"Login hint: {capability.login_hint}",
+                    f"Source: {source}",
+                ]
+            )
         if action == "variant":
             if len(parts) != 4:
                 return "Usage: model variant <name> <variant>"
@@ -672,10 +691,11 @@ def _handle_account_command(
             if len(parts) != 4:
                 return "Usage: account login <model> <name>"
             model, name = parts[2], parts[3]
-            if model not in LOGIN_URLS:
-                return f"Login is not supported for model '{model}'. Use account env for this provider."
-            if model not in {"chatgpt", "openai"}:
-                return f"Interactive login is not supported for model '{model}'. Use account env or provider API keys."
+            if model not in SUPPORTED_MODELS:
+                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            capability = provider_capability(model)
+            if not capability.supports_browser_login or model not in {"chatgpt", "openai"}:
+                return f"Interactive login is not supported for model '{model}'. {capability.login_hint}"
             prefs.add_account(model, name)
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)

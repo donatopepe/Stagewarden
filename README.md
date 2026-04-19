@@ -188,7 +188,7 @@ Model control:
 - `models` shows enabled, active, preferred, blocked, and backend state.
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
-- `model list <provider>` shows the official aliases or model IDs supported for that provider.
+- `model list <provider>` shows the official aliases or model IDs and provider capabilities for that provider.
 - `model variant <provider> <variant>` pins a provider-specific model alias or model ID.
 - `model variant-clear <provider>` clears the variant override and returns to the provider default.
 - `model remove <local|cheap|chatgpt|openai|claude>` disables a model.
@@ -201,6 +201,7 @@ Provider model selection is aligned to public provider behavior:
 - `openai` and `chatgpt` accept explicit OpenAI model IDs such as `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.1-codex`, and `codex-mini-latest`.
 - `claude` accepts Claude Code style aliases such as `default`, `sonnet`, `opus`, `haiku`, `sonnet[1m]`, and `opusplan`.
 - Stagewarden passes the selected variant to the backend via `STAGEWARDEN_MODEL_VARIANT` and the provider-native env var such as `OPENAI_MODEL` or `ANTHROPIC_MODEL`.
+- Provider auth capabilities live in `stagewarden/provider_registry.py`: ChatGPT plan login is separate from OpenAI API-key profiles, Claude can use API keys or imported Claude Code credentials, and Stagewarden does not scrape hidden browser tokens.
 - If no variant is pinned, Stagewarden now selects one automatically from task complexity:
   - `claude`: prefers `haiku` for simple tasks, `sonnet` for normal coding, `opus` for harder debugging, and `opusplan` for explicit planning/design work.
   - `openai`: prefers `gpt-5.4-mini` for light work, `gpt-5.2-codex` for normal coding, and `gpt-5.4` for harder debugging or risky changes.

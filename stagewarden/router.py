@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from .provider_registry import SUPPORTED_MODELS
+
 
 class ModelRouter:
-    ORDER = ("local", "cheap", "chatgpt", "openai", "claude")
+    ORDER = SUPPORTED_MODELS
 
     def __init__(self) -> None:
         self.enabled_models = set(self.ORDER)

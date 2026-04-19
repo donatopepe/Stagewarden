@@ -5,11 +5,8 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .handoff import MODEL_BACKENDS, canonicalize_model_variant
+from .provider_registry import SUPPORTED_MODELS, canonicalize_model_variant
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
-
-
-SUPPORTED_MODELS = tuple(MODEL_BACKENDS.keys())
 
 
 def extract_blocked_until(text: str, *, now: datetime | None = None) -> str | None:
