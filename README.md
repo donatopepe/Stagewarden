@@ -244,6 +244,7 @@ Handoff tracking:
 - Recovery stages participate in the same lifecycle gates and can be resumed from persisted handoff context like any other stage.
 - The handoff boundary view now reports `recovery_state` as `exception_active`, `recovery_active`, `recovery_cleared`, or `none`.
 - `recovery_active` drives the next action toward executing recovery stages; `recovery_cleared` drives cleanup of exception controls before normal execution resumes.
+- Completed recovery lanes now close the recovery gate by clearing exception controls, closing open issues/risks with wet-run evidence, and resuming the next normal stage.
 
 Account profiles:
 
