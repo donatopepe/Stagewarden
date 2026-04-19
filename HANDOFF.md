@@ -75,6 +75,7 @@ Latest pushed baseline at the time of this handoff:
 - Recovery resume: recovery stages can be resumed from handoff.
 - Recovery boundary states: `exception_active`, `recovery_active`, `recovery_cleared`, `none`.
 - Recovery closure gate: completed recovery lanes close open issues/risks, clear exception controls, close covered failed stages, and resume normal planned stages.
+- Handoff Markdown auto-export: `handoff export` and `handoff md` update the generated runtime section in `HANDOFF.md` with redaction.
 
 ## Codex/Claude-Inspired Behaviours To Apply
 
@@ -238,22 +239,20 @@ Validation:
 
 ### 9. Handoff Markdown Auto-Update
 
-Status: planned
+Status: implemented
 
 Keep this file updated automatically from runtime handoff and implementation backlog.
 
-Required behaviour:
+Implemented behaviour:
 
-- Add command `handoff md` or `handoff export`.
-- Export runtime JSON handoff into this Markdown structure.
-- Include latest git head, active stage, backlog, registers, and recovery state.
-- Avoid storing secrets or copyrighted material.
+- Commands `handoff md` and `handoff export` update the generated runtime section in `HANDOFF.md`.
+- Export includes task, status, plan status, active stage, git boundary, PID boundary, recovery state, next action, registers, backlog, and recent entries.
+- Manual roadmap content is preserved outside stable generated markers.
+- Token-like values, bearer secrets, and JWT-like strings are redacted.
 
 Validation:
 
-- Export command creates/updates `HANDOFF.md`.
-- Export omits token-like values.
-- Export is deterministic enough for git diffs.
+- CLI tests cover export command, marker insertion, manual content preservation, and secret redaction.
 
 ### 10. Board Review Command
 
@@ -369,11 +368,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Handoff Markdown auto-export.
-2. Safer command classification.
-3. Stronger patch application UX.
-4. Provider capability registry.
-5. Approval prompt refinements for multi-command shell sessions.
+1. Safer command classification.
+2. Stronger patch application UX.
+3. Provider capability registry.
+4. Approval prompt refinements for multi-command shell sessions.
+5. Rich help reorganization.
 
 ## Validation Standard
 
