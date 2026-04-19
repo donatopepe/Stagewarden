@@ -64,16 +64,24 @@ def interactive_help_text() -> str:
             "  Show the dedicated PRINCE2 registers from the persisted handoff.",
             "- lessons",
             "  Show the persistent lessons log derived from execution outcomes.",
+            "- todo",
+            "  Show the persisted implementation backlog tracked in handoff.",
             "- permissions",
             "  Show the active workspace permission settings.",
             "- permission mode <default|accept_edits|plan|auto|dont_ask>",
             "  Set the default permission mode for this workspace.",
+            "- permission session mode <default|accept_edits|plan|auto|dont_ask>",
+            "  Set a temporary permission mode for the current shell session only.",
             "- permission allow <rule>",
             "  Add an allow rule to the workspace permission settings.",
             "- permission ask <rule>",
             "  Add an ask rule to the workspace permission settings.",
             "- permission deny <rule>",
             "  Add a deny rule to the workspace permission settings.",
+            "- permission session allow <rule> | permission session ask <rule> | permission session deny <rule>",
+            "  Add a temporary session-only permission rule.",
+            "- permission session reset",
+            "  Clear all temporary session permission overrides.",
             "- permission reset",
             "  Reset workspace permission settings to defaults.",
             "- commands",
@@ -176,9 +184,12 @@ def interactive_help_text() -> str:
             "- stagewarden> quality",
             "- stagewarden> exception",
             "- stagewarden> lessons",
+            "- stagewarden> todo",
             "- stagewarden> permissions",
             "- stagewarden> permission mode plan",
+            "- stagewarden> permission session mode auto",
             "- stagewarden> permission allow shell:git status",
+            "- stagewarden> permission session allow shell:python3 -m pytest",
             "- stagewarden> permission deny shell:rm",
             "- stagewarden> mode caveman ultra",
             "- stagewarden> mode normal",
@@ -302,6 +313,7 @@ def _render_handoff(config: AgentConfig) -> str:
         handoff.summary(),
         handoff.rendered_operational_posture(),
         handoff.rendered_stage_view(),
+        handoff.rendered_implementation_backlog(),
     ]
     if handoff.entries:
         lines.append("Recent handoff entries:")
@@ -325,12 +337,28 @@ def _render_boundary(config: AgentConfig) -> str:
 
 
 def _render_permissions(config: AgentConfig) -> str:
-    settings = PermissionSettings.load(config.settings_path)
+    workspace_settings = PermissionSettings.load(config.settings_path)
+    session_settings = config.session_permission_settings
+    effective_settings = workspace_settings.merged(session_settings)
     lines = ["Permission settings:"]
-    lines.append(f"- mode: {settings.default_mode}")
-    lines.append(f"- allow: {', '.join(settings.allow) if settings.allow else 'none'}")
-    lines.append(f"- ask: {', '.join(settings.ask) if settings.ask else 'none'}")
-    lines.append(f"- deny: {', '.join(settings.deny) if settings.deny else 'none'}")
+    lines.append(f"- workspace mode: {workspace_settings.default_mode}")
+    lines.append(f"- workspace allow: {', '.join(workspace_settings.allow) if workspace_settings.allow else 'none'}")
+    lines.append(f"- workspace ask: {', '.join(workspace_settings.ask) if workspace_settings.ask else 'none'}")
+    lines.append(f"- workspace deny: {', '.join(workspace_settings.deny) if workspace_settings.deny else 'none'}")
+    if session_settings is None:
+        lines.append("- session mode: none")
+        lines.append("- session allow: none")
+        lines.append("- session ask: none")
+        lines.append("- session deny: none")
+    else:
+        lines.append(f"- session mode: {session_settings.default_mode}")
+        lines.append(f"- session allow: {', '.join(session_settings.allow) if session_settings.allow else 'none'}")
+        lines.append(f"- session ask: {', '.join(session_settings.ask) if session_settings.ask else 'none'}")
+        lines.append(f"- session deny: {', '.join(session_settings.deny) if session_settings.deny else 'none'}")
+    lines.append(f"- effective mode: {effective_settings.default_mode}")
+    lines.append(f"- effective allow: {', '.join(effective_settings.allow) if effective_settings.allow else 'none'}")
+    lines.append(f"- effective ask: {', '.join(effective_settings.ask) if effective_settings.ask else 'none'}")
+    lines.append(f"- effective deny: {', '.join(effective_settings.deny) if effective_settings.deny else 'none'}")
     return "\n".join(lines)
 
 
@@ -354,10 +382,18 @@ def _render_lessons(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_lessons()
 
 
+def _render_todo(config: AgentConfig) -> str:
+    return ProjectHandoff.load(config.handoff_path).rendered_implementation_backlog()
+
+
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     agent = Agent(config)
     _apply_model_preferences(agent, config)
     return agent
+
+
+def _refresh_runtime_permissions(agent: Agent) -> None:
+    agent.refresh_permissions()
 
 
 def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
@@ -678,10 +714,12 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_exception(config)
     if parts[0] == "lessons":
         return _render_lessons(config)
+    if parts[0] == "todo":
+        return _render_todo(config)
     if parts[0] == "permissions":
         return _render_permissions(config)
     if parts[0] == "permission":
-        return _handle_permission_command(parts, config)
+        return _handle_permission_command(parts, config, agent)
     if parts[0] != "mode":
         return None
     if len(parts) == 2:
@@ -690,6 +728,7 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
             settings = PermissionSettings.load(config.settings_path)
             settings.default_mode = mode
             settings.normalize().save(config.settings_path)
+            _refresh_runtime_permissions(agent)
             return f"Permission mode set to {mode}."
     if len(parts) == 2 and parts[1] == "normal":
         result = agent.run("normal mode")
@@ -703,13 +742,47 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     )
 
 
-def _handle_permission_command(parts: list[str], config: AgentConfig) -> str:
+def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Agent | None = None) -> str:
     settings = PermissionSettings.load(config.settings_path)
     if len(parts) < 2:
         return (
             "Usage: permissions | permission mode <mode> | permission allow <rule> | "
-            "permission ask <rule> | permission deny <rule> | permission reset"
+            "permission ask <rule> | permission deny <rule> | permission reset | "
+            "permission session <mode|allow|ask|deny|reset> ..."
         )
+    if parts[1] == "session":
+        session = config.session_permission_settings or PermissionSettings()
+        if len(parts) < 3:
+            return "Usage: permission session mode <mode> | permission session allow <rule> | permission session ask <rule> | permission session deny <rule> | permission session reset"
+        session_action = parts[2]
+        if session_action == "mode":
+            if len(parts) != 4:
+                return f"Usage: permission session mode <{'|'.join(VALID_PERMISSION_MODES)}>"
+            mode = parts[3].strip().lower().replace("-", "_")
+            if mode not in VALID_PERMISSION_MODES:
+                return f"Unsupported session permission mode '{parts[3]}'."
+            session.default_mode = mode
+            config.session_permission_settings = session.normalize()
+            if agent is not None:
+                _refresh_runtime_permissions(agent)
+            return f"Session permission mode set to {mode}."
+        if session_action in {"allow", "ask", "deny"}:
+            if len(parts) < 4:
+                return f"Usage: permission session {session_action} <rule>"
+            rule = " ".join(parts[3:]).strip()
+            target = getattr(session, session_action)
+            if rule not in target:
+                target.append(rule)
+            config.session_permission_settings = session.normalize()
+            if agent is not None:
+                _refresh_runtime_permissions(agent)
+            return f"Added session {session_action} rule: {rule}"
+        if session_action == "reset":
+            config.session_permission_settings = None
+            if agent is not None:
+                _refresh_runtime_permissions(agent)
+            return "Session permission settings reset."
+        return "Usage: permission session mode <mode> | permission session allow <rule> | permission session ask <rule> | permission session deny <rule> | permission session reset"
     action = parts[1]
     if action == "mode":
         if len(parts) != 3:
@@ -719,6 +792,8 @@ def _handle_permission_command(parts: list[str], config: AgentConfig) -> str:
             return f"Unsupported permission mode '{parts[2]}'."
         settings.default_mode = mode
         settings.normalize().save(config.settings_path)
+        if agent is not None:
+            _refresh_runtime_permissions(agent)
         return f"Permission mode set to {mode}."
     if action in {"allow", "ask", "deny"}:
         if len(parts) < 3:
@@ -728,13 +803,18 @@ def _handle_permission_command(parts: list[str], config: AgentConfig) -> str:
         if rule not in target:
             target.append(rule)
         settings.normalize().save(config.settings_path)
+        if agent is not None:
+            _refresh_runtime_permissions(agent)
         return f"Added {action} rule: {rule}"
     if action == "reset":
         PermissionSettings().save(config.settings_path)
+        if agent is not None:
+            _refresh_runtime_permissions(agent)
         return "Permission settings reset."
     return (
         "Usage: permissions | permission mode <mode> | permission allow <rule> | "
-        "permission ask <rule> | permission deny <rule> | permission reset"
+        "permission ask <rule> | permission deny <rule> | permission reset | "
+        "permission session <mode|allow|ask|deny|reset> ..."
     )
 
 
@@ -839,6 +919,7 @@ def run_interactive_shell(
             sink.flush()
             return 0
         if command == "reset":
+            config.session_permission_settings = None
             agent = _configure_agent_for_workspace(config)
             sink.write("Session reset.\n")
             sink.flush()

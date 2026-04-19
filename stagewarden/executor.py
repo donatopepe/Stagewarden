@@ -53,6 +53,10 @@ class Executor:
         self.git = GitTool(config)
         self.prince2 = Prince2AgentPolicy()
 
+    def refresh_permissions(self) -> None:
+        self.shell.refresh_permissions()
+        self.files.refresh_permissions()
+
     def execute_step(
         self,
         *,

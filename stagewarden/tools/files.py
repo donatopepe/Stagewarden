@@ -23,7 +23,10 @@ class FileResult:
 class FileTool:
     def __init__(self, config: AgentConfig) -> None:
         self.config = config
-        self.permissions = PermissionPolicy.load(config.settings_path)
+        self.permissions = PermissionPolicy.load(config.settings_path, config.session_permission_settings)
+
+    def refresh_permissions(self) -> None:
+        self.permissions = PermissionPolicy.load(self.config.settings_path, self.config.session_permission_settings)
 
     def read(self, path: str) -> FileResult:
         resolved = self.config.resolve_path(path)

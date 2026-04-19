@@ -417,13 +417,18 @@ class TraceAndCliTests(unittest.TestCase):
                 "quality_register": [{"step_id": "step-2", "status": "passed", "evidence": "file updated"}],
                 "lessons_log": [{"step_id": "step-2", "type": "success", "lesson": "file update pattern is reusable"}],
                 "exception_plan": ["review boundary for step-3", "prepare corrective action"],
+                "implementation_backlog": [
+                    {"step_id": "step-1", "title": "Inspect tests", "status": "completed", "validation": "Real command output captured."},
+                    {"step_id": "step-2", "title": "Patch implementation", "status": "completed", "validation": "Files changed and verified."},
+                    {"step_id": "step-3", "title": "Validate result", "status": "in_progress", "validation": "Wet-run tests pass."},
+                ],
                 "updated_at": "2026-04-18T18:30:00+00:00",
                 "entries": [],
             }
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             config = AgentConfig(workspace_root=root, max_steps=1)
             input_stream = StringIO(
-                "status\nhandoff\nboundary\nrisks\nissues\nquality\nexception\nlessons\n"
+                "status\nhandoff\ntodo\nboundary\nrisks\nissues\nquality\nexception\nlessons\n"
                 "mode caveman ultra\nstatus\nmode normal\nstatus\nexit\n"
             )
             output_stream = StringIO()
@@ -433,7 +438,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Stagewarden status:", rendered)
             self.assertIn("mode: normal", rendered)
             self.assertIn("Permission settings:", rendered)
-            self.assertIn("mode: default", rendered)
+            self.assertIn("workspace mode: default", rendered)
+            self.assertIn("effective mode: default", rendered)
             self.assertIn("handoff: .stagewarden_handoff.json", rendered)
             self.assertIn("Handoff summary:", rendered)
             self.assertIn("Operational posture:", rendered)
@@ -441,10 +447,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("stage_health: at_risk", rendered)
             self.assertIn("next_action: continue step-3", rendered)
             self.assertIn("active_stage: step-3 [in_progress]", rendered)
+            self.assertIn("implementation_backlog_open: 1", rendered)
             self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
             self.assertIn("Project handoff:", rendered)
             self.assertIn("Stage view:", rendered)
+            self.assertIn("Implementation backlog:", rendered)
             self.assertIn("closed_stages: step-1, step-2", rendered)
             self.assertIn("active_stage: step-3 [in_progress]", rendered)
             self.assertIn("git_boundary: baseline=abc123 current=def456", rendered)
@@ -452,8 +460,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("stage_health: at_risk", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
             self.assertIn("next_action: continue step-3", rendered)
-            self.assertIn("registers: risks=1 issues=1 quality=1 lessons=1", rendered)
+            self.assertIn("registers: risks=1 issues=1 quality=1 lessons=1 backlog=3", rendered)
             self.assertIn("register_status: risks_open=1 risks_closed=0 issues_open=1 issues_closed=0 quality_open=1 quality_accepted=0", rendered)
+            self.assertIn("[in_progress] step-3 :: Validate result | validation=Wet-run tests pass.", rendered)
             self.assertIn("Boundary recommendation:", rendered)
             self.assertIn("Risk register:", rendered)
             self.assertIn("Issue register:", rendered)
@@ -490,10 +499,11 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Added allow rule: shell:git status", rendered)
             self.assertIn("Added ask rule: file:secret.txt", rendered)
             self.assertIn("Added deny rule: shell:rm", rendered)
-            self.assertIn("mode: plan", rendered)
-            self.assertIn("allow: shell:git status", rendered)
-            self.assertIn("ask: file:secret.txt", rendered)
-            self.assertIn("deny: shell:rm", rendered)
+            self.assertIn("workspace mode: plan", rendered)
+            self.assertIn("workspace allow: shell:git status", rendered)
+            self.assertIn("workspace ask: file:secret.txt", rendered)
+            self.assertIn("workspace deny: shell:rm", rendered)
+            self.assertIn("effective mode: plan", rendered)
             payload = json.loads((root / ".stagewarden_settings.json").read_text(encoding="utf-8"))
             self.assertEqual(payload["permissions"]["defaultMode"], "plan")
 
@@ -520,11 +530,38 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Permission mode set to accept_edits.", rendered)
             self.assertIn("Permission mode set to dont_ask.", rendered)
             self.assertIn("Permission mode set to default.", rendered)
-            self.assertIn("mode: plan", rendered)
+            self.assertIn("effective mode: plan", rendered)
             self.assertIn("Permission settings:", rendered)
-            self.assertIn("mode: default", rendered)
+            self.assertIn("workspace mode: default", rendered)
+            self.assertIn("effective mode: default", rendered)
             payload = json.loads((root / ".stagewarden_settings.json").read_text(encoding="utf-8"))
             self.assertEqual(payload["permissions"]["defaultMode"], "default")
+
+    def test_interactive_shell_manages_session_permission_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO(
+                "permission session mode plan\n"
+                "permission session allow shell:git status\n"
+                "permissions\n"
+                "permission session reset\n"
+                "permissions\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Session permission mode set to plan.", rendered)
+            self.assertIn("Added session allow rule: shell:git status", rendered)
+            self.assertIn("session mode: plan", rendered)
+            self.assertIn("session allow: shell:git status", rendered)
+            self.assertIn("effective mode: plan", rendered)
+            self.assertIn("Session permission settings reset.", rendered)
+            self.assertIn("session mode: none", rendered)
+            self.assertIn("effective mode: default", rendered)
+            self.assertFalse((root / ".stagewarden_settings.json").exists())
 
     def test_boundary_uses_exception_plan_when_project_is_in_exception(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

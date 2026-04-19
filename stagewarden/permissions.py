@@ -62,14 +62,29 @@ class PermissionSettings:
             deny=[str(item) for item in permissions.get("deny", [])],
         ).normalize()
 
+    def merged(self, override: "PermissionSettings | None" = None) -> "PermissionSettings":
+        if override is None:
+            return PermissionSettings(
+                default_mode=self.default_mode,
+                allow=list(self.allow),
+                ask=list(self.ask),
+                deny=list(self.deny),
+            ).normalize()
+        return PermissionSettings(
+            default_mode=override.default_mode if override.default_mode else self.default_mode,
+            allow=[*self.allow, *override.allow],
+            ask=[*self.ask, *override.ask],
+            deny=[*self.deny, *override.deny],
+        ).normalize()
+
 
 class PermissionPolicy:
     def __init__(self, settings: PermissionSettings | None = None) -> None:
         self.settings = (settings or PermissionSettings()).normalize()
 
     @classmethod
-    def load(cls, path: Path) -> "PermissionPolicy":
-        return cls(PermissionSettings.load(path))
+    def load(cls, path: Path, session_settings: PermissionSettings | None = None) -> "PermissionPolicy":
+        return cls(PermissionSettings.load(path).merged(session_settings))
 
     def decide(self, capability: str, detail: str = "") -> PermissionDecision:
         subject = capability.strip().lower()

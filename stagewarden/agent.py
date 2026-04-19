@@ -47,6 +47,9 @@ class Agent:
         )
         self._apply_workspace_model_preferences()
 
+    def refresh_permissions(self) -> None:
+        self.executor.refresh_permissions()
+
     def run(self, task: str) -> AgentResult:
         self.executor.config.system_prompt = self.base_system_prompt
         directive = self.caveman.parse(task)
@@ -69,6 +72,7 @@ class Agent:
         )
 
         plan = self.planner.create_plan(effective_task, project_handoff=self.project_handoff)
+        self._sync_implementation_backlog(plan)
         last_observation = "Task received."
         iterations = 0
         self.trace_records = []
@@ -207,6 +211,7 @@ class Agent:
                     observation=last_observation,
                     git_head=self._git_head(),
                 )
+                self._sync_implementation_backlog(plan)
                 self._save_handoff()
                 self._trace(
                     phase="abort_step",
@@ -229,6 +234,7 @@ class Agent:
                 step_status=current.status,
                 git_head=self._git_head(),
             )
+            self._sync_implementation_backlog(plan)
             self._save_handoff()
             outcome = self.executor.execute_step(
                 task=effective_task,
@@ -306,6 +312,7 @@ class Agent:
                 observation=outcome.observation,
                 git_head=self._git_head(),
             )
+            self._sync_implementation_backlog(plan)
             self._trace(
                 phase="step_result",
                 iteration=iterations,
@@ -346,6 +353,7 @@ class Agent:
             git_head=self._git_head(),
             outcome=pid.outcome or "",
         )
+        self._sync_implementation_backlog(plan)
         self._save_handoff()
         self._save_memory()
         self._trace(
@@ -420,6 +428,19 @@ class Agent:
             self.project_handoff.save(self.config.handoff_path)
         except OSError:
             pass
+
+    def _sync_implementation_backlog(self, plan: list[PlanStep]) -> None:
+        self.project_handoff.sync_implementation_backlog(
+            [
+                {
+                    "step_id": step.id,
+                    "title": step.title,
+                    "status": step.status,
+                    "validation": step.validation,
+                }
+                for step in plan
+            ]
+        )
 
     def _handle_caveman_command(self, directive: CavemanDirective) -> AgentResult | None:
         if directive.command == "help":

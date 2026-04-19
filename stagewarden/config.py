@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .permissions import PermissionSettings
+
 
 @dataclass(slots=True)
 class AgentConfig:
@@ -16,6 +18,7 @@ class AgentConfig:
     enforce_git: bool = True
     auto_git_commit: bool = True
     strict_ascii_output: bool = True
+    session_permission_settings: PermissionSettings | None = None
     memory_filename: str = ".stagewarden_memory.json"
     caveman_state_filename: str = ".stagewarden_caveman.json"
     trace_filename: str = ".stagewarden_trace.ljson"

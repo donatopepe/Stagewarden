@@ -60,6 +60,7 @@ class ProjectHandoff:
     quality_register: list[dict[str, str]] = field(default_factory=list)
     lessons_log: list[dict[str, str]] = field(default_factory=list)
     exception_plan: list[str] = field(default_factory=list)
+    implementation_backlog: list[dict[str, str]] = field(default_factory=list)
     updated_at: str = field(default_factory=_utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
 
@@ -103,6 +104,23 @@ class ProjectHandoff:
                 details={"plan_status": plan_status, "controls": checklist.get("controls", [])},
             )
         )
+
+    def sync_implementation_backlog(self, items: list[dict[str, str]]) -> None:
+        backlog: list[dict[str, str]] = []
+        for item in items:
+            step_id = str(item.get("step_id", "")).strip()
+            if not step_id:
+                continue
+            backlog.append(
+                {
+                    "step_id": step_id,
+                    "title": str(item.get("title", "")).strip()[:160],
+                    "status": str(item.get("status", "pending")).strip()[:32],
+                    "validation": str(item.get("validation", "")).strip()[:240],
+                }
+            )
+        self.implementation_backlog = backlog
+        self.updated_at = _utc_now()
 
     def begin_step(
         self,
@@ -224,7 +242,8 @@ class ProjectHandoff:
             f"git_head={self.git_head or 'unknown'}",
             "registers="
             f"risks:{len(self.risk_register)} issues:{len(self.issue_register)} "
-            f"quality:{len(self.quality_register)} lessons:{len(self.lessons_log)}",
+            f"quality:{len(self.quality_register)} lessons:{len(self.lessons_log)} "
+            f"backlog:{len(self.implementation_backlog)}",
         ]
         for entry in self.entries[-limit:]:
             lines.append(
@@ -322,7 +341,8 @@ class ProjectHandoff:
         lines.append(
             "- registers: "
             f"risks={len(self.risk_register)} issues={len(self.issue_register)} "
-            f"quality={len(self.quality_register)} lessons={len(self.lessons_log)}"
+            f"quality={len(self.quality_register)} lessons={len(self.lessons_log)} "
+            f"backlog={len(self.implementation_backlog)}"
         )
         lines.append(
             "- register_status: "
@@ -373,6 +393,7 @@ class ProjectHandoff:
                 f"- stage_health: {view['stage_health']}",
                 f"- next_action: {view['next_action']}",
                 f"- active_stage: {active_stage}",
+                f"- implementation_backlog_open: {sum(1 for item in self.implementation_backlog if str(item.get('status', '')).strip().lower() != 'completed')}",
                 f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
                 f"- boundary_decision: {view['boundary_decision']}",
             ]
@@ -429,6 +450,18 @@ class ProjectHandoff:
             )
         return "\n".join(lines)
 
+    def rendered_implementation_backlog(self) -> str:
+        lines = ["Implementation backlog:"]
+        if not self.implementation_backlog:
+            lines.append("- none")
+            return "\n".join(lines)
+        for item in self.implementation_backlog:
+            lines.append(
+                f"- [{item.get('status', 'unknown')}] {item.get('step_id', '-')} :: "
+                f"{item.get('title', '')} | validation={item.get('validation', '')}"
+            )
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",
@@ -447,6 +480,7 @@ class ProjectHandoff:
             "quality_register": list(self.quality_register),
             "lessons_log": list(self.lessons_log),
             "exception_plan": list(self.exception_plan),
+            "implementation_backlog": list(self.implementation_backlog),
             "updated_at": self.updated_at,
             "entries": [entry.as_dict() for entry in self.entries],
         }
@@ -648,6 +682,7 @@ class ProjectHandoff:
             quality_register=[dict(item) for item in payload.get("quality_register", []) if isinstance(item, dict)],
             lessons_log=[dict(item) for item in payload.get("lessons_log", []) if isinstance(item, dict)],
             exception_plan=[str(item) for item in payload.get("exception_plan", [])],
+            implementation_backlog=[dict(item) for item in payload.get("implementation_backlog", []) if isinstance(item, dict)],
             updated_at=str(payload.get("updated_at", _utc_now())),
         )
         for item in payload.get("entries", []):
