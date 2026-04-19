@@ -356,30 +356,34 @@ Validation:
 
 ### 15. Cross-OS Setup Verification
 
-Status: planned
+Status: partially implemented
 
 Strengthen setup scripts for macOS, Linux, and Windows.
 
-Required behaviour:
+Implemented behaviour:
 
-- Validate Python 3.11+.
-- Validate git installed.
-- Validate PATH launcher works.
-- Provide `stagewarden doctor`.
+- `stagewarden doctor` validates Python 3.11+, Git availability, PATH launcher visibility, and repository state.
+- `doctor` does not install prerequisites and does not initialize git.
+- Interactive shell command `doctor` exposes the same report.
+
+Remaining behaviour:
+
+- Harden setup scripts to call or recommend `stagewarden doctor` after install.
 - Do not auto-install git silently; report prerequisite clearly.
 
 Validation:
 
-- Setup script tests pass.
-- Doctor command reports missing git/python clearly.
+- CLI tests verify `stagewarden doctor` reports Python/Git/PATH/repository state and does not create `.git`.
+- Interactive shell tests verify `doctor` rendering.
+- Setup script tests still pass.
 
 ## Immediate Next Implementation Order
 
-1. CLI help snapshot tests for Caveman category, if Caveman help changes.
-2. Doctor command and prerequisite checks.
-3. Richer model usage/cost reporting.
-4. Resume command wet-run integration with a fake model binary.
-5. Provider capability checks in `doctor`.
+1. Provider capability checks in `doctor`.
+2. Harden setup scripts to run or suggest doctor after install.
+3. CLI help snapshot tests for Caveman category, if Caveman help changes.
+4. Richer model usage/cost reporting.
+5. Resume command wet-run integration with a fake model binary.
 
 ## Recently Completed
 
