@@ -177,6 +177,9 @@ class AgentIntegrationTests(unittest.TestCase):
                 risk_register=[
                     {"risk": "regression from final patch", "status": "open"},
                 ],
+                quality_register=[
+                    {"step_id": "step-3", "status": "observed", "evidence": "validation completed"},
+                ],
                 issue_register=[
                     {"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}
                 ],
@@ -193,6 +196,7 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertTrue(matching)
             self.assertTrue(all(item.get("status") == "closed" for item in matching))
             self.assertTrue(all(item.get("status") == "closed" for item in saved.risk_register))
+            self.assertTrue(all(item.get("status") == "accepted" for item in saved.quality_register))
             self.assertEqual(saved.exception_plan, [])
 
 
