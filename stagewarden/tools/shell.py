@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import platform
 import selectors
+import shlex
 import shutil
 import subprocess
 import time
@@ -267,7 +268,19 @@ class ShellTool:
         return self.config.resolve_path(cwd) if cwd else self.config.workspace_root_resolved
 
     def _is_read_only_command(self, command: str) -> bool:
-        first_token = command.split()[0]
+        if self._has_write_operator(command):
+            return False
+        try:
+            tokens = shlex.split(command, posix=not self.is_windows)
+        except ValueError:
+            tokens = command.split()
+        if not tokens:
+            return False
+        first_token = tokens[0]
+        if first_token == "git":
+            return self._is_read_only_git(tokens[1:])
+        if first_token in {"npm", "node", "python", "python3", "pytest", "make", "bash", "sh", "pwsh", "powershell", "cmd"}:
+            return self._is_read_only_program(tokens)
         return first_token in {
             "ls",
             "pwd",
@@ -280,8 +293,82 @@ class ShellTool:
             "where",
             "dir",
             "type",
-            "git",
         }
+
+    def _has_write_operator(self, command: str) -> bool:
+        return any(operator in command for operator in (">", ">>", "2>", "1>", "| tee ", "|tee "))
+
+    def _is_read_only_git(self, args: list[str]) -> bool:
+        if not args:
+            return False
+        passthrough_options = {"-c", "--config-env"}
+        index = 0
+        while index < len(args):
+            token = args[index]
+            if token in passthrough_options:
+                index += 2
+                continue
+            if token.startswith("-"):
+                index += 1
+                continue
+            break
+        if index >= len(args):
+            return False
+        subcommand = args[index]
+        return subcommand in {
+            "status",
+            "log",
+            "show",
+            "diff",
+            "rev-parse",
+            "branch",
+            "tag",
+            "remote",
+            "ls-files",
+            "grep",
+            "blame",
+            "describe",
+        }
+
+    def _is_read_only_program(self, tokens: list[str]) -> bool:
+        if not tokens:
+            return False
+        first = tokens[0]
+        lowered = [token.lower() for token in tokens[1:]]
+        write_words = {
+            "install",
+            "add",
+            "remove",
+            "uninstall",
+            "update",
+            "upgrade",
+            "publish",
+            "run",
+            "exec",
+            "build",
+            "start",
+            "dev",
+            "test",
+            "write",
+            "touch",
+            "rm",
+            "del",
+            "copy",
+            "move",
+            "mkdir",
+            "rmdir",
+        }
+        if any(token in write_words for token in lowered):
+            return False
+        if first in {"python", "python3"}:
+            return any(token in {"--version", "-V", "-VV"} for token in tokens[1:]) or "-m" in tokens and "pytest" not in lowered
+        if first == "node":
+            return any(token in {"--version", "-v"} for token in lowered)
+        if first == "npm":
+            return bool(lowered and lowered[0] in {"view", "version", "--version", "-v", "help"})
+        if first == "pytest":
+            return False
+        return False
 
     def _read_until_marker(self, process: subprocess.Popen[bytes], marker: str, timeout_seconds: int) -> str:
         assert process.stdout is not None

@@ -239,6 +239,42 @@ class ToolTests(unittest.TestCase):
             self.assertFalse(result.ok)
             self.assertIn("Plan mode", result.error)
 
+    def test_shell_tool_allows_read_only_git_commands_in_plan_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            PermissionSettings(default_mode="plan").save(root / ".stagewarden_settings.json")
+            tool = ShellTool(AgentConfig(workspace_root=root))
+            result = tool.run("git status")
+            self.assertFalse(result.ok)
+            self.assertNotIn("Plan mode", result.error)
+
+    def test_shell_tool_blocks_write_git_commands_in_plan_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            PermissionSettings(default_mode="plan").save(root / ".stagewarden_settings.json")
+            tool = ShellTool(AgentConfig(workspace_root=root))
+            result = tool.run("git add README.md")
+            self.assertFalse(result.ok)
+            self.assertIn("Plan mode", result.error)
+
+    def test_shell_tool_blocks_redirection_in_plan_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            PermissionSettings(default_mode="plan").save(root / ".stagewarden_settings.json")
+            tool = ShellTool(AgentConfig(workspace_root=root))
+            result = tool.run("echo hi > out.txt")
+            self.assertFalse(result.ok)
+            self.assertIn("Plan mode", result.error)
+
+    def test_shell_tool_blocks_package_install_in_plan_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            PermissionSettings(default_mode="plan").save(root / ".stagewarden_settings.json")
+            tool = ShellTool(AgentConfig(workspace_root=root))
+            result = tool.run("npm install left-pad")
+            self.assertFalse(result.ok)
+            self.assertIn("Plan mode", result.error)
+
     def test_file_tool_enforces_ask_rule_from_settings_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
