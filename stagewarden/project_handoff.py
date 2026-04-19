@@ -272,6 +272,7 @@ class ProjectHandoff:
         boundary_decision = self._boundary_decision(status_by_step)
         register_statuses = self._register_status_summary()
         stage_health = self._stage_health(boundary_decision, active_step, register_statuses)
+        next_action = self._next_action(boundary_decision, active_step, stage_health)
         return {
             "closed_steps": closed_steps,
             "active_step": active_step,
@@ -280,6 +281,7 @@ class ProjectHandoff:
             "boundary_decision": boundary_decision,
             "register_statuses": register_statuses,
             "stage_health": stage_health,
+            "next_action": next_action,
         }
 
     def rendered_stage_view(self) -> str:
@@ -291,6 +293,7 @@ class ProjectHandoff:
         boundary_decision = view["boundary_decision"]
         register_statuses = view["register_statuses"]
         stage_health = view["stage_health"]
+        next_action = view["next_action"]
         lines = ["Stage view:"]
         if closed_steps:
             lines.append(f"- closed_stages: {', '.join(closed_steps)}")
@@ -315,6 +318,7 @@ class ProjectHandoff:
         )
         lines.append(f"- stage_health: {stage_health}")
         lines.append(f"- boundary_decision: {boundary_decision}")
+        lines.append(f"- next_action: {next_action}")
         lines.append(
             "- registers: "
             f"risks={len(self.risk_register)} issues={len(self.issue_register)} "
@@ -350,6 +354,10 @@ class ProjectHandoff:
     def rendered_stage_health(self) -> str:
         view = self.stage_view()
         return str(view["stage_health"])
+
+    def rendered_next_action(self) -> str:
+        view = self.stage_view()
+        return str(view["next_action"])
 
     def rendered_risks(self) -> str:
         lines = ["Risk register:"]
@@ -549,6 +557,24 @@ class ProjectHandoff:
         if boundary_decision == "close_project":
             return "ready_to_close"
         return "stable"
+
+    def _next_action(
+        self,
+        boundary_decision: str,
+        active_step: dict[str, object] | None,
+        stage_health: str,
+    ) -> str:
+        if stage_health == "exception":
+            return "execute exception plan and re-baseline the current stage"
+        if boundary_decision == "review_boundary:open_issues":
+            return "close remaining open issues before project closure"
+        if boundary_decision == "close_project":
+            return "authorize project closure"
+        if active_step:
+            return f"continue {active_step.get('id', 'current-step')}"
+        if stage_health == "stable":
+            return "review current handoff and confirm next stage"
+        return "review boundary and decide next controlled action"
 
     def _parse_plan_status(self, value: str) -> dict[str, str]:
         statuses: dict[str, str] = {}

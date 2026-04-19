@@ -437,6 +437,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Governance status:", rendered)
             self.assertIn("governance=residual", rendered)
             self.assertIn("Stage health: at_risk", rendered)
+            self.assertIn("Next action: continue step-3", rendered)
             self.assertIn("Active stage: step-3 [in_progress]", rendered)
             self.assertIn("Git boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("Boundary decision: continue_current_stage", rendered)
@@ -448,6 +449,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("pid_boundary: project_status=executing", rendered)
             self.assertIn("stage_health: at_risk", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
+            self.assertIn("next_action: continue step-3", rendered)
             self.assertIn("registers: risks=1 issues=1 quality=1 lessons=1", rendered)
             self.assertIn("register_status: risks_open=1 risks_closed=0 issues_open=1 issues_closed=0 quality_open=1 quality_accepted=0", rendered)
             self.assertIn("Boundary recommendation:", rendered)
@@ -490,6 +492,7 @@ class TraceAndCliTests(unittest.TestCase):
             config = AgentConfig(workspace_root=root, max_steps=1)
             rendered = _render_boundary(config)
             self.assertIn("stage_health: exception", rendered)
+            self.assertIn("next_action: execute exception plan and re-baseline the current stage", rendered)
             self.assertIn("review_boundary:exception_plan", rendered)
 
     def test_boundary_blocks_project_close_when_open_issues_remain(self) -> None:
