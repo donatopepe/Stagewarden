@@ -99,6 +99,9 @@ class AgentIntegrationTests(unittest.TestCase):
                 check=False,
             )
             self.assertIn("stagewarden:", log.stdout)
+            self.assertIn("[PRINCE2", log.stdout)
+            self.assertIn("boundary=", log.stdout)
+            self.assertIn("task=create a file named hello.txt", log.stdout)
 
     def test_agent_failure_summary_contains_exception_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
