@@ -164,6 +164,7 @@ stagewarden> issues
 stagewarden> quality
 stagewarden> exception
 stagewarden> lessons
+stagewarden> transcript
 stagewarden> todo
 stagewarden> permissions
 stagewarden> permission mode plan
@@ -211,6 +212,11 @@ Project handoff:
 
 - The human-readable implementation handoff lives in [`HANDOFF.md`](HANDOFF.md).
 - Runtime handoff remains in `.stagewarden_handoff.json`; `HANDOFF.md` tracks the durable roadmap and Codex/Claude-inspired implementation backlog.
+
+Tool transcript:
+
+- `transcript` or `trace` shows recent tool invocations from workspace memory.
+- Transcript entries are persisted in `.stagewarden_memory.json` using LJSON.
 
 Interactive permission commands:
 
