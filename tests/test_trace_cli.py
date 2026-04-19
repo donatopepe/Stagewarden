@@ -82,24 +82,44 @@ class TraceAndCliTests(unittest.TestCase):
             rendered = output_stream.getvalue()
             self.assertEqual(code, 0)
             self.assertIn("Stagewarden interactive shell", rendered)
-            self.assertIn("Core commands:", rendered)
-            self.assertIn("Model commands:", rendered)
-            self.assertIn("Caveman commands:", rendered)
-            self.assertIn("Examples:", rendered)
-            self.assertIn("- handoff", rendered)
-            self.assertIn("- boundary", rendered)
-            self.assertIn("- risks | issues | quality | exception", rendered)
-            self.assertIn("- lessons", rendered)
-            self.assertIn("model use <local|cheap|chatgpt|openai|claude>", rendered)
-            self.assertIn("model list <local|cheap|chatgpt|openai|claude>", rendered)
-            self.assertIn("model variant <local|cheap|chatgpt|openai|claude> <variant>", rendered)
-            self.assertIn("model block <local|cheap|chatgpt|openai|claude> until YYYY-MM-DDTHH:MM", rendered)
-            self.assertIn("account login-device <chatgpt|openai> <name>", rendered)
-            self.assertIn("account import <model> <name> [PATH]", rendered)
-            self.assertIn("Git commands:", rendered)
-            self.assertIn("git history <path> [limit]", rendered)
+            self.assertIn("Use `help <topic>`", rendered)
+            self.assertIn("Topics:", rendered)
+            self.assertIn("help models", rendered)
+            self.assertIn("help accounts", rendered)
+            self.assertIn("help permissions", rendered)
+            self.assertIn("Fast examples:", rendered)
             self.assertIn("Model configuration:", rendered)
             self.assertIn("Session closed.", rendered)
+
+    def test_interactive_shell_supports_category_help(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
+            input_stream = StringIO(
+                "help models\n"
+                "help accounts\n"
+                "help permissions\n"
+                "help handoff\n"
+                "help git\n"
+                "help ljson\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Model commands", rendered)
+            self.assertIn("model variant <provider> <variant>", rendered)
+            self.assertIn("Account commands", rendered)
+            self.assertIn("account login-device <chatgpt|openai> <name>", rendered)
+            self.assertIn("Permission commands", rendered)
+            self.assertIn("permission session allow <rule>", rendered)
+            self.assertIn("Handoff and PRINCE2 commands", rendered)
+            self.assertIn("handoff export | handoff md", rendered)
+            self.assertIn("Git commands", rendered)
+            self.assertIn("git history <path> [limit]", rendered)
+            self.assertIn("LJSON commands", rendered)
+            self.assertIn("--ljson-benchmark", rendered)
 
     def test_interactive_shell_executes_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

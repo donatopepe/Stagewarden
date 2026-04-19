@@ -150,6 +150,8 @@ Inside the shell:
 
 ```text
 stagewarden> help
+stagewarden> help models
+stagewarden> help handoff
 stagewarden> models
 stagewarden> model use openai
 stagewarden> model list claude
@@ -182,6 +184,8 @@ stagewarden> caveman on ultra
 stagewarden> fix failing tests
 stagewarden> quit
 ```
+
+Interactive help is topic-based: `help` shows compact categories, while `help models`, `help accounts`, `help permissions`, `help handoff`, `help git`, `help caveman`, and `help ljson` show focused command examples.
 
 Model control:
 
