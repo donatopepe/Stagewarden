@@ -434,6 +434,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("mode: normal", rendered)
             self.assertIn("handoff: .stagewarden_handoff.json", rendered)
             self.assertIn("Handoff summary:", rendered)
+            self.assertIn("Governance status:", rendered)
+            self.assertIn("governance=residual", rendered)
             self.assertIn("Project handoff:", rendered)
             self.assertIn("Stage view:", rendered)
             self.assertIn("closed_stages: step-1, step-2", rendered)
