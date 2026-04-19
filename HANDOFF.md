@@ -315,22 +315,23 @@ Validation:
 
 ### 13. Model Handoff Result Schema
 
-Status: planned
+Status: implemented
 
 Harden model output parsing with a stricter schema.
 
-Required behaviour:
+Implemented behaviour:
 
-- Accept strict JSON object with `summary`, `action`, `confidence`, `risks`, `validation`.
-- Reject unknown destructive actions.
-- Preserve current compatibility with simpler responses.
-- Record invalid output into memory and handoff.
+- Accept strict JSON object with `summary`, `action`, `confidence`, `risks`, and `validation`.
+- Preserve compatibility with simpler `{summary, action}` responses.
+- Validate optional schema fields when present.
+- Reject unknown destructive action types before tool execution.
+- Invalid output is recorded through the existing executor memory/handoff failure path.
 
 Validation:
 
-- Valid schema executes.
-- Invalid schema retries/escalates.
-- Destructive unknown action is denied.
+- Executor tests cover valid strict schema execution.
+- Executor tests cover invalid schema rejection and failure memory.
+- Executor tests cover denial of an unknown destructive action.
 
 ### 14. Cost-Aware Execution Budget
 
@@ -372,10 +373,10 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Model handoff result schema.
-2. Patch preview command in the interactive shell, if direct manual preview becomes useful.
-3. Model context files.
-4. Resume command over handoff.
+1. Patch preview command in the interactive shell, if direct manual preview becomes useful.
+2. Model context files.
+3. Resume command over handoff.
+4. Cost-aware execution budget.
 5. CLI help snapshot tests for Caveman category, if Caveman help changes.
 
 ## Validation Standard

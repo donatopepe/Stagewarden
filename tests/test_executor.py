@@ -133,6 +133,105 @@ class ExecutorTests(unittest.TestCase):
             self.assertFalse(outcome.ok)
             self.assertEqual(memory.failure_count("step-1"), 1)
 
+    def test_executor_accepts_strict_model_result_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete with validation",
+                                "confidence": 0.9,
+                                "risks": ["none"],
+                                "validation": "wet-run evidence included",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Validate", instruction="validate", validation="done")
+            outcome = executor.execute_step(task="validate", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertTrue(outcome.step_completed)
+
+    def test_executor_rejects_invalid_model_result_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "bad confidence",
+                                "confidence": "high",
+                                "risks": [],
+                                "validation": "none",
+                                "action": {"type": "complete", "message": "validation completed exit_code=0"},
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Validate", instruction="validate", validation="done")
+            outcome = executor.execute_step(task="validate", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.action_type, "invalid_output")
+            self.assertIn("confidence", outcome.observation)
+            self.assertEqual(memory.failure_count("step-1"), 1)
+
+    def test_executor_denies_unknown_destructive_model_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "bad action",
+                                "action": {"type": "delete_workspace", "path": "."},
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Validate", instruction="validate", validation="done")
+            outcome = executor.execute_step(task="validate", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.action_type, "invalid_output")
+            self.assertIn("Unknown destructive action denied", outcome.observation)
+
     def test_executor_can_patch_file_with_unified_diff(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             target = Path(tmp_dir) / "hello.txt"

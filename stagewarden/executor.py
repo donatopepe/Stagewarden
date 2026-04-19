@@ -33,6 +33,31 @@ class StepOutcome:
     prince2_assessment: dict[str, Any] | None = None
 
 
+ALLOWED_MODEL_ACTIONS = {
+    "shell",
+    "shell_session_create",
+    "shell_session_send",
+    "shell_session_close",
+    "read_file",
+    "write_file",
+    "apply_patch",
+    "patch_file",
+    "patch_files",
+    "preview_patch_files",
+    "list_files",
+    "search_files",
+    "git_status",
+    "git_diff",
+    "git_log",
+    "git_show",
+    "git_file_history",
+    "git_commit",
+    "complete",
+}
+
+DESTRUCTIVE_ACTION_TOKENS = ("delete", "remove", "destroy", "wipe", "reset", "drop", "format", "purge")
+
+
 class Executor:
     def __init__(
         self,
@@ -417,6 +442,9 @@ Available actions and required fields:
 Respond with strict JSON:
 {{
   "summary": "brief reasoning",
+  "confidence": 0.0,
+  "risks": ["risk if relevant"],
+  "validation": "how the action will be validated",
   "action": {{
     "type": "one action"
   }}
@@ -442,7 +470,36 @@ Respond with strict JSON:
         action = payload.get("action")
         if not isinstance(action, dict) or "type" not in action:
             return {"ok": False, "error": "Model JSON is missing action.type."}
+        schema_error = self._validate_model_result_schema(payload, action)
+        if schema_error:
+            return {"ok": False, "error": schema_error}
         return {"ok": True, "action": action, "payload": payload}
+
+    def _validate_model_result_schema(self, payload: dict[str, Any], action: dict[str, Any]) -> str:
+        summary = payload.get("summary")
+        if "summary" in payload and not isinstance(summary, str):
+            return "Model JSON field 'summary' must be a string."
+        confidence = payload.get("confidence")
+        if confidence is not None:
+            if not isinstance(confidence, int | float) or isinstance(confidence, bool):
+                return "Model JSON field 'confidence' must be a number from 0.0 to 1.0."
+            if confidence < 0 or confidence > 1:
+                return "Model JSON field 'confidence' must be a number from 0.0 to 1.0."
+        risks = payload.get("risks")
+        if risks is not None and not (isinstance(risks, list) and all(isinstance(item, str) for item in risks)):
+            return "Model JSON field 'risks' must be a list of strings."
+        validation = payload.get("validation")
+        if validation is not None and not (
+            isinstance(validation, str)
+            or (isinstance(validation, list) and all(isinstance(item, str) for item in validation))
+        ):
+            return "Model JSON field 'validation' must be a string or a list of strings."
+        action_type = str(action.get("type", "")).strip()
+        if action_type not in ALLOWED_MODEL_ACTIONS:
+            if any(token in action_type.lower() for token in DESTRUCTIVE_ACTION_TOKENS):
+                return f"Unknown destructive action denied: {action_type}"
+            return f"Unsupported action type: {action_type}"
+        return ""
 
     def _json_candidates(self, text: str) -> list[str]:
         candidates: list[str] = []

@@ -239,6 +239,12 @@ Patch workflow:
 - Duplicate targets in the same diff are rejected before writes, preventing ambiguous multi-hunk edits.
 - In `plan` mode patch preview is allowed, while actual file writes remain blocked.
 
+Model action schema:
+
+- Model responses may use the strict schema `{summary, confidence, risks, validation, action}`.
+- Simpler legacy responses with `{summary, action}` remain valid.
+- Unknown destructive action types are denied before tool execution.
+
 Interactive permission commands:
 
 - `permissions` shows the active workspace permission settings.
