@@ -128,6 +128,14 @@ sh scripts/setup_linux.sh
 
 If editable installation cannot download build dependencies, setup falls back to a source launcher in the user bin/Scripts directory. The `stagewarden` command still runs from the checked-out repository through `PYTHONPATH`.
 
+Prerequisite check:
+
+```bash
+stagewarden doctor
+```
+
+`doctor` validates Python 3.11+, Git availability, PATH launcher visibility, and repository state without installing anything or initializing git.
+
 Shell execution:
 
 - macOS/Linux use `bash` when available, otherwise `sh`.

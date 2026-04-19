@@ -36,6 +36,20 @@ def run_main_in_cwd(cwd: Path, *args: str) -> int:
     return completed.returncode
 
 
+def run_main_capture(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT)
+    return subprocess.run(
+        ["python3", "-m", "stagewarden.main", *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+
 class TraceAndCliTests(unittest.TestCase):
     def test_agent_writes_ljson_trace(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -91,6 +105,32 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Fast examples:", rendered)
             self.assertIn("Model configuration:", rendered)
             self.assertIn("Session closed.", rendered)
+
+    def test_doctor_cli_reports_prerequisites_without_initializing_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "doctor")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Stagewarden doctor:", completed.stdout)
+            self.assertIn("- Python: OK", completed.stdout)
+            self.assertIn("- Git: OK", completed.stdout)
+            self.assertIn("- PATH launcher:", completed.stdout)
+            self.assertIn("no prerequisites are installed silently", completed.stdout)
+            self.assertFalse((root / ".git").exists())
+
+    def test_interactive_shell_doctor_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
+            input_stream = StringIO("doctor\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Stagewarden doctor:", rendered)
+            self.assertIn("- Python: OK", rendered)
+            self.assertIn("- Git: OK", rendered)
 
     def test_interactive_shell_supports_category_help(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

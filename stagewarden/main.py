@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
 import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -281,6 +283,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- reset",
             "- status",
             "- transcript | trace",
+            "- doctor",
             "- sessions | session list",
             "- session create [cwd]",
             "- session send <id|last> <command>",
@@ -289,6 +292,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> status",
+            "- stagewarden> doctor",
             "- stagewarden> session create",
             "- stagewarden> session send last pwd",
             "- stagewarden> patch preview changes.diff",
@@ -528,6 +532,46 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         handoff.rendered_operational_posture(),
     ]
     return "\n".join(lines)
+
+
+def _render_doctor(config: AgentConfig) -> str:
+    lines = ["Stagewarden doctor:"]
+    python_ok = sys.version_info >= (3, 11)
+    python_status = "OK" if python_ok else "FAIL"
+    lines.append(
+        f"- Python: {python_status} {platform.python_version()} "
+        f"(required >=3.11, executable={sys.executable})"
+    )
+
+    git_path = shutil.which("git")
+    if git_path:
+        git_available = GitTool(config).ensure_available()
+        if git_available.ok:
+            version = git_available.stdout.strip() or "git available"
+            lines.append(f"- Git: OK {version} ({git_path})")
+        else:
+            lines.append(f"- Git: FAIL {git_available.error or 'git is not usable'}")
+    else:
+        lines.append("- Git: FAIL git executable not found in PATH. Install git before running Stagewarden.")
+
+    launcher = shutil.which("stagewarden")
+    if launcher:
+        lines.append(f"- PATH launcher: OK {launcher}")
+    else:
+        lines.append("- PATH launcher: WARN `stagewarden` not found in PATH; run setup.sh/setup.ps1 or use python -m stagewarden.main.")
+
+    repo_probe = GitTool(config)._run(["git", "rev-parse", "--is-inside-work-tree"])
+    if repo_probe.ok and repo_probe.stdout.strip() == "true":
+        lines.append("- Repository: OK current workspace is a git worktree")
+    else:
+        lines.append("- Repository: WARN current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup.")
+
+    lines.append("- Policy: no prerequisites are installed silently by doctor.")
+    return "\n".join(lines)
+
+
+def _doctor_ok(rendered: str) -> bool:
+    return "\n- Python: FAIL" not in rendered and "\n- Git: FAIL" not in rendered
 
 
 def _render_handoff(config: AgentConfig) -> str:
@@ -1099,6 +1143,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return None
     if parts[0] == "status":
         return _render_status(agent, config)
+    if parts[0] == "doctor":
+        return _render_doctor(config)
     if parts[0] == "handoff":
         if len(parts) == 2 and parts[1] in {"md", "export"}:
             return _export_handoff_markdown(config)
@@ -1584,7 +1630,6 @@ def main() -> int:
         ))
         return 0
 
-    agent = _configure_agent_for_workspace(config)
     task = args.task
     if args.caveman_help:
         task = "/caveman help"
@@ -1598,7 +1643,12 @@ def main() -> int:
         task = f"/caveman {args.caveman} {args.task}".strip()
     elif args.interactive or not task:
         return run_interactive_shell(config)
+    if task == "doctor":
+        rendered = _render_doctor(config)
+        print(rendered)
+        return 0 if _doctor_ok(rendered) else 1
 
+    agent = _configure_agent_for_workspace(config)
     result = agent.run(task)
     print(result.message)
     return 0 if result.ok else 1
