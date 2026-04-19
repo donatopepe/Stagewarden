@@ -1986,6 +1986,12 @@ def main() -> int:
         else:
             print(_render_accounts(config))
         return 0
+    if task == "permissions":
+        if args.json:
+            print(dumps_ascii({"command": "permissions", "report": _permissions_report(config)}, indent=2))
+        else:
+            print(_render_permissions(config))
+        return 0
     if task == "boundary":
         if args.json:
             print(dumps_ascii(_boundary_report(config), indent=2))
