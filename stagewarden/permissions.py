@@ -103,9 +103,10 @@ class PermissionPolicy:
         if not raw:
             return False
         if ":" not in raw:
-            return raw == capability or raw == "*"
+            return raw in {"*", capability, capability.split(":", 1)[0]}
         rule_capability, rule_detail = raw.split(":", 1)
-        if rule_capability not in {"*", capability}:
+        capability_family = capability.split(":", 1)[0]
+        if rule_capability not in {"*", capability, capability_family}:
             return False
         if rule_detail in {"*", ""}:
             return True
