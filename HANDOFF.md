@@ -363,6 +363,7 @@ Strengthen setup scripts for macOS, Linux, and Windows.
 Implemented behaviour:
 
 - `stagewarden doctor` validates Python 3.11+, Git availability, PATH launcher visibility, and repository state.
+- `doctor` reports provider capabilities for each configured model family: auth type, profile support, browser login, API-key support, token env state, and default model.
 - `doctor` does not install prerequisites and does not initialize git.
 - Interactive shell command `doctor` exposes the same report.
 
@@ -379,11 +380,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Provider capability checks in `doctor`.
-2. Harden setup scripts to run or suggest doctor after install.
-3. CLI help snapshot tests for Caveman category, if Caveman help changes.
-4. Richer model usage/cost reporting.
-5. Resume command wet-run integration with a fake model binary.
+1. Harden setup scripts to run or suggest doctor after install.
+2. CLI help snapshot tests for Caveman category, if Caveman help changes.
+3. Richer model usage/cost reporting.
+4. Resume command wet-run integration with a fake model binary.
+5. Optional doctor JSON output for automation.
 
 ## Recently Completed
 

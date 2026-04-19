@@ -134,7 +134,7 @@ Prerequisite check:
 stagewarden doctor
 ```
 
-`doctor` validates Python 3.11+, Git availability, PATH launcher visibility, and repository state without installing anything or initializing git.
+`doctor` validates Python 3.11+, Git availability, PATH launcher visibility, repository state, and provider capabilities/token env expectations without installing anything or initializing git.
 
 Shell execution:
 

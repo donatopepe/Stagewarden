@@ -116,6 +116,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("- Python: OK", completed.stdout)
             self.assertIn("- Git: OK", completed.stdout)
             self.assertIn("- PATH launcher:", completed.stdout)
+            self.assertIn("Provider capabilities:", completed.stdout)
+            self.assertIn("- chatgpt: auth=chatgpt_plan_oauth", completed.stdout)
+            self.assertIn("- openai: auth=openai_api_key", completed.stdout)
+            self.assertIn("- claude: auth=anthropic_api_key_or_claude_code_credentials", completed.stdout)
             self.assertIn("no prerequisites are installed silently", completed.stdout)
             self.assertFalse((root / ".git").exists())
 
@@ -131,6 +135,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Stagewarden doctor:", rendered)
             self.assertIn("- Python: OK", rendered)
             self.assertIn("- Git: OK", rendered)
+            self.assertIn("Provider capabilities:", rendered)
 
     def test_interactive_shell_supports_category_help(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
