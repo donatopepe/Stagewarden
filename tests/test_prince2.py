@@ -16,7 +16,16 @@ class Prince2Tests(unittest.TestCase):
         self.assertTrue(checklist.stage_plan)
         self.assertTrue(checklist.quality_criteria)
         self.assertIn("risk", checklist.tolerances)
+        self.assertIn("Adapt governance", checklist.adaptation_policy)
+        self.assertIn("responsibility explicit", checklist.role_policy)
         self.assertTrue(any("Irreversible" in item for item in checklist.risks))
+
+    def test_policy_requires_adaptive_governance_not_overengineering(self) -> None:
+        checklist = Prince2AgentPolicy().build_checklist("change a lamp")
+        rendered = checklist.render_for_prompt()
+        self.assertIn("If the method feels heavier than the task", rendered)
+        self.assertTrue(any("no overengineering" in item.lower() for item in checklist.stage_plan))
+        self.assertTrue(any("proportionate" in item.lower() for item in checklist.quality_criteria))
 
     def test_policy_rejects_vague_task(self) -> None:
         policy = Prince2AgentPolicy()

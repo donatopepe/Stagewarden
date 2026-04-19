@@ -11,6 +11,8 @@ from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 class Prince2Checklist:
     business_justification: str
     product_focus: str
+    adaptation_policy: str
+    role_policy: str
     stage_plan: list[str]
     quality_criteria: list[str]
     risks: list[str]
@@ -25,6 +27,8 @@ class Prince2Checklist:
         return {
             "business_justification": self.business_justification,
             "product_focus": self.product_focus,
+            "adaptation_policy": self.adaptation_policy,
+            "role_policy": self.role_policy,
             "stage_plan": list(self.stage_plan),
             "quality_criteria": list(self.quality_criteria),
             "risks": list(self.risks),
@@ -40,6 +44,8 @@ class Prince2Checklist:
         lines = [
             f"Business justification: {self.business_justification}",
             f"Product focus: {self.product_focus}",
+            f"Adaptation policy: {self.adaptation_policy}",
+            f"Role policy: {self.role_policy}",
             "Stage plan:",
             *[f"- {item}" for item in self.stage_plan],
             "Quality criteria:",
@@ -150,9 +156,18 @@ class Prince2AgentPolicy:
 
         business_justification = "Proceed only if task still serves requested outcome and remains worth time/risk."
         product_focus = "Define deliverables first, then actions and tools."
+        adaptation_policy = (
+            "Adapt governance to task size, risk, and complexity. "
+            "Small tasks use the lightest viable controls; complex or risky tasks require stricter staged control. "
+            "If the method feels heavier than the task, reduce paperwork, not principles."
+        )
+        role_policy = (
+            "Keep responsibility explicit for every stage: who requested the outcome, which model acts, which tool executes, "
+            "and who validates completion."
+        )
         stage_plan = [
             "Verify objective, context, and constraints.",
-            "Plan a bounded next step with validation.",
+            "Plan a bounded next step with validation and no overengineering.",
             "Execute one controlled change or observation.",
             "Validate outcome against quality criteria.",
             "Escalate or close at stage boundary.",
@@ -161,6 +176,7 @@ class Prince2AgentPolicy:
             "Output matches the requested outcome.",
             "No evident regression or contradiction.",
             "Validation evidence exists or limitation is explicit.",
+            "Governance remains proportionate to the task; no unnecessary bureaucracy.",
         ]
         if code_task:
             quality_criteria.append("Changed code is syntactically consistent and tested proportionally.")
@@ -186,6 +202,8 @@ class Prince2AgentPolicy:
         controls = [
             "Work stage-by-stage.",
             "Use management by exception.",
+            "For small tasks, keep documentation and controls minimal but explicit.",
+            "For complex or risky tasks, increase formal controls, evidence, and boundary checks.",
             "Keep trace, memory, and validation evidence.",
         ]
         closure_criteria = [
@@ -199,6 +217,8 @@ class Prince2AgentPolicy:
         return Prince2Checklist(
             business_justification=business_justification,
             product_focus=product_focus,
+            adaptation_policy=adaptation_policy,
+            role_policy=role_policy,
             stage_plan=stage_plan,
             quality_criteria=quality_criteria,
             risks=risks,
@@ -277,6 +297,7 @@ class Prince2AgentPolicy:
             "quality": "Validate each stage with direct evidence or state the limitation clearly.",
             "risk": "Prefer lowest-cost safe route, but escalate risky work automatically.",
             "digital_data": "Persist traces, memory, and artifacts in structured workspace files.",
+            "adaptation": "Use light governance for small tasks and stricter governance for complex or risky work without dropping principles.",
         }
         if any(token in lowered for token in ("test", "validate", "check")):
             approaches["quality"] = "Use direct executable validation before claiming completion."

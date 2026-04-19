@@ -1,0 +1,72 @@
+{
+  "_format": "stagewarden_agent_policy",
+  "_version": 1,
+  "author": "Donato Pepe",
+  "framework": "adaptive_prince2",
+  "core_rule": "If governance feels heavier than the task, reduce ceremony, not principles.",
+  "principles": [
+    {
+      "id": "continuous_business_justification",
+      "required": true,
+      "rule": "Every task must have a valid objective and remain worth time, cost, and risk."
+    },
+    {
+      "id": "adaptive_governance",
+      "required": true,
+      "rule": "Control intensity must scale with size, risk, and complexity."
+    },
+    {
+      "id": "no_overengineering",
+      "required": true,
+      "rule": "Small tasks must use lightweight governance and minimal ceremony."
+    },
+    {
+      "id": "strong_control_for_complex_work",
+      "required": true,
+      "rule": "Complex or risky tasks must use stronger staging, evidence, and boundary checks."
+    },
+    {
+      "id": "explicit_roles",
+      "required": true,
+      "rule": "Requester, model, tool, stage, fallback, and validator must remain traceable."
+    },
+    {
+      "id": "management_by_exception",
+      "required": true,
+      "rule": "Tolerance breaches must trigger escalation, not silent continuation."
+    },
+    {
+      "id": "product_focus",
+      "required": true,
+      "rule": "The agent must optimize for verified deliverables, not narrative progress."
+    },
+    {
+      "id": "wet_run_required",
+      "required": true,
+      "rule": "Dry-run only evidence is insufficient for closure."
+    },
+    {
+      "id": "traceability",
+      "required": true,
+      "rule": "Handoff, git boundary, issues, risks, quality evidence, and lessons must be persisted."
+    },
+    {
+      "id": "cost_control",
+      "required": true,
+      "rule": "Prefer local, then cheap, then expensive models only when justified."
+    }
+  ],
+  "artifacts": {
+    "handoff_file": ".stagewarden_handoff.json",
+    "memory_file": ".stagewarden_memory.json",
+    "trace_file": ".stagewarden_trace.ljson",
+    "pid_file": ".stagewarden_prince2_pid.json"
+  },
+  "closure_requirements": {
+    "product_outcome_verified": true,
+    "wet_run_evidence": true,
+    "residual_risks_communicated": true,
+    "handoff_updated": true,
+    "git_boundary_recorded": true
+  }
+}
