@@ -154,6 +154,13 @@ class MemoryStore:
             )
         return "\n".join(lines)
 
+    def transcript_report(self, limit: int = 12) -> dict[str, Any]:
+        items = self.tool_transcript[-limit:]
+        return {
+            "count": len(items),
+            "entries": [asdict(item) for item in items],
+        }
+
     def model_usage_stats(self) -> dict[str, Any]:
         cost_tiers = {
             "local": "free/local",

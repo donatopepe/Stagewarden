@@ -222,6 +222,30 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["report"]["totals"]["escalation_path"], "local -> cheap")
             self.assertIn("routing_budget", payload["policy"])
 
+    def test_transcript_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="shell",
+                action_type="shell",
+                success=True,
+                summary="pwd",
+                detail="exit_code=0",
+                duration_ms=10,
+            )
+            memory.save(root / ".stagewarden_memory.json")
+            completed = run_main_capture(root, "transcript", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "transcript")
+            self.assertEqual(payload["report"]["count"], 1)
+            self.assertEqual(payload["report"]["entries"][0]["tool"], "shell")
+            self.assertEqual(payload["report"]["entries"][0]["summary"], "pwd")
+
     def test_interactive_shell_doctor_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)

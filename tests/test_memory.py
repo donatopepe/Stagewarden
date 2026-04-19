@@ -156,6 +156,9 @@ class MemoryTests(unittest.TestCase):
             self.assertIn("tool=shell", rendered)
             self.assertIn("summary=python3 -m unittest", rendered)
             self.assertIn("detail=exit_code=0", rendered)
+            report = loaded.transcript_report()
+            self.assertEqual(report["count"], 1)
+            self.assertEqual(report["entries"][0]["tool"], "shell")
 
 
 if __name__ == "__main__":
