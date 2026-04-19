@@ -42,6 +42,7 @@ class Planner:
                 )
             )
 
+        self._inject_recovery_lane(steps, project_handoff=project_handoff)
         self._apply_handoff_context(steps, task=task, project_handoff=project_handoff)
         self._promote_ready_step(steps)
         return self._compress_completed_prefix(steps)
@@ -90,7 +91,15 @@ class Planner:
         self._apply_register_context(steps, project_handoff=project_handoff)
 
     def _apply_register_context(self, steps: list[PlanStep], *, project_handoff: ProjectHandoff) -> None:
-        target = next((step for step in steps if step.status in {"ready", "in_progress", "failed"}), None)
+        if project_handoff.status == "exception":
+            target = next(
+                (step for step in steps if step.id.startswith("recovery-step-") and step.status in {"ready", "in_progress", "planned"}),
+                None,
+            )
+        else:
+            target = None
+        if target is None:
+            target = next((step for step in steps if step.status in {"ready", "in_progress", "failed"}), None)
         if target is None:
             return
 
@@ -208,6 +217,47 @@ class Planner:
                 statuses[clean_key] = clean_status
         return statuses
 
+    def _inject_recovery_lane(self, steps: list[PlanStep], *, project_handoff: ProjectHandoff | None) -> None:
+        if not project_handoff or project_handoff.status != "exception" or not project_handoff.exception_plan:
+            return
+        if any(step.id.startswith("recovery-step-") for step in steps):
+            return
+        status_by_step = self._parse_plan_status(project_handoff.plan_status)
+        has_exceptional_stage = any(status in {"failed", "exception"} for status in status_by_step.values())
+        current_status = (project_handoff.current_step_status or "").strip().lower()
+        if not has_exceptional_stage and current_status not in {"failed", "exception"}:
+            return
+
+        recovery_steps: list[PlanStep] = []
+        for index, action in enumerate(project_handoff.exception_plan, start=1):
+            text = action.strip()
+            if not text:
+                continue
+            recovery_steps.append(
+                PlanStep(
+                    id=f"recovery-step-{index}",
+                    title=f"Recovery {index}. {' '.join(text.split()[:6]).capitalize()}",
+                    instruction=(
+                        f"execute corrective action for blocked stage: {text}"
+                        f" | blocked_stage={project_handoff.current_step_id or 'unknown'}"
+                    ),
+                    validation="A real wet-run confirms the blocking condition is resolved and controlled execution can resume.",
+                    status="planned",
+                    wet_run_required=True,
+                )
+            )
+
+        if not recovery_steps:
+            return
+
+        insert_at = len(steps)
+        current_step_id = (project_handoff.current_step_id or "").strip()
+        for index, step in enumerate(steps):
+            if step.id == current_step_id:
+                insert_at = index + 1
+                break
+        steps[insert_at:insert_at] = recovery_steps
+
     def _promote_ready_step(self, steps: list[PlanStep]) -> None:
         if any(step.status == "in_progress" for step in steps):
             return
@@ -222,6 +272,6 @@ class Planner:
         value = status.strip().lower()
         if value == "pending":
             return "planned"
-        if value in {"planned", "ready", "in_progress", "completed", "failed"}:
+        if value in {"planned", "ready", "in_progress", "completed", "failed", "exception"}:
             return value
         return "planned"

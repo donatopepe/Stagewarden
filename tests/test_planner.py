@@ -102,7 +102,14 @@ class PlannerTests(unittest.TestCase):
             "inspect the repo and implement a fix and validate the result",
             project_handoff=handoff,
         )
-        self.assertIn("exception_plan=review failing test output; prepare corrective patch", steps[1].instruction)
+        recovery = [step for step in steps if step.id.startswith("recovery-step-")]
+        self.assertEqual(len(recovery), 2)
+        self.assertEqual(recovery[0].status, "ready")
+        self.assertEqual(recovery[1].status, "planned")
+        self.assertIn("execute corrective action for blocked stage: review failing test output", recovery[0].instruction)
+        self.assertIn("blocked_stage=step-2", recovery[0].instruction)
+        self.assertIn("exception_plan=review failing test output; prepare corrective patch", recovery[0].instruction)
+        self.assertIn("blocking condition is resolved", recovery[0].validation)
 
     def test_create_plan_promotes_first_non_completed_stage_to_ready(self) -> None:
         planner = Planner()
@@ -118,6 +125,28 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(steps[0].status, "completed")
         self.assertEqual(steps[1].status, "ready")
         self.assertEqual(steps[2].status, "planned")
+
+    def test_create_plan_can_resume_recovery_stage_from_handoff(self) -> None:
+        planner = Planner()
+        handoff = ProjectHandoff(
+            task="inspect the repo and implement a fix and validate the result",
+            status="exception",
+            current_step_id="recovery-step-1",
+            current_step_title="Recovery 1. Review failing test output",
+            current_step_status="in_progress",
+            latest_observation="identified the failing test fixture",
+            plan_status="step-1:completed,step-2:failed,recovery-step-1:in_progress,recovery-step-2:planned,step-3:planned",
+            exception_plan=["review failing test output", "prepare corrective patch"],
+        )
+        steps = planner.create_plan(
+            "inspect the repo and implement a fix and validate the result",
+            project_handoff=handoff,
+        )
+        recovery = [step for step in steps if step.id.startswith("recovery-step-")]
+        self.assertEqual(recovery[0].status, "in_progress")
+        self.assertTrue(recovery[0].title.startswith("Resume "))
+        self.assertIn("continue from persisted handoff context", recovery[0].instruction)
+        self.assertIn("identified the failing test fixture", recovery[0].instruction)
 
 
 if __name__ == "__main__":
