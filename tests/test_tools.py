@@ -160,9 +160,83 @@ class ToolTests(unittest.TestCase):
             )
             result = tool.patch_files(diff)
             self.assertTrue(result.ok)
+            self.assertEqual(result.matches, ["update keep.txt", "add new.txt", "delete delete.txt"])
+            self.assertIn("update keep.txt", result.content)
+            self.assertIn("add new.txt", result.content)
+            self.assertIn("delete delete.txt", result.content)
             self.assertEqual((root / "keep.txt").read_text(), "after\n")
             self.assertEqual((root / "new.txt").read_text(), "created\n")
             self.assertFalse((root / "delete.txt").exists())
+
+    def test_file_tool_preview_patch_files_does_not_write_in_plan_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            PermissionSettings(default_mode="plan").save(root / ".stagewarden_settings.json")
+            (root / "keep.txt").write_text("before\n")
+            tool = FileTool(AgentConfig(workspace_root=root))
+            diff = "\n".join(
+                [
+                    "--- a/keep.txt",
+                    "+++ b/keep.txt",
+                    "@@ -1,1 +1,1 @@",
+                    "-before",
+                    "+after",
+                ]
+            )
+
+            preview = tool.preview_patch_files(diff)
+            applied = tool.patch_files(diff)
+
+            self.assertTrue(preview.ok, preview.error)
+            self.assertEqual(preview.matches, ["update keep.txt"])
+            self.assertEqual((root / "keep.txt").read_text(), "before\n")
+            self.assertFalse(applied.ok)
+            self.assertIn("Plan mode", applied.error)
+
+    def test_file_tool_rejects_ambiguous_duplicate_patch_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "same.txt").write_text("one\n")
+            tool = FileTool(AgentConfig(workspace_root=root))
+            diff = "\n".join(
+                [
+                    "--- a/same.txt",
+                    "+++ b/same.txt",
+                    "@@ -1,1 +1,1 @@",
+                    "-one",
+                    "+two",
+                    "--- a/same.txt",
+                    "+++ b/same.txt",
+                    "@@ -1,1 +1,1 @@",
+                    "-one",
+                    "+three",
+                ]
+            )
+
+            result = tool.preview_patch_files(diff)
+
+            self.assertFalse(result.ok)
+            self.assertIn("Ambiguous patch target", result.error)
+
+    def test_file_tool_preview_patch_files_rejects_failed_hunk(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "keep.txt").write_text("before\n")
+            tool = FileTool(AgentConfig(workspace_root=root))
+            diff = "\n".join(
+                [
+                    "--- a/keep.txt",
+                    "+++ b/keep.txt",
+                    "@@ -1,1 +1,1 @@",
+                    "-missing",
+                    "+after",
+                ]
+            )
+
+            result = tool.preview_patch_files(diff)
+
+            self.assertFalse(result.ok)
+            self.assertIn("Unable to apply patch", result.error)
 
     def test_file_tool_writes_ascii_safe_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

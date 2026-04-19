@@ -219,6 +219,13 @@ Tool transcript:
 - `transcript` or `trace` shows recent tool invocations from workspace memory.
 - Transcript entries are persisted in `.stagewarden_memory.json` using LJSON.
 
+Patch workflow:
+
+- Model actions can use `preview_patch_files` to validate a unified multi-file diff and get a per-file summary without writing.
+- `patch_files` applies the same unified diff format and reports `add`, `update`, and `delete` entries per path.
+- Duplicate targets in the same diff are rejected before writes, preventing ambiguous multi-hunk edits.
+- In `plan` mode patch preview is allowed, while actual file writes remain blocked.
+
 Interactive permission commands:
 
 - `permissions` shows the active workspace permission settings.
