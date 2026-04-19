@@ -646,6 +646,26 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Caveman commands:", rendered)
             self.assertIn("/caveman review", rendered)
 
+    def test_interactive_shell_caveman_help_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
+            input_stream = StringIO("help caveman\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Caveman commands:", rendered)
+            self.assertIn("/caveman [lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra]", rendered)
+            self.assertIn("$caveman ...", rendered)
+            self.assertIn("@caveman ...", rendered)
+            self.assertIn("/caveman help", rendered)
+            self.assertIn("/caveman commit", rendered)
+            self.assertIn("/caveman review", rendered)
+            self.assertIn("/caveman compress <file>", rendered)
+            self.assertIn("stop caveman", rendered)
+            self.assertIn("talk like caveman", rendered)
+
     def test_interactive_shell_persists_model_block_until_datetime(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
