@@ -52,6 +52,7 @@ PRINCE2 handoff behavior:
 - `boundary` now blocks closure when open issues remain and prefers an explicit exception-path decision when an exception plan is active.
 - On controlled project closure, Stagewarden now closes remaining open issues and risks and clears the exception plan when the project has recovered.
 - On controlled project closure, Stagewarden also finalizes quality evidence by marking remaining quality entries as accepted.
+- `boundary` and `handoff` now show both register counts and register closure state, so you can see open vs closed risks/issues and open vs accepted quality evidence.
 
 Validation behavior:
 
