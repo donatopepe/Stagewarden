@@ -230,6 +230,8 @@ Handoff tracking:
 - When a stage completes under control, the next `planned` stage is promoted automatically to `ready`.
 - When a project enters `exception` with an active exception plan, the planner now injects an explicit recovery lane as `recovery-step-*` stages instead of only retrying the failed stage inline.
 - Recovery stages participate in the same lifecycle gates and can be resumed from persisted handoff context like any other stage.
+- The handoff boundary view now reports `recovery_state` as `exception_active`, `recovery_active`, `recovery_cleared`, or `none`.
+- `recovery_active` drives the next action toward executing recovery stages; `recovery_cleared` drives cleanup of exception controls before normal execution resumes.
 
 Account profiles:
 
