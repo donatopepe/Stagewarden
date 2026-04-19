@@ -663,6 +663,14 @@ class ExecutorTests(unittest.TestCase):
 
             self.assertTrue(outcome.ok)
             prompt = handoff.calls[0]
+            self.assertIn("Model context files:", prompt)
+            self.assertIn("handoff_file: .stagewarden_handoff.json", prompt)
+            self.assertIn("memory_file: .stagewarden_memory.json", prompt)
+            self.assertIn("trace_file: .stagewarden_trace.ljson", prompt)
+            self.assertIn("recovery_state:", prompt)
+            self.assertIn("backlog_status:", prompt)
+            self.assertIn("git_boundary:", prompt)
+            self.assertIn("git_dirty_state:", prompt)
             self.assertIn("Implicit project handoff context:", prompt)
             self.assertIn("Stage boundary view:", prompt)
             self.assertIn("PRINCE2 registers:", prompt)
@@ -677,6 +685,29 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("Recent execution log:", prompt)
             self.assertIn("working tree clean", prompt)
             self.assertIn("boundary_decision: continue_current_stage", prompt)
+
+    def test_executor_prompt_context_sections_are_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            project_handoff = ProjectHandoff()
+            for index in range(120):
+                project_handoff.risk_register.append(
+                    {"risk": f"risk-{index} " + ("x" * 120), "status": "open"}
+                )
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=FakeHandoff([]),
+                memory=memory,
+                project_handoff=project_handoff,
+            )
+            step = PlanStep(id="step-1", title="Implement", instruction="implement", validation="done")
+
+            prompt = executor._build_prompt(task="large context", step=step, plan=[step], last_observation="none")
+
+            self.assertIn("[truncated risk_register:", prompt)
+            self.assertLess(len(prompt), 40000)
 
 
 if __name__ == "__main__":
