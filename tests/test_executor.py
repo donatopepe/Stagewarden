@@ -93,6 +93,10 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertTrue(outcome.step_completed)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
+            self.assertTrue(memory.tool_transcript)
+            self.assertEqual(memory.tool_transcript[-1].tool, "files")
+            self.assertEqual(memory.tool_transcript[-1].action_type, "write_file")
+            self.assertIn("hello.txt", memory.tool_transcript[-1].summary)
 
     def test_executor_tracks_invalid_output_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

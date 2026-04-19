@@ -171,7 +171,7 @@ class Executor:
 
         action = parsed["action"]
         action_type = action.get("type", "").strip()
-        observation = self._run_action(action)
+        observation = self._run_action(action, iteration=iteration, step_id=step.id)
         ok = observation["ok"]
         step_completed = bool(action_type == "complete" and ok)
         error_type = None if ok else observation.get("error_type", "execution_error")
@@ -495,35 +495,56 @@ Respond with strict JSON:
             start = text.find("{", start + 1)
         return None
 
-    def _run_action(self, action: dict[str, Any]) -> dict[str, Any]:
+    def _run_action(self, action: dict[str, Any], *, iteration: int = 0, step_id: str = "") -> dict[str, Any]:
         action_type = action.get("type")
         if action_type == "shell":
             result = self.shell.run(action.get("command", ""), cwd=action.get("cwd"))
-            return {
+            observation = {
                 "ok": result.ok,
                 "message": result.output_preview or result.error or "Shell command executed.",
                 "error_type": "runtime_error",
             }
+            self._record_tool_transcript(
+                iteration=iteration,
+                step_id=step_id,
+                tool="shell",
+                action_type=str(action_type),
+                success=result.ok,
+                summary=action.get("command", ""),
+                detail=result.output_preview or result.error,
+                duration_ms=result.duration_ms,
+                error_type=None if result.ok else "runtime_error",
+            )
+            return observation
 
         if action_type == "shell_session_create":
             result = self.shell.create_session(cwd=action.get("cwd"))
-            return {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
+            observation = {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary="create shell session", detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error")
+            return observation
 
         if action_type == "shell_session_send":
             result = self.shell.send_session(action.get("session_id", ""), action.get("command", ""))
-            return {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
+            observation = {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary=action.get("command", ""), detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error")
+            return observation
 
         if action_type == "shell_session_close":
             result = self.shell.close_session(action.get("session_id", ""))
-            return {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
+            observation = {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary="close shell session", detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error")
+            return observation
 
         if action_type == "read_file":
             result = self.files.read(action.get("path", ""))
-            return {"ok": result.ok, "message": result.content or result.error or "File read.", "error_type": "file_error"}
+            message = result.content or result.error or "File read."
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "write_file":
             result = self.files.write(action.get("path", ""), action.get("content", ""))
             message = f"Wrote file {result.path}" if result.ok else result.error
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "apply_patch":
@@ -533,16 +554,19 @@ Respond with strict JSON:
                 action.get("replace", ""),
             )
             message = f"Patched file {result.path}" if result.ok else result.error
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "patch_file":
             result = self.files.patch(action.get("path", ""), action.get("diff", ""))
             message = f"Patched file {result.path}" if result.ok else result.error
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "patch_files":
             result = self.files.patch_files(action.get("diff", ""))
             message = f"Patched files:\n{result.content}" if result.ok else result.error
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary="multi-file patch", detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "list_files":
@@ -551,7 +575,9 @@ Respond with strict JSON:
                 pattern=action.get("pattern", "*"),
                 limit=int(action.get("limit", 200)),
             )
-            return {"ok": result.ok, "message": result.content or result.error or "No files found.", "error_type": "file_error"}
+            message = result.content or result.error or "No files found."
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("base_path", "."), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "search_files":
             result = self.files.search(
@@ -560,36 +586,76 @@ Respond with strict JSON:
                 glob=action.get("glob", "*"),
                 limit=int(action.get("limit", 100)),
             )
-            return {"ok": result.ok, "message": result.content or result.error or "No matches found.", "error_type": "file_error"}
+            message = result.content or result.error or "No matches found."
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("pattern", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "git_diff":
             result = self.git.diff()
-            return {"ok": result.ok, "message": result.stdout or result.error or "No diff.", "error_type": "git_error"}
+            return self._git_observation(iteration, step_id, str(action_type), "git diff", result.stdout or result.error or "No diff.", result.ok)
 
         if action_type == "git_status":
             result = self.git.status()
-            return {"ok": result.ok, "message": result.stdout or result.error or "Clean working tree.", "error_type": "git_error"}
+            return self._git_observation(iteration, step_id, str(action_type), "git status", result.stdout or result.error or "Clean working tree.", result.ok)
 
         if action_type == "git_log":
             result = self.git.log(limit=int(action.get("limit", 20)), path=action.get("path") or None)
-            return {"ok": result.ok, "message": result.stdout or result.error or "No git history.", "error_type": "git_error"}
+            return self._git_observation(iteration, step_id, str(action_type), action.get("path") or "git log", result.stdout or result.error or "No git history.", result.ok)
 
         if action_type == "git_show":
             result = self.git.show(revision=action.get("revision", "HEAD"), stat=bool(action.get("stat", False)))
-            return {"ok": result.ok, "message": result.stdout or result.error or "No revision details.", "error_type": "git_error"}
+            return self._git_observation(iteration, step_id, str(action_type), action.get("revision", "HEAD"), result.stdout or result.error or "No revision details.", result.ok)
 
         if action_type == "git_file_history":
             result = self.git.file_history(action.get("path", ""), limit=int(action.get("limit", 20)))
-            return {"ok": result.ok, "message": result.stdout or result.error or "No file history.", "error_type": "git_error"}
+            return self._git_observation(iteration, step_id, str(action_type), action.get("path", ""), result.stdout or result.error or "No file history.", result.ok)
 
         if action_type == "git_commit":
             result = self.git.commit(action.get("message", "Agent commit"))
-            return {"ok": result.ok, "message": result.stdout or result.error or "Committed.", "error_type": "git_error"}
+            return self._git_observation(iteration, step_id, str(action_type), action.get("message", "Agent commit"), result.stdout or result.error or "Committed.", result.ok)
 
         if action_type == "complete":
             return {"ok": True, "message": action.get("message", "Step completed.")}
 
         return {"ok": False, "message": f"Unsupported action type: {action_type}", "error_type": "invalid_output"}
+
+    def _record_tool_transcript(
+        self,
+        *,
+        iteration: int,
+        step_id: str,
+        tool: str,
+        action_type: str,
+        success: bool,
+        summary: str,
+        detail: str = "",
+        duration_ms: int = 0,
+        error_type: str | None = None,
+    ) -> None:
+        self.memory.record_tool_transcript(
+            iteration=iteration,
+            step_id=step_id or "-",
+            tool=tool,
+            action_type=action_type,
+            success=success,
+            summary=summary,
+            detail=detail,
+            duration_ms=duration_ms,
+            error_type=error_type,
+        )
+
+    def _git_observation(self, iteration: int, step_id: str, action_type: str, summary: str, message: str, ok: bool) -> dict[str, Any]:
+        self._record_tool_transcript(
+            iteration=iteration,
+            step_id=step_id,
+            tool="git",
+            action_type=action_type,
+            success=ok,
+            summary=summary,
+            detail=message,
+            error_type=None if ok else "git_error",
+        )
+        return {"ok": ok, "message": message, "error_type": "git_error"}
 
     def _check_validation(self, step: PlanStep, observation: str, *, action_type: str = "") -> bool:
         if not self._has_wet_run_evidence(action_type, observation):

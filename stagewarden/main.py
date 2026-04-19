@@ -12,6 +12,7 @@ from .auth import OpenAIDeviceCodeFlow
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
+from .memory import MemoryStore
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .project_handoff import ProjectHandoff
@@ -64,6 +65,8 @@ def interactive_help_text() -> str:
             "  Show the dedicated PRINCE2 registers from the persisted handoff.",
             "- lessons",
             "  Show the persistent lessons log derived from execution outcomes.",
+            "- transcript | trace",
+            "  Show the recent tool invocation transcript from workspace memory.",
             "- todo",
             "  Show the persisted implementation backlog tracked in handoff.",
             "- permissions",
@@ -184,6 +187,7 @@ def interactive_help_text() -> str:
             "- stagewarden> quality",
             "- stagewarden> exception",
             "- stagewarden> lessons",
+            "- stagewarden> transcript",
             "- stagewarden> todo",
             "- stagewarden> permissions",
             "- stagewarden> permission mode plan",
@@ -384,6 +388,13 @@ def _render_lessons(config: AgentConfig) -> str:
 
 def _render_todo(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_implementation_backlog()
+
+
+def _render_transcript(config: AgentConfig) -> str:
+    try:
+        return MemoryStore.load(config.memory_path).transcript_summary()
+    except (OSError, ValueError, TypeError):
+        return "No tool transcript."
 
 
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
@@ -714,6 +725,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_exception(config)
     if parts[0] == "lessons":
         return _render_lessons(config)
+    if parts[0] in {"transcript", "trace"}:
+        return _render_transcript(config)
     if parts[0] == "todo":
         return _render_todo(config)
     if parts[0] == "permissions":

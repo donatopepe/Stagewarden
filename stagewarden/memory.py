@@ -21,8 +21,22 @@ class AttemptRecord:
 
 
 @dataclass(slots=True)
+class ToolTranscriptRecord:
+    iteration: int
+    step_id: str
+    tool: str
+    action_type: str
+    success: bool
+    summary: str
+    detail: str = ""
+    duration_ms: int = 0
+    error_type: str | None = None
+
+
+@dataclass(slots=True)
 class MemoryStore:
     attempts: list[AttemptRecord] = field(default_factory=list)
+    tool_transcript: list[ToolTranscriptRecord] = field(default_factory=list)
     failures_by_step: dict[str, int] = field(default_factory=dict)
     models_by_step: dict[str, list[str]] = field(default_factory=dict)
 
@@ -58,6 +72,33 @@ class MemoryStore:
 
     def failure_count(self, step_id: str) -> int:
         return self.failures_by_step.get(step_id, 0)
+
+    def record_tool_transcript(
+        self,
+        *,
+        iteration: int,
+        step_id: str,
+        tool: str,
+        action_type: str,
+        success: bool,
+        summary: str,
+        detail: str = "",
+        duration_ms: int = 0,
+        error_type: str | None = None,
+    ) -> None:
+        self.tool_transcript.append(
+            ToolTranscriptRecord(
+                iteration=iteration,
+                step_id=step_id,
+                tool=tool,
+                action_type=action_type,
+                success=success,
+                summary=summary[:500],
+                detail=detail[:2000],
+                duration_ms=duration_ms,
+                error_type=error_type,
+            )
+        )
 
     def recent_attempts(self, step_id: str, limit: int = 3) -> list[AttemptRecord]:
         return [item for item in self.attempts if item.step_id == step_id][-limit:]
@@ -98,9 +139,25 @@ class MemoryStore:
             )
         return "\n".join(lines)
 
+    def transcript_summary(self, limit: int = 12) -> str:
+        if not self.tool_transcript:
+            return "No tool transcript."
+        lines: list[str] = ["Tool transcript:"]
+        for item in self.tool_transcript[-limit:]:
+            status = "ok" if item.success else f"failed:{item.error_type or 'unknown'}"
+            detail = item.detail.strip().replace("\n", " ")
+            suffix = f" detail={detail[:180]}" if detail else ""
+            duration = f" duration_ms={item.duration_ms}" if item.duration_ms else ""
+            lines.append(
+                f"- [iter={item.iteration}] step={item.step_id} tool={item.tool} "
+                f"action={item.action_type} status={status}{duration} summary={item.summary}{suffix}"
+            )
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "attempts": [asdict(item) for item in self.attempts],
+            "tool_transcript": [asdict(item) for item in self.tool_transcript],
             "failures_by_step": dict(self.failures_by_step),
             "models_by_step": dict(self.models_by_step),
         }
@@ -112,6 +169,10 @@ class MemoryStore:
             "_version": 1,
             "attempts_ljson": encode_ljson(
                 [asdict(item) for item in self.attempts],
+                options=LJSONOptions(version=1, normalize_missing=True),
+            ),
+            "tool_transcript_ljson": encode_ljson(
+                [asdict(item) for item in self.tool_transcript],
                 options=LJSONOptions(version=1, normalize_missing=True),
             ),
             "failures_by_step": dict(self.failures_by_step),
@@ -131,6 +192,11 @@ class MemoryStore:
             attempts = decode_ljson(payload["attempts_ljson"])
         for item in attempts or []:
             store.attempts.append(AttemptRecord(**item))
+        transcript = payload.get("tool_transcript")
+        if "tool_transcript_ljson" in payload:
+            transcript = decode_ljson(payload["tool_transcript_ljson"])
+        for item in transcript or []:
+            store.tool_transcript.append(ToolTranscriptRecord(**item))
         store.failures_by_step = {
             str(key): int(value) for key, value in payload.get("failures_by_step", {}).items()
         }
@@ -143,5 +209,11 @@ class MemoryStore:
     def attempts_as_ljson(self, *, numeric_keys: bool = False) -> dict[str, Any]:
         return encode_ljson(
             [asdict(item) for item in self.attempts],
+            options=LJSONOptions(numeric_keys=numeric_keys, normalize_missing=True),
+        )
+
+    def tool_transcript_as_ljson(self, *, numeric_keys: bool = False) -> dict[str, Any]:
+        return encode_ljson(
+            [asdict(item) for item in self.tool_transcript],
             options=LJSONOptions(numeric_keys=numeric_keys, normalize_missing=True),
         )
