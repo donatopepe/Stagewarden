@@ -486,6 +486,20 @@ Validation:
 - Memory tests cover machine-readable transcript reports.
 - CLI tests parse transcript JSON output and verify stored entry fields.
 
+### Handoff and Resume JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden handoff --json`.
+- Non-interactive CLI now supports `stagewarden "resume --show" --json`.
+- Both outputs reuse runtime handoff/state logic instead of parsing text views.
+
+Validation:
+
+- CLI tests parse handoff JSON and resume-show JSON output and verify task, current step, next action, and boundary state.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot

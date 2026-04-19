@@ -246,6 +246,61 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["report"]["entries"][0]["tool"], "shell")
             self.assertEqual(payload["report"]["entries"][0]["summary"], "pwd")
 
+    def test_handoff_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-3",
+                "current_step_title": "Validate result",
+                "current_step_status": "in_progress",
+                "latest_observation": "wet-run pending",
+                "plan_status": "step-1:completed,step-2:completed,step-3:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "handoff", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "handoff")
+            self.assertEqual(payload["handoff"]["task"], "fix failing tests")
+            self.assertEqual(payload["stage_view"]["boundary_decision"], "continue_current_stage")
+            self.assertEqual(payload["next_action"], "continue step-3")
+
+    def test_resume_show_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-7",
+                "current_step_title": "Validate",
+                "current_step_status": "in_progress",
+                "latest_observation": "wet-run pending",
+                "plan_status": "step-7:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "resume --show", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "resume --show")
+            self.assertEqual(payload["task"], "fix failing tests")
+            self.assertEqual(payload["current_step"], "step-7")
+            self.assertEqual(payload["current_step_status"], "in_progress")
+            self.assertEqual(payload["next_action"], "continue step-7")
+
     def test_interactive_shell_doctor_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
