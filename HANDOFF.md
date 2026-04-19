@@ -637,12 +637,14 @@ Implemented behaviour:
 - Streaming is attached only to the interactive shell agent path; non-interactive CLI commands keep the previous buffered behavior.
 - Stream output is prefixed with a compact marker such as `[model-stream local]`.
 - Added session-scoped shell controls `stream on`, `stream off`, and `stream status`.
+- Interactive task execution is now framed with `Running task:` before execution and `Agent result:` before the final summary.
 
 Validation:
 
 - Handoff tests verify the streaming callback receives live model output.
 - Interactive shell tests verify streamed model output is visible during task execution.
 - Interactive shell tests verify stream toggling and suppression when streaming is disabled.
+- Interactive shell tests verify the task/result framing is present around streamed execution.
 
 ### Multi-Account Failover Across Primary And Fallback Models
 
