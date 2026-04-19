@@ -386,10 +386,25 @@ Validation:
 ## Immediate Next Implementation Order
 
 1. Harden setup scripts to run or suggest doctor after install.
-2. CLI help snapshot tests for Caveman category, if Caveman help changes.
-3. Richer model usage/cost reporting.
-4. Resume command wet-run integration with a fake model binary.
-5. Optional doctor JSON output for automation.
+2. Richer model usage/cost reporting.
+3. Resume command wet-run integration with a fake model binary.
+4. Optional doctor JSON output for automation.
+5. Cost/budget section in final summary output.
+
+## Recently Completed
+
+### Caveman Help Snapshot
+
+Status: implemented
+
+Implemented behaviour:
+
+- Added a CLI snapshot-style test for `help caveman`.
+- The test protects supported levels, aliases, and key commands from accidental regression.
+
+Validation:
+
+- CLI test verifies Caveman help still exposes levels, aliases, and review/commit/compress commands.
 
 ## Recently Completed
 
