@@ -552,6 +552,49 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Caveman mode disabled.", rendered)
             self.assertFalse((root / ".stagewarden_caveman.json").exists())
 
+    def test_interactive_shell_exports_runtime_handoff_markdown_with_redaction(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "HANDOFF.md").write_text("# Stagewarden Handoff\n\nManual roadmap stays.\n", encoding="utf-8")
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-2",
+                "current_step_title": "2. Implement fix",
+                "current_step_status": "in_progress",
+                "latest_observation": "access_token=secret-token-123 should not leak",
+                "plan_status": "step-1:completed,step-2:in_progress,step-3:planned",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "implementation_backlog": [
+                    {"step_id": "step-1", "title": "Inspect", "status": "done", "validation": "checked"},
+                    {"step_id": "step-2", "title": "Implement", "status": "in_progress", "validation": "wet-run"},
+                ],
+                "issue_register": [{"step_id": "step-2", "severity": "medium", "summary": "Bearer abcdefghijklmnopqrstuvwxyz123456 should be redacted", "status": "open"}],
+                "updated_at": "2026-04-18T18:30:00+00:00",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("handoff export\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Exported runtime handoff to HANDOFF.md.", rendered)
+            exported = (root / "HANDOFF.md").read_text(encoding="utf-8")
+            self.assertIn("Manual roadmap stays.", exported)
+            self.assertIn("<!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->", exported)
+            self.assertIn("## Runtime Handoff Export", exported)
+            self.assertIn("- task: fix failing tests", exported)
+            self.assertIn("- recovery_state: none", exported)
+            self.assertIn("Implementation backlog:", exported)
+            self.assertNotIn("secret-token-123", exported)
+            self.assertNotIn("abcdefghijklmnopqrstuvwxyz123456", exported)
+            self.assertIn("Bearer [REDACTED]", exported)
+
     def test_interactive_shell_manages_permission_settings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
