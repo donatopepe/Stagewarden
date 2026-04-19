@@ -638,6 +638,7 @@ Implemented behaviour:
 - Stream output is prefixed with a compact marker such as `[model-stream local]`.
 - Added session-scoped shell controls `stream on`, `stream off`, and `stream status`.
 - Interactive task execution is now framed with `Running task:` before execution and `Agent result:` before the final summary.
+- Interactive shell now prints a compact `Shell progress (before|after)` block with active step, stage health, boundary decision, recovery state, and git head.
 
 Validation:
 
@@ -645,6 +646,7 @@ Validation:
 - Interactive shell tests verify streamed model output is visible during task execution.
 - Interactive shell tests verify stream toggling and suppression when streaming is disabled.
 - Interactive shell tests verify the task/result framing is present around streamed execution.
+- Interactive shell tests verify progress blocks are rendered around task execution.
 
 ### Multi-Account Failover Across Primary And Fallback Models
 

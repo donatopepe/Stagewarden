@@ -180,6 +180,7 @@ On terminals with `readline` support, the shell also keeps a per-workspace histo
 During interactive task execution, Stagewarden now also forwards live `run_model` stdout into the shell with compact prefixes such as `[model-stream local]`, while still parsing the final JSON response normally.
 Use `stream on`, `stream off`, or `stream status` inside the shell to control this behavior per session.
 Task execution is visually split into `Running task: ...` and `Agent result:` so the live model stream stays distinct from the final agent summary.
+The interactive shell also emits a compact `Shell progress (before|after)` block with active step, stage health, boundary decision, recovery state, and current git head.
 
 Inside the shell:
 

@@ -1506,6 +1506,26 @@ def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     return agent
 
 
+def _render_shell_progress(agent: Agent, *, phase: str) -> str:
+    handoff = agent.project_handoff
+    view = handoff.stage_view()
+    active = view["active_step"]
+    active_label = "none"
+    if isinstance(active, dict):
+        active_label = f"{active.get('id', 'unknown')} [{active.get('status', 'unknown')}]"
+    git_boundary = view["git_boundary"]
+    return "\n".join(
+        [
+            f"Shell progress ({phase}):",
+            f"- active_step: {active_label}",
+            f"- stage_health: {view['stage_health']}",
+            f"- boundary_decision: {view['boundary_decision']}",
+            f"- recovery_state: {view['recovery_state']}",
+            f"- git_head: {git_boundary['current']}",
+        ]
+    )
+
+
 def _refresh_runtime_permissions(agent: Agent) -> None:
     agent.refresh_permissions()
 
@@ -2471,10 +2491,12 @@ def run_interactive_shell(
             continue
 
         sink.write(f"Running task: {command}\n")
+        sink.write(f"{_render_shell_progress(agent, phase='before')}\n")
         sink.flush()
         result = agent.run(command)
         sink.write("Agent result:\n")
         sink.write(f"{result.message}\n")
+        sink.write(f"{_render_shell_progress(agent, phase='after')}\n")
         sink.flush()
 
 
