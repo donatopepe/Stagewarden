@@ -837,6 +837,26 @@ def _archive_and_clear_handoff(config: AgentConfig) -> str:
     return f"Archived handoff to {archive.name}. Fresh handoff context created."
 
 
+def _archive_and_clear_handoff_report(config: AgentConfig) -> dict[str, object]:
+    if not config.handoff_path.exists():
+        ProjectHandoff().save(config.handoff_path)
+        return {
+            "command": "resume --clear",
+            "archived": False,
+            "archive_path": None,
+            "message": "No handoff existed. Created a fresh handoff context.",
+        }
+    archive = config.workspace_root / f".stagewarden_handoff.archive.{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
+    write_text_utf8(archive, read_text_utf8(config.handoff_path))
+    ProjectHandoff().save(config.handoff_path)
+    return {
+        "command": "resume --clear",
+        "archived": True,
+        "archive_path": archive.name,
+        "message": f"Archived handoff to {archive.name}. Fresh handoff context created.",
+    }
+
+
 def _load_handoff_into_agent(agent: Agent, config: AgentConfig) -> ProjectHandoff:
     handoff = ProjectHandoff.load(config.handoff_path)
     agent.project_handoff = handoff
@@ -952,6 +972,25 @@ def _export_handoff_markdown(config: AgentConfig) -> str:
         updated = existing.rstrip() + "\n\n" + generated
     write_text_utf8(target, updated)
     return f"Exported runtime handoff to {target.name}."
+
+
+def _export_handoff_markdown_report(config: AgentConfig) -> dict[str, object]:
+    target = config.workspace_root / "HANDOFF.md"
+    generated = _runtime_handoff_markdown(config)
+    existing = read_text_utf8(target) if target.exists() else "# Stagewarden Handoff\n"
+    if RUNTIME_HANDOFF_START in existing and RUNTIME_HANDOFF_END in existing:
+        prefix, _marker, rest = existing.partition(RUNTIME_HANDOFF_START)
+        _old, _end_marker, suffix = rest.partition(RUNTIME_HANDOFF_END)
+        updated = prefix.rstrip() + "\n\n" + generated.rstrip() + "\n" + suffix.lstrip()
+    else:
+        updated = existing.rstrip() + "\n\n" + generated
+    write_text_utf8(target, updated)
+    return {
+        "command": "handoff export",
+        "target": target.name,
+        "updated": True,
+        "message": f"Exported runtime handoff to {target.name}.",
+    }
 
 
 def _render_boundary(config: AgentConfig) -> str:
@@ -2165,11 +2204,23 @@ def main() -> int:
         else:
             print(_render_handoff(config))
         return 0
+    if task in {"handoff export", "handoff md"}:
+        if args.json:
+            print(dumps_ascii(_export_handoff_markdown_report(config), indent=2))
+        else:
+            print(_export_handoff_markdown(config))
+        return 0
     if task == "resume --show":
         if args.json:
             print(dumps_ascii(_resume_show_report(config), indent=2))
         else:
             print(_render_resume_show(config))
+        return 0
+    if task == "resume --clear":
+        if args.json:
+            print(dumps_ascii(_archive_and_clear_handoff_report(config), indent=2))
+        else:
+            print(_archive_and_clear_handoff(config))
         return 0
     if task in {"models usage", "cost"}:
         if args.json:

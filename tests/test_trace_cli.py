@@ -302,6 +302,40 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["current_step_status"], "in_progress")
             self.assertEqual(payload["next_action"], "continue step-7")
 
+    def test_handoff_export_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "HANDOFF.md").write_text("# Stagewarden Handoff\n", encoding="utf-8")
+            completed = run_main_capture(root, "handoff export", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "handoff export")
+            self.assertEqual(payload["target"], "HANDOFF.md")
+            self.assertTrue(payload["updated"])
+            self.assertIn("Exported runtime handoff", payload["message"])
+
+    def test_resume_clear_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-7",
+                "current_step_status": "in_progress",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "resume --clear", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "resume --clear")
+            self.assertTrue(payload["archived"])
+            self.assertTrue(str(payload["archive_path"]).startswith(".stagewarden_handoff.archive."))
+
     def test_status_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
