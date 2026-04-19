@@ -554,6 +554,19 @@ Validation:
 
 - CLI tests parse permissions JSON output and verify workspace mode and allow/ask/deny rules.
 
+### Git Read-Only JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports JSON output for `git status`, `git log`, `git history`, and `git show --stat`.
+- Outputs include raw command text plus lightweight derived fields like `lines` or `commits` for easier automation.
+
+Validation:
+
+- CLI tests parse git JSON output and verify status, commit subjects, history path, and show-stat metadata.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
