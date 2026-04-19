@@ -442,6 +442,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("pid_boundary: project_status=executing", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
             self.assertIn("registers: risks=1 issues=1 quality=1 lessons=1", rendered)
+            self.assertIn("register_status: risks_open=1 risks_closed=0 issues_open=1 issues_closed=0 quality_open=1 quality_accepted=0", rendered)
             self.assertIn("Boundary recommendation:", rendered)
             self.assertIn("Risk register:", rendered)
             self.assertIn("Issue register:", rendered)
@@ -506,6 +507,7 @@ class TraceAndCliTests(unittest.TestCase):
             config = AgentConfig(workspace_root=root, max_steps=1)
             rendered = _render_boundary(config)
             self.assertIn("review_boundary:open_issues", rendered)
+            self.assertIn("issues_open=1 issues_closed=0", rendered)
 
     def test_interactive_shell_can_query_git_history(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

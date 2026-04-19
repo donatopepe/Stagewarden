@@ -270,12 +270,14 @@ class ProjectHandoff:
             "updated_at": self.updated_at,
         }
         boundary_decision = self._boundary_decision(status_by_step)
+        register_statuses = self._register_status_summary()
         return {
             "closed_steps": closed_steps,
             "active_step": active_step,
             "git_boundary": git_boundary,
             "pid_boundary": pid_boundary,
             "boundary_decision": boundary_decision,
+            "register_statuses": register_statuses,
         }
 
     def rendered_stage_view(self) -> str:
@@ -285,6 +287,7 @@ class ProjectHandoff:
         git_boundary = view["git_boundary"]
         pid_boundary = view["pid_boundary"]
         boundary_decision = view["boundary_decision"]
+        register_statuses = view["register_statuses"]
         lines = ["Stage view:"]
         if closed_steps:
             lines.append(f"- closed_stages: {', '.join(closed_steps)}")
@@ -312,6 +315,12 @@ class ProjectHandoff:
             "- registers: "
             f"risks={len(self.risk_register)} issues={len(self.issue_register)} "
             f"quality={len(self.quality_register)} lessons={len(self.lessons_log)}"
+        )
+        lines.append(
+            "- register_status: "
+            f"risks_open={register_statuses['risks_open']} risks_closed={register_statuses['risks_closed']} "
+            f"issues_open={register_statuses['issues_open']} issues_closed={register_statuses['issues_closed']} "
+            f"quality_open={register_statuses['quality_open']} quality_accepted={register_statuses['quality_accepted']}"
         )
         if self.exception_plan:
             lines.append(f"- exception_plan: {' | '.join(self.exception_plan[:3])}")
@@ -481,6 +490,24 @@ class ProjectHandoff:
             "inspect latest issue register and failed observations",
             "prepare controlled corrective action with wet-run validation",
         ]
+
+    def _register_status_summary(self) -> dict[str, int]:
+        risks_open = sum(1 for item in self.risk_register if str(item.get("status", "open")).strip().lower() != "closed")
+        risks_closed = len(self.risk_register) - risks_open
+        issues_open = sum(1 for item in self.issue_register if str(item.get("status", "open")).strip().lower() != "closed")
+        issues_closed = len(self.issue_register) - issues_open
+        quality_accepted = sum(
+            1 for item in self.quality_register if str(item.get("status", "")).strip().lower() in {"accepted", "closed"}
+        )
+        quality_open = len(self.quality_register) - quality_accepted
+        return {
+            "risks_open": risks_open,
+            "risks_closed": risks_closed,
+            "issues_open": issues_open,
+            "issues_closed": issues_closed,
+            "quality_open": quality_open,
+            "quality_accepted": quality_accepted,
+        }
 
     def _parse_plan_status(self, value: str) -> dict[str, str]:
         statuses: dict[str, str] = {}
