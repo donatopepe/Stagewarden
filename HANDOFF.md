@@ -361,7 +361,7 @@ Validation:
 
 ### 15. Cross-OS Setup Verification
 
-Status: partially implemented
+Status: implemented
 
 Strengthen setup scripts for macOS, Linux, and Windows.
 
@@ -371,25 +371,39 @@ Implemented behaviour:
 - `doctor` reports provider capabilities for each configured model family: auth type, profile support, browser login, API-key support, token env state, and default model.
 - `doctor` does not install prerequisites and does not initialize git.
 - Interactive shell command `doctor` exposes the same report.
-
-Remaining behaviour:
-
-- Harden setup scripts to call or recommend `stagewarden doctor` after install.
+- Setup scripts for Unix and Windows now perform a best-effort post-install `doctor` check through `python -m stagewarden.main doctor`.
+- If the post-install check cannot run successfully, setup prints an explicit next-step command instead of silently skipping validation.
 - Do not auto-install git silently; report prerequisite clearly.
 
 Validation:
 
 - CLI tests verify `stagewarden doctor` reports Python/Git/PATH/repository state and does not create `.git`.
 - Interactive shell tests verify `doctor` rendering.
-- Setup script tests still pass.
+- Setup script tests verify post-install doctor wiring and still pass.
 
 ## Immediate Next Implementation Order
 
-1. Harden setup scripts to run or suggest doctor after install.
-2. Richer model usage/cost reporting.
-3. Resume command wet-run integration with a fake model binary.
-4. Optional doctor JSON output for automation.
-5. Cost/budget section in final summary output.
+1. Richer model usage/cost reporting.
+2. Resume command wet-run integration with a fake model binary.
+3. Optional doctor JSON output for automation.
+4. Cost/budget section in final summary output.
+
+## Recently Completed
+
+### Setup Post-Install Doctor
+
+Status: implemented
+
+Implemented behaviour:
+
+- `scripts/setup_unix.sh` and `scripts/setup_windows.ps1` now run a best-effort `doctor` check immediately after install.
+- Successful validation emits `Post-install check: stagewarden doctor OK`.
+- Failed validation falls back to an explicit command suggestion for the operator.
+
+Validation:
+
+- Setup script tests cover doctor invocation wiring and Unix fallback execution path.
+- Full suite remains green after the setup changes.
 
 ## Recently Completed
 
