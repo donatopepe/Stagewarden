@@ -255,6 +255,11 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
+    stage_view = handoff.stage_view()
+    active_step = stage_view["active_step"]
+    active_stage = "none"
+    if isinstance(active_step, dict):
+        active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
     lines = [
         "Stagewarden status:",
         f"- workspace: {config.workspace_root}",
@@ -268,19 +273,26 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         handoff.summary(),
         "Governance status:",
         handoff.rendered_register_status_summary(),
-        f"Boundary decision: {handoff.stage_view()['boundary_decision']}",
+        f"Active stage: {active_stage}",
+        f"Boundary decision: {stage_view['boundary_decision']}",
     ]
     return "\n".join(lines)
 
 
 def _render_handoff(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
+    stage_view = handoff.stage_view()
+    active_step = stage_view["active_step"]
+    active_stage = "none"
+    if isinstance(active_step, dict):
+        active_stage = f"{active_step.get('id', 'unknown')} [{active_step.get('status', 'unknown')}]"
     lines = [
         "Project handoff:",
         handoff.summary(),
         "Governance status:",
         handoff.rendered_register_status_summary(),
-        f"Boundary decision: {handoff.stage_view()['boundary_decision']}",
+        f"Active stage: {active_stage}",
+        f"Boundary decision: {stage_view['boundary_decision']}",
         handoff.rendered_stage_view(),
     ]
     if handoff.entries:
