@@ -121,6 +121,19 @@ class PersistenceTests(unittest.TestCase):
         self.assertIn("resolution", handoff.risk_register[0])
         self.assertEqual(handoff.risk_register[1]["status"], "closed")
 
+    def test_project_handoff_can_finalize_quality_register(self) -> None:
+        handoff = ProjectHandoff(
+            quality_register=[
+                {"step_id": "step-1", "status": "observed", "evidence": "pytest -q executed"},
+                {"step_id": "step-2", "status": "accepted", "evidence": "integration tests passed"},
+            ]
+        )
+        handoff.finalize_quality_register(resolution="project closed with controlled completion")
+        self.assertEqual(handoff.quality_register[0]["status"], "accepted")
+        self.assertIn("accepted_at", handoff.quality_register[0])
+        self.assertIn("resolution", handoff.quality_register[0])
+        self.assertEqual(handoff.quality_register[1]["status"], "accepted")
+
 
 if __name__ == "__main__":
     unittest.main()

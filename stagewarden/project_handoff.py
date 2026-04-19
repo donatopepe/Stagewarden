@@ -441,6 +441,15 @@ class ProjectHandoff:
             item["resolved_at"] = _utc_now()
             item["resolution"] = resolution[:240]
 
+    def finalize_quality_register(self, *, resolution: str) -> None:
+        for item in self.quality_register:
+            status = str(item.get("status", "")).strip().lower()
+            if status in {"accepted", "closed"}:
+                continue
+            item["status"] = "accepted"
+            item["accepted_at"] = _utc_now()
+            item["resolution"] = resolution[:240]
+
     def clear_exception_plan_if_recovered(self) -> None:
         if not self.exception_plan:
             return
