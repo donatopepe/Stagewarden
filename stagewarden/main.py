@@ -240,7 +240,7 @@ def _interactive_help_overview() -> str:
             "Use `help <topic>` for full commands and examples.",
             "",
             "Topics:",
-            "- help core: exit, reset, overview, status, sessions, transcript",
+            "- help core: exit, reset, overview, health, status, sessions, transcript",
             "- help models: model routing, variants, blocks",
             "- help accounts: provider profiles, login, env vars, usage limits",
             "- help permissions: plan/auto modes, allow/ask/deny rules",
@@ -251,6 +251,7 @@ def _interactive_help_overview() -> str:
             "",
             "Fast examples:",
             "- stagewarden> overview",
+            "- stagewarden> health",
             "- stagewarden> help models",
             "- stagewarden> models",
             "- stagewarden> models usage",
@@ -285,6 +286,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- exit | quit",
             "- reset",
             "- overview",
+            "- health",
             "- status",
             "- transcript | trace",
             "- doctor",
@@ -296,6 +298,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> overview",
+            "- stagewarden> health",
             "- stagewarden> status",
             "- stagewarden> doctor",
             "- stagewarden> session create",
@@ -370,6 +373,7 @@ def _interactive_help_topic(topic: str) -> str:
             "Handoff and PRINCE2 commands",
             "",
             "- overview",
+            "- health",
             "- handoff",
             "- handoff export | handoff md",
             "- board | stage review",
@@ -386,6 +390,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> overview",
+            "- stagewarden> health",
             "- stagewarden> handoff",
             "- stagewarden> board",
             "- stagewarden> resume --show",
@@ -655,6 +660,34 @@ def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    board = _board_report(config)
+    status = _status_report(agent, config)
+    usage = _model_usage_report(config)["report"]
+    transcript = _transcript_report(config)["report"]
+    ready = (
+        board["recommended_authorization"] in {"continue", "close"}
+        and board["open_issues"] == 0
+        and board["recovery_state"] == "none"
+    )
+    return {
+        "command": "health",
+        "workspace": status["workspace"],
+        "mode": status["mode"],
+        "ready": ready,
+        "recommended_authorization": board["recommended_authorization"],
+        "boundary_decision": board["boundary_decision"],
+        "open_issues": board["open_issues"],
+        "open_risks": board["open_risks"],
+        "quality_open": board["quality_open"],
+        "recovery_state": board["recovery_state"],
+        "next_action": board["next_action"],
+        "model_failures": usage["totals"]["failures"],
+        "model_calls": usage["totals"]["calls"],
+        "transcript_entries": transcript["count"],
+    }
+
+
 def _render_overview(agent: Agent, config: AgentConfig) -> str:
     board = _board_report(config)
     usage = _model_usage_report(config)["report"]
@@ -674,6 +707,27 @@ def _render_overview(agent: Agent, config: AgentConfig) -> str:
         f"- model_failures: {usage['totals']['failures']}",
         f"- escalation_path: {usage['totals']['escalation_path']}",
         f"- transcript_entries: {transcript['count']}",
+    ]
+    return "\n".join(lines)
+
+
+def _render_health(agent: Agent, config: AgentConfig) -> str:
+    report = _health_report(agent, config)
+    lines = [
+        "Health check:",
+        f"- workspace: {report['workspace']}",
+        f"- mode: {report['mode']}",
+        f"- ready: {str(report['ready']).lower()}",
+        f"- recommended_authorization: {report['recommended_authorization']}",
+        f"- boundary_decision: {report['boundary_decision']}",
+        f"- open_issues: {report['open_issues']}",
+        f"- open_risks: {report['open_risks']}",
+        f"- quality_open: {report['quality_open']}",
+        f"- recovery_state: {report['recovery_state']}",
+        f"- next_action: {report['next_action']}",
+        f"- model_failures: {report['model_failures']}",
+        f"- model_calls: {report['model_calls']}",
+        f"- transcript_entries: {report['transcript_entries']}",
     ]
     return "\n".join(lines)
 
@@ -1592,6 +1646,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_status(agent, config)
     if parts[0] == "overview":
         return _render_overview(agent, config)
+    if parts[0] == "health":
+        return _render_health(agent, config)
     if parts[0] == "doctor":
         return _render_doctor(config)
     if parts[0] == "handoff":
@@ -2215,6 +2271,13 @@ def main() -> int:
             print(dumps_ascii(_overview_report(agent, config), indent=2))
         else:
             print(_render_overview(agent, config))
+        return 0
+    if task == "health":
+        agent = _configure_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_health_report(agent, config), indent=2))
+        else:
+            print(_render_health(agent, config))
         return 0
     if task == "models":
         agent = _configure_agent_for_workspace(config)

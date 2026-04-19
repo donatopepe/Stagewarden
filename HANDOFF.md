@@ -624,6 +624,23 @@ Validation:
 
 ## Recently Completed
 
+### Health Command
+
+Status: implemented
+
+Implemented behaviour:
+
+- Added `health` as a compact operational command for quick automation and shell inspection.
+- Added `stagewarden health --json` as a stable machine-readable readiness snapshot.
+- The report exposes authorization, boundary decision, open issues, open risks, open quality items, recovery state, next action, model failures, model calls, and transcript count.
+- Interactive shell now supports `health` with a concise human-readable rendering.
+- Help and README now document `health` alongside `overview`, `board`, and `doctor`.
+
+Validation:
+
+- CLI tests parse `health` JSON output and verify readiness, authorization, issue count, failure count, and transcript count.
+- Interactive shell tests verify `health` rendering for a clean closed project.
+
 ### Patch Preview Command
 
 Status: implemented
