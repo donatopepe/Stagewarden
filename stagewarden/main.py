@@ -2470,7 +2470,10 @@ def run_interactive_shell(
             sink.flush()
             continue
 
+        sink.write(f"Running task: {command}\n")
+        sink.flush()
         result = agent.run(command)
+        sink.write("Agent result:\n")
         sink.write(f"{result.message}\n")
         sink.flush()
 

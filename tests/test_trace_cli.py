@@ -772,6 +772,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
             rendered = output_stream.getvalue()
+            self.assertIn("Running task: create a file named hello.txt", rendered)
+            self.assertIn("Agent result:", rendered)
             self.assertIn("Tool transcript:", rendered)
             self.assertIn("tool=files", rendered)
             self.assertIn("action=write_file", rendered)
@@ -809,6 +811,8 @@ class TraceAndCliTests(unittest.TestCase):
 
             rendered = output_stream.getvalue()
             self.assertEqual(code, 0)
+            self.assertIn("Running task: analyze repo structure", rendered)
+            self.assertIn("Agent result:", rendered)
             self.assertIn("[model-stream local]", rendered)
             self.assertIn('"summary":"ok"', rendered)
 
