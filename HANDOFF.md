@@ -384,7 +384,6 @@ Validation:
 ## Immediate Next Implementation Order
 
 1. Richer model usage/cost reporting.
-2. Resume command wet-run integration with a fake model binary.
 
 ## Recently Completed
 
@@ -431,6 +430,20 @@ Validation:
 
 - Memory tests cover budget summary rendering.
 - Agent integration tests verify the final user-facing summary includes the budget section.
+
+### Resume Wet-Run
+
+Status: implemented
+
+Implemented behaviour:
+
+- Interactive `resume` now has an end-to-end wet-run test with a success stub backend.
+- The test starts from persisted handoff context, resumes execution, creates the target artifact, and verifies handoff closure.
+- `resume` now reports the original resumed step id, not the mutated post-run step id.
+
+Validation:
+
+- CLI tests cover `resume --show`, `resume --clear`, and full `resume` execution against a fake model binary.
 
 ## Recently Completed
 
