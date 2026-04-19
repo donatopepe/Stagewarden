@@ -45,7 +45,10 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def interactive_help_text() -> str:
+def interactive_help_text(topic: str | None = None) -> str:
+    if topic:
+        return _interactive_help_topic(topic)
+    return _interactive_help_overview()
     return "\n".join(
         [
             "Stagewarden interactive shell",
@@ -224,6 +227,196 @@ def interactive_help_text() -> str:
             "- stagewarden> fix failing tests in router.py",
         ]
     )
+
+
+def _interactive_help_overview() -> str:
+    return "\n".join(
+        [
+            "Stagewarden interactive shell",
+            "",
+            "Use `help <topic>` for full commands and examples.",
+            "",
+            "Topics:",
+            "- help core: exit, reset, status, sessions, transcript",
+            "- help models: model routing, variants, blocks",
+            "- help accounts: provider profiles, login, env vars, usage limits",
+            "- help permissions: plan/auto modes, allow/ask/deny rules",
+            "- help handoff: PRINCE2 handoff, registers, backlog",
+            "- help git: status, log, file history, show",
+            "- help caveman: Caveman aliases and modes",
+            "- help ljson: encode, decode, benchmark",
+            "",
+            "Fast examples:",
+            "- stagewarden> help models",
+            "- stagewarden> models",
+            "- stagewarden> session create",
+            "- stagewarden> session send last pwd",
+            "- stagewarden> handoff",
+            "- stagewarden> fix failing tests",
+        ]
+    )
+
+
+def _interactive_help_topic(topic: str) -> str:
+    normalized = topic.strip().lower()
+    aliases = {
+        "model": "models",
+        "account": "accounts",
+        "permission": "permissions",
+        "perm": "permissions",
+        "prince2": "handoff",
+        "history": "git",
+        "sessions": "core",
+        "session": "core",
+    }
+    normalized = aliases.get(normalized, normalized)
+    topics = {
+        "core": [
+            "Core commands",
+            "",
+            "- help [topic]",
+            "- exit | quit",
+            "- reset",
+            "- status",
+            "- transcript | trace",
+            "- sessions | session list",
+            "- session create [cwd]",
+            "- session send <id|last> <command>",
+            "- session close <id|last>",
+            "",
+            "Examples:",
+            "- stagewarden> status",
+            "- stagewarden> session create",
+            "- stagewarden> session send last pwd",
+            "- stagewarden> transcript",
+        ],
+        "models": [
+            "Model commands",
+            "",
+            "- models",
+            "- model use <local|cheap|chatgpt|openai|claude>",
+            "- model add <local|cheap|chatgpt|openai|claude>",
+            "- model remove <local|cheap|chatgpt|openai|claude>",
+            "- model list <local|cheap|chatgpt|openai|claude>",
+            "- model variant <provider> <variant>",
+            "- model variant-clear <provider>",
+            "- model block <model> until YYYY-MM-DDTHH:MM",
+            "- model unblock <model>",
+            "- model clear",
+            "",
+            "Examples:",
+            "- stagewarden> model use openai",
+            "- stagewarden> model list claude",
+            "- stagewarden> model variant openai gpt-5.4-mini",
+            "- stagewarden> model block openai until 2026-05-01T18:30",
+        ],
+        "accounts": [
+            "Account commands",
+            "",
+            "- accounts",
+            "- account add <model> <name> [ENV_VAR]",
+            "- account login <chatgpt|openai> <name>",
+            "- account login-device <chatgpt|openai> <name>",
+            "- account import <model> <name> [PATH]",
+            "- account env <model> <name> <ENV_VAR>",
+            "- account use <model> <name>",
+            "- account logout <model> <name>",
+            "- account remove <model> <name>",
+            "- account block <model> <name> until YYYY-MM-DDTHH:MM",
+            "- account unblock <model> <name>",
+            "- account clear <model>",
+            "",
+            "Examples:",
+            "- stagewarden> account login chatgpt personale",
+            "- stagewarden> account add openai lavoro OPENAI_API_KEY_WORK",
+            "- stagewarden> account import claude lavoro ~/.claude/.credentials.json",
+        ],
+        "permissions": [
+            "Permission commands",
+            "",
+            "- permissions",
+            "- permission mode <default|accept_edits|plan|auto|dont_ask>",
+            "- permission allow <rule>",
+            "- permission ask <rule>",
+            "- permission deny <rule>",
+            "- permission session mode <default|accept_edits|plan|auto|dont_ask>",
+            "- permission session allow <rule>",
+            "- permission session ask <rule>",
+            "- permission session deny <rule>",
+            "- permission session reset",
+            "- permission reset",
+            "",
+            "Examples:",
+            "- stagewarden> permission mode plan",
+            "- stagewarden> permission ask shell:python3 -m unittest",
+            "- stagewarden> permission session allow shell:git status",
+        ],
+        "handoff": [
+            "Handoff and PRINCE2 commands",
+            "",
+            "- handoff",
+            "- handoff export | handoff md",
+            "- boundary",
+            "- todo",
+            "- risks",
+            "- issues",
+            "- quality",
+            "- exception",
+            "- lessons",
+            "",
+            "Examples:",
+            "- stagewarden> handoff",
+            "- stagewarden> boundary",
+            "- stagewarden> handoff export",
+        ],
+        "git": [
+            "Git commands",
+            "",
+            "- git status",
+            "- git log [limit]",
+            "- git history <path> [limit]",
+            "- git show [revision]",
+            "- git show --stat [revision]",
+            "",
+            "Examples:",
+            "- stagewarden> git status",
+            "- stagewarden> git log 5",
+            "- stagewarden> git history stagewarden/main.py 10",
+        ],
+        "caveman": [
+            "Caveman commands",
+            "",
+            "- /caveman help",
+            "- /caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra> <task>",
+            "- /caveman commit",
+            "- /caveman review",
+            "- /caveman compress <file>",
+            "- caveman help | caveman on [level] | caveman off",
+            "- mode caveman <level>",
+            "- mode normal",
+            "",
+            "Examples:",
+            "- stagewarden> caveman on ultra",
+            "- stagewarden> /caveman review",
+            "- stagewarden> mode normal",
+        ],
+        "ljson": [
+            "LJSON commands",
+            "",
+            "- stagewarden --ljson-encode records.json [--ljson-output out.ljson]",
+            "- stagewarden --ljson-decode records.ljson [--ljson-output records.json]",
+            "- stagewarden --ljson-encode records.json --ljson-numeric --ljson-gzip",
+            "- stagewarden --ljson-benchmark records.json",
+            "",
+            "Examples:",
+            "- python3 -m stagewarden.main --ljson-encode data.json",
+            "- python3 -m stagewarden.main --ljson-benchmark data.json",
+        ],
+    }
+    lines = topics.get(normalized)
+    if lines is None:
+        return _interactive_help_overview() + f"\n\nUnknown help topic: {topic}"
+    return "\n".join(lines)
 
 
 def _load_model_preferences(config: AgentConfig) -> ModelPreferences:
@@ -1057,6 +1250,14 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     lowered = command.lower().strip()
     if lowered in {"help", "commands"}:
         return None, interactive_help_text()
+    if lowered.startswith("help "):
+        topic = command.split(maxsplit=1)[1]
+        if topic.lower().strip() == "caveman":
+            return None, agent.caveman.help_text()
+        return None, interactive_help_text(topic)
+    if lowered.startswith("commands "):
+        topic = command.split(maxsplit=1)[1]
+        return None, interactive_help_text(topic)
     if lowered in {"caveman help", "help caveman"}:
         return None, agent.caveman.help_text()
     if lowered.startswith("caveman on"):

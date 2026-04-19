@@ -297,20 +297,21 @@ Validation:
 
 ### 12. Rich Help Reorganization
 
-Status: planned
+Status: implemented
 
 Current help is complete but long. Reorganize it like modern CLIs.
 
-Required behaviour:
+Implemented behaviour:
 
-- `help` shows compact categories.
-- `help models`, `help accounts`, `help permissions`, `help handoff`, `help git`, `help caveman`, `help ljson`.
+- `help` shows compact categories and fast examples.
+- `help models`, `help accounts`, `help permissions`, `help handoff`, `help git`, and `help ljson` show focused command lists and examples.
+- `help caveman` remains wired to Caveman-specific help for compatibility.
 - Keep examples in each category.
 
 Validation:
 
-- Top-level help remains clear.
-- Category help contains full examples.
+- CLI tests cover compact top-level help.
+- CLI tests cover category help for models, accounts, permissions, handoff, git, and LJSON.
 
 ### 13. Model Handoff Result Schema
 
@@ -371,11 +372,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Rich help reorganization.
-2. Model handoff result schema.
-3. Patch preview command in the interactive shell, if direct manual preview becomes useful.
-4. Model context files.
-5. Resume command over handoff.
+1. Model handoff result schema.
+2. Patch preview command in the interactive shell, if direct manual preview becomes useful.
+3. Model context files.
+4. Resume command over handoff.
+5. CLI help snapshot tests for Caveman category, if Caveman help changes.
 
 ## Validation Standard
 
