@@ -567,6 +567,19 @@ Validation:
 
 - CLI tests parse git JSON output and verify status, commit subjects, history path, and show-stat metadata.
 
+### Shell Sessions JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden sessions --json` and `stagewarden "session list" --json`.
+- Output exposes current process shell-session ids, cwd, and running/closed state.
+
+Validation:
+
+- CLI tests parse sessions JSON output and verify the empty-state contract.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
