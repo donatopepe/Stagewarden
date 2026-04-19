@@ -383,7 +383,6 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Richer model usage/cost reporting.
 
 ## Recently Completed
 
@@ -444,6 +443,21 @@ Implemented behaviour:
 Validation:
 
 - CLI tests cover `resume --show`, `resume --clear`, and full `resume` execution against a fake model binary.
+
+### Richer Model Usage and Cost Reporting
+
+Status: implemented
+
+Implemented behaviour:
+
+- `models usage` and `cost` now include totals, failure rate, highest tier reached, last model used, and escalation path.
+- Memory now exposes `model_usage_stats()` as a machine-readable aggregate for automation and future JSON/telemetry output.
+- Budget summaries reuse the same aggregated stats to avoid divergent reporting.
+
+Validation:
+
+- Memory tests cover machine-readable usage stats and richer summaries.
+- Interactive shell tests verify enriched `models usage` and `cost` output.
 
 ## Recently Completed
 
