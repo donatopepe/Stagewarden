@@ -232,6 +232,7 @@ Interactive permission commands:
 - `permission reset` resets the workspace permission file to defaults.
 - `mode plan|auto|accept-edits|dont-ask|default` is a fast alias for changing the workspace permission mode.
 - Interactive `ask` prompts support `y`, `n`, `always`, `session`, and `deny`; autonomous/non-interactive tool execution remains fail-closed.
+- Shell permission classification distinguishes read-only git inspection from mutating git, redirection, package install, and other write/high-risk commands.
 
 Handoff tracking:
 
