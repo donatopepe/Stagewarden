@@ -337,7 +337,13 @@ class Agent:
                 plan_status=self._plan_status(plan),
             )
             self._save_memory()
-            snapshot_message = self._git_snapshot(f"stagewarden: step {current.id} {current.status}")
+            snapshot_message = self._git_snapshot(
+                self._step_snapshot_message(
+                    task=effective_task,
+                    step=current,
+                    completed=outcome.step_completed,
+                )
+            )
             if snapshot_message:
                 self.project_handoff.record_git_snapshot(
                     iteration=iterations,
@@ -428,6 +434,20 @@ class Agent:
             self.memory.save(self.config.memory_path)
         except OSError:
             pass
+
+    def _step_snapshot_message(self, *, task: str, step: PlanStep, completed: bool) -> str:
+        stage_view = self.project_handoff.stage_view()
+        boundary = str(stage_view["boundary_decision"])
+        stage_health = str(stage_view["stage_health"])
+        status = "completed" if completed else str(step.status)
+        task_label = task.strip().replace("\n", " ")
+        if len(task_label) > 48:
+            task_label = task_label[:45].rstrip() + "..."
+        return (
+            f"stagewarden: step {step.id} {status} "
+            f"[PRINCE2 stage={stage_health} boundary={boundary}] "
+            f"task={task_label}"
+        )
 
     def _save_handoff(self) -> None:
         try:

@@ -613,8 +613,6 @@ Validation:
 
 - Shell UX hardening:
   add persistent interactive history, command completion, and later conversational streaming.
-- Git control tightening:
-  add per-step checkpoint commits with explicit PRINCE2 boundary annotations.
 - Provider/account resilience:
   improve profile rotation and fallback when one account or model family is blocked.
 
@@ -632,6 +630,20 @@ Validation:
 - CLI test verifies Caveman help still exposes levels, aliases, and review/commit/compress commands.
 
 ## Recently Completed
+
+### PRINCE2 Git Step Checkpoints
+
+Status: implemented
+
+Implemented behaviour:
+
+- Per-step automatic git snapshots now use structured commit messages with explicit PRINCE2 context.
+- Step checkpoint commits now include step id, resulting status, stage health, boundary decision, and a compact task label.
+- The git history is therefore usable as a lightweight control timeline, not just as a generic autosave stream.
+
+Validation:
+
+- Agent integration tests inspect real `git log --oneline` output and verify PRINCE2 boundary annotations are present in snapshot commits.
 
 ### Project Report Command
 
