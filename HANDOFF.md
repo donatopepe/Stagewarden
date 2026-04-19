@@ -146,22 +146,23 @@ Validation:
 
 ### 4. Model Context Files
 
-Status: planned
+Status: implemented
 
 Expose persistent handoff and logs to model prompts more deliberately.
 
-Required behaviour:
+Implemented behaviour:
 
 - Include concise handoff summary in every model prompt.
 - Include recent LJSON trace summary.
 - Include current recovery state and backlog status.
 - Include git boundary and dirty state.
 - Keep prompt bounded with truncation rules.
+- Add a dedicated `Model context files` prompt section naming `.stagewarden_handoff.json`, `.stagewarden_memory.json`, and `.stagewarden_trace.ljson`.
 
 Validation:
 
-- Executor prompt tests assert handoff, recovery state, backlog, and git boundary are present.
-- Prompt size remains bounded.
+- Executor prompt tests assert context file names, recovery state, backlog status, git boundary, and dirty state are present.
+- Prompt size remains bounded and truncation markers are asserted for oversized registers.
 
 ### 5. Provider Capability Registry
 
@@ -373,11 +374,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Model context files.
-2. Resume command over handoff.
-3. Cost-aware execution budget.
-4. CLI help snapshot tests for Caveman category, if Caveman help changes.
-5. Doctor command and prerequisite checks.
+1. Resume command over handoff.
+2. Cost-aware execution budget.
+3. CLI help snapshot tests for Caveman category, if Caveman help changes.
+4. Doctor command and prerequisite checks.
+5. Richer model usage/cost reporting.
 
 ## Recently Completed
 

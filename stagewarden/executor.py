@@ -354,24 +354,28 @@ class Executor:
             f"- {item.id}: {item.title} [{item.status}] validation={item.validation} wet_run_required={item.wet_run_required}"
             for item in plan
         )
-        memory_summary = self.memory.summarize()
-        execution_log = self.memory.detailed_summary()
-        handoff_log = self.project_handoff.detailed_summary()
-        risk_register = self.project_handoff.rendered_risks()
-        issue_register = self.project_handoff.rendered_issues()
-        quality_register = self.project_handoff.rendered_quality()
-        lessons_log = self.project_handoff.rendered_lessons()
-        exception_plan = self.project_handoff.rendered_exception_plan()
+        memory_summary = self._bounded_context("memory_summary", self.memory.summarize(), 2000)
+        execution_log = self._bounded_context("execution_log", self.memory.detailed_summary(), 4000)
+        handoff_log = self._bounded_context("handoff_log", self.project_handoff.detailed_summary(), 4000)
+        risk_register = self._bounded_context("risk_register", self.project_handoff.rendered_risks(), 2500)
+        issue_register = self._bounded_context("issue_register", self.project_handoff.rendered_issues(), 2500)
+        quality_register = self._bounded_context("quality_register", self.project_handoff.rendered_quality(), 2500)
+        lessons_log = self._bounded_context("lessons_log", self.project_handoff.rendered_lessons(), 2500)
+        exception_plan = self._bounded_context("exception_plan", self.project_handoff.rendered_exception_plan(), 2000)
+        model_context = self._model_context_files_section()
         return f"""{self.config.system_prompt}
 
 Task:
 {task}
 
+Model context files:
+{model_context}
+
 Implicit project handoff context:
-{self.project_handoff.summary()}
+{self._bounded_context("handoff_summary", self.project_handoff.summary(), 2500)}
 
 Stage boundary view:
-{self.project_handoff.rendered_stage_view()}
+{self._bounded_context("stage_view", self.project_handoff.rendered_stage_view(), 3500)}
 
 PRINCE2 registers:
 Risks:
@@ -450,6 +454,38 @@ Respond with strict JSON:
   }}
 }}
 """
+
+    def _model_context_files_section(self) -> str:
+        status = self.git.status()
+        porcelain = self.git.status_porcelain()
+        dirty_state = "unknown"
+        status_preview = status.stdout or status.error
+        if porcelain.ok:
+            dirty_state = "dirty" if porcelain.stdout.strip() else "clean"
+        elif status.ok:
+            dirty_state = "dirty" if status.stdout and any(line and not line.startswith("##") for line in status.stdout.splitlines()) else "clean"
+        view = self.project_handoff.stage_view()
+        backlog = view["backlog_statuses"]
+        git_boundary = view["git_boundary"]
+        lines = [
+            f"- handoff_file: {self.config.handoff_path.name}",
+            f"- memory_file: {self.config.memory_path.name}",
+            f"- trace_file: {self.config.trace_path.name}",
+            f"- recovery_state: {view['recovery_state']}",
+            f"- backlog_status: ready={backlog['ready']} planned={backlog['planned']} in_progress={backlog['in_progress']} blocked={backlog['blocked']} done={backlog['done']}",
+            f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
+            f"- git_dirty_state: {dirty_state}",
+            f"- git_status: {self._bounded_context('git_status', status_preview or 'No git status available.', 1200)}",
+            "- context_boundaries: sections are truncated with explicit markers; consult files through read_file when exact full context is needed.",
+        ]
+        return "\n".join(lines)
+
+    def _bounded_context(self, label: str, text: str, limit: int) -> str:
+        clean = text if text else ""
+        if len(clean) <= limit:
+            return clean
+        remaining = len(clean) - limit
+        return f"{clean[:limit]}\n[truncated {label}: {remaining} chars omitted]"
 
     def _parse_model_json(self, raw: str) -> dict[str, Any]:
         text = raw.strip()
