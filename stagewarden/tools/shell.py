@@ -198,6 +198,16 @@ class ShellTool:
             output_preview=f"shell_session_closed id={session_id}",
         )
 
+    def list_sessions(self) -> ShellResult:
+        if not self.sessions:
+            return ShellResult(True, "", str(self.config.workspace_root), 0, stdout="", output_preview="No active shell sessions.")
+        lines = []
+        for session_id, session in sorted(self.sessions.items()):
+            state = "closed" if session.process.poll() is not None else "running"
+            lines.append(f"{session_id} cwd={session.cwd} state={state}")
+        output = "\n".join(lines)
+        return ShellResult(True, "", str(self.config.workspace_root), 0, stdout=output, output_preview=output)
+
     def _validate_command(self, command: str, cwd: str | None) -> ShellResult | None:
         command = command.strip()
         if not command:

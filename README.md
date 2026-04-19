@@ -220,6 +220,14 @@ Tool transcript:
 - `transcript` or `trace` shows recent tool invocations from workspace memory.
 - Transcript entries are persisted in `.stagewarden_memory.json` using LJSON.
 
+Persistent shell sessions:
+
+- `sessions` or `session list` shows active shell sessions for the current Stagewarden process.
+- `session create [cwd]` starts a persistent shell in the workspace or a relative directory.
+- `session send <id|last> <command>` runs one command in that session and returns marker-based output with exit code.
+- `session close <id|last>` closes the session.
+- Permission checks are applied to every `session send` command; session IDs are not persisted to the repository.
+
 Patch workflow:
 
 - Model actions can use `preview_patch_files` to validate a unified multi-file diff and get a per-file summary without writing.
