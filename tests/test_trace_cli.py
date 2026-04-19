@@ -432,6 +432,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Stagewarden status:", rendered)
             self.assertIn("mode: normal", rendered)
+            self.assertIn("Permission settings:", rendered)
+            self.assertIn("mode: default", rendered)
             self.assertIn("handoff: .stagewarden_handoff.json", rendered)
             self.assertIn("Handoff summary:", rendered)
             self.assertIn("Operational posture:", rendered)
@@ -467,6 +469,33 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("mode: caveman ultra", rendered)
             self.assertIn("Caveman mode disabled.", rendered)
             self.assertFalse((root / ".stagewarden_caveman.json").exists())
+
+    def test_interactive_shell_manages_permission_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO(
+                "permission mode plan\n"
+                "permission allow shell:git status\n"
+                "permission ask file:secret.txt\n"
+                "permission deny shell:rm\n"
+                "permissions\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Permission mode set to plan.", rendered)
+            self.assertIn("Added allow rule: shell:git status", rendered)
+            self.assertIn("Added ask rule: file:secret.txt", rendered)
+            self.assertIn("Added deny rule: shell:rm", rendered)
+            self.assertIn("mode: plan", rendered)
+            self.assertIn("allow: shell:git status", rendered)
+            self.assertIn("ask: file:secret.txt", rendered)
+            self.assertIn("deny: shell:rm", rendered)
+            payload = json.loads((root / ".stagewarden_settings.json").read_text(encoding="utf-8"))
+            self.assertEqual(payload["permissions"]["defaultMode"], "plan")
 
     def test_boundary_uses_exception_plan_when_project_is_in_exception(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

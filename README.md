@@ -164,6 +164,9 @@ stagewarden> issues
 stagewarden> quality
 stagewarden> exception
 stagewarden> lessons
+stagewarden> permissions
+stagewarden> permission mode plan
+stagewarden> permission allow shell:git status
 stagewarden> mode caveman ultra
 stagewarden> mode normal
 stagewarden> caveman on ultra
@@ -195,6 +198,15 @@ Provider model selection is aligned to public provider behavior:
   - `chatgpt`: prefers `codex-mini-latest` for light work, `gpt-5.1-codex-mini` for standard execution, and `gpt-5.3-codex` for harder debugging sessions.
 
 Stagewarden also records online model usage-limit messages such as `try again at 8:05 PM` and automatically blocks that model until the reported local time.
+
+Interactive permission commands:
+
+- `permissions` shows the active workspace permission settings.
+- `permission mode <default|accept_edits|plan|auto|dont_ask>` changes the workspace default permission mode.
+- `permission allow <rule>` adds an allow rule.
+- `permission ask <rule>` adds an ask rule.
+- `permission deny <rule>` adds a deny rule.
+- `permission reset` resets the workspace permission file to defaults.
 
 Account profiles:
 
