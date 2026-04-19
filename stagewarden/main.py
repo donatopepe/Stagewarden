@@ -46,6 +46,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "reset",
     "overview",
     "health",
+    "report",
     "status",
     "doctor",
     "handoff",
@@ -339,7 +340,7 @@ def _interactive_help_overview() -> str:
             "Use `help <topic>` for full commands and examples.",
             "",
             "Topics:",
-            "- help core: exit, reset, overview, health, status, sessions, transcript",
+            "- help core: exit, reset, overview, health, report, status, sessions, transcript",
             "- help models: model routing, variants, blocks",
             "- help accounts: provider profiles, login, env vars, usage limits",
             "- help permissions: plan/auto modes, allow/ask/deny rules",
@@ -351,6 +352,7 @@ def _interactive_help_overview() -> str:
             "Fast examples:",
             "- stagewarden> overview",
             "- stagewarden> health",
+            "- stagewarden> report",
             "- stagewarden> help models",
             "- stagewarden> models",
             "- stagewarden> models usage",
@@ -386,6 +388,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- reset",
             "- overview",
             "- health",
+            "- report",
             "- status",
             "- transcript | trace",
             "- doctor",
@@ -398,6 +401,7 @@ def _interactive_help_topic(topic: str) -> str:
             "Examples:",
             "- stagewarden> overview",
             "- stagewarden> health",
+            "- stagewarden> report",
             "- stagewarden> status",
             "- stagewarden> doctor",
             "- stagewarden> session create",
@@ -473,6 +477,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "- overview",
             "- health",
+            "- report",
             "- handoff",
             "- handoff export | handoff md",
             "- board | stage review",
@@ -490,6 +495,7 @@ def _interactive_help_topic(topic: str) -> str:
             "Examples:",
             "- stagewarden> overview",
             "- stagewarden> health",
+            "- stagewarden> report",
             "- stagewarden> handoff",
             "- stagewarden> board",
             "- stagewarden> resume --show",
@@ -787,6 +793,51 @@ def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    board = _board_report(config)
+    usage = _model_usage_report(config)["report"]
+    transcript = _transcript_report(config)["report"]
+    stage_view = handoff.stage_view()
+    register_statuses = stage_view["register_statuses"]
+    governance_status = (
+        "clean"
+        if register_statuses["issues_open"] == 0
+        and register_statuses["risks_open"] == 0
+        and register_statuses["quality_open"] == 0
+        else "residual_controls"
+    )
+    lessons = [
+        f"[{item.get('type', 'lesson')}] {item.get('step_id', '-')} :: {item.get('lesson', '')}"
+        for item in handoff.lessons_log[-3:]
+    ]
+    backlog = [
+        f"[{str(item.get('status', 'planned')).strip().lower() or 'planned'}] {item.get('step_id', '-')} :: {item.get('title', '')}"
+        for item in handoff.implementation_backlog[:5]
+    ]
+    return {
+        "command": "report",
+        "task": handoff.task or "unknown",
+        "project_status": handoff.status,
+        "current_step": handoff.current_step_id or "none",
+        "stage_health": stage_view["stage_health"],
+        "recommended_authorization": board["recommended_authorization"],
+        "boundary_decision": board["boundary_decision"],
+        "next_action": board["next_action"],
+        "open_issues": board["open_issues"],
+        "open_risks": board["open_risks"],
+        "quality_open": board["quality_open"],
+        "recovery_state": board["recovery_state"],
+        "governance_status": governance_status,
+        "model_calls": usage["totals"]["calls"],
+        "model_failures": usage["totals"]["failures"],
+        "escalation_path": usage["totals"]["escalation_path"],
+        "transcript_entries": transcript["count"],
+        "recent_lessons": lessons,
+        "backlog_preview": backlog,
+    }
+
+
 def _render_overview(agent: Agent, config: AgentConfig) -> str:
     board = _board_report(config)
     usage = _model_usage_report(config)["report"]
@@ -828,6 +879,42 @@ def _render_health(agent: Agent, config: AgentConfig) -> str:
         f"- model_calls: {report['model_calls']}",
         f"- transcript_entries: {report['transcript_entries']}",
     ]
+    return "\n".join(lines)
+
+
+def _render_report(agent: Agent, config: AgentConfig) -> str:
+    report = _report_report(agent, config)
+    lines = [
+        "Project report:",
+        f"- task: {report['task']}",
+        f"- project_status: {report['project_status']}",
+        f"- current_step: {report['current_step']}",
+        f"- stage_health: {report['stage_health']}",
+        f"- governance_status: {report['governance_status']}",
+        f"- recommended_authorization: {report['recommended_authorization']}",
+        f"- boundary_decision: {report['boundary_decision']}",
+        f"- next_action: {report['next_action']}",
+        f"- open_issues: {report['open_issues']}",
+        f"- open_risks: {report['open_risks']}",
+        f"- quality_open: {report['quality_open']}",
+        f"- recovery_state: {report['recovery_state']}",
+        f"- model_calls: {report['model_calls']}",
+        f"- model_failures: {report['model_failures']}",
+        f"- escalation_path: {report['escalation_path']}",
+        f"- transcript_entries: {report['transcript_entries']}",
+        "Recent lessons:",
+    ]
+    if report["recent_lessons"]:
+        for item in report["recent_lessons"]:
+            lines.append(f"- {item}")
+    else:
+        lines.append("- none")
+    lines.append("Backlog preview:")
+    if report["backlog_preview"]:
+        for item in report["backlog_preview"]:
+            lines.append(f"- {item}")
+    else:
+        lines.append("- none")
     return "\n".join(lines)
 
 
@@ -1747,6 +1834,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_overview(agent, config)
     if parts[0] == "health":
         return _render_health(agent, config)
+    if parts[0] == "report":
+        return _render_report(agent, config)
     if parts[0] == "doctor":
         return _render_doctor(config)
     if parts[0] == "handoff":
@@ -2448,6 +2537,13 @@ def main() -> int:
             print(dumps_ascii(_health_report(agent, config), indent=2))
         else:
             print(_render_health(agent, config))
+        return 0
+    if task == "report":
+        agent = _configure_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_report_report(agent, config), indent=2))
+        else:
+            print(_render_report(agent, config))
         return 0
     if task == "models":
         agent = _configure_agent_for_workspace(config)
