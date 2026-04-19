@@ -188,6 +188,40 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("default_model", providers["openai"])
             self.assertFalse((root / ".git").exists())
 
+    def test_models_usage_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="local",
+                action_type="complete",
+                action_signature="a",
+                success=True,
+                observation="ok",
+            )
+            memory.record_attempt(
+                iteration=2,
+                step_id="step-2",
+                model="cheap",
+                action_type="complete",
+                action_signature="b",
+                success=False,
+                observation="quota",
+                error_type="api_failure",
+            )
+            memory.save(root / ".stagewarden_memory.json")
+            completed = run_main_capture(root, "models usage", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "models usage")
+            self.assertEqual(payload["report"]["totals"]["calls"], 2)
+            self.assertEqual(payload["report"]["totals"]["failures"], 1)
+            self.assertEqual(payload["report"]["totals"]["escalation_path"], "local -> cheap")
+            self.assertIn("routing_budget", payload["policy"])
+
     def test_interactive_shell_doctor_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)

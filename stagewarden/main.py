@@ -905,6 +905,25 @@ def _render_model_usage(config: AgentConfig) -> str:
         return "Model usage:\n- no model attempts recorded"
 
 
+def _model_usage_report(config: AgentConfig) -> dict[str, object]:
+    try:
+        return {
+            "command": "models usage",
+            "report": MemoryStore.load(config.memory_path).model_usage_stats(),
+            "policy": {
+                "routing_budget": "prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+            },
+        }
+    except (OSError, ValueError, TypeError):
+        return {
+            "command": "models usage",
+            "report": MemoryStore().model_usage_stats(),
+            "policy": {
+                "routing_budget": "prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+            },
+        }
+
+
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     agent = Agent(config)
     _apply_model_preferences(agent, config)
@@ -1749,6 +1768,12 @@ def main() -> int:
         else:
             print(rendered)
         return 0 if _doctor_ok(rendered) else 1
+    if task in {"models usage", "cost"}:
+        if args.json:
+            print(dumps_ascii(_model_usage_report(config), indent=2))
+        else:
+            print(_render_model_usage(config))
+        return 0
 
     agent = _configure_agent_for_workspace(config)
     result = agent.run(task)

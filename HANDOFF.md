@@ -459,6 +459,19 @@ Validation:
 - Memory tests cover machine-readable usage stats and richer summaries.
 - Interactive shell tests verify enriched `models usage` and `cost` output.
 
+### Model Usage JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden "models usage" --json` and `stagewarden cost --json`.
+- The JSON output reuses `model_usage_stats()` and includes routing budget policy metadata.
+
+Validation:
+
+- CLI tests parse the JSON output and verify totals, failures, and escalation path.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
