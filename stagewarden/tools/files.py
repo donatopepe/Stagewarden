@@ -43,9 +43,9 @@ class FileTool:
         resolved = self.config.resolve_path(path)
         if not self.config.is_within_workspace(resolved):
             return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
-        decision = self.permissions.decide("file:write", str(resolved.relative_to(self.config.workspace_root_resolved)))
-        if not decision.allowed:
-            return FileResult(False, path=str(resolved), error=decision.message or "Permission denied.")
+        denied = self._check_write_permission(resolved)
+        if denied is not None:
+            return denied
         try:
             resolved.parent.mkdir(parents=True, exist_ok=True)
             final_content, warnings = self._prepare_output_text(resolved, content)
@@ -54,15 +54,36 @@ class FileTool:
         except OSError as exc:
             return FileResult(False, path=str(resolved), error=str(exc))
 
+    def _approve_permission(self, capability: str, detail: str, decision: object) -> bool:
+        approver = self.config.permission_approver
+        if approver is None:
+            return False
+        try:
+            approved = bool(approver(capability, detail, decision))  # type: ignore[arg-type]
+        except (OSError, EOFError):
+            return False
+        if approved:
+            self.refresh_permissions()
+        return approved
+
+    def _check_write_permission(self, resolved: Path) -> FileResult | None:
+        detail = str(resolved.relative_to(self.config.workspace_root_resolved))
+        decision = self.permissions.decide("file:write", detail)
+        if decision.allowed:
+            return None
+        if decision.source.startswith("ask:") and self._approve_permission("file:write", detail, decision):
+            return None
+        return FileResult(False, path=str(resolved), error=decision.message or "Permission denied.")
+
     def apply_patch(self, path: str, search: str, replace: str) -> FileResult:
         resolved = self.config.resolve_path(path)
         if not self.config.is_within_workspace(resolved):
             return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
         if not resolved.exists():
             return FileResult(False, path=str(resolved), error="File does not exist.")
-        decision = self.permissions.decide("file:write", str(resolved.relative_to(self.config.workspace_root_resolved)))
-        if not decision.allowed:
-            return FileResult(False, path=str(resolved), error=decision.message or "Permission denied.")
+        denied = self._check_write_permission(resolved)
+        if denied is not None:
+            return denied
 
         try:
             original = read_text_utf8(resolved)
@@ -86,9 +107,9 @@ class FileTool:
             return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
         if not resolved.exists():
             return FileResult(False, path=str(resolved), error="File does not exist.")
-        decision = self.permissions.decide("file:write", str(resolved.relative_to(self.config.workspace_root_resolved)))
-        if not decision.allowed:
-            return FileResult(False, path=str(resolved), error=decision.message or "Permission denied.")
+        denied = self._check_write_permission(resolved)
+        if denied is not None:
+            return denied
         try:
             original = read_text_utf8(resolved)
         except (OSError, UnicodeDecodeError) as exc:
@@ -122,9 +143,9 @@ class FileTool:
                 return FileResult(False, error="Patch target is invalid.")
             if not self.config.is_within_workspace(target):
                 return FileResult(False, error=f"Path is outside the workspace: {target}")
-            decision = self.permissions.decide("file:write", str(target.relative_to(self.config.workspace_root_resolved)))
-            if not decision.allowed:
-                return FileResult(False, error=decision.message or f"Permission denied: {target}")
+            denied = self._check_write_permission(target)
+            if denied is not None:
+                return FileResult(False, error=denied.error or f"Permission denied: {target}")
 
             operation = patch["operation"]
             hunks = patch["hunks"]

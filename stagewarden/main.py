@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Callable, TextIO
 
 from .agent import Agent
 from .auth import OpenAIDeviceCodeFlow
@@ -888,6 +888,86 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     return command, None
 
 
+def _permission_rule_from_decision(capability: str, detail: str, source: str) -> str:
+    if source.startswith("ask:"):
+        rule = source.split(":", 1)[1].strip()
+        if rule:
+            return rule
+    family = capability.split(":", 1)[0]
+    return f"{family}:{detail.strip()}" if detail.strip() else capability
+
+
+def _remove_rule(items: list[str], rule: str) -> list[str]:
+    normalized = rule.strip().lower()
+    return [item for item in items if item.strip().lower() != normalized]
+
+
+def _make_permission_approver(
+    *,
+    config: AgentConfig,
+    input_stream: TextIO,
+    output_stream: TextIO,
+    get_agent: Callable[[], Agent],
+) -> Callable[[str, str, object], bool]:
+    def approve(capability: str, detail: str, decision: object) -> bool:
+        source = getattr(decision, "source", "")
+        rule = _permission_rule_from_decision(capability, detail, str(source))
+        output_stream.write(
+            "Permission approval required:\n"
+            f"- capability: {capability}\n"
+            f"- target: {detail or '-'}\n"
+            f"- rule: {rule}\n"
+            "Approve? [y/n/always/session/deny] "
+        )
+        output_stream.flush()
+        answer = input_stream.readline()
+        if answer == "":
+            output_stream.write("\nPermission denied: no approval input.\n")
+            output_stream.flush()
+            return False
+        choice = answer.strip().lower()
+        if choice in {"y", "yes"}:
+            output_stream.write("Permission approved once.\n")
+            output_stream.flush()
+            return True
+        if choice in {"session", "s"}:
+            session = config.session_permission_settings or PermissionSettings()
+            if rule not in session.allow:
+                session.allow.append(rule)
+            config.session_permission_settings = session.normalize()
+            agent = get_agent()
+            agent.refresh_permissions()
+            output_stream.write(f"Permission approved for this session: {rule}\n")
+            output_stream.flush()
+            return True
+        if choice in {"always", "a"}:
+            settings = PermissionSettings.load(config.settings_path)
+            if rule not in settings.allow:
+                settings.allow.append(rule)
+            settings.ask = _remove_rule(settings.ask, rule)
+            settings.normalize().save(config.settings_path)
+            agent = get_agent()
+            agent.refresh_permissions()
+            output_stream.write(f"Permission persisted as allow rule: {rule}\n")
+            output_stream.flush()
+            return True
+        if choice in {"deny", "d"}:
+            settings = PermissionSettings.load(config.settings_path)
+            if rule not in settings.deny:
+                settings.deny.append(rule)
+            settings.normalize().save(config.settings_path)
+            agent = get_agent()
+            agent.refresh_permissions()
+            output_stream.write(f"Permission persisted as deny rule: {rule}\n")
+            output_stream.flush()
+            return False
+        output_stream.write("Permission denied.\n")
+        output_stream.flush()
+        return False
+
+    return approve
+
+
 def run_interactive_shell(
     config: AgentConfig,
     *,
@@ -897,6 +977,12 @@ def run_interactive_shell(
     source = input_stream or sys.stdin
     sink = output_stream or sys.stdout
     agent = _configure_agent_for_workspace(config)
+    config.permission_approver = _make_permission_approver(
+        config=config,
+        input_stream=source,
+        output_stream=sink,
+        get_agent=lambda: agent,
+    )
 
     sink.write(f"Stagewarden interactive shell in {config.workspace_root}\n")
     sink.write("Type 'help' for commands.\n")
@@ -921,6 +1007,12 @@ def run_interactive_shell(
         if command == "reset":
             config.session_permission_settings = None
             agent = _configure_agent_for_workspace(config)
+            config.permission_approver = _make_permission_approver(
+                config=config,
+                input_stream=source,
+                output_stream=sink,
+                get_agent=lambda: agent,
+            )
             sink.write("Session reset.\n")
             sink.flush()
             continue

@@ -212,12 +212,26 @@ class ShellTool:
         capability = "shell:read" if self._is_read_only_command(command) else "shell:write"
         decision = self.permissions.decide(capability, command)
         if not decision.allowed:
+            if decision.source.startswith("ask:") and self._approve_permission(capability, command, decision):
+                return None
             return ShellResult(False, command, str(self.config.workspace_root), -1, error=decision.message or "Permission denied.")
 
         run_cwd = self._resolve_cwd(cwd)
         if not self.config.is_within_workspace(run_cwd):
             return ShellResult(False, command, str(run_cwd), -1, error="Working directory is outside the workspace.")
         return None
+
+    def _approve_permission(self, capability: str, detail: str, decision: object) -> bool:
+        approver = self.config.permission_approver
+        if approver is None:
+            return False
+        try:
+            approved = bool(approver(capability, detail, decision))  # type: ignore[arg-type]
+        except (OSError, EOFError):
+            return False
+        if approved:
+            self.refresh_permissions()
+        return approved
 
     def _command_args(self, command: str) -> list[str]:
         if self.is_windows:
