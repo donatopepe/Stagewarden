@@ -268,6 +268,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         handoff.summary(),
         "Governance status:",
         handoff.rendered_register_status_summary(),
+        f"Boundary decision: {handoff.stage_view()['boundary_decision']}",
     ]
     return "\n".join(lines)
 
@@ -279,6 +280,7 @@ def _render_handoff(config: AgentConfig) -> str:
         handoff.summary(),
         "Governance status:",
         handoff.rendered_register_status_summary(),
+        f"Boundary decision: {handoff.stage_view()['boundary_decision']}",
         handoff.rendered_stage_view(),
     ]
     if handoff.entries:
