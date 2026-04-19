@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..config import AgentConfig
+from ..permissions import PermissionPolicy
 from ..textcodec import detect_confusables, to_ascii_safe_text
 
 
@@ -42,6 +43,7 @@ class ShellTool:
         self.sessions: dict[str, ShellSession] = {}
         self.os_name = platform.system().lower()
         self.is_windows = self.os_name == "windows"
+        self.permissions = PermissionPolicy.load(config.settings_path)
 
     def run(self, command: str, cwd: str | None = None) -> ShellResult:
         command = command.strip()
@@ -204,6 +206,11 @@ class ShellTool:
         if not any(first_token == prefix for prefix in self.config.allowed_shell_prefixes):
             return ShellResult(False, command, str(self.config.workspace_root), -1, error="Command prefix not allowed.")
 
+        capability = "shell:read" if self._is_read_only_command(command) else "shell:write"
+        decision = self.permissions.decide(capability, command)
+        if not decision.allowed:
+            return ShellResult(False, command, str(self.config.workspace_root), -1, error=decision.message or "Permission denied.")
+
         run_cwd = self._resolve_cwd(cwd)
         if not self.config.is_within_workspace(run_cwd):
             return ShellResult(False, command, str(run_cwd), -1, error="Working directory is outside the workspace.")
@@ -241,6 +248,23 @@ class ShellTool:
 
     def _resolve_cwd(self, cwd: str | None) -> Path:
         return self.config.resolve_path(cwd) if cwd else self.config.workspace_root_resolved
+
+    def _is_read_only_command(self, command: str) -> bool:
+        first_token = command.split()[0]
+        return first_token in {
+            "ls",
+            "pwd",
+            "cat",
+            "find",
+            "rg",
+            "grep",
+            "sed",
+            "awk",
+            "where",
+            "dir",
+            "type",
+            "git",
+        }
 
     def _read_until_marker(self, process: subprocess.Popen[bytes], marker: str, timeout_seconds: int) -> str:
         assert process.stdout is not None

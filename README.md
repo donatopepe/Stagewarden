@@ -15,6 +15,7 @@ Caratteristiche principali:
 - model routing and escalation
 - `RUN_MODEL:` handoff execution
 - persistent PRINCE2 project handoff context with implicit resume
+- declarative permission policy with workspace settings and session modes
 - shell, file, and git tools
 - cross-platform shell execution on macOS, Linux, and Windows
 - local stub support for smoke tests
@@ -38,6 +39,37 @@ Git behavior:
 - Runtime files are added to `.gitignore`.
 - Stagewarden creates local commits for workspace snapshots during agent execution.
 - If `git` is missing, the agent refuses to start.
+
+Permissions behavior:
+
+- Stagewarden now supports a workspace permission file: `.stagewarden_settings.json`
+- The policy supports:
+  - `defaultMode`
+  - `allow`
+  - `ask`
+  - `deny`
+- Supported modes:
+  - `default`
+  - `accept_edits`
+  - `plan`
+  - `auto`
+  - `dont_ask`
+- `plan` blocks mutating shell and file operations.
+- `dont_ask` denies mutating operations unless explicitly allowed.
+- `ask` rules currently fail closed in the CLI and require an explicit allow rule.
+
+Minimal example:
+
+```json
+{
+  "permissions": {
+    "defaultMode": "plan",
+    "allow": ["shell:git status"],
+    "ask": ["file:secrets.txt"],
+    "deny": ["shell:rm"]
+  }
+}
+```
 
 PRINCE2 handoff behavior:
 

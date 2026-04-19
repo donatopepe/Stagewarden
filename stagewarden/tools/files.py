@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..config import AgentConfig
+from ..permissions import PermissionPolicy
 from ..textcodec import contains_raw_non_ascii, detect_confusables, read_text_utf8, to_ascii_safe_text, write_text_utf8
 
 
@@ -22,6 +23,7 @@ class FileResult:
 class FileTool:
     def __init__(self, config: AgentConfig) -> None:
         self.config = config
+        self.permissions = PermissionPolicy.load(config.settings_path)
 
     def read(self, path: str) -> FileResult:
         resolved = self.config.resolve_path(path)
@@ -38,6 +40,9 @@ class FileTool:
         resolved = self.config.resolve_path(path)
         if not self.config.is_within_workspace(resolved):
             return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        decision = self.permissions.decide("file:write", str(resolved.relative_to(self.config.workspace_root_resolved)))
+        if not decision.allowed:
+            return FileResult(False, path=str(resolved), error=decision.message or "Permission denied.")
         try:
             resolved.parent.mkdir(parents=True, exist_ok=True)
             final_content, warnings = self._prepare_output_text(resolved, content)
@@ -52,6 +57,9 @@ class FileTool:
             return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
         if not resolved.exists():
             return FileResult(False, path=str(resolved), error="File does not exist.")
+        decision = self.permissions.decide("file:write", str(resolved.relative_to(self.config.workspace_root_resolved)))
+        if not decision.allowed:
+            return FileResult(False, path=str(resolved), error=decision.message or "Permission denied.")
 
         try:
             original = read_text_utf8(resolved)
@@ -75,6 +83,9 @@ class FileTool:
             return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
         if not resolved.exists():
             return FileResult(False, path=str(resolved), error="File does not exist.")
+        decision = self.permissions.decide("file:write", str(resolved.relative_to(self.config.workspace_root_resolved)))
+        if not decision.allowed:
+            return FileResult(False, path=str(resolved), error=decision.message or "Permission denied.")
         try:
             original = read_text_utf8(resolved)
         except (OSError, UnicodeDecodeError) as exc:
@@ -108,6 +119,9 @@ class FileTool:
                 return FileResult(False, error="Patch target is invalid.")
             if not self.config.is_within_workspace(target):
                 return FileResult(False, error=f"Path is outside the workspace: {target}")
+            decision = self.permissions.decide("file:write", str(target.relative_to(self.config.workspace_root_resolved)))
+            if not decision.allowed:
+                return FileResult(False, error=decision.message or f"Permission denied: {target}")
 
             operation = patch["operation"]
             hunks = patch["hunks"]
