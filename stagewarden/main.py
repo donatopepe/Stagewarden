@@ -1616,6 +1616,9 @@ def _parse_git_oneline(stdout: str) -> list[dict[str, str]]:
         if not text:
             continue
         commit, _, subject = text.partition(" ")
+        subject = subject.strip()
+        if subject.startswith("(") and ") " in subject:
+            _decorations, _sep, subject = subject.partition(") ")
         commits.append({"commit": commit, "subject": subject.strip()})
     return commits
 
