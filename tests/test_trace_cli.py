@@ -437,6 +437,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Governance status:", rendered)
             self.assertIn("governance=residual", rendered)
             self.assertIn("Active stage: step-3 [in_progress]", rendered)
+            self.assertIn("Git boundary: baseline=abc123 current=def456", rendered)
             self.assertIn("Boundary decision: continue_current_stage", rendered)
             self.assertIn("Project handoff:", rendered)
             self.assertIn("Stage view:", rendered)
