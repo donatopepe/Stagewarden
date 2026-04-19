@@ -403,15 +403,16 @@ Available actions and required fields:
 7. apply_patch -> {{"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}}
 8. patch_file -> {{"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}}
 9. patch_files -> {{"type":"patch_files","diff":"unified diff with one or more files"}}
-10. list_files -> {{"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}}
-11. search_files -> {{"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}}
-12. git_status -> {{"type":"git_status"}}
-13. git_diff -> {{"type":"git_diff"}}
-14. git_log -> {{"type":"git_log","limit":20,"path":"optional-relative-path"}}
-15. git_show -> {{"type":"git_show","revision":"HEAD","stat":true}}
-16. git_file_history -> {{"type":"git_file_history","path":"relative/path","limit":20}}
-17. git_commit -> {{"type":"git_commit","message":"commit message"}}
-18. complete -> {{"type":"complete","message":"why the current step is done"}}
+10. preview_patch_files -> {{"type":"preview_patch_files","diff":"unified diff with one or more files"}}
+11. list_files -> {{"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}}
+12. search_files -> {{"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}}
+13. git_status -> {{"type":"git_status"}}
+14. git_diff -> {{"type":"git_diff"}}
+15. git_log -> {{"type":"git_log","limit":20,"path":"optional-relative-path"}}
+16. git_show -> {{"type":"git_show","revision":"HEAD","stat":true}}
+17. git_file_history -> {{"type":"git_file_history","path":"relative/path","limit":20}}
+18. git_commit -> {{"type":"git_commit","message":"commit message"}}
+19. complete -> {{"type":"complete","message":"why the current step is done"}}
 
 Respond with strict JSON:
 {{
@@ -569,6 +570,12 @@ Respond with strict JSON:
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary="multi-file patch", detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
+        if action_type == "preview_patch_files":
+            result = self.files.preview_patch_files(action.get("diff", ""))
+            message = f"Patch preview:\n{result.content}" if result.ok else result.error
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary="multi-file patch preview", detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
         if action_type == "list_files":
             result = self.files.list_files(
                 base_path=action.get("base_path", "."),
@@ -683,6 +690,7 @@ Respond with strict JSON:
             "apply_patch",
             "patch_file",
             "patch_files",
+            "preview_patch_files",
             "list_files",
             "search_files",
             "git_status",

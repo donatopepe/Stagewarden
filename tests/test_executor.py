@@ -264,6 +264,46 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual((root / "a.txt").read_text(), "hello world\n")
             self.assertEqual((root / "b.txt").read_text(), "new file\n")
 
+    def test_executor_can_preview_patch_multiple_files_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "a.txt").write_text("hello\n")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            diff = "\n".join(
+                [
+                    "--- a/a.txt",
+                    "+++ b/a.txt",
+                    "@@ -1,1 +1,1 @@",
+                    "-hello",
+                    "+hello world",
+                ]
+            )
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {"summary": "preview patch files", "action": {"type": "preview_patch_files", "diff": diff}}
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Preview", instruction="inspect patch", validation="check")
+            outcome = executor.execute_step(task="preview patch files", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertIn("Patch preview", outcome.observation)
+            self.assertIn("update a.txt", outcome.observation)
+            self.assertEqual((root / "a.txt").read_text(), "hello\n")
+            self.assertEqual(memory.tool_transcript[-1].action_type, "preview_patch_files")
+
     def test_executor_persists_model_block_from_usage_limit_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))

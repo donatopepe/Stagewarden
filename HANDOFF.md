@@ -125,23 +125,24 @@ Validation:
 
 ### 3. Stronger Patch Application UX
 
-Status: planned
+Status: implemented
 
 Improve patch handling toward Codex-style editing discipline.
 
-Required behaviour:
+Implemented behaviour:
 
 - Prefer unified patch application for multi-file edits.
-- Produce per-file change summary after patch.
-- Reject ambiguous patch targets.
-- Record before/after git head when patch changes files.
-- Add `patch preview` support before applying in ask/plan modes.
+- Multi-file patches return per-file summaries such as `add path`, `update path`, and `delete path`.
+- Duplicate patch targets in one diff are rejected as ambiguous before any write occurs.
+- Executor outcomes keep before/after git head metadata for patching steps through the standard step outcome.
+- `preview_patch_files` validates and summarizes a unified diff without writing, including in plan mode.
 
 Validation:
 
-- Patch tests cover add, update, delete, and failed hunk.
+- Patch tests cover add, update, delete, failed hunk, duplicate targets, and plan-mode preview.
 - Plan mode allows preview but blocks write.
-- Wet-run file content check after patch.
+- Wet-run file content checks verify patch results after application.
+- Executor tests cover model-dispatched patch preview and transcript recording.
 
 ### 4. Model Context Files
 
@@ -369,11 +370,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Stronger patch application UX.
-2. Provider capability registry.
-3. Approval prompt refinements for multi-command shell sessions.
-4. Rich help reorganization.
-5. Model handoff result schema.
+1. Provider capability registry.
+2. Approval prompt refinements for multi-command shell sessions.
+3. Rich help reorganization.
+4. Model handoff result schema.
+5. Patch preview command in the interactive shell, if direct manual preview becomes useful.
 
 ## Validation Standard
 

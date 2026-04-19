@@ -129,23 +129,18 @@ class FileTool:
         return FileResult(True, path=str(resolved), content=final_content, warnings=warnings)
 
     def patch_files(self, diff: str) -> FileResult:
-        file_patches = self._parse_file_patches(diff)
-        if not file_patches:
-            return FileResult(False, error="No valid file patches found.")
+        prepared = self._prepare_file_patches(diff, require_write_permission=True)
+        if not prepared.ok:
+            return prepared
 
         staged_writes: dict[Path, str] = {}
         staged_deletes: list[Path] = []
-        changed_paths: list[str] = []
+        summaries = prepared.matches or []
 
-        for patch in file_patches:
+        for patch in self._parse_file_patches(diff):
             target = self._target_path(patch["old_path"], patch["new_path"])
-            if target is None:
+            if target is None:  # Already validated by _prepare_file_patches.
                 return FileResult(False, error="Patch target is invalid.")
-            if not self.config.is_within_workspace(target):
-                return FileResult(False, error=f"Path is outside the workspace: {target}")
-            denied = self._check_write_permission(target)
-            if denied is not None:
-                return FileResult(False, error=denied.error or f"Permission denied: {target}")
 
             operation = patch["operation"]
             hunks = patch["hunks"]
@@ -161,7 +156,6 @@ class FileTool:
                 if updated is None:
                     return FileResult(False, error=f"Unable to apply add patch: {target}")
                 staged_writes[target] = updated
-                changed_paths.append(str(target.relative_to(self.config.workspace_root_resolved)))
                 continue
 
             if operation == "delete":
@@ -171,7 +165,6 @@ class FileTool:
                 if updated is None or updated != "":
                     return FileResult(False, error=f"Unable to apply delete patch: {target}")
                 staged_deletes.append(target)
-                changed_paths.append(str(target.relative_to(self.config.workspace_root_resolved)))
                 continue
 
             if not target.exists():
@@ -180,7 +173,6 @@ class FileTool:
             if updated is None:
                 return FileResult(False, error=f"Unable to apply patch: {target}")
             staged_writes[target] = updated
-            changed_paths.append(str(target.relative_to(self.config.workspace_root_resolved)))
 
         for path, content in staged_writes.items():
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -188,7 +180,10 @@ class FileTool:
             write_text_utf8(path, final_content)
         for path in staged_deletes:
             path.unlink()
-        return FileResult(True, content="\n".join(changed_paths), matches=changed_paths)
+        return FileResult(True, content="\n".join(summaries), matches=summaries)
+
+    def preview_patch_files(self, diff: str) -> FileResult:
+        return self._prepare_file_patches(diff, require_write_permission=False)
 
     def list_files(self, base_path: str = ".", pattern: str = "*", limit: int = 200) -> FileResult:
         base = self.config.resolve_path(base_path)
@@ -244,6 +239,58 @@ class FileTool:
             return None
         normalized = chosen[2:] if chosen.startswith(("a/", "b/")) else chosen
         return self.config.resolve_path(normalized)
+
+    def _prepare_file_patches(self, diff: str, *, require_write_permission: bool) -> FileResult:
+        file_patches = self._parse_file_patches(diff)
+        if not file_patches:
+            return FileResult(False, error="No valid file patches found.")
+
+        summaries: list[str] = []
+        seen_targets: set[Path] = set()
+        for patch in file_patches:
+            target = self._target_path(patch["old_path"], patch["new_path"])
+            if target is None:
+                return FileResult(False, error="Patch target is invalid.")
+            if not self.config.is_within_workspace(target):
+                return FileResult(False, error=f"Path is outside the workspace: {target}")
+            if target in seen_targets:
+                rel = target.relative_to(self.config.workspace_root_resolved)
+                return FileResult(False, error=f"Ambiguous patch target appears more than once: {rel}")
+            seen_targets.add(target)
+            if require_write_permission:
+                denied = self._check_write_permission(target)
+                if denied is not None:
+                    return FileResult(False, error=denied.error or f"Permission denied: {target}")
+
+            operation = str(patch["operation"])
+            rel_path = str(target.relative_to(self.config.workspace_root_resolved))
+            hunks = patch["hunks"]
+            try:
+                current = read_text_utf8(target) if target.exists() else ""
+            except (OSError, UnicodeDecodeError) as exc:
+                return FileResult(False, error=str(exc))
+
+            if operation == "add":
+                if target.exists():
+                    return FileResult(False, error=f"Cannot add existing file: {target}")
+                updated = self._apply_unified_patch("", hunks)
+                if updated is None:
+                    return FileResult(False, error=f"Unable to apply add patch: {target}")
+            elif operation == "delete":
+                if not target.exists():
+                    return FileResult(False, error=f"Cannot delete missing file: {target}")
+                updated = self._apply_unified_patch(current, hunks)
+                if updated is None or updated != "":
+                    return FileResult(False, error=f"Unable to apply delete patch: {target}")
+            else:
+                if not target.exists():
+                    return FileResult(False, error=f"Cannot patch missing file: {target}")
+                updated = self._apply_unified_patch(current, hunks)
+                if updated is None:
+                    return FileResult(False, error=f"Unable to apply patch: {target}")
+            summaries.append(f"{operation} {rel_path}")
+
+        return FileResult(True, content="\n".join(summaries), matches=summaries)
 
     def _apply_unified_patch(self, original: str, hunks: list[tuple[int, int, int, int, list[tuple[str, str]]]]) -> str | None:
         lines = original.splitlines(keepends=True)
