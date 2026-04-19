@@ -326,6 +326,23 @@ class ProjectHandoff:
             lines.append(f"- exception_plan: {' | '.join(self.exception_plan[:3])}")
         return "\n".join(lines)
 
+    def rendered_register_status_summary(self) -> str:
+        summary = self._register_status_summary()
+        clean = (
+            summary["risks_open"] == 0
+            and summary["issues_open"] == 0
+            and summary["quality_open"] == 0
+            and not self.exception_plan
+        )
+        state = "clean" if clean else "residual"
+        return (
+            f"governance={state} "
+            f"risks_open={summary['risks_open']} risks_closed={summary['risks_closed']} "
+            f"issues_open={summary['issues_open']} issues_closed={summary['issues_closed']} "
+            f"quality_open={summary['quality_open']} quality_accepted={summary['quality_accepted']} "
+            f"exception_plan_items={len(self.exception_plan)}"
+        )
+
     def rendered_risks(self) -> str:
         lines = ["Risk register:"]
         if not self.risk_register:
