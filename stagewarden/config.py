@@ -22,6 +22,7 @@ class AgentConfig:
     prince2_pid_filename: str = ".stagewarden_prince2_pid.json"
     model_prefs_filename: str = ".stagewarden_models.json"
     handoff_filename: str = ".stagewarden_handoff.json"
+    settings_filename: str = ".stagewarden_settings.json"
     sensitive_ascii_patterns: tuple[str, ...] = (
         ".json",
         ".ljson",
@@ -123,3 +124,7 @@ class AgentConfig:
     @property
     def handoff_path(self) -> Path:
         return (self.workspace_root / self.handoff_filename).resolve()
+
+    @property
+    def settings_path(self) -> Path:
+        return (self.workspace_root / self.settings_filename).resolve()

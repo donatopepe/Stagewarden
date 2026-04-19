@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
+from stagewarden.permissions import PermissionPolicy, PermissionSettings
 from stagewarden.tools.git import GitTool
 from stagewarden.tools.files import FileTool
 from stagewarden.tools.shell import ShellTool
@@ -202,6 +203,41 @@ class ToolTests(unittest.TestCase):
     def test_confusable_detection_warns_on_mixed_scripts(self) -> None:
         warnings = detect_confusables("AΑ pр")
         self.assertTrue(any(item.startswith("mixed_scripts:") for item in warnings))
+
+    def test_permission_policy_plan_mode_blocks_write_capabilities(self) -> None:
+        policy = PermissionPolicy(PermissionSettings(default_mode="plan"))
+        self.assertTrue(policy.decide("shell:read", "git status").allowed)
+        self.assertFalse(policy.decide("shell:write", "python3 -c print(1)").allowed)
+        self.assertFalse(policy.decide("file:write", "notes.txt").allowed)
+
+    def test_permission_policy_explicit_allow_overrides_dont_ask_for_specific_capability(self) -> None:
+        policy = PermissionPolicy(
+            PermissionSettings(
+                default_mode="dont_ask",
+                allow=["shell:python3 -c", "file:allowed.txt"],
+            )
+        )
+        self.assertTrue(policy.decide("shell:write", "python3 -c \"print('ok')\"").allowed)
+        self.assertTrue(policy.decide("file:write", "allowed.txt").allowed)
+        self.assertFalse(policy.decide("file:write", "blocked.txt").allowed)
+
+    def test_shell_tool_enforces_plan_mode_from_settings_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            PermissionSettings(default_mode="plan").save(root / ".stagewarden_settings.json")
+            tool = ShellTool(AgentConfig(workspace_root=root))
+            result = tool.run("python3 -c \"print('blocked')\"")
+            self.assertFalse(result.ok)
+            self.assertIn("Plan mode", result.error)
+
+    def test_file_tool_enforces_ask_rule_from_settings_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            PermissionSettings(ask=["file:secret.txt"]).save(root / ".stagewarden_settings.json")
+            tool = FileTool(AgentConfig(workspace_root=root))
+            result = tool.write("secret.txt", "classified\n")
+            self.assertFalse(result.ok)
+            self.assertIn("requires approval", result.error)
 
 
 if __name__ == "__main__":
