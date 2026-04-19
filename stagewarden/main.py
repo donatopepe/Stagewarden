@@ -359,6 +359,9 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "- handoff",
             "- handoff export | handoff md",
+            "- resume",
+            "- resume --show",
+            "- resume --clear",
             "- boundary",
             "- todo",
             "- risks",
@@ -369,6 +372,8 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> handoff",
+            "- stagewarden> resume --show",
+            "- stagewarden> resume --clear",
             "- stagewarden> boundary",
             "- stagewarden> handoff export",
         ],
@@ -540,6 +545,54 @@ def _render_handoff(config: AgentConfig) -> str:
                 f"head={entry.git_head or 'unknown'}"
             )
     return "\n".join(lines)
+
+
+def _render_resume_show(config: AgentConfig) -> str:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    lines = [
+        "Resume target:",
+        f"- task: {handoff.task or 'none'}",
+        f"- current_step: {handoff.current_step_id or 'none'}",
+        f"- current_step_status: {handoff.current_step_status or 'none'}",
+        f"- next_action: {handoff.rendered_next_action()}",
+        handoff.rendered_stage_view(),
+    ]
+    return "\n".join(lines)
+
+
+def _archive_and_clear_handoff(config: AgentConfig) -> str:
+    if not config.handoff_path.exists():
+        ProjectHandoff().save(config.handoff_path)
+        return "No handoff existed. Created a fresh handoff context."
+    archive = config.workspace_root / f".stagewarden_handoff.archive.{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
+    write_text_utf8(archive, read_text_utf8(config.handoff_path))
+    ProjectHandoff().save(config.handoff_path)
+    return f"Archived handoff to {archive.name}. Fresh handoff context created."
+
+
+def _load_handoff_into_agent(agent: Agent, config: AgentConfig) -> ProjectHandoff:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    agent.project_handoff = handoff
+    agent.executor.project_handoff = handoff
+    return handoff
+
+
+def _handle_resume_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
+    parts = command.split()
+    if not parts or parts[0] != "resume":
+        return None
+    if len(parts) == 1:
+        handoff = _load_handoff_into_agent(agent, config)
+        if not handoff.task:
+            return "No task in handoff to resume.\n" + _render_resume_show(config)
+        result = agent.run(handoff.task)
+        return f"Resumed from handoff step {handoff.current_step_id or 'none'}.\n{result.message}"
+    if len(parts) == 2 and parts[1] == "--show":
+        return _render_resume_show(config)
+    if len(parts) == 2 and parts[1] == "--clear":
+        _load_handoff_into_agent(agent, config)
+        return _archive_and_clear_handoff(config)
+    return "Usage: resume | resume --show | resume --clear"
 
 
 RUNTIME_HANDOFF_START = "<!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->"
@@ -1440,6 +1493,11 @@ def run_interactive_shell(
         mode_message = _handle_mode_command(command, agent, config)
         if mode_message is not None:
             sink.write(f"{mode_message}\n")
+            sink.flush()
+            continue
+        resume_message = _handle_resume_command(command, agent, config)
+        if resume_message is not None:
+            sink.write(f"{resume_message}\n")
             sink.flush()
             continue
         git_message = _handle_git_command(command, config)
