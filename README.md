@@ -86,6 +86,7 @@ PRINCE2 handoff behavior:
 - The handoff file is persisted as `.stagewarden_handoff.json`.
 - Resume is implicit: each new run inherits the latest project handoff context for the workspace.
 - The executor prompt always includes the current project handoff summary, so planning and execution stay aligned to the same controlled context.
+- `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
 - The executor prompt also includes the active PRINCE2 registers: risks, issues, quality evidence, lessons learned, and any current exception plan.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
 - `handoff` shows the full persisted project context, while `boundary` shows only the current PRINCE2 stage-boundary recommendation.

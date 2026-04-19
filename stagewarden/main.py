@@ -691,6 +691,16 @@ def _render_handoff(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _handoff_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "handoff",
+        "handoff": handoff.as_dict(),
+        "stage_view": handoff.stage_view(),
+        "next_action": handoff.rendered_next_action(),
+    }
+
+
 def _render_resume_show(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
     lines = [
@@ -702,6 +712,18 @@ def _render_resume_show(config: AgentConfig) -> str:
         handoff.rendered_stage_view(),
     ]
     return "\n".join(lines)
+
+
+def _resume_show_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "resume --show",
+        "task": handoff.task or "none",
+        "current_step": handoff.current_step_id or "none",
+        "current_step_status": handoff.current_step_status or "none",
+        "next_action": handoff.rendered_next_action(),
+        "stage_view": handoff.stage_view(),
+    }
 
 
 def _archive_and_clear_handoff(config: AgentConfig) -> str:
@@ -1786,6 +1808,18 @@ def main() -> int:
             print(dumps_ascii(_transcript_report(config), indent=2))
         else:
             print(_render_transcript(config))
+        return 0
+    if task == "handoff":
+        if args.json:
+            print(dumps_ascii(_handoff_report(config), indent=2))
+        else:
+            print(_render_handoff(config))
+        return 0
+    if task == "resume --show":
+        if args.json:
+            print(dumps_ascii(_resume_show_report(config), indent=2))
+        else:
+            print(_render_resume_show(config))
         return 0
     if task in {"models usage", "cost"}:
         if args.json:
