@@ -134,6 +134,7 @@ def interactive_help_text() -> str:
             "- stop caveman | normal mode",
             "- mode caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra>",
             "- mode normal",
+            "- mode plan | mode auto | mode accept-edits | mode dont-ask | mode default",
             "- caveman help | caveman on [level] | caveman off",
             "- caveman commit | caveman review | caveman compress <file>",
             "",
@@ -181,6 +182,11 @@ def interactive_help_text() -> str:
             "- stagewarden> permission deny shell:rm",
             "- stagewarden> mode caveman ultra",
             "- stagewarden> mode normal",
+            "- stagewarden> mode plan",
+            "- stagewarden> mode auto",
+            "- stagewarden> mode accept-edits",
+            "- stagewarden> mode dont-ask",
+            "- stagewarden> mode default",
             "- stagewarden> caveman on ultra",
             "- stagewarden> /caveman review",
             "- stagewarden> git status",
@@ -678,13 +684,23 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _handle_permission_command(parts, config)
     if parts[0] != "mode":
         return None
+    if len(parts) == 2:
+        mode = parts[1].strip().lower().replace("-", "_")
+        if mode in VALID_PERMISSION_MODES:
+            settings = PermissionSettings.load(config.settings_path)
+            settings.default_mode = mode
+            settings.normalize().save(config.settings_path)
+            return f"Permission mode set to {mode}."
     if len(parts) == 2 and parts[1] == "normal":
         result = agent.run("normal mode")
         return result.message
     if len(parts) == 3 and parts[1] == "caveman":
         result = agent.run(f"/caveman {parts[2]}")
         return result.message
-    return "Usage: mode caveman <level> | mode normal"
+    return (
+        "Usage: mode <normal|default|accept_edits|accept-edits|plan|auto|dont_ask|dont-ask> "
+        "| mode caveman <level>"
+    )
 
 
 def _handle_permission_command(parts: list[str], config: AgentConfig) -> str:
