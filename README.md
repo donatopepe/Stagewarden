@@ -345,6 +345,8 @@ stagewarden> git history stagewarden/main.py 20
 stagewarden> git show --stat HEAD
 ```
 
+`stagewarden "git status" --json`, `stagewarden "git log 10" --json`, `stagewarden "git history path 10" --json`, and `stagewarden "git show --stat HEAD" --json` expose read-only repository inspection in machine-readable form.
+
 The autonomous executor can also call `git_status`, `git_log`, `git_show`, and `git_file_history` as first-class tool actions when it needs to inspect modification history before deciding or changing code.
 
 Caveman mode:

@@ -397,6 +397,35 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["report"]["workspace"]["ask"], ["file:secret.txt"])
             self.assertEqual(payload["report"]["workspace"]["deny"], ["shell:rm"])
 
+    def test_git_cli_json_outputs_are_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            subprocess.run(["git", "-C", str(root), "init"], capture_output=True, text=True, check=False)
+            subprocess.run(["git", "-C", str(root), "config", "user.name", "Stagewarden Test"], capture_output=True, text=True, check=False)
+            subprocess.run(["git", "-C", str(root), "config", "user.email", "stagewarden@example.com"], capture_output=True, text=True, check=False)
+            (root / "tracked.txt").write_text("hello\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "tracked.txt"], capture_output=True, text=True, check=False)
+            subprocess.run(["git", "-C", str(root), "commit", "-m", "add tracked"], capture_output=True, text=True, check=False)
+
+            status = json.loads(run_main_capture(root, "git status", "--json").stdout)
+            log_payload = json.loads(run_main_capture(root, "git log 5", "--json").stdout)
+            history = json.loads(run_main_capture(root, "git history tracked.txt 5", "--json").stdout)
+            show = json.loads(run_main_capture(root, "git show --stat HEAD", "--json").stdout)
+
+            self.assertEqual(status["command"], "git status")
+            self.assertTrue(status["ok"])
+            self.assertIsInstance(status["lines"], list)
+            self.assertEqual(log_payload["command"], "git log")
+            self.assertTrue(log_payload["ok"])
+            self.assertEqual(log_payload["limit"], 5)
+            self.assertEqual(log_payload["commits"][0]["subject"], "add tracked")
+            self.assertEqual(history["command"], "git history")
+            self.assertEqual(history["path"], "tracked.txt")
+            self.assertEqual(history["commits"][0]["subject"], "add tracked")
+            self.assertEqual(show["command"], "git show")
+            self.assertTrue(show["stat"])
+            self.assertEqual(show["revision"], "HEAD")
+
     def test_boundary_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

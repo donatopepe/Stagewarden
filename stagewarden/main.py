@@ -1609,6 +1609,85 @@ def _handle_git_command(command: str, config: AgentConfig) -> str | None:
     return "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]"
 
 
+def _parse_git_oneline(stdout: str) -> list[dict[str, str]]:
+    commits: list[dict[str, str]] = []
+    for line in stdout.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        commit, _, subject = text.partition(" ")
+        commits.append({"commit": commit, "subject": subject.strip()})
+    return commits
+
+
+def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] | None:
+    parts = command.split()
+    if not parts or parts[0] != "git":
+        return None
+    tool = GitTool(config)
+    if len(parts) == 2 and parts[1] == "status":
+        result = tool.status()
+        return {
+            "command": "git status",
+            "ok": result.ok,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "error": result.error,
+            "lines": result.stdout.splitlines() if result.stdout else [],
+        }
+    if len(parts) in {2, 3} and parts[1] == "log":
+        limit = _parse_limit(parts[2] if len(parts) == 3 else "", default=20)
+        result = tool.log(limit=limit)
+        return {
+            "command": "git log",
+            "limit": limit,
+            "ok": result.ok,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "error": result.error,
+            "commits": _parse_git_oneline(result.stdout),
+        }
+    if len(parts) >= 2 and parts[1] == "history":
+        if len(parts) not in {3, 4}:
+            return {
+                "command": "git history",
+                "ok": False,
+                "error": "Usage: git history <path> [limit]",
+            }
+        limit = _parse_limit(parts[3] if len(parts) == 4 else "", default=20)
+        result = tool.file_history(parts[2], limit=limit)
+        return {
+            "command": "git history",
+            "path": parts[2],
+            "limit": limit,
+            "ok": result.ok,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "error": result.error,
+            "commits": _parse_git_oneline(result.stdout),
+        }
+    if len(parts) >= 2 and parts[1] == "show":
+        stat = "--stat" in parts[2:]
+        revision_parts = [item for item in parts[2:] if item != "--stat"]
+        revision = revision_parts[0] if revision_parts else "HEAD"
+        result = tool.show(revision=revision, stat=stat)
+        return {
+            "command": "git show",
+            "revision": revision,
+            "stat": stat,
+            "ok": result.ok,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "error": result.error,
+            "lines": result.stdout.splitlines() if result.stdout else [],
+        }
+    return {
+        "command": "git",
+        "ok": False,
+        "error": "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]",
+    }
+
+
 def _handle_shell_session_command(command: str, agent: Agent) -> str | None:
     parts = command.split(maxsplit=3)
     if not parts:
@@ -1991,6 +2070,17 @@ def main() -> int:
             print(dumps_ascii({"command": "permissions", "report": _permissions_report(config)}, indent=2))
         else:
             print(_render_permissions(config))
+        return 0
+    if task.startswith("git "):
+        if args.json:
+            report = _git_command_report(task, config)
+            print(dumps_ascii(report or {"command": "git", "ok": False, "error": "Unsupported git command"}, indent=2))
+        else:
+            git_message = _handle_git_command(task, config)
+            if git_message is not None:
+                print(git_message)
+            else:
+                print("Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]")
         return 0
     if task == "boundary":
         if args.json:
