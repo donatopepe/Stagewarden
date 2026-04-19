@@ -228,6 +228,8 @@ Handoff tracking:
 - `blocked` backlog items surface alongside exception handling so the shell can distinguish a blocked stage from a clean ready queue.
 - The planner now promotes the first executable stage to `ready`, keeps later stages as `planned`, and the agent loop only starts stages that are `ready` or already `in_progress`.
 - When a stage completes under control, the next `planned` stage is promoted automatically to `ready`.
+- When a project enters `exception` with an active exception plan, the planner now injects an explicit recovery lane as `recovery-step-*` stages instead of only retrying the failed stage inline.
+- Recovery stages participate in the same lifecycle gates and can be resumed from persisted handoff context like any other stage.
 
 Account profiles:
 
