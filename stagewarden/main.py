@@ -251,6 +251,7 @@ def _interactive_help_overview() -> str:
             "- stagewarden> models",
             "- stagewarden> session create",
             "- stagewarden> session send last pwd",
+            "- stagewarden> patch preview changes.diff",
             "- stagewarden> handoff",
             "- stagewarden> fix failing tests",
         ]
@@ -283,11 +284,13 @@ def _interactive_help_topic(topic: str) -> str:
             "- session create [cwd]",
             "- session send <id|last> <command>",
             "- session close <id|last>",
+            "- patch preview <diff-file>",
             "",
             "Examples:",
             "- stagewarden> status",
             "- stagewarden> session create",
             "- stagewarden> session send last pwd",
+            "- stagewarden> patch preview changes.diff",
             "- stagewarden> transcript",
         ],
         "models": [
@@ -1215,6 +1218,21 @@ def _handle_shell_session_command(command: str, agent: Agent) -> str | None:
     return "Usage: session create [cwd] | session list | session send <id|last> <command> | session close <id|last>"
 
 
+def _handle_patch_command(command: str, agent: Agent) -> str | None:
+    parts = command.split(maxsplit=2)
+    if not parts or parts[0] != "patch":
+        return None
+    if len(parts) != 3 or parts[1] != "preview":
+        return "Usage: patch preview <diff-file>"
+    diff_file = agent.executor.files.read(parts[2])
+    if not diff_file.ok:
+        return diff_file.error
+    result = agent.executor.files.preview_patch_files(diff_file.content)
+    if not result.ok:
+        return result.error
+    return f"Patch preview:\n{result.content}"
+
+
 def _resolve_shell_session_id(agent: Agent, requested: str) -> str | None:
     sessions = agent.executor.shell.sessions
     if requested == "last":
@@ -1432,6 +1450,11 @@ def run_interactive_shell(
         shell_session_message = _handle_shell_session_command(command, agent)
         if shell_session_message is not None:
             sink.write(f"{shell_session_message}\n")
+            sink.flush()
+            continue
+        patch_message = _handle_patch_command(command, agent)
+        if patch_message is not None:
+            sink.write(f"{patch_message}\n")
             sink.flush()
             continue
 
