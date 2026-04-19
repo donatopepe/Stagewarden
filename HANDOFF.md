@@ -500,6 +500,20 @@ Validation:
 
 - CLI tests parse handoff JSON and resume-show JSON output and verify task, current step, next action, and boundary state.
 
+### Status and Boundary JSON Output
+
+Status: implemented
+
+Implemented behaviour:
+
+- Non-interactive CLI now supports `stagewarden status --json`.
+- Non-interactive CLI now supports `stagewarden boundary --json`.
+- Outputs expose operational posture, permissions, model state, and PRINCE2 boundary control state without text parsing.
+
+Validation:
+
+- CLI tests parse status JSON and boundary JSON output and verify mode, stage view, and boundary decisions.
+
 ## Recently Completed
 
 ### Caveman Help Snapshot
