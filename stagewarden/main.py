@@ -48,6 +48,9 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "health",
     "report",
     "status",
+    "stream on",
+    "stream off",
+    "stream status",
     "doctor",
     "handoff",
     "handoff export",
@@ -340,7 +343,7 @@ def _interactive_help_overview() -> str:
             "Use `help <topic>` for full commands and examples.",
             "",
             "Topics:",
-            "- help core: exit, reset, overview, health, report, status, sessions, transcript",
+            "- help core: exit, reset, overview, health, report, status, stream, sessions, transcript",
             "- help models: model routing, variants, blocks",
             "- help accounts: provider profiles, login, env vars, usage limits",
             "- help permissions: plan/auto modes, allow/ask/deny rules",
@@ -353,6 +356,7 @@ def _interactive_help_overview() -> str:
             "- stagewarden> overview",
             "- stagewarden> health",
             "- stagewarden> report",
+            "- stagewarden> stream status",
             "- stagewarden> help models",
             "- stagewarden> models",
             "- stagewarden> models usage",
@@ -390,6 +394,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- health",
             "- report",
             "- status",
+            "- stream on | stream off | stream status",
             "- transcript | trace",
             "- doctor",
             "- sessions | session list",
@@ -403,6 +408,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> health",
             "- stagewarden> report",
             "- stagewarden> status",
+            "- stagewarden> stream off",
             "- stagewarden> doctor",
             "- stagewarden> session create",
             "- stagewarden> session send last pwd",
@@ -2361,7 +2367,15 @@ def run_interactive_shell(
     source = input_stream or sys.stdin
     sink = output_stream or sys.stdout
     agent = _configure_agent_for_workspace(config)
-    agent.handoff.stream_callback = lambda chunk: (sink.write(chunk), sink.flush())
+    stream_enabled = True
+
+    def apply_stream_callback(current_agent: Agent) -> None:
+        if stream_enabled:
+            current_agent.handoff.stream_callback = lambda chunk: (sink.write(chunk), sink.flush())
+        else:
+            current_agent.handoff.stream_callback = None
+
+    apply_stream_callback(agent)
     config.permission_approver = _make_permission_approver(
         config=config,
         input_stream=source,
@@ -2394,7 +2408,7 @@ def run_interactive_shell(
         if command == "reset":
             config.session_permission_settings = None
             agent = _configure_agent_for_workspace(config)
-            agent.handoff.stream_callback = lambda chunk: (sink.write(chunk), sink.flush())
+            apply_stream_callback(agent)
             config.permission_approver = _make_permission_approver(
                 config=config,
                 input_stream=source,
@@ -2402,6 +2416,16 @@ def run_interactive_shell(
                 get_agent=lambda: agent,
             )
             sink.write("Session reset.\n")
+            sink.flush()
+            continue
+        if command in {"stream on", "stream off", "stream status"}:
+            if command == "stream status":
+                sink.write(f"Model streaming is {'on' if stream_enabled else 'off'}.\n")
+                sink.flush()
+                continue
+            stream_enabled = command == "stream on"
+            apply_stream_callback(agent)
+            sink.write(f"Model streaming {'enabled' if stream_enabled else 'disabled'} for this session.\n")
             sink.flush()
             continue
         rewritten, immediate = _rewrite_shell_command(command, agent)

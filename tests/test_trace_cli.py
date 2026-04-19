@@ -812,6 +812,54 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("[model-stream local]", rendered)
             self.assertIn('"summary":"ok"', rendered)
 
+    def test_interactive_shell_can_toggle_stream_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("stream status\nstream off\nstream status\nstream on\nstream status\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Model streaming is on.", rendered)
+            self.assertIn("Model streaming disabled for this session.", rendered)
+            self.assertIn("Model streaming is off.", rendered)
+            self.assertIn("Model streaming enabled for this session.", rendered)
+
+    def test_interactive_shell_stream_off_suppresses_live_model_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = root / "run_model_stream_stub.py"
+            stub.write_text(
+                "\n".join(
+                    [
+                        "#!/usr/bin/env python3",
+                        "import sys",
+                        "print('{\"summary\":\"ok\",\"action\":{\"type\":\"complete\",\"message\":\"validation completed exit_code=0\"}}')",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                config = AgentConfig(workspace_root=root, max_steps=4)
+                input_stream = StringIO("stream off\nanalyze repo structure\nquit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Model streaming disabled for this session.", rendered)
+            self.assertNotIn("[model-stream local]", rendered)
+
     def test_interactive_shell_permission_ask_can_be_approved_for_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
