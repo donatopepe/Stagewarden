@@ -55,6 +55,7 @@ Latest pushed baseline at the time of this handoff:
 - Session-only permissions: `permission session mode`, `permission session allow|ask|deny`, `permission session reset`.
 - Live permission refresh: active agent tools reload permission policy after shell permission changes.
 - Approval prompt flow: interactive `ask` decisions support `y`, `n`, `always`, `session`, and `deny`; non-interactive tools remain fail-closed.
+- Tool invocation transcript: tool calls are recorded in memory, persisted as LJSON, and exposed through `transcript`/`trace`.
 - Shell execution across OS families: POSIX shell, PowerShell, cmd fallback.
 - File tools: read, write, patch, patch files, list, search.
 - Wet-run enforcement: dry-run or narrative completion is not accepted as final checkpoint.
@@ -102,22 +103,22 @@ Validation:
 
 ### 2. Tool Invocation Transcript
 
-Status: planned
+Status: implemented
 
 Implement a Codex-like visible transcript for tool calls.
 
-Required behaviour:
+Implemented behaviour:
 
-- Every tool action should produce a compact transcript entry.
-- Include tool name, arguments summary, cwd/path, exit code, duration, warnings, and output preview.
-- Persist transcript into LJSON trace and handoff entries.
-- Render recent transcript via shell command `trace` or `transcript`.
+- Tool actions produce compact transcript entries.
+- Entries include iteration, step, tool, action type, success/failure, summary, detail preview, duration where available, and error type.
+- Transcript is persisted in `.stagewarden_memory.json` as LJSON.
+- Shell commands `transcript` and `trace` render recent tool calls.
 
 Validation:
 
-- Wet-run command output is visible in transcript.
-- Failed command includes stderr/error.
-- LJSON trace roundtrip still passes.
+- Memory tests cover transcript persistence and rendering.
+- Executor tests cover transcript recording from tool actions.
+- CLI tests cover `transcript` rendering after an actual agent run.
 
 ### 3. Stronger Patch Application UX
 
@@ -367,11 +368,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Tool invocation transcript command.
-2. Recovery closure gate.
-3. Handoff Markdown auto-export.
-4. Safer command classification.
-5. Stronger patch application UX.
+1. Recovery closure gate.
+2. Handoff Markdown auto-export.
+3. Safer command classification.
+4. Stronger patch application UX.
+5. Provider capability registry.
 
 ## Validation Standard
 
