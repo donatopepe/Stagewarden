@@ -177,6 +177,7 @@ stagewarden
 ```
 
 On terminals with `readline` support, the shell also keeps a per-workspace history in `.stagewarden_history` and enables TAB completion for core commands plus selected workspace-path commands such as `git history` and `patch preview`.
+During interactive task execution, Stagewarden now also forwards live `run_model` stdout into the shell with compact prefixes such as `[model-stream local]`, while still parsing the final JSON response normally.
 
 Inside the shell:
 

@@ -67,6 +67,41 @@ class HandoffTests(unittest.TestCase):
         self.assertIn('"account": "work"', result.output)
         self.assertIn('"token": "work-token"', result.output)
 
+    def test_handoff_streams_output_through_callback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            stub = Path(tmp_dir) / "run_model_test_stub"
+            stub.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env python3
+                    import sys
+                    sys.stdout.write('{"summary":"ok",')
+                    sys.stdout.flush()
+                    sys.stdout.write('"action":{"type":"complete","message":"done"}}')
+                    sys.stdout.flush()
+                    """
+                )
+            )
+            stub.chmod(0o755)
+            original = os.environ.get("RUN_MODEL_BIN")
+            chunks: list[str] = []
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                manager = HandoffManager(timeout_seconds=5)
+                manager.stream_callback = chunks.append
+                result = manager.execute(format_run_model("local", "prompt"))
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+        self.assertTrue(result.ok, result.error)
+        rendered = "".join(chunks)
+        self.assertIn("[model-stream local]", rendered)
+        self.assertIn('"summary":"ok"', rendered)
+        self.assertIn('"message":"done"', rendered)
+
     def test_handoff_passes_chatgpt_token_to_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             stub = Path(tmp_dir) / "run_model_test_stub"

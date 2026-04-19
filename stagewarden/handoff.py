@@ -5,6 +5,7 @@ import os
 import shlex
 import subprocess
 from dataclasses import dataclass
+from typing import Callable
 
 from .provider_registry import (
     available_model_variants,
@@ -76,6 +77,7 @@ class HandoffManager:
         self.run_model_binary = os.environ.get("RUN_MODEL_BIN", "run_model")
         self.account_env_by_target: dict[str, str] = {}
         self.model_variant_by_model: dict[str, str] = {}
+        self.stream_callback: Callable[[str], None] | None = None
 
     def execute(self, command: str) -> ModelResult:
         model, prompt, account = parse_run_model_command(command)
@@ -91,6 +93,16 @@ class HandoffManager:
         rendered_prefix = f"STAGEWARDEN_MODEL_ACCOUNT={shlex.quote(account_label)} " if account else ""
         rendered = rendered_prefix + " ".join(shlex.quote(part) for part in command)
         backend = MODEL_BACKENDS[model]["label"]
+        if self.stream_callback is not None:
+            return self._invoke_streaming(
+                model=model,
+                backend=backend,
+                prompt=prompt,
+                command=command,
+                env=env,
+                rendered=rendered,
+                account_label=account_label,
+            )
 
         try:
             completed = subprocess.run(
@@ -157,6 +169,115 @@ class HandoffManager:
                 error="Model returned empty output.",
             )
 
+        return ModelResult(
+            ok=True,
+            model=model,
+            backend=backend,
+            prompt=prompt,
+            command=rendered,
+            account=account_label,
+            output=stdout,
+        )
+
+    def _invoke_streaming(
+        self,
+        *,
+        model: str,
+        backend: str,
+        prompt: str,
+        command: list[str],
+        env: dict[str, str],
+        rendered: str,
+        account_label: str,
+    ) -> ModelResult:
+        callback = self.stream_callback
+        stream_header = f"[model-stream {model}{':' + account_label if account_label else ''}] "
+        try:
+            process = subprocess.Popen(
+                command,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+            )
+        except FileNotFoundError:
+            return ModelResult(
+                ok=False,
+                model=model,
+                backend=backend,
+                prompt=prompt,
+                command=rendered,
+                account=account_label,
+                error="run_model executable not found in PATH.",
+            )
+        except OSError as exc:
+            return ModelResult(
+                ok=False,
+                model=model,
+                backend=backend,
+                prompt=prompt,
+                command=rendered,
+                account=account_label,
+                error=str(exc),
+            )
+
+        stdout_chunks: list[str] = []
+        try:
+            if callback is not None:
+                callback(stream_header)
+            while True:
+                chunk = process.stdout.read(1) if process.stdout is not None else ""
+                if chunk == "":
+                    break
+                stdout_chunks.append(chunk)
+                if callback is not None:
+                    callback(chunk)
+            stderr = process.stderr.read().strip() if process.stderr is not None else ""
+            returncode = process.wait(timeout=self.timeout_seconds)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            if callback is not None:
+                callback("\n")
+            return ModelResult(
+                ok=False,
+                model=model,
+                backend=backend,
+                prompt=prompt,
+                command=rendered,
+                account=account_label,
+                error=f"Model call timed out after {self.timeout_seconds}s.",
+            )
+        finally:
+            if process.stdout is not None:
+                process.stdout.close()
+            if process.stderr is not None:
+                process.stderr.close()
+            if callback is not None:
+                callback("\n")
+
+        stdout = "".join(stdout_chunks).strip()
+        if returncode != 0:
+            return ModelResult(
+                ok=False,
+                model=model,
+                backend=backend,
+                prompt=prompt,
+                command=rendered,
+                account=account_label,
+                output=stdout,
+                error=stderr or f"run_model exited with status {returncode}.",
+            )
+        if not stdout:
+            return ModelResult(
+                ok=False,
+                model=model,
+                backend=backend,
+                prompt=prompt,
+                command=rendered,
+                account=account_label,
+                error="Model returned empty output.",
+            )
         return ModelResult(
             ok=True,
             model=model,
