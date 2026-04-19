@@ -224,6 +224,8 @@ Handoff tracking:
 
 - `handoff` now includes the persisted implementation backlog alongside stage posture, registers, and git boundary context.
 - `todo` prints the current implementation backlog derived from the active PRINCE2 plan and kept in sync while the agent runs.
+- The handoff backlog now uses normalized lifecycle states: `planned`, `ready`, `in_progress`, `blocked`, and `done`.
+- `blocked` backlog items surface alongside exception handling so the shell can distinguish a blocked stage from a clean ready queue.
 
 Account profiles:
 
