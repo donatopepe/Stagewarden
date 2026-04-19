@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -59,6 +60,8 @@ def interactive_help_text() -> str:
             "  Show workspace, mode, model routing, and state file locations.",
             "- handoff",
             "  Show the current persisted PRINCE2 handoff context for this workspace.",
+            "- handoff export | handoff md",
+            "  Export the runtime handoff into the generated section of HANDOFF.md.",
             "- boundary",
             "  Show only the current PRINCE2 stage boundary recommendation.",
             "- risks | issues | quality | exception",
@@ -181,6 +184,7 @@ def interactive_help_text() -> str:
             "- stagewarden> model unblock openai",
             "- stagewarden> status",
             "- stagewarden> handoff",
+            "- stagewarden> handoff export",
             "- stagewarden> boundary",
             "- stagewarden> risks",
             "- stagewarden> issues",
@@ -328,6 +332,97 @@ def _render_handoff(config: AgentConfig) -> str:
                 f"head={entry.git_head or 'unknown'}"
             )
     return "\n".join(lines)
+
+
+RUNTIME_HANDOFF_START = "<!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->"
+RUNTIME_HANDOFF_END = "<!-- STAGEWARDEN_RUNTIME_HANDOFF_END -->"
+
+
+def _redact_handoff_markdown(value: str) -> str:
+    redacted = re.sub(
+        r"(?i)\b(access_token|refresh_token|id_token|auth_token|api_key|token)\b\s*[:=]\s*['\"]?[^'\"\s,}\]]+",
+        lambda match: f"{match.group(1)}=[REDACTED]",
+        value,
+    )
+    redacted = re.sub(r"(?i)bearer\s+[a-z0-9._\-]{12,}", "Bearer [REDACTED]", redacted)
+    redacted = re.sub(r"\b[a-zA-Z0-9_\-]{32,}\.[a-zA-Z0-9_\-]{16,}\.[a-zA-Z0-9_\-]{16,}\b", "[REDACTED_JWT]", redacted)
+    return redacted
+
+
+def _runtime_handoff_markdown(config: AgentConfig) -> str:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    view = handoff.stage_view()
+    git_boundary = view["git_boundary"]
+    pid_boundary = view["pid_boundary"]
+    lines = [
+        RUNTIME_HANDOFF_START,
+        "## Runtime Handoff Export",
+        "",
+        f"Generated: {datetime.now().isoformat(timespec='seconds')}",
+        "",
+        "### Current State",
+        "",
+        f"- task: {handoff.task or 'unknown'}",
+        f"- project_status: {handoff.status}",
+        f"- plan_status: {handoff.plan_status or 'unknown'}",
+        f"- recovery_state: {view['recovery_state']}",
+        f"- stage_health: {view['stage_health']}",
+        f"- next_action: {view['next_action']}",
+        f"- current_step: {handoff.current_step_id or 'none'}",
+        f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
+        f"- pid_boundary: project_status={pid_boundary['project_status']} updated_at={pid_boundary['updated_at']}",
+        "",
+        "### Registers",
+        "",
+        handoff.rendered_register_status_summary(),
+        "",
+        "### Implementation Backlog",
+        "",
+        handoff.rendered_implementation_backlog(),
+        "",
+        "### Risks",
+        "",
+        handoff.rendered_risks(),
+        "",
+        "### Issues",
+        "",
+        handoff.rendered_issues(),
+        "",
+        "### Quality",
+        "",
+        handoff.rendered_quality(),
+        "",
+        "### Lessons",
+        "",
+        handoff.rendered_lessons(),
+        "",
+        "### Recent Entries",
+        "",
+    ]
+    if handoff.entries:
+        for entry in handoff.entries[-8:]:
+            lines.append(
+                f"- [{entry.phase}] iter={entry.iteration} step={entry.step_id or '-'} "
+                f"status={entry.step_status or '-'} model={entry.model or '-'} head={entry.git_head or 'unknown'}"
+            )
+    else:
+        lines.append("- none")
+    lines.extend(["", RUNTIME_HANDOFF_END, ""])
+    return _redact_handoff_markdown("\n".join(lines))
+
+
+def _export_handoff_markdown(config: AgentConfig) -> str:
+    target = config.workspace_root / "HANDOFF.md"
+    generated = _runtime_handoff_markdown(config)
+    existing = read_text_utf8(target) if target.exists() else "# Stagewarden Handoff\n"
+    if RUNTIME_HANDOFF_START in existing and RUNTIME_HANDOFF_END in existing:
+        prefix, _marker, rest = existing.partition(RUNTIME_HANDOFF_START)
+        _old, _end_marker, suffix = rest.partition(RUNTIME_HANDOFF_END)
+        updated = prefix.rstrip() + "\n\n" + generated.rstrip() + "\n" + suffix.lstrip()
+    else:
+        updated = existing.rstrip() + "\n\n" + generated
+    write_text_utf8(target, updated)
+    return f"Exported runtime handoff to {target.name}."
 
 
 def _render_boundary(config: AgentConfig) -> str:
@@ -712,6 +807,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     if parts[0] == "status":
         return _render_status(agent, config)
     if parts[0] == "handoff":
+        if len(parts) == 2 and parts[1] in {"md", "export"}:
+            return _export_handoff_markdown(config)
         return _render_handoff(config)
     if parts[0] == "boundary":
         return _render_boundary(config)
