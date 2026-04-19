@@ -431,6 +431,52 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["report"]["workspace"]["ask"], ["file:secret.txt"])
             self.assertEqual(payload["report"]["workspace"]["deny"], ["shell:rm"])
 
+    def test_overview_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-3",
+                "current_step_status": "in_progress",
+                "plan_status": "step-1:completed,step-2:completed,step-3:in_progress",
+                "issue_register": [{"step_id": "step-3", "severity": "medium", "summary": "validation pending", "status": "open"}],
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="local",
+                action_type="complete",
+                action_signature="a",
+                success=True,
+                observation="ok",
+            )
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="shell",
+                action_type="shell",
+                success=True,
+                summary="pwd",
+                detail="exit_code=0",
+                duration_ms=10,
+            )
+            memory.save(root / ".stagewarden_memory.json")
+            completed = run_main_capture(root, "overview", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "overview")
+            self.assertEqual(payload["board"]["recommended_authorization"], "review")
+            self.assertEqual(payload["model_usage"]["report"]["totals"]["calls"], 1)
+            self.assertEqual(payload["transcript"]["report"]["count"], 1)
+            self.assertEqual(payload["handoff"]["handoff"]["task"], "fix failing tests")
+
     def test_git_cli_json_outputs_are_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

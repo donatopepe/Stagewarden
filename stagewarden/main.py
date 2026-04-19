@@ -365,6 +365,7 @@ def _interactive_help_topic(topic: str) -> str:
         "handoff": [
             "Handoff and PRINCE2 commands",
             "",
+            "- overview",
             "- handoff",
             "- handoff export | handoff md",
             "- board | stage review",
@@ -380,6 +381,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- lessons",
             "",
             "Examples:",
+            "- stagewarden> overview",
             "- stagewarden> handoff",
             "- stagewarden> board",
             "- stagewarden> resume --show",
@@ -636,6 +638,40 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "stage_view": handoff.stage_view(),
         },
     }
+
+
+def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return {
+        "command": "overview",
+        "status": _status_report(agent, config),
+        "board": _board_report(config),
+        "model_usage": _model_usage_report(config),
+        "transcript": _transcript_report(config),
+        "handoff": _handoff_report(config),
+    }
+
+
+def _render_overview(agent: Agent, config: AgentConfig) -> str:
+    board = _board_report(config)
+    usage = _model_usage_report(config)["report"]
+    transcript = _transcript_report(config)["report"]
+    status = _status_report(agent, config)
+    lines = [
+        "Workspace overview:",
+        f"- workspace: {status['workspace']}",
+        f"- mode: {status['mode']}",
+        f"- recommended_authorization: {board['recommended_authorization']}",
+        f"- boundary_decision: {board['boundary_decision']}",
+        f"- open_issues: {board['open_issues']}",
+        f"- open_risks: {board['open_risks']}",
+        f"- quality_open: {board['quality_open']}",
+        f"- recovery_state: {board['recovery_state']}",
+        f"- model_calls: {usage['totals']['calls']}",
+        f"- model_failures: {usage['totals']['failures']}",
+        f"- escalation_path: {usage['totals']['escalation_path']}",
+        f"- transcript_entries: {transcript['count']}",
+    ]
+    return "\n".join(lines)
 
 
 def _doctor_report(config: AgentConfig) -> dict[str, object]:
@@ -1550,6 +1586,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return None
     if parts[0] == "status":
         return _render_status(agent, config)
+    if parts[0] == "overview":
+        return _render_overview(agent, config)
     if parts[0] == "doctor":
         return _render_doctor(config)
     if parts[0] == "handoff":
@@ -2166,6 +2204,13 @@ def main() -> int:
             print(dumps_ascii(_status_report(agent, config), indent=2))
         else:
             print(_render_status(agent, config))
+        return 0
+    if task == "overview":
+        agent = _configure_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_overview_report(agent, config), indent=2))
+        else:
+            print(_render_overview(agent, config))
         return 0
     if task == "models":
         agent = _configure_agent_for_workspace(config)
