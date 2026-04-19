@@ -76,6 +76,7 @@ Latest pushed baseline at the time of this handoff:
 - Recovery boundary states: `exception_active`, `recovery_active`, `recovery_cleared`, `none`.
 - Recovery closure gate: completed recovery lanes close open issues/risks, clear exception controls, close covered failed stages, and resume normal planned stages.
 - Handoff Markdown auto-export: `handoff export` and `handoff md` update the generated runtime section in `HANDOFF.md` with redaction.
+- Safer command classification: shell permission checks now distinguish read-only git commands from write/high-risk operations, redirection, package installs, and mutating commands.
 
 ## Codex/Claude-Inspired Behaviours To Apply
 
@@ -274,23 +275,23 @@ Validation:
 
 ### 11. Safer Command Classification
 
-Status: planned
+Status: implemented
 
 Improve shell permission classification beyond first token.
 
-Required behaviour:
+Implemented behaviour:
 
-- Treat `git status/log/show/diff` as read.
-- Treat `git add/commit/push/checkout/merge/rebase` as write or high-risk.
-- Treat shell redirection as write.
-- Treat package install commands as write/network-risk.
-- Treat delete/move/copy operations as write.
+- `git status`, `git log`, `git show`, `git diff`, and other inspection commands are classified as read.
+- Mutating git commands such as `git add`, `commit`, `push`, `checkout`, `merge`, and `rebase` are no longer treated as read-only.
+- Shell redirection and tee-style output are classified as write.
+- Package installation and mutating npm/python/node/test commands are classified as write/network-risk.
+- Delete/move/copy/install-style operations are classified as write.
 
 Validation:
 
-- Read-only git commands pass in plan mode.
-- Write git commands fail in plan mode unless explicitly allowed.
-- Redirection is denied in plan mode.
+- Tool tests verify read-only git commands are not blocked by plan mode policy.
+- Tool tests verify write git commands are blocked in plan mode.
+- Tool tests verify redirection and package install commands are blocked in plan mode.
 
 ### 12. Rich Help Reorganization
 
@@ -368,11 +369,11 @@ Validation:
 
 ## Immediate Next Implementation Order
 
-1. Safer command classification.
-2. Stronger patch application UX.
-3. Provider capability registry.
-4. Approval prompt refinements for multi-command shell sessions.
-5. Rich help reorganization.
+1. Stronger patch application UX.
+2. Provider capability registry.
+3. Approval prompt refinements for multi-command shell sessions.
+4. Rich help reorganization.
+5. Model handoff result schema.
 
 ## Validation Standard
 
