@@ -64,6 +64,8 @@ class MemoryTests(unittest.TestCase):
         self.assertIn("Model usage:", rendered)
         self.assertIn("local: calls=1 failures=0 steps=1 cost_tier=free/local", rendered)
         self.assertIn("openai: calls=1 failures=1 steps=1 cost_tier=high", rendered)
+        self.assertIn("totals: calls=2 failures=1 steps=1 failure_rate=50.00%", rendered)
+        self.assertIn("routing: last_model=openai highest_tier=high highest_model=openai escalation_path=local -> openai", rendered)
 
     def test_budget_summary_reports_policy_usage_and_highest_tier(self) -> None:
         memory = MemoryStore()
@@ -92,6 +94,46 @@ class MemoryTests(unittest.TestCase):
         self.assertIn("usage: local=1, openai=1", rendered)
         self.assertIn("highest_tier_used: high (openai)", rendered)
         self.assertIn("failed_model_calls: 1", rendered)
+        self.assertIn("failure_rate: 50.00%", rendered)
+        self.assertIn("escalation_path: local -> openai", rendered)
+
+    def test_model_usage_stats_returns_machine_readable_totals(self) -> None:
+        memory = MemoryStore()
+        memory.record_attempt(
+            iteration=1,
+            step_id="step-1",
+            model="local",
+            action_type="complete",
+            action_signature="a",
+            success=True,
+            observation="ok",
+        )
+        memory.record_attempt(
+            iteration=2,
+            step_id="step-2",
+            model="cheap",
+            action_type="complete",
+            action_signature="b",
+            success=True,
+            observation="ok",
+        )
+        memory.record_attempt(
+            iteration=3,
+            step_id="step-2",
+            model="openai",
+            action_type="complete",
+            action_signature="c",
+            success=False,
+            observation="fail",
+            error_type="api_failure",
+        )
+        stats = memory.model_usage_stats()
+        self.assertEqual(stats["totals"]["calls"], 3)
+        self.assertEqual(stats["totals"]["failures"], 1)
+        self.assertEqual(stats["totals"]["steps"], 2)
+        self.assertEqual(stats["totals"]["last_model"], "openai")
+        self.assertEqual(stats["totals"]["highest_tier"], "high")
+        self.assertEqual(stats["totals"]["escalation_path"], "local -> cheap -> openai")
 
     def test_tool_transcript_is_persisted_and_rendered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
