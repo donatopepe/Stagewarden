@@ -652,6 +652,8 @@ Validation:
 - CLI tests verify `status --json` includes provider-limit state for mixed multiprovider scenarios.
 - Interactive shell tests verify `status` renders provider-limit posture together with resume context.
 - Test coverage includes model-level blocks, account-level blocks, and recent error/success state.
+- `overview` and `report` now also surface compact provider-limit summaries for faster operator reading.
+- `overview --json` and `report --json` now carry provider-limit posture in machine-readable form.
 
 
 ### Caveman Help Snapshot
