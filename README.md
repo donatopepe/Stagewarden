@@ -181,6 +181,7 @@ During interactive task execution, Stagewarden now also forwards live `run_model
 Use `stream on`, `stream off`, or `stream status` inside the shell to control this behavior per session.
 Task execution is visually split into `Running task: ...` and `Agent result:` so the live model stream stays distinct from the final agent summary.
 The interactive shell also emits a compact `Shell progress (before|after)` block with active step, stage health, boundary decision, recovery state, and current git head.
+These mini-blocks now also show the planned route before execution and the actual route after execution: model, account, and variant.
 
 Inside the shell:
 

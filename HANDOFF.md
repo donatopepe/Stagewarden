@@ -627,6 +627,16 @@ Validation:
 
 ## Recently Completed
 
+### Shell UX Direction
+
+Status: decided
+
+Decision:
+
+- Keep mini-block shell rendering as the preferred interaction style.
+- Do not collapse shell progress and agent result output into a single compact status line.
+- Favor short titled sections such as `Running task:`, `Shell progress (before|after):`, and `Agent result:`.
+
 ### Interactive Model Streaming In Shell
 
 Status: implemented
@@ -639,6 +649,7 @@ Implemented behaviour:
 - Added session-scoped shell controls `stream on`, `stream off`, and `stream status`.
 - Interactive task execution is now framed with `Running task:` before execution and `Agent result:` before the final summary.
 - Interactive shell now prints a compact `Shell progress (before|after)` block with active step, stage health, boundary decision, recovery state, and git head.
+- Shell progress blocks now also show route context: planned model/account/variant before execution and actual model/account/variant after execution.
 
 Validation:
 
@@ -647,6 +658,7 @@ Validation:
 - Interactive shell tests verify stream toggling and suppression when streaming is disabled.
 - Interactive shell tests verify the task/result framing is present around streamed execution.
 - Interactive shell tests verify progress blocks are rendered around task execution.
+- Memory and shell tests verify account and variant route details are preserved and rendered.
 
 ### Multi-Account Failover Across Primary And Fallback Models
 

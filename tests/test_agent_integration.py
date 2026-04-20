@@ -172,6 +172,7 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertIn("account=work", rendered)
             self.assertIn("git_head_before=", rendered)
             self.assertIn("git_head_after=", rendered)
+            self.assertIn("model=openai variant=gpt-5.4-mini account=work", rendered)
 
     def test_agent_closes_matching_open_issues_on_immediate_project_closure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

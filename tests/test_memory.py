@@ -30,12 +30,16 @@ class MemoryTests(unittest.TestCase):
             iteration=1,
             step_id="step-1",
             model="local",
+            account="work",
+            variant="gpt-x",
             action_type="complete",
             action_signature='{"type":"complete"}',
             success=True,
             observation="done",
         )
         self.assertIn("step=step-1", memory.summarize())
+        self.assertIn("account=work", memory.summarize())
+        self.assertIn("variant=gpt-x", memory.summarize())
 
     def test_model_usage_summary_counts_calls_failures_and_cost_tiers(self) -> None:
         memory = MemoryStore()
