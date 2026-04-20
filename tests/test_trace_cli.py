@@ -670,6 +670,57 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(models["cheap"]["enabled"])
             self.assertTrue(models["cheap"]["preferred"])
 
+    def test_model_limits_cli_json_outputs_persisted_snapshots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "claude"]
+            prefs.add_account("claude", "team")
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.last_limit_message_by_model = {"chatgpt": "Usage limit reached at 91%. Try again at 8:05 PM."}
+            prefs.set_model_limit_snapshot(
+                "chatgpt",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T18:30",
+                    "rate_limit_type": "usage_limit",
+                    "utilization": 91,
+                    "captured_at": "2026-05-01T17:30",
+                    "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
+                },
+            )
+            prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.last_limit_message_by_account = {
+                "claude:team": "Claude Sonnet five-hour usage limited until 2026-05-01T19:00."
+            }
+            prefs.set_account_limit_snapshot(
+                "claude",
+                "team",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T19:00",
+                    "rate_limit_type": "five_hour_sonnet",
+                    "captured_at": "2026-05-01T18:00",
+                    "raw_message": "Claude Sonnet five-hour usage limited until 2026-05-01T19:00.",
+                },
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "model limits", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "model limits")
+            providers = {item["provider"]: item for item in payload["providers"]}
+            self.assertEqual(providers["chatgpt"]["utilization"], 91.0)
+            self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(
+                providers["claude"]["blocked_accounts"][0]["snapshot"]["rate_limit_type"],
+                "five_hour_sonnet",
+            )
+
     def test_accounts_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

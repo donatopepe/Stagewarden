@@ -195,6 +195,7 @@ stagewarden> help
 stagewarden> help models
 stagewarden> help handoff
 stagewarden> models
+stagewarden> model limits
 stagewarden> patch preview changes.diff
 stagewarden> model use openai
 stagewarden> model list claude
@@ -240,6 +241,8 @@ Model control:
 - `stagewarden models --json` exposes the same model routing state in machine-readable form.
 - `models usage` or `cost` shows persisted model call counts, failures, step coverage, cost tiers, and the routing budget policy.
 - `stagewarden "models usage" --json` emits the same data in machine-readable form.
+- `model limits` or `models limits` shows persisted provider/account limit snapshots, reset time, reason, window, and utilization when known.
+- `stagewarden "model limits" --json` emits the same limit snapshot in machine-readable form.
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
 - `model list <provider>` shows the official aliases or model IDs and provider capabilities for that provider.
