@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import unittest
+from unittest.mock import patch
 
-from stagewarden.auth import OpenAIDeviceCodeFlow
+from stagewarden.auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
 
 
 class OpenAIDeviceCodeFlowTests(unittest.TestCase):
@@ -59,6 +61,35 @@ class OpenAIDeviceCodeFlowTests(unittest.TestCase):
         self.assertEqual(result.token, "access-token-123")
         self.assertIn('"refresh_token":"refresh-token-123"', result.secret_payload)
         self.assertEqual(len(calls), 3)
+
+    @patch("stagewarden.auth.shutil.which", return_value="/usr/local/bin/codex")
+    @patch("stagewarden.auth.subprocess.run")
+    def test_chatgpt_browser_login_uses_codex_cli(self, run_mock, _which_mock) -> None:
+        run_mock.return_value = subprocess.CompletedProcess(
+            args=["codex", "login"],
+            returncode=0,
+            stdout="",
+            stderr="Logged in using ChatGPT\n",
+        )
+        result = CodexBrowserLoginFlow(model="chatgpt", account="personale").run()
+        self.assertTrue(result.ok, result.message)
+        self.assertIn("Logged in using ChatGPT", result.message)
+        self.assertIn('"auth_source":"codex"', result.secret_payload)
+        run_mock.assert_called_once()
+
+    @patch("stagewarden.auth.shutil.which", return_value="/usr/local/bin/codex")
+    @patch("stagewarden.auth.subprocess.run")
+    def test_chatgpt_browser_logout_uses_codex_cli(self, run_mock, _which_mock) -> None:
+        run_mock.return_value = subprocess.CompletedProcess(
+            args=["codex", "logout"],
+            returncode=0,
+            stdout="Logged out.\n",
+            stderr="",
+        )
+        result = CodexBrowserLogoutFlow(model="chatgpt").run()
+        self.assertTrue(result.ok, result.message)
+        self.assertIn("Logged out.", result.message)
+        run_mock.assert_called_once()
 
 
 if __name__ == "__main__":

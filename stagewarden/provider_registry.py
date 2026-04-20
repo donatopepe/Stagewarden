@@ -82,7 +82,7 @@ PROVIDER_CAPABILITIES: dict[str, ProviderCapability] = {
         token_env="CHATGPT_TOKEN",
         model_env="OPENAI_MODEL",
         login_url="https://chatgpt.com/",
-        login_hint="Use account login chatgpt <profile>; Stagewarden never scrapes browser tokens.",
+        login_hint="Use account login chatgpt <profile>; Stagewarden delegates to Codex browser login and never scrapes browser tokens.",
         source="OpenAI Codex/OpenAI models docs",
     ),
     "openai": ProviderCapability(

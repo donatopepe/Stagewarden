@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - platform dependent
     readline = None
 
 from .agent import Agent
-from .auth import OpenAIDeviceCodeFlow
+from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
@@ -490,6 +490,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> account login chatgpt personale",
+            "- stagewarden> account login-device openai lavoro",
             "- stagewarden> account add openai lavoro OPENAI_API_KEY_WORK",
             "- stagewarden> account import claude lavoro ~/.claude/.credentials.json",
         ],
@@ -2605,16 +2606,22 @@ def _handle_account_command(
             prefs.add_account(model, name)
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
-            result = OpenAIDeviceCodeFlow(model=model, account=name).run()
+            if model == "chatgpt":
+                result = CodexBrowserLoginFlow(model=model, account=name).run()
+            else:
+                result = OpenAIDeviceCodeFlow(model=model, account=name).run()
             if not result.ok:
                 return result.message
-            saved = SecretStore().save_token(model, name, result.secret_payload or result.token)
-            if not saved.ok:
-                return saved.message
+            if result.secret_payload or result.token:
+                saved = SecretStore().save_token(model, name, result.secret_payload or result.token)
+                if not saved.ok:
+                    return saved.message
             prefs.set_active_account(model, name)
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
-            return f"{result.message}\nSaved token for {model}:{name}."
+            if result.secret_payload or result.token:
+                return f"{result.message}\nSaved token for {model}:{name}."
+            return result.message
         if action == "login-device":
             if len(parts) != 4:
                 return "Usage: account login-device <chatgpt|openai> <name>"
@@ -2632,7 +2639,13 @@ def _handle_account_command(
             if len(parts) != 4:
                 return "Usage: account logout <model> <name>"
             model, name = parts[2], parts[3]
+            if model == "chatgpt":
+                browser_logout = CodexBrowserLogoutFlow(model=model).run()
+                if not browser_logout.ok:
+                    return browser_logout.message
             result = SecretStore().delete_token(model, name)
+            if model == "chatgpt":
+                return f"{browser_logout.message}\n{result.message}"
             return result.message
         if action == "env":
             if len(parts) != 5:

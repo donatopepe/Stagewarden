@@ -256,6 +256,9 @@ Model control:
 - `model limit-clear <model>` clears the stored limit snapshot, message, and temporary block.
 - `model unblock <model>` removes a temporary block.
 - `model clear` restores automatic routing.
+- `account login chatgpt <profile>` follows the Codex-style browser flow and opens the browser automatically.
+- `account login openai <profile>` keeps the Stagewarden device-code/API-oriented flow.
+- `account login-device <chatgpt|openai> <profile>` forces the explicit device-code flow.
 
 Provider model selection is aligned to public provider behavior:
 
