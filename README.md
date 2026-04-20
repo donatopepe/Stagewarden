@@ -203,6 +203,7 @@ stagewarden> model variant claude opus
 stagewarden> model variant openai gpt-5.4-mini
 stagewarden> model block openai until 2026-05-01T18:30
 stagewarden> model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.
+stagewarden> model limit-clear chatgpt
 stagewarden> model unblock openai
 stagewarden> status
 stagewarden> health
@@ -252,6 +253,7 @@ Model control:
 - `model remove <local|cheap|chatgpt|openai|claude>` disables a model.
 - `model block <model> until YYYY-MM-DDTHH:MM` blocks a model until a date and time.
 - `model limit-record <model> <provider message>` stores a pasted provider limit message as a sanitized snapshot and blocks the model when a reset time is detected.
+- `model limit-clear <model>` clears the stored limit snapshot, message, and temporary block.
 - `model unblock <model>` removes a temporary block.
 - `model clear` restores automatic routing.
 

@@ -745,6 +745,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(snapshot["reason"], "usage_limit")
             self.assertNotIn("token", json.dumps(snapshot).lower())
 
+            cleared = run_main_capture(root, "model limit-clear chatgpt", "--json")
+            self.assertEqual(cleared.returncode, 0, cleared.stderr)
+            reloaded = ModelPreferences.load(root / ".stagewarden_models.json")
+            self.assertNotIn("chatgpt", reloaded.blocked_until_by_model or {})
+            self.assertNotIn("chatgpt", reloaded.provider_limit_snapshot_by_model or {})
+
     def test_account_limit_record_cli_persists_sanitized_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -768,6 +774,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(snapshot["blocked_until"], "2026-05-01T19:00")
             self.assertEqual(snapshot["rate_limit_type"], "five_hour_sonnet")
             self.assertNotIn("token", json.dumps(snapshot).lower())
+
+            cleared = run_main_capture(root, "account limit-clear claude team", "--json")
+            self.assertEqual(cleared.returncode, 0, cleared.stderr)
+            reloaded = ModelPreferences.load(root / ".stagewarden_models.json")
+            self.assertNotIn("claude:team", reloaded.blocked_until_by_account or {})
+            self.assertNotIn("claude:team", reloaded.provider_limit_snapshot_by_account or {})
 
     def test_accounts_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
