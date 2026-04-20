@@ -61,6 +61,166 @@ def classify_limit_reason(text: str | None, *, fallback: str | None = None) -> s
     return fallback
 
 
+def limit_snapshot_from_message(
+    text: str,
+    *,
+    blocked_until: str | None = None,
+    captured_at: datetime | None = None,
+) -> dict[str, object]:
+    message = str(text or "").strip().replace("\n", " ")[:240]
+    until = blocked_until or extract_blocked_until(message)
+    reason = classify_limit_reason(message, fallback="unknown")
+    return normalize_limit_snapshot(
+        {
+            "status": "blocked" if until else "available",
+            "reason": reason,
+            "blocked_until": until,
+            "primary_window": _detect_limit_window(message),
+            "secondary_window": _detect_secondary_limit_window(message),
+            "credits": _detect_credit_state(message),
+            "rate_limit_type": _detect_rate_limit_type(message, fallback=reason),
+            "utilization": _extract_percentage(message),
+            "overage_status": _detect_overage_status(message),
+            "overage_resets_at": None,
+            "overage_disabled_reason": _detect_overage_disabled_reason(message),
+            "stale": False,
+            "captured_at": (captured_at or datetime.now()).isoformat(timespec="minutes"),
+            "raw_message": message,
+        }
+    )
+
+
+def normalize_limit_snapshot(raw: object) -> dict[str, object]:
+    if not isinstance(raw, dict):
+        return {}
+    allowed = {
+        "status",
+        "reason",
+        "blocked_until",
+        "primary_window",
+        "secondary_window",
+        "credits",
+        "rate_limit_type",
+        "utilization",
+        "overage_status",
+        "overage_resets_at",
+        "overage_disabled_reason",
+        "stale",
+        "captured_at",
+        "raw_message",
+    }
+    normalized: dict[str, object] = {}
+    for key in allowed:
+        value = raw.get(key)
+        if value is None:
+            normalized[key] = None
+            continue
+        if key == "stale":
+            normalized[key] = bool(value)
+            continue
+        if key == "utilization":
+            normalized[key] = _normalize_percentage(value)
+            continue
+        if key in {"blocked_until", "overage_resets_at", "captured_at"} and not _valid_iso_date(value):
+            normalized[key] = None
+            continue
+        normalized[key] = str(value).strip().replace("\n", " ")[:240] or None
+    if normalized.get("status") not in {"available", "blocked", "limited", "unknown"}:
+        normalized["status"] = "blocked" if normalized.get("blocked_until") else "unknown"
+    return normalized
+
+
+def _detect_limit_window(message: str) -> str | None:
+    lowered = message.lower()
+    if "5-hour" in lowered or "five-hour" in lowered or "5 hour" in lowered or "five hour" in lowered:
+        return "five_hour"
+    if "7-day" in lowered or "seven-day" in lowered or "weekly" in lowered or "week" in lowered:
+        return "seven_day"
+    if "daily" in lowered or "24-hour" in lowered or "24 hour" in lowered:
+        return "daily"
+    return None
+
+
+def _detect_secondary_limit_window(message: str) -> str | None:
+    lowered = message.lower()
+    if "sonnet" in lowered:
+        return "sonnet"
+    if "opus" in lowered:
+        return "opus"
+    if "gpt-5" in lowered:
+        return "gpt-5"
+    return None
+
+
+def _detect_rate_limit_type(message: str, *, fallback: str | None) -> str | None:
+    primary = _detect_limit_window(message)
+    secondary = _detect_secondary_limit_window(message)
+    if primary and secondary:
+        return f"{primary}_{secondary}"
+    if primary:
+        return primary
+    lowered = message.lower()
+    if "overage" in lowered or "extra usage" in lowered:
+        return "overage"
+    return fallback
+
+
+def _detect_credit_state(message: str) -> str | None:
+    lowered = message.lower()
+    if "purchase more credits" in lowered or "out of credits" in lowered or "no credits" in lowered:
+        return "exhausted"
+    if "credits" in lowered:
+        return "limited"
+    return None
+
+
+def _detect_overage_status(message: str) -> str | None:
+    lowered = message.lower()
+    if "overage" not in lowered and "extra usage" not in lowered:
+        return None
+    if "disabled" in lowered or "not enabled" in lowered:
+        return "disabled"
+    if "enabled" in lowered:
+        return "enabled"
+    return "mentioned"
+
+
+def _detect_overage_disabled_reason(message: str) -> str | None:
+    lowered = message.lower()
+    if "purchase more credits" in lowered or "out of credits" in lowered:
+        return "out_of_credits"
+    if "usage limit" in lowered:
+        return "usage_limit"
+    if "not enabled" in lowered:
+        return "not_enabled"
+    return None
+
+
+def _extract_percentage(message: str) -> float | None:
+    match = re.search(r"\b([0-9]{1,3})(?:\.[0-9]+)?\s*%", message)
+    if not match:
+        return None
+    return _normalize_percentage(match.group(0).replace("%", ""))
+
+
+def _normalize_percentage(value: object) -> float | None:
+    try:
+        number = float(str(value).strip())
+    except ValueError:
+        return None
+    if number < 0 or number > 100:
+        return None
+    return number
+
+
+def _valid_iso_date(value: object) -> bool:
+    try:
+        datetime.fromisoformat(str(value))
+        return True
+    except ValueError:
+        return False
+
+
 @dataclass(slots=True)
 class ModelPreferences:
     enabled_models: list[str]
@@ -73,6 +233,8 @@ class ModelPreferences:
     blocked_until_by_account: dict[str, str] | None = None
     last_limit_message_by_account: dict[str, str] | None = None
     env_var_by_account: dict[str, str] | None = None
+    provider_limit_snapshot_by_model: dict[str, dict[str, object]] | None = None
+    provider_limit_snapshot_by_account: dict[str, dict[str, object]] | None = None
 
     @classmethod
     def default(cls) -> "ModelPreferences":
@@ -87,6 +249,8 @@ class ModelPreferences:
             blocked_until_by_account={},
             last_limit_message_by_account={},
             env_var_by_account={},
+            provider_limit_snapshot_by_model={},
+            provider_limit_snapshot_by_account={},
         )
 
     def normalize(self) -> "ModelPreferences":
@@ -143,6 +307,16 @@ class ModelPreferences:
             for key, value in (self.env_var_by_account or {}).items()
             if self._is_valid_account_key(key) and self._is_valid_env_name(str(value))
         }
+        provider_limit_snapshot_by_model = {
+            str(model): normalize_limit_snapshot(snapshot)
+            for model, snapshot in (self.provider_limit_snapshot_by_model or {}).items()
+            if model in SUPPORTED_MODELS and normalize_limit_snapshot(snapshot)
+        }
+        provider_limit_snapshot_by_account = {
+            str(key): normalize_limit_snapshot(snapshot)
+            for key, snapshot in (self.provider_limit_snapshot_by_account or {}).items()
+            if self._is_valid_account_key(key) and normalize_limit_snapshot(snapshot)
+        }
         self.enabled_models = enabled
         self.preferred_model = preferred
         self.blocked_until_by_model = blocked
@@ -153,6 +327,8 @@ class ModelPreferences:
         self.blocked_until_by_account = blocked_until_by_account
         self.last_limit_message_by_account = last_limit_message_by_account
         self.env_var_by_account = env_var_by_account
+        self.provider_limit_snapshot_by_model = provider_limit_snapshot_by_model
+        self.provider_limit_snapshot_by_account = provider_limit_snapshot_by_account
         return self
 
     def is_blocked(self, model: str, at_time: datetime | None = None) -> bool:
@@ -214,6 +390,8 @@ class ModelPreferences:
         self.blocked_until_by_account.pop(key, None)
         self.last_limit_message_by_account = dict(self.last_limit_message_by_account or {})
         self.last_limit_message_by_account.pop(key, None)
+        self.provider_limit_snapshot_by_account = dict(self.provider_limit_snapshot_by_account or {})
+        self.provider_limit_snapshot_by_account.pop(key, None)
         self.env_var_by_account = dict(self.env_var_by_account or {})
         self.env_var_by_account.pop(key, None)
         self.normalize()
@@ -277,11 +455,30 @@ class ModelPreferences:
         self.blocked_until_by_account.pop(account_key(model, account), None)
         self.last_limit_message_by_account = dict(self.last_limit_message_by_account or {})
         self.last_limit_message_by_account.pop(account_key(model, account), None)
+        self.provider_limit_snapshot_by_account = dict(self.provider_limit_snapshot_by_account or {})
+        self.provider_limit_snapshot_by_account.pop(account_key(model, account), None)
+
+    def set_model_limit_snapshot(self, model: str, snapshot: dict[str, object]) -> None:
+        self._validate_model(model)
+        normalized = normalize_limit_snapshot(snapshot)
+        if not normalized:
+            return
+        self.provider_limit_snapshot_by_model = dict(self.provider_limit_snapshot_by_model or {})
+        self.provider_limit_snapshot_by_model[model] = normalized
+
+    def set_account_limit_snapshot(self, model: str, account: str, snapshot: dict[str, object]) -> None:
+        self._validate_model(model)
+        self._validate_account(account)
+        normalized = normalize_limit_snapshot(snapshot)
+        if not normalized:
+            return
+        self.provider_limit_snapshot_by_account = dict(self.provider_limit_snapshot_by_account or {})
+        self.provider_limit_snapshot_by_account[account_key(model, account)] = normalized
 
     def as_dict(self) -> dict[str, object]:
         return {
             "_format": "stagewarden_model_preferences",
-            "_version": 5,
+            "_version": 6,
             "enabled_models": list(self.enabled_models),
             "preferred_model": self.preferred_model,
             "blocked_until_by_model": dict(self.blocked_until_by_model or {}),
@@ -292,6 +489,8 @@ class ModelPreferences:
             "blocked_until_by_account": dict(self.blocked_until_by_account or {}),
             "last_limit_message_by_account": dict(self.last_limit_message_by_account or {}),
             "env_var_by_account": dict(self.env_var_by_account or {}),
+            "provider_limit_snapshot_by_model": dict(self.provider_limit_snapshot_by_model or {}),
+            "provider_limit_snapshot_by_account": dict(self.provider_limit_snapshot_by_account or {}),
         }
 
     def save(self, path: Path) -> None:
@@ -329,6 +528,16 @@ class ModelPreferences:
             },
             env_var_by_account={
                 str(key): str(value) for key, value in payload.get("env_var_by_account", {}).items()
+            },
+            provider_limit_snapshot_by_model={
+                str(key): value
+                for key, value in payload.get("provider_limit_snapshot_by_model", {}).items()
+                if isinstance(value, dict)
+            },
+            provider_limit_snapshot_by_account={
+                str(key): value
+                for key, value in payload.get("provider_limit_snapshot_by_account", {}).items()
+                if isinstance(value, dict)
             },
         ).normalize()
 

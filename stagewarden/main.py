@@ -660,6 +660,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                     fallback=None,
                 ),
                 "active": account == active_account,
+                "limit_snapshot": (prefs.provider_limit_snapshot_by_account or {}).get(account_key(model, account)),
             }
             for account in accounts
             if (prefs.blocked_until_by_account or {}).get(account_key(model, account))
@@ -681,6 +682,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "active_account": active_account or "none",
                 "blocked_until": blocked_model_until,
                 "last_limit_message": last_limit_message,
+                "limit_snapshot": (prefs.provider_limit_snapshot_by_model or {}).get(model),
                 "blocked_accounts": blocked_accounts,
                 "last_error_reason": last_error_reason,
                 "last_attempt": None
@@ -752,7 +754,8 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
 def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
     blocked_until = item.get("blocked_until")
     reason = item.get("last_error_reason")
-    return {
+    snapshot = item.get("limit_snapshot")
+    base = {
         "status": "blocked" if blocked_until else "available",
         "reason": reason,
         "blocked_until": blocked_until,
@@ -767,6 +770,18 @@ def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
         "stale": False,
         "captured_at": None,
     }
+    if isinstance(snapshot, dict):
+        for key in base:
+            if snapshot.get(key) is not None:
+                base[key] = snapshot[key]
+        if blocked_until:
+            base["status"] = "blocked"
+            base["blocked_until"] = blocked_until
+        if reason:
+            base["reason"] = reason
+        if base["rate_limit_type"] is None:
+            base["rate_limit_type"] = base["reason"]
+    return base
 
 
 def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
@@ -937,20 +952,22 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "used_percentage": None,
             "remaining_percentage": None,
         },
-        "rate_limits": [
-            {
-                "provider": item["provider"],
-                "account": item["active_account"],
-                "status": "blocked" if item["blocked_until"] else "available",
-                "blocked_until": item["blocked_until"],
-                "reason": item["last_error_reason"],
-                "used_percentage": None,
-                "resets_at": item["blocked_until"],
-            }
-            for item in provider_limits
-        ],
+        "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
         "handoff": status["handoff"]["stage_view"],
         "usage": usage["totals"],
+    }
+
+
+def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
+    windows = _provider_limit_windows(item)
+    return {
+        "provider": item["provider"],
+        "account": item["active_account"],
+        "status": windows["status"],
+        "blocked_until": windows["blocked_until"],
+        "reason": windows["reason"],
+        "used_percentage": windows["utilization"],
+        "resets_at": windows["blocked_until"] or windows["overage_resets_at"],
     }
 
 

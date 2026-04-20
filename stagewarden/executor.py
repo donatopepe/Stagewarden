@@ -7,7 +7,7 @@ from typing import Any
 from .config import AgentConfig
 from .handoff import HandoffManager, format_run_model
 from .memory import MemoryStore
-from .modelprefs import ModelPreferences, extract_blocked_until
+from .modelprefs import ModelPreferences, extract_blocked_until, limit_snapshot_from_message
 from .planner import PlanStep
 from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
@@ -341,15 +341,18 @@ class Executor:
         try:
             prefs = ModelPreferences.load(self.config.model_prefs_path)
             clean_message = str(message).strip().replace("\n", " ")[:240]
+            snapshot = limit_snapshot_from_message(clean_message, blocked_until=until)
             if account:
                 prefs.block_account(model, account, until)
                 prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
                 prefs.last_limit_message_by_account[f"{model}:{account}"] = clean_message
+                prefs.set_account_limit_snapshot(model, account, snapshot)
             else:
                 prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
                 prefs.blocked_until_by_model[model] = until
                 prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
                 prefs.last_limit_message_by_model[model] = clean_message
+                prefs.set_model_limit_snapshot(model, snapshot)
             if prefs.preferred_model == model and not prefs.account_for_model(model):
                 prefs.preferred_model = None
             prefs.save(self.config.model_prefs_path)

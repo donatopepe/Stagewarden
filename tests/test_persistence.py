@@ -142,14 +142,45 @@ class PersistenceTests(unittest.TestCase):
             prefs.enabled_models = ["chatgpt", "claude"]
             prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
             prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
+            prefs.set_model_limit_snapshot(
+                "chatgpt",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T18:30",
+                    "rate_limit_type": "usage_limit",
+                    "utilization": 88,
+                    "captured_at": "2026-05-01T17:30",
+                    "raw_message": "You've hit your usage limit. Try again at 8:05 PM.",
+                },
+            )
             prefs.add_account("claude", "team")
             prefs.block_account("claude", "team", "2026-05-01T19:00")
             prefs.last_limit_message_by_account = {"claude:team": "Claude usage limited until 2026-05-01T19:00."}
+            prefs.set_account_limit_snapshot(
+                "claude",
+                "team",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T19:00",
+                    "primary_window": "five_hour",
+                    "secondary_window": "sonnet",
+                    "rate_limit_type": "five_hour_sonnet",
+                    "captured_at": "2026-05-01T18:00",
+                    "raw_message": "Claude usage limited until 2026-05-01T19:00.",
+                },
+            )
             prefs.save(path)
 
             loaded = ModelPreferences.load(path)
             self.assertEqual((loaded.last_limit_message_by_model or {})["chatgpt"], "You've hit your usage limit. Try again at 8:05 PM.")
             self.assertEqual((loaded.last_limit_message_by_account or {})["claude:team"], "Claude usage limited until 2026-05-01T19:00.")
+            self.assertEqual((loaded.provider_limit_snapshot_by_model or {})["chatgpt"]["utilization"], 88.0)
+            self.assertEqual(
+                (loaded.provider_limit_snapshot_by_account or {})["claude:team"]["rate_limit_type"],
+                "five_hour_sonnet",
+            )
 
 
 if __name__ == "__main__":
