@@ -459,6 +459,11 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("openai", prefs.blocked_until_by_model or {})
             self.assertIn("openai", prefs.last_limit_message_by_model or {})
             self.assertIn("usage limit", (prefs.last_limit_message_by_model or {})["openai"].lower())
+            snapshot = (prefs.provider_limit_snapshot_by_model or {})["openai"]
+            self.assertEqual(snapshot["status"], "blocked")
+            self.assertEqual(snapshot["reason"], "usage_limit")
+            self.assertEqual(snapshot["blocked_until"], (prefs.blocked_until_by_model or {})["openai"])
+            self.assertIn("usage limit", str(snapshot["raw_message"]).lower())
             self.assertIsNone(prefs.preferred_model)
 
     def test_executor_retries_same_model_with_next_account_after_limit(self) -> None:
@@ -508,6 +513,9 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("RUN_MODEL: openai:personal", handoff.calls[1])
             self.assertIn("openai:work", updated.blocked_until_by_account or {})
             self.assertIn("openai:work", updated.last_limit_message_by_account or {})
+            account_snapshot = (updated.provider_limit_snapshot_by_account or {})["openai:work"]
+            self.assertEqual(account_snapshot["status"], "blocked")
+            self.assertEqual(account_snapshot["reason"], "usage_limit")
 
     def test_executor_retries_all_available_accounts_on_same_model_until_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

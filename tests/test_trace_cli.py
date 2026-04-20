@@ -435,6 +435,23 @@ class TraceAndCliTests(unittest.TestCase):
     def test_status_full_cli_json_exposes_dashboard_sections(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "local"]
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.last_limit_message_by_model = {"chatgpt": "Usage limit reached at 91%. Try again at 8:05 PM."}
+            prefs.set_model_limit_snapshot(
+                "chatgpt",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T18:30",
+                    "rate_limit_type": "usage_limit",
+                    "utilization": 91,
+                    "captured_at": "2026-05-01T17:30",
+                    "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
+                },
+            )
+            prefs.save(root / ".stagewarden_models.json")
             completed = run_main_capture(root, "status", "--full", "--json")
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
@@ -447,10 +464,29 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("quality_gates", payload)
             self.assertTrue(payload["quality_gates"]["wet_run_required"])
             self.assertFalse(payload["quality_gates"]["dry_run_valid_checkpoint"])
+            limits = {item["provider"]: item for item in payload["limits"]}
+            self.assertEqual(limits["chatgpt"]["utilization"], 91.0)
+            self.assertEqual(limits["chatgpt"]["rate_limit_type"], "usage_limit")
 
     def test_statusline_cli_json_exposes_compact_runtime_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "local"]
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.set_model_limit_snapshot(
+                "chatgpt",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T18:30",
+                    "rate_limit_type": "usage_limit",
+                    "utilization": 91,
+                    "captured_at": "2026-05-01T17:30",
+                    "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
+                },
+            )
+            prefs.save(root / ".stagewarden_models.json")
             completed = run_main_capture(root, "statusline", "--json")
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
@@ -460,6 +496,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("model", payload)
             self.assertIn("rate_limits", payload)
             self.assertIn("context_window", payload)
+            limits = {item["provider"]: item for item in payload["rate_limits"]}
+            self.assertEqual(limits["chatgpt"]["used_percentage"], 91.0)
+            self.assertEqual(limits["chatgpt"]["resets_at"], "2026-05-01T18:30")
 
     def test_auth_status_chatgpt_uses_codex_without_token_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -536,8 +575,34 @@ class TraceAndCliTests(unittest.TestCase):
             prefs.set_variant("claude", "sonnet")
             prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
             prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
+            prefs.set_model_limit_snapshot(
+                "chatgpt",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T18:30",
+                    "rate_limit_type": "usage_limit",
+                    "utilization": 91,
+                    "captured_at": "2026-05-01T17:30",
+                    "raw_message": "You've hit your usage limit. Try again at 8:05 PM.",
+                },
+            )
             prefs.block_account("claude", "team", "2026-05-01T19:00")
             prefs.last_limit_message_by_account = {"claude:team": "Claude usage limited until 2026-05-01T19:00."}
+            prefs.set_account_limit_snapshot(
+                "claude",
+                "team",
+                {
+                    "status": "blocked",
+                    "reason": "usage_limit",
+                    "blocked_until": "2026-05-01T19:00",
+                    "primary_window": "five_hour",
+                    "secondary_window": "sonnet",
+                    "rate_limit_type": "five_hour_sonnet",
+                    "captured_at": "2026-05-01T18:00",
+                    "raw_message": "Claude usage limited until 2026-05-01T19:00.",
+                },
+            )
             prefs.save(root / ".stagewarden_models.json")
             memory = MemoryStore()
             memory.record_attempt(
@@ -573,6 +638,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(providers["chatgpt"]["active_account"], "work")
             self.assertEqual(providers["chatgpt"]["last_error_reason"], "usage_limit")
             self.assertIn("usage limit", providers["chatgpt"]["last_limit_message"].lower())
+            self.assertEqual(providers["chatgpt"]["limit_snapshot"]["utilization"], 91.0)
+            self.assertEqual(providers["chatgpt"]["limit_snapshot"]["rate_limit_type"], "usage_limit")
             self.assertEqual(providers["chatgpt"]["last_attempt"]["account"], "work")
             self.assertEqual(providers["claude"]["active_account"], "none")
             self.assertEqual(providers["claude"]["last_success"]["account"], "team")
@@ -580,6 +647,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2026-05-01T19:00")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["last_limit_reason"], "usage_limit")
             self.assertIn("usage limited", providers["claude"]["blocked_accounts"][0]["last_limit_message"].lower())
+            self.assertEqual(
+                providers["claude"]["blocked_accounts"][0]["limit_snapshot"]["rate_limit_type"],
+                "five_hour_sonnet",
+            )
 
     def test_models_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
