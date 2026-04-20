@@ -825,7 +825,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Shell progress (before):", rendered)
             self.assertIn("Agent result:", rendered)
             self.assertIn("Last step outcome:", rendered)
-            self.assertIn("evidence: tool=", rendered)
+            self.assertIn("evidence: none", rendered)
             self.assertIn("Shell progress (after):", rendered)
             self.assertIn("[model-stream local]", rendered)
             self.assertIn('"summary":"ok"', rendered)
