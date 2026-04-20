@@ -613,7 +613,7 @@ Validation:
 
 ### Provider Limit Status Across Active Providers
 
-Status: planned
+Status: implemented
 
 Current state already implemented:
 
@@ -625,31 +625,33 @@ Current state already implemented:
   - `accounts` shows configured accounts, active account, stored token presence, env mapping, and `blocked-until` at account level.
   - `models usage` / `cost` shows Stagewarden-internal usage history, not provider-native remaining quota.
 
-Implementation required next:
+Implemented behaviour:
 
-- Add a dedicated provider-limit view to `status` so the currently active multiprovider posture is readable in one place.
-- Show, for each provider currently enabled:
+- `status` now includes a dedicated `Provider limit status:` section.
+- `status --json` now includes a stable `provider_limits` object.
+- For each enabled provider, Stagewarden now exposes:
   - enabled/active/preferred
   - routed variant
   - active account
-  - model `blocked-until`
-  - account `blocked-until`
-  - last known limit/error reason
+  - model `blocked_until`
+  - blocked accounts with `blocked_until`
+  - last known error reason from recorded attempts
+  - last attempt route/status
   - last successful use
-- Preserve the distinction between:
-  - Stagewarden-internal usage counters
-  - provider-reported temporary lockouts
-  - true provider-native remaining quota if a supported official source exists
+- The implementation keeps a strict distinction between:
+  - Stagewarden-internal usage history
+  - provider/account temporary lockouts
+  - provider-native remaining quota, which remains unsupported unless an official source exists
 
 Explicit non-goal for now:
 
 - Do not invent fake remaining credits/messages for ChatGPT, Claude, or other providers when the upstream provider does not expose an official remaining-quota source to this agent.
 
-Validation target:
+Validation:
 
-- `status` must expose current multiprovider limit posture at a glance.
-- `status --json` must expose stable machine-readable fields for provider/account lockouts.
-- Tests must cover model-level block, account-level block, and mixed multiprovider scenarios.
+- CLI tests verify `status --json` includes provider-limit state for mixed multiprovider scenarios.
+- Interactive shell tests verify `status` renders provider-limit posture together with resume context.
+- Test coverage includes model-level blocks, account-level blocks, and recent error/success state.
 
 
 ### Caveman Help Snapshot
