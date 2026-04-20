@@ -59,6 +59,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "stage review",
     "resume",
     "resume --show",
+    "resume context",
     "resume --clear",
     "boundary",
     "risks",
@@ -170,6 +171,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Show workspace, mode, model routing, and state file locations.",
             "- handoff",
             "  Show the current persisted PRINCE2 handoff context for this workspace.",
+            "- resume context",
+            "  Show the latest implicit resume context: model attempt, tool evidence, and git snapshot.",
             "- handoff export | handoff md",
             "  Export the runtime handoff into the generated section of HANDOFF.md.",
             "- boundary",
@@ -489,6 +492,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- board | stage review",
             "- resume",
             "- resume --show",
+            "- resume context",
             "- resume --clear",
             "- boundary",
             "- todo",
@@ -505,6 +509,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> handoff",
             "- stagewarden> board",
             "- stagewarden> resume --show",
+            "- stagewarden> resume context",
             "- stagewarden> resume --clear",
             "- stagewarden> boundary",
             "- stagewarden> handoff export",
@@ -1103,6 +1108,91 @@ def _render_resume_show(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _resume_context_payload(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    memory = MemoryStore.load(config.memory_path)
+    latest_attempt = memory.latest_attempt()
+    latest_tool = memory.latest_tool_event()
+    latest_snapshot = handoff.latest_git_snapshot()
+    attempt_payload: dict[str, object] | None = None
+    if latest_attempt is not None:
+        attempt_payload = {
+            "step": latest_attempt.step_id,
+            "action": latest_attempt.action_type,
+            "status": "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}",
+            "route": {
+                "model": latest_attempt.model,
+                "account": latest_attempt.account or "none",
+                "variant": latest_attempt.variant or "provider-default",
+            },
+            "observation": (latest_attempt.observation or "none").strip().replace("\n", " ")[:200],
+        }
+    tool_payload: dict[str, object] | None = None
+    if latest_tool is not None:
+        tool_payload = {
+            "tool": latest_tool.tool,
+            "action": latest_tool.action_type,
+            "status": "ok" if latest_tool.success else f"failed:{latest_tool.error_type or 'unknown'}",
+            "duration_ms": latest_tool.duration_ms or 0,
+            "summary": latest_tool.summary,
+        }
+    snapshot_payload: dict[str, object] | None = None
+    if latest_snapshot is not None:
+        snapshot_payload = {
+            "git_head": latest_snapshot["git_head"],
+            "summary": latest_snapshot["summary"],
+            "timestamp": latest_snapshot["timestamp"],
+        }
+    return {
+        "command": "resume context",
+        "task": handoff.task or "none",
+        "current_step": handoff.current_step_id or "none",
+        "current_step_status": handoff.current_step_status or "none",
+        "latest_model_attempt": attempt_payload,
+        "latest_tool_evidence": tool_payload,
+        "latest_git_snapshot": snapshot_payload,
+    }
+
+
+def _render_resume_context(config: AgentConfig) -> str:
+    payload = _resume_context_payload(config)
+    lines = [
+        "Resume context:",
+        f"- task: {payload['task']}",
+        f"- current_step: {payload['current_step']}",
+        f"- current_step_status: {payload['current_step_status']}",
+    ]
+    attempt = payload["latest_model_attempt"]
+    if isinstance(attempt, dict):
+        route = attempt["route"]
+        lines.extend(
+            [
+                f"- latest_model_attempt: step={attempt['step']} action={attempt['action']} status={attempt['status']}",
+                (
+                    f"- latest_route: model={route['model']} "
+                    f"account={route['account']} variant={route['variant']}"
+                ),
+                f"- latest_observation: {attempt['observation']}",
+            ]
+        )
+    else:
+        lines.append("- latest_model_attempt: none")
+    tool = payload["latest_tool_evidence"]
+    if isinstance(tool, dict):
+        lines.append(
+            f"- latest_tool_evidence: tool={tool['tool']} action={tool['action']} "
+            f"status={tool['status']} duration_ms={tool['duration_ms']}"
+        )
+    else:
+        lines.append("- latest_tool_evidence: none")
+    snapshot = payload["latest_git_snapshot"]
+    if isinstance(snapshot, dict):
+        lines.append(f"- latest_git_snapshot: {snapshot['git_head']} :: {snapshot['summary']}")
+    else:
+        lines.append("- latest_git_snapshot: none")
+    return "\n".join(lines)
+
+
 def _resume_show_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
@@ -1165,10 +1255,12 @@ def _handle_resume_command(command: str, agent: Agent, config: AgentConfig) -> s
         return f"Resumed from handoff step {resumed_step_id}.\n{result.message}"
     if len(parts) == 2 and parts[1] == "--show":
         return _render_resume_show(config)
+    if len(parts) == 2 and parts[1] == "context":
+        return _render_resume_context(config)
     if len(parts) == 2 and parts[1] == "--clear":
         _load_handoff_into_agent(agent, config)
         return _archive_and_clear_handoff(config)
-    return "Usage: resume | resume --show | resume --clear"
+    return "Usage: resume | resume --show | resume context | resume --clear"
 
 
 RUNTIME_HANDOFF_START = "<!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->"
@@ -2797,6 +2889,12 @@ def main() -> int:
             print(dumps_ascii(_resume_show_report(config), indent=2))
         else:
             print(_render_resume_show(config))
+        return 0
+    if task == "resume context":
+        if args.json:
+            print(dumps_ascii(_resume_context_payload(config), indent=2))
+        else:
+            print(_render_resume_context(config))
         return 0
     if task == "resume --clear":
         if args.json:

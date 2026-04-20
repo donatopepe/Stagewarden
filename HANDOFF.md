@@ -627,6 +627,21 @@ Validation:
 
 ## Recently Completed
 
+### Resume Context Command
+
+Status: implemented
+
+Implemented behaviour:
+
+- Added `resume context` to the shell and non-interactive CLI.
+- The command exposes the latest implicit execution context without opening `HANDOFF.md`.
+- Output includes the current task/step, latest model attempt, routed account/variant, latest tool evidence, and latest git snapshot.
+
+Validation:
+
+- CLI tests verify `resume context --json` returns structured route, tool, and git snapshot data.
+- Interactive shell tests verify `resume context` renders the latest execution evidence in human-readable form.
+
 ### Shell UX Direction
 
 Status: decided
