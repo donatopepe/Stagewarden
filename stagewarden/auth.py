@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import time
 import urllib.request
 import webbrowser
 from dataclasses import dataclass
 import subprocess
+from datetime import datetime
 
 
 @dataclass(slots=True)
@@ -16,6 +18,65 @@ class AuthResult:
     token: str = ""
     code: str = ""
     secret_payload: str = ""
+
+
+class CodexBrowserLoginFlow:
+    def __init__(self, *, model: str, account: str, codex_bin: str | None = None) -> None:
+        self.model = model
+        self.account = account
+        self.codex_bin = codex_bin or os.environ.get("STAGEWARDEN_CODEX_BIN", "codex")
+
+    def run(self) -> AuthResult:
+        if self.model != "chatgpt":
+            return AuthResult(False, f"Browser login via Codex is not supported for model '{self.model}'.")
+        binary = shutil.which(self.codex_bin)
+        if binary is None:
+            return AuthResult(False, "Codex CLI not found in PATH. Install Codex to use browser login for ChatGPT.")
+        completed = subprocess.run(
+            [binary, "login"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = _merge_process_output(completed.stdout, completed.stderr)
+        if completed.returncode != 0:
+            return AuthResult(False, output or f"codex login exited with status {completed.returncode}.")
+        marker = {
+            "auth_source": "codex",
+            "login_method": "browser",
+            "model": self.model,
+            "account": self.account,
+            "captured_at": datetime.now().isoformat(timespec="minutes"),
+            "codex_bin": binary,
+        }
+        return AuthResult(
+            True,
+            output or "Browser login completed through Codex.",
+            secret_payload=json.dumps(marker, separators=(",", ":")),
+        )
+
+
+class CodexBrowserLogoutFlow:
+    def __init__(self, *, model: str, codex_bin: str | None = None) -> None:
+        self.model = model
+        self.codex_bin = codex_bin or os.environ.get("STAGEWARDEN_CODEX_BIN", "codex")
+
+    def run(self) -> AuthResult:
+        if self.model != "chatgpt":
+            return AuthResult(False, f"Browser logout via Codex is not supported for model '{self.model}'.")
+        binary = shutil.which(self.codex_bin)
+        if binary is None:
+            return AuthResult(False, "Codex CLI not found in PATH. Unable to logout ChatGPT session.")
+        completed = subprocess.run(
+            [binary, "logout"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = _merge_process_output(completed.stdout, completed.stderr)
+        if completed.returncode != 0:
+            return AuthResult(False, output or f"codex logout exited with status {completed.returncode}.")
+        return AuthResult(True, output or "Browser logout completed through Codex.")
 
 
 class OpenAIDeviceCodeFlow:
@@ -148,3 +209,8 @@ class OpenAIDeviceCodeFlow:
         url_with_hint = f"{verification_url}{separator}code={urllib.parse.quote(user_code)}"
         webbrowser.open(url)
         webbrowser.open_new_tab(url_with_hint)
+
+
+def _merge_process_output(stdout: str, stderr: str) -> str:
+    chunks = [part.strip() for part in (stdout, stderr) if str(part).strip()]
+    return "\n".join(chunks).strip()

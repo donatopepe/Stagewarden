@@ -1620,19 +1620,18 @@ class TraceAndCliTests(unittest.TestCase):
             try:
                 import stagewarden.main as main_module
 
-                original_run = main_module.OpenAIDeviceCodeFlow.run
+                original_run = main_module.CodexBrowserLoginFlow.run
 
                 def fake_run(self):  # noqa: ANN001
                     from stagewarden.auth import AuthResult
 
                     return AuthResult(
                         True,
-                        "Device code login completed.",
-                        token="access-token-123",
-                        secret_payload='{"access_token":"access-token-123","refresh_token":"refresh-token-123","id_token":"id-token-123"}',
+                        "Logged in using ChatGPT",
+                        secret_payload='{"auth_source":"codex","login_method":"browser","model":"chatgpt","account":"personale"}',
                     )
 
-                main_module.OpenAIDeviceCodeFlow.run = fake_run
+                main_module.CodexBrowserLoginFlow.run = fake_run
                 config = AgentConfig(workspace_root=root, max_steps=1)
                 input_stream = StringIO("account login chatgpt personale\naccounts\nexit\n")
                 output_stream = StringIO()
@@ -1643,7 +1642,7 @@ class TraceAndCliTests(unittest.TestCase):
 
                 loaded = SecretStore().load_token("chatgpt", "personale")
             finally:
-                main_module.OpenAIDeviceCodeFlow.run = original_run
+                main_module.CodexBrowserLoginFlow.run = original_run
                 if original_store is None:
                     os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
                 else:
@@ -1652,8 +1651,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual((prefs.active_account_by_model or {}).get("chatgpt"), "personale")
             self.assertTrue(loaded.ok, loaded.message)
-            self.assertIn('"id_token":"id-token-123"', loaded.secret)
-            self.assertIn("Device code login completed.", rendered)
+            self.assertIn('"auth_source":"codex"', loaded.secret)
+            self.assertIn("Logged in using ChatGPT", rendered)
             self.assertIn("token=stored", rendered)
 
     def test_interactive_shell_logs_in_openai_account_with_device_code(self) -> None:
@@ -1708,9 +1707,46 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertEqual((prefs.active_account_by_model or {}).get("openai"), "lavoro")
-            self.assertTrue(loaded.ok, loaded.message)
-            self.assertIn('"refresh_token":"refresh-token-123"', loaded.secret)
-            self.assertIn("Device code login completed.", rendered)
+
+    def test_interactive_shell_logs_out_chatgpt_account_via_codex_and_clears_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            store = root / "secrets"
+            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
+            try:
+                import stagewarden.main as main_module
+
+                original_logout = main_module.CodexBrowserLogoutFlow.run
+
+                def fake_logout(self):  # noqa: ANN001
+                    from stagewarden.auth import AuthResult
+
+                    return AuthResult(True, "Logged out.")
+
+                prefs = ModelPreferences.default()
+                prefs.add_account("chatgpt", "personale")
+                prefs.set_active_account("chatgpt", "personale")
+                prefs.save(root / ".stagewarden_models.json")
+                SecretStore().save_token("chatgpt", "personale", '{"auth_source":"codex"}')
+
+                main_module.CodexBrowserLogoutFlow.run = fake_logout
+                config = AgentConfig(workspace_root=root, max_steps=1)
+                input_stream = StringIO("account logout chatgpt personale\naccounts\nexit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+                rendered = output_stream.getvalue()
+                loaded = SecretStore().load_token("chatgpt", "personale")
+            finally:
+                main_module.CodexBrowserLogoutFlow.run = original_logout
+                if original_store is None:
+                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
+                else:
+                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
+
+            self.assertEqual(code, 0)
+            self.assertFalse(loaded.ok)
+            self.assertIn("Logged out.", rendered)
 
     def test_interactive_shell_rejects_interactive_claude_login(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
