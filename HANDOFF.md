@@ -644,6 +644,7 @@ Implemented behaviour:
   - provider-native remaining quota, which remains unsupported unless an official source exists
 - The latest provider-reported limit message is now persisted per model/account together with `blocked_until`.
 - Provider-limit views now expose both the lock time and the last known lockout cause text.
+- Provider-limit views now classify lockout causes as `usage_limit`, `rate_limit`, `credits_exhausted`, or `provider_unavailable` when the provider message supports it.
 
 Explicit non-goal for now:
 
@@ -657,6 +658,7 @@ Validation:
 - `overview` and `report` now also surface compact provider-limit summaries for faster operator reading.
 - `overview --json` and `report --json` now carry provider-limit posture in machine-readable form.
 - Persistence tests verify roundtrip storage of last limit messages in model preferences.
+- Executor tests verify classification of provider limit messages.
 
 
 ### Caveman Help Snapshot
