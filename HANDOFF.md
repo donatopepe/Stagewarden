@@ -910,6 +910,34 @@ Backlog from study:
 - Add token/context-window accounting to handoff and memory events.
 - Add tests for status redaction, stale limits, missing limits, provider auth status, and JSON schema stability.
 
+## Status Implementation Pass
+
+Status: implemented partial
+
+Implemented:
+
+- `stagewarden status --full` and `stagewarden "status full"` render a Codex-style grouped dashboard.
+- `stagewarden status --full --json` returns sections: identity, model, account, limits, workspace, permissions, git, handoff, usage, quality_gates.
+- `stagewarden statusline --json` returns a Claude-style compact JSON surface for prompt/status scripts.
+- `stagewarden auth status chatgpt --json` shells to `codex login status` and reports login state without token output.
+- `stagewarden auth status claude --json` shells to `claude auth status --json` and reports login state without token output.
+- CLI parser now accepts unquoted multi-word commands such as `stagewarden auth status chatgpt --json`.
+- Read-only status commands use a read-only agent configuration and no longer create Git snapshots.
+
+Validation:
+
+- `python3 -m unittest tests/test_trace_cli.py` passed with 77 tests.
+- Wet-run `python3 -m stagewarden.main status --full --json` passed.
+- Wet-run `python3 -m stagewarden.main statusline --json` passed.
+- Wet-run `python3 -m stagewarden.main auth status chatgpt --json` passed and detected ChatGPT login through Codex.
+- Wet-run `python3 -m stagewarden.main auth status claude --json` passed and detected not-logged-in Claude state.
+
+Remaining:
+
+- Persist real provider-limit windows/credits when upstream CLIs expose them.
+- Add first-class Claude overage fields to `.stagewarden_models.json` instead of only dashboard placeholders.
+- Add token/context-window accounting from actual model calls.
+
 <!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->
 ## Runtime Handoff Export
 

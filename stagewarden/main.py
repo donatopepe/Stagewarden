@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
+from dataclasses import replace
 import os
 import platform
 import re
@@ -135,7 +136,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stagewarden", description="Stagewarden: production-grade CLI coding agent.")
-    parser.add_argument("task", nargs="?", default="", help='Task to execute, for example: stagewarden "fix the failing tests"')
+    parser.add_argument("task", nargs="*", default=[], help='Task to execute, for example: stagewarden "fix the failing tests"')
     parser.add_argument("--max-steps", type=int, default=20, help="Maximum agent loop iterations.")
     parser.add_argument("--verbose", action="store_true", help="Print step-by-step logs.")
     parser.add_argument("--strict-ascii-output", dest="strict_ascii_output", action="store_true", default=True, help="Escape ambiguous non-ASCII characters in structured and generated text output.")
@@ -2114,6 +2115,13 @@ def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     return agent
 
 
+def _configure_readonly_agent_for_workspace(config: AgentConfig) -> Agent:
+    readonly_config = replace(config, enforce_git=False, auto_git_commit=False)
+    agent = Agent(readonly_config)
+    _apply_model_preferences(agent, readonly_config)
+    return agent
+
+
 def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
     prefs = _load_model_preferences(agent.config)
     model = agent.router.choose_model(command, command, 0)
@@ -3213,7 +3221,7 @@ def main() -> int:
         ))
         return 0
 
-    task = args.task
+    task = " ".join(args.task).strip()
     if args.caveman_help:
         task = "/caveman help"
     elif args.caveman_commit:
@@ -3223,7 +3231,7 @@ def main() -> int:
     elif args.caveman_compress:
         task = f"/caveman compress {args.caveman_compress}"
     elif args.caveman:
-        task = f"/caveman {args.caveman} {args.task}".strip()
+        task = f"/caveman {args.caveman} {task}".strip()
     elif args.interactive or not task:
         return run_interactive_shell(config)
     if task == "doctor":
@@ -3235,21 +3243,21 @@ def main() -> int:
             print(rendered)
         return 0 if _doctor_ok(rendered) else 1
     if task == "status":
-        agent = _configure_agent_for_workspace(config)
+        agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
             print(dumps_ascii(_status_dashboard_report(agent, config) if args.full else _status_report(agent, config), indent=2))
         else:
             print(_render_status_full(agent, config) if args.full else _render_status(agent, config))
         return 0
     if task in {"status full", "status --full"}:
-        agent = _configure_agent_for_workspace(config)
+        agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
             print(dumps_ascii(_status_dashboard_report(agent, config), indent=2))
         else:
             print(_render_status_full(agent, config))
         return 0
     if task == "statusline":
-        agent = _configure_agent_for_workspace(config)
+        agent = _configure_readonly_agent_for_workspace(config)
         print(dumps_ascii(_statusline_report(agent, config), indent=2))
         return 0
     if task.startswith("auth status "):
