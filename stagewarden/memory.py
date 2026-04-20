@@ -123,6 +123,9 @@ class MemoryStore:
     def latest_attempt(self) -> AttemptRecord | None:
         return self.attempts[-1] if self.attempts else None
 
+    def latest_tool_event(self) -> ToolTranscriptRecord | None:
+        return self.tool_transcript[-1] if self.tool_transcript else None
+
     def summarize(self, limit: int = 8) -> str:
         if not self.attempts:
             return "No prior attempts."

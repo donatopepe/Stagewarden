@@ -1557,6 +1557,7 @@ def _render_last_step_outcome(agent: Agent) -> str:
     latest = agent.memory.latest_attempt()
     if latest is None:
         return "Last step outcome:\n- none"
+    latest_tool = agent.memory.latest_tool_event()
     status = "ok" if latest.success else f"failed:{latest.error_type or 'unknown'}"
     observation = latest.observation.strip().replace("\n", " ")
     lines = [
@@ -1565,6 +1566,12 @@ def _render_last_step_outcome(agent: Agent) -> str:
         f"- action: {latest.action_type}",
         f"- status: {status}",
         f"- route: model={latest.model} account={latest.account or 'none'} variant={latest.variant or 'provider-default'}",
+        (
+            f"- evidence: tool={latest_tool.tool} action={latest_tool.action_type} "
+            f"duration_ms={latest_tool.duration_ms or 0}"
+            if latest_tool is not None
+            else "- evidence: none"
+        ),
         f"- observation: {observation[:200] or 'none'}",
     ]
     return "\n".join(lines)
