@@ -1553,6 +1553,23 @@ def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = No
     )
 
 
+def _render_last_step_outcome(agent: Agent) -> str:
+    latest = agent.memory.latest_attempt()
+    if latest is None:
+        return "Last step outcome:\n- none"
+    status = "ok" if latest.success else f"failed:{latest.error_type or 'unknown'}"
+    observation = latest.observation.strip().replace("\n", " ")
+    lines = [
+        "Last step outcome:",
+        f"- step: {latest.step_id}",
+        f"- action: {latest.action_type}",
+        f"- status: {status}",
+        f"- route: model={latest.model} account={latest.account or 'none'} variant={latest.variant or 'provider-default'}",
+        f"- observation: {observation[:200] or 'none'}",
+    ]
+    return "\n".join(lines)
+
+
 def _refresh_runtime_permissions(agent: Agent) -> None:
     agent.refresh_permissions()
 
@@ -2523,6 +2540,7 @@ def run_interactive_shell(
         result = agent.run(command)
         sink.write("Agent result:\n")
         sink.write(f"{result.message}\n")
+        sink.write(f"{_render_last_step_outcome(agent)}\n")
         sink.write(f"{_render_shell_progress(agent, phase='after')}\n")
         sink.flush()
 
