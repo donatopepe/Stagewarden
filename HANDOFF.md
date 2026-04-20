@@ -89,6 +89,8 @@ Follow-up implemented after this pass:
 - Added `model limit-record <model> <message>` to persist pasted provider limit messages safely.
 - Added `account limit-record <model> <account> <message>` for account-specific provider limits.
 - Added `model limit-clear <model>` and `account limit-clear <model> <account>` to remove stored limit snapshots, messages, and temporary blocks.
+- Switched `account login chatgpt <profile>` to a Codex-style browser flow backed by `codex login`.
+- Switched `account logout chatgpt <profile>` to Codex-backed logout plus local profile marker cleanup.
 
 Additional validation evidence:
 
@@ -100,6 +102,9 @@ Additional validation evidence:
 - `python3 -m stagewarden.main "model limit-record chatgpt Usage limit reached until 2026-05-01T18:30." --json` passed as wet-run.
 - `python3 -m stagewarden.main "model limit-clear chatgpt" --json` passed as wet-run and restored local provider availability.
 - `python3 -m unittest discover -s tests` passed, 206 tests.
+- `python3 -m unittest tests/test_auth.py tests/test_trace_cli.py` passed, 84 tests after browser-login migration.
+- `python3 -m unittest discover -s tests` passed, 209 tests after browser-login migration.
+- Interactive wet-run with stubbed `codex` backend confirmed `account login chatgpt personale` updates the active profile and stores a sanitized Codex marker.
 
 Next recommended implementation blocks:
 
