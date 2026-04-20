@@ -109,6 +109,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "model block",
     "model unblock",
     "model limit-record",
+    "model limit-clear",
     "model clear",
     "account add",
     "account login",
@@ -121,6 +122,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "account block",
     "account unblock",
     "account limit-record",
+    "account limit-clear",
     "account clear",
     "permission mode",
     "permission allow",
@@ -456,6 +458,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- model block <model> until YYYY-MM-DDTHH:MM",
             "- model unblock <model>",
             "- model limit-record <model> <provider message>",
+            "- model limit-clear <model>",
             "- model clear",
             "",
             "Examples:",
@@ -482,6 +485,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- account block <model> <name> until YYYY-MM-DDTHH:MM",
             "- account unblock <model> <name>",
             "- account limit-record <model> <name> <provider message>",
+            "- account limit-clear <model> <name>",
             "- account clear <model>",
             "",
             "Examples:",
@@ -854,6 +858,35 @@ def _record_limit_message(
     if until:
         return f"Recorded limit snapshot for {target}; blocked until {until}."
     return f"Recorded limit snapshot for {target}; no reset time detected."
+
+
+def _clear_limit_snapshot(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    model: str,
+    account: str | None = None,
+) -> str:
+    if model not in SUPPORTED_MODELS:
+        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+    if account:
+        key = account_key(model, account)
+        prefs.blocked_until_by_account = dict(prefs.blocked_until_by_account or {})
+        prefs.blocked_until_by_account.pop(key, None)
+        prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
+        prefs.last_limit_message_by_account.pop(key, None)
+        prefs.provider_limit_snapshot_by_account = dict(prefs.provider_limit_snapshot_by_account or {})
+        prefs.provider_limit_snapshot_by_account.pop(key, None)
+        _save_model_preferences(config, prefs)
+        return f"Cleared limit snapshot for {model}:{account}."
+    prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
+    prefs.blocked_until_by_model.pop(model, None)
+    prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
+    prefs.last_limit_message_by_model.pop(model, None)
+    prefs.provider_limit_snapshot_by_model = dict(prefs.provider_limit_snapshot_by_model or {})
+    prefs.provider_limit_snapshot_by_model.pop(model, None)
+    _save_model_preferences(config, prefs)
+    return f"Cleared limit snapshot for {model}."
 
 
 def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
@@ -2362,6 +2395,13 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
         result = _record_limit_message(config, prefs, model=model, message=message)
         _apply_model_preferences(agent, config)
         return result
+    if command.startswith("model limit-clear "):
+        fields = command[len("model limit-clear ") :].split(maxsplit=1)
+        if len(fields) != 1:
+            return "Usage: model limit-clear <model>"
+        result = _clear_limit_snapshot(config, prefs, model=fields[0])
+        _apply_model_preferences(agent, config)
+        return result
 
     action = parts[1]
     try:
@@ -2501,7 +2541,8 @@ def _model_usage() -> str:
         "Usage: model use <name> | model add <name> | model list <name> | "
         "model variant <name> <variant> | model variant-clear <name> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
-        "model unblock <name> | model limits | model limit-record <name> <message> | model clear"
+        "model unblock <name> | model limits | model limit-record <name> <message> | "
+        "model limit-clear <name> | model clear"
     )
 
 
@@ -2532,6 +2573,14 @@ def _handle_account_command(
                 return "Usage: account limit-record <model> <name> <provider message>"
             model, name, message = fields
             result = _record_limit_message(config, prefs, model=model, account=name, message=message)
+            _apply_model_preferences(agent, config)
+            return result
+        if action == "limit-clear":
+            fields = command[len("account limit-clear ") :].split(maxsplit=1)
+            if len(fields) != 2:
+                return "Usage: account limit-clear <model> <name>"
+            model, name = fields
+            result = _clear_limit_snapshot(config, prefs, model=model, account=name)
             _apply_model_preferences(agent, config)
             return result
         if action == "add":
@@ -2664,7 +2713,7 @@ def _account_usage() -> str:
         "account logout <model> <name> | account env <model> <name> <ENV_VAR> | account import <model> <name> [PATH] | "
         "account use <model> <name> | account remove <model> <name> | "
         "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | "
-        "account limit-record <model> <name> <message> | account clear <model>"
+        "account limit-record <model> <name> <message> | account limit-clear <model> <name> | account clear <model>"
     )
 
 
@@ -3463,7 +3512,12 @@ def main() -> int:
         else:
             print(_render_model_limits(agent, config))
         return 0
-    if task.startswith("model limit-record ") or task.startswith("account limit-record "):
+    if (
+        task.startswith("model limit-record ")
+        or task.startswith("account limit-record ")
+        or task.startswith("model limit-clear ")
+        or task.startswith("account limit-clear ")
+    ):
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_model_command(task, agent, config)
         if response is None:
