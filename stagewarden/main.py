@@ -642,6 +642,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
             {
                 "name": account,
                 "blocked_until": (prefs.blocked_until_by_account or {}).get(account_key(model, account)),
+                "last_limit_message": (prefs.last_limit_message_by_account or {}).get(account_key(model, account)),
                 "active": account == active_account,
             }
             for account in accounts
@@ -661,6 +662,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "variant": prefs.variant_for_model(model) or "provider-default",
                 "active_account": active_account or "none",
                 "blocked_until": blocked_model_until,
+                "last_limit_message": (prefs.last_limit_message_by_model or {}).get(model),
                 "blocked_accounts": blocked_accounts,
                 "last_error_reason": last_error_reason,
                 "last_attempt": None
@@ -701,6 +703,8 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
         )
         if item["last_error_reason"]:
             lines.append(f"  last_error_reason={item['last_error_reason']}")
+        if item["last_limit_message"]:
+            lines.append(f"  last_limit_message={item['last_limit_message']}")
         last_attempt = item["last_attempt"]
         if isinstance(last_attempt, dict):
             lines.append(
@@ -720,6 +724,8 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
                 f"  blocked_account {blocked_account['name']}:{active_account_tag} "
                 f"blocked-until={blocked_account['blocked_until']}"
             )
+            if blocked_account["last_limit_message"]:
+                lines.append(f"    last_limit_message={blocked_account['last_limit_message']}")
     return "\n".join(lines)
 
 

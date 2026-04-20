@@ -443,6 +443,8 @@ class ExecutorTests(unittest.TestCase):
             prefs = ModelPreferences.load(Path(tmp_dir) / ".stagewarden_models.json")
             self.assertTrue(outcome.ok)
             self.assertIn("openai", prefs.blocked_until_by_model or {})
+            self.assertIn("openai", prefs.last_limit_message_by_model or {})
+            self.assertIn("usage limit", (prefs.last_limit_message_by_model or {})["openai"].lower())
             self.assertIsNone(prefs.preferred_model)
 
     def test_executor_retries_same_model_with_next_account_after_limit(self) -> None:
@@ -491,6 +493,7 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("RUN_MODEL: openai:work", handoff.calls[0])
             self.assertIn("RUN_MODEL: openai:personal", handoff.calls[1])
             self.assertIn("openai:work", updated.blocked_until_by_account or {})
+            self.assertIn("openai:work", updated.last_limit_message_by_account or {})
 
     def test_executor_retries_all_available_accounts_on_same_model_until_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

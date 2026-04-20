@@ -340,11 +340,16 @@ class Executor:
             return
         try:
             prefs = ModelPreferences.load(self.config.model_prefs_path)
+            clean_message = str(message).strip().replace("\n", " ")[:240]
             if account:
                 prefs.block_account(model, account, until)
+                prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
+                prefs.last_limit_message_by_account[f"{model}:{account}"] = clean_message
             else:
                 prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
                 prefs.blocked_until_by_model[model] = until
+                prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
+                prefs.last_limit_message_by_model[model] = clean_message
             if prefs.preferred_model == model and not prefs.account_for_model(model):
                 prefs.preferred_model = None
             prefs.save(self.config.model_prefs_path)
