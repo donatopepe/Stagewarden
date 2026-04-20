@@ -642,6 +642,8 @@ Implemented behaviour:
   - Stagewarden-internal usage history
   - provider/account temporary lockouts
   - provider-native remaining quota, which remains unsupported unless an official source exists
+- The latest provider-reported limit message is now persisted per model/account together with `blocked_until`.
+- Provider-limit views now expose both the lock time and the last known lockout cause text.
 
 Explicit non-goal for now:
 
@@ -654,6 +656,7 @@ Validation:
 - Test coverage includes model-level blocks, account-level blocks, and recent error/success state.
 - `overview` and `report` now also surface compact provider-limit summaries for faster operator reading.
 - `overview --json` and `report --json` now carry provider-limit posture in machine-readable form.
+- Persistence tests verify roundtrip storage of last limit messages in model preferences.
 
 
 ### Caveman Help Snapshot
