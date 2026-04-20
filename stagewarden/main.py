@@ -22,7 +22,7 @@ from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .memory import MemoryStore
-from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
+from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key, classify_limit_reason
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
 from .project_handoff import ProjectHandoff
@@ -643,6 +643,10 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "name": account,
                 "blocked_until": (prefs.blocked_until_by_account or {}).get(account_key(model, account)),
                 "last_limit_message": (prefs.last_limit_message_by_account or {}).get(account_key(model, account)),
+                "last_limit_reason": classify_limit_reason(
+                    (prefs.last_limit_message_by_account or {}).get(account_key(model, account)),
+                    fallback=None,
+                ),
                 "active": account == active_account,
             }
             for account in accounts
@@ -650,9 +654,11 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
         ]
         last_attempt = next((item for item in reversed(memory.attempts) if item.model == model), None)
         last_success = next((item for item in reversed(memory.attempts) if item.model == model and item.success), None)
-        last_error_reason = None
-        if last_attempt is not None and not last_attempt.success:
-            last_error_reason = last_attempt.error_type or "unknown"
+        last_limit_message = (prefs.last_limit_message_by_model or {}).get(model)
+        last_error_reason = classify_limit_reason(
+            last_limit_message,
+            fallback=(last_attempt.error_type or "unknown") if last_attempt is not None and not last_attempt.success else None,
+        )
         providers.append(
             {
                 "provider": model,
@@ -662,7 +668,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "variant": prefs.variant_for_model(model) or "provider-default",
                 "active_account": active_account or "none",
                 "blocked_until": blocked_model_until,
-                "last_limit_message": (prefs.last_limit_message_by_model or {}).get(model),
+                "last_limit_message": last_limit_message,
                 "blocked_accounts": blocked_accounts,
                 "last_error_reason": last_error_reason,
                 "last_attempt": None
@@ -724,6 +730,8 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
                 f"  blocked_account {blocked_account['name']}:{active_account_tag} "
                 f"blocked-until={blocked_account['blocked_until']}"
             )
+            if blocked_account["last_limit_reason"]:
+                lines.append(f"    last_limit_reason={blocked_account['last_limit_reason']}")
             if blocked_account["last_limit_message"]:
                 lines.append(f"    last_limit_message={blocked_account['last_limit_message']}")
     return "\n".join(lines)

@@ -481,13 +481,14 @@ class TraceAndCliTests(unittest.TestCase):
             providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
             self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
             self.assertEqual(providers["chatgpt"]["active_account"], "work")
-            self.assertEqual(providers["chatgpt"]["last_error_reason"], "runtime")
+            self.assertEqual(providers["chatgpt"]["last_error_reason"], "usage_limit")
             self.assertIn("usage limit", providers["chatgpt"]["last_limit_message"].lower())
             self.assertEqual(providers["chatgpt"]["last_attempt"]["account"], "work")
             self.assertEqual(providers["claude"]["active_account"], "none")
             self.assertEqual(providers["claude"]["last_success"]["account"], "team")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["name"], "team")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2026-05-01T19:00")
+            self.assertEqual(providers["claude"]["blocked_accounts"][0]["last_limit_reason"], "usage_limit")
             self.assertIn("usage limited", providers["claude"]["blocked_accounts"][0]["last_limit_message"].lower())
 
     def test_models_cli_json_output_is_machine_readable(self) -> None:
@@ -567,6 +568,7 @@ class TraceAndCliTests(unittest.TestCase):
             prefs.set_active_account("chatgpt", "work")
             prefs.set_variant("chatgpt", "gpt-5.3-codex")
             prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
             prefs.save(root / ".stagewarden_models.json")
             handoff = {
                 "_format": "stagewarden_project_handoff",
@@ -613,7 +615,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_limits", payload)
             providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
             self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
-            self.assertEqual(providers["chatgpt"]["last_error_reason"], "runtime")
+            self.assertEqual(providers["chatgpt"]["last_error_reason"], "usage_limit")
             self.assertEqual(payload["model_usage"]["report"]["totals"]["calls"], 1)
             self.assertEqual(payload["transcript"]["report"]["count"], 1)
             self.assertEqual(payload["handoff"]["handoff"]["task"], "fix failing tests")
@@ -674,6 +676,7 @@ class TraceAndCliTests(unittest.TestCase):
             prefs.add_account("chatgpt", "work")
             prefs.set_active_account("chatgpt", "work")
             prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
             prefs.save(root / ".stagewarden_models.json")
             handoff = {
                 "_format": "stagewarden_project_handoff",
@@ -729,7 +732,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_limits", payload)
             providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
             self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
-            self.assertEqual(providers["chatgpt"]["last_error_reason"], "runtime")
+            self.assertEqual(providers["chatgpt"]["last_error_reason"], "usage_limit")
             self.assertIn("reuse the stable patch pattern", payload["recent_lessons"][0])
             self.assertIn("add release note", payload["backlog_preview"][0])
             self.assertIn("finalize smoke test", payload["backlog_preview"][1])
