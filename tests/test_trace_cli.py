@@ -447,7 +447,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "blocked_until": "2026-05-01T18:30",
                     "rate_limit_type": "usage_limit",
                     "utilization": 91,
-                    "captured_at": "2026-05-01T17:30",
+                    "captured_at": "2000-01-01T17:30",
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
             )
@@ -482,7 +482,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "blocked_until": "2026-05-01T18:30",
                     "rate_limit_type": "usage_limit",
                     "utilization": 91,
-                    "captured_at": "2026-05-01T17:30",
+                    "captured_at": "2000-01-01T17:30",
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
             )
@@ -583,7 +583,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "blocked_until": "2026-05-01T18:30",
                     "rate_limit_type": "usage_limit",
                     "utilization": 91,
-                    "captured_at": "2026-05-01T17:30",
+                    "captured_at": "2000-01-01T17:30",
                     "raw_message": "You've hit your usage limit. Try again at 8:05 PM.",
                 },
             )
@@ -686,7 +686,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "blocked_until": "2026-05-01T18:30",
                     "rate_limit_type": "usage_limit",
                     "utilization": 91,
-                    "captured_at": "2026-05-01T17:30",
+                    "captured_at": "2000-01-01T17:30",
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
             )
@@ -716,6 +716,7 @@ class TraceAndCliTests(unittest.TestCase):
             providers = {item["provider"]: item for item in payload["providers"]}
             self.assertEqual(providers["chatgpt"]["utilization"], 91.0)
             self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
+            self.assertTrue(providers["chatgpt"]["stale"])
             self.assertEqual(
                 providers["claude"]["blocked_accounts"][0]["snapshot"]["rate_limit_type"],
                 "five_hour_sonnet",
