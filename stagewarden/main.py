@@ -1534,6 +1534,11 @@ def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = No
                 f"account={latest.account or 'none'} "
                 f"variant={latest.variant or 'provider-default'}"
             )
+    snapshot_line = None
+    if phase == "after":
+        snapshot = handoff.latest_git_snapshot()
+        if snapshot is not None:
+            snapshot_line = f"- git_snapshot: {snapshot['git_head']} :: {snapshot['summary']}"
     return "\n".join(
         [
             f"Shell progress ({phase}):",
@@ -1544,6 +1549,7 @@ def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = No
             f"- git_head: {git_boundary['current']}",
             route_line,
         ]
+        + ([snapshot_line] if snapshot_line else [])
     )
 
 

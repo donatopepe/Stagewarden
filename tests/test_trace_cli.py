@@ -778,6 +778,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Agent result:", rendered)
             self.assertIn("Shell progress (after):", rendered)
             self.assertIn("route: model=local account=none variant=provider-default", rendered)
+            self.assertIn("git_snapshot:", rendered)
+            self.assertRegex(rendered, r"git_snapshot: [0-9a-f]{7,40} ::")
             self.assertIn("Tool transcript:", rendered)
             self.assertIn("tool=files", rendered)
             self.assertIn("action=write_file", rendered)

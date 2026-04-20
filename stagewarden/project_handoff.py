@@ -225,6 +225,17 @@ class ProjectHandoff:
             )
         )
 
+    def latest_git_snapshot(self) -> dict[str, str] | None:
+        for entry in reversed(self.entries):
+            if entry.phase != "git_snapshot":
+                continue
+            return {
+                "summary": entry.summary,
+                "git_head": entry.git_head or "unknown",
+                "timestamp": entry.timestamp,
+            }
+        return None
+
     def close_run(self, *, task: str, success: bool, plan_status: str, git_head: str | None, outcome: str) -> None:
         self.status = "closed" if success else "exception"
         self.current_step_status = "completed" if success else "exception"
