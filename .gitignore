@@ -5,6 +5,7 @@ __pycache__/
 .coverage
 .venv/
 node_modules/
+external_sources/
 
 .agent_cli_memory.json
 .agent_cli_caveman.json

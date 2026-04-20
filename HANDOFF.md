@@ -836,6 +836,45 @@ Every implementation must include:
 
 Dry-run alone is not a valid checkpoint.
 
+## External Source Base
+
+Status: initialized
+
+Local reference directory:
+
+- `external_sources/` is ignored by Git and contains shallow clones for study only.
+- Tracked manifest: `docs/source_references.md`.
+
+Cloned upstream references:
+
+- Caveman: `external_sources/caveman`, upstream `https://github.com/JuliusBrussee/caveman`, current shallow head `84cc3c1`.
+- OpenAI Codex CLI: `external_sources/codex`, upstream `https://github.com/openai/codex`, current shallow head `2a17b32`.
+- Claude Code public repo: `external_sources/claude-code`, upstream `https://github.com/anthropics/claude-code`, current shallow head `0385848`.
+
+Important source boundary:
+
+- Do not vendor or republish third-party source in Stagewarden.
+- Do not use leaked or unofficial Claude Code mirrors.
+- Prefer reimplementing behavior from documented interfaces and observed public source.
+- Copy code only when the upstream license permits it and attribution is added.
+
+Study targets to extract into Stagewarden:
+
+- Codex `tui/src/status/card.rs`: status card structure, configurable status line items, model/account/sandbox/approval display.
+- Codex protocol model: token usage updates, rate-limit snapshots, model reroute events, auth status responses.
+- Codex auth flow: `codex login status`, device/browser login, ChatGPT plan usage-limit parsing, retry-until time extraction.
+- Codex sandbox/approval model: read-only/workspace-write/full-access, command approval decisions, network approval context.
+- Claude Code public docs/plugins: plugin packaging, command discovery, setup conventions.
+- Claude Code npm bundle, official package only: `claude auth status`, rate-limit headers, `rate_limit_event`, `resetsAt`, `rateLimitType`, `overageStatus`, `billing_error`, `authentication_failed`.
+- Caveman: command grammar, hook activation, statusline integration, compression skills, benchmark/test structure.
+
+Next implementation candidates:
+
+- Add `sources status` command to verify all external references are present, upstream URLs match, and shallow heads are recorded.
+- Add `sources update` command that runs `git pull --ff-only` in each reference repo and writes a handoff event.
+- Extend Stagewarden `status` output with Codex-like sections: account/auth, model/provider, provider limits, workspace, git, sandbox/permissions, token/tool activity, handoff health.
+- Add Claude-style provider-limit fields: `rate_limit_type`, `utilization`, `resets_at`, `overage_status`, `overage_resets_at`, `overage_disabled_reason`.
+
 <!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->
 ## Runtime Handoff Export
 
