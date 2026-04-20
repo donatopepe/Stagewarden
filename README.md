@@ -88,10 +88,11 @@ PRINCE2 handoff behavior:
 - The executor prompt always includes the current project handoff summary, so planning and execution stay aligned to the same controlled context.
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
+- `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, last known provider error, and latest routed success/failure context.
 - `stagewarden board --json` or `stagewarden "stage review" --json` exposes the PRINCE2 board-level authorization recommendation.
-- `stagewarden overview --json` aggregates status, board review, handoff, transcript, and model-usage signals into a single machine-readable snapshot.
+- `stagewarden overview --json` aggregates status, board review, handoff, transcript, model-usage signals, and provider-limit posture into a single machine-readable snapshot.
 - `stagewarden health --json` exposes a compact readiness snapshot for automation: authorization, boundary decision, open controls, recovery state, and minimal model/transcript signals.
-- `stagewarden report --json` exposes a compact closure/shareable summary with governance state, next action, recent lessons, backlog preview, and model activity.
+- `stagewarden report --json` exposes a compact closure/shareable summary with governance state, next action, recent lessons, backlog preview, model activity, and provider-limit posture.
 - `stagewarden risks|issues|quality|exception|lessons|todo --json` exposes PRINCE2 registers and backlog in machine-readable form.
 - The executor prompt also includes the active PRINCE2 registers: risks, issues, quality evidence, lessons learned, and any current exception plan.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
