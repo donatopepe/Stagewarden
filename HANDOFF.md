@@ -4,7 +4,7 @@ Author: Donato Pepe
 
 License: MIT
 
-Last updated: 2026-04-19
+Last updated: 2026-04-20
 
 ## Purpose
 
@@ -37,9 +37,54 @@ The working rule is PRINCE2-style controlled execution:
 - Agent policy: `AGENT_POLICY.md`
 - Machine-readable policy: `AGENT_POLICY.json`
 
-Latest pushed baseline at the time of this handoff:
+Latest known baseline at the time of this handoff:
 
-- `bd6a6ec Document recovery boundary states`
+- Local implementation snapshot: `5b79a4c stagewarden: initialize workspace`
+- Last confirmed pushed baseline before this pass: `d4d864c stagewarden: initialize workspace`
+
+## Current Implementation Pass
+
+Status: ready to push after handoff update
+
+Implemented in this pass:
+
+- Persisted structured provider limit snapshots in `.stagewarden_models.json`.
+- Added model-level and account-level limit snapshots with sanitized fields only.
+- Captured limit metadata automatically when executor sees provider block messages.
+- Exposed persisted limit metadata through `status --full --json`.
+- Exposed compact reset/usage fields through `statusline --json`.
+- Kept provider status read-only commands free from model calls and token output.
+
+Stored limit snapshot fields:
+
+- `status`
+- `reason`
+- `blocked_until`
+- `primary_window`
+- `secondary_window`
+- `credits`
+- `rate_limit_type`
+- `utilization`
+- `overage_status`
+- `overage_resets_at`
+- `overage_disabled_reason`
+- `stale`
+- `captured_at`
+- `raw_message`
+
+Validation evidence:
+
+- `python3 -m unittest tests/test_persistence.py tests/test_executor.py tests/test_trace_cli.py` passed, 108 tests.
+- `python3 -m unittest discover -s tests` passed, 203 tests.
+- `python3 -m stagewarden.main status --full --json` passed as wet-run.
+- `python3 -m stagewarden.main statusline --json` passed as wet-run.
+
+Next recommended implementation blocks:
+
+- Add explicit `model limits` shell command that renders the same structured snapshot in human form.
+- Add stale detection based on `captured_at` and `provider_limits_stale_after_minutes`.
+- Add provider-specific parsers for richer Claude Code and Codex status output when upstream CLIs expose machine-readable usage.
+- Add a safe manual command to record a provider limit message pasted by the user and convert it into a snapshot.
 
 ## Implemented Capabilities
 
