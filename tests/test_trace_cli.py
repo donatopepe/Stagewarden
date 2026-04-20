@@ -429,7 +429,62 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["mode"], "normal")
             self.assertEqual(payload["handoff"]["stage_view"]["boundary_decision"], "continue_current_stage")
             self.assertIn("models", payload)
+            self.assertIn("provider_limits", payload)
             self.assertIn("permissions", payload)
+
+    def test_status_cli_json_reports_provider_limit_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "claude", "local"]
+            prefs.preferred_model = "chatgpt"
+            prefs.add_account("chatgpt", "work")
+            prefs.add_account("claude", "team")
+            prefs.set_active_account("chatgpt", "work")
+            prefs.set_active_account("claude", "team")
+            prefs.set_variant("chatgpt", "gpt-5.3-codex")
+            prefs.set_variant("claude", "sonnet")
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.save(root / ".stagewarden_models.json")
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="chatgpt",
+                account="work",
+                variant="gpt-5.3-codex",
+                action_type="shell",
+                action_signature="pytest",
+                success=False,
+                observation="usage limit hit",
+                error_type="runtime",
+            )
+            memory.record_attempt(
+                iteration=2,
+                step_id="step-2",
+                model="claude",
+                account="team",
+                variant="sonnet",
+                action_type="write_file",
+                action_signature="patch",
+                success=True,
+                observation="patch applied",
+            )
+            memory.save(root / ".stagewarden_memory.json")
+            completed = run_main_capture(root, "status", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
+            self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(providers["chatgpt"]["active_account"], "work")
+            self.assertEqual(providers["chatgpt"]["last_error_reason"], "runtime")
+            self.assertEqual(providers["chatgpt"]["last_attempt"]["account"], "work")
+            self.assertEqual(providers["claude"]["active_account"], "none")
+            self.assertEqual(providers["claude"]["last_success"]["account"], "team")
+            self.assertEqual(providers["claude"]["blocked_accounts"][0]["name"], "team")
+            self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2026-05-01T19:00")
 
     def test_models_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1440,6 +1495,30 @@ class TraceAndCliTests(unittest.TestCase):
     def test_interactive_shell_status_and_mode_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=3,
+                step_id="step-3",
+                model="chatgpt",
+                account="work",
+                variant="gpt-5.3-codex",
+                action_type="shell",
+                action_signature="python3 -m unittest",
+                success=False,
+                observation="usage limit encountered, retry needed",
+                error_type="runtime",
+            )
+            memory.record_tool_transcript(
+                iteration=3,
+                step_id="step-3",
+                tool="shell",
+                action_type="shell",
+                success=False,
+                summary="tests blocked by provider limit",
+                duration_ms=555,
+                error_type="runtime",
+            )
+            memory.save(root / ".stagewarden_memory.json")
             handoff = {
                 "_format": "stagewarden_project_handoff",
                 "_version": 1,
@@ -1463,7 +1542,20 @@ class TraceAndCliTests(unittest.TestCase):
                     {"step_id": "step-3", "title": "Validate result", "status": "in_progress", "validation": "Wet-run tests pass."},
                 ],
                 "updated_at": "2026-04-18T18:30:00+00:00",
-                "entries": [],
+                "entries": [
+                    {
+                        "phase": "git_snapshot",
+                        "iteration": 3,
+                        "step_id": "step-3",
+                        "step_status": "failed",
+                        "model": "chatgpt",
+                        "action_type": "git_snapshot",
+                        "summary": "stagewarden: step step-3 failed [stage=at_risk boundary=review]",
+                        "detail": "",
+                        "git_head": "ff22aa9",
+                        "timestamp": "2026-04-18T18:32:00+00:00",
+                    }
+                ],
             }
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             config = AgentConfig(workspace_root=root, max_steps=1)
@@ -1482,6 +1574,14 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("effective mode: default", rendered)
             self.assertIn("handoff: .stagewarden_handoff.json", rendered)
             self.assertIn("Handoff summary:", rendered)
+            self.assertIn("Provider limit status:", rendered)
+            self.assertIn("chatgpt: enabled active variant=provider-default active_account=none", rendered)
+            self.assertIn("last_attempt: step=step-3 status=failed:runtime account=work variant=gpt-5.3-codex", rendered)
+            self.assertIn("Resume context:", rendered)
+            self.assertIn("latest_model_attempt: step=step-3 action=shell status=failed:runtime", rendered)
+            self.assertIn("latest_route: model=chatgpt account=work variant=gpt-5.3-codex", rendered)
+            self.assertIn("latest_tool_evidence: tool=shell action=shell status=failed:runtime duration_ms=555", rendered)
+            self.assertIn("latest_git_snapshot: ff22aa9 :: stagewarden: step step-3 failed [stage=at_risk boundary=review]", rendered)
             self.assertIn("Operational posture:", rendered)
             self.assertIn("governance=residual", rendered)
             self.assertIn("stage_health: at_risk", rendered)
