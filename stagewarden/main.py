@@ -828,6 +828,7 @@ def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
         for key in base:
             if snapshot.get(key) is not None:
                 base[key] = snapshot[key]
+        base["stale"] = _provider_limit_snapshot_is_stale(base.get("captured_at"))
         if blocked_until:
             base["status"] = "blocked"
             base["blocked_until"] = blocked_until
@@ -836,6 +837,19 @@ def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
         if base["rate_limit_type"] is None:
             base["rate_limit_type"] = base["reason"]
     return base
+
+
+def _provider_limit_snapshot_is_stale(captured_at: object, *, stale_after_minutes: int = 15) -> bool:
+    if not captured_at:
+        return False
+    try:
+        captured = datetime.fromisoformat(str(captured_at))
+    except ValueError:
+        return True
+    now = datetime.now(tz=captured.tzinfo) if captured.tzinfo is not None else datetime.now()
+    if captured > now:
+        return False
+    return (now - captured).total_seconds() > stale_after_minutes * 60
 
 
 def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
