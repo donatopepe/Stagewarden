@@ -6,6 +6,7 @@ import os
 import platform
 import re
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,8 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "health",
     "report",
     "status",
+    "status full",
+    "statusline",
     "stream on",
     "stream off",
     "stream status",
@@ -74,6 +77,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "models usage",
     "cost",
     "accounts",
+    "auth status",
     "permissions",
     "sessions",
     "session list",
@@ -149,6 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ljson-benchmark", metavar="JSON_PATH", help="Benchmark standard JSON vs LJSON for a JSON array file.")
     parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
     parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
+    parser.add_argument("--full", action="store_true", help="Show expanded status dashboard sections.")
     return parser
 
 
@@ -397,6 +402,9 @@ def _interactive_help_topic(topic: str) -> str:
             "- health",
             "- report",
             "- status",
+            "- status full",
+            "- statusline",
+            "- auth status <chatgpt|claude>",
             "- stream on | stream off | stream status",
             "- transcript | trace",
             "- doctor",
@@ -411,6 +419,9 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> health",
             "- stagewarden> report",
             "- stagewarden> status",
+            "- stagewarden> status full",
+            "- stagewarden> statusline",
+            "- stagewarden> auth status chatgpt",
             "- stagewarden> stream off",
             "- stagewarden> doctor",
             "- stagewarden> session create",
@@ -737,6 +748,211 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
+    blocked_until = item.get("blocked_until")
+    reason = item.get("last_error_reason")
+    return {
+        "status": "blocked" if blocked_until else "available",
+        "reason": reason,
+        "blocked_until": blocked_until,
+        "primary_window": None,
+        "secondary_window": None,
+        "credits": None,
+        "rate_limit_type": reason,
+        "utilization": None,
+        "overage_status": None,
+        "overage_resets_at": None,
+        "overage_disabled_reason": None,
+        "stale": False,
+        "captured_at": None,
+    }
+
+
+def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    status = _status_report(agent, config)
+    provider_limits = status["provider_limits"]
+    model_report = status["models"]
+    handoff = status["handoff"]["stage_view"]
+    git = GitTool(config)
+    git_status = git.status()
+    git_head = git.head()
+    workspace_settings = status["permissions"]["effective"]
+    active_model = next((item for item in model_report["models"] if item["preferred"]), None)
+    if active_model is None:
+        active_model = next((item for item in model_report["models"] if item["active"]), None)
+    providers = provider_limits["providers"]
+    return {
+        "command": "status",
+        "view": "full",
+        "identity": {
+            "name": "Stagewarden",
+            "workspace": status["workspace"],
+            "mode": status["mode"],
+            "python": platform.python_version(),
+        },
+        "model": {
+            "preferred_model": model_report["preferred_model"] or "automatic",
+            "active_model": None if active_model is None else active_model["model"],
+            "active_variant": None if active_model is None else active_model["variant"],
+            "enabled": [item["model"] for item in model_report["models"] if item["enabled"]],
+            "active": [item["model"] for item in model_report["models"] if item["active"]],
+        },
+        "account": {
+            "active_accounts": {
+                item["provider"]: item["active_account"]
+                for item in providers
+            },
+            "auth_modes": {
+                item["model"]: item["auth"]
+                for item in model_report["models"]
+            },
+        },
+        "limits": [
+            {
+                "provider": item["provider"],
+                "account": item["active_account"],
+                "variant": item["variant"],
+                **_provider_limit_windows(item),
+            }
+            for item in providers
+        ],
+        "workspace": {
+            "cwd": status["workspace"],
+            "files": status["files"],
+        },
+        "permissions": {
+            "mode": workspace_settings["mode"],
+            "allow": workspace_settings["allow"],
+            "ask": workspace_settings["ask"],
+            "deny": workspace_settings["deny"],
+        },
+        "git": {
+            "ok": git_status.ok,
+            "head": git_head.stdout.strip() if git_head.ok else None,
+            "status": git_status.stdout.strip() if git_status.ok else git_status.error,
+        },
+        "handoff": {
+            "stage_health": handoff["stage_health"],
+            "recovery_state": handoff["recovery_state"],
+            "boundary_decision": handoff["boundary_decision"],
+            "next_action": handoff["next_action"],
+            "git_boundary": handoff["git_boundary"],
+            "register_statuses": handoff["register_statuses"],
+            "backlog_statuses": handoff["backlog_statuses"],
+        },
+        "usage": _model_usage_report(config)["report"],
+        "quality_gates": {
+            "wet_run_required": True,
+            "dry_run_valid_checkpoint": False,
+            "git_snapshot_required": True,
+            "provider_limits_stale_after_minutes": 15,
+        },
+    }
+
+
+def _render_status_full(agent: Agent, config: AgentConfig) -> str:
+    report = _status_dashboard_report(agent, config)
+    lines = [
+        "Stagewarden full status:",
+        "Identity:",
+        f"- workspace: {report['identity']['workspace']}",
+        f"- mode: {report['identity']['mode']}",
+        f"- python: {report['identity']['python']}",
+        "Model:",
+        f"- preferred_model: {report['model']['preferred_model']}",
+        f"- active_model: {report['model']['active_model'] or 'none'}",
+        f"- active_variant: {report['model']['active_variant'] or 'none'}",
+        f"- enabled: {', '.join(report['model']['enabled']) or 'none'}",
+        "Account:",
+    ]
+    for provider, account in report["account"]["active_accounts"].items():
+        lines.append(f"- {provider}: active_account={account}")
+    lines.append("Limits:")
+    for item in report["limits"]:
+        blocked = f" blocked_until={item['blocked_until']}" if item["blocked_until"] else ""
+        reason = f" reason={item['reason']}" if item["reason"] else ""
+        lines.append(f"- {item['provider']}: {item['status']}{blocked}{reason}")
+    lines.extend(
+        [
+            "Workspace:",
+            f"- cwd: {report['workspace']['cwd']}",
+            "Permissions:",
+            f"- mode: {report['permissions']['mode']}",
+            f"- allow: {len(report['permissions']['allow'])}",
+            f"- ask: {len(report['permissions']['ask'])}",
+            f"- deny: {len(report['permissions']['deny'])}",
+            "Git:",
+            f"- ok: {str(report['git']['ok']).lower()}",
+            f"- head: {report['git']['head'] or 'none'}",
+            f"- status: {report['git']['status'] or 'clean'}",
+            "Handoff:",
+            f"- stage_health: {report['handoff']['stage_health']}",
+            f"- recovery_state: {report['handoff']['recovery_state']}",
+            f"- boundary_decision: {report['handoff']['boundary_decision']}",
+            f"- next_action: {report['handoff']['next_action']}",
+            "Usage:",
+            f"- calls: {report['usage']['totals']['calls']}",
+            f"- failures: {report['usage']['totals']['failures']}",
+            f"- escalation_path: {report['usage']['totals']['escalation_path']}",
+            "Quality Gates:",
+            "- wet_run_required: true",
+            "- dry_run_valid_checkpoint: false",
+            "- git_snapshot_required: true",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    status = _status_report(agent, config)
+    usage = _model_usage_report(config)["report"]
+    git = GitTool(config)
+    git_head = git.head()
+    provider_limits = status["provider_limits"]["providers"]
+    preferred = status["models"]["preferred_model"]
+    active_model = next((item for item in status["models"]["models"] if item["preferred"]), None)
+    if active_model is None:
+        active_model = next((item for item in status["models"]["models"] if item["active"]), None)
+    return {
+        "command": "statusline",
+        "workspace": {
+            "current_dir": status["workspace"],
+            "project_dir": status["workspace"],
+            "added_dirs": [],
+            "git_head": git_head.stdout.strip() if git_head.ok else None,
+            "git_worktree": None,
+        },
+        "version": "stagewarden",
+        "model": {
+            "preferred": preferred or "automatic",
+            "active": None if active_model is None else active_model["model"],
+            "variant": None if active_model is None else active_model["variant"],
+        },
+        "context_window": {
+            "total_input_tokens": None,
+            "total_output_tokens": None,
+            "context_window_size": None,
+            "current_usage": None,
+            "used_percentage": None,
+            "remaining_percentage": None,
+        },
+        "rate_limits": [
+            {
+                "provider": item["provider"],
+                "account": item["active_account"],
+                "status": "blocked" if item["blocked_until"] else "available",
+                "blocked_until": item["blocked_until"],
+                "reason": item["last_error_reason"],
+                "used_percentage": None,
+                "resets_at": item["blocked_until"],
+            }
+            for item in provider_limits
+        ],
+        "handoff": status["handoff"]["stage_view"],
+        "usage": usage["totals"],
+    }
+
+
 def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
     report = _provider_limit_status_report(agent, config)
     providers = report["providers"]
@@ -804,6 +1020,119 @@ def _accounts_report(config: AgentConfig) -> dict[str, object]:
         "command": "accounts",
         "models": models,
     }
+
+
+def _auth_status_report(provider: str) -> dict[str, object]:
+    normalized = provider.strip().lower()
+    aliases = {
+        "gpt": "chatgpt",
+        "codex": "chatgpt",
+        "openai": "chatgpt",
+    }
+    normalized = aliases.get(normalized, normalized)
+    if normalized not in {"chatgpt", "claude"}:
+        return {
+            "command": "auth status",
+            "provider": provider,
+            "ok": False,
+            "logged_in": False,
+            "auth_method": "unsupported",
+            "source": "stagewarden",
+            "message": "Supported providers: chatgpt, openai, codex, claude.",
+        }
+    if normalized == "chatgpt":
+        codex = shutil.which("codex")
+        if codex is None:
+            return {
+                "command": "auth status",
+                "provider": normalized,
+                "ok": False,
+                "logged_in": False,
+                "auth_method": "missing_cli",
+                "source": "codex login status",
+                "message": "codex CLI not found in PATH.",
+            }
+        completed = subprocess.run(
+            [codex, "login", "status"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        message = (completed.stderr or completed.stdout).strip()
+        logged_in = completed.returncode == 0
+        if "ChatGPT" in message:
+            auth_method = "chatgpt"
+        elif "API key" in message:
+            auth_method = "apikey"
+        elif "Not logged in" in message:
+            auth_method = "none"
+        else:
+            auth_method = "unknown"
+        return {
+            "command": "auth status",
+            "provider": normalized,
+            "ok": completed.returncode == 0,
+            "logged_in": logged_in,
+            "auth_method": auth_method,
+            "source": "codex login status",
+            "message": message,
+        }
+    claude = shutil.which("claude")
+    if claude is None:
+        return {
+            "command": "auth status",
+            "provider": normalized,
+            "ok": False,
+            "logged_in": False,
+            "auth_method": "missing_cli",
+            "source": "claude auth status --json",
+            "message": "claude CLI not found in PATH.",
+        }
+    completed = subprocess.run(
+        [claude, "auth", "status", "--json"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    raw = (completed.stdout or completed.stderr).strip()
+    parsed: dict[str, object] = {}
+    if raw:
+        try:
+            value = loads_text(raw)
+            if isinstance(value, dict):
+                parsed = value
+        except ValueError:
+            parsed = {}
+    logged_in = bool(parsed.get("loggedIn")) if parsed else completed.returncode == 0
+    return {
+        "command": "auth status",
+        "provider": normalized,
+        "ok": completed.returncode == 0,
+        "logged_in": logged_in,
+        "auth_method": str(parsed.get("authMethod", "unknown" if raw else "none")),
+        "api_provider": parsed.get("apiProvider"),
+        "source": "claude auth status --json",
+        "message": raw,
+    }
+
+
+def _render_auth_status(provider: str) -> str:
+    report = _auth_status_report(provider)
+    lines = [
+        "Provider auth status:",
+        f"- provider: {report['provider']}",
+        f"- ok: {str(report['ok']).lower()}",
+        f"- logged_in: {str(report['logged_in']).lower()}",
+        f"- auth_method: {report['auth_method']}",
+        f"- source: {report['source']}",
+    ]
+    if report.get("api_provider"):
+        lines.append(f"- api_provider: {report['api_provider']}")
+    if report.get("message"):
+        lines.append(f"- message: {report['message']}")
+    return "\n".join(lines)
 
 
 def _render_status(agent: Agent, config: AgentConfig) -> str:
@@ -2185,7 +2514,13 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     if not parts:
         return None
     if parts[0] == "status":
+        if len(parts) == 2 and parts[1] == "full":
+            return _render_status_full(agent, config)
         return _render_status(agent, config)
+    if parts[0] == "statusline":
+        return dumps_ascii(_statusline_report(agent, config), indent=2)
+    if len(parts) == 3 and parts[0] == "auth" and parts[1] == "status":
+        return _render_auth_status(parts[2])
     if parts[0] == "overview":
         return _render_overview(agent, config)
     if parts[0] == "health":
@@ -2902,9 +3237,27 @@ def main() -> int:
     if task == "status":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_status_report(agent, config), indent=2))
+            print(dumps_ascii(_status_dashboard_report(agent, config) if args.full else _status_report(agent, config), indent=2))
         else:
-            print(_render_status(agent, config))
+            print(_render_status_full(agent, config) if args.full else _render_status(agent, config))
+        return 0
+    if task in {"status full", "status --full"}:
+        agent = _configure_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_status_dashboard_report(agent, config), indent=2))
+        else:
+            print(_render_status_full(agent, config))
+        return 0
+    if task == "statusline":
+        agent = _configure_agent_for_workspace(config)
+        print(dumps_ascii(_statusline_report(agent, config), indent=2))
+        return 0
+    if task.startswith("auth status "):
+        provider = task.split(maxsplit=2)[2]
+        if args.json:
+            print(dumps_ascii(_auth_status_report(provider), indent=2))
+        else:
+            print(_render_auth_status(provider))
         return 0
     if task == "overview":
         agent = _configure_agent_for_workspace(config)
