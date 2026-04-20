@@ -86,6 +86,9 @@ Follow-up implemented after this pass:
 - Added concise human rendering for provider/account limit state.
 - Updated interactive help and README examples.
 - Added stale detection for provider limit snapshots based on `captured_at`.
+- Added `model limit-record <model> <message>` to persist pasted provider limit messages safely.
+- Added `account limit-record <model> <account> <message>` for account-specific provider limits.
+- Added `model limit-clear <model>` and `account limit-clear <model> <account>` to remove stored limit snapshots, messages, and temporary blocks.
 
 Additional validation evidence:
 
@@ -94,11 +97,13 @@ Additional validation evidence:
 - `python3 -m stagewarden.main "model limits"` passed as wet-run.
 - `python3 -m unittest discover -s tests` passed, 204 tests.
 - Stale detection validation passed through `test_model_limits_cli_json_outputs_persisted_snapshots`.
+- `python3 -m stagewarden.main "model limit-record chatgpt Usage limit reached until 2026-05-01T18:30." --json` passed as wet-run.
+- `python3 -m stagewarden.main "model limit-clear chatgpt" --json` passed as wet-run and restored local provider availability.
+- `python3 -m unittest discover -s tests` passed, 206 tests.
 
 Next recommended implementation blocks:
 
 - Add provider-specific parsers for richer Claude Code and Codex status output when upstream CLIs expose machine-readable usage.
-- Add a safe manual command to record a provider limit message pasted by the user and convert it into a snapshot.
 
 ## Implemented Capabilities
 
