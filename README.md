@@ -185,6 +185,7 @@ These mini-blocks now also show the planned route before execution and the actua
 The `after` block also shows the latest local git checkpoint created during the run, so the shell immediately exposes the snapshot just recorded.
 Between the full agent summary and the final progress block, the shell now also shows a focused `Last step outcome:` section with step id, action, status, route, and observed result.
 That block now also exposes the concrete evidence source used for the last step, including tool name, tool action, and duration when available.
+`handoff export` and `handoff md` now also include an `Execution Resume Context` block in `HANDOFF.md` with the latest model attempt, route, tool evidence, and git snapshot so resume stays implicit and auditable.
 
 Inside the shell:
 
