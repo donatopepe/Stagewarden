@@ -24,7 +24,14 @@ from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .memory import MemoryStore
-from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key, classify_limit_reason
+from .modelprefs import (
+    ModelPreferences,
+    SUPPORTED_MODELS,
+    account_key,
+    classify_limit_reason,
+    extract_blocked_until,
+    limit_snapshot_from_message,
+)
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
 from .project_handoff import ProjectHandoff
@@ -101,6 +108,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "model variant-clear",
     "model block",
     "model unblock",
+    "model limit-record",
     "model clear",
     "account add",
     "account login",
@@ -112,6 +120,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "account remove",
     "account block",
     "account unblock",
+    "account limit-record",
     "account clear",
     "permission mode",
     "permission allow",
@@ -446,6 +455,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- model variant-clear <provider>",
             "- model block <model> until YYYY-MM-DDTHH:MM",
             "- model unblock <model>",
+            "- model limit-record <model> <provider message>",
             "- model clear",
             "",
             "Examples:",
@@ -455,6 +465,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> model list claude",
             "- stagewarden> model variant openai gpt-5.4-mini",
             "- stagewarden> model block openai until 2026-05-01T18:30",
+            "- stagewarden> model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.",
         ],
         "accounts": [
             "Account commands",
@@ -470,6 +481,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- account remove <model> <name>",
             "- account block <model> <name> until YYYY-MM-DDTHH:MM",
             "- account unblock <model> <name>",
+            "- account limit-record <model> <name> <provider message>",
             "- account clear <model>",
             "",
             "Examples:",
@@ -803,6 +815,45 @@ def _render_model_limits(agent: Agent, config: AgentConfig) -> str:
                 f"  account {account['name']}: blocked_until={account['blocked_until']}{account_reason}"
             )
     return "\n".join(lines)
+
+
+def _record_limit_message(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    model: str,
+    message: str,
+    account: str | None = None,
+) -> str:
+    if model not in SUPPORTED_MODELS:
+        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+    clean_message = message.strip().replace("\n", " ")[:240]
+    if not clean_message:
+        return "Limit message cannot be empty."
+    until = extract_blocked_until(clean_message)
+    snapshot = limit_snapshot_from_message(clean_message, blocked_until=until)
+    if account:
+        if account not in (prefs.accounts_by_model or {}).get(model, []):
+            prefs.add_account(model, account)
+        prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
+        prefs.last_limit_message_by_account[account_key(model, account)] = clean_message
+        prefs.set_account_limit_snapshot(model, account, snapshot)
+        if until:
+            prefs.block_account(model, account, until)
+    else:
+        prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
+        prefs.last_limit_message_by_model[model] = clean_message
+        prefs.set_model_limit_snapshot(model, snapshot)
+        if until:
+            prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
+            prefs.blocked_until_by_model[model] = until
+            if prefs.preferred_model == model:
+                prefs.preferred_model = None
+    _save_model_preferences(config, prefs)
+    target = f"{model}:{account}" if account else model
+    if until:
+        return f"Recorded limit snapshot for {target}; blocked until {until}."
+    return f"Recorded limit snapshot for {target}; no reset time detected."
 
 
 def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
@@ -2302,9 +2353,17 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
         return None
     if len(parts) < 2:
         return _model_usage()
+    prefs = _load_model_preferences(config)
+    if command.startswith("model limit-record "):
+        fields = command[len("model limit-record ") :].split(maxsplit=1)
+        if len(fields) != 2:
+            return "Usage: model limit-record <model> <provider message>"
+        model, message = fields
+        result = _record_limit_message(config, prefs, model=model, message=message)
+        _apply_model_preferences(agent, config)
+        return result
 
     action = parts[1]
-    prefs = _load_model_preferences(config)
     try:
         if action == "use":
             if len(parts) != 3:
@@ -2442,7 +2501,7 @@ def _model_usage() -> str:
         "Usage: model use <name> | model add <name> | model list <name> | "
         "model variant <name> <variant> | model variant-clear <name> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
-        "model unblock <name> | model limits | model clear"
+        "model unblock <name> | model limits | model limit-record <name> <message> | model clear"
     )
 
 
@@ -2467,6 +2526,14 @@ def _handle_account_command(
     action = parts[1]
     prefs = _load_model_preferences(config)
     try:
+        if action == "limit-record":
+            fields = command[len("account limit-record ") :].split(maxsplit=2)
+            if len(fields) != 3:
+                return "Usage: account limit-record <model> <name> <provider message>"
+            model, name, message = fields
+            result = _record_limit_message(config, prefs, model=model, account=name, message=message)
+            _apply_model_preferences(agent, config)
+            return result
         if action == "add":
             if len(parts) not in {4, 5}:
                 return "Usage: account add <model> <name> [ENV_VAR]"
@@ -2596,7 +2663,8 @@ def _account_usage() -> str:
         "account login-device <chatgpt|openai> <name> | "
         "account logout <model> <name> | account env <model> <name> <ENV_VAR> | account import <model> <name> [PATH] | "
         "account use <model> <name> | account remove <model> <name> | "
-        "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | account clear <model>"
+        "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | "
+        "account limit-record <model> <name> <message> | account clear <model>"
     )
 
 
@@ -3395,6 +3463,17 @@ def main() -> int:
         else:
             print(_render_model_limits(agent, config))
         return 0
+    if task.startswith("model limit-record ") or task.startswith("account limit-record "):
+        agent = _configure_readonly_agent_for_workspace(config)
+        response = _handle_model_command(task, agent, config)
+        if response is None:
+            response = _handle_account_command(task, agent, config)
+        payload = {"command": " ".join(task.split()[:2]), "message": response}
+        if args.json:
+            print(dumps_ascii(payload, indent=2))
+        else:
+            print(response or "No limit message recorded.")
+        return 0 if response else 1
     if task == "accounts":
         if args.json:
             print(dumps_ascii(_accounts_report(config), indent=2))

@@ -722,6 +722,53 @@ class TraceAndCliTests(unittest.TestCase):
                 "five_hour_sonnet",
             )
 
+    def test_model_limit_record_cli_persists_sanitized_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "local"]
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(
+                root,
+                "model limit-record chatgpt Usage limit reached until 2026-05-01T18:30.",
+                "--json",
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "model limit-record")
+            loaded = ModelPreferences.load(root / ".stagewarden_models.json")
+            self.assertEqual((loaded.blocked_until_by_model or {})["chatgpt"], "2026-05-01T18:30")
+            snapshot = (loaded.provider_limit_snapshot_by_model or {})["chatgpt"]
+            self.assertEqual(snapshot["blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(snapshot["reason"], "usage_limit")
+            self.assertNotIn("token", json.dumps(snapshot).lower())
+
+    def test_account_limit_record_cli_persists_sanitized_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["claude", "local"]
+            prefs.add_account("claude", "team")
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(
+                root,
+                "account limit-record claude team Claude Sonnet five-hour usage limited until 2026-05-01T19:00.",
+                "--json",
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "account limit-record")
+            loaded = ModelPreferences.load(root / ".stagewarden_models.json")
+            self.assertEqual((loaded.blocked_until_by_account or {})["claude:team"], "2026-05-01T19:00")
+            snapshot = (loaded.provider_limit_snapshot_by_account or {})["claude:team"]
+            self.assertEqual(snapshot["blocked_until"], "2026-05-01T19:00")
+            self.assertEqual(snapshot["rate_limit_type"], "five_hour_sonnet")
+            self.assertNotIn("token", json.dumps(snapshot).lower())
+
     def test_accounts_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
