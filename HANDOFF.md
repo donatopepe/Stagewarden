@@ -611,6 +611,46 @@ Validation:
 
 ## Autonomous Backlog
 
+### Provider Limit Status Across Active Providers
+
+Status: planned
+
+Current state already implemented:
+
+- Stagewarden is already multiprovider at routing level: `local`, `cheap`, `chatgpt`, `openai`, and `claude`.
+- Provider and account usage-limit messages are already parsed into `blocked-until` metadata.
+- The executor already blocks the failing model or account until the reported reset time and retries another eligible route.
+- Current operator visibility is partial:
+  - `models` and `status` show enabled/active/preferred state and `blocked-until` at model level.
+  - `accounts` shows configured accounts, active account, stored token presence, env mapping, and `blocked-until` at account level.
+  - `models usage` / `cost` shows Stagewarden-internal usage history, not provider-native remaining quota.
+
+Implementation required next:
+
+- Add a dedicated provider-limit view to `status` so the currently active multiprovider posture is readable in one place.
+- Show, for each provider currently enabled:
+  - enabled/active/preferred
+  - routed variant
+  - active account
+  - model `blocked-until`
+  - account `blocked-until`
+  - last known limit/error reason
+  - last successful use
+- Preserve the distinction between:
+  - Stagewarden-internal usage counters
+  - provider-reported temporary lockouts
+  - true provider-native remaining quota if a supported official source exists
+
+Explicit non-goal for now:
+
+- Do not invent fake remaining credits/messages for ChatGPT, Claude, or other providers when the upstream provider does not expose an official remaining-quota source to this agent.
+
+Validation target:
+
+- `status` must expose current multiprovider limit posture at a glance.
+- `status --json` must expose stable machine-readable fields for provider/account lockouts.
+- Tests must cover model-level block, account-level block, and mixed multiprovider scenarios.
+
 
 ### Caveman Help Snapshot
 

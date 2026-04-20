@@ -627,6 +627,102 @@ def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
     return lines
 
 
+def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    status = agent.router.status()
+    memory = MemoryStore.load(config.memory_path)
+    providers: list[dict[str, object]] = []
+    for model in SUPPORTED_MODELS:
+        if model not in status["enabled_models"]:
+            continue
+        accounts = list((prefs.accounts_by_model or {}).get(model, []))
+        active_account = prefs.account_for_model(model)
+        blocked_model_until = status["blocked_until_by_model"].get(model)
+        blocked_accounts = [
+            {
+                "name": account,
+                "blocked_until": (prefs.blocked_until_by_account or {}).get(account_key(model, account)),
+                "active": account == active_account,
+            }
+            for account in accounts
+            if (prefs.blocked_until_by_account or {}).get(account_key(model, account))
+        ]
+        last_attempt = next((item for item in reversed(memory.attempts) if item.model == model), None)
+        last_success = next((item for item in reversed(memory.attempts) if item.model == model and item.success), None)
+        last_error_reason = None
+        if last_attempt is not None and not last_attempt.success:
+            last_error_reason = last_attempt.error_type or "unknown"
+        providers.append(
+            {
+                "provider": model,
+                "enabled": model in status["enabled_models"],
+                "active": model in status["active_models"],
+                "preferred": status["preferred_model"] == model,
+                "variant": prefs.variant_for_model(model) or "provider-default",
+                "active_account": active_account or "none",
+                "blocked_until": blocked_model_until,
+                "blocked_accounts": blocked_accounts,
+                "last_error_reason": last_error_reason,
+                "last_attempt": None
+                if last_attempt is None
+                else {
+                    "step": last_attempt.step_id,
+                    "status": "ok" if last_attempt.success else f"failed:{last_attempt.error_type or 'unknown'}",
+                    "account": last_attempt.account or "none",
+                    "variant": last_attempt.variant or "provider-default",
+                },
+                "last_success": None
+                if last_success is None
+                else {
+                    "step": last_success.step_id,
+                    "account": last_success.account or "none",
+                    "variant": last_success.variant or "provider-default",
+                },
+            }
+        )
+    return {
+        "providers": providers,
+    }
+
+
+def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
+    report = _provider_limit_status_report(agent, config)
+    lines = ["Provider limit status:"]
+    if not report["providers"]:
+        lines.append("- none")
+        return "\n".join(lines)
+    for item in report["providers"]:
+        blocked = f" blocked-until={item['blocked_until']}" if item["blocked_until"] else ""
+        preferred = " preferred" if item["preferred"] else ""
+        active = " active" if item["active"] else " inactive"
+        lines.append(
+            f"- {item['provider']}: enabled{active}{preferred}{blocked} "
+            f"variant={item['variant']} active_account={item['active_account']}"
+        )
+        if item["last_error_reason"]:
+            lines.append(f"  last_error_reason={item['last_error_reason']}")
+        last_attempt = item["last_attempt"]
+        if isinstance(last_attempt, dict):
+            lines.append(
+                f"  last_attempt: step={last_attempt['step']} status={last_attempt['status']} "
+                f"account={last_attempt['account']} variant={last_attempt['variant']}"
+            )
+        last_success = item["last_success"]
+        if isinstance(last_success, dict):
+            lines.append(
+                f"  last_success: step={last_success['step']} account={last_success['account']} "
+                f"variant={last_success['variant']}"
+            )
+        blocked_accounts = item["blocked_accounts"]
+        for blocked_account in blocked_accounts:
+            active_account_tag = " active-account" if blocked_account["active"] else ""
+            lines.append(
+                f"  blocked_account {blocked_account['name']}:{active_account_tag} "
+                f"blocked-until={blocked_account['blocked_until']}"
+            )
+    return "\n".join(lines)
+
+
 def _render_accounts(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     lines = ["Account profiles:"]
@@ -680,6 +776,8 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- handoff: {config.handoff_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
         _render_model_status(agent, config),
+        _render_provider_limit_status(agent, config),
+        _render_resume_context(config),
         _render_permissions(config),
         "Handoff summary:",
         handoff.summary(),
@@ -756,6 +854,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "model_config": config.model_prefs_path.name,
         },
         "models": _model_status_report(agent, config),
+        "provider_limits": _provider_limit_status_report(agent, config),
         "permissions": _permissions_report(config),
         "handoff": {
             "summary": handoff.summary(),
