@@ -44,7 +44,7 @@ Latest known baseline at the time of this handoff:
 
 ## Current Implementation Pass
 
-Status: ready to push after handoff update
+Status: pushed, continuing with incremental blocks
 
 Implemented in this pass:
 
@@ -79,9 +79,22 @@ Validation evidence:
 - `python3 -m stagewarden.main status --full --json` passed as wet-run.
 - `python3 -m stagewarden.main statusline --json` passed as wet-run.
 
+Follow-up implemented after this pass:
+
+- Added `model limits` and `models limits` interactive/CLI commands.
+- Added `stagewarden "model limits" --json` machine-readable output.
+- Added concise human rendering for provider/account limit state.
+- Updated interactive help and README examples.
+
+Additional validation evidence:
+
+- `python3 -m unittest tests/test_trace_cli.py` passed, 78 tests.
+- `python3 -m stagewarden.main "model limits" --json` passed as wet-run.
+- `python3 -m stagewarden.main "model limits"` passed as wet-run.
+- `python3 -m unittest discover -s tests` passed, 204 tests.
+
 Next recommended implementation blocks:
 
-- Add explicit `model limits` shell command that renders the same structured snapshot in human form.
 - Add stale detection based on `captured_at` and `provider_limits_stale_after_minutes`.
 - Add provider-specific parsers for richer Claude Code and Codex status output when upstream CLIs expose machine-readable usage.
 - Add a safe manual command to record a provider limit message pasted by the user and convert it into a snapshot.
