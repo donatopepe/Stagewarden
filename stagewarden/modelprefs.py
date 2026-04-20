@@ -52,10 +52,12 @@ class ModelPreferences:
     enabled_models: list[str]
     preferred_model: str | None = None
     blocked_until_by_model: dict[str, str] | None = None
+    last_limit_message_by_model: dict[str, str] | None = None
     variant_by_model: dict[str, str] | None = None
     accounts_by_model: dict[str, list[str]] | None = None
     active_account_by_model: dict[str, str] | None = None
     blocked_until_by_account: dict[str, str] | None = None
+    last_limit_message_by_account: dict[str, str] | None = None
     env_var_by_account: dict[str, str] | None = None
 
     @classmethod
@@ -64,10 +66,12 @@ class ModelPreferences:
             enabled_models=list(SUPPORTED_MODELS),
             preferred_model=None,
             blocked_until_by_model={},
+            last_limit_message_by_model={},
             variant_by_model={},
             accounts_by_model={},
             active_account_by_model={},
             blocked_until_by_account={},
+            last_limit_message_by_account={},
             env_var_by_account={},
         )
 
@@ -80,6 +84,11 @@ class ModelPreferences:
             str(model): str(until)
             for model, until in (self.blocked_until_by_model or {}).items()
             if model in SUPPORTED_MODELS and self._is_valid_date(until)
+        }
+        last_limit_message_by_model = {
+            str(model): str(message).strip()[:240]
+            for model, message in (self.last_limit_message_by_model or {}).items()
+            if model in SUPPORTED_MODELS and str(message).strip()
         }
         variants: dict[str, str] = {}
         for model, variant in (self.variant_by_model or {}).items():
@@ -110,6 +119,11 @@ class ModelPreferences:
             for key, until in (self.blocked_until_by_account or {}).items()
             if self._is_valid_account_key(key) and self._is_valid_date(until)
         }
+        last_limit_message_by_account = {
+            str(key): str(message).strip()[:240]
+            for key, message in (self.last_limit_message_by_account or {}).items()
+            if self._is_valid_account_key(key) and str(message).strip()
+        }
         env_var_by_account = {
             str(key): str(value)
             for key, value in (self.env_var_by_account or {}).items()
@@ -118,10 +132,12 @@ class ModelPreferences:
         self.enabled_models = enabled
         self.preferred_model = preferred
         self.blocked_until_by_model = blocked
+        self.last_limit_message_by_model = last_limit_message_by_model
         self.variant_by_model = variants
         self.accounts_by_model = accounts_by_model
         self.active_account_by_model = active_account_by_model
         self.blocked_until_by_account = blocked_until_by_account
+        self.last_limit_message_by_account = last_limit_message_by_account
         self.env_var_by_account = env_var_by_account
         return self
 
@@ -182,6 +198,8 @@ class ModelPreferences:
         key = account_key(model, account)
         self.blocked_until_by_account = dict(self.blocked_until_by_account or {})
         self.blocked_until_by_account.pop(key, None)
+        self.last_limit_message_by_account = dict(self.last_limit_message_by_account or {})
+        self.last_limit_message_by_account.pop(key, None)
         self.env_var_by_account = dict(self.env_var_by_account or {})
         self.env_var_by_account.pop(key, None)
         self.normalize()
@@ -243,18 +261,22 @@ class ModelPreferences:
     def unblock_account(self, model: str, account: str) -> None:
         self.blocked_until_by_account = dict(self.blocked_until_by_account or {})
         self.blocked_until_by_account.pop(account_key(model, account), None)
+        self.last_limit_message_by_account = dict(self.last_limit_message_by_account or {})
+        self.last_limit_message_by_account.pop(account_key(model, account), None)
 
     def as_dict(self) -> dict[str, object]:
         return {
             "_format": "stagewarden_model_preferences",
-            "_version": 4,
+            "_version": 5,
             "enabled_models": list(self.enabled_models),
             "preferred_model": self.preferred_model,
             "blocked_until_by_model": dict(self.blocked_until_by_model or {}),
+            "last_limit_message_by_model": dict(self.last_limit_message_by_model or {}),
             "variant_by_model": dict(self.variant_by_model or {}),
             "accounts_by_model": {model: list(accounts) for model, accounts in (self.accounts_by_model or {}).items()},
             "active_account_by_model": dict(self.active_account_by_model or {}),
             "blocked_until_by_account": dict(self.blocked_until_by_account or {}),
+            "last_limit_message_by_account": dict(self.last_limit_message_by_account or {}),
             "env_var_by_account": dict(self.env_var_by_account or {}),
         }
 
@@ -273,6 +295,9 @@ class ModelPreferences:
             blocked_until_by_model={
                 str(key): str(value) for key, value in payload.get("blocked_until_by_model", {}).items()
             },
+            last_limit_message_by_model={
+                str(key): str(value) for key, value in payload.get("last_limit_message_by_model", {}).items()
+            },
             variant_by_model={str(key): str(value) for key, value in payload.get("variant_by_model", {}).items()},
             accounts_by_model={
                 str(key): [str(item) for item in value]
@@ -284,6 +309,9 @@ class ModelPreferences:
             },
             blocked_until_by_account={
                 str(key): str(value) for key, value in payload.get("blocked_until_by_account", {}).items()
+            },
+            last_limit_message_by_account={
+                str(key): str(value) for key, value in payload.get("last_limit_message_by_account", {}).items()
             },
             env_var_by_account={
                 str(key): str(value) for key, value in payload.get("env_var_by_account", {}).items()

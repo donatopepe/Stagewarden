@@ -8,6 +8,7 @@ from pathlib import Path
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.memory import MemoryStore
+from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 
 
@@ -133,6 +134,22 @@ class PersistenceTests(unittest.TestCase):
         self.assertIn("accepted_at", handoff.quality_register[0])
         self.assertIn("resolution", handoff.quality_register[0])
         self.assertEqual(handoff.quality_register[1]["status"], "accepted")
+
+    def test_model_preferences_roundtrip_preserves_last_limit_messages(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / ".stagewarden_models.json"
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "claude"]
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
+            prefs.add_account("claude", "team")
+            prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.last_limit_message_by_account = {"claude:team": "Claude usage limited until 2026-05-01T19:00."}
+            prefs.save(path)
+
+            loaded = ModelPreferences.load(path)
+            self.assertEqual((loaded.last_limit_message_by_model or {})["chatgpt"], "You've hit your usage limit. Try again at 8:05 PM.")
+            self.assertEqual((loaded.last_limit_message_by_account or {})["claude:team"], "Claude usage limited until 2026-05-01T19:00.")
 
 
 if __name__ == "__main__":

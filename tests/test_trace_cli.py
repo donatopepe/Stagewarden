@@ -445,7 +445,9 @@ class TraceAndCliTests(unittest.TestCase):
             prefs.set_variant("chatgpt", "gpt-5.3-codex")
             prefs.set_variant("claude", "sonnet")
             prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
             prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.last_limit_message_by_account = {"claude:team": "Claude usage limited until 2026-05-01T19:00."}
             prefs.save(root / ".stagewarden_models.json")
             memory = MemoryStore()
             memory.record_attempt(
@@ -480,11 +482,13 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
             self.assertEqual(providers["chatgpt"]["active_account"], "work")
             self.assertEqual(providers["chatgpt"]["last_error_reason"], "runtime")
+            self.assertIn("usage limit", providers["chatgpt"]["last_limit_message"].lower())
             self.assertEqual(providers["chatgpt"]["last_attempt"]["account"], "work")
             self.assertEqual(providers["claude"]["active_account"], "none")
             self.assertEqual(providers["claude"]["last_success"]["account"], "team")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["name"], "team")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2026-05-01T19:00")
+            self.assertIn("usage limited", providers["claude"]["blocked_accounts"][0]["last_limit_message"].lower())
 
     def test_models_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
