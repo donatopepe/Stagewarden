@@ -47,6 +47,20 @@ def extract_blocked_until(text: str, *, now: datetime | None = None) -> str | No
     return None
 
 
+def classify_limit_reason(text: str | None, *, fallback: str | None = None) -> str | None:
+    message = (text or "").strip().lower()
+    if message:
+        if "purchase more credits" in message or "credits" in message:
+            return "credits_exhausted"
+        if "rate limit" in message or "rate-limit" in message or "too many requests" in message:
+            return "rate_limit"
+        if "service unavailable" in message or "provider unavailable" in message or "temporarily unavailable" in message:
+            return "provider_unavailable"
+        if "usage limit" in message or "usage limited" in message or "try again at" in message or "retry at" in message:
+            return "usage_limit"
+    return fallback
+
+
 @dataclass(slots=True)
 class ModelPreferences:
     enabled_models: list[str]

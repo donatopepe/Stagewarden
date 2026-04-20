@@ -9,7 +9,7 @@ from pathlib import Path
 from stagewarden.config import AgentConfig
 from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
-from stagewarden.modelprefs import ModelPreferences, extract_blocked_until
+from stagewarden.modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until
 from stagewarden.planner import PlanStep
 from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.router import ModelRouter
@@ -42,6 +42,20 @@ class ExecutorTests(unittest.TestCase):
         message = "You've hit your usage limit. Try again at 8:05 PM."
         until = extract_blocked_until(message, now=datetime(2026, 4, 18, 21, 0))
         self.assertEqual(until, "2026-04-19T20:05")
+
+    def test_classifies_usage_limit_reason(self) -> None:
+        reason = classify_limit_reason("You've hit your usage limit. Try again at 8:05 PM.")
+        self.assertEqual(reason, "usage_limit")
+
+    def test_classifies_credits_exhausted_reason(self) -> None:
+        reason = classify_limit_reason(
+            "Upgrade to Pro, purchase more credits or try again at 8:05 PM."
+        )
+        self.assertEqual(reason, "credits_exhausted")
+
+    def test_classifies_rate_limit_reason(self) -> None:
+        reason = classify_limit_reason("Rate limit exceeded. Too many requests.")
+        self.assertEqual(reason, "rate_limit")
 
     def test_executor_writes_file_from_model_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
