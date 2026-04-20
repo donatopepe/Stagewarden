@@ -653,6 +653,7 @@ Implemented behaviour:
 - The `after` shell progress block now also shows the latest local git checkpoint recorded for the run.
 - Shell output now also includes a `Last step outcome:` mini-block between the final agent summary and the `after` progress block.
 - `Last step outcome:` now also shows the concrete evidence source from the latest tool transcript, including tool, tool action, and duration when available.
+- Runtime handoff markdown export now includes an `Execution Resume Context` block with latest model attempt, route, latest tool evidence, and latest git snapshot.
 
 Validation:
 
@@ -665,6 +666,7 @@ Validation:
 - Interactive shell tests verify the latest git snapshot is surfaced in the `after` block.
 - Interactive shell tests verify the focused `Last step outcome:` block is rendered.
 - Interactive shell tests verify the focused outcome block includes tool evidence details.
+- Interactive shell export tests verify `HANDOFF.md` includes execution resume context and redacts sensitive values in latest observations and tool details.
 
 ### Multi-Account Failover Across Primary And Fallback Models
 

@@ -1188,9 +1188,13 @@ def _redact_handoff_markdown(value: str) -> str:
 
 def _runtime_handoff_markdown(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
+    memory = MemoryStore.load(config.memory_path)
     view = handoff.stage_view()
     git_boundary = view["git_boundary"]
     pid_boundary = view["pid_boundary"]
+    latest_attempt = memory.latest_attempt()
+    latest_tool = memory.latest_tool_event()
+    latest_snapshot = handoff.latest_git_snapshot()
     lines = [
         RUNTIME_HANDOFF_START,
         "## Runtime Handoff Export",
@@ -1213,6 +1217,41 @@ def _runtime_handoff_markdown(config: AgentConfig) -> str:
         "",
         handoff.rendered_register_status_summary(),
         "",
+        "### Execution Resume Context",
+        "",
+    ]
+    if latest_attempt is None:
+        lines.append("- latest_model_attempt: none")
+    else:
+        attempt_status = "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}"
+        lines.extend(
+            [
+                f"- latest_model_attempt: step={latest_attempt.step_id} action={latest_attempt.action_type} status={attempt_status}",
+                (
+                    f"- latest_route: model={latest_attempt.model} "
+                    f"account={latest_attempt.account or 'none'} "
+                    f"variant={latest_attempt.variant or 'provider-default'}"
+                ),
+                f"- latest_observation: {(latest_attempt.observation or 'none').strip().replace(chr(10), ' ')[:200]}",
+            ]
+        )
+    if latest_tool is None:
+        lines.append("- latest_tool_evidence: none")
+    else:
+        tool_status = "ok" if latest_tool.success else f"failed:{latest_tool.error_type or 'unknown'}"
+        lines.append(
+            f"- latest_tool_evidence: tool={latest_tool.tool} action={latest_tool.action_type} "
+            f"status={tool_status} duration_ms={latest_tool.duration_ms or 0}"
+        )
+    if latest_snapshot is None:
+        lines.append("- latest_git_snapshot: none")
+    else:
+        lines.append(
+            f"- latest_git_snapshot: {latest_snapshot['git_head']} :: {latest_snapshot['summary']}"
+        )
+    lines.extend(
+        [
+            "",
         "### Implementation Backlog",
         "",
         handoff.rendered_implementation_backlog(),
@@ -1236,6 +1275,7 @@ def _runtime_handoff_markdown(config: AgentConfig) -> str:
         "### Recent Entries",
         "",
     ]
+    )
     if handoff.entries:
         for entry in handoff.entries[-8:]:
             lines.append(

@@ -1651,6 +1651,31 @@ class TraceAndCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             (root / "HANDOFF.md").write_text("# Stagewarden Handoff\n\nManual roadmap stays.\n", encoding="utf-8")
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=2,
+                step_id="step-2",
+                model="openai",
+                account="work",
+                variant="gpt-5.4-mini",
+                action_type="shell",
+                action_signature="pytest -q",
+                success=False,
+                observation="auth_token=secret-should-be-redacted after command failure",
+                error_type="runtime",
+            )
+            memory.record_tool_transcript(
+                iteration=2,
+                step_id="step-2",
+                tool="shell",
+                action_type="shell",
+                success=False,
+                summary="pytest failed",
+                detail="Bearer abcdefghijklmnopqrstuvwxyz123456 should be redacted",
+                duration_ms=4321,
+                error_type="runtime",
+            )
+            memory.save(root / ".stagewarden_memory.json")
             handoff = {
                 "_format": "stagewarden_project_handoff",
                 "_version": 1,
@@ -1669,7 +1694,20 @@ class TraceAndCliTests(unittest.TestCase):
                 ],
                 "issue_register": [{"step_id": "step-2", "severity": "medium", "summary": "Bearer abcdefghijklmnopqrstuvwxyz123456 should be redacted", "status": "open"}],
                 "updated_at": "2026-04-18T18:30:00+00:00",
-                "entries": [],
+                "entries": [
+                    {
+                        "phase": "git_snapshot",
+                        "iteration": 2,
+                        "step_id": "step-2",
+                        "step_status": "failed",
+                        "model": "openai",
+                        "action_type": "git_snapshot",
+                        "summary": "stagewarden: step step-2 failed [stage=exception boundary=escalate]",
+                        "detail": "",
+                        "git_head": "ff00aa1",
+                        "timestamp": "2026-04-18T18:35:00+00:00",
+                    }
+                ],
             }
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             config = AgentConfig(workspace_root=root, max_steps=1)
@@ -1685,8 +1723,14 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("## Runtime Handoff Export", exported)
             self.assertIn("- task: fix failing tests", exported)
             self.assertIn("- recovery_state: none", exported)
+            self.assertIn("### Execution Resume Context", exported)
+            self.assertIn("- latest_model_attempt: step=step-2 action=shell status=failed:runtime", exported)
+            self.assertIn("- latest_route: model=openai account=work variant=gpt-5.4-mini", exported)
+            self.assertIn("- latest_tool_evidence: tool=shell action=shell status=failed:runtime duration_ms=4321", exported)
+            self.assertIn("- latest_git_snapshot: ff00aa1 :: stagewarden: step step-2 failed [stage=exception boundary=escalate]", exported)
             self.assertIn("Implementation backlog:", exported)
             self.assertNotIn("secret-token-123", exported)
+            self.assertNotIn("secret-should-be-redacted", exported)
             self.assertNotIn("abcdefghijklmnopqrstuvwxyz123456", exported)
             self.assertIn("Bearer [REDACTED]", exported)
 
