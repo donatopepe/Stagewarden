@@ -235,31 +235,31 @@ def interactive_help_text(topic: str | None = None) -> str:
             "",
             "Model commands:",
             "- models",
-            "  Show enabled models, preferred model, and backend mapping.",
+            "  Show enabled providers, preferred provider, and current provider-model selection.",
             "- model use <local|cheap|chatgpt|openai|claude>",
-            "  Set the preferred model and persist it in this workspace.",
+            "  Set the preferred provider and persist it in this workspace.",
             "- model add <local|cheap|chatgpt|openai|claude>",
-            "  Enable a model in this workspace.",
+            "  Enable a provider in this workspace.",
             "- model list <local|cheap|chatgpt|openai|claude>",
-            "  Show the official aliases or recommended model IDs for one provider.",
+            "  Show the official provider-model aliases or model IDs for one provider.",
             "- model variant <local|cheap|chatgpt|openai|claude> <variant>",
-            "  Pin the provider-specific model variant or alias for that provider.",
+            "  Pin the provider-specific model alias or model ID for that provider.",
             "- model variant-clear <local|cheap|chatgpt|openai|claude>",
-            "  Clear the provider-specific variant and return to the provider default.",
+            "  Clear the provider-model pin and return to automatic/provider-default selection.",
             "- model remove <local|cheap|chatgpt|openai|claude>",
-            "  Disable a model in this workspace.",
+            "  Disable a provider in this workspace.",
             "- model block <local|cheap|chatgpt|openai|claude> until YYYY-MM-DDTHH:MM",
-            "  Keep the model in the list but block routing to it until the given date and time.",
+            "  Keep the provider in the list but block routing to it until the given date and time.",
             "- model unblock <local|cheap|chatgpt|openai|claude>",
-            "  Remove the temporary block from a model.",
+            "  Remove the temporary block from a provider.",
             "- model clear",
-            "  Clear the preferred model and restore automatic routing.",
+            "  Clear the preferred provider and restore automatic routing.",
             "- accounts",
             "  Show configured account profiles for each model.",
             "- account add <model> <name> [ENV_VAR]",
             "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
             "- account login <model> <name>",
-            "  Log in to a provider and save credentials in the OS secret store. chatgpt/openai use device-code OAuth.",
+            "  Log in to a provider and save credentials in the OS secret store. chatgpt uses browser login; openai can use device-code OAuth.",
             "- account login-device <chatgpt|openai> <name>",
             "  Alias for the Codex-style OpenAI/ChatGPT device-code login.",
             "- account logout <model> <name>",
@@ -366,7 +366,7 @@ def _interactive_help_overview() -> str:
             "",
             "Topics:",
             "- help core: exit, reset, overview, health, report, status, stream, sessions, transcript",
-            "- help models: model routing, variants, blocks",
+            "- help models: provider routing, provider models, blocks",
             "- help accounts: provider profiles, login, env vars, usage limits",
             "- help permissions: plan/auto modes, allow/ask/deny rules",
             "- help handoff: overview, PRINCE2 handoff, board review, registers, backlog",
@@ -621,26 +621,42 @@ def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferen
     return prefs
 
 
+def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str, str, str]:
+    capability = provider_capability(provider)
+    pinned = prefs.variant_for_model(provider)
+    if pinned:
+        return pinned, "pinned", capability.default_model
+    if provider in {"chatgpt", "openai", "claude"}:
+        return "automatic-by-task", "automatic", capability.default_model
+    return capability.default_model, "provider-default", capability.default_model
+
+
 def _render_model_status(agent: Agent, config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     status = agent.router.status()
-    lines = ["Model configuration:"]
-    for model in SUPPORTED_MODELS:
-        backend = MODEL_BACKENDS[model]["label"]
-        capability = provider_capability(model)
-        enabled = "enabled" if model in status["enabled_models"] else "disabled"
-        blocked_until = status["blocked_until_by_model"].get(model)
+    lines = ["Provider configuration:"]
+    for provider in SUPPORTED_MODELS:
+        backend = MODEL_BACKENDS[provider]["label"]
+        capability = provider_capability(provider)
+        enabled = "enabled" if provider in status["enabled_models"] else "disabled"
+        blocked_until = status["blocked_until_by_model"].get(provider)
         blocked = f" blocked-until={blocked_until}" if blocked_until else ""
-        active = " active" if model in status["active_models"] else " inactive"
-        preferred = " preferred" if status["preferred_model"] == model else ""
-        variant = prefs.variant_for_model(model) or "provider-default"
+        active = " active" if provider in status["active_models"] else " inactive"
+        preferred = " preferred-provider" if status["preferred_model"] == provider else ""
+        provider_model, selection_mode, default_model = _provider_model_display(prefs, provider)
         auth = capability.auth_type
         profiles = "profiles=yes" if capability.supports_account_profiles else "profiles=no"
-        lines.append(f"- {model}: {enabled}{active}{preferred}{blocked} variant={variant} auth={auth} {profiles} ({backend})")
-        account_lines = _render_account_lines(prefs, model)
+        lines.append(
+            f"- {provider}: {enabled}{active}{preferred}{blocked} "
+            f"provider_model={provider_model} selection={selection_mode} default_model={default_model} "
+            f"auth={auth} {profiles} ({backend})"
+        )
+        account_lines = _render_account_lines(prefs, provider)
         lines.extend(account_lines)
     if status["preferred_model"] is None:
-        lines.append("- preferred_model: automatic routing")
+        lines.append("- preferred_provider: automatic routing")
+    else:
+        lines.append(f"- preferred_provider: {status['preferred_model']}")
     return "\n".join(lines)
 
 
@@ -668,6 +684,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
     for model in SUPPORTED_MODELS:
         if model not in status["enabled_models"]:
             continue
+        provider_model, selection_mode, _default_model = _provider_model_display(prefs, model)
         accounts = list((prefs.accounts_by_model or {}).get(model, []))
         active_account = prefs.account_for_model(model)
         blocked_model_until = status["blocked_until_by_model"].get(model)
@@ -700,6 +717,8 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "active": model in status["active_models"],
                 "preferred": status["preferred_model"] == model,
                 "variant": prefs.variant_for_model(model) or "provider-default",
+                "provider_model": provider_model,
+                "provider_model_selection": selection_mode,
                 "active_account": active_account or "none",
                 "blocked_until": blocked_model_until,
                 "last_limit_message": last_limit_message,
@@ -740,7 +759,8 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
         active = " active" if item["active"] else " inactive"
         lines.append(
             f"- {item['provider']}: enabled{active}{preferred}{blocked} "
-            f"variant={item['variant']} active_account={item['active_account']}"
+            f"provider_model={item['provider_model']} selection={item['provider_model_selection']} "
+            f"active_account={item['active_account']}"
         )
         if item["last_error_reason"]:
             lines.append(f"  last_error_reason={item['last_error_reason']}")
@@ -750,13 +770,13 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
         if isinstance(last_attempt, dict):
             lines.append(
                 f"  last_attempt: step={last_attempt['step']} status={last_attempt['status']} "
-                f"account={last_attempt['account']} variant={last_attempt['variant']}"
+                f"account={last_attempt['account']} provider_model={last_attempt['variant']}"
             )
         last_success = item["last_success"]
         if isinstance(last_success, dict):
             lines.append(
                 f"  last_success: step={last_success['step']} account={last_success['account']} "
-                f"variant={last_success['variant']}"
+                f"provider_model={last_success['variant']}"
             )
         blocked_accounts = item["blocked_accounts"]
         for blocked_account in blocked_accounts:
@@ -781,6 +801,8 @@ def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]
                 "provider": item["provider"],
                 "account": item["active_account"],
                 "variant": item["variant"],
+                "provider_model": item["provider_model"],
+                "provider_model_selection": item["provider_model_selection"],
                 **_provider_limit_windows(item),
                 "blocked_accounts": [
                     {
@@ -812,7 +834,8 @@ def _render_model_limits(agent: Agent, config: AgentConfig) -> str:
         captured = f" captured_at={item['captured_at']}" if item["captured_at"] else ""
         lines.append(
             f"- {item['provider']}: {item['status']}{blocked}{reason}{window}{utilization}{captured} "
-            f"account={item['account']} variant={item['variant']}"
+            f"account={item['account']} provider_model={item['provider_model']} "
+            f"selection={item['provider_model_selection']}"
         )
         for account in item["blocked_accounts"]:
             account_reason = f" reason={account['reason']}" if account["reason"] else ""
@@ -961,8 +984,11 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
         },
         "model": {
             "preferred_model": model_report["preferred_model"] or "automatic",
+            "preferred_provider": model_report["preferred_provider"] or "automatic",
             "active_model": None if active_model is None else active_model["model"],
+            "active_provider": None if active_model is None else active_model["model"],
             "active_variant": None if active_model is None else active_model["variant"],
+            "active_provider_model": None if active_model is None else active_model["provider_model"],
             "enabled": [item["model"] for item in model_report["models"] if item["enabled"]],
             "active": [item["model"] for item in model_report["models"] if item["active"]],
         },
@@ -1028,10 +1054,10 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
         f"- mode: {report['identity']['mode']}",
         f"- python: {report['identity']['python']}",
         "Model:",
-        f"- preferred_model: {report['model']['preferred_model']}",
-        f"- active_model: {report['model']['active_model'] or 'none'}",
-        f"- active_variant: {report['model']['active_variant'] or 'none'}",
-        f"- enabled: {', '.join(report['model']['enabled']) or 'none'}",
+        f"- preferred_provider: {report['model']['preferred_provider']}",
+        f"- active_provider: {report['model']['active_provider'] or 'none'}",
+        f"- active_provider_model: {report['model']['active_provider_model'] or 'none'}",
+        f"- enabled_providers: {', '.join(report['model']['enabled']) or 'none'}",
         "Account:",
     ]
     for provider, account in report["account"]["active_accounts"].items():
@@ -1094,8 +1120,12 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "version": "stagewarden",
         "model": {
             "preferred": preferred or "automatic",
+            "preferred_provider": preferred or "automatic",
             "active": None if active_model is None else active_model["model"],
+            "active_provider": None if active_model is None else active_model["model"],
             "variant": None if active_model is None else active_model["variant"],
+            "provider_model": None if active_model is None else active_model["provider_model"],
+            "provider_model_selection": None if active_model is None else active_model["provider_model_selection"],
         },
         "context_window": {
             "total_input_tokens": None,
@@ -1362,14 +1392,19 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
     models: list[dict[str, object]] = []
     for model in SUPPORTED_MODELS:
         capability = provider_capability(model)
+        provider_model, selection_mode, default_model = _provider_model_display(prefs, model)
         models.append(
             {
                 "model": model,
+                "provider": model,
                 "enabled": model in status["enabled_models"],
                 "active": model in status["active_models"],
                 "preferred": status["preferred_model"] == model,
                 "blocked_until": status["blocked_until_by_model"].get(model),
                 "variant": prefs.variant_for_model(model) or "provider-default",
+                "provider_model": provider_model,
+                "provider_model_selection": selection_mode,
+                "provider_model_default": default_model,
                 "auth": capability.auth_type,
                 "profiles": capability.supports_account_profiles,
                 "backend": MODEL_BACKENDS[model]["label"],
@@ -1379,6 +1414,7 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
         "command": "models",
         "models": models,
         "preferred_model": status["preferred_model"],
+        "preferred_provider": status["preferred_model"],
     }
 
 
@@ -1769,8 +1805,10 @@ def _resume_context_payload(config: AgentConfig) -> dict[str, object]:
             "status": "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}",
             "route": {
                 "model": latest_attempt.model,
+                "provider": latest_attempt.model,
                 "account": latest_attempt.account or "none",
                 "variant": latest_attempt.variant or "provider-default",
+                "provider_model": latest_attempt.variant or "provider-default",
             },
             "observation": (latest_attempt.observation or "none").strip().replace("\n", " ")[:200],
         }
@@ -1816,8 +1854,8 @@ def _render_resume_context(config: AgentConfig) -> str:
             [
                 f"- latest_model_attempt: step={attempt['step']} action={attempt['action']} status={attempt['status']}",
                 (
-                    f"- latest_route: model={route['model']} "
-                    f"account={route['account']} variant={route['variant']}"
+                    f"- latest_route: provider={route['provider']} "
+                    f"account={route['account']} provider_model={route['provider_model']}"
                 ),
                 f"- latest_observation: {attempt['observation']}",
             ]
@@ -1967,9 +2005,9 @@ def _runtime_handoff_markdown(config: AgentConfig) -> str:
             [
                 f"- latest_model_attempt: step={latest_attempt.step_id} action={latest_attempt.action_type} status={attempt_status}",
                 (
-                    f"- latest_route: model={latest_attempt.model} "
+                    f"- latest_route: provider={latest_attempt.model} "
                     f"account={latest_attempt.account or 'none'} "
-                    f"variant={latest_attempt.variant or 'provider-default'}"
+                    f"provider_model={latest_attempt.variant or 'provider-default'}"
                 ),
                 f"- latest_observation: {(latest_attempt.observation or 'none').strip().replace(chr(10), ' ')[:200]}",
             ]
@@ -2294,10 +2332,14 @@ def _configure_readonly_agent_for_workspace(config: AgentConfig) -> Agent:
 
 def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
     prefs = _load_model_preferences(agent.config)
-    model = agent.router.choose_model(command, command, 0)
-    account = prefs.account_for_model(model) or "none"
-    variant = prefs.variant_for_model(model) or agent.router.choose_variant(model, command, command, 0) or "provider-default"
-    return model, account, variant
+    provider = agent.router.choose_model(command, command, 0)
+    account = prefs.account_for_model(provider) or "none"
+    provider_model = (
+        prefs.variant_for_model(provider)
+        or agent.router.choose_variant(provider, command, command, 0)
+        or "provider-default"
+    )
+    return provider, account, provider_model
 
 
 def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = None) -> str:
@@ -2310,15 +2352,15 @@ def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = No
     git_boundary = view["git_boundary"]
     route_line = "- route: unknown"
     if phase == "before" and command is not None:
-        model, account, variant = _planned_shell_route(agent, command)
-        route_line = f"- route: model={model} account={account} variant={variant}"
+        provider, account, provider_model = _planned_shell_route(agent, command)
+        route_line = f"- route: provider={provider} account={account} provider_model={provider_model}"
     elif phase == "after":
         latest = agent.memory.latest_attempt()
         if latest is not None:
             route_line = (
-                f"- route: model={latest.model} "
+                f"- route: provider={latest.model} "
                 f"account={latest.account or 'none'} "
-                f"variant={latest.variant or 'provider-default'}"
+                f"provider_model={latest.variant or 'provider-default'}"
             )
     snapshot_line = None
     if phase == "after":
@@ -2351,7 +2393,10 @@ def _render_last_step_outcome(agent: Agent) -> str:
         f"- step: {latest.step_id}",
         f"- action: {latest.action_type}",
         f"- status: {status}",
-        f"- route: model={latest.model} account={latest.account or 'none'} variant={latest.variant or 'provider-default'}",
+        (
+            f"- route: provider={latest.model} account={latest.account or 'none'} "
+            f"provider_model={latest.variant or 'provider-default'}"
+        ),
         (
             f"- evidence: tool={latest_tool.tool} action={latest_tool.action_type} "
             f"duration_ms={latest_tool.duration_ms or 0}"
@@ -2417,7 +2462,8 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
             prefs.preferred_model = model
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
-            return f"Preferred model set to {model}."
+            provider_model = prefs.variant_for_model(model) or "automatic-by-task"
+            return f"Preferred provider set to {model}. Current provider_model={provider_model}."
         if action == "list":
             if len(parts) != 3:
                 return "Usage: model list <name>"
@@ -2457,7 +2503,7 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
             prefs.set_variant(model, canonical)
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
-            return f"Variant for {model} set to {canonical}."
+            return f"Provider model for {model} set to {canonical}."
         if action == "variant-clear":
             if len(parts) != 3:
                 return "Usage: model variant-clear <name>"
@@ -2467,7 +2513,7 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
             prefs.clear_variant(model)
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
-            return f"Variant for {model} cleared. Provider default restored."
+            return f"Provider model pin for {model} cleared. Automatic/provider default selection restored."
         if action == "add":
             if len(parts) != 3:
                 return "Usage: model add <name>"
@@ -2530,7 +2576,7 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
             prefs.preferred_model = None
             _save_model_preferences(config, prefs)
             _apply_model_preferences(agent, config)
-            return "Preferred model cleared. Automatic routing restored."
+            return "Preferred provider cleared. Automatic routing restored."
     except ValueError as exc:
         return str(exc)
 
