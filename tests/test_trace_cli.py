@@ -432,6 +432,96 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_limits", payload)
             self.assertIn("permissions", payload)
 
+    def test_status_full_cli_json_exposes_dashboard_sections(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "status", "--full", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "status")
+            self.assertEqual(payload["view"], "full")
+            self.assertIn("identity", payload)
+            self.assertIn("limits", payload)
+            self.assertIn("git", payload)
+            self.assertIn("quality_gates", payload)
+            self.assertTrue(payload["quality_gates"]["wet_run_required"])
+            self.assertFalse(payload["quality_gates"]["dry_run_valid_checkpoint"])
+
+    def test_statusline_cli_json_exposes_compact_runtime_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "statusline", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "statusline")
+            self.assertIn("workspace", payload)
+            self.assertIn("model", payload)
+            self.assertIn("rate_limits", payload)
+            self.assertIn("context_window", payload)
+
+    def test_auth_status_chatgpt_uses_codex_without_token_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            codex = bin_dir / "codex"
+            codex.write_text(
+                "#!/bin/sh\n"
+                "if [ \"$1\" = login ] && [ \"$2\" = status ]; then\n"
+                "  echo 'Logged in using ChatGPT' >&2\n"
+                "  exit 0\n"
+                "fi\n"
+                "exit 2\n",
+                encoding="utf-8",
+            )
+            codex.chmod(0o755)
+            old_path = os.environ.get("PATH", "")
+            os.environ["PATH"] = f"{bin_dir}{os.pathsep}{old_path}"
+            try:
+                completed = run_main_capture(root, "auth status chatgpt", "--json")
+            finally:
+                os.environ["PATH"] = old_path
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["provider"], "chatgpt")
+            self.assertTrue(payload["logged_in"])
+            self.assertEqual(payload["auth_method"], "chatgpt")
+            self.assertNotIn("token", completed.stdout.lower())
+
+    def test_auth_status_claude_uses_json_status_without_token_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            claude = bin_dir / "claude"
+            claude.write_text(
+                "#!/bin/sh\n"
+                "if [ \"$1\" = auth ] && [ \"$2\" = status ]; then\n"
+                "  printf '{\"loggedIn\":false,\"authMethod\":\"none\",\"apiProvider\":\"firstParty\"}'\n"
+                "  exit 1\n"
+                "fi\n"
+                "exit 2\n",
+                encoding="utf-8",
+            )
+            claude.chmod(0o755)
+            old_path = os.environ.get("PATH", "")
+            os.environ["PATH"] = f"{bin_dir}{os.pathsep}{old_path}"
+            try:
+                completed = run_main_capture(root, "auth status claude", "--json")
+            finally:
+                os.environ["PATH"] = old_path
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["provider"], "claude")
+            self.assertFalse(payload["logged_in"])
+            self.assertEqual(payload["auth_method"], "none")
+            self.assertEqual(payload["api_provider"], "firstParty")
+            self.assertNotIn("token", completed.stdout.lower())
+
     def test_status_cli_json_reports_provider_limit_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
