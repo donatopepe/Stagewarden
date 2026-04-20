@@ -652,6 +652,7 @@ Implemented behaviour:
 - Shell progress blocks now also show route context: planned model/account/variant before execution and actual model/account/variant after execution.
 - The `after` shell progress block now also shows the latest local git checkpoint recorded for the run.
 - Shell output now also includes a `Last step outcome:` mini-block between the final agent summary and the `after` progress block.
+- `Last step outcome:` now also shows the concrete evidence source from the latest tool transcript, including tool, tool action, and duration when available.
 
 Validation:
 
@@ -663,6 +664,7 @@ Validation:
 - Memory and shell tests verify account and variant route details are preserved and rendered.
 - Interactive shell tests verify the latest git snapshot is surfaced in the `after` block.
 - Interactive shell tests verify the focused `Last step outcome:` block is rendered.
+- Interactive shell tests verify the focused outcome block includes tool evidence details.
 
 ### Multi-Account Failover Across Primary And Fallback Models
 
