@@ -15,6 +15,7 @@ node_modules/
 .stagewarden_trace.ljson
 .stagewarden_prince2_pid.json
 .stagewarden_models.json
+.stagewarden_history
 
 hello.txt
 homebrew_install_log.txt
