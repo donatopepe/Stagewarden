@@ -1506,7 +1506,15 @@ def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     return agent
 
 
-def _render_shell_progress(agent: Agent, *, phase: str) -> str:
+def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
+    prefs = _load_model_preferences(agent.config)
+    model = agent.router.choose_model(command, command, 0)
+    account = prefs.account_for_model(model) or "none"
+    variant = prefs.variant_for_model(model) or agent.router.choose_variant(model, command, command, 0) or "provider-default"
+    return model, account, variant
+
+
+def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = None) -> str:
     handoff = agent.project_handoff
     view = handoff.stage_view()
     active = view["active_step"]
@@ -1514,6 +1522,18 @@ def _render_shell_progress(agent: Agent, *, phase: str) -> str:
     if isinstance(active, dict):
         active_label = f"{active.get('id', 'unknown')} [{active.get('status', 'unknown')}]"
     git_boundary = view["git_boundary"]
+    route_line = "- route: unknown"
+    if phase == "before" and command is not None:
+        model, account, variant = _planned_shell_route(agent, command)
+        route_line = f"- route: model={model} account={account} variant={variant}"
+    elif phase == "after":
+        latest = agent.memory.latest_attempt()
+        if latest is not None:
+            route_line = (
+                f"- route: model={latest.model} "
+                f"account={latest.account or 'none'} "
+                f"variant={latest.variant or 'provider-default'}"
+            )
     return "\n".join(
         [
             f"Shell progress ({phase}):",
@@ -1522,6 +1542,7 @@ def _render_shell_progress(agent: Agent, *, phase: str) -> str:
             f"- boundary_decision: {view['boundary_decision']}",
             f"- recovery_state: {view['recovery_state']}",
             f"- git_head: {git_boundary['current']}",
+            route_line,
         ]
     )
 
@@ -2491,7 +2512,7 @@ def run_interactive_shell(
             continue
 
         sink.write(f"Running task: {command}\n")
-        sink.write(f"{_render_shell_progress(agent, phase='before')}\n")
+        sink.write(f"{_render_shell_progress(agent, phase='before', command=command)}\n")
         sink.flush()
         result = agent.run(command)
         sink.write("Agent result:\n")

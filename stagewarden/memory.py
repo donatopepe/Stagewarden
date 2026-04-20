@@ -17,6 +17,8 @@ class AttemptRecord:
     action_signature: str
     success: bool
     observation: str
+    account: str | None = None
+    variant: str | None = None
     error_type: str | None = None
 
 
@@ -46,6 +48,8 @@ class MemoryStore:
         iteration: int,
         step_id: str,
         model: str,
+        account: str | None = None,
+        variant: str | None = None,
         action_type: str,
         action_signature: str,
         success: bool,
@@ -57,6 +61,8 @@ class MemoryStore:
                 iteration=iteration,
                 step_id=step_id,
                 model=model,
+                account=account,
+                variant=variant,
                 action_type=action_type,
                 action_signature=action_signature,
                 success=success,
@@ -114,15 +120,21 @@ class MemoryStore:
         signatures = {item.action_signature for item in attempts}
         return len(signatures) == 1
 
+    def latest_attempt(self) -> AttemptRecord | None:
+        return self.attempts[-1] if self.attempts else None
+
     def summarize(self, limit: int = 8) -> str:
         if not self.attempts:
             return "No prior attempts."
         lines: list[str] = []
         for item in self.attempts[-limit:]:
             status = "ok" if item.success else f"failed:{item.error_type or 'unknown'}"
+            route = f" account={item.account}" if item.account else ""
+            if item.variant:
+                route += f" variant={item.variant}"
             lines.append(
                 f"[iter={item.iteration}] step={item.step_id} model={item.model} "
-                f"action={item.action_type} status={status}"
+                f"{route} action={item.action_type} status={status}"
             )
         return "\n".join(lines)
 
@@ -133,9 +145,12 @@ class MemoryStore:
         for item in self.attempts[-limit:]:
             status = "ok" if item.success else f"failed:{item.error_type or 'unknown'}"
             observation = item.observation.strip().replace("\n", " ")
+            route = f" account={item.account}" if item.account else ""
+            if item.variant:
+                route += f" variant={item.variant}"
             lines.append(
                 f"[iter={item.iteration}] step={item.step_id} model={item.model} "
-                f"action={item.action_type} status={status} observation={observation[:160]}"
+                f"{route} action={item.action_type} status={status} observation={observation[:160]}"
             )
         return "\n".join(lines)
 
