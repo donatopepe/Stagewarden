@@ -76,6 +76,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "todo",
     "models",
     "models usage",
+    "models limits",
     "cost",
     "accounts",
     "auth status",
@@ -95,6 +96,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "model add",
     "model remove",
     "model list",
+    "model limits",
     "model variant",
     "model variant-clear",
     "model block",
@@ -435,6 +437,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "- models",
             "- models usage | cost",
+            "- models limits | model limits",
             "- model use <local|cheap|chatgpt|openai|claude>",
             "- model add <local|cheap|chatgpt|openai|claude>",
             "- model remove <local|cheap|chatgpt|openai|claude>",
@@ -447,6 +450,7 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> models usage",
+            "- stagewarden> model limits",
             "- stagewarden> model use openai",
             "- stagewarden> model list claude",
             "- stagewarden> model variant openai gpt-5.4-mini",
@@ -748,6 +752,56 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
                 lines.append(f"    last_limit_reason={blocked_account['last_limit_reason']}")
             if blocked_account["last_limit_message"]:
                 lines.append(f"    last_limit_message={blocked_account['last_limit_message']}")
+    return "\n".join(lines)
+
+
+def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    report = _provider_limit_status_report(agent, config)
+    return {
+        "command": "model limits",
+        "providers": [
+            {
+                "provider": item["provider"],
+                "account": item["active_account"],
+                "variant": item["variant"],
+                **_provider_limit_windows(item),
+                "blocked_accounts": [
+                    {
+                        "name": account["name"],
+                        "active": account["active"],
+                        "blocked_until": account["blocked_until"],
+                        "reason": account["last_limit_reason"],
+                        "snapshot": account["limit_snapshot"],
+                    }
+                    for account in item["blocked_accounts"]
+                ],
+            }
+            for item in report["providers"]
+        ],
+    }
+
+
+def _render_model_limits(agent: Agent, config: AgentConfig) -> str:
+    report = _model_limits_report(agent, config)
+    lines = ["Model/provider limits:"]
+    if not report["providers"]:
+        lines.append("- none")
+        return "\n".join(lines)
+    for item in report["providers"]:
+        blocked = f" blocked_until={item['blocked_until']}" if item["blocked_until"] else ""
+        reason = f" reason={item['reason']}" if item["reason"] else ""
+        window = f" window={item['rate_limit_type']}" if item["rate_limit_type"] else ""
+        utilization = f" utilization={item['utilization']}%" if item["utilization"] is not None else ""
+        captured = f" captured_at={item['captured_at']}" if item["captured_at"] else ""
+        lines.append(
+            f"- {item['provider']}: {item['status']}{blocked}{reason}{window}{utilization}{captured} "
+            f"account={item['account']} variant={item['variant']}"
+        )
+        for account in item["blocked_accounts"]:
+            account_reason = f" reason={account['reason']}" if account["reason"] else ""
+            lines.append(
+                f"  account {account['name']}: blocked_until={account['blocked_until']}{account_reason}"
+            )
     return "\n".join(lines)
 
 
@@ -2223,8 +2277,11 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
     if parts[0] == "models":
         if len(parts) == 2 and parts[1] == "usage":
             return _render_model_usage(config)
+        if len(parts) == 2 and parts[1] == "limits":
+            _apply_model_preferences(agent, config)
+            return _render_model_limits(agent, config)
         if len(parts) != 1:
-            return "Usage: models | models usage"
+            return "Usage: models | models usage | models limits"
         _apply_model_preferences(agent, config)
         return _render_model_status(agent, config)
     if parts[0] != "model":
@@ -2271,6 +2328,11 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
                     f"Source: {source}",
                 ]
             )
+        if action == "limits":
+            if len(parts) != 2:
+                return "Usage: model limits"
+            _apply_model_preferences(agent, config)
+            return _render_model_limits(agent, config)
         if action == "variant":
             if len(parts) != 4:
                 return "Usage: model variant <name> <variant>"
@@ -2366,7 +2428,7 @@ def _model_usage() -> str:
         "Usage: model use <name> | model add <name> | model list <name> | "
         "model variant <name> <variant> | model variant-clear <name> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
-        "model unblock <name> | model clear"
+        "model unblock <name> | model limits | model clear"
     )
 
 
@@ -3311,6 +3373,13 @@ def main() -> int:
             print(dumps_ascii(_model_status_report(agent, config), indent=2))
         else:
             print(_render_model_status(agent, config))
+        return 0
+    if task in {"model limits", "models limits"}:
+        agent = _configure_readonly_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_model_limits_report(agent, config), indent=2))
+        else:
+            print(_render_model_limits(agent, config))
         return 0
     if task == "accounts":
         if args.json:
