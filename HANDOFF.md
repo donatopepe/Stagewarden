@@ -875,6 +875,41 @@ Next implementation candidates:
 - Extend Stagewarden `status` output with Codex-like sections: account/auth, model/provider, provider limits, workspace, git, sandbox/permissions, token/tool activity, handoff health.
 - Add Claude-style provider-limit fields: `rate_limit_type`, `utilization`, `resets_at`, `overage_status`, `overage_resets_at`, `overage_disabled_reason`.
 
+## Status Research: Codex and Claude
+
+Status: completed initial study
+
+Detailed notes:
+
+- `docs/status_research.md`
+
+Codex findings to implement:
+
+- Treat status as a full operational dashboard, not only login state.
+- Render model, provider, cwd, permissions, agents, account, thread/session, token usage, context window, limits, credits, and stale/missing limit state.
+- Use a 15-minute stale threshold for provider-limit snapshots.
+- Represent limits as primary and secondary windows with `usedPercent`, `windowDurationMins`, and `resetsAt`.
+- Represent credits separately with `hasCredits`, `unlimited`, and `balance`.
+- Use `rateLimitReachedType` to distinguish generic rate limit from workspace credits/usage exhaustion.
+- Never print raw auth tokens; Codex only includes tokens when explicitly requested by app-server clients.
+
+Claude findings to implement:
+
+- Expose auth status as machine-readable JSON equivalent to `claude auth status --json`.
+- Track statusline-style fields: workspace, version, model, output style, context window, current usage, worktree, and rate limits.
+- Track Claude rate-limit events with `status`, `resetsAt`, `rateLimitType`, `utilization`, `overageStatus`, `overageResetsAt`, `overageDisabledReason`, `isUsingOverage`, and `surpassedThreshold`.
+- Distinguish `authentication_failed`, `billing_error`, `rate_limit`, `invalid_request`, `server_error`, `unknown`, and `max_output_tokens`.
+- Surface long retry/reset waits immediately so the agent does not appear stuck.
+
+Backlog from study:
+
+- Add `status --full` grouped as Identity, Model, Account, Limits, Workspace, Permissions, Git, Handoff, Usage, Quality Gates.
+- Add `statusline --json` for prompt/status scripts.
+- Add `auth status <provider> --json` wrappers for Codex/OpenAI and Claude without token disclosure.
+- Extend provider-limit persistence with Claude overage/rate-limit fields.
+- Add token/context-window accounting to handoff and memory events.
+- Add tests for status redaction, stale limits, missing limits, provider auth status, and JSON schema stability.
+
 <!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->
 ## Runtime Handoff Export
 
