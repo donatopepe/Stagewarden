@@ -556,6 +556,14 @@ class TraceAndCliTests(unittest.TestCase):
     def test_overview_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "local"]
+            prefs.preferred_model = "chatgpt"
+            prefs.add_account("chatgpt", "work")
+            prefs.set_active_account("chatgpt", "work")
+            prefs.set_variant("chatgpt", "gpt-5.3-codex")
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
             handoff = {
                 "_format": "stagewarden_project_handoff",
                 "_version": 1,
@@ -572,11 +580,14 @@ class TraceAndCliTests(unittest.TestCase):
             memory.record_attempt(
                 iteration=1,
                 step_id="step-1",
-                model="local",
+                model="chatgpt",
+                account="work",
+                variant="gpt-5.3-codex",
                 action_type="complete",
                 action_signature="a",
-                success=True,
-                observation="ok",
+                success=False,
+                observation="usage limit hit",
+                error_type="runtime",
             )
             memory.record_tool_transcript(
                 iteration=1,
@@ -595,6 +606,10 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "overview")
             self.assertEqual(payload["board"]["recommended_authorization"], "review")
+            self.assertIn("provider_limits", payload)
+            providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
+            self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(providers["chatgpt"]["last_error_reason"], "runtime")
             self.assertEqual(payload["model_usage"]["report"]["totals"]["calls"], 1)
             self.assertEqual(payload["transcript"]["report"]["count"], 1)
             self.assertEqual(payload["handoff"]["handoff"]["task"], "fix failing tests")
@@ -649,6 +664,13 @@ class TraceAndCliTests(unittest.TestCase):
     def test_report_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "claude"]
+            prefs.preferred_model = "chatgpt"
+            prefs.add_account("chatgpt", "work")
+            prefs.set_active_account("chatgpt", "work")
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
             handoff = {
                 "_format": "stagewarden_project_handoff",
                 "_version": 1,
@@ -671,12 +693,14 @@ class TraceAndCliTests(unittest.TestCase):
             memory = MemoryStore()
             memory.record_attempt(
                 iteration=1,
-                step_id="step-1",
-                model="local",
+                step_id="step-3",
+                model="chatgpt",
+                account="work",
                 action_type="complete",
                 action_signature="a",
-                success=True,
-                observation="ok",
+                success=False,
+                observation="usage limit hit",
+                error_type="runtime",
             )
             memory.record_tool_transcript(
                 iteration=1,
@@ -698,6 +722,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["recommended_authorization"], "review")
             self.assertEqual(payload["open_issues"], 1)
             self.assertEqual(payload["model_calls"], 1)
+            self.assertIn("provider_limits", payload)
+            providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
+            self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(providers["chatgpt"]["last_error_reason"], "runtime")
             self.assertIn("reuse the stable patch pattern", payload["recent_lessons"][0])
             self.assertIn("add release note", payload["backlog_preview"][0])
             self.assertIn("finalize smoke test", payload["backlog_preview"][1])
@@ -1628,6 +1656,14 @@ class TraceAndCliTests(unittest.TestCase):
     def test_interactive_shell_renders_overview_and_board_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "local"]
+            prefs.preferred_model = "chatgpt"
+            prefs.add_account("chatgpt", "work")
+            prefs.set_active_account("chatgpt", "work")
+            prefs.set_variant("chatgpt", "gpt-5.3-codex")
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
             handoff = {
                 "_format": "stagewarden_project_handoff",
                 "_version": 1,
@@ -1642,8 +1678,22 @@ class TraceAndCliTests(unittest.TestCase):
                 "entries": [],
             }
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-3",
+                model="chatgpt",
+                account="work",
+                variant="gpt-5.3-codex",
+                action_type="shell",
+                action_signature="pytest",
+                success=False,
+                observation="usage limit hit",
+                error_type="runtime",
+            )
+            memory.save(root / ".stagewarden_memory.json")
             config = AgentConfig(workspace_root=root, max_steps=1)
-            input_stream = StringIO("overview\nboard\nexit\n")
+            input_stream = StringIO("overview\nboard\nreport\nexit\n")
             output_stream = StringIO()
             code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
             rendered = output_stream.getvalue()
@@ -1651,7 +1701,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Workspace overview:", rendered)
             self.assertIn("recommended_authorization: review", rendered)
+            self.assertIn("provider_limits: providers=2 blocked_models=chatgpt", rendered)
             self.assertIn("Board review:", rendered)
+            self.assertIn("Project report:", rendered)
+            self.assertIn("provider_limits: providers=2 blocked_models=chatgpt", rendered)
             self.assertIn("boundary_decision: continue_current_stage", rendered)
 
     def test_interactive_shell_renders_health_command(self) -> None:

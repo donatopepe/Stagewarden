@@ -723,6 +723,36 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
+    report = _provider_limit_status_report(agent, config)
+    providers = report["providers"]
+    if not providers:
+        return "none"
+    blocked_models = [item["provider"] for item in providers if item["blocked_until"]]
+    blocked_accounts = [
+        f"{item['provider']}:{account['name']}"
+        for item in providers
+        for account in item["blocked_accounts"]
+    ]
+    last_errors = [
+        f"{item['provider']}={item['last_error_reason']}"
+        for item in providers
+        if item["last_error_reason"]
+    ]
+    active_routes = [
+        f"{item['provider']}:{item['active_account']}/{item['variant']}"
+        for item in providers
+    ]
+    parts = [
+        f"providers={len(providers)}",
+        f"blocked_models={','.join(blocked_models) if blocked_models else 'none'}",
+        f"blocked_accounts={','.join(blocked_accounts) if blocked_accounts else 'none'}",
+        f"last_errors={','.join(last_errors) if last_errors else 'none'}",
+        f"routes={','.join(active_routes)}",
+    ]
+    return " ".join(parts)
+
+
 def _render_accounts(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     lines = ["Account profiles:"]
@@ -870,6 +900,7 @@ def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "status": _status_report(agent, config),
         "board": _board_report(config),
         "model_usage": _model_usage_report(config),
+        "provider_limits": _provider_limit_status_report(agent, config),
         "transcript": _transcript_report(config),
         "handoff": _handoff_report(config),
     }
@@ -942,6 +973,7 @@ def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "model_calls": usage["totals"]["calls"],
         "model_failures": usage["totals"]["failures"],
         "escalation_path": usage["totals"]["escalation_path"],
+        "provider_limits": _provider_limit_status_report(agent, config),
         "transcript_entries": transcript["count"],
         "recent_lessons": lessons,
         "backlog_preview": backlog,
@@ -966,6 +998,7 @@ def _render_overview(agent: Agent, config: AgentConfig) -> str:
         f"- model_calls: {usage['totals']['calls']}",
         f"- model_failures: {usage['totals']['failures']}",
         f"- escalation_path: {usage['totals']['escalation_path']}",
+        f"- provider_limits: {_provider_limit_summary(agent, config)}",
         f"- transcript_entries: {transcript['count']}",
     ]
     return "\n".join(lines)
@@ -1011,6 +1044,7 @@ def _render_report(agent: Agent, config: AgentConfig) -> str:
         f"- model_calls: {report['model_calls']}",
         f"- model_failures: {report['model_failures']}",
         f"- escalation_path: {report['escalation_path']}",
+        f"- provider_limits: {_provider_limit_summary(agent, config)}",
         f"- transcript_entries: {report['transcript_entries']}",
         "Recent lessons:",
     ]
