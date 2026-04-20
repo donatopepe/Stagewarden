@@ -270,6 +270,7 @@ Project handoff:
 - `stagewarden "handoff export" --json` and `stagewarden "resume --clear" --json` expose structured operational results for export/reset workflows.
 - Every model prompt includes bounded references to `.stagewarden_handoff.json`, `.stagewarden_memory.json`, and `.stagewarden_trace.ljson`, plus recovery state, backlog status, git boundary, and dirty state.
 - `resume --show` previews the current handoff target, `resume --clear` archives and resets handoff, and `resume` reruns the task stored in handoff after reloading the context.
+- `resume context` shows the latest implicit execution context: last model attempt, routed account/variant, tool evidence, and latest git snapshot.
 
 Tool transcript:
 

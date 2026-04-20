@@ -302,6 +302,73 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["current_step_status"], "in_progress")
             self.assertEqual(payload["next_action"], "continue step-7")
 
+    def test_resume_context_cli_json_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=4,
+                step_id="step-7",
+                model="claude",
+                account="work",
+                variant="sonnet",
+                action_type="shell",
+                action_signature="python3 -m unittest",
+                success=True,
+                observation="wet-run completed",
+            )
+            memory.record_tool_transcript(
+                iteration=4,
+                step_id="step-7",
+                tool="shell",
+                action_type="shell",
+                success=True,
+                summary="tests passed",
+                duration_ms=789,
+            )
+            memory.save(root / ".stagewarden_memory.json")
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-7",
+                "current_step_title": "Validate",
+                "current_step_status": "in_progress",
+                "latest_observation": "wet-run pending",
+                "plan_status": "step-7:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [
+                    {
+                        "phase": "git_snapshot",
+                        "iteration": 4,
+                        "step_id": "step-7",
+                        "step_status": "completed",
+                        "model": "claude",
+                        "action_type": "git_snapshot",
+                        "summary": "stagewarden: step step-7 completed [stage=stable boundary=continue]",
+                        "detail": "",
+                        "git_head": "ff77aa2",
+                        "timestamp": "2026-04-20T10:30:00+00:00",
+                    }
+                ],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "resume context", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "resume context")
+            self.assertEqual(payload["task"], "fix failing tests")
+            self.assertEqual(payload["current_step"], "step-7")
+            self.assertEqual(payload["latest_model_attempt"]["route"]["model"], "claude")
+            self.assertEqual(payload["latest_model_attempt"]["route"]["account"], "work")
+            self.assertEqual(payload["latest_model_attempt"]["route"]["variant"], "sonnet")
+            self.assertEqual(payload["latest_tool_evidence"]["tool"], "shell")
+            self.assertEqual(payload["latest_tool_evidence"]["duration_ms"], 789)
+            self.assertEqual(payload["latest_git_snapshot"]["git_head"], "ff77aa2")
+
     def test_handoff_export_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1578,6 +1645,75 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("- task: fix failing tests", rendered)
             self.assertIn("- current_step: step-7", rendered)
             self.assertIn("active_stage: step-7 [in_progress]", rendered)
+
+    def test_interactive_shell_resume_context_shows_latest_execution_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=5,
+                step_id="step-7",
+                model="openai",
+                account="work",
+                variant="gpt-5.4-mini",
+                action_type="write_file",
+                action_signature="write patch",
+                success=False,
+                observation="needs retry after validation mismatch",
+                error_type="invalid_output",
+            )
+            memory.record_tool_transcript(
+                iteration=5,
+                step_id="step-7",
+                tool="files",
+                action_type="write_file",
+                success=False,
+                summary="patch validation failed",
+                duration_ms=245,
+                error_type="invalid_output",
+            )
+            memory.save(root / ".stagewarden_memory.json")
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "executing",
+                "current_step_id": "step-7",
+                "current_step_title": "Validate",
+                "current_step_status": "in_progress",
+                "latest_observation": "wet-run pending",
+                "plan_status": "step-7:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [
+                    {
+                        "phase": "git_snapshot",
+                        "iteration": 5,
+                        "step_id": "step-7",
+                        "step_status": "failed",
+                        "model": "openai",
+                        "action_type": "git_snapshot",
+                        "summary": "stagewarden: step step-7 failed [stage=at_risk boundary=review]",
+                        "detail": "",
+                        "git_head": "ff00aa1",
+                        "timestamp": "2026-04-20T10:45:00+00:00",
+                    }
+                ],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("resume context\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Resume context:", rendered)
+            self.assertIn("- task: fix failing tests", rendered)
+            self.assertIn("- latest_model_attempt: step=step-7 action=write_file status=failed:invalid_output", rendered)
+            self.assertIn("- latest_route: model=openai account=work variant=gpt-5.4-mini", rendered)
+            self.assertIn("- latest_tool_evidence: tool=files action=write_file status=failed:invalid_output duration_ms=245", rendered)
+            self.assertIn("- latest_git_snapshot: ff00aa1 :: stagewarden: step step-7 failed [stage=at_risk boundary=review]", rendered)
 
     def test_interactive_shell_resume_clear_archives_handoff_without_git_delete(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
