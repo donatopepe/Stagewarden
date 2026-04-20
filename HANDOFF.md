@@ -85,6 +85,7 @@ Follow-up implemented after this pass:
 - Added `stagewarden "model limits" --json` machine-readable output.
 - Added concise human rendering for provider/account limit state.
 - Updated interactive help and README examples.
+- Added stale detection for provider limit snapshots based on `captured_at`.
 
 Additional validation evidence:
 
@@ -92,10 +93,10 @@ Additional validation evidence:
 - `python3 -m stagewarden.main "model limits" --json` passed as wet-run.
 - `python3 -m stagewarden.main "model limits"` passed as wet-run.
 - `python3 -m unittest discover -s tests` passed, 204 tests.
+- Stale detection validation passed through `test_model_limits_cli_json_outputs_persisted_snapshots`.
 
 Next recommended implementation blocks:
 
-- Add stale detection based on `captured_at` and `provider_limits_stale_after_minutes`.
 - Add provider-specific parsers for richer Claude Code and Codex status output when upstream CLIs expose machine-readable usage.
 - Add a safe manual command to record a provider limit message pasted by the user and convert it into a snapshot.
 
