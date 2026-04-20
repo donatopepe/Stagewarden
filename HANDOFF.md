@@ -91,6 +91,9 @@ Follow-up implemented after this pass:
 - Added `model limit-clear <model>` and `account limit-clear <model> <account>` to remove stored limit snapshots, messages, and temporary blocks.
 - Switched `account login chatgpt <profile>` to a Codex-style browser flow backed by `codex login`.
 - Switched `account logout chatgpt <profile>` to Codex-backed logout plus local profile marker cleanup.
+- Corrected CLI/status terminology: provider and provider-model are now rendered separately.
+- Added explicit `provider_model` and `provider_model_selection` fields to model/status JSON reports.
+- Route rendering now shows `provider=...` and `provider_model=...` instead of conflating provider with model.
 
 Additional validation evidence:
 
@@ -105,6 +108,8 @@ Additional validation evidence:
 - `python3 -m unittest tests/test_auth.py tests/test_trace_cli.py` passed, 84 tests after browser-login migration.
 - `python3 -m unittest discover -s tests` passed, 209 tests after browser-login migration.
 - Interactive wet-run with stubbed `codex` backend confirmed `account login chatgpt personale` updates the active profile and stores a sanitized Codex marker.
+- `python3 -m stagewarden.main models --json` passed as wet-run and now exposes `preferred_provider`, `provider_model`, and `provider_model_selection`.
+- `python3 -m stagewarden.main statusline --json` passed as wet-run and now exposes active provider/provider-model separately.
 
 Next recommended implementation blocks:
 
