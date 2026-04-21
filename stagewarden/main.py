@@ -250,7 +250,7 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- model choose [local|cheap|chatgpt|openai|claude]",
             "  Guided menu: choose provider, provider-model, and supported parameters interactively.",
             "- model preset <provider> [fast|balanced|deep|plan]",
-            "  Apply a preset directly or choose one from a guided menu in the interactive shell.",
+            "  Apply a preset directly; without the preset value, open a guided provider-model picker.",
             "- model add <local|cheap|chatgpt|openai|claude>",
             "  Enable a provider in this workspace.",
             "- model list <local|cheap|chatgpt|openai|claude>",
@@ -2568,56 +2568,6 @@ def _guided_model_choice(
     return f"Guided selection applied: provider={model} provider_model={provider_model}{params_text}."
 
 
-def _guided_model_preset_choice(
-    *,
-    requested_model: str | None,
-    prefs: ModelPreferences,
-    agent: Agent,
-    config: AgentConfig,
-    input_stream: TextIO | None,
-    output_stream: TextIO | None,
-) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided preset selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `model preset <provider>`."
-    providers = list(prefs.enabled_models or []) or list(SUPPORTED_MODELS)
-    model = requested_model
-    if model is None:
-        model = _prompt_menu_choice(
-            title="Choose provider for preset:",
-            options=[(item, item) for item in providers],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if model is None:
-            return "Guided preset selection cancelled."
-    if model not in SUPPORTED_MODELS:
-        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-    preset = _prompt_menu_choice(
-        title=f"Choose preset for {model}:",
-        options=[
-            ("fast", "fast | lowest practical cost"),
-            ("balanced", "balanced | default general work"),
-            ("deep", "deep | stronger reasoning"),
-            ("plan", "plan | planning oriented"),
-        ],
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if preset is None:
-        return "Guided preset selection cancelled."
-    provider_model, params = provider_model_preset(model, preset)
-    if model not in prefs.enabled_models:
-        prefs.enabled_models.append(model)
-    prefs.preferred_model = model
-    prefs.set_variant(model, provider_model)
-    for key, value in params.items():
-        prefs.set_model_param(model, key, value)
-    _save_model_preferences(config, prefs)
-    _apply_model_preferences(agent, config)
-    params_text = ", ".join(f"{key}={value}" for key, value in sorted(params.items())) or "none"
-    return f"Guided preset applied: provider={model} preset={preset} provider_model={provider_model} params={params_text}."
-
-
 def _handle_model_command(
     command: str,
     agent: Agent,
@@ -2746,7 +2696,7 @@ def _handle_model_command(
             if model not in SUPPORTED_MODELS:
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
             if len(parts) == 3:
-                return _guided_model_preset_choice(
+                return _guided_model_choice(
                     requested_model=model,
                     prefs=prefs,
                     agent=agent,
