@@ -200,6 +200,7 @@ stagewarden> patch preview changes.diff
 stagewarden> model use openai
 stagewarden> model choose
 stagewarden> model choose chatgpt
+stagewarden> model preset chatgpt
 stagewarden> model list claude
 stagewarden> model variant claude opus
 stagewarden> model variant openai gpt-5.4-mini
@@ -249,6 +250,7 @@ Model control:
 - `stagewarden "model limits" --json` emits the same limit snapshot in machine-readable form.
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model choose [provider]` opens a guided menu in the interactive shell to choose provider, provider-model, and supported parameters.
+- `model preset <provider>` can also open a guided preset menu in the interactive shell for `fast`, `balanced`, `deep`, or `plan`.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
 - `model list <provider>` shows the official aliases or model IDs and provider capabilities for that provider.
 - `model params <provider>` shows supported and current provider-model parameters such as `reasoning_effort`.
@@ -360,6 +362,8 @@ stagewarden> account add openai lavoro OPENAI_API_KEY_WORK
 stagewarden> account add openai personale OPENAI_API_KEY_PERSONAL
 stagewarden> account login openai lavoro
 stagewarden> account use openai lavoro
+stagewarden> account choose
+stagewarden> account choose openai
 stagewarden> account block openai lavoro until 2026-05-01T18:30
 stagewarden> account unblock openai lavoro
 stagewarden> accounts

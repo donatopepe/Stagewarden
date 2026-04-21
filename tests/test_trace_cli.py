@@ -1511,6 +1511,28 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Choose provider:", rendered)
             self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.4 reasoning_effort=medium.", rendered)
 
+    def test_interactive_shell_guided_model_preset_choice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO(
+                "model preset chatgpt\n"
+                "3\n"
+                "model params chatgpt\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(code, 0)
+            self.assertEqual(prefs.preferred_model, "chatgpt")
+            self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.3-codex")
+            self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "high")
+            self.assertIn("Choose preset for chatgpt:", rendered)
+            self.assertIn("Guided preset applied: provider=chatgpt preset=deep provider_model=gpt-5.3-codex params=reasoning_effort=high.", rendered)
+            self.assertIn("reasoning_effort_current: high", rendered)
+
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1662,6 +1684,30 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("account personale:", rendered)
             self.assertIn("active-account", rendered)
             self.assertIn("env=OPENAI_API_KEY_WORK", rendered)
+
+    def test_interactive_shell_guided_account_choice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO(
+                "account add openai lavoro OPENAI_API_KEY_WORK\n"
+                "account add openai personale OPENAI_API_KEY_PERSONAL\n"
+                "account choose openai\n"
+                "2\n"
+                "accounts\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(code, 0)
+            self.assertEqual((prefs.active_account_by_model or {}).get("openai"), "personale")
+            self.assertIn("Choose account for openai:", rendered)
+            self.assertIn("Active account for openai set to personale.", rendered)
+            self.assertIn("account personale:", rendered)
+            self.assertIn("active-account", rendered)
 
     def test_interactive_shell_logs_in_account_and_saves_token(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
