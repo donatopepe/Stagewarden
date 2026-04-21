@@ -163,8 +163,35 @@ Additional validation evidence:
 
 Next recommended implementation blocks:
 
+Priority 1 - interactive operator experience:
+
+- Implement Codex-style slash command palette: when the user types `/` in the interactive shell, show an autocomplete menu with command names, short explanations, and keyboard cursor selection/confirmation.
+- Add structured command metadata so help, completions, slash palette, and JSON command catalogs share one source of truth.
+- Add `commands --json` or `help --json` for machine-readable command discovery and future UI integrations.
+
+Priority 2 - PRINCE2 role automation hardening:
+
+- Add `roles check` to validate that every PRINCE2 role has provider/model/account assignments before controlled delivery.
+- Add `roles matrix --json` to combine role domains, active assignments, provider limits, and account availability in one startup decision surface.
+- Add a Project Board startup gate: if role baseline is missing, `project start` should propose assignments and require explicit confirmation before entering normal delivery.
+- Add tests proving role context isolation for Project Executive, Project Assurance, Change Authority, and Team Manager, not only Team Manager.
+
+Priority 3 - source reference governance:
+
 - Add `sources update` command that runs `git pull --ff-only` in each reference repo and records updated heads.
+- Add `sources status --strict` to fail when reference repos are missing, dirty, non-shallow when expected, or remote URLs mismatch.
+
+Priority 4 - provider status and limits:
+
 - Add provider-specific parsers for richer Claude Code and Codex status output when upstream CLIs expose machine-readable usage.
+- Extend provider-limit persistence with reset windows, utilization, overage fields, stale-limit detection, and redacted raw-message previews.
+- Add token/context-window accounting to handoff and memory events where provider output exposes safe usage metadata.
+
+Priority 5 - resilience and auditability:
+
+- Add a `preflight` command that combines doctor, sources status, roles check, model limits, git status, and permission posture.
+- Add JSON schema stability tests for status, statusline, roles domains, roles matrix, source status, and model limits.
+- Add an operator-facing remediation section in `status` when the project is in exception or role baseline is incomplete.
 
 ## Implemented Capabilities
 
@@ -995,9 +1022,9 @@ Study targets to extract into Stagewarden:
 
 Next implementation candidates:
 
-- Add `sources status` command to verify all external references are present, upstream URLs match, and shallow heads are recorded.
-- Add `sources update` command that runs `git pull --ff-only` in each reference repo and writes a handoff event.
-- Extend Stagewarden `status` output with Codex-like sections: account/auth, model/provider, provider limits, workspace, git, sandbox/permissions, token/tool activity, handoff health.
+- Add `sources update` command that runs `git pull --ff-only` in each reference repo and writes a handoff event with old/new heads.
+- Add `sources status --strict` for CI/operator preflight checks.
+- Extend Stagewarden `status` remediation output with explicit next commands for incomplete PRINCE2 role baseline, active exception plan, dirty git state, and blocked provider limits.
 - Add Claude-style provider-limit fields: `rate_limit_type`, `utilization`, `resets_at`, `overage_status`, `overage_resets_at`, `overage_disabled_reason`.
 
 ## Status Research: Codex and Claude
