@@ -792,6 +792,19 @@ def _render_prince2_roles(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _render_prince2_role_status_hint(config: AgentConfig) -> str:
+    prefs = _load_model_preferences(config)
+    configured = len(prefs.prince2_roles or {})
+    if configured == len(PRINCE2_ROLE_IDS):
+        return f"- prince2_role_baseline: complete ({configured}/{len(PRINCE2_ROLE_IDS)})"
+    if configured:
+        return (
+            f"- prince2_role_baseline: partial ({configured}/{len(PRINCE2_ROLE_IDS)}); "
+            "run /roles setup to complete governance ownership."
+        )
+    return "- prince2_role_baseline: missing; run /project start or /roles setup before controlled delivery."
+
+
 def _role_options() -> list[tuple[str, str]]:
     return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
 
@@ -1711,6 +1724,9 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_provider_limit_status(agent, config),
         _render_resume_context(config),
         _render_permissions(config),
+        "PRINCE2 roles:",
+        _render_prince2_role_status_hint(config),
+        _render_prince2_roles(config),
         "Handoff summary:",
         handoff.summary(),
         handoff.rendered_operational_posture(),
@@ -1795,6 +1811,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "models": _model_status_report(agent, config),
         "provider_limits": _provider_limit_status_report(agent, config),
+        "roles": _prince2_roles_report(config),
         "permissions": _permissions_report(config),
         "handoff": {
             "summary": handoff.summary(),
