@@ -3555,6 +3555,30 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     return command, None
 
 
+def _is_known_interactive_command(command: str) -> bool:
+    normalized = command.strip().lower()
+    if not normalized:
+        return False
+    if normalized in INTERACTIVE_COMMAND_PHRASES:
+        return True
+    prefixes = (
+        "help ",
+        "commands ",
+        "auth status ",
+        "model ",
+        "account ",
+        "permission ",
+        "mode ",
+        "caveman ",
+        "git ",
+        "session ",
+        "patch preview ",
+        "resume ",
+        "handoff ",
+    )
+    return any(normalized.startswith(prefix) for prefix in prefixes)
+
+
 def _permission_rule_from_decision(capability: str, detail: str, source: str) -> str:
     if source.startswith("ask:"):
         rule = source.split(":", 1)[1].strip()
@@ -3678,7 +3702,12 @@ def run_interactive_shell(
         command = line.strip()
         if not command:
             continue
-        if not command.startswith(INTERACTIVE_COMMAND_PREFIX):
+        legacy_shell_command = (
+            not command.startswith(INTERACTIVE_COMMAND_PREFIX)
+            and source is not sys.stdin
+            and _is_known_interactive_command(command)
+        )
+        if not command.startswith(INTERACTIVE_COMMAND_PREFIX) and not legacy_shell_command:
             sink.write(f"Running task: {command}\n")
             sink.write(f"{_render_shell_progress(agent, phase='before', command=command)}\n")
             sink.flush()
@@ -3689,8 +3718,7 @@ def run_interactive_shell(
             sink.write(f"{_render_shell_progress(agent, phase='after')}\n")
             sink.flush()
             continue
-
-        shell_command = command[len(INTERACTIVE_COMMAND_PREFIX) :].strip()
+        shell_command = command[len(INTERACTIVE_COMMAND_PREFIX) :].strip() if command.startswith(INTERACTIVE_COMMAND_PREFIX) else command
         if not shell_command:
             sink.write("Command prefix detected but no command was provided. Use '/help'.\n")
             sink.flush()

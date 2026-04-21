@@ -1012,9 +1012,9 @@ class TraceAndCliTests(unittest.TestCase):
     def test_interactive_completion_candidates_include_core_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
-            matches = _interactive_completion_candidates("he", config)
-            self.assertIn("help", matches)
-            self.assertIn("health", matches)
+            matches = _interactive_completion_candidates("/he", config)
+            self.assertIn("/help", matches)
+            self.assertIn("/health", matches)
 
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1024,11 +1024,11 @@ class TraceAndCliTests(unittest.TestCase):
             (root / "docs" / "notes.md").write_text("note\n", encoding="utf-8")
             config = AgentConfig(workspace_root=root)
 
-            history_matches = _interactive_completion_candidates("git history tr", config)
-            patch_matches = _interactive_completion_candidates("patch preview do", config)
+            history_matches = _interactive_completion_candidates("/git history tr", config)
+            patch_matches = _interactive_completion_candidates("/patch preview do", config)
 
-            self.assertIn("git history tracked.txt", history_matches)
-            self.assertIn("patch preview docs/", patch_matches)
+            self.assertIn("/git history tracked.txt", history_matches)
+            self.assertIn("/patch preview docs/", patch_matches)
 
     def test_git_cli_json_outputs_are_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
