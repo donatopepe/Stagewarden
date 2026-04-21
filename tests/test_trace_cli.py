@@ -1016,6 +1016,32 @@ class TraceAndCliTests(unittest.TestCase):
             matches = _interactive_completion_candidates("/he", config)
             self.assertIn("/help", matches)
             self.assertIn("/health", matches)
+            command_matches = _interactive_completion_candidates("/com", config)
+            self.assertIn("/commands", command_matches)
+
+    def test_commands_catalog_cli_and_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            rendered = run_main_capture(root, "commands")
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            self.assertIn("Stagewarden command catalog:", rendered.stdout)
+            self.assertIn("models:", rendered.stdout)
+            self.assertIn("roles domains [--json]", rendered.stdout)
+            self.assertIn("sources", rendered.stdout)
+            self.assertIn("commands [--json]", rendered.stdout)
+
+            completed = run_main_capture(root, "commands", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "commands")
+            by_name = {item["name"]: item for item in payload["commands"]}
+            self.assertIn("commands", by_name)
+            self.assertIn("status", by_name)
+            self.assertIn("roles domains", by_name)
+            self.assertIn("sources", by_name)
+            self.assertEqual(by_name["commands"]["group"], "core")
+            self.assertTrue(by_name["commands"]["json"])
+            self.assertEqual(by_name["roles domains"]["handler"], "roles")
 
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
