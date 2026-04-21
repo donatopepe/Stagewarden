@@ -106,6 +106,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "git show",
     "git show --stat",
     "model use",
+    "model choose",
     "model add",
     "model remove",
     "model list",
@@ -244,6 +245,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Show enabled providers, preferred provider, and current provider-model selection.",
             "- model use <local|cheap|chatgpt|openai|claude>",
             "  Set the preferred provider and persist it in this workspace.",
+            "- model choose [local|cheap|chatgpt|openai|claude]",
+            "  Guided menu: choose provider, provider-model, and supported parameters interactively.",
             "- model add <local|cheap|chatgpt|openai|claude>",
             "  Enable a provider in this workspace.",
             "- model list <local|cheap|chatgpt|openai|claude>",
@@ -316,6 +319,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "Examples:",
             "- stagewarden> models",
             "- stagewarden> account login chatgpt personale",
+            "- stagewarden> model choose",
+            "- stagewarden> model choose chatgpt",
             "- stagewarden> model use openai",
             "- stagewarden> model list claude",
             "- stagewarden> model variant claude opus",
@@ -456,6 +461,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- models usage | cost",
             "- models limits | model limits",
             "- model use <local|cheap|chatgpt|openai|claude>",
+            "- model choose [local|cheap|chatgpt|openai|claude]",
             "- model add <local|cheap|chatgpt|openai|claude>",
             "- model remove <local|cheap|chatgpt|openai|claude>",
             "- model list <local|cheap|chatgpt|openai|claude>",
@@ -474,6 +480,8 @@ def _interactive_help_topic(topic: str) -> str:
             "Examples:",
             "- stagewarden> models usage",
             "- stagewarden> model limits",
+            "- stagewarden> model choose",
+            "- stagewarden> model choose chatgpt",
             "- stagewarden> model use openai",
             "- stagewarden> model list claude",
             "- stagewarden> model params chatgpt",
@@ -2455,7 +2463,106 @@ def _refresh_runtime_permissions(agent: Agent) -> None:
     agent.refresh_permissions()
 
 
-def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
+def _prompt_menu_choice(
+    *,
+    title: str,
+    options: list[tuple[str, str]],
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str | None:
+    if input_stream is None or output_stream is None:
+        return None
+    output_stream.write(f"{title}\n")
+    for index, (_, label) in enumerate(options, start=1):
+        output_stream.write(f"{index}. {label}\n")
+    output_stream.write("Choose a number or value, or `q` to cancel: ")
+    output_stream.flush()
+    response = input_stream.readline()
+    if response == "":
+        return None
+    selected = response.strip()
+    if not selected or selected.lower() in {"q", "quit", "cancel", "exit"}:
+        return None
+    if selected.isdigit():
+        index = int(selected) - 1
+        if 0 <= index < len(options):
+            return options[index][0]
+        return None
+    lowered = selected.lower()
+    for value, label in options:
+        if lowered in {value.lower(), label.lower()}:
+            return value
+    return None
+
+
+def _guided_model_choice(
+    *,
+    requested_model: str | None,
+    prefs: ModelPreferences,
+    agent: Agent,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `model choose`."
+    providers = list(prefs.enabled_models or []) or list(SUPPORTED_MODELS)
+    model = requested_model
+    if model is None:
+        model = _prompt_menu_choice(
+            title="Choose provider:",
+            options=[(item, item) for item in providers],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if model is None:
+            return "Guided model selection cancelled."
+    if model not in SUPPORTED_MODELS:
+        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+    if model not in prefs.enabled_models:
+        prefs.enabled_models.append(model)
+    specs = list(provider_model_specs(model))
+    provider_model = _prompt_menu_choice(
+        title=f"Choose provider-model for {model}:",
+        options=[(spec.id, f"{spec.id} | {spec.label}") for spec in specs],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if provider_model is None:
+        return "Guided model selection cancelled."
+    spec = provider_model_spec(model, provider_model)
+    reasoning_value = None
+    if spec is not None and spec.reasoning_efforts:
+        current_reasoning = prefs.params_for_model(model).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
+        reasoning_value = _prompt_menu_choice(
+            title=f"Choose reasoning_effort for {model}:{provider_model}:",
+            options=[
+                (effort, f"{effort}{' (default)' if effort == current_reasoning else ''}")
+                for effort in spec.reasoning_efforts
+            ],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if reasoning_value is None:
+            return "Guided model selection cancelled."
+    prefs.preferred_model = model
+    prefs.set_variant(model, provider_model)
+    if reasoning_value is not None:
+        prefs.set_model_param(model, "reasoning_effort", reasoning_value)
+    _save_model_preferences(config, prefs)
+    _apply_model_preferences(agent, config)
+    params_text = f" reasoning_effort={reasoning_value}" if reasoning_value is not None else ""
+    return f"Guided selection applied: provider={model} provider_model={provider_model}{params_text}."
+
+
+def _handle_model_command(
+    command: str,
+    agent: Agent,
+    config: AgentConfig,
+    *,
+    input_stream: TextIO | None = None,
+    output_stream: TextIO | None = None,
+) -> str | None:
     parts = command.split()
     if not parts:
         return None
@@ -2494,6 +2601,18 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
 
     action = parts[1]
     try:
+        if action == "choose":
+            if len(parts) > 3:
+                return "Usage: model choose [provider]"
+            requested_model = parts[2] if len(parts) == 3 else None
+            return _guided_model_choice(
+                requested_model=requested_model,
+                prefs=prefs,
+                agent=agent,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
         if action == "use":
             if len(parts) != 3:
                 return "Usage: model use <name>"
@@ -2694,7 +2813,7 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
 
 def _model_usage() -> str:
     return (
-        "Usage: model use <name> | model add <name> | model list <name> | "
+        "Usage: model use <name> | model choose [name] | model add <name> | model list <name> | "
         "model params <name> | model variant <name> <variant> | model variant-clear <name> | "
         "model preset <name> <fast|balanced|deep|plan> | "
         "model param set <name> <key> <value> | model param clear <name> <key> | "
@@ -3507,7 +3626,7 @@ def run_interactive_shell(
             sink.flush()
             continue
         command = rewritten or command
-        model_message = _handle_model_command(command, agent, config)
+        model_message = _handle_model_command(command, agent, config, input_stream=source, output_stream=sink)
         if model_message is not None:
             sink.write(f"{model_message}\n")
             sink.flush()
