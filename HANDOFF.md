@@ -209,6 +209,21 @@ Phase 3 - PRINCE2 role startup controls:
 - Add `roles matrix --json` combining role tree, domains, active assignments, provider-models, params, accounts, provider/account limit state, readiness, and independence warnings.
 - Add Project Board startup gate in `project start`: propose a role tree from project scale/risk/delivery mode, show matrix, require confirmation in interactive mode, and persist the approved baseline in handoff.
 - Model calls must receive only the context slice allowed by the selected role node, not the entire project handoff by default.
+- `project start` expected flow:
+- Step 1: assess project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
+- Step 2: generate a PRINCE2 organization tree sized to that assessment, keeping small projects lightweight and complex projects explicit.
+- Step 3: propose model/account assignments for each role node: primary model, reviewer model(s), fallback pool, provider-model params, and account profile.
+- Step 4: evaluate provider/account health before approval: blocked-until, stale limit data, missing credentials, unavailable local backends, and API errors.
+- Step 5: if a preferred provider/account is rate-limited, automatically propose the cheapest valid fallback that still satisfies the role domain and independence constraints.
+- Step 6: if no valid fallback exists, ask the user to choose between waiting until the known unblock time, selecting another provider/account manually, or pausing the project startup gate.
+- Step 7: show the role tree plus readiness matrix to the Project Board/user for approval, then persist the approved baseline in runtime handoff and `.stagewarden_models.json`.
+- Step 8: all later model handoffs route through the approved role-node tree; fallback changes caused by rate limits must be recorded in handoff with evidence and git boundary.
+- Rate-limit routing rules:
+- Prefer local/cheaper models when they satisfy the role domain and validation risk.
+- Do not route assurance review to the same role node/model instance that executed delivery when independence is required.
+- Do not bypass Project Executive/Project Board escalation when tolerances or business justification are affected.
+- Keep blocked provider/account metadata until the known unblock time and re-enable automatically only after that time is reached or explicit user override.
+- Preserve role context boundaries even during fallback: fallback changes model/provider, not the allowed context slice.
 - Validation: unit tests for role-tree normalization, delegated role constraints, context-slice filtering, JSON schema tests, missing/complete tree checks, independence warnings, and wet-run `project start`.
 
 Phase 4 - status remediation and preflight:
