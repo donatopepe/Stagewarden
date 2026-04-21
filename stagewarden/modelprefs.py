@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .provider_registry import SUPPORTED_MODELS, canonicalize_model_variant
+from .provider_registry import SUPPORTED_MODELS, canonicalize_model_variant, provider_model_spec
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
 
@@ -235,6 +235,7 @@ class ModelPreferences:
     env_var_by_account: dict[str, str] | None = None
     provider_limit_snapshot_by_model: dict[str, dict[str, object]] | None = None
     provider_limit_snapshot_by_account: dict[str, dict[str, object]] | None = None
+    params_by_model: dict[str, dict[str, str]] | None = None
 
     @classmethod
     def default(cls) -> "ModelPreferences":
@@ -251,6 +252,7 @@ class ModelPreferences:
             env_var_by_account={},
             provider_limit_snapshot_by_model={},
             provider_limit_snapshot_by_account={},
+            params_by_model={},
         )
 
     def normalize(self) -> "ModelPreferences":
@@ -317,6 +319,11 @@ class ModelPreferences:
             for key, snapshot in (self.provider_limit_snapshot_by_account or {}).items()
             if self._is_valid_account_key(key) and normalize_limit_snapshot(snapshot)
         }
+        params_by_model = {
+            str(model): self._normalize_model_params(str(model), params)
+            for model, params in (self.params_by_model or {}).items()
+            if model in SUPPORTED_MODELS and self._normalize_model_params(str(model), params)
+        }
         self.enabled_models = enabled
         self.preferred_model = preferred
         self.blocked_until_by_model = blocked
@@ -329,6 +336,7 @@ class ModelPreferences:
         self.env_var_by_account = env_var_by_account
         self.provider_limit_snapshot_by_model = provider_limit_snapshot_by_model
         self.provider_limit_snapshot_by_account = provider_limit_snapshot_by_account
+        self.params_by_model = params_by_model
         return self
 
     def is_blocked(self, model: str, at_time: datetime | None = None) -> bool:
@@ -370,6 +378,30 @@ class ModelPreferences:
     def variant_for_model(self, model: str) -> str | None:
         self._validate_model(model)
         return (self.variant_by_model or {}).get(model)
+
+    def params_for_model(self, model: str) -> dict[str, str]:
+        self._validate_model(model)
+        return dict((self.params_by_model or {}).get(model, {}))
+
+    def set_model_param(self, model: str, key: str, value: str) -> None:
+        self._validate_model(model)
+        normalized = self._normalize_single_param(model, key, value)
+        self.params_by_model = dict(self.params_by_model or {})
+        params = dict(self.params_by_model.get(model, {}))
+        params[normalized[0]] = normalized[1]
+        self.params_by_model[model] = params
+        self.normalize()
+
+    def clear_model_param(self, model: str, key: str) -> None:
+        self._validate_model(model)
+        self.params_by_model = dict(self.params_by_model or {})
+        params = dict(self.params_by_model.get(model, {}))
+        params.pop(str(key).strip(), None)
+        if params:
+            self.params_by_model[model] = params
+        else:
+            self.params_by_model.pop(model, None)
+        self.normalize()
 
     def remove_account(self, model: str, account: str) -> None:
         self._validate_model(model)
@@ -491,6 +523,7 @@ class ModelPreferences:
             "env_var_by_account": dict(self.env_var_by_account or {}),
             "provider_limit_snapshot_by_model": dict(self.provider_limit_snapshot_by_model or {}),
             "provider_limit_snapshot_by_account": dict(self.provider_limit_snapshot_by_account or {}),
+            "params_by_model": {model: dict(params) for model, params in (self.params_by_model or {}).items()},
         }
 
     def save(self, path: Path) -> None:
@@ -539,6 +572,11 @@ class ModelPreferences:
                 for key, value in payload.get("provider_limit_snapshot_by_account", {}).items()
                 if isinstance(value, dict)
             },
+            params_by_model={
+                str(key): {str(k): str(v) for k, v in value.items()}
+                for key, value in payload.get("params_by_model", {}).items()
+                if isinstance(value, dict)
+            },
         ).normalize()
 
     def _validate_model(self, model: str) -> None:
@@ -548,6 +586,34 @@ class ModelPreferences:
     def _validate_account(self, account: str) -> None:
         if not self._is_valid_account_name(account):
             raise ValueError("Account name must contain only letters, numbers, dot, dash, and underscore.")
+
+    def _normalize_model_params(self, model: str, raw: object) -> dict[str, str]:
+        if not isinstance(raw, dict):
+            return {}
+        normalized: dict[str, str] = {}
+        for key, value in raw.items():
+            try:
+                name, clean = self._normalize_single_param(model, str(key), str(value))
+            except ValueError:
+                continue
+            normalized[name] = clean
+        return normalized
+
+    def _normalize_single_param(self, model: str, key: str, value: str) -> tuple[str, str]:
+        clean_key = str(key).strip()
+        clean_value = str(value).strip()
+        if clean_key != "reasoning_effort":
+            raise ValueError(f"Unsupported model parameter '{clean_key}'.")
+        provider_model = self.variant_for_model(model) or provider_model_spec(model, "provider-default")
+        active_provider_model = self.variant_for_model(model) or "provider-default"
+        spec = provider_model_spec(model, active_provider_model)
+        if spec is None or clean_value not in spec.reasoning_efforts:
+            allowed = [] if spec is None else list(spec.reasoning_efforts)
+            raise ValueError(
+                f"Unsupported reasoning_effort '{clean_value}' for {model}:{active_provider_model}. "
+                f"Allowed: {', '.join(allowed) or 'none'}"
+            )
+        return clean_key, clean_value
 
     @staticmethod
     def _is_valid_account_name(value: str) -> bool:

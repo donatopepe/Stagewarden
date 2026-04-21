@@ -140,6 +140,8 @@ class PersistenceTests(unittest.TestCase):
             path = Path(tmp_dir) / ".stagewarden_models.json"
             prefs = ModelPreferences.default()
             prefs.enabled_models = ["chatgpt", "claude"]
+            prefs.set_variant("chatgpt", "gpt-5.3-codex")
+            prefs.set_model_param("chatgpt", "reasoning_effort", "high")
             prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
             prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
             prefs.set_model_limit_snapshot(
@@ -177,6 +179,7 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual((loaded.last_limit_message_by_model or {})["chatgpt"], "You've hit your usage limit. Try again at 8:05 PM.")
             self.assertEqual((loaded.last_limit_message_by_account or {})["claude:team"], "Claude usage limited until 2026-05-01T19:00.")
             self.assertEqual((loaded.provider_limit_snapshot_by_model or {})["chatgpt"]["utilization"], 88.0)
+            self.assertEqual((loaded.params_by_model or {})["chatgpt"]["reasoning_effort"], "high")
             self.assertEqual(
                 (loaded.provider_limit_snapshot_by_account or {})["claude:team"]["rate_limit_type"],
                 "five_hour_sonnet",

@@ -23,6 +23,17 @@ class ProviderCapability:
     source: str
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderModelSpec:
+    id: str
+    label: str
+    reasoning_efforts: tuple[str, ...]
+    reasoning_default: str | None = None
+    context_window_hint: str = ""
+    availability: str = "general"
+    source: str = ""
+
+
 PROVIDER_CAPABILITIES: dict[str, ProviderCapability] = {
     "local": ProviderCapability(
         name="local",
@@ -132,6 +143,60 @@ PROVIDER_CAPABILITIES: dict[str, ProviderCapability] = {
 }
 
 
+PROVIDER_MODEL_SPECS: dict[str, tuple[ProviderModelSpec, ...]] = {
+    "local": (
+        ProviderModelSpec(
+            id="provider-default",
+            label="Provider default",
+            reasoning_efforts=(),
+            reasoning_default=None,
+            availability="workspace",
+            source="workspace/provider setting",
+        ),
+    ),
+    "cheap": (
+        ProviderModelSpec(
+            id="provider-default",
+            label="Provider default",
+            reasoning_efforts=("low", "medium"),
+            reasoning_default="medium",
+            availability="provider-default",
+            source="OpenRouter provider setting",
+        ),
+    ),
+    "chatgpt": (
+        ProviderModelSpec("provider-default", "Provider default", ("low", "medium", "high"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("codex-mini-latest", "Codex Mini Latest", ("low", "medium"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("gpt-5.1-codex", "GPT-5.1 Codex", ("low", "medium", "high"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("gpt-5.1-codex-mini", "GPT-5.1 Codex Mini", ("medium", "high"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("gpt-5.2-codex", "GPT-5.2 Codex", ("low", "medium", "high"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("gpt-5.3-codex", "GPT-5.3 Codex", ("low", "medium", "high"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("gpt-5.4", "GPT-5.4", ("low", "medium", "high"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("gpt-5.4-mini", "GPT-5.4 Mini", ("low", "medium", "high"), "medium", source="OpenAI Codex/OpenAI models docs"),
+        ProviderModelSpec("gpt-5.4-nano", "GPT-5.4 Nano", ("low", "medium"), "medium", source="OpenAI Codex/OpenAI models docs"),
+    ),
+    "openai": (
+        ProviderModelSpec("provider-default", "Provider default", ("low", "medium", "high"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("gpt-5.4", "GPT-5.4", ("low", "medium", "high"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("gpt-5.4-mini", "GPT-5.4 Mini", ("low", "medium", "high"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("gpt-5.4-nano", "GPT-5.4 Nano", ("low", "medium"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("gpt-5.3-codex", "GPT-5.3 Codex", ("low", "medium", "high"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("gpt-5.2-codex", "GPT-5.2 Codex", ("low", "medium", "high"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("gpt-5.1-codex", "GPT-5.1 Codex", ("low", "medium", "high"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("gpt-5.1-codex-mini", "GPT-5.1 Codex Mini", ("medium", "high"), "medium", source="OpenAI models docs"),
+        ProviderModelSpec("codex-mini-latest", "Codex Mini Latest", ("low", "medium"), "medium", source="OpenAI models docs"),
+    ),
+    "claude": (
+        ProviderModelSpec("default", "Default", ("low", "medium", "high"), "medium", source="Claude Code model configuration docs"),
+        ProviderModelSpec("sonnet", "Claude Sonnet", ("low", "medium", "high"), "medium", source="Claude Code model configuration docs"),
+        ProviderModelSpec("opus", "Claude Opus", ("medium", "high"), "high", source="Claude Code model configuration docs"),
+        ProviderModelSpec("haiku", "Claude Haiku", ("low", "medium"), "medium", source="Claude Code model configuration docs"),
+        ProviderModelSpec("sonnet[1m]", "Claude Sonnet 1M", ("medium", "high"), "medium", source="Claude Code model configuration docs"),
+        ProviderModelSpec("opusplan", "Claude Opus Plan", ("high",), "high", source="Claude Code model configuration docs"),
+    ),
+}
+
+
 SUPPORTED_MODELS = tuple(PROVIDER_CAPABILITIES.keys())
 
 
@@ -189,3 +254,17 @@ def model_name_env() -> dict[str, str]:
 
 def login_urls() -> dict[str, str]:
     return {name: capability.login_url for name, capability in PROVIDER_CAPABILITIES.items() if capability.login_url}
+
+
+def provider_model_specs(model: str) -> tuple[ProviderModelSpec, ...]:
+    try:
+        return PROVIDER_MODEL_SPECS[model]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported model '{model}'.") from exc
+
+
+def provider_model_spec(model: str, provider_model: str) -> ProviderModelSpec | None:
+    for spec in provider_model_specs(model):
+        if spec.id == provider_model:
+            return spec
+    return None

@@ -248,8 +248,11 @@ Model control:
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
 - `model list <provider>` shows the official aliases or model IDs and provider capabilities for that provider.
+- `model params <provider>` shows supported and current provider-model parameters such as `reasoning_effort`.
 - `model variant <provider> <variant>` pins a provider-specific model alias or model ID.
 - `model variant-clear <provider>` clears the variant override and returns to the provider default.
+- `model param set <provider> reasoning_effort <low|medium|high>` persists provider-model parameters when supported.
+- `model param clear <provider> reasoning_effort` clears the persisted parameter override.
 - `model remove <local|cheap|chatgpt|openai|claude>` disables a model.
 - `model block <model> until YYYY-MM-DDTHH:MM` blocks a model until a date and time.
 - `model limit-record <model> <provider message>` stores a pasted provider limit message as a sanitized snapshot and blocks the model when a reset time is detected.
