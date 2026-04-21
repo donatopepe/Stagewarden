@@ -1463,6 +1463,54 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Applied preset deep to chatgpt: provider_model=gpt-5.3-codex", rendered)
             self.assertIn("reasoning_effort_current: high", rendered)
 
+    def test_interactive_shell_guided_model_choice_for_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO(
+                "model choose chatgpt\n"
+                "4\n"
+                "3\n"
+                "model params chatgpt\n"
+                "models\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(code, 0)
+            self.assertEqual(prefs.preferred_model, "chatgpt")
+            self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.1-codex-mini")
+            self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "high")
+            self.assertIn("Choose provider-model for chatgpt:", rendered)
+            self.assertIn("Choose reasoning_effort for chatgpt:gpt-5.1-codex-mini:", rendered)
+            self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.1-codex-mini reasoning_effort=high.", rendered)
+            self.assertIn("reasoning_effort_current: high", rendered)
+
+    def test_interactive_shell_guided_model_choice_can_select_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO(
+                "model choose\n"
+                "3\n"
+                "7\n"
+                "2\n"
+                "models\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(code, 0)
+            self.assertEqual(prefs.preferred_model, "chatgpt")
+            self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.4")
+            self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "medium")
+            self.assertIn("Choose provider:", rendered)
+            self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.4 reasoning_effort=medium.", rendered)
+
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
