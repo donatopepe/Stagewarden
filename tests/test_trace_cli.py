@@ -1028,6 +1028,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("models:", rendered.stdout)
             self.assertIn("roles domains [--json]", rendered.stdout)
             self.assertIn("roles tree [--json]", rendered.stdout)
+            self.assertIn("roles check [--json]", rendered.stdout)
             self.assertIn("sources", rendered.stdout)
             self.assertIn("commands [--json]", rendered.stdout)
 
@@ -1040,11 +1041,13 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("status", by_name)
             self.assertIn("roles domains", by_name)
             self.assertIn("roles tree", by_name)
+            self.assertIn("roles check", by_name)
             self.assertIn("sources", by_name)
             self.assertEqual(by_name["commands"]["group"], "core")
             self.assertTrue(by_name["commands"]["json"])
             self.assertEqual(by_name["roles domains"]["handler"], "roles")
             self.assertEqual(by_name["roles tree"]["handler"], "roles")
+            self.assertEqual(by_name["roles check"]["handler"], "roles")
 
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1626,6 +1629,48 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("business_case_detail", nodes["delivery.team_manager"]["context_rule"]["exclude"])
             self.assertEqual(nodes["management.project_manager"]["assignment"]["provider"], "chatgpt")
             self.assertEqual(nodes["assurance.project_assurance"]["level"], "assurance")
+
+    def test_roles_check_validates_tree_readiness_limits_and_independence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            missing = run_main_capture(root, "roles check", "--json")
+            self.assertEqual(missing.returncode, 0, missing.stderr)
+            missing_payload = json.loads(missing.stdout)
+            self.assertEqual(missing_payload["status"], "error")
+            self.assertEqual(missing_payload["summary"]["unassigned"], 8)
+            self.assertEqual(missing_payload["findings"][0]["code"], "missing_assignment")
+
+            propose = run_main_capture(root, "roles propose")
+            self.assertEqual(propose.returncode, 0, propose.stderr)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            team_assignment = dict((prefs.prince2_roles or {})["team_manager"])
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="auto",
+                provider=str(team_assignment["provider"]),
+                provider_model=str(team_assignment["provider_model"]),
+                params=dict(team_assignment.get("params", {})),
+                account=team_assignment.get("account"),
+                source="test_independence_warning",
+            )
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles check")
+            json_completed = run_main_capture(root, "roles check", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 role tree check:", completed.stdout)
+            self.assertIn("provider_blocked", completed.stdout)
+            self.assertIn("assurance_delivery_same_model", completed.stdout)
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles check")
+            self.assertEqual(payload["status"], "error")
+            codes = {item["code"] for item in payload["findings"]}
+            self.assertIn("provider_blocked", codes)
+            self.assertIn("assurance_delivery_same_model", codes)
+            self.assertEqual(payload["summary"]["assigned"], 8)
 
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

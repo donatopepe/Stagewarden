@@ -220,6 +220,9 @@ Phase 3 - PRINCE2 role startup controls:
 - Wet-run `python3 -m stagewarden.main "roles tree"` passed in the real workspace.
 - Wet-run `python3 -m stagewarden.main "roles tree" --json` passed in the real workspace.
 - `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_shows_hierarchy_and_node_context_rules tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_roles_domains_shows_prince2_context_boundaries` passed after role-tree implementation.
+- `roles check` and `roles check --json` now validate role-tree readiness, missing assignments, blocked providers/accounts, and assurance-vs-delivery independence warnings.
+- Wet-run `python3 -m stagewarden.main "roles check" --json` passed in the real workspace.
+- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_check_validates_tree_readiness_limits_and_independence tests.test_trace_cli.TraceAndCliTests.test_roles_tree_shows_hierarchy_and_node_context_rules tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json` passed after role-tree check implementation.
 - `project start` expected flow:
 - Step 1: assess project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - Step 2: generate a PRINCE2 organization tree sized to that assessment, keeping small projects lightweight and complex projects explicit.
