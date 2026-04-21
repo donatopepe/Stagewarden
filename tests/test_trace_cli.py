@@ -1469,7 +1469,7 @@ class TraceAndCliTests(unittest.TestCase):
             input_stream = StringIO(
                 "model choose chatgpt\n"
                 "4\n"
-                "3\n"
+                "2\n"
                 "model params chatgpt\n"
                 "models\n"
                 "exit\n"
