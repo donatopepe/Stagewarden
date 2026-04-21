@@ -250,7 +250,7 @@ Model control:
 - `stagewarden "model limits" --json` emits the same limit snapshot in machine-readable form.
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model choose [provider]` opens a guided menu in the interactive shell to choose provider, provider-model, and supported parameters.
-- `model preset <provider>` can also open a guided preset menu in the interactive shell for `fast`, `balanced`, `deep`, or `plan`.
+- `model preset <provider>` without the preset value opens the guided provider-model picker in the interactive shell.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
 - `model list <provider>` shows the official aliases or model IDs and provider capabilities for that provider.
 - `model params <provider>` shows supported and current provider-model parameters such as `reasoning_effort`.

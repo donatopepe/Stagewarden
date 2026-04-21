@@ -1511,11 +1511,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Choose provider:", rendered)
             self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.4 reasoning_effort=medium.", rendered)
 
-    def test_interactive_shell_guided_model_preset_choice(self) -> None:
+    def test_interactive_shell_model_preset_without_value_opens_model_choice(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             input_stream = StringIO(
                 "model preset chatgpt\n"
+                "6\n"
                 "3\n"
                 "model params chatgpt\n"
                 "exit\n"
@@ -1529,8 +1530,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(prefs.preferred_model, "chatgpt")
             self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.3-codex")
             self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "high")
-            self.assertIn("Choose preset for chatgpt:", rendered)
-            self.assertIn("Guided preset applied: provider=chatgpt preset=deep provider_model=gpt-5.3-codex params=reasoning_effort=high.", rendered)
+            self.assertIn("Choose provider-model for chatgpt:", rendered)
+            self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.3-codex reasoning_effort=high.", rendered)
             self.assertIn("reasoning_effort_current: high", rendered)
 
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
