@@ -209,6 +209,12 @@ Phase 3 - PRINCE2 role startup controls:
 - Add `roles matrix --json` combining role tree, domains, active assignments, provider-models, params, accounts, provider/account limit state, readiness, and independence warnings.
 - Add Project Board startup gate in `project start`: propose a role tree from project scale/risk/delivery mode, show matrix, require confirmation in interactive mode, and persist the approved baseline in handoff.
 - Model calls must receive only the context slice allowed by the selected role node, not the entire project handoff by default.
+- Every role node must derive its context from PRINCE2 rules for that role: accountability, delegated responsibility, tolerance authority, product/work-package boundary, assurance independence, reporting line, and escalation path.
+- Each node context must include only what the role needs to decide or execute: assigned products/work packages, relevant risks/issues/quality records, applicable tolerances, dependencies, accepted baselines, latest observations, and required evidence.
+- Each node context must exclude unrelated domains by default: business justification outside non-board roles, supplier technical detail outside supplier/team roles, user acceptance detail outside user/quality roles, and full exception context outside authorized escalation roles.
+- Context expansion is allowed only through an explicit PRINCE2 event: escalation, exception, stage boundary review, delegated change decision, formal assurance review, or board decision.
+- Context expansion must be recorded in handoff with reason, requesting node, approving/receiving node, scope added, timestamp, and git boundary.
+- Fallback routing must preserve the node context exactly; changing provider/model/account must not widen the role's PRINCE2 context.
 - `project start` expected flow:
 - Step 1: assess project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - Step 2: generate a PRINCE2 organization tree sized to that assessment, keeping small projects lightweight and complex projects explicit.
