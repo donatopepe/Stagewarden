@@ -133,6 +133,14 @@ Additional validation evidence:
 - Interactive wet-run passed with bare `status`, which was treated as a task and rejected by governance as expected.
 - Interactive wet-run passed with `/status`, which was treated as a shell command and rendered the status dashboard.
 - `study/` remains developer-only learning material and is not exposed in agent prompts, status, doctor output, or runtime behavior.
+- PRINCE2 role routing is implemented: `/roles`, `/roles propose`, `/roles setup`, `/role configure [role]`, `/role clear <role>`, and `/project start`.
+- Role assignments persist provider, provider-model, reasoning parameters, account, mode, and source in `.stagewarden_models.json`.
+- Project handoff now synchronizes PRINCE2 role assignments so model calls receive implicit role ownership context without a manual resume.
+- Provider rate-limit recovery now records blocked-until metadata, switches automatically to an available provider/account, and asks the user whether to wait/stop when no alternative exists.
+- `python3 -m unittest tests/test_trace_cli.py` passed, 91 tests, after role routing and `study/` runtime removal.
+- `python3 -m unittest tests/test_persistence.py` passed, 7 tests, after role/handoff persistence.
+- `python3 -m unittest tests/test_executor.py` passed, 25 tests, after rate-limit recovery decision support.
+- `python3 -m unittest discover -s tests` passed, 220 tests, after role routing and rate-limit recovery.
 
 Next recommended implementation blocks:
 
