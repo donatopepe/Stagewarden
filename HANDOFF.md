@@ -165,6 +165,8 @@ Next recommended implementation blocks:
 
 Priority 1 - interactive operator experience:
 
+- Product direction: Stagewarden user experience must feel close to Codex CLI and Claude Code: terminal-first, command-discoverable, safe-by-default, model/account/status aware, and optimized for fast operator feedback.
+- Use the downloaded local sources in `external_sources/codex`, `external_sources/claude-code`, and `external_sources/caveman` only as learning/reference material for UX and architecture decisions; do not vendor, republish, or copy third-party implementation unless license and attribution explicitly allow it.
 - Implement Codex-style slash command palette: when the user types `/` in the interactive shell, show an autocomplete menu with command names, short explanations, and keyboard cursor selection/confirmation.
 - Add structured command metadata so help, completions, slash palette, and JSON command catalogs share one source of truth.
 - Add `commands --json` or `help --json` for machine-readable command discovery and future UI integrations.
@@ -192,6 +194,50 @@ Priority 5 - resilience and auditability:
 - Add a `preflight` command that combines doctor, sources status, roles check, model limits, git status, and permission posture.
 - Add JSON schema stability tests for status, statusline, roles domains, roles matrix, source status, and model limits.
 - Add an operator-facing remediation section in `status` when the project is in exception or role baseline is incomplete.
+
+## UX Reference Analysis: Codex CLI, Claude Code, Caveman
+
+Status: analyzed local downloaded references
+
+Reference boundary:
+
+- Sources are local study references only: `external_sources/codex`, `external_sources/claude-code`, `external_sources/caveman`.
+- Stagewarden should reproduce interaction patterns and product behavior where useful, not copy source code.
+- Any future direct code reuse requires license review and explicit attribution before implementation.
+
+Codex CLI UX lessons to apply:
+
+- Slash command behavior should be centralized in one command registry reused by composer, popup, completion, help, and dispatch.
+- Slash command visibility should support feature/context gating, similar to Codex built-in command flags.
+- Fuzzy matching should support partial command discovery instead of requiring exact command memory.
+- The slash command popup should preserve predictable Enter/Tab semantics and avoid surprising submission behavior while the popup is active.
+- Status should be a full operational dashboard, not a login-only output: model, provider, account, cwd, permissions, session/thread identity, token/context usage, agents, rate limits, credits, and stale/missing limit state.
+- Provider limit snapshots should distinguish available, stale, unavailable, and missing states, with a 15-minute stale threshold as a reference target.
+
+Claude Code UX lessons to apply:
+
+- Stagewarden should behave like a terminal-native coding partner: user enters a project folder, runs one command, and works through natural language plus slash commands.
+- Command/plugin architecture should support discoverable workflows, custom commands, specialized agents/roles, skills, hooks, and MCP-style extensions over time.
+- `/bug`-style feedback/reporting should be considered for future operator issue capture.
+- Plugin-style structure suggests future Stagewarden extension points: commands, role agents, skills, hooks, MCP definitions, and README-level documentation per extension.
+- Hook examples reinforce that command/tool validation should happen before execution and should fail safely.
+
+Caveman UX lessons to apply:
+
+- Mode state should be lightweight, visible, and persisted in a simple local state file.
+- Statusline/badge-style output is useful to keep active mode visible without bloating every response.
+- SessionStart/UserPromptSubmit hook concepts map to Stagewarden startup checks and per-turn reinforcement of active mode/governance.
+- Natural language activation/deactivation should coexist with slash commands for common modes.
+- Readability and install accuracy are product requirements, not cosmetic documentation.
+
+Stagewarden UX target:
+
+- Start with `stagewarden` in any repo and immediately show a concise shell with `/help`, `/status`, model/account visibility, permission posture, git state, and PRINCE2 boundary state.
+- Typing `/` should open an interactive command palette with command labels, descriptions, filtering, and cursor selection.
+- Commands should be grouped by operator intent: core, models, accounts, roles, PRINCE2 handoff, git, permissions, sources, Caveman, LJSON, diagnostics.
+- Every important shell surface should have a JSON equivalent where useful for automation.
+- Status surfaces should include next-action remediation when something blocks delivery: missing role baseline, active exception plan, dirty git, blocked provider/account, missing auth, missing source references, or restrictive permission mode.
+- Role-driven model assignment and context isolation must stay visible through `roles`, `roles domains`, future `roles check`, and future `roles matrix --json`.
 
 ## Implemented Capabilities
 
