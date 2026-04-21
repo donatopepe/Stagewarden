@@ -141,6 +141,10 @@ Additional validation evidence:
 - `python3 -m unittest tests/test_persistence.py` passed, 7 tests, after role/handoff persistence.
 - `python3 -m unittest tests/test_executor.py` passed, 25 tests, after rate-limit recovery decision support.
 - `python3 -m unittest discover -s tests` passed, 220 tests, after role routing and rate-limit recovery.
+- `status` now includes a PRINCE2 role baseline section and explicitly suggests `/project start` or `/roles setup` when role ownership is missing.
+- Wet-run `python3 -m stagewarden.main status` confirmed the missing-role operational hint in the real workspace.
+- `python3 -m unittest tests/test_trace_cli.py` passed, 91 tests, after the status role-baseline section.
+- `python3 -m unittest discover -s tests` passed, 220 tests, after the status role-baseline section.
 
 Next recommended implementation blocks:
 
