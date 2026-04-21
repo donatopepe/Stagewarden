@@ -814,6 +814,22 @@ def _render_prince2_role_domains() -> str:
     return "\n".join(lines)
 
 
+def _prince2_role_domains_report() -> dict[str, object]:
+    return {
+        "command": "roles domains",
+        "rule": "a role-assigned model receives only the context inside its PRINCE2 domain unless escalation changes the active role",
+        "roles": [
+            {
+                "role": role,
+                "label": PRINCE2_ROLE_LABELS[role],
+                "responsibility": PRINCE2_ROLE_AUTOMATION_RULES.get(role, "controlled project work"),
+                "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, "controlled project work"),
+            }
+            for role in PRINCE2_ROLE_IDS
+        ],
+    }
+
+
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
@@ -4456,6 +4472,12 @@ def main() -> int:
             print(dumps_ascii(_prince2_roles_report(config), indent=2))
         else:
             print(_render_prince2_roles(config))
+        return 0
+    if task == "roles domains":
+        if args.json:
+            print(dumps_ascii(_prince2_role_domains_report(), indent=2))
+        else:
+            print(_render_prince2_role_domains())
         return 0
     if task.startswith("roles ") or task.startswith("role ") or task == "project start":
         agent = _configure_readonly_agent_for_workspace(config)
