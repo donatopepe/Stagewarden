@@ -149,8 +149,11 @@ Additional validation evidence:
 - Role-assigned models now receive scoped context only: unrelated risks/issues/exception plans/logs are omitted unless the active PRINCE2 role owns that domain.
 - Executor tests verify Team Manager routing uses the configured provider/model/params and does not expose business risk or exception-plan content outside the Team Manager domain.
 - `roles domains` now renders each PRINCE2 role responsibility and context boundary so model assignments can be reviewed before project startup.
+- `roles domains --json` now exposes the same role-domain matrix with stable fields: command, rule, roles, role, label, responsibility, and context_scope.
 - Wet-run `python3 -m stagewarden.main "roles domains"` passed and shows all role domains.
+- Wet-run `python3 -m stagewarden.main "roles domains" --json` passed and emits the machine-readable role-domain matrix.
 - `python3 -m unittest tests/test_executor.py tests/test_trace_cli.py` passed, 119 tests, after role-domain CLI support.
+- `python3 -m unittest tests/test_trace_cli.py` passed, 93 tests, after role-domain JSON support.
 - `python3 -m unittest discover -s tests` passed, 223 tests, after role-domain CLI support.
 - `sources status` is implemented as a read-only external reference verifier for `docs/source_references.md`.
 - `sources status` reports local path presence, Git repository state, HEAD, upstream URL match with `.git` suffix normalization, and shallow-clone state.
