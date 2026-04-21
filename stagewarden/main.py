@@ -33,7 +33,13 @@ from .modelprefs import (
     limit_snapshot_from_message,
 )
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
-from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability, provider_model_spec, provider_model_specs
+from .provider_registry import (
+    SUPPORTED_MODELS as REGISTRY_MODELS,
+    provider_capability,
+    provider_model_preset,
+    provider_model_spec,
+    provider_model_specs,
+)
 from .project_handoff import ProjectHandoff
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
@@ -456,6 +462,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- model params <local|cheap|chatgpt|openai|claude>",
             "- model variant <provider> <variant>",
             "- model variant-clear <provider>",
+            "- model preset <provider> <fast|balanced|deep|plan>",
             "- model param set <provider> <key> <value>",
             "- model param clear <provider> <key>",
             "- model block <model> until YYYY-MM-DDTHH:MM",
@@ -471,6 +478,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> model list claude",
             "- stagewarden> model params chatgpt",
             "- stagewarden> model variant openai gpt-5.4-mini",
+            "- stagewarden> model preset chatgpt deep",
             "- stagewarden> model param set chatgpt reasoning_effort high",
             "- stagewarden> model block openai until 2026-05-01T18:30",
             "- stagewarden> model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.",
@@ -2549,6 +2557,20 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
                     f"- reasoning_effort_current: {current_reasoning or 'none'}",
                 ]
             )
+        if action == "preset":
+            if len(parts) != 4:
+                return "Usage: model preset <provider> <fast|balanced|deep|plan>"
+            model, preset = parts[2], parts[3]
+            if model not in SUPPORTED_MODELS:
+                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            provider_model, params = provider_model_preset(model, preset)
+            prefs.set_variant(model, provider_model)
+            for key, value in params.items():
+                prefs.set_model_param(model, key, value)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            params_text = ", ".join(f"{key}={value}" for key, value in sorted(params.items())) or "none"
+            return f"Applied preset {preset} to {model}: provider_model={provider_model} params={params_text}."
         if action == "param":
             if len(parts) < 4:
                 return "Usage: model param <set|clear> ..."
@@ -2674,6 +2696,7 @@ def _model_usage() -> str:
     return (
         "Usage: model use <name> | model add <name> | model list <name> | "
         "model params <name> | model variant <name> <variant> | model variant-clear <name> | "
+        "model preset <name> <fast|balanced|deep|plan> | "
         "model param set <name> <key> <value> | model param clear <name> <key> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
         "model unblock <name> | model limits | model limit-record <name> <message> | "

@@ -268,3 +268,41 @@ def provider_model_spec(model: str, provider_model: str) -> ProviderModelSpec | 
         if spec.id == provider_model:
             return spec
     return None
+
+
+def provider_model_preset(model: str, preset: str) -> tuple[str, dict[str, str]]:
+    normalized = str(preset).strip().lower()
+    presets: dict[str, dict[str, tuple[str, dict[str, str]]]] = {
+        "chatgpt": {
+            "fast": ("codex-mini-latest", {"reasoning_effort": "low"}),
+            "balanced": ("gpt-5.1-codex-mini", {"reasoning_effort": "medium"}),
+            "deep": ("gpt-5.3-codex", {"reasoning_effort": "high"}),
+            "plan": ("gpt-5.4", {"reasoning_effort": "high"}),
+        },
+        "openai": {
+            "fast": ("gpt-5.4-mini", {"reasoning_effort": "low"}),
+            "balanced": ("gpt-5.2-codex", {"reasoning_effort": "medium"}),
+            "deep": ("gpt-5.4", {"reasoning_effort": "high"}),
+            "plan": ("gpt-5.4", {"reasoning_effort": "high"}),
+        },
+        "claude": {
+            "fast": ("haiku", {"reasoning_effort": "low"}),
+            "balanced": ("sonnet", {"reasoning_effort": "medium"}),
+            "deep": ("opus", {"reasoning_effort": "high"}),
+            "plan": ("opusplan", {"reasoning_effort": "high"}),
+        },
+        "cheap": {
+            "fast": ("provider-default", {"reasoning_effort": "low"}),
+            "balanced": ("provider-default", {"reasoning_effort": "medium"}),
+        },
+        "local": {
+            "fast": ("provider-default", {}),
+            "balanced": ("provider-default", {}),
+        },
+    }
+    provider_presets = presets.get(model, {})
+    if normalized not in provider_presets:
+        raise ValueError(
+            f"Unsupported preset '{preset}' for {model}. Allowed: {', '.join(provider_presets) or 'none'}"
+        )
+    return provider_presets[normalized]
