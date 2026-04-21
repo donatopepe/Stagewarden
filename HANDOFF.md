@@ -94,6 +94,9 @@ Follow-up implemented after this pass:
 - Corrected CLI/status terminology: provider and provider-model are now rendered separately.
 - Added explicit `provider_model` and `provider_model_selection` fields to model/status JSON reports.
 - Route rendering now shows `provider=...` and `provider_model=...` instead of conflating provider with model.
+- Added provider-model catalog metadata with supported `reasoning_effort` values.
+- Added persisted provider-model params per provider, currently including `reasoning_effort`.
+- Added CLI commands `model params`, `model param set`, and `model param clear`.
 
 Additional validation evidence:
 
@@ -110,6 +113,9 @@ Additional validation evidence:
 - Interactive wet-run with stubbed `codex` backend confirmed `account login chatgpt personale` updates the active profile and stores a sanitized Codex marker.
 - `python3 -m stagewarden.main models --json` passed as wet-run and now exposes `preferred_provider`, `provider_model`, and `provider_model_selection`.
 - `python3 -m stagewarden.main statusline --json` passed as wet-run and now exposes active provider/provider-model separately.
+- `python3 -m stagewarden.main "model list chatgpt"` passed as wet-run and renders the provider-model catalog plus supported reasoning levels.
+- `python3 -m stagewarden.main "model variant chatgpt gpt-5.3-codex"` + `model param set chatgpt reasoning_effort high` + `model params chatgpt` passed as wet-run.
+- `python3 -m unittest discover -s tests` passed, 211 tests.
 
 Next recommended implementation blocks:
 
