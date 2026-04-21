@@ -31,6 +31,7 @@ class StepOutcome:
     git_head_after: str | None = None
     error_type: str | None = None
     prince2_assessment: dict[str, Any] | None = None
+    prince2_role: str | None = None
 
 
 ALLOWED_MODEL_ACTIONS = {
@@ -56,6 +57,18 @@ ALLOWED_MODEL_ACTIONS = {
 }
 
 DESTRUCTIVE_ACTION_TOKENS = ("delete", "remove", "destroy", "wipe", "reset", "drop", "format", "purge")
+
+
+PRINCE2_ROLE_AUTOMATION_RULES: dict[str, str] = {
+    "project_executive": "business justification, benefits, cost tolerance, and stop/go escalation",
+    "project_manager": "planning, coordination, controlled execution, reporting, and stage boundary control",
+    "team_manager": "implementation and product delivery within the agreed work package",
+    "project_assurance": "independent validation, quality evidence, risk/issue review, and closure checks",
+    "change_authority": "change requests, exceptions, re-baselining, and tolerance breaches",
+    "senior_user": "user value, acceptance, adoption, and benefit realization checks",
+    "senior_supplier": "technical feasibility, supplier risk, and specialist delivery integrity",
+    "project_support": "logs, handoff, records, git snapshots, and administrative traceability",
+}
 
 
 class Executor:
@@ -95,19 +108,26 @@ class Executor:
         failure_count = self.memory.failure_count(step.id)
         model = self.router.choose_model(task, step.instruction, failure_count)
         git_head_before = self._git_head()
+        prefs = self._configure_handoff_accounts()
+        prince2_role = self._role_for_step(task=task, step=step)
+        role_assignment = self._role_assignment_for_step(prefs, prince2_role)
+        if role_assignment:
+            model = str(role_assignment["provider"])
+            self._configure_handoff_role_route(role_assignment)
         prompt = self._build_prompt(task=task, step=step, plan=plan, last_observation=last_observation)
 
-        prefs = self._configure_handoff_accounts()
         self._configure_handoff_variant(
             prefs=prefs,
             model=model,
             task=task,
             step_text=step.instruction,
             failure_count=failure_count,
+            role_assignment=role_assignment,
         )
-        account = self._select_account(model)
+        account = str(role_assignment["account"]) if role_assignment and role_assignment.get("account") else self._select_account(model)
         if self._accounts_configured(model) and account is None:
             model = self.router.fallback_for_api_failure(model)
+            role_assignment = None
             self._configure_handoff_variant(
                 prefs=prefs,
                 model=model,
@@ -153,10 +173,11 @@ class Executor:
                         account=account,
                         variant=self.handoff.model_variant_by_model.get(model),
                         git_head_before=git_head_before,
-                        git_head_after=self._git_head(),
-                        error_type="rate_limit_wait" if decision == "wait" else "rate_limit",
-                        prince2_assessment=None,
-                    )
+                    git_head_after=self._git_head(),
+                    error_type="rate_limit_wait" if decision == "wait" else "rate_limit",
+                    prince2_assessment=None,
+                    prince2_role=prince2_role,
+                )
             self._configure_handoff_variant(
                 prefs=prefs,
                 model=fallback_model,
@@ -195,6 +216,7 @@ class Executor:
                     git_head_after=self._git_head(),
                     error_type="api_failure",
                     prince2_assessment=None,
+                    prince2_role=prince2_role,
                 )
             result = fallback
             model = fallback_model
@@ -226,6 +248,7 @@ class Executor:
                 git_head_after=self._git_head(),
                 error_type="invalid_output",
                 prince2_assessment=None,
+                prince2_role=prince2_role,
             )
 
         action = parsed["action"]
@@ -287,6 +310,7 @@ class Executor:
                 git_head_after=self._git_head(),
                 error_type=error_type,
                 prince2_assessment=prince2_assessment,
+                prince2_role=prince2_role,
             )
 
         return StepOutcome(
@@ -301,6 +325,7 @@ class Executor:
             git_head_after=self._git_head(),
             error_type=error_type,
             prince2_assessment=prince2_assessment,
+            prince2_role=prince2_role,
         )
 
     def _configure_handoff_accounts(self) -> ModelPreferences:
@@ -320,7 +345,11 @@ class Executor:
         task: str,
         step_text: str,
         failure_count: int,
+        role_assignment: dict[str, Any] | None = None,
     ) -> None:
+        if role_assignment:
+            self._configure_handoff_role_route(role_assignment)
+            return
         pinned = prefs.variant_for_model(model)
         if pinned:
             self.handoff.model_variant_by_model[model] = pinned
@@ -330,6 +359,43 @@ class Executor:
             self.handoff.model_variant_by_model[model] = auto_variant
         else:
             self.handoff.model_variant_by_model.pop(model, None)
+
+    def _configure_handoff_role_route(self, assignment: dict[str, Any]) -> None:
+        provider = str(assignment.get("provider", "")).strip()
+        provider_model = str(assignment.get("provider_model", "")).strip()
+        if not provider or not provider_model:
+            return
+        self.handoff.model_variant_by_model[provider] = provider_model
+        params = assignment.get("params", {})
+        if isinstance(params, dict):
+            self.handoff.model_params_by_model[provider] = {str(key): str(value) for key, value in params.items()}
+
+    def _role_for_step(self, *, task: str, step: PlanStep) -> str:
+        text = f"{task} {step.id} {step.title} {step.instruction}".lower()
+        if "recovery-step" in step.id or any(token in text for token in ("exception", "tolerance", "re-baseline", "rebaseline", "change request")):
+            return "change_authority"
+        if any(token in text for token in ("implement", "modify", "write", "patch", "create", "build", "fix")):
+            return "team_manager"
+        if any(token in text for token in ("validate", "test", "quality", "verify", "wet-run", "wet run", "check")):
+            return "project_assurance"
+        if any(token in text for token in ("business case", "benefit", "cost", "budget", "stop/go", "go/no-go")):
+            return "project_executive"
+        if any(token in text for token in ("acceptance", "user", "adoption", "benefit realization")):
+            return "senior_user"
+        if any(token in text for token in ("supplier", "technical feasibility", "architecture", "integration")):
+            return "senior_supplier"
+        if any(token in text for token in ("log", "handoff", "record", "git", "trace")):
+            return "project_support"
+        return "project_manager"
+
+    def _role_assignment_for_step(self, prefs: ModelPreferences, role: str) -> dict[str, Any] | None:
+        assignment = prefs.prince2_role_assignment(role)
+        if not assignment:
+            return None
+        provider = str(assignment.get("provider", "")).strip()
+        if provider not in prefs.active_models():
+            return None
+        return assignment
 
     def _git_head(self) -> str | None:
         result = self.git.head()
@@ -439,12 +505,17 @@ class Executor:
         memory_summary = self._bounded_context("memory_summary", self.memory.summarize(), 2000)
         execution_log = self._bounded_context("execution_log", self.memory.detailed_summary(), 4000)
         handoff_log = self._bounded_context("handoff_log", self.project_handoff.detailed_summary(), 4000)
-        risk_register = self._bounded_context("risk_register", self.project_handoff.rendered_risks(), 2500)
-        issue_register = self._bounded_context("issue_register", self.project_handoff.rendered_issues(), 2500)
-        quality_register = self._bounded_context("quality_register", self.project_handoff.rendered_quality(), 2500)
-        lessons_log = self._bounded_context("lessons_log", self.project_handoff.rendered_lessons(), 2500)
-        exception_plan = self._bounded_context("exception_plan", self.project_handoff.rendered_exception_plan(), 2000)
+        active_role = self._role_for_step(task=task, step=step)
+        scoped = self._role_scoped_context(active_role)
+        risk_register = self._bounded_context("risk_register", scoped["risks"], 2500)
+        issue_register = self._bounded_context("issue_register", scoped["issues"], 2500)
+        quality_register = self._bounded_context("quality_register", scoped["quality"], 2500)
+        lessons_log = self._bounded_context("lessons_log", scoped["lessons"], 2500)
+        exception_plan = self._bounded_context("exception_plan", scoped["exception_plan"], 2000)
         model_context = self._model_context_files_section()
+        role_context = self._bounded_context("prince2_role_automation", self._prince2_role_automation_section(task, step), 2500)
+        scoped_handoff_log = self._bounded_context("handoff_log", handoff_log if scoped["handoff_log"] else "Omitted by PRINCE2 role scope.", 4000)
+        scoped_execution_log = self._bounded_context("execution_log", execution_log if scoped["execution_log"] else "Omitted by PRINCE2 role scope.", 4000)
         return f"""{self.config.system_prompt}
 
 Task:
@@ -458,6 +529,9 @@ Implicit project handoff context:
 
 Stage boundary view:
 {self._bounded_context("stage_view", self.project_handoff.rendered_stage_view(), 3500)}
+
+PRINCE2 role automation:
+{role_context}
 
 PRINCE2 registers:
 Risks:
@@ -476,10 +550,10 @@ Exception plan:
 {exception_plan}
 
 Recent handoff log:
-{handoff_log}
+{scoped_handoff_log}
 
 Recent execution log:
-{execution_log}
+{scoped_execution_log}
 
 Current step:
 id={step.id}
@@ -536,6 +610,121 @@ Respond with strict JSON:
   }}
 }}
 """
+
+    def _prince2_role_automation_section(self, task: str, step: PlanStep) -> str:
+        active_role = self._role_for_step(task=task, step=step)
+        lines = [
+            f"- active_role: {active_role}",
+            f"- active_role_responsibility: {PRINCE2_ROLE_AUTOMATION_RULES.get(active_role, 'controlled project work')}",
+            "- automation_rule: plan via Project Manager, deliver via Team Manager, validate via Project Assurance, escalate exceptions or tolerance breaches via Change Authority.",
+            "- governance_rule: do not bypass accountability; record evidence in handoff and use Project Executive for business/cost/benefit stop-go decisions.",
+            f"- context_scope: {self._role_scope_description(active_role)}",
+        ]
+        assignment = self.project_handoff.prince2_roles.get(active_role, {})
+        if assignment:
+            params = assignment.get("params", {})
+            params_text = ",".join(f"{key}={value}" for key, value in sorted(params.items())) if isinstance(params, dict) else ""
+            lines.append(
+                f"- active_role_route: provider={assignment.get('provider', 'unknown')} "
+                f"provider_model={assignment.get('provider_model', 'unknown')} "
+                f"account={assignment.get('account') or 'none'}"
+                + (f" params={params_text}" if params_text else "")
+            )
+        else:
+            lines.append("- active_role_route: unassigned; use router default and preserve role accountability in reasoning.")
+        return "\n".join(lines)
+
+    def _role_scoped_context(self, role: str) -> dict[str, str | bool]:
+        rendered = {
+            "risks": self.project_handoff.rendered_risks(),
+            "issues": self.project_handoff.rendered_issues(),
+            "quality": self.project_handoff.rendered_quality(),
+            "lessons": self.project_handoff.rendered_lessons(),
+            "exception_plan": self.project_handoff.rendered_exception_plan(),
+        }
+        omitted = "Omitted by PRINCE2 role scope."
+        if role == "team_manager":
+            return {
+                "risks": omitted,
+                "issues": omitted,
+                "quality": rendered["quality"],
+                "lessons": rendered["lessons"],
+                "exception_plan": omitted,
+                "handoff_log": False,
+                "execution_log": False,
+            }
+        if role == "project_assurance":
+            return {
+                "risks": rendered["risks"],
+                "issues": rendered["issues"],
+                "quality": rendered["quality"],
+                "lessons": rendered["lessons"],
+                "exception_plan": omitted,
+                "handoff_log": True,
+                "execution_log": True,
+            }
+        if role == "change_authority":
+            return {
+                "risks": rendered["risks"],
+                "issues": rendered["issues"],
+                "quality": rendered["quality"],
+                "lessons": rendered["lessons"],
+                "exception_plan": rendered["exception_plan"],
+                "handoff_log": True,
+                "execution_log": False,
+            }
+        if role == "project_executive":
+            return {
+                "risks": rendered["risks"],
+                "issues": rendered["issues"],
+                "quality": omitted,
+                "lessons": rendered["lessons"],
+                "exception_plan": rendered["exception_plan"],
+                "handoff_log": True,
+                "execution_log": False,
+            }
+        if role in {"senior_user", "senior_supplier"}:
+            return {
+                "risks": rendered["risks"],
+                "issues": rendered["issues"],
+                "quality": rendered["quality"],
+                "lessons": rendered["lessons"],
+                "exception_plan": omitted,
+                "handoff_log": False,
+                "execution_log": False,
+            }
+        if role == "project_support":
+            return {
+                "risks": omitted,
+                "issues": rendered["issues"],
+                "quality": rendered["quality"],
+                "lessons": rendered["lessons"],
+                "exception_plan": rendered["exception_plan"],
+                "handoff_log": True,
+                "execution_log": True,
+            }
+        return {
+            "risks": rendered["risks"],
+            "issues": rendered["issues"],
+            "quality": rendered["quality"],
+            "lessons": rendered["lessons"],
+            "exception_plan": rendered["exception_plan"],
+            "handoff_log": True,
+            "execution_log": True,
+        }
+
+    def _role_scope_description(self, role: str) -> str:
+        scopes = {
+            "project_executive": "business justification, benefits, cost/risk tolerance, and stop-go decisions only",
+            "project_manager": "stage plan, coordination, registers, reporting, and controlled execution",
+            "team_manager": "current work package, product delivery, quality criteria, and implementation lessons only",
+            "project_assurance": "quality evidence, risk/issue controls, lessons, and independent validation",
+            "change_authority": "change impact, exception plan, tolerances, risks, issues, and re-baseline evidence",
+            "senior_user": "user value, acceptance criteria, adoption impact, quality, and benefits",
+            "senior_supplier": "technical feasibility, supplier risk, delivery integrity, and quality",
+            "project_support": "handoff records, logs, traceability, issues, quality records, and git evidence",
+        }
+        return scopes.get(role, "controlled project work")
 
     def _model_context_files_section(self) -> str:
         status = self.git.status()

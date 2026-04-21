@@ -22,6 +22,7 @@ class FakeHandoff:
         self.calls: list[str] = []
         self.model_variant_by_model: dict[str, str] = {}
         self.account_env_by_target: dict[str, str] = {}
+        self.model_params_by_model: dict[str, dict[str, str]] = {}
 
     def execute(self, command: str):  # noqa: ANN001
         self.calls.append(command)
@@ -617,6 +618,58 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("openai:work", updated.blocked_until_by_account or {})
             self.assertIn("openai:personal", updated.blocked_until_by_account or {})
 
+    def test_executor_routes_step_through_configured_prince2_role(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "team_manager",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "low"},
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"])
+            project_handoff = ProjectHandoff(task="implement feature")
+            project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+            project_handoff.risk_register = [{"risk": "business risk outside team domain", "status": "open"}]
+            project_handoff.exception_plan = ["change authority only"]
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(id="step-2", title="Implement feature", instruction="implement requested code change", validation="validate")
+            outcome = executor.execute_step(task="implement feature", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual(outcome.model, "openai")
+            self.assertEqual(outcome.variant, "gpt-5.4-mini")
+            self.assertEqual(outcome.prince2_role, "team_manager")
+            self.assertEqual(handoff.model_params_by_model["openai"]["reasoning_effort"], "low")
+            self.assertIn("RUN_MODEL: openai", handoff.calls[0])
+            self.assertIn("active_role: team_manager", handoff.calls[0])
+            self.assertIn("context_scope: current work package, product delivery, quality criteria, and implementation lessons only", handoff.calls[0])
+            self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", handoff.calls[0])
+            self.assertIn("Risks:\nOmitted by PRINCE2 role scope.", handoff.calls[0])
+            self.assertIn("Exception plan:\nOmitted by PRINCE2 role scope.", handoff.calls[0])
+            self.assertNotIn("business risk outside team domain", handoff.calls[0])
+
     def test_executor_retries_fallback_model_with_next_account_after_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -865,10 +918,13 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("Quality:", prompt)
             self.assertIn("Lessons:", prompt)
             self.assertIn("Exception plan:", prompt)
-            self.assertIn("validation pending", prompt)
+            self.assertIn("active_role: team_manager", prompt)
+            self.assertIn("Issues:\nOmitted by PRINCE2 role scope.", prompt)
+            self.assertNotIn("validation pending", prompt)
             self.assertIn("git inspection should precede file edits", prompt)
             self.assertIn("Recent handoff log:", prompt)
             self.assertIn("Recent execution log:", prompt)
+            self.assertIn("Omitted by PRINCE2 role scope.", prompt)
             self.assertIn("working tree clean", prompt)
             self.assertIn("boundary_decision: continue_current_stage", prompt)
 
@@ -888,7 +944,7 @@ class ExecutorTests(unittest.TestCase):
                 memory=memory,
                 project_handoff=project_handoff,
             )
-            step = PlanStep(id="step-1", title="Implement", instruction="implement", validation="done")
+            step = PlanStep(id="step-1", title="Plan", instruction="plan controlled delivery", validation="done")
 
             prompt = executor._build_prompt(task="large context", step=step, plan=[step], last_observation="none")
 
