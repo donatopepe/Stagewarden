@@ -71,6 +71,7 @@ class Agent:
             f"{self.executor.config.system_prompt}\n\nPRINCE2 agent policy:\n{checklist.render_for_prompt()}"
         )
 
+        self._sync_prince2_roles_from_preferences()
         plan = self.planner.create_plan(effective_task, project_handoff=self.project_handoff)
         self._sync_implementation_backlog(plan)
         last_observation = "Task received."
@@ -422,6 +423,17 @@ class Agent:
         )
         self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
         self.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
+        self.handoff.model_params_by_model = {
+            model: dict(params) for model, params in (prefs.params_by_model or {}).items()
+        }
+        self.project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+
+    def _sync_prince2_roles_from_preferences(self) -> None:
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+        except (OSError, ValueError, TypeError):
+            return
+        self.project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
 
     def _load_handoff(self) -> ProjectHandoff:
         try:

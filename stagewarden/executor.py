@@ -118,7 +118,45 @@ class Executor:
             account = self._select_account(model)
         result, account = self._execute_with_account_failover(model=model, prompt=prompt, account=account)
         if not result.ok:
-            fallback_model = self.router.fallback_for_api_failure(model)
+            rate_limit_until = extract_blocked_until(result.error or result.output)
+            fallback_model = self._fallback_model_after_failure(model)
+            if rate_limit_until:
+                alternatives = self._available_alternative_models(model)
+                if alternatives:
+                    fallback_model = alternatives[0]
+                else:
+                    decision = self._rate_limit_decision(model, rate_limit_until, alternatives)
+                    self.memory.record_attempt(
+                        iteration=iteration,
+                        step_id=step.id,
+                        model=model,
+                        account=account,
+                        variant=self.handoff.model_variant_by_model.get(model),
+                        action_type="model_rate_limit",
+                        action_signature=f"rate-limit:{model}",
+                        success=False,
+                        observation=(
+                            f"Provider {model} is rate-limited until {rate_limit_until}. "
+                            f"User decision: {decision or 'stop'}."
+                        ),
+                        error_type="rate_limit",
+                    )
+                    return StepOutcome(
+                        ok=False,
+                        step_completed=False,
+                        model=model,
+                        action_type="model_rate_limit",
+                        observation=(
+                            f"Provider {model} is rate-limited until {rate_limit_until}. "
+                            "No alternative provider is currently available."
+                        ),
+                        account=account,
+                        variant=self.handoff.model_variant_by_model.get(model),
+                        git_head_before=git_head_before,
+                        git_head_after=self._git_head(),
+                        error_type="rate_limit_wait" if decision == "wait" else "rate_limit",
+                        prince2_assessment=None,
+                    )
             self._configure_handoff_variant(
                 prefs=prefs,
                 model=fallback_model,
@@ -334,6 +372,28 @@ class Executor:
         except (OSError, ValueError, TypeError):
             return None
 
+    def _fallback_model_after_failure(self, model: str) -> str:
+        fallback = self.router.fallback_for_api_failure(model)
+        if fallback != model:
+            return fallback
+        alternatives = self._available_alternative_models(model)
+        return alternatives[0] if alternatives else fallback
+
+    def _available_alternative_models(self, model: str) -> list[str]:
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+            active = prefs.active_models()
+            return [candidate for candidate in active if candidate != model]
+        except (OSError, ValueError, TypeError):
+            status = self.router.status()
+            return [candidate for candidate in status["active_models"] if candidate != model]
+
+    def _rate_limit_decision(self, model: str, until: str | None, alternatives: list[str]) -> str:
+        if self.config.rate_limit_decider is None:
+            return "stop"
+        decision = self.config.rate_limit_decider(model, until, alternatives)
+        return str(decision or "stop").strip().lower()
+
     def _record_model_block_if_present(self, model: str, message: str, *, account: str | None = None) -> None:
         until = extract_blocked_until(message)
         if not until:
@@ -392,9 +452,6 @@ Task:
 
 Model context files:
 {model_context}
-
-Study source files:
-{self._bounded_context("study_sources", self._study_context_files(), 2000)}
 
 Implicit project handoff context:
 {self._bounded_context("handoff_summary", self.project_handoff.summary(), 2500)}
@@ -479,21 +536,6 @@ Respond with strict JSON:
   }}
 }}
 """
-
-    def _study_context_files(self) -> str:
-        study_path = self.config.study_path
-        if not study_path.exists() or not study_path.is_dir():
-            return (
-                f"- study_root: {study_path} (missing)\n"
-                "- study_policy: only operator-authored summaries may be exposed to the model; raw copyrighted source text must not be injected."
-            )
-        file_count = sum(1 for item in study_path.rglob("*") if item.is_file())
-        status = "present" if file_count else "present, no files"
-        return (
-            f"- study_root: {study_path} ({status})\n"
-            f"- study_file_count: {file_count}\n"
-            "- study_policy: only operator-authored summaries may be exposed to the model; raw copyrighted source text must not be injected."
-        )
 
     def _model_context_files_section(self) -> str:
         status = self.git.status()

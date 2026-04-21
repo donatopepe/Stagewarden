@@ -61,6 +61,7 @@ class ProjectHandoff:
     lessons_log: list[dict[str, str]] = field(default_factory=list)
     exception_plan: list[str] = field(default_factory=list)
     implementation_backlog: list[dict[str, str]] = field(default_factory=list)
+    prince2_roles: dict[str, dict[str, Any]] = field(default_factory=dict)
     updated_at: str = field(default_factory=_utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
 
@@ -136,6 +137,29 @@ class ProjectHandoff:
                 }
             )
         self.implementation_backlog = backlog
+        self.updated_at = _utc_now()
+
+    def sync_prince2_roles(self, roles: dict[str, dict[str, Any]]) -> None:
+        normalized: dict[str, dict[str, Any]] = {}
+        for role, assignment in roles.items():
+            if not isinstance(assignment, dict):
+                continue
+            provider = str(assignment.get("provider", "")).strip()
+            provider_model = str(assignment.get("provider_model", "")).strip()
+            if not role or not provider or not provider_model:
+                continue
+            params = assignment.get("params", {})
+            normalized[str(role)] = {
+                "role": str(role),
+                "label": str(assignment.get("label", role)).strip() or str(role),
+                "mode": str(assignment.get("mode", "manual")).strip() or "manual",
+                "provider": provider,
+                "provider_model": provider_model,
+                "params": dict(params) if isinstance(params, dict) else {},
+                "account": str(assignment["account"]) if assignment.get("account") else None,
+                "source": str(assignment.get("source", "manual")).strip() or "manual",
+            }
+        self.prince2_roles = normalized
         self.updated_at = _utc_now()
 
     def begin_step(
@@ -271,7 +295,14 @@ class ProjectHandoff:
             f"risks:{len(self.risk_register)} issues:{len(self.issue_register)} "
             f"quality:{len(self.quality_register)} lessons:{len(self.lessons_log)} "
             f"backlog:{len(self.implementation_backlog)}",
+            f"prince2_roles={len(self.prince2_roles)}",
         ]
+        for role, assignment in sorted(self.prince2_roles.items()):
+            lines.append(
+                f"role={role} provider={assignment.get('provider', 'unknown')} "
+                f"provider_model={assignment.get('provider_model', 'unknown')} "
+                f"account={assignment.get('account') or 'none'}"
+            )
         for entry in self.entries[-limit:]:
             lines.append(
                 f"[{entry.phase}] iter={entry.iteration} step={entry.step_id or '-'} "
@@ -390,6 +421,17 @@ class ProjectHandoff:
             f"in_progress={backlog_statuses['in_progress']} blocked={backlog_statuses['blocked']} "
             f"done={backlog_statuses['done']}"
         )
+        if self.prince2_roles:
+            lines.append("- prince2_roles:")
+            for role, assignment in sorted(self.prince2_roles.items()):
+                params = assignment.get("params", {})
+                params_text = ",".join(f"{key}={value}" for key, value in sorted(params.items())) if isinstance(params, dict) else ""
+                lines.append(
+                    f"  {role}: provider={assignment.get('provider', 'unknown')} "
+                    f"provider_model={assignment.get('provider_model', 'unknown')} "
+                    f"account={assignment.get('account') or 'none'}"
+                    + (f" params={params_text}" if params_text else "")
+                )
         if self.exception_plan:
             lines.append(f"- exception_plan: {' | '.join(self.exception_plan[:3])}")
         return "\n".join(lines)
@@ -525,6 +567,7 @@ class ProjectHandoff:
             "lessons_log": list(self.lessons_log),
             "exception_plan": list(self.exception_plan),
             "implementation_backlog": list(self.implementation_backlog),
+            "prince2_roles": {role: dict(assignment) for role, assignment in self.prince2_roles.items()},
             "updated_at": self.updated_at,
             "entries": [entry.as_dict() for entry in self.entries],
         }
@@ -786,6 +829,11 @@ class ProjectHandoff:
             lessons_log=[dict(item) for item in payload.get("lessons_log", []) if isinstance(item, dict)],
             exception_plan=[str(item) for item in payload.get("exception_plan", [])],
             implementation_backlog=[dict(item) for item in payload.get("implementation_backlog", []) if isinstance(item, dict)],
+            prince2_roles={
+                str(key): dict(value)
+                for key, value in payload.get("prince2_roles", {}).items()
+                if isinstance(value, dict)
+            },
             updated_at=str(payload.get("updated_at", _utc_now())),
         )
         for item in payload.get("entries", []):

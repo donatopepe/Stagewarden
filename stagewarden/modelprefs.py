@@ -554,7 +554,7 @@ class ModelPreferences:
         if provider not in self.enabled_models:
             self.enabled_models.append(provider)
         canonical_model = canonicalize_model_variant(provider, provider_model)
-        normalized_params = self._normalize_model_params(provider, params or {})
+        normalized_params = self._normalize_role_params(provider, canonical_model, params or {})
         if account is not None and account not in (self.accounts_by_model or {}).get(provider, []):
             raise ValueError(f"Account '{account}' is not configured for model '{provider}'.")
         self.prince2_roles = dict(self.prince2_roles or {})
@@ -739,7 +739,7 @@ class ModelPreferences:
         mode = str(raw.get("mode", "manual")).strip().lower()
         if mode not in {"auto", "manual"}:
             mode = "manual"
-        params = self._normalize_model_params(provider, raw.get("params", {}))
+        params = self._normalize_role_params(provider, canonical_model, raw.get("params", {}))
         account = raw.get("account")
         clean_account = None
         if account is not None and str(account) in (self.accounts_by_model or {}).get(provider, []):
@@ -758,6 +758,21 @@ class ModelPreferences:
     def _validate_prince2_role(self, role: str) -> None:
         if role not in PRINCE2_ROLE_IDS:
             raise ValueError(f"Unsupported PRINCE2 role '{role}'.")
+
+    def _normalize_role_params(self, provider: str, provider_model: str, raw: object) -> dict[str, str]:
+        if not isinstance(raw, dict):
+            return {}
+        spec = provider_model_spec(provider, provider_model)
+        normalized: dict[str, str] = {}
+        for key, value in raw.items():
+            clean_key = str(key).strip()
+            clean_value = str(value).strip()
+            if clean_key != "reasoning_effort":
+                continue
+            if spec is None or clean_value not in spec.reasoning_efforts:
+                continue
+            normalized[clean_key] = clean_value
+        return normalized
 
     def _proposed_provider_for_role(self, role: str, available: list[str]) -> str:
         preference_order = {

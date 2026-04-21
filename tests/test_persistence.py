@@ -71,6 +71,19 @@ class PersistenceTests(unittest.TestCase):
             handoff.record_issue(step_id="step-1", severity="medium", summary="failing test still open")
             handoff.record_quality(step_id="step-1", status="observed", evidence="pytest -q executed")
             handoff.record_lesson(step_id="step-1", lesson_type="observation", lesson="pytest exposed an unstable assertion")
+            handoff.sync_prince2_roles(
+                {
+                    "project_manager": {
+                        "label": "Project Manager",
+                        "mode": "manual",
+                        "provider": "chatgpt",
+                        "provider_model": "gpt-5.4",
+                        "params": {"reasoning_effort": "high"},
+                        "account": None,
+                        "source": "unit_test",
+                    }
+                }
+            )
             handoff.complete_step(
                 iteration=1,
                 task="fix tests",
@@ -90,6 +103,7 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(len(loaded.issue_register), 1)
             self.assertEqual(len(loaded.quality_register), 1)
             self.assertEqual(len(loaded.lessons_log), 1)
+            self.assertEqual(loaded.prince2_roles["project_manager"]["provider_model"], "gpt-5.4")
 
     def test_project_handoff_can_close_step_issues_and_clear_exception_plan(self) -> None:
         handoff = ProjectHandoff(
@@ -142,6 +156,14 @@ class PersistenceTests(unittest.TestCase):
             prefs.enabled_models = ["chatgpt", "claude"]
             prefs.set_variant("chatgpt", "gpt-5.3-codex")
             prefs.set_model_param("chatgpt", "reasoning_effort", "high")
+            prefs.set_prince2_role_assignment(
+                "project_manager",
+                mode="manual",
+                provider="chatgpt",
+                provider_model="gpt-5.3-codex",
+                params={"reasoning_effort": "high"},
+                source="unit_test",
+            )
             prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
             prefs.last_limit_message_by_model = {"chatgpt": "You've hit your usage limit. Try again at 8:05 PM."}
             prefs.set_model_limit_snapshot(
@@ -180,6 +202,8 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual((loaded.last_limit_message_by_account or {})["claude:team"], "Claude usage limited until 2026-05-01T19:00.")
             self.assertEqual((loaded.provider_limit_snapshot_by_model or {})["chatgpt"]["utilization"], 88.0)
             self.assertEqual((loaded.params_by_model or {})["chatgpt"]["reasoning_effort"], "high")
+            self.assertEqual((loaded.prince2_roles or {})["project_manager"]["provider_model"], "gpt-5.3-codex")
+            self.assertEqual((loaded.prince2_roles or {})["project_manager"]["params"]["reasoning_effort"], "high")
             self.assertEqual(
                 (loaded.provider_limit_snapshot_by_account or {})["claude:team"]["rate_limit_type"],
                 "five_hour_sonnet",

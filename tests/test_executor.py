@@ -517,6 +517,46 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual(account_snapshot["status"], "blocked")
             self.assertEqual(account_snapshot["reason"], "usage_limit")
 
+    def test_executor_prompts_rate_limit_decision_when_no_provider_alternative_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            decisions: list[tuple[str, str | None, list[str]]] = []
+            config = AgentConfig(
+                workspace_root=root,
+                rate_limit_decider=lambda provider, until, alternatives: decisions.append((provider, until, alternatives)) or "wait",
+            )
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["openai"]
+            prefs.preferred_model = "openai"
+            prefs.save(config.model_prefs_path)
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["openai"], preferred_model="openai")
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": False,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": "",
+                        "error": "You've hit your usage limit. Try again at 8:05 PM.",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
+            updated = ModelPreferences.load(config.model_prefs_path)
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.error_type, "rate_limit_wait")
+            self.assertEqual(decisions[0][0], "openai")
+            self.assertEqual(decisions[0][2], [])
+            self.assertIn("openai", updated.blocked_until_by_model or {})
+            self.assertEqual(len(handoff.calls), 1)
+
     def test_executor_retries_all_available_accounts_on_same_model_until_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

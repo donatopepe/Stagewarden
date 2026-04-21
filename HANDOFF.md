@@ -132,9 +132,7 @@ Additional validation evidence:
 - `python3 -m unittest discover -s tests` passed again, 216 tests, after slash-command routing.
 - Interactive wet-run passed with bare `status`, which was treated as a task and rejected by governance as expected.
 - Interactive wet-run passed with `/status`, which was treated as a shell command and rendered the status dashboard.
-- `study/` is now treated as a local documentation source root with summary-only policy: raw copyrighted text must not be injected into model prompts.
-- The executor prompt exposes only `study_root`, file count, and an explicit copyright-safe policy line, never raw file contents from `study/`.
-- `doctor` now reports the `study/` source root and the same summary-only policy.
+- `study/` remains developer-only learning material and is not exposed in agent prompts, status, doctor output, or runtime behavior.
 
 Next recommended implementation blocks:
 
