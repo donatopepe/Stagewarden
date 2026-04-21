@@ -145,7 +145,7 @@ class TraceAndCliTests(unittest.TestCase):
             rendered = output_stream.getvalue()
             self.assertEqual(code, 0)
             self.assertIn("Stagewarden interactive shell", rendered)
-            self.assertIn("Use `help <topic>`", rendered)
+            self.assertIn("Use `/help` or `/help <topic>`", rendered)
             self.assertIn("Topics:", rendered)
             self.assertIn("help models", rendered)
             self.assertIn("help accounts", rendered)
