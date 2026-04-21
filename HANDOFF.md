@@ -164,9 +164,13 @@ Additional validation evidence:
 - `commands` now renders a human command catalog from the registry.
 - `commands --json` now emits a machine-readable command catalog for future slash palette/menu integration.
 - Interactive slash completion now uses registry phrases as its first source before legacy compatibility phrases.
+- Help topics for models, accounts, permissions, handoff/PRINCE2, and git now render command rows from the registry while preserving examples.
+- Registry-backed help preserves command aliases such as `handoff export | handoff md`, `resume | resume context | resume --show`, and provider-specific login hints.
 - Wet-run `python3 -m stagewarden.main commands` passed in the real workspace.
 - Wet-run `python3 -m stagewarden.main commands --json` passed in the real workspace.
 - `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands` passed after command catalog implementation.
+- Wet-run `printf '/help accounts\n/help handoff\n/exit\n' | python3 -m stagewarden.main` passed and confirmed slash-command routing with registry-backed help.
+- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_supports_category_help tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json` passed after registry-backed help.
 
 Next implementation roadmap:
 
@@ -174,7 +178,8 @@ Phase 1 - command discovery foundation:
 
 - Status: partially implemented.
 - Completed: structured command registry, `commands`, `commands --json`, and registry-backed completion seed.
-- Remaining: continue replacing duplicated help text with registry-backed rendering where practical.
+- Completed: registry-backed rendering for the main help topics where practical: models, accounts, permissions, handoff/PRINCE2, and git.
+- Remaining: consider moving overview/topic metadata and examples into the registry or a companion metadata module.
 - Remaining: add command-topic filtering/search once slash palette work begins.
 - Validation complete for first mini-block: CLI catalog JSON, text rendering, and core completion candidates.
 
