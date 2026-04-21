@@ -26,6 +26,8 @@ from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, loa
 from .memory import MemoryStore
 from .modelprefs import (
     ModelPreferences,
+    PRINCE2_ROLE_IDS,
+    PRINCE2_ROLE_LABELS,
     SUPPORTED_MODELS,
     account_key,
     classify_limit_reason,
@@ -92,6 +94,10 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "models limits",
     "cost",
     "accounts",
+    "roles",
+    "roles setup",
+    "roles propose",
+    "project start",
     "auth status",
     "permissions",
     "sessions",
@@ -133,6 +139,8 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "account limit-record",
     "account limit-clear",
     "account clear",
+    "role configure",
+    "role clear",
     "permission mode",
     "permission allow",
     "permission ask",
@@ -271,6 +279,12 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Clear the preferred provider and restore automatic routing.",
             "- accounts",
             "  Show configured account profiles for each model.",
+            "- roles",
+            "  Show PRINCE2 role assignments and routed model ownership.",
+            "- roles setup",
+            "  Guided startup wizard for PRINCE2 role-to-model assignments.",
+            "- roles propose | project start",
+            "  Apply an automatic PRINCE2 role proposal based on available providers, accounts, and models.",
             "- account add <model> <name> [ENV_VAR]",
             "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
             "- account login <model> <name>",
@@ -295,6 +309,10 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Remove a temporary account block.",
             "- account clear <model>",
             "  Clear the preferred account for one model.",
+            "- role configure [role]",
+            "  Guided menu: choose one PRINCE2 role and assign provider, provider-model, params, and account.",
+            "- role clear <role>",
+            "  Remove a saved PRINCE2 role assignment.",
             "",
             "Caveman commands:",
             "- /caveman help",
@@ -327,6 +345,9 @@ def interactive_help_text(topic: str | None = None) -> str:
             "Examples:",
             "- stagewarden> /models",
             "- stagewarden> /account login chatgpt personale",
+            "- stagewarden> /roles",
+            "- stagewarden> /roles setup",
+            "- stagewarden> /role configure project_manager",
             "- stagewarden> /model choose",
             "- stagewarden> /model choose chatgpt",
             "- stagewarden> /model preset chatgpt",
@@ -1693,6 +1714,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "git": {},
         "path_launcher": {},
         "repository": {},
+        "study": {},
         "providers": [],
         "policy": {
             "silent_install": False,
@@ -1756,6 +1778,30 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
             "message": "current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup.",
         }
 
+    if config.study_path.exists() and config.study_path.is_dir():
+        study_files = [
+            item.relative_to(config.workspace_root).as_posix()
+            for item in sorted(config.study_path.rglob("*"))
+            if item.is_file()
+        ]
+        report["study"] = {
+            "ok": True,
+            "status": "OK" if study_files else "WARN",
+            "path": str(config.study_path),
+            "file_count": len(study_files),
+            "message": "study directory present" if study_files else "study directory present but empty",
+            "policy": "summary_only_no_raw_copyrighted_text",
+        }
+    else:
+        report["study"] = {
+            "ok": False,
+            "status": "WARN",
+            "path": str(config.study_path),
+            "file_count": 0,
+            "message": "study directory not found",
+            "policy": "summary_only_no_raw_copyrighted_text",
+        }
+
     providers: list[dict[str, object]] = []
     for model in REGISTRY_MODELS:
         capability = provider_capability(model)
@@ -1783,6 +1829,7 @@ def _render_doctor(config: AgentConfig) -> str:
     git_info = report["git"]
     path_info = report["path_launcher"]
     repo_info = report["repository"]
+    study_info = report["study"]
     providers = report["providers"]
     policy_info = report["policy"]
     lines = ["Stagewarden doctor:"]
@@ -1799,6 +1846,11 @@ def _render_doctor(config: AgentConfig) -> str:
     else:
         lines.append(f"- PATH launcher: WARN {path_info['message']}")
     lines.append(f"- Repository: {repo_info['status']} {repo_info['message']}")
+    lines.append(
+        f"- Study sources: {study_info['status']} {study_info['message']} "
+        f"(path={study_info['path']}, files={study_info['file_count']})"
+    )
+    lines.append("- Study policy: summary-only metadata for copyrighted material; raw source text is not injected into the model.")
     lines.append("Provider capabilities:")
     for provider in providers:
         lines.append(

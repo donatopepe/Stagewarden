@@ -164,6 +164,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("- Python: OK", completed.stdout)
             self.assertIn("- Git: OK", completed.stdout)
             self.assertIn("- PATH launcher:", completed.stdout)
+            self.assertIn("- Study sources:", completed.stdout)
             self.assertIn("Provider capabilities:", completed.stdout)
             self.assertIn("- chatgpt: auth=chatgpt_plan_oauth", completed.stdout)
             self.assertIn("- openai: auth=openai_api_key", completed.stdout)
@@ -181,6 +182,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "doctor")
             self.assertEqual(payload["python"]["status"], "OK")
             self.assertTrue(payload["git"]["ok"])
+            self.assertIn("study", payload)
             self.assertIn("silent_install", payload["policy"])
             self.assertFalse(payload["policy"]["silent_install"])
             providers = {entry["provider"]: entry for entry in payload["providers"]}
@@ -1151,6 +1153,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Stagewarden doctor:", rendered)
             self.assertIn("- Python: OK", rendered)
             self.assertIn("- Git: OK", rendered)
+            self.assertIn("- Study sources:", rendered)
             self.assertIn("Provider capabilities:", rendered)
 
     def test_interactive_shell_supports_category_help(self) -> None:
