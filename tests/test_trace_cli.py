@@ -1407,12 +1407,41 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertEqual((prefs.variant_by_model or {}).get("claude"), "opus")
-            self.assertIn("Available variants for claude:", rendered)
+            self.assertIn("Provider-model catalog for claude:", rendered)
             self.assertIn("Auth: anthropic_api_key_or_claude_code_credentials", rendered)
             self.assertIn("Browser login: no", rendered)
             self.assertIn("Login hint: Use ANTHROPIC_API_KEY", rendered)
             self.assertIn("opusplan", rendered)
             self.assertIn("provider_model=opus", rendered)
+
+    def test_model_list_shows_provider_model_reasoning_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "model list chatgpt")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Provider-model catalog for chatgpt:", completed.stdout)
+            self.assertIn("gpt-5.3-codex", completed.stdout)
+            self.assertIn("reasoning_effort=[low,medium,high]", completed.stdout)
+
+    def test_interactive_shell_persists_provider_model_param(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO(
+                "model variant chatgpt gpt-5.3-codex\n"
+                "model param set chatgpt reasoning_effort high\n"
+                "model params chatgpt\n"
+                "models\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(code, 0)
+            self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "high")
+            self.assertIn("reasoning_effort_current: high", rendered)
+            self.assertIn("params=reasoning_effort=high", rendered)
 
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

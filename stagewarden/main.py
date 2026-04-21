@@ -33,7 +33,7 @@ from .modelprefs import (
     limit_snapshot_from_message,
 )
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
-from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
+from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability, provider_model_spec, provider_model_specs
 from .project_handoff import ProjectHandoff
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
@@ -453,8 +453,11 @@ def _interactive_help_topic(topic: str) -> str:
             "- model add <local|cheap|chatgpt|openai|claude>",
             "- model remove <local|cheap|chatgpt|openai|claude>",
             "- model list <local|cheap|chatgpt|openai|claude>",
+            "- model params <local|cheap|chatgpt|openai|claude>",
             "- model variant <provider> <variant>",
             "- model variant-clear <provider>",
+            "- model param set <provider> <key> <value>",
+            "- model param clear <provider> <key>",
             "- model block <model> until YYYY-MM-DDTHH:MM",
             "- model unblock <model>",
             "- model limit-record <model> <provider message>",
@@ -466,7 +469,9 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> model limits",
             "- stagewarden> model use openai",
             "- stagewarden> model list claude",
+            "- stagewarden> model params chatgpt",
             "- stagewarden> model variant openai gpt-5.4-mini",
+            "- stagewarden> model param set chatgpt reasoning_effort high",
             "- stagewarden> model block openai until 2026-05-01T18:30",
             "- stagewarden> model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.",
         ],
@@ -608,6 +613,9 @@ def _save_model_preferences(config: AgentConfig, prefs: ModelPreferences) -> Non
 def _sync_handoff_preferences(agent: Agent, prefs: ModelPreferences) -> None:
     agent.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
     agent.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
+    agent.handoff.model_params_by_model = {
+        model: dict(params) for model, params in (prefs.params_by_model or {}).items()
+    }
 
 
 def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferences:
@@ -631,6 +639,10 @@ def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str
     return capability.default_model, "provider-default", capability.default_model
 
 
+def _provider_model_params_display(prefs: ModelPreferences, provider: str) -> dict[str, str]:
+    return prefs.params_for_model(provider)
+
+
 def _render_model_status(agent: Agent, config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     status = agent.router.status()
@@ -644,12 +656,18 @@ def _render_model_status(agent: Agent, config: AgentConfig) -> str:
         active = " active" if provider in status["active_models"] else " inactive"
         preferred = " preferred-provider" if status["preferred_model"] == provider else ""
         provider_model, selection_mode, default_model = _provider_model_display(prefs, provider)
+        params = _provider_model_params_display(prefs, provider)
         auth = capability.auth_type
         profiles = "profiles=yes" if capability.supports_account_profiles else "profiles=no"
+        params_text = (
+            " params=" + ",".join(f"{key}={value}" for key, value in sorted(params.items()))
+            if params
+            else ""
+        )
         lines.append(
             f"- {provider}: {enabled}{active}{preferred}{blocked} "
             f"provider_model={provider_model} selection={selection_mode} default_model={default_model} "
-            f"auth={auth} {profiles} ({backend})"
+            f"auth={auth} {profiles}{params_text} ({backend})"
         )
         account_lines = _render_account_lines(prefs, provider)
         lines.extend(account_lines)
@@ -719,6 +737,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "variant": prefs.variant_for_model(model) or "provider-default",
                 "provider_model": provider_model,
                 "provider_model_selection": selection_mode,
+                "provider_model_params": _provider_model_params_display(prefs, model),
                 "active_account": active_account or "none",
                 "blocked_until": blocked_model_until,
                 "last_limit_message": last_limit_message,
@@ -803,6 +822,7 @@ def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]
                 "variant": item["variant"],
                 "provider_model": item["provider_model"],
                 "provider_model_selection": item["provider_model_selection"],
+                "provider_model_params": item["provider_model_params"],
                 **_provider_limit_windows(item),
                 "blocked_accounts": [
                     {
@@ -837,6 +857,11 @@ def _render_model_limits(agent: Agent, config: AgentConfig) -> str:
             f"account={item['account']} provider_model={item['provider_model']} "
             f"selection={item['provider_model_selection']}"
         )
+        if item["provider_model_params"]:
+            lines.append(
+                "  params="
+                + ",".join(f"{key}={value}" for key, value in sorted(item["provider_model_params"].items()))
+            )
         for account in item["blocked_accounts"]:
             account_reason = f" reason={account['reason']}" if account["reason"] else ""
             lines.append(
@@ -989,6 +1014,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "active_provider": None if active_model is None else active_model["model"],
             "active_variant": None if active_model is None else active_model["variant"],
             "active_provider_model": None if active_model is None else active_model["provider_model"],
+            "active_provider_model_params": {} if active_model is None else active_model["provider_model_params"],
             "enabled": [item["model"] for item in model_report["models"] if item["enabled"]],
             "active": [item["model"] for item in model_report["models"] if item["active"]],
         },
@@ -1057,6 +1083,12 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
         f"- preferred_provider: {report['model']['preferred_provider']}",
         f"- active_provider: {report['model']['active_provider'] or 'none'}",
         f"- active_provider_model: {report['model']['active_provider_model'] or 'none'}",
+        (
+            "- active_provider_model_params: "
+            + ",".join(f"{key}={value}" for key, value in sorted(report["model"]["active_provider_model_params"].items()))
+            if report["model"]["active_provider_model_params"]
+            else "- active_provider_model_params: none"
+        ),
         f"- enabled_providers: {', '.join(report['model']['enabled']) or 'none'}",
         "Account:",
     ]
@@ -1126,6 +1158,7 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "variant": None if active_model is None else active_model["variant"],
             "provider_model": None if active_model is None else active_model["provider_model"],
             "provider_model_selection": None if active_model is None else active_model["provider_model_selection"],
+            "provider_model_params": {} if active_model is None else active_model["provider_model_params"],
         },
         "context_window": {
             "total_input_tokens": None,
@@ -1393,6 +1426,7 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
     for model in SUPPORTED_MODELS:
         capability = provider_capability(model)
         provider_model, selection_mode, default_model = _provider_model_display(prefs, model)
+        params = _provider_model_params_display(prefs, model)
         models.append(
             {
                 "model": model,
@@ -1405,6 +1439,7 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
                 "provider_model": provider_model,
                 "provider_model_selection": selection_mode,
                 "provider_model_default": default_model,
+                "provider_model_params": params,
                 "auth": capability.auth_type,
                 "profiles": capability.supports_account_profiles,
                 "backend": MODEL_BACKENDS[model]["label"],
@@ -2471,23 +2506,75 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
             if model not in SUPPORTED_MODELS:
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
             capability = provider_capability(model)
-            variants = ", ".join(available_model_variants(model))
             source = MODEL_VARIANT_CATALOG[model]["source"]
+            specs = provider_model_specs(model)
+            lines = [
+                f"Provider-model catalog for {model}:",
+                f"Default provider-model: {capability.default_model}",
+                f"Auth: {capability.auth_type}",
+                f"Account profiles: {'yes' if capability.supports_account_profiles else 'no'}",
+                f"Browser login: {'yes' if capability.supports_browser_login else 'no'}",
+                f"API key: {'yes' if capability.supports_api_key else 'no'}",
+                f"Token env: {capability.token_env or 'none'}",
+                f"Model env: {capability.model_env or 'none'}",
+                f"Context: {capability.context_assumption}",
+                f"Login hint: {capability.login_hint}",
+                f"Source: {source}",
+                "Models:",
+            ]
+            for spec in specs:
+                efforts = ",".join(spec.reasoning_efforts) if spec.reasoning_efforts else "none"
+                default_effort = spec.reasoning_default or "none"
+                lines.append(
+                    f"- {spec.id}: label={spec.label} reasoning_effort=[{efforts}] "
+                    f"default_reasoning={default_effort} availability={spec.availability}"
+                )
+            return "\n".join(lines)
+        if action == "params":
+            if len(parts) != 3:
+                return "Usage: model params <provider>"
+            model = parts[2]
+            if model not in SUPPORTED_MODELS:
+                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            provider_model = prefs.variant_for_model(model) or "provider-default"
+            spec = provider_model_spec(model, provider_model)
+            params = prefs.params_for_model(model)
+            reasoning_options = [] if spec is None else list(spec.reasoning_efforts)
+            current_reasoning = params.get("reasoning_effort") or (None if spec is None else spec.reasoning_default)
             return "\n".join(
                 [
-                    f"Available variants for {model}: {variants}",
-                    f"Default variant: {capability.default_model}",
-                    f"Auth: {capability.auth_type}",
-                    f"Account profiles: {'yes' if capability.supports_account_profiles else 'no'}",
-                    f"Browser login: {'yes' if capability.supports_browser_login else 'no'}",
-                    f"API key: {'yes' if capability.supports_api_key else 'no'}",
-                    f"Token env: {capability.token_env or 'none'}",
-                    f"Model env: {capability.model_env or 'none'}",
-                    f"Context: {capability.context_assumption}",
-                    f"Login hint: {capability.login_hint}",
-                    f"Source: {source}",
+                    f"Provider params for {model}:",
+                    f"- provider_model: {provider_model}",
+                    f"- reasoning_effort_supported: {', '.join(reasoning_options) or 'none'}",
+                    f"- reasoning_effort_current: {current_reasoning or 'none'}",
                 ]
             )
+        if action == "param":
+            if len(parts) < 4:
+                return "Usage: model param <set|clear> ..."
+            subaction = parts[2]
+            if subaction == "set":
+                if len(parts) != 6:
+                    return "Usage: model param set <provider> <key> <value>"
+                model, key, value = parts[3], parts[4], parts[5]
+                if model not in SUPPORTED_MODELS:
+                    return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+                prefs.set_model_param(model, key, value)
+                _save_model_preferences(config, prefs)
+                _apply_model_preferences(agent, config)
+                provider_model = prefs.variant_for_model(model) or "provider-default"
+                return f"Set {key}={value} for {model}:{provider_model}."
+            if subaction == "clear":
+                if len(parts) != 5:
+                    return "Usage: model param clear <provider> <key>"
+                model, key = parts[3], parts[4]
+                if model not in SUPPORTED_MODELS:
+                    return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+                prefs.clear_model_param(model, key)
+                _save_model_preferences(config, prefs)
+                _apply_model_preferences(agent, config)
+                return f"Cleared {key} for {model}."
+            return "Usage: model param set <provider> <key> <value> | model param clear <provider> <key>"
         if action == "limits":
             if len(parts) != 2:
                 return "Usage: model limits"
@@ -2586,7 +2673,8 @@ def _handle_model_command(command: str, agent: Agent, config: AgentConfig) -> st
 def _model_usage() -> str:
     return (
         "Usage: model use <name> | model add <name> | model list <name> | "
-        "model variant <name> <variant> | model variant-clear <name> | "
+        "model params <name> | model variant <name> <variant> | model variant-clear <name> | "
+        "model param set <name> <key> <value> | model param clear <name> <key> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
         "model unblock <name> | model limits | model limit-record <name> <message> | "
         "model limit-clear <name> | model clear"
@@ -3587,6 +3675,17 @@ def main() -> int:
         else:
             print(response or "No limit message recorded.")
         return 0 if response else 1
+    if task.startswith("model "):
+        agent = _configure_readonly_agent_for_workspace(config)
+        response = _handle_model_command(task, agent, config)
+        if response is None:
+            print(_model_usage())
+            return 1
+        if args.json:
+            print(dumps_ascii({"command": task, "message": response, "models": _model_status_report(agent, config)}, indent=2))
+        else:
+            print(response)
+        return 0
     if task == "accounts":
         if args.json:
             print(dumps_ascii(_accounts_report(config), indent=2))

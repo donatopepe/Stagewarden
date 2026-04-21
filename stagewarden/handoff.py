@@ -77,6 +77,7 @@ class HandoffManager:
         self.run_model_binary = os.environ.get("RUN_MODEL_BIN", "run_model")
         self.account_env_by_target: dict[str, str] = {}
         self.model_variant_by_model: dict[str, str] = {}
+        self.model_params_by_model: dict[str, dict[str, str]] = {}
         self.stream_callback: Callable[[str], None] | None = None
 
     def execute(self, command: str) -> ModelResult:
@@ -296,6 +297,10 @@ class HandoffManager:
             provider_model_env = MODEL_NAME_ENV.get(model)
             if provider_model_env:
                 env[provider_model_env] = variant
+        params = self.model_params_by_model.get(model, {})
+        reasoning_effort = params.get("reasoning_effort")
+        if reasoning_effort:
+            env["STAGEWARDEN_REASONING_EFFORT"] = reasoning_effort
         if not account:
             return env
         target = f"{model}:{account}"
