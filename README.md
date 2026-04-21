@@ -191,54 +191,56 @@ That block now also exposes the concrete evidence source used for the last step,
 Inside the shell:
 
 ```text
-stagewarden> help
-stagewarden> help models
-stagewarden> help handoff
-stagewarden> models
-stagewarden> model limits
-stagewarden> patch preview changes.diff
-stagewarden> model use openai
-stagewarden> model choose
-stagewarden> model choose chatgpt
-stagewarden> model preset chatgpt
-stagewarden> model list claude
-stagewarden> model variant claude opus
-stagewarden> model variant openai gpt-5.4-mini
-stagewarden> model block openai until 2026-05-01T18:30
-stagewarden> model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.
-stagewarden> model limit-clear chatgpt
-stagewarden> model unblock openai
-stagewarden> status
-stagewarden> health
-stagewarden> report
-stagewarden> stream status
-stagewarden> stream off
-stagewarden> boundary
-stagewarden> risks
-stagewarden> issues
-stagewarden> quality
-stagewarden> exception
-stagewarden> lessons
-stagewarden> transcript
-stagewarden> todo
-stagewarden> permissions
-stagewarden> permission mode plan
-stagewarden> permission session mode auto
-stagewarden> permission allow shell:git status
-stagewarden> permission session allow shell:python3 -m pytest
-stagewarden> mode plan
-stagewarden> mode auto
-stagewarden> mode accept-edits
-stagewarden> mode dont-ask
-stagewarden> mode default
-stagewarden> mode caveman ultra
-stagewarden> mode normal
-stagewarden> caveman on ultra
+stagewarden> /help
+stagewarden> /help models
+stagewarden> /help handoff
+stagewarden> /models
+stagewarden> /model limits
+stagewarden> /patch preview changes.diff
+stagewarden> /model use openai
+stagewarden> /model choose
+stagewarden> /model choose chatgpt
+stagewarden> /model preset chatgpt
+stagewarden> /model list claude
+stagewarden> /model variant claude opus
+stagewarden> /model variant openai gpt-5.4-mini
+stagewarden> /model block openai until 2026-05-01T18:30
+stagewarden> /model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.
+stagewarden> /model limit-clear chatgpt
+stagewarden> /model unblock openai
+stagewarden> /status
+stagewarden> /health
+stagewarden> /report
+stagewarden> /stream status
+stagewarden> /stream off
+stagewarden> /boundary
+stagewarden> /risks
+stagewarden> /issues
+stagewarden> /quality
+stagewarden> /exception
+stagewarden> /lessons
+stagewarden> /transcript
+stagewarden> /todo
+stagewarden> /permissions
+stagewarden> /permission mode plan
+stagewarden> /permission session mode auto
+stagewarden> /permission allow shell:git status
+stagewarden> /permission session allow shell:python3 -m pytest
+stagewarden> /mode plan
+stagewarden> /mode auto
+stagewarden> /mode accept-edits
+stagewarden> /mode dont-ask
+stagewarden> /mode default
+stagewarden> /mode caveman ultra
+stagewarden> /mode normal
+stagewarden> /caveman on ultra
 stagewarden> fix failing tests
-stagewarden> quit
+stagewarden> /quit
 ```
 
-Interactive help is topic-based: `help` shows compact categories, while `help models`, `help accounts`, `help permissions`, `help handoff`, `help git`, `help caveman`, and `help ljson` show focused command examples.
+Interactive shell rule: commands start with `/`. Any input without `/` is sent to the agent as a task.
+
+Interactive help is topic-based: `/help` shows compact categories, while `/help models`, `/help accounts`, `/help permissions`, `/help handoff`, `/help git`, `/help caveman`, and `/help ljson` show focused command examples.
 
 Model control:
 
