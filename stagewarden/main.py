@@ -141,6 +141,8 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "account clear",
     "role configure",
     "role clear",
+    "sources",
+    "sources status",
     "permission mode",
     "permission allow",
     "permission ask",
@@ -285,6 +287,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Guided startup wizard for PRINCE2 role-to-model assignments.",
             "- roles propose | project start",
             "  Apply an automatic PRINCE2 role proposal based on available providers, accounts, and models.",
+            "- sources | sources status",
+            "  Verify local external reference repositories by path, upstream URL, HEAD, and shallow state.",
             "- account add <model> <name> [ENV_VAR]",
             "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
             "- account login <model> <name>",
@@ -348,6 +352,7 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- stagewarden> /roles",
             "- stagewarden> /roles setup",
             "- stagewarden> /role configure project_manager",
+            "- stagewarden> /sources status",
             "- stagewarden> /model choose",
             "- stagewarden> /model choose chatgpt",
             "- stagewarden> /model preset chatgpt",
@@ -1029,6 +1034,122 @@ def _handle_role_command(
             _sync_prince2_roles_to_handoff(config, prefs)
             return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
         return "Usage: role configure [role] | role clear <role>"
+    return None
+
+
+def _source_reference_manifest(config: AgentConfig) -> list[dict[str, str]]:
+    manifest_path = config.workspace_root / "docs" / "source_references.md"
+    if not manifest_path.exists():
+        return []
+    rows: list[dict[str, str]] = []
+    for line in read_text_utf8(manifest_path).splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or "`external_sources/" not in stripped:
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        project = cells[0].replace("`", "").strip()
+        path_match = re.search(r"`([^`]+)`", cells[1])
+        upstream_match = re.search(r"`([^`]+)`", cells[2])
+        if not project or path_match is None or upstream_match is None:
+            continue
+        rows.append(
+            {
+                "project": project,
+                "path": path_match.group(1),
+                "upstream": upstream_match.group(1),
+            }
+        )
+    return rows
+
+
+def _git_output(cwd: Path, *args: str) -> tuple[bool, str]:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    output = completed.stdout.strip() or completed.stderr.strip()
+    return completed.returncode == 0, output
+
+
+def _normalize_git_url(url: str | None) -> str:
+    clean = str(url or "").strip().rstrip("/")
+    if clean.endswith(".git"):
+        clean = clean[:-4]
+    return clean
+
+
+def _sources_status_report(config: AgentConfig) -> dict[str, object]:
+    manifest = _source_reference_manifest(config)
+    items: list[dict[str, object]] = []
+    for entry in manifest:
+        local_path = config.workspace_root / entry["path"]
+        exists = local_path.exists()
+        is_git = (local_path / ".git").exists()
+        head_ok = False
+        remote_ok = False
+        shallow_ok = False
+        head = None
+        remote = None
+        shallow = None
+        message = "missing"
+        if exists and is_git:
+            head_ok, head = _git_output(local_path, "rev-parse", "--short", "HEAD")
+            remote_ok, remote = _git_output(local_path, "remote", "get-url", "origin")
+            shallow_ok, shallow = _git_output(local_path, "rev-parse", "--is-shallow-repository")
+            message = "ok" if head_ok and remote_ok and _normalize_git_url(remote) == _normalize_git_url(entry["upstream"]) else "metadata mismatch"
+        elif exists:
+            message = "path exists but is not a git repository"
+        items.append(
+            {
+                "project": entry["project"],
+                "path": entry["path"],
+                "expected_upstream": entry["upstream"],
+                "exists": exists,
+                "git_repository": is_git,
+                "head": head if head_ok else None,
+                "upstream": remote if remote_ok else None,
+                "upstream_matches": bool(remote_ok and _normalize_git_url(remote) == _normalize_git_url(entry["upstream"])),
+                "shallow": (shallow == "true") if shallow_ok else None,
+                "status": "OK" if message == "ok" else "WARN",
+                "message": message,
+            }
+        )
+    return {
+        "command": "sources status",
+        "manifest": "docs/source_references.md",
+        "count": len(items),
+        "ok": bool(items) and all(item["status"] == "OK" for item in items),
+        "items": items,
+    }
+
+
+def _render_sources_status(config: AgentConfig) -> str:
+    report = _sources_status_report(config)
+    lines = ["External source references:"]
+    if not report["items"]:
+        return "\n".join(lines + ["- WARN manifest missing or contains no external source rows."])
+    for item in report["items"]:
+        lines.append(
+            f"- {item['project']}: {item['status']} {item['message']} "
+            f"path={item['path']} head={item['head'] or 'unknown'} "
+            f"upstream={item['upstream'] or 'unknown'} shallow={item['shallow']}"
+        )
+        if not item["upstream_matches"]:
+            lines.append(f"  expected_upstream={item['expected_upstream']}")
+    return "\n".join(lines)
+
+
+def _handle_sources_command(command: str, config: AgentConfig) -> str | None:
+    if command in {"sources", "sources status"}:
+        return _render_sources_status(config)
+    if command.startswith("sources "):
+        return "Usage: sources | sources status"
     return None
 
 
@@ -3883,6 +4004,7 @@ def _is_known_interactive_command(command: str) -> bool:
         "roles ",
         "role ",
         "project ",
+        "sources ",
         "permission ",
         "mode ",
         "caveman ",
@@ -4114,6 +4236,11 @@ def run_interactive_shell(
             sink.write(f"{role_message}\n")
             sink.flush()
             continue
+        sources_message = _handle_sources_command(shell_command, config)
+        if sources_message is not None:
+            sink.write(f"{sources_message}\n")
+            sink.flush()
+            continue
         mode_message = _handle_mode_command(shell_command, agent, config)
         if mode_message is not None:
             sink.write(f"{mode_message}\n")
@@ -4319,6 +4446,19 @@ def main() -> int:
             return 1
         if args.json:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
+        else:
+            print(response)
+        return 0
+    if task in {"sources", "sources status"} or task.startswith("sources "):
+        response = _handle_sources_command(task, config)
+        if response is None or response.startswith("Usage:"):
+            if args.json:
+                print(dumps_ascii({"command": task, "ok": False, "error": response or "Unsupported sources command"}, indent=2))
+            else:
+                print(response or "Usage: sources | sources status")
+            return 1
+        if args.json:
+            print(dumps_ascii(_sources_status_report(config), indent=2))
         else:
             print(response)
         return 0
