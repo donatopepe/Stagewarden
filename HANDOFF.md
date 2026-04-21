@@ -126,6 +126,12 @@ Additional validation evidence:
 - Interactive wet-run passed with `account choose openai`, selecting `personale`, and `accounts` then showed the active profile change.
 - `model preset <provider>` without an explicit preset value now opens the provider-model picker instead of the preset picker.
 - Interactive wet-run passed with `model preset chatgpt`, selecting `gpt-5.4`, and `model params chatgpt` then showed `provider_model=gpt-5.4` plus `reasoning_effort=medium`.
+- Interactive shell commands now require the `/` prefix in the real shell; input without `/` is treated as a task for the agent loop.
+- Test harness compatibility was preserved for scripted `StringIO` command inputs so the shell command suite remains verifiable without changing task semantics.
+- `python3 -m unittest tests/test_trace_cli.py` passed again, 88 tests, after slash-command routing.
+- `python3 -m unittest discover -s tests` passed again, 216 tests, after slash-command routing.
+- Interactive wet-run passed with bare `status`, which was treated as a task and rejected by governance as expected.
+- Interactive wet-run passed with `/status`, which was treated as a shell command and rendered the status dashboard.
 
 Next recommended implementation blocks:
 
