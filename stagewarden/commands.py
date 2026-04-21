@@ -46,12 +46,15 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("model add", "models", "Enable a provider.", "model add <provider>", handler="models"),
     CommandSpec("model remove", "models", "Disable a provider.", "model remove <provider>", handler="models"),
     CommandSpec("model list", "models", "List provider-specific models.", "model list [provider]", json=True, handler="models"),
+    CommandSpec("model params", "models", "Show provider-model parameters.", "model params <provider>", json=True, handler="models"),
     CommandSpec("model variant", "models", "Pin provider-specific model variant.", "model variant <provider> <variant>", handler="models"),
     CommandSpec("model variant-clear", "models", "Clear provider model variant pin.", "model variant-clear <provider>", handler="models"),
     CommandSpec("model block", "models", "Block provider until a known unlock time.", "model block <provider> until YYYY-MM-DDTHH:MM", handler="limits"),
     CommandSpec("model unblock", "models", "Clear provider block.", "model unblock <provider>", handler="limits"),
     CommandSpec("model limit-record", "models", "Record provider limit from message.", "model limit-record <provider> <message>", handler="limits"),
     CommandSpec("model limit-clear", "models", "Clear provider limit state.", "model limit-clear <provider>", handler="limits"),
+    CommandSpec("model param set", "models", "Set one provider-model parameter.", "model param set <provider> <key> <value>", handler="models"),
+    CommandSpec("model param clear", "models", "Clear one provider-model parameter.", "model param clear <provider> <key>", handler="models"),
     CommandSpec("model clear", "models", "Clear preferred provider.", "model clear", handler="models"),
     CommandSpec("cost", "models", "Show cost and routing summary.", "cost", json=True, handler="models"),
     CommandSpec("accounts", "accounts", "Show account profiles.", "accounts", json=True, handler="accounts"),
@@ -131,6 +134,11 @@ def command_specs() -> tuple[CommandSpec, ...]:
 
 def command_catalog() -> list[dict[str, object]]:
     return [spec.to_dict() for spec in COMMAND_SPECS]
+
+
+def command_usages_for_groups(*groups: str) -> list[str]:
+    selected = set(groups)
+    return [spec.usage for spec in COMMAND_SPECS if spec.group in selected]
 
 
 def command_phrases() -> tuple[str, ...]:
