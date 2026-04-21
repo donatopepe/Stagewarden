@@ -1593,6 +1593,47 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("project_executive", prefs.prince2_roles or {})
             self.assertIn("project_executive", handoff.prince2_roles or {})
 
+    def test_sources_status_reports_external_reference_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source_root = root / "external_sources" / "codex"
+            docs = root / "docs"
+            docs.mkdir()
+            source_root.mkdir(parents=True)
+            subprocess.run(["git", "init"], cwd=source_root, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "remote", "add", "origin", "https://github.com/openai/codex"], cwd=source_root, capture_output=True, text=True, check=True)
+            (source_root / "README.md").write_text("reference\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=source_root, capture_output=True, text=True, check=True)
+            subprocess.run(
+                ["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "init"],
+                cwd=source_root,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            (docs / "source_references.md").write_text(
+                "\n".join(
+                    [
+                        "| Project | Local path | Upstream | Purpose | License/source note |",
+                        "| --- | --- | --- | --- | --- |",
+                        "| OpenAI Codex CLI | `external_sources/codex` | `https://github.com/openai/codex` | Study. | Public. |",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            completed = run_main_capture(root, "sources status")
+            json_completed = run_main_capture(root, "sources status", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("External source references:", completed.stdout)
+            self.assertIn("OpenAI Codex CLI: OK ok", completed.stdout)
+            self.assertIn("upstream=https://github.com/openai/codex", completed.stdout)
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["items"][0]["project"], "OpenAI Codex CLI")
+
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
