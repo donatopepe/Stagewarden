@@ -145,9 +145,15 @@ Additional validation evidence:
 - Wet-run `python3 -m stagewarden.main status` confirmed the missing-role operational hint in the real workspace.
 - `python3 -m unittest tests/test_trace_cli.py` passed, 91 tests, after the status role-baseline section.
 - `python3 -m unittest discover -s tests` passed, 220 tests, after the status role-baseline section.
+- `sources status` is implemented as a read-only external reference verifier for `docs/source_references.md`.
+- `sources status` reports local path presence, Git repository state, HEAD, upstream URL match with `.git` suffix normalization, and shallow-clone state.
+- Wet-runs `python3 -m stagewarden.main "sources status"` and `python3 -m stagewarden.main "sources status" --json` passed in the real workspace and reported Caveman, Codex, and Claude references as OK.
+- `python3 -m unittest tests/test_trace_cli.py` passed, 92 tests, after the sources status command.
+- `python3 -m unittest discover -s tests` passed, 221 tests, after the sources status command.
 
 Next recommended implementation blocks:
 
+- Add `sources update` command that runs `git pull --ff-only` in each reference repo and records updated heads.
 - Add provider-specific parsers for richer Claude Code and Codex status output when upstream CLIs expose machine-readable usage.
 
 ## Implemented Capabilities

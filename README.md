@@ -153,11 +153,14 @@ stagewarden health
 stagewarden health --json
 stagewarden report
 stagewarden report --json
+stagewarden "sources status"
+stagewarden "sources status" --json
 ```
 
 `doctor` validates Python 3.11+, Git availability, PATH launcher visibility, repository state, and provider capabilities/token env expectations without installing anything or initializing git. Use `stagewarden doctor --json` for machine-readable automation output.
 `health` is the compact operational variant for scripts and dashboards when `overview` is too broad and `board` is not enough.
 `report` is the shareable operator summary for issue updates, project closure notes, or quick GitHub-ready status text.
+`sources status` verifies local third-party reference clones by path, upstream URL, HEAD, and shallow-clone state without reading or vendoring their source content.
 
 Shell execution:
 
