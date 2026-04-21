@@ -107,6 +107,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "git show --stat",
     "model use",
     "model choose",
+    "model preset",
     "model add",
     "model remove",
     "model list",
@@ -119,6 +120,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "model limit-clear",
     "model clear",
     "account add",
+    "account choose",
     "account login",
     "account login-device",
     "account import",
@@ -247,6 +249,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Set the preferred provider and persist it in this workspace.",
             "- model choose [local|cheap|chatgpt|openai|claude]",
             "  Guided menu: choose provider, provider-model, and supported parameters interactively.",
+            "- model preset <provider> [fast|balanced|deep|plan]",
+            "  Apply a preset directly or choose one from a guided menu in the interactive shell.",
             "- model add <local|cheap|chatgpt|openai|claude>",
             "  Enable a provider in this workspace.",
             "- model list <local|cheap|chatgpt|openai|claude>",
@@ -279,6 +283,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Import credentials from a provider-owned credentials file. For claude the default is ~/.claude/.credentials.json or $CLAUDE_CONFIG_DIR/.credentials.json.",
             "- account use <model> <name>",
             "  Prefer one account profile for a model.",
+            "- account choose [model]",
+            "  Guided menu: choose provider and one configured account profile interactively.",
             "- account remove <model> <name>",
             "  Remove an account profile.",
             "- account block <model> <name> until YYYY-MM-DDTHH:MM",
@@ -321,6 +327,7 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- stagewarden> account login chatgpt personale",
             "- stagewarden> model choose",
             "- stagewarden> model choose chatgpt",
+            "- stagewarden> model preset chatgpt",
             "- stagewarden> model use openai",
             "- stagewarden> model list claude",
             "- stagewarden> model variant claude opus",
@@ -331,6 +338,7 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- stagewarden> account login openai lavoro",
             "- stagewarden> account add openai personale OPENAI_API_KEY_PERSONAL",
             "- stagewarden> account use openai lavoro",
+            "- stagewarden> account choose openai",
             "- stagewarden> account block openai lavoro until 2026-05-01T18:30",
             "- stagewarden> model unblock openai",
             "- stagewarden> status",
@@ -468,7 +476,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- model params <local|cheap|chatgpt|openai|claude>",
             "- model variant <provider> <variant>",
             "- model variant-clear <provider>",
-            "- model preset <provider> <fast|balanced|deep|plan>",
+            "- model preset <provider> [fast|balanced|deep|plan]",
             "- model param set <provider> <key> <value>",
             "- model param clear <provider> <key>",
             "- model block <model> until YYYY-MM-DDTHH:MM",
@@ -486,6 +494,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> model list claude",
             "- stagewarden> model params chatgpt",
             "- stagewarden> model variant openai gpt-5.4-mini",
+            "- stagewarden> model preset chatgpt",
             "- stagewarden> model preset chatgpt deep",
             "- stagewarden> model param set chatgpt reasoning_effort high",
             "- stagewarden> model block openai until 2026-05-01T18:30",
@@ -501,6 +510,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- account import <model> <name> [PATH]",
             "- account env <model> <name> <ENV_VAR>",
             "- account use <model> <name>",
+            "- account choose [model]",
             "- account logout <model> <name>",
             "- account remove <model> <name>",
             "- account block <model> <name> until YYYY-MM-DDTHH:MM",
@@ -511,6 +521,8 @@ def _interactive_help_topic(topic: str) -> str:
             "",
             "Examples:",
             "- stagewarden> account login chatgpt personale",
+            "- stagewarden> account choose",
+            "- stagewarden> account choose openai",
             "- stagewarden> account login-device openai lavoro",
             "- stagewarden> account add openai lavoro OPENAI_API_KEY_WORK",
             "- stagewarden> account import claude lavoro ~/.claude/.credentials.json",
@@ -2556,6 +2568,56 @@ def _guided_model_choice(
     return f"Guided selection applied: provider={model} provider_model={provider_model}{params_text}."
 
 
+def _guided_model_preset_choice(
+    *,
+    requested_model: str | None,
+    prefs: ModelPreferences,
+    agent: Agent,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided preset selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `model preset <provider>`."
+    providers = list(prefs.enabled_models or []) or list(SUPPORTED_MODELS)
+    model = requested_model
+    if model is None:
+        model = _prompt_menu_choice(
+            title="Choose provider for preset:",
+            options=[(item, item) for item in providers],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if model is None:
+            return "Guided preset selection cancelled."
+    if model not in SUPPORTED_MODELS:
+        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+    preset = _prompt_menu_choice(
+        title=f"Choose preset for {model}:",
+        options=[
+            ("fast", "fast | lowest practical cost"),
+            ("balanced", "balanced | default general work"),
+            ("deep", "deep | stronger reasoning"),
+            ("plan", "plan | planning oriented"),
+        ],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if preset is None:
+        return "Guided preset selection cancelled."
+    provider_model, params = provider_model_preset(model, preset)
+    if model not in prefs.enabled_models:
+        prefs.enabled_models.append(model)
+    prefs.preferred_model = model
+    prefs.set_variant(model, provider_model)
+    for key, value in params.items():
+        prefs.set_model_param(model, key, value)
+    _save_model_preferences(config, prefs)
+    _apply_model_preferences(agent, config)
+    params_text = ", ".join(f"{key}={value}" for key, value in sorted(params.items())) or "none"
+    return f"Guided preset applied: provider={model} preset={preset} provider_model={provider_model} params={params_text}."
+
+
 def _handle_model_command(
     command: str,
     agent: Agent,
@@ -2678,11 +2740,21 @@ def _handle_model_command(
                 ]
             )
         if action == "preset":
-            if len(parts) != 4:
-                return "Usage: model preset <provider> <fast|balanced|deep|plan>"
-            model, preset = parts[2], parts[3]
+            if len(parts) not in {3, 4}:
+                return "Usage: model preset <provider> [fast|balanced|deep|plan]"
+            model = parts[2]
             if model not in SUPPORTED_MODELS:
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+            if len(parts) == 3:
+                return _guided_model_preset_choice(
+                    requested_model=model,
+                    prefs=prefs,
+                    agent=agent,
+                    config=config,
+                    input_stream=input_stream,
+                    output_stream=output_stream,
+                )
+            preset = parts[3]
             provider_model, params = provider_model_preset(model, preset)
             prefs.set_variant(model, provider_model)
             for key, value in params.items():
@@ -2964,6 +3036,17 @@ def _handle_account_command(
             prefs.set_active_account(model, name)
             _save_model_preferences(config, prefs)
             return f"Active account for {model} set to {name}."
+        if action == "choose":
+            if len(parts) > 3:
+                return "Usage: account choose [model]"
+            requested_model = parts[2] if len(parts) == 3 else None
+            return _guided_account_choice(
+                requested_model=requested_model,
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
         if action == "remove":
             if len(parts) != 4:
                 return "Usage: account remove <model> <name>"
@@ -3001,7 +3084,7 @@ def _account_usage() -> str:
         "Usage: accounts | account add <model> <name> [ENV_VAR] | account login <model> <name> | "
         "account login-device <chatgpt|openai> <name> | "
         "account logout <model> <name> | account env <model> <name> <ENV_VAR> | account import <model> <name> [PATH] | "
-        "account use <model> <name> | account remove <model> <name> | "
+        "account use <model> <name> | account choose [model] | account remove <model> <name> | "
         "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | "
         "account limit-record <model> <name> <message> | account limit-clear <model> <name> | account clear <model>"
     )
@@ -3015,6 +3098,49 @@ def _default_claude_credentials_path() -> Path | None:
     if not str(home):
         return None
     return home / ".claude" / ".credentials.json"
+
+
+def _guided_account_choice(
+    *,
+    requested_model: str | None,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided account selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `account choose`."
+    models_with_accounts = [
+        model
+        for model in SUPPORTED_MODELS
+        if (prefs.accounts_by_model or {}).get(model)
+    ]
+    if not models_with_accounts:
+        return "No configured account profiles are available."
+    model = requested_model
+    if model is None:
+        model = _prompt_menu_choice(
+            title="Choose provider for account:",
+            options=[(item, item) for item in models_with_accounts],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if model is None:
+            return "Guided account selection cancelled."
+    accounts = list((prefs.accounts_by_model or {}).get(model, []))
+    if not accounts:
+        return f"No configured account profiles for {model}."
+    chosen_account = _prompt_menu_choice(
+        title=f"Choose account for {model}:",
+        options=[(name, name) for name in accounts],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if chosen_account is None:
+        return "Guided account selection cancelled."
+    prefs.set_active_account(model, chosen_account)
+    _save_model_preferences(config, prefs)
+    return f"Active account for {model} set to {chosen_account}."
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:

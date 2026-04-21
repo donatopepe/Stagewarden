@@ -116,6 +116,7 @@ Additional validation evidence:
 - `python3 -m stagewarden.main "model list chatgpt"` passed as wet-run and renders the provider-model catalog plus supported reasoning levels.
 - `python3 -m stagewarden.main "model variant chatgpt gpt-5.3-codex"` + `model param set chatgpt reasoning_effort high` + `model params chatgpt` passed as wet-run.
 - Interactive guided model selection has been added through `model choose [provider]`, with menu-driven provider, provider-model, and reasoning-effort selection.
+- Guided menus now also cover `model preset <provider>` and `account choose [provider]` inside the interactive shell.
 - `python3 -m unittest tests/test_trace_cli.py` passed, 86 tests.
 - `python3 -m unittest discover -s tests` passed, 214 tests.
 - Interactive wet-run passed with `model choose chatgpt`, selecting `gpt-5.4` plus `reasoning_effort=medium`, and `models` then showed the persisted provider-model state.
