@@ -4,7 +4,7 @@ Author: Donato Pepe
 
 License: MIT
 
-Last updated: 2026-04-20
+Last updated: 2026-04-21
 
 ## Purpose
 
@@ -160,15 +160,23 @@ Additional validation evidence:
 - Wet-runs `python3 -m stagewarden.main "sources status"` and `python3 -m stagewarden.main "sources status" --json` passed in the real workspace and reported Caveman, Codex, and Claude references as OK.
 - `python3 -m unittest tests/test_trace_cli.py` passed, 92 tests, after the sources status command.
 - `python3 -m unittest discover -s tests` passed, 221 tests, after the sources status command.
+- Command discovery Phase 1 started: `stagewarden.commands` now provides a structured registry with command name, group, description, usage, aliases, interactive support, JSON support, and handler family.
+- `commands` now renders a human command catalog from the registry.
+- `commands --json` now emits a machine-readable command catalog for future slash palette/menu integration.
+- Interactive slash completion now uses registry phrases as its first source before legacy compatibility phrases.
+- Wet-run `python3 -m stagewarden.main commands` passed in the real workspace.
+- Wet-run `python3 -m stagewarden.main commands --json` passed in the real workspace.
+- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands` passed after command catalog implementation.
 
 Next implementation roadmap:
 
 Phase 1 - command discovery foundation:
 
-- Build a structured command registry as the single source of truth for command name, aliases, group, description, args, interactive availability, JSON support, and handler family.
-- Replace duplicated help/completion command lists with registry-backed rendering where practical.
-- Add `commands` and `commands --json`.
-- Validation: CLI tests for command catalog JSON, help rendering, and existing completion candidates.
+- Status: partially implemented.
+- Completed: structured command registry, `commands`, `commands --json`, and registry-backed completion seed.
+- Remaining: continue replacing duplicated help text with registry-backed rendering where practical.
+- Remaining: add command-topic filtering/search once slash palette work begins.
+- Validation complete for first mini-block: CLI catalog JSON, text rendering, and core completion candidates.
 
 Phase 2 - Codex-style slash palette:
 
@@ -195,6 +203,15 @@ Phase 5 - source governance:
 - Add `sources status --strict` to fail on missing repos, dirty repos, wrong remote, missing HEAD, or unexpected shallow state.
 - Add `sources update` to run `git pull --ff-only` in each reference repo and record old/new heads in handoff.
 - Validation: temp-repo tests for strict failures and successful update simulation; wet-run `sources status --strict`.
+
+Phase 5b - self-update governance:
+
+- Add `update status` to check the configured GitHub repository for newer released versions or newer default-branch commits.
+- Add `update apply` to perform a controlled self-update from GitHub only after showing current version, target version/head, changelog or commit summary, and rollback boundary.
+- Add `update check --json` for automation and status/preflight integration.
+- Record update checks and applied updates in handoff, including old HEAD/version, new HEAD/version, remote URL, timestamp, and validation result.
+- Respect permissions: never auto-apply destructive changes without user confirmation; allow read-only update checks in normal status/preflight.
+- Validation: temp-repo tests for no-update/update-available states, JSON schema tests, and a wet-run `update status` against the real GitHub remote.
 
 Phase 6 - provider status and usage accounting:
 

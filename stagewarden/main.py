@@ -20,6 +20,7 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
+from .commands import command_catalog, command_phrases, render_command_catalog
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
@@ -49,7 +50,8 @@ from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
 
 
-INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
+INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
+    *command_phrases(),
     "help",
     "help core",
     "help models",
@@ -165,7 +167,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "caveman help",
     "caveman on",
     "caveman off",
-)
+)))
 INTERACTIVE_COMMAND_PREFIX = "/"
 
 
@@ -204,6 +206,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "Core commands:",
             "- help",
             "  Show this full help with examples.",
+            "- commands | commands --json",
+            "  Show the structured command catalog.",
             "- exit | quit",
             "  Close the interactive session.",
             "- reset",
@@ -253,7 +257,7 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- session close <id|last>",
             "  Close a persistent shell session.",
             "- commands",
-            "  Alias for help.",
+            "  Show the structured command catalog.",
             "- Interactive shell rule: every shell command starts with `/`; anything else is sent to the agent as a task.",
             "",
             "Model commands:",
@@ -3997,8 +4001,12 @@ def _configure_readline(config: AgentConfig) -> bool:
 
 def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
     lowered = command.lower().strip()
-    if lowered in {"help", "commands"}:
+    if lowered == "help":
         return None, interactive_help_text()
+    if lowered == "commands":
+        return None, render_command_catalog()
+    if lowered == "commands --json":
+        return None, dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2)
     if lowered.startswith("help "):
         topic = command.split(maxsplit=1)[1]
         if topic.lower().strip() == "caveman":
@@ -4006,6 +4014,8 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
         return None, interactive_help_text(topic)
     if lowered.startswith("commands "):
         topic = command.split(maxsplit=1)[1]
+        if topic.lower().strip() == "--json":
+            return None, dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2)
         return None, interactive_help_text(topic)
     if lowered in {"caveman help", "help caveman"}:
         return None, agent.caveman.help_text()
@@ -4366,6 +4376,12 @@ def main() -> int:
         task = f"/caveman {args.caveman} {task}".strip()
     elif args.interactive or not task:
         return run_interactive_shell(config)
+    if task in {"commands", "commands --json"}:
+        if args.json or task == "commands --json":
+            print(dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2))
+        else:
+            print(render_command_catalog())
+        return 0
     if task == "doctor":
         report = _doctor_report(config)
         rendered = _render_doctor(config)
