@@ -2472,27 +2472,28 @@ def _prompt_menu_choice(
 ) -> str | None:
     if input_stream is None or output_stream is None:
         return None
-    output_stream.write(f"{title}\n")
-    for index, (_, label) in enumerate(options, start=1):
-        output_stream.write(f"{index}. {label}\n")
-    output_stream.write("Choose a number or value, or `q` to cancel: ")
-    output_stream.flush()
-    response = input_stream.readline()
-    if response == "":
-        return None
-    selected = response.strip()
-    if not selected or selected.lower() in {"q", "quit", "cancel", "exit"}:
-        return None
-    if selected.isdigit():
-        index = int(selected) - 1
-        if 0 <= index < len(options):
-            return options[index][0]
-        return None
-    lowered = selected.lower()
-    for value, label in options:
-        if lowered in {value.lower(), label.lower()}:
-            return value
-    return None
+    while True:
+        output_stream.write(f"{title}\n")
+        for index, (_, label) in enumerate(options, start=1):
+            output_stream.write(f"{index}. {label}\n")
+        output_stream.write("Choose a number or value, or `q` to cancel: ")
+        output_stream.flush()
+        response = input_stream.readline()
+        if response == "":
+            return None
+        selected = response.strip()
+        if not selected or selected.lower() in {"q", "quit", "cancel", "exit"}:
+            return None
+        if selected.isdigit():
+            index = int(selected) - 1
+            if 0 <= index < len(options):
+                return options[index][0]
+        else:
+            lowered = selected.lower()
+            for value, label in options:
+                if lowered in {value.lower(), label.lower()}:
+                    return value
+        output_stream.write("Invalid selection. Try again or enter `q` to cancel.\n")
 
 
 def _guided_model_choice(
