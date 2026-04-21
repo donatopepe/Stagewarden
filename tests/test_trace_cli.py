@@ -1027,6 +1027,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Stagewarden command catalog:", rendered.stdout)
             self.assertIn("models:", rendered.stdout)
             self.assertIn("roles domains [--json]", rendered.stdout)
+            self.assertIn("roles tree [--json]", rendered.stdout)
             self.assertIn("sources", rendered.stdout)
             self.assertIn("commands [--json]", rendered.stdout)
 
@@ -1038,10 +1039,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("commands", by_name)
             self.assertIn("status", by_name)
             self.assertIn("roles domains", by_name)
+            self.assertIn("roles tree", by_name)
             self.assertIn("sources", by_name)
             self.assertEqual(by_name["commands"]["group"], "core")
             self.assertTrue(by_name["commands"]["json"])
             self.assertEqual(by_name["roles domains"]["handler"], "roles")
+            self.assertEqual(by_name["roles tree"]["handler"], "roles")
 
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1597,6 +1600,32 @@ class TraceAndCliTests(unittest.TestCase):
             domains = {item["role"]: item for item in payload["roles"]}
             self.assertEqual(domains["team_manager"]["context_scope"], "current work package, product delivery, quality criteria, and implementation lessons only")
             self.assertIn("context inside its PRINCE2 domain", payload["rule"])
+
+    def test_roles_tree_shows_hierarchy_and_node_context_rules(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            propose = run_main_capture(root, "roles propose")
+            completed = run_main_capture(root, "roles tree")
+            json_completed = run_main_capture(root, "roles tree", "--json")
+
+            self.assertEqual(propose.returncode, 0, propose.stderr)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 role tree:", completed.stdout)
+            self.assertIn("Project Executive [board.executive]", completed.stdout)
+            self.assertIn("  - Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("context=current work package, product delivery, quality criteria, and implementation lessons only", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles tree")
+            self.assertIn("fallback routing must not widen context", payload["rule"])
+            nodes = {item["node_id"]: item for item in payload["nodes"]}
+            self.assertEqual(nodes["management.project_manager"]["parent_id"], "board.executive")
+            self.assertEqual(nodes["delivery.team_manager"]["parent_id"], "management.project_manager")
+            self.assertEqual(nodes["delivery.team_manager"]["context_rule"]["include"][0], "assigned_work_package")
+            self.assertIn("business_case_detail", nodes["delivery.team_manager"]["context_rule"]["exclude"])
+            self.assertEqual(nodes["management.project_manager"]["assignment"]["provider"], "chatgpt")
+            self.assertEqual(nodes["assurance.project_assurance"]["level"], "assurance")
 
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
