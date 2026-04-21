@@ -120,6 +120,10 @@ Additional validation evidence:
 - `python3 -m unittest tests/test_trace_cli.py` passed, 86 tests.
 - `python3 -m unittest discover -s tests` passed, 214 tests.
 - Interactive wet-run passed with `model choose chatgpt`, selecting `gpt-5.4` plus `reasoning_effort=medium`, and `models` then showed the persisted provider-model state.
+- `python3 -m unittest tests/test_trace_cli.py` passed again, 88 tests, after adding guided preset/account menus.
+- `python3 -m unittest discover -s tests` passed again, 216 tests, after adding guided preset/account menus.
+- Interactive wet-run passed with `model preset chatgpt`, selecting `balanced`, and `model params chatgpt` then showed `provider_model=gpt-5.1-codex-mini` plus `reasoning_effort=medium`.
+- Interactive wet-run passed with `account choose openai`, selecting `personale`, and `accounts` then showed the active profile change.
 
 Next recommended implementation blocks:
 
