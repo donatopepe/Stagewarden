@@ -668,6 +668,7 @@ def _sync_handoff_preferences(agent: Agent, prefs: ModelPreferences) -> None:
     agent.handoff.model_params_by_model = {
         model: dict(params) for model, params in (prefs.params_by_model or {}).items()
     }
+    agent.project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
 
 
 def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferences:
@@ -744,6 +745,278 @@ def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
         env_text = f" env={env_var}" if env_var else ""
         lines.append(f"  account {account}:{active}{blocked}{env_text}{keychain}")
     return lines
+
+
+def _sync_prince2_roles_to_handoff(config: AgentConfig, prefs: ModelPreferences) -> None:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    handoff.save(config.handoff_path)
+
+
+def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    return {
+        "command": "roles",
+        "roles": [
+            {
+                "role": role,
+                "label": PRINCE2_ROLE_LABELS[role],
+                "assignment": dict((prefs.prince2_roles or {}).get(role, {})),
+            }
+            for role in PRINCE2_ROLE_IDS
+        ],
+    }
+
+
+def _render_prince2_roles(config: AgentConfig) -> str:
+    report = _prince2_roles_report(config)
+    lines = ["PRINCE2 role assignments:"]
+    for item in report["roles"]:
+        assignment = item["assignment"]
+        if not assignment:
+            lines.append(f"- {item['label']} ({item['role']}): unassigned")
+            continue
+        params = assignment.get("params", {})
+        params_text = (
+            " params=" + ",".join(f"{key}={value}" for key, value in sorted(params.items()))
+            if isinstance(params, dict) and params
+            else ""
+        )
+        lines.append(
+            f"- {item['label']} ({item['role']}): mode={assignment.get('mode', 'manual')} "
+            f"provider={assignment.get('provider', 'unknown')} "
+            f"provider_model={assignment.get('provider_model', 'unknown')} "
+            f"account={assignment.get('account') or 'none'}"
+            f"{params_text} source={assignment.get('source', 'manual')}"
+        )
+    return "\n".join(lines)
+
+
+def _role_options() -> list[tuple[str, str]]:
+    return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
+
+
+def _guided_role_configure(
+    *,
+    requested_role: str | None,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided role configuration is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role configure`."
+    role = requested_role
+    if role is None:
+        role = _prompt_menu_choice(
+            title="Choose PRINCE2 role:",
+            options=_role_options(),
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if role is None:
+            return "Role configuration cancelled."
+    if role not in PRINCE2_ROLE_IDS:
+        return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
+    mode = _prompt_menu_choice(
+        title=f"Configure {PRINCE2_ROLE_LABELS[role]}:",
+        options=[("auto", "Automatic proposal for this role"), ("manual", "Manual provider/model/account selection")],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if mode is None:
+        return "Role configuration cancelled."
+    if mode == "auto":
+        assignment = prefs.propose_prince2_roles()[role]
+        prefs.set_prince2_role_assignment(
+            role,
+            mode="auto",
+            provider=str(assignment["provider"]),
+            provider_model=str(assignment["provider_model"]),
+            params=dict(assignment.get("params", {})),
+            account=assignment.get("account"),
+            source="auto_proposal",
+        )
+        _save_model_preferences(config, prefs)
+        _sync_prince2_roles_to_handoff(config, prefs)
+        return f"Assigned {PRINCE2_ROLE_LABELS[role]} automatically."
+    provider = _prompt_menu_choice(
+        title=f"Choose provider for {PRINCE2_ROLE_LABELS[role]}:",
+        options=[(provider, provider) for provider in (prefs.enabled_models or list(SUPPORTED_MODELS))],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if provider is None:
+        return "Role configuration cancelled."
+    specs = list(provider_model_specs(provider))
+    provider_model = _prompt_menu_choice(
+        title=f"Choose provider-model for {provider}:",
+        options=[(spec.id, f"{spec.id} | {spec.label}") for spec in specs],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if provider_model is None:
+        return "Role configuration cancelled."
+    spec = provider_model_spec(provider, provider_model)
+    params: dict[str, str] = {}
+    if spec is not None and spec.reasoning_efforts:
+        reasoning = _prompt_menu_choice(
+            title=f"Choose reasoning_effort for {provider}:{provider_model}:",
+            options=[
+                (effort, f"{effort}{' (default)' if effort == spec.reasoning_default else ''}")
+                for effort in spec.reasoning_efforts
+            ],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if reasoning is None:
+            return "Role configuration cancelled."
+        params["reasoning_effort"] = reasoning
+    account_options = [("", "none")]
+    account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
+    account = _prompt_menu_choice(
+        title=f"Choose account for {provider}:",
+        options=account_options,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if account is None:
+        return "Role configuration cancelled."
+    prefs.set_prince2_role_assignment(
+        role,
+        mode="manual",
+        provider=provider,
+        provider_model=provider_model,
+        params=params,
+        account=account or None,
+        source="manual_menu",
+    )
+    _save_model_preferences(config, prefs)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    params_text = " ".join(f"{key}={value}" for key, value in sorted(params.items()))
+    return (
+        f"Assigned {PRINCE2_ROLE_LABELS[role]}: provider={provider} "
+        f"provider_model={provider_model} account={account or 'none'}"
+        + (f" {params_text}" if params_text else "")
+        + "."
+    )
+
+
+def _guided_roles_setup(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        prefs.apply_prince2_role_proposal()
+        _save_model_preferences(config, prefs)
+        _sync_prince2_roles_to_handoff(config, prefs)
+        return "Applied automatic PRINCE2 role proposal."
+    choice = _prompt_menu_choice(
+        title="PRINCE2 role setup:",
+        options=[
+            ("auto", "Automatic proposal based on available providers/accounts/models"),
+            ("manual", "Manual configuration role by role"),
+            ("show", "Show current assignments only"),
+        ],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if choice is None:
+        return "Role setup cancelled."
+    if choice == "show":
+        return _render_prince2_roles(config)
+    if choice == "auto":
+        prefs.apply_prince2_role_proposal()
+        _save_model_preferences(config, prefs)
+        _sync_prince2_roles_to_handoff(config, prefs)
+        return "Applied automatic PRINCE2 role proposal.\n" + _render_prince2_roles(config)
+    while True:
+        role = _prompt_menu_choice(
+            title="Choose role to configure, or `done`:",
+            options=[("done", "done")] + _role_options(),
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if role is None or role == "done":
+            break
+        output_stream.write(
+            _guided_role_configure(
+                requested_role=role,
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            + "\n"
+        )
+        output_stream.flush()
+        prefs = _load_model_preferences(config)
+    return "Role setup completed.\n" + _render_prince2_roles(config)
+
+
+def _handle_role_command(
+    command: str,
+    agent: Agent,
+    config: AgentConfig,
+    *,
+    input_stream: TextIO | None = None,
+    output_stream: TextIO | None = None,
+) -> str | None:
+    parts = command.split()
+    if not parts:
+        return None
+    if parts[0] == "project" and len(parts) == 2 and parts[1] == "start":
+        prefs = _load_model_preferences(config)
+        prefs.apply_prince2_role_proposal()
+        _save_model_preferences(config, prefs)
+        _sync_prince2_roles_to_handoff(config, prefs)
+        _apply_model_preferences(agent, config)
+        return "Project startup role baseline applied.\n" + _render_prince2_roles(config)
+    if parts[0] == "roles":
+        prefs = _load_model_preferences(config)
+        if len(parts) == 1:
+            _sync_prince2_roles_to_handoff(config, prefs)
+            return _render_prince2_roles(config)
+        if len(parts) == 2 and parts[1] == "propose":
+            prefs.apply_prince2_role_proposal()
+            _save_model_preferences(config, prefs)
+            _sync_prince2_roles_to_handoff(config, prefs)
+            _apply_model_preferences(agent, config)
+            return "Applied automatic PRINCE2 role proposal.\n" + _render_prince2_roles(config)
+        if len(parts) == 2 and parts[1] == "setup":
+            return _guided_roles_setup(
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        return "Usage: roles | roles propose | roles setup"
+    if parts[0] == "role":
+        prefs = _load_model_preferences(config)
+        if len(parts) >= 2 and parts[1] == "configure":
+            if len(parts) > 3:
+                return "Usage: role configure [role]"
+            requested_role = parts[2] if len(parts) == 3 else None
+            return _guided_role_configure(
+                requested_role=requested_role,
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        if len(parts) == 3 and parts[1] == "clear":
+            role = parts[2]
+            if role not in PRINCE2_ROLE_IDS:
+                return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
+            prefs.clear_prince2_role_assignment(role)
+            _save_model_preferences(config, prefs)
+            _sync_prince2_roles_to_handoff(config, prefs)
+            return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
+        return "Usage: role configure [role] | role clear <role>"
+    return None
 
 
 def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
@@ -1714,7 +1987,6 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "git": {},
         "path_launcher": {},
         "repository": {},
-        "study": {},
         "providers": [],
         "policy": {
             "silent_install": False,
@@ -1778,30 +2050,6 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
             "message": "current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup.",
         }
 
-    if config.study_path.exists() and config.study_path.is_dir():
-        study_files = [
-            item.relative_to(config.workspace_root).as_posix()
-            for item in sorted(config.study_path.rglob("*"))
-            if item.is_file()
-        ]
-        report["study"] = {
-            "ok": True,
-            "status": "OK" if study_files else "WARN",
-            "path": str(config.study_path),
-            "file_count": len(study_files),
-            "message": "study directory present" if study_files else "study directory present but empty",
-            "policy": "summary_only_no_raw_copyrighted_text",
-        }
-    else:
-        report["study"] = {
-            "ok": False,
-            "status": "WARN",
-            "path": str(config.study_path),
-            "file_count": 0,
-            "message": "study directory not found",
-            "policy": "summary_only_no_raw_copyrighted_text",
-        }
-
     providers: list[dict[str, object]] = []
     for model in REGISTRY_MODELS:
         capability = provider_capability(model)
@@ -1829,7 +2077,6 @@ def _render_doctor(config: AgentConfig) -> str:
     git_info = report["git"]
     path_info = report["path_launcher"]
     repo_info = report["repository"]
-    study_info = report["study"]
     providers = report["providers"]
     policy_info = report["policy"]
     lines = ["Stagewarden doctor:"]
@@ -1846,11 +2093,6 @@ def _render_doctor(config: AgentConfig) -> str:
     else:
         lines.append(f"- PATH launcher: WARN {path_info['message']}")
     lines.append(f"- Repository: {repo_info['status']} {repo_info['message']}")
-    lines.append(
-        f"- Study sources: {study_info['status']} {study_info['message']} "
-        f"(path={study_info['path']}, files={study_info['file_count']})"
-    )
-    lines.append("- Study policy: summary-only metadata for copyrighted material; raw source text is not injected into the model.")
     lines.append("Provider capabilities:")
     for provider in providers:
         lines.append(
@@ -3621,6 +3863,9 @@ def _is_known_interactive_command(command: str) -> bool:
         "auth status ",
         "model ",
         "account ",
+        "roles ",
+        "role ",
+        "project ",
         "permission ",
         "mode ",
         "caveman ",
@@ -3713,6 +3958,32 @@ def _make_permission_approver(
     return approve
 
 
+def _make_rate_limit_decider(*, input_stream: TextIO, output_stream: TextIO) -> Callable[[str, str | None, list[str]], str]:
+    def decide(provider: str, blocked_until: str | None, alternatives: list[str]) -> str:
+        if alternatives:
+            choice = alternatives[0]
+            output_stream.write(
+                f"Provider {provider} is rate-limited"
+                f"{' until ' + blocked_until if blocked_until else ''}. "
+                f"Automatically switching to {choice}.\n"
+            )
+            output_stream.flush()
+            return choice
+        output_stream.write(
+            f"Provider {provider} is rate-limited"
+            f"{' until ' + blocked_until if blocked_until else ''} and no alternative provider is available.\n"
+            "Choose `wait` to stop and retry after unlock, or `stop` to fail this step now: "
+        )
+        output_stream.flush()
+        answer = input_stream.readline()
+        if answer == "":
+            return "stop"
+        normalized = answer.strip().lower()
+        return "wait" if normalized in {"wait", "w", "aspetta", "attendi"} else "stop"
+
+    return decide
+
+
 def run_interactive_shell(
     config: AgentConfig,
     *,
@@ -3737,6 +4008,7 @@ def run_interactive_shell(
         output_stream=sink,
         get_agent=lambda: agent,
     )
+    config.rate_limit_decider = _make_rate_limit_decider(input_stream=source, output_stream=sink)
 
     sink.write(f"Stagewarden interactive shell in {config.workspace_root}\n")
     sink.write("Type '/help' for commands. Any input without '/' is treated as a task.\n")
@@ -3818,6 +4090,11 @@ def run_interactive_shell(
         account_message = _handle_account_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if account_message is not None:
             sink.write(f"{account_message}\n")
+            sink.flush()
+            continue
+        role_message = _handle_role_command(shell_command, agent, config, input_stream=source, output_stream=sink)
+        if role_message is not None:
+            sink.write(f"{role_message}\n")
             sink.flush()
             continue
         mode_message = _handle_mode_command(shell_command, agent, config)
@@ -4010,6 +4287,23 @@ def main() -> int:
             print(dumps_ascii(_accounts_report(config), indent=2))
         else:
             print(_render_accounts(config))
+        return 0
+    if task == "roles":
+        if args.json:
+            print(dumps_ascii(_prince2_roles_report(config), indent=2))
+        else:
+            print(_render_prince2_roles(config))
+        return 0
+    if task.startswith("roles ") or task.startswith("role ") or task == "project start":
+        agent = _configure_readonly_agent_for_workspace(config)
+        response = _handle_role_command(task, agent, config)
+        if response is None:
+            print("Usage: roles | roles propose | roles setup | role configure [role] | role clear <role> | project start")
+            return 1
+        if args.json:
+            print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
+        else:
+            print(response)
         return 0
     if task == "permissions":
         if args.json:

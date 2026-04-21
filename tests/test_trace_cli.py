@@ -14,6 +14,7 @@ from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
 from stagewarden.main import _interactive_completion_candidates, _render_boundary, _render_handoff, run_interactive_shell
 from stagewarden.modelprefs import ModelPreferences
+from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.secrets import SecretStore
 
 
@@ -164,7 +165,6 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("- Python: OK", completed.stdout)
             self.assertIn("- Git: OK", completed.stdout)
             self.assertIn("- PATH launcher:", completed.stdout)
-            self.assertIn("- Study sources:", completed.stdout)
             self.assertIn("Provider capabilities:", completed.stdout)
             self.assertIn("- chatgpt: auth=chatgpt_plan_oauth", completed.stdout)
             self.assertIn("- openai: auth=openai_api_key", completed.stdout)
@@ -182,7 +182,6 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "doctor")
             self.assertEqual(payload["python"]["status"], "OK")
             self.assertTrue(payload["git"]["ok"])
-            self.assertIn("study", payload)
             self.assertIn("silent_install", payload["policy"])
             self.assertFalse(payload["policy"]["silent_install"])
             providers = {entry["provider"]: entry for entry in payload["providers"]}
@@ -1153,7 +1152,6 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Stagewarden doctor:", rendered)
             self.assertIn("- Python: OK", rendered)
             self.assertIn("- Git: OK", rendered)
-            self.assertIn("- Study sources:", rendered)
             self.assertIn("Provider capabilities:", rendered)
 
     def test_interactive_shell_supports_category_help(self) -> None:
@@ -1536,6 +1534,64 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Choose provider-model for chatgpt:", rendered)
             self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.3-codex reasoning_effort=high.", rendered)
             self.assertIn("reasoning_effort_current: high", rendered)
+
+    def test_interactive_shell_roles_propose_persists_assignments_and_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO("roles propose\nroles\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+
+            self.assertEqual(code, 0)
+            self.assertIn("project_manager", prefs.prince2_roles or {})
+            self.assertEqual((prefs.prince2_roles or {})["project_manager"]["provider"], "chatgpt")
+            self.assertEqual((prefs.prince2_roles or {})["project_manager"]["provider_model"], "gpt-5.3-codex")
+            self.assertEqual((handoff.prince2_roles or {})["project_manager"]["provider_model"], "gpt-5.3-codex")
+            self.assertIn("PRINCE2 role assignments:", rendered)
+            self.assertIn("Project Manager (project_manager): mode=auto", rendered)
+
+    def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO(
+                "role configure project_manager\n"
+                "manual\n"
+                "3\n"
+                "7\n"
+                "2\n"
+                "1\n"
+                "roles\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            assignment = (prefs.prince2_roles or {})["project_manager"]
+
+            self.assertEqual(code, 0)
+            self.assertEqual(assignment["mode"], "manual")
+            self.assertEqual(assignment["provider"], "chatgpt")
+            self.assertEqual(assignment["provider_model"], "gpt-5.4")
+            self.assertEqual(assignment["params"]["reasoning_effort"], "medium")
+            self.assertIsNone(assignment["account"])
+            self.assertIn("Choose provider for Project Manager:", rendered)
+            self.assertIn("Assigned Project Manager: provider=chatgpt provider_model=gpt-5.4 account=none reasoning_effort=medium.", rendered)
+
+    def test_project_start_applies_role_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "project start")
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project startup role baseline applied.", completed.stdout)
+            self.assertIn("project_executive", prefs.prince2_roles or {})
+            self.assertIn("project_executive", handoff.prince2_roles or {})
 
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

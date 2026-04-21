@@ -21,6 +21,7 @@ class AgentConfig:
     strict_ascii_output: bool = True
     session_permission_settings: PermissionSettings | None = None
     permission_approver: Callable[[str, str, PermissionDecision], bool] | None = None
+    rate_limit_decider: Callable[[str, str | None, list[str]], str] | None = None
     memory_filename: str = ".stagewarden_memory.json"
     caveman_state_filename: str = ".stagewarden_caveman.json"
     trace_filename: str = ".stagewarden_trace.ljson"
@@ -29,7 +30,6 @@ class AgentConfig:
     handoff_filename: str = ".stagewarden_handoff.json"
     settings_filename: str = ".stagewarden_settings.json"
     history_filename: str = ".stagewarden_history"
-    study_directory_name: str = "study"
     sensitive_ascii_patterns: tuple[str, ...] = (
         ".json",
         ".ljson",
@@ -139,7 +139,3 @@ class AgentConfig:
     @property
     def history_path(self) -> Path:
         return (self.workspace_root / self.history_filename).resolve()
-
-    @property
-    def study_path(self) -> Path:
-        return (self.workspace_root / self.study_directory_name).resolve()
