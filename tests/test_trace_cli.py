@@ -1557,6 +1557,7 @@ class TraceAndCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             completed = run_main_capture(root, "roles domains")
+            json_completed = run_main_capture(root, "roles domains", "--json")
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("PRINCE2 role domains:", completed.stdout)
@@ -1564,6 +1565,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Team Manager (team_manager): responsibility=implementation and product delivery", completed.stdout)
             self.assertIn("context_scope=current work package, product delivery, quality criteria, and implementation lessons only", completed.stdout)
             self.assertIn("a role-assigned model receives only the context inside its PRINCE2 domain", completed.stdout)
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles domains")
+            domains = {item["role"]: item for item in payload["roles"]}
+            self.assertEqual(domains["team_manager"]["context_scope"], "current work package, product delivery, quality criteria, and implementation lessons only")
+            self.assertIn("context inside its PRINCE2 domain", payload["rule"])
 
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
