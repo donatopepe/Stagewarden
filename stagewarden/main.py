@@ -43,6 +43,7 @@ from .provider_registry import (
     provider_model_specs,
 )
 from .project_handoff import ProjectHandoff
+from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
@@ -97,6 +98,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "roles",
     "roles setup",
     "roles propose",
+    "roles domains",
     "project start",
     "auth status",
     "permissions",
@@ -283,6 +285,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "  Show configured account profiles for each model.",
             "- roles",
             "  Show PRINCE2 role assignments and routed model ownership.",
+            "- roles domains",
+            "  Show PRINCE2 role domains, accountability boundaries, and context visibility.",
             "- roles setup",
             "  Guided startup wizard for PRINCE2 role-to-model assignments.",
             "- roles propose | project start",
@@ -350,6 +354,7 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- stagewarden> /models",
             "- stagewarden> /account login chatgpt personale",
             "- stagewarden> /roles",
+            "- stagewarden> /roles domains",
             "- stagewarden> /roles setup",
             "- stagewarden> /role configure project_manager",
             "- stagewarden> /sources status",
@@ -797,6 +802,18 @@ def _render_prince2_roles(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _render_prince2_role_domains() -> str:
+    lines = ["PRINCE2 role domains:"]
+    for role in PRINCE2_ROLE_IDS:
+        lines.append(
+            f"- {PRINCE2_ROLE_LABELS[role]} ({role}): "
+            f"responsibility={PRINCE2_ROLE_AUTOMATION_RULES.get(role, 'controlled project work')}; "
+            f"context_scope={PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, 'controlled project work')}"
+        )
+    lines.append("- rule: a role-assigned model receives only the context inside its PRINCE2 domain unless escalation changes the active role.")
+    return "\n".join(lines)
+
+
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
@@ -998,6 +1015,8 @@ def _handle_role_command(
         if len(parts) == 1:
             _sync_prince2_roles_to_handoff(config, prefs)
             return _render_prince2_roles(config)
+        if len(parts) == 2 and parts[1] == "domains":
+            return _render_prince2_role_domains()
         if len(parts) == 2 and parts[1] == "propose":
             prefs.apply_prince2_role_proposal()
             _save_model_preferences(config, prefs)
@@ -1011,7 +1030,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) >= 2 and parts[1] == "configure":
@@ -4442,7 +4461,7 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: roles | roles propose | roles setup | role configure [role] | role clear <role> | project start")
+            print("Usage: roles | roles domains | roles propose | roles setup | role configure [role] | role clear <role> | project start")
             return 1
         if args.json:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))

@@ -1553,6 +1553,18 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 role assignments:", rendered)
             self.assertIn("Project Manager (project_manager): mode=auto", rendered)
 
+    def test_roles_domains_shows_prince2_context_boundaries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "roles domains")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 role domains:", completed.stdout)
+            self.assertIn("Project Executive (project_executive): responsibility=business justification", completed.stdout)
+            self.assertIn("Team Manager (team_manager): responsibility=implementation and product delivery", completed.stdout)
+            self.assertIn("context_scope=current work package, product delivery, quality criteria, and implementation lessons only", completed.stdout)
+            self.assertIn("a role-assigned model receives only the context inside its PRINCE2 domain", completed.stdout)
+
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -12,6 +12,7 @@ from .planner import PlanStep
 from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
 from .router import ModelRouter
+from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .textcodec import dumps_ascii, loads_text
 from .tools.files import FileTool
 from .tools.git import GitTool
@@ -57,18 +58,6 @@ ALLOWED_MODEL_ACTIONS = {
 }
 
 DESTRUCTIVE_ACTION_TOKENS = ("delete", "remove", "destroy", "wipe", "reset", "drop", "format", "purge")
-
-
-PRINCE2_ROLE_AUTOMATION_RULES: dict[str, str] = {
-    "project_executive": "business justification, benefits, cost tolerance, and stop/go escalation",
-    "project_manager": "planning, coordination, controlled execution, reporting, and stage boundary control",
-    "team_manager": "implementation and product delivery within the agreed work package",
-    "project_assurance": "independent validation, quality evidence, risk/issue review, and closure checks",
-    "change_authority": "change requests, exceptions, re-baselining, and tolerance breaches",
-    "senior_user": "user value, acceptance, adoption, and benefit realization checks",
-    "senior_supplier": "technical feasibility, supplier risk, and specialist delivery integrity",
-    "project_support": "logs, handoff, records, git snapshots, and administrative traceability",
-}
 
 
 class Executor:
@@ -714,17 +703,7 @@ Respond with strict JSON:
         }
 
     def _role_scope_description(self, role: str) -> str:
-        scopes = {
-            "project_executive": "business justification, benefits, cost/risk tolerance, and stop-go decisions only",
-            "project_manager": "stage plan, coordination, registers, reporting, and controlled execution",
-            "team_manager": "current work package, product delivery, quality criteria, and implementation lessons only",
-            "project_assurance": "quality evidence, risk/issue controls, lessons, and independent validation",
-            "change_authority": "change impact, exception plan, tolerances, risks, issues, and re-baseline evidence",
-            "senior_user": "user value, acceptance criteria, adoption impact, quality, and benefits",
-            "senior_supplier": "technical feasibility, supplier risk, delivery integrity, and quality",
-            "project_support": "handoff records, logs, traceability, issues, quality records, and git evidence",
-        }
-        return scopes.get(role, "controlled project work")
+        return PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, "controlled project work")
 
     def _model_context_files_section(self) -> str:
         status = self.git.status()
