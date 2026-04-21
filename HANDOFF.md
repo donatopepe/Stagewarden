@@ -124,6 +124,8 @@ Additional validation evidence:
 - `python3 -m unittest discover -s tests` passed again, 216 tests, after adding guided preset/account menus.
 - Interactive wet-run passed with `model preset chatgpt`, selecting `balanced`, and `model params chatgpt` then showed `provider_model=gpt-5.1-codex-mini` plus `reasoning_effort=medium`.
 - Interactive wet-run passed with `account choose openai`, selecting `personale`, and `accounts` then showed the active profile change.
+- `model preset <provider>` without an explicit preset value now opens the provider-model picker instead of the preset picker.
+- Interactive wet-run passed with `model preset chatgpt`, selecting `gpt-5.4`, and `model params chatgpt` then showed `provider_model=gpt-5.4` plus `reasoning_effort=medium`.
 
 Next recommended implementation blocks:
 
