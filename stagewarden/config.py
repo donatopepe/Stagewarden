@@ -29,6 +29,7 @@ class AgentConfig:
     handoff_filename: str = ".stagewarden_handoff.json"
     settings_filename: str = ".stagewarden_settings.json"
     history_filename: str = ".stagewarden_history"
+    study_directory_name: str = "study"
     sensitive_ascii_patterns: tuple[str, ...] = (
         ".json",
         ".ljson",
@@ -138,3 +139,7 @@ class AgentConfig:
     @property
     def history_path(self) -> Path:
         return (self.workspace_root / self.history_filename).resolve()
+
+    @property
+    def study_path(self) -> Path:
+        return (self.workspace_root / self.study_directory_name).resolve()

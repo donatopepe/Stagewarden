@@ -5,8 +5,22 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .provider_registry import SUPPORTED_MODELS, canonicalize_model_variant, provider_model_spec
+from .provider_registry import SUPPORTED_MODELS, canonicalize_model_variant, provider_model_spec, provider_model_specs
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
+
+
+PRINCE2_ROLE_LABELS: dict[str, str] = {
+    "project_executive": "Project Executive",
+    "senior_user": "Senior User",
+    "senior_supplier": "Senior Supplier",
+    "project_manager": "Project Manager",
+    "team_manager": "Team Manager",
+    "project_assurance": "Project Assurance",
+    "project_support": "Project Support",
+    "change_authority": "Change Authority",
+}
+
+PRINCE2_ROLE_IDS: tuple[str, ...] = tuple(PRINCE2_ROLE_LABELS.keys())
 
 
 def extract_blocked_until(text: str, *, now: datetime | None = None) -> str | None:
@@ -236,6 +250,7 @@ class ModelPreferences:
     provider_limit_snapshot_by_model: dict[str, dict[str, object]] | None = None
     provider_limit_snapshot_by_account: dict[str, dict[str, object]] | None = None
     params_by_model: dict[str, dict[str, str]] | None = None
+    prince2_roles: dict[str, dict[str, object]] | None = None
 
     @classmethod
     def default(cls) -> "ModelPreferences":
@@ -253,6 +268,7 @@ class ModelPreferences:
             provider_limit_snapshot_by_model={},
             provider_limit_snapshot_by_account={},
             params_by_model={},
+            prince2_roles={},
         )
 
     def normalize(self) -> "ModelPreferences":
@@ -324,6 +340,13 @@ class ModelPreferences:
             for model, params in (self.params_by_model or {}).items()
             if model in SUPPORTED_MODELS and self._normalize_model_params(str(model), params)
         }
+        prince2_roles = {
+            str(role): normalized
+            for role, assignment in (self.prince2_roles or {}).items()
+            if role in PRINCE2_ROLE_IDS
+            for normalized in [self._normalize_role_assignment(str(role), assignment)]
+            if normalized
+        }
         self.enabled_models = enabled
         self.preferred_model = preferred
         self.blocked_until_by_model = blocked
@@ -337,6 +360,7 @@ class ModelPreferences:
         self.provider_limit_snapshot_by_model = provider_limit_snapshot_by_model
         self.provider_limit_snapshot_by_account = provider_limit_snapshot_by_account
         self.params_by_model = params_by_model
+        self.prince2_roles = prince2_roles
         return self
 
     def is_blocked(self, model: str, at_time: datetime | None = None) -> bool:
@@ -507,10 +531,90 @@ class ModelPreferences:
         self.provider_limit_snapshot_by_account = dict(self.provider_limit_snapshot_by_account or {})
         self.provider_limit_snapshot_by_account[account_key(model, account)] = normalized
 
+    def prince2_role_assignment(self, role: str) -> dict[str, object]:
+        self._validate_prince2_role(role)
+        return dict((self.prince2_roles or {}).get(role, {}))
+
+    def set_prince2_role_assignment(
+        self,
+        role: str,
+        *,
+        mode: str,
+        provider: str,
+        provider_model: str,
+        params: dict[str, str] | None = None,
+        account: str | None = None,
+        source: str = "manual",
+    ) -> None:
+        self._validate_prince2_role(role)
+        self._validate_model(provider)
+        clean_mode = str(mode).strip().lower()
+        if clean_mode not in {"auto", "manual"}:
+            raise ValueError("Role mode must be 'auto' or 'manual'.")
+        if provider not in self.enabled_models:
+            self.enabled_models.append(provider)
+        canonical_model = canonicalize_model_variant(provider, provider_model)
+        normalized_params = self._normalize_model_params(provider, params or {})
+        if account is not None and account not in (self.accounts_by_model or {}).get(provider, []):
+            raise ValueError(f"Account '{account}' is not configured for model '{provider}'.")
+        self.prince2_roles = dict(self.prince2_roles or {})
+        self.prince2_roles[role] = {
+            "role": role,
+            "label": PRINCE2_ROLE_LABELS[role],
+            "mode": clean_mode,
+            "provider": provider,
+            "provider_model": canonical_model,
+            "params": normalized_params,
+            "account": account,
+            "source": str(source).strip() or clean_mode,
+        }
+        self.normalize()
+
+    def clear_prince2_role_assignment(self, role: str) -> None:
+        self._validate_prince2_role(role)
+        self.prince2_roles = dict(self.prince2_roles or {})
+        self.prince2_roles.pop(role, None)
+        self.normalize()
+
+    def propose_prince2_roles(self) -> dict[str, dict[str, object]]:
+        active_models = self.active_models()
+        available = active_models or list(self.enabled_models) or list(SUPPORTED_MODELS)
+        proposals: dict[str, dict[str, object]] = {}
+        for role in PRINCE2_ROLE_IDS:
+            provider = self._proposed_provider_for_role(role, available)
+            provider_model = self._default_provider_model_for_role(provider, role)
+            params = self._default_provider_params_for_role(provider, provider_model, role)
+            account = self.account_for_model(provider)
+            proposals[role] = {
+                "role": role,
+                "label": PRINCE2_ROLE_LABELS[role],
+                "mode": "auto",
+                "provider": provider,
+                "provider_model": provider_model,
+                "params": params,
+                "account": account,
+                "source": "auto_proposal",
+            }
+        return proposals
+
+    def apply_prince2_role_proposal(self) -> dict[str, dict[str, object]]:
+        proposals = self.propose_prince2_roles()
+        for role, assignment in proposals.items():
+            self.set_prince2_role_assignment(
+                role,
+                mode="auto",
+                provider=str(assignment["provider"]),
+                provider_model=str(assignment["provider_model"]),
+                params=dict(assignment.get("params", {})),
+                account=assignment.get("account"),
+                source="auto_proposal",
+            )
+        return proposals
+
     def as_dict(self) -> dict[str, object]:
         return {
             "_format": "stagewarden_model_preferences",
-            "_version": 6,
+            "_version": 7,
             "enabled_models": list(self.enabled_models),
             "preferred_model": self.preferred_model,
             "blocked_until_by_model": dict(self.blocked_until_by_model or {}),
@@ -524,6 +628,7 @@ class ModelPreferences:
             "provider_limit_snapshot_by_model": dict(self.provider_limit_snapshot_by_model or {}),
             "provider_limit_snapshot_by_account": dict(self.provider_limit_snapshot_by_account or {}),
             "params_by_model": {model: dict(params) for model, params in (self.params_by_model or {}).items()},
+            "prince2_roles": {role: dict(assignment) for role, assignment in (self.prince2_roles or {}).items()},
         }
 
     def save(self, path: Path) -> None:
@@ -577,6 +682,11 @@ class ModelPreferences:
                 for key, value in payload.get("params_by_model", {}).items()
                 if isinstance(value, dict)
             },
+            prince2_roles={
+                str(key): value
+                for key, value in payload.get("prince2_roles", {}).items()
+                if isinstance(value, dict)
+            },
         ).normalize()
 
     def _validate_model(self, model: str) -> None:
@@ -614,6 +724,100 @@ class ModelPreferences:
                 f"Allowed: {', '.join(allowed) or 'none'}"
             )
         return clean_key, clean_value
+
+    def _normalize_role_assignment(self, role: str, raw: object) -> dict[str, object]:
+        if not isinstance(raw, dict):
+            return {}
+        provider = str(raw.get("provider", "")).strip()
+        provider_model = str(raw.get("provider_model", "")).strip()
+        if provider not in SUPPORTED_MODELS or not provider_model:
+            return {}
+        try:
+            canonical_model = canonicalize_model_variant(provider, provider_model)
+        except ValueError:
+            return {}
+        mode = str(raw.get("mode", "manual")).strip().lower()
+        if mode not in {"auto", "manual"}:
+            mode = "manual"
+        params = self._normalize_model_params(provider, raw.get("params", {}))
+        account = raw.get("account")
+        clean_account = None
+        if account is not None and str(account) in (self.accounts_by_model or {}).get(provider, []):
+            clean_account = str(account)
+        return {
+            "role": role,
+            "label": PRINCE2_ROLE_LABELS[role],
+            "mode": mode,
+            "provider": provider,
+            "provider_model": canonical_model,
+            "params": params,
+            "account": clean_account,
+            "source": str(raw.get("source", mode)).strip() or mode,
+        }
+
+    def _validate_prince2_role(self, role: str) -> None:
+        if role not in PRINCE2_ROLE_IDS:
+            raise ValueError(f"Unsupported PRINCE2 role '{role}'.")
+
+    def _proposed_provider_for_role(self, role: str, available: list[str]) -> str:
+        preference_order = {
+            "project_executive": ("chatgpt", "openai", "claude", "cheap", "local"),
+            "senior_user": ("cheap", "chatgpt", "openai", "claude", "local"),
+            "senior_supplier": ("claude", "openai", "chatgpt", "cheap", "local"),
+            "project_manager": ("chatgpt", "openai", "claude", "cheap", "local"),
+            "team_manager": ("local", "cheap", "chatgpt", "openai", "claude"),
+            "project_assurance": ("cheap", "local", "chatgpt", "openai", "claude"),
+            "project_support": ("local", "cheap", "chatgpt", "openai", "claude"),
+            "change_authority": ("chatgpt", "cheap", "openai", "claude", "local"),
+        }
+        for candidate in preference_order.get(role, SUPPORTED_MODELS):
+            if candidate in available:
+                return candidate
+        return available[0]
+
+    def _default_provider_model_for_role(self, provider: str, role: str) -> str:
+        role_preference = {
+            "project_executive": {
+                "chatgpt": "gpt-5.4",
+                "openai": "gpt-5.4",
+                "claude": "sonnet",
+            },
+            "senior_user": {"chatgpt": "gpt-5.4-mini", "openai": "gpt-5.4-mini", "claude": "haiku"},
+            "senior_supplier": {"chatgpt": "gpt-5.3-codex", "openai": "gpt-5.3-codex", "claude": "sonnet"},
+            "project_manager": {"chatgpt": "gpt-5.3-codex", "openai": "gpt-5.3-codex", "claude": "sonnet"},
+            "team_manager": {"chatgpt": "gpt-5.1-codex-mini", "openai": "gpt-5.1-codex-mini", "claude": "haiku"},
+            "project_assurance": {"chatgpt": "gpt-5.4-mini", "openai": "gpt-5.4-mini", "claude": "haiku"},
+            "project_support": {"chatgpt": "gpt-5.4-nano", "openai": "gpt-5.4-nano", "claude": "haiku"},
+            "change_authority": {"chatgpt": "gpt-5.4", "openai": "gpt-5.4", "claude": "sonnet"},
+        }
+        candidate = role_preference.get(role, {}).get(provider)
+        if candidate:
+            try:
+                return canonicalize_model_variant(provider, candidate)
+            except ValueError:
+                pass
+        specs = provider_model_specs(provider)
+        if not specs:
+            return "provider-default"
+        return specs[0].id
+
+    def _default_provider_params_for_role(self, provider: str, provider_model: str, role: str) -> dict[str, str]:
+        spec = provider_model_spec(provider, provider_model)
+        if spec is None or not spec.reasoning_efforts:
+            return {}
+        preferred_effort = {
+            "project_executive": "high",
+            "senior_user": "medium",
+            "senior_supplier": "high",
+            "project_manager": "high",
+            "team_manager": "medium",
+            "project_assurance": "medium",
+            "project_support": "low",
+            "change_authority": "high",
+        }.get(role, spec.reasoning_default or spec.reasoning_efforts[0])
+        if preferred_effort not in spec.reasoning_efforts:
+            preferred_effort = spec.reasoning_default or spec.reasoning_efforts[0]
+        return {"reasoning_effort": preferred_effort}
 
     @staticmethod
     def _is_valid_account_name(value: str) -> bool:

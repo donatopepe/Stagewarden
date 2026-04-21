@@ -393,6 +393,9 @@ Task:
 Model context files:
 {model_context}
 
+Study source files:
+{self._bounded_context("study_sources", self._study_context_files(), 2000)}
+
 Implicit project handoff context:
 {self._bounded_context("handoff_summary", self.project_handoff.summary(), 2500)}
 
@@ -476,6 +479,21 @@ Respond with strict JSON:
   }}
 }}
 """
+
+    def _study_context_files(self) -> str:
+        study_path = self.config.study_path
+        if not study_path.exists() or not study_path.is_dir():
+            return (
+                f"- study_root: {study_path} (missing)\n"
+                "- study_policy: only operator-authored summaries may be exposed to the model; raw copyrighted source text must not be injected."
+            )
+        file_count = sum(1 for item in study_path.rglob("*") if item.is_file())
+        status = "present" if file_count else "present, no files"
+        return (
+            f"- study_root: {study_path} ({status})\n"
+            f"- study_file_count: {file_count}\n"
+            "- study_policy: only operator-authored summaries may be exposed to the model; raw copyrighted source text must not be injected."
+        )
 
     def _model_context_files_section(self) -> str:
         status = self.git.status()
