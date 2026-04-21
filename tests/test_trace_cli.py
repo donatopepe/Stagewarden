@@ -2120,6 +2120,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("effective mode: default", rendered)
             self.assertIn("handoff: .stagewarden_handoff.json", rendered)
             self.assertIn("Handoff summary:", rendered)
+            self.assertIn("PRINCE2 roles:", rendered)
+            self.assertIn("prince2_role_baseline: missing", rendered)
             self.assertIn("Provider limit status:", rendered)
             self.assertIn("chatgpt: enabled active provider_model=automatic-by-task selection=automatic active_account=none", rendered)
             self.assertIn("last_attempt: step=step-3 status=failed:runtime account=work provider_model=gpt-5.3-codex", rendered)
