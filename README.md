@@ -251,6 +251,7 @@ Model control:
 - `model params <provider>` shows supported and current provider-model parameters such as `reasoning_effort`.
 - `model variant <provider> <variant>` pins a provider-specific model alias or model ID.
 - `model variant-clear <provider>` clears the variant override and returns to the provider default.
+- `model preset <provider> <fast|balanced|deep|plan>` applies a simplified preset that chooses both provider-model and reasoning level.
 - `model param set <provider> reasoning_effort <low|medium|high>` persists provider-model parameters when supported.
 - `model param clear <provider> reasoning_effort` clears the persisted parameter override.
 - `model remove <local|cheap|chatgpt|openai|claude>` disables a model.

@@ -1443,6 +1443,26 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("reasoning_effort_current: high", rendered)
             self.assertIn("params=reasoning_effort=high", rendered)
 
+    def test_interactive_shell_applies_simplified_model_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO(
+                "model preset chatgpt deep\n"
+                "model params chatgpt\n"
+                "models\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(code, 0)
+            self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.3-codex")
+            self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "high")
+            self.assertIn("Applied preset deep to chatgpt: provider_model=gpt-5.3-codex", rendered)
+            self.assertIn("reasoning_effort_current: high", rendered)
+
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
