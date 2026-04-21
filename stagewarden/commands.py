@@ -77,6 +77,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("roles setup", "prince2", "Open guided PRINCE2 role setup.", "roles setup", handler="roles"),
     CommandSpec("roles propose", "prince2", "Apply automatic PRINCE2 role assignment proposal.", "roles propose", aliases=("project start",), handler="roles"),
     CommandSpec("roles domains", "prince2", "Show role domains and context visibility boundaries.", "roles domains [--json]", json=True, handler="roles"),
+    CommandSpec("roles tree", "prince2", "Show hierarchical PRINCE2 organization tree and node context boundaries.", "roles tree [--json]", json=True, handler="roles"),
     CommandSpec("role configure", "prince2", "Configure one PRINCE2 role assignment.", "role configure [role]", handler="roles"),
     CommandSpec("role clear", "prince2", "Clear one PRINCE2 role assignment.", "role clear <role>", handler="roles"),
     CommandSpec("handoff", "handoff", "Show persisted PRINCE2 handoff context.", "handoff", json=True, handler="handoff"),

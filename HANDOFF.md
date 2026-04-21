@@ -215,6 +215,11 @@ Phase 3 - PRINCE2 role startup controls:
 - Context expansion is allowed only through an explicit PRINCE2 event: escalation, exception, stage boundary review, delegated change decision, formal assurance review, or board decision.
 - Context expansion must be recorded in handoff with reason, requesting node, approving/receiving node, scope added, timestamp, and git boundary.
 - Fallback routing must preserve the node context exactly; changing provider/model/account must not widen the role's PRINCE2 context.
+- First role-tree implementation block is present: `roles tree` and `roles tree --json` render a PRINCE2 organization tree from the current flat role assignments without replacing existing routing yet.
+- Role-tree nodes currently expose node id, role type, parent, level, accountability boundary, delegated authority, responsibility domain, context scope, context include/exclude rules, expansion events, assignment, fallback pool, and readiness.
+- Wet-run `python3 -m stagewarden.main "roles tree"` passed in the real workspace.
+- Wet-run `python3 -m stagewarden.main "roles tree" --json` passed in the real workspace.
+- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_shows_hierarchy_and_node_context_rules tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_roles_domains_shows_prince2_context_boundaries` passed after role-tree implementation.
 - `project start` expected flow:
 - Step 1: assess project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - Step 2: generate a PRINCE2 organization tree sized to that assessment, keeping small projects lightweight and complex projects explicit.

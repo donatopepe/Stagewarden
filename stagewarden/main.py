@@ -43,6 +43,7 @@ from .provider_registry import (
     provider_model_spec,
     provider_model_specs,
 )
+from .role_tree import build_prince2_role_tree, render_prince2_role_tree
 from .project_handoff import ProjectHandoff
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .secrets import SecretStore
@@ -769,6 +770,14 @@ def _prince2_role_domains_report() -> dict[str, object]:
     }
 
 
+def _prince2_role_tree_report(config: AgentConfig) -> dict[str, object]:
+    return build_prince2_role_tree(_load_model_preferences(config))
+
+
+def _render_prince2_role_tree(config: AgentConfig) -> str:
+    return render_prince2_role_tree(_prince2_role_tree_report(config))
+
+
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
@@ -972,6 +981,8 @@ def _handle_role_command(
             return _render_prince2_roles(config)
         if len(parts) == 2 and parts[1] == "domains":
             return _render_prince2_role_domains()
+        if len(parts) == 2 and parts[1] == "tree":
+            return _render_prince2_role_tree(config)
         if len(parts) == 2 and parts[1] == "propose":
             prefs.apply_prince2_role_proposal()
             _save_model_preferences(config, prefs)
@@ -985,7 +996,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles tree | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) >= 2 and parts[1] == "configure":
@@ -4430,11 +4441,17 @@ def main() -> int:
         else:
             print(_render_prince2_role_domains())
         return 0
+    if task == "roles tree":
+        if args.json:
+            print(dumps_ascii(_prince2_role_tree_report(config), indent=2))
+        else:
+            print(_render_prince2_role_tree(config))
+        return 0
     if task.startswith("roles ") or task.startswith("role ") or task == "project start":
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: roles | roles domains | roles propose | roles setup | role configure [role] | role clear <role> | project start")
+            print("Usage: roles | roles domains | roles tree | roles propose | roles setup | role configure [role] | role clear <role> | project start")
             return 1
         if args.json:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
