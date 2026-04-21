@@ -154,6 +154,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = (
     "caveman on",
     "caveman off",
 )
+INTERACTIVE_COMMAND_PREFIX = "/"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -3474,15 +3475,22 @@ def _workspace_relative_candidates(config: AgentConfig, partial: str) -> list[st
 
 def _interactive_completion_candidates(text: str, config: AgentConfig) -> list[str]:
     normalized = text.lstrip()
+    if not normalized.startswith(INTERACTIVE_COMMAND_PREFIX):
+        return []
+    normalized = normalized[len(INTERACTIVE_COMMAND_PREFIX) :]
     lowered = normalized.lower()
     path_prefixes = ("git history ", "patch preview ", "session create ")
     for prefix in path_prefixes:
         if lowered.startswith(prefix):
             partial = normalized[len(prefix) :]
-            return [f"{prefix}{entry}" for entry in _workspace_relative_candidates(config, partial)]
+            return [f"{INTERACTIVE_COMMAND_PREFIX}{prefix}{entry}" for entry in _workspace_relative_candidates(config, partial)]
     if lowered.startswith("git show "):
-        return [item for item in ("git show HEAD", "git show --stat HEAD") if item.startswith(lowered)]
-    matches = [phrase for phrase in INTERACTIVE_COMMAND_PHRASES if phrase.startswith(lowered)]
+        return [
+            f"{INTERACTIVE_COMMAND_PREFIX}{item}"
+            for item in ("git show HEAD", "git show --stat HEAD")
+            if item.startswith(lowered)
+        ]
+    matches = [f"{INTERACTIVE_COMMAND_PREFIX}{phrase}" for phrase in INTERACTIVE_COMMAND_PHRASES if phrase.startswith(lowered)]
     return matches
 
 
@@ -3653,7 +3661,7 @@ def run_interactive_shell(
     )
 
     sink.write(f"Stagewarden interactive shell in {config.workspace_root}\n")
-    sink.write("Type 'help' for commands.\n")
+    sink.write("Type '/help' for commands. Any input without '/' is treated as a task.\n")
     if source is sys.stdin and sink is sys.stdout and _configure_readline(config):
         sink.write(f"History file: {config.history_path.name}\n")
     sink.flush()
@@ -3670,11 +3678,28 @@ def run_interactive_shell(
         command = line.strip()
         if not command:
             continue
-        if command in {"exit", "quit"}:
+        if not command.startswith(INTERACTIVE_COMMAND_PREFIX):
+            sink.write(f"Running task: {command}\n")
+            sink.write(f"{_render_shell_progress(agent, phase='before', command=command)}\n")
+            sink.flush()
+            result = agent.run(command)
+            sink.write("Agent result:\n")
+            sink.write(f"{result.message}\n")
+            sink.write(f"{_render_last_step_outcome(agent)}\n")
+            sink.write(f"{_render_shell_progress(agent, phase='after')}\n")
+            sink.flush()
+            continue
+
+        shell_command = command[len(INTERACTIVE_COMMAND_PREFIX) :].strip()
+        if not shell_command:
+            sink.write("Command prefix detected but no command was provided. Use '/help'.\n")
+            sink.flush()
+            continue
+        if shell_command in {"exit", "quit"}:
             sink.write("Session closed.\n")
             sink.flush()
             return 0
-        if command == "reset":
+        if shell_command == "reset":
             config.session_permission_settings = None
             agent = _configure_agent_for_workspace(config)
             apply_stream_callback(agent)
@@ -3687,66 +3712,59 @@ def run_interactive_shell(
             sink.write("Session reset.\n")
             sink.flush()
             continue
-        if command in {"stream on", "stream off", "stream status"}:
-            if command == "stream status":
+        if shell_command in {"stream on", "stream off", "stream status"}:
+            if shell_command == "stream status":
                 sink.write(f"Model streaming is {'on' if stream_enabled else 'off'}.\n")
                 sink.flush()
                 continue
-            stream_enabled = command == "stream on"
+            stream_enabled = shell_command == "stream on"
             apply_stream_callback(agent)
             sink.write(f"Model streaming {'enabled' if stream_enabled else 'disabled'} for this session.\n")
             sink.flush()
             continue
-        rewritten, immediate = _rewrite_shell_command(command, agent)
+        rewritten, immediate = _rewrite_shell_command(shell_command, agent)
         if immediate is not None:
             sink.write(f"{immediate}\n")
             sink.flush()
             continue
-        command = rewritten or command
-        model_message = _handle_model_command(command, agent, config, input_stream=source, output_stream=sink)
+        shell_command = rewritten or shell_command
+        model_message = _handle_model_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if model_message is not None:
             sink.write(f"{model_message}\n")
             sink.flush()
             continue
-        account_message = _handle_account_command(command, agent, config, input_stream=source, output_stream=sink)
+        account_message = _handle_account_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if account_message is not None:
             sink.write(f"{account_message}\n")
             sink.flush()
             continue
-        mode_message = _handle_mode_command(command, agent, config)
+        mode_message = _handle_mode_command(shell_command, agent, config)
         if mode_message is not None:
             sink.write(f"{mode_message}\n")
             sink.flush()
             continue
-        resume_message = _handle_resume_command(command, agent, config)
+        resume_message = _handle_resume_command(shell_command, agent, config)
         if resume_message is not None:
             sink.write(f"{resume_message}\n")
             sink.flush()
             continue
-        git_message = _handle_git_command(command, config)
+        git_message = _handle_git_command(shell_command, config)
         if git_message is not None:
             sink.write(f"{git_message}\n")
             sink.flush()
             continue
-        shell_session_message = _handle_shell_session_command(command, agent)
+        shell_session_message = _handle_shell_session_command(shell_command, agent)
         if shell_session_message is not None:
             sink.write(f"{shell_session_message}\n")
             sink.flush()
             continue
-        patch_message = _handle_patch_command(command, agent)
+        patch_message = _handle_patch_command(shell_command, agent)
         if patch_message is not None:
             sink.write(f"{patch_message}\n")
             sink.flush()
             continue
-
-        sink.write(f"Running task: {command}\n")
-        sink.write(f"{_render_shell_progress(agent, phase='before', command=command)}\n")
-        sink.flush()
-        result = agent.run(command)
-        sink.write("Agent result:\n")
-        sink.write(f"{result.message}\n")
-        sink.write(f"{_render_last_step_outcome(agent)}\n")
-        sink.write(f"{_render_shell_progress(agent, phase='after')}\n")
+        sink.write(f"Unknown slash command: /{shell_command}\n")
+        sink.write("Use '/help' for available commands or remove '/' to send a task to the agent.\n")
         sink.flush()
 
 
