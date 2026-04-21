@@ -40,13 +40,13 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("models", "models", "Show configured providers and provider-model selections.", "models", json=True, handler="models"),
     CommandSpec("models usage", "models", "Show recent model usage.", "models usage", json=True, handler="models"),
     CommandSpec("models limits", "models", "Show provider/account limit status.", "models limits", aliases=("model limits",), json=True, handler="models"),
-    CommandSpec("model use", "models", "Set preferred provider.", "model use <provider>", handler="models"),
-    CommandSpec("model choose", "models", "Open guided provider/model/parameter menu.", "model choose [provider]", handler="models"),
+    CommandSpec("model use", "models", "Set preferred provider.", "model use <local|cheap|chatgpt|openai|claude>", handler="models"),
+    CommandSpec("model choose", "models", "Open guided provider/model/parameter menu.", "model choose [local|cheap|chatgpt|openai|claude]", handler="models"),
     CommandSpec("model preset", "models", "Apply or choose a provider preset.", "model preset <provider> [preset]", handler="models"),
-    CommandSpec("model add", "models", "Enable a provider.", "model add <provider>", handler="models"),
-    CommandSpec("model remove", "models", "Disable a provider.", "model remove <provider>", handler="models"),
-    CommandSpec("model list", "models", "List provider-specific models.", "model list [provider]", json=True, handler="models"),
-    CommandSpec("model params", "models", "Show provider-model parameters.", "model params <provider>", json=True, handler="models"),
+    CommandSpec("model add", "models", "Enable a provider.", "model add <local|cheap|chatgpt|openai|claude>", handler="models"),
+    CommandSpec("model remove", "models", "Disable a provider.", "model remove <local|cheap|chatgpt|openai|claude>", handler="models"),
+    CommandSpec("model list", "models", "List provider-specific models.", "model list [local|cheap|chatgpt|openai|claude]", json=True, handler="models"),
+    CommandSpec("model params", "models", "Show provider-model parameters.", "model params <local|cheap|chatgpt|openai|claude>", json=True, handler="models"),
     CommandSpec("model variant", "models", "Pin provider-specific model variant.", "model variant <provider> <variant>", handler="models"),
     CommandSpec("model variant-clear", "models", "Clear provider model variant pin.", "model variant-clear <provider>", handler="models"),
     CommandSpec("model block", "models", "Block provider until a known unlock time.", "model block <provider> until YYYY-MM-DDTHH:MM", handler="limits"),
@@ -61,8 +61,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("auth status", "accounts", "Show provider authentication status.", "auth status <provider>", json=True, handler="accounts"),
     CommandSpec("account add", "accounts", "Add provider account profile.", "account add <provider> <name> [ENV_VAR]", handler="accounts"),
     CommandSpec("account choose", "accounts", "Open guided account selection menu.", "account choose [provider]", handler="accounts"),
-    CommandSpec("account login", "accounts", "Start provider login and save credentials.", "account login <provider> <name>", handler="accounts"),
-    CommandSpec("account login-device", "accounts", "Start OpenAI/ChatGPT device-code login.", "account login-device <provider> <name>", handler="accounts"),
+    CommandSpec("account login", "accounts", "Start provider login and save credentials.", "account login <chatgpt|openai> <name>", handler="accounts"),
+    CommandSpec("account login-device", "accounts", "Start OpenAI/ChatGPT device-code login.", "account login-device <chatgpt|openai> <name>", handler="accounts"),
     CommandSpec("account import", "accounts", "Import provider-owned credentials.", "account import <provider> <name> [path]", handler="accounts"),
     CommandSpec("account env", "accounts", "Set account token environment variable.", "account env <provider> <name> <ENV_VAR>", handler="accounts"),
     CommandSpec("account use", "accounts", "Select active account profile.", "account use <provider> <name>", handler="accounts"),
@@ -94,12 +94,12 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("transcript", "handoff", "Show recent tool transcript.", "transcript", aliases=("trace",), json=True, handler="handoff"),
     CommandSpec("todo", "handoff", "Show implementation backlog.", "todo", json=True, handler="handoff"),
     CommandSpec("permissions", "permissions", "Show permission settings.", "permissions", json=True, handler="permissions"),
-    CommandSpec("permission mode", "permissions", "Set workspace permission mode.", "permission mode <mode>", handler="permissions"),
+    CommandSpec("permission mode", "permissions", "Set workspace permission mode.", "permission mode <default|accept_edits|plan|auto|dont_ask>", handler="permissions"),
     CommandSpec("permission allow", "permissions", "Add workspace allow rule.", "permission allow <rule>", handler="permissions"),
     CommandSpec("permission ask", "permissions", "Add workspace ask rule.", "permission ask <rule>", handler="permissions"),
     CommandSpec("permission deny", "permissions", "Add workspace deny rule.", "permission deny <rule>", handler="permissions"),
     CommandSpec("permission reset", "permissions", "Reset workspace permission settings.", "permission reset", handler="permissions"),
-    CommandSpec("permission session mode", "permissions", "Set session-only permission mode.", "permission session mode <mode>", handler="permissions"),
+    CommandSpec("permission session mode", "permissions", "Set session-only permission mode.", "permission session mode <default|accept_edits|plan|auto|dont_ask>", handler="permissions"),
     CommandSpec("permission session allow", "permissions", "Add session-only allow rule.", "permission session allow <rule>", handler="permissions"),
     CommandSpec("permission session ask", "permissions", "Add session-only ask rule.", "permission session ask <rule>", handler="permissions"),
     CommandSpec("permission session deny", "permissions", "Add session-only deny rule.", "permission session deny <rule>", handler="permissions"),
@@ -138,7 +138,15 @@ def command_catalog() -> list[dict[str, object]]:
 
 def command_usages_for_groups(*groups: str) -> list[str]:
     selected = set(groups)
-    return [spec.usage for spec in COMMAND_SPECS if spec.group in selected]
+    usages: list[str] = []
+    for spec in COMMAND_SPECS:
+        if spec.group not in selected:
+            continue
+        usage = spec.usage
+        if spec.aliases:
+            usage = " | ".join((usage, *spec.aliases))
+        usages.append(usage)
+    return usages
 
 
 def command_phrases() -> tuple[str, ...]:
