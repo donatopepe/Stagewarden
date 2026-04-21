@@ -161,39 +161,53 @@ Additional validation evidence:
 - `python3 -m unittest tests/test_trace_cli.py` passed, 92 tests, after the sources status command.
 - `python3 -m unittest discover -s tests` passed, 221 tests, after the sources status command.
 
-Next recommended implementation blocks:
+Next implementation roadmap:
 
-Priority 1 - interactive operator experience:
+Phase 1 - command discovery foundation:
 
-- Product direction: Stagewarden user experience must feel close to Codex CLI and Claude Code: terminal-first, command-discoverable, safe-by-default, model/account/status aware, and optimized for fast operator feedback.
-- Use the downloaded local sources in `external_sources/codex`, `external_sources/claude-code`, and `external_sources/caveman` only as learning/reference material for UX and architecture decisions; do not vendor, republish, or copy third-party implementation unless license and attribution explicitly allow it.
-- Implement Codex-style slash command palette: when the user types `/` in the interactive shell, show an autocomplete menu with command names, short explanations, and keyboard cursor selection/confirmation.
-- Add structured command metadata so help, completions, slash palette, and JSON command catalogs share one source of truth.
-- Add `commands --json` or `help --json` for machine-readable command discovery and future UI integrations.
+- Build a structured command registry as the single source of truth for command name, aliases, group, description, args, interactive availability, JSON support, and handler family.
+- Replace duplicated help/completion command lists with registry-backed rendering where practical.
+- Add `commands` and `commands --json`.
+- Validation: CLI tests for command catalog JSON, help rendering, and existing completion candidates.
 
-Priority 2 - PRINCE2 role automation hardening:
+Phase 2 - Codex-style slash palette:
 
-- Add `roles check` to validate that every PRINCE2 role has provider/model/account assignments before controlled delivery.
-- Add `roles matrix --json` to combine role domains, active assignments, provider limits, and account availability in one startup decision surface.
-- Add a Project Board startup gate: if role baseline is missing, `project start` should propose assignments and require explicit confirmation before entering normal delivery.
-- Add tests proving role context isolation for Project Executive, Project Assurance, Change Authority, and Team Manager, not only Team Manager.
+- Implement an interactive slash command palette opened by `/` in the shell.
+- Palette must support filtering, fuzzy/substring matching, command descriptions, keyboard cursor movement, Enter selection, Esc/cancel, and fall back cleanly on non-TTY/test streams.
+- Keep Enter/Tab semantics predictable while palette is active, following Codex composer lessons.
+- Validation: unit tests for matching/filtering, CLI tests for non-TTY fallback, and manual wet-run in a real shell.
 
-Priority 3 - source reference governance:
+Phase 3 - PRINCE2 role startup controls:
 
-- Add `sources update` command that runs `git pull --ff-only` in each reference repo and records updated heads.
-- Add `sources status --strict` to fail when reference repos are missing, dirty, non-shallow when expected, or remote URLs mismatch.
+- Add `roles check` to validate every PRINCE2 role has provider/model assignment and account availability when required.
+- Add `roles matrix --json` combining role domains, active assignment, provider-model, params, account, provider limit state, and readiness.
+- Add Project Board startup gate in `project start`: propose assignments, show matrix, require confirmation in interactive mode, and persist the approved baseline in handoff.
+- Validation: CLI tests for missing/complete roles, JSON schema tests, and wet-run `project start`.
 
-Priority 4 - provider status and limits:
+Phase 4 - status remediation and preflight:
 
-- Add provider-specific parsers for richer Claude Code and Codex status output when upstream CLIs expose machine-readable usage.
-- Extend provider-limit persistence with reset windows, utilization, overage fields, stale-limit detection, and redacted raw-message previews.
-- Add token/context-window accounting to handoff and memory events where provider output exposes safe usage metadata.
+- Add remediation section to `status` and `status --full`: missing role baseline, active exception plan, dirty git, blocked providers/accounts, missing auth, missing source references, restrictive permissions.
+- Add `preflight` and `preflight --json` combining doctor, sources status, roles check, model limits, git status, and permission posture.
+- Validation: CLI JSON schema tests and wet-run in current workspace.
 
-Priority 5 - resilience and auditability:
+Phase 5 - source governance:
 
-- Add a `preflight` command that combines doctor, sources status, roles check, model limits, git status, and permission posture.
-- Add JSON schema stability tests for status, statusline, roles domains, roles matrix, source status, and model limits.
-- Add an operator-facing remediation section in `status` when the project is in exception or role baseline is incomplete.
+- Add `sources status --strict` to fail on missing repos, dirty repos, wrong remote, missing HEAD, or unexpected shallow state.
+- Add `sources update` to run `git pull --ff-only` in each reference repo and record old/new heads in handoff.
+- Validation: temp-repo tests for strict failures and successful update simulation; wet-run `sources status --strict`.
+
+Phase 6 - provider status and usage accounting:
+
+- Add provider-specific parsers for richer Codex/Claude status where machine-readable outputs are available.
+- Extend persisted limit snapshots with reset windows, utilization, overage fields, stale detection, and safe redacted raw-message previews.
+- Add token/context-window accounting to memory/handoff only when provider output exposes safe metadata.
+- Validation: parser unit tests, stale-limit tests, redaction tests, and status JSON schema tests.
+
+Phase 7 - extension architecture:
+
+- Define Stagewarden extension layout inspired by Claude Code plugins: commands, role agents, skills, hooks, MCP definitions, and README per extension.
+- Keep extension APIs safe-by-default and permission-aware.
+- Validation: scaffold test plugin/extension in temp workspace and verify discovery without executing untrusted code.
 
 ## UX Reference Analysis: Codex CLI, Claude Code, Caveman
 
@@ -238,6 +252,12 @@ Stagewarden UX target:
 - Every important shell surface should have a JSON equivalent where useful for automation.
 - Status surfaces should include next-action remediation when something blocks delivery: missing role baseline, active exception plan, dirty git, blocked provider/account, missing auth, missing source references, or restrictive permission mode.
 - Role-driven model assignment and context isolation must stay visible through `roles`, `roles domains`, future `roles check`, and future `roles matrix --json`.
+
+Immediate next mini-block:
+
+- Implement Phase 1 command discovery foundation before the interactive palette. This reduces duplicate command definitions and gives the palette a reliable metadata source.
+- First deliverable: `commands` and `commands --json` backed by a minimal registry for existing shell commands.
+- Do not implement cursor UI until the registry is in place.
 
 ## Implemented Capabilities
 
