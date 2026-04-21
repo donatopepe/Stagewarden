@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
-from .modelprefs import PRINCE2_ROLE_LABELS, ModelPreferences
+from .modelprefs import PRINCE2_ROLE_LABELS, ModelPreferences, account_key
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 
 
@@ -186,6 +186,104 @@ def build_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
         "expansion_rule": "context expands only through escalation, exception, stage boundary, delegated change, assurance review, or board decision",
         "nodes": nodes,
     }
+
+
+def check_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
+    tree = build_prince2_role_tree(prefs)
+    nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
+    findings: list[dict[str, object]] = []
+
+    def add(severity: str, code: str, node_id: str, message: str) -> None:
+        findings.append(
+            {
+                "severity": severity,
+                "code": code,
+                "node_id": node_id,
+                "message": message,
+            }
+        )
+
+    for node in nodes:
+        node_id = str(node.get("node_id"))
+        role_type = str(node.get("role_type"))
+        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+        if not assignment:
+            add("error", "missing_assignment", node_id, f"{role_type} has no provider/model assignment.")
+            continue
+        provider = str(assignment.get("provider", ""))
+        account = assignment.get("account")
+        if provider and prefs.is_blocked(provider):
+            add(
+                "error",
+                "provider_blocked",
+                node_id,
+                f"{role_type} provider {provider} is blocked until {(prefs.blocked_until_by_model or {}).get(provider)}.",
+            )
+        if account and prefs.is_account_blocked(provider, str(account)):
+            add(
+                "error",
+                "account_blocked",
+                node_id,
+                f"{role_type} account {provider}:{account} is blocked until {(prefs.blocked_until_by_account or {}).get(account_key(provider, str(account)))}.",
+            )
+        if provider in {"chatgpt", "openai", "claude", "cheap"} and account is None and provider in (prefs.accounts_by_model or {}):
+            add("warning", "account_not_selected", node_id, f"{role_type} provider {provider} has profiles but no active account on this node.")
+
+    by_role = {str(node.get("role_type")): node for node in nodes}
+    assurance = by_role.get("project_assurance", {})
+    team_manager = by_role.get("team_manager", {})
+    assurance_assignment = assurance.get("assignment") if isinstance(assurance.get("assignment"), dict) else {}
+    team_assignment = team_manager.get("assignment") if isinstance(team_manager.get("assignment"), dict) else {}
+    if assurance_assignment and team_assignment:
+        if assurance_assignment.get("provider") == team_assignment.get("provider") and assurance_assignment.get("provider_model") == team_assignment.get("provider_model"):
+            add(
+                "warning",
+                "assurance_delivery_same_model",
+                str(assurance.get("node_id", "assurance.project_assurance")),
+                "Project Assurance uses the same provider-model as Team Manager; independence may be weak.",
+            )
+
+    status = "ok"
+    if any(item["severity"] == "error" for item in findings):
+        status = "error"
+    elif findings:
+        status = "warning"
+
+    return {
+        "command": "roles check",
+        "status": status,
+        "rule": "role tree is ready only when required nodes are assigned, unblocked, and independence constraints are visible",
+        "summary": {
+            "nodes": len(nodes),
+            "assigned": sum(1 for node in nodes if node.get("readiness") == "assigned"),
+            "unassigned": sum(1 for node in nodes if node.get("readiness") != "assigned"),
+            "errors": sum(1 for item in findings if item["severity"] == "error"),
+            "warnings": sum(1 for item in findings if item["severity"] == "warning"),
+        },
+        "findings": findings,
+        "tree": tree,
+    }
+
+
+def render_prince2_role_check(report: dict[str, object]) -> str:
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    lines = [
+        "PRINCE2 role tree check:",
+        f"- status: {report.get('status')}",
+        f"- nodes: {summary.get('nodes', 0)} assigned={summary.get('assigned', 0)} unassigned={summary.get('unassigned', 0)}",
+        f"- findings: errors={summary.get('errors', 0)} warnings={summary.get('warnings', 0)}",
+        f"- rule: {report.get('rule')}",
+    ]
+    findings = [item for item in report.get("findings", []) if isinstance(item, dict)]
+    if findings:
+        lines.append("Findings:")
+        for item in findings:
+            lines.append(
+                f"- {item.get('severity')} {item.get('code')} [{item.get('node_id')}]: {item.get('message')}"
+            )
+    else:
+        lines.append("Findings: none")
+    return "\n".join(lines)
 
 
 def render_prince2_role_tree(tree: dict[str, object]) -> str:
