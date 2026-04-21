@@ -21,6 +21,7 @@ The working rule is PRINCE2-style controlled execution:
 - keep model handoff context available without requiring manual resume
 - adapt governance to task size and risk: small work stays lightweight, complex work gets stronger controls
 - reduce ceremony, never principles
+- model roles are not limited to a flat one-role/one-model map: PRINCE2 organization can be hierarchical, delegated, combined, or split by domain while preserving accountability
 
 ## Current Baseline
 
@@ -133,7 +134,8 @@ Additional validation evidence:
 - Interactive wet-run passed with bare `status`, which was treated as a task and rejected by governance as expected.
 - Interactive wet-run passed with `/status`, which was treated as a shell command and rendered the status dashboard.
 - `study/` remains developer-only learning material and is not exposed in agent prompts, status, doctor output, or runtime behavior.
-- PRINCE2 role routing is implemented: `/roles`, `/roles propose`, `/roles setup`, `/role configure [role]`, `/role clear <role>`, and `/project start`.
+- PRINCE2 role routing is implemented as an initial flat baseline: `/roles`, `/roles propose`, `/roles setup`, `/role configure [role]`, `/role clear <role>`, and `/project start`.
+- Important correction: this flat baseline is not the final PRINCE2 organization model. Stagewarden must evolve to support role trees, delegated roles, many model assignments per role node, and context scoped by responsibility/domain.
 - Role assignments persist provider, provider-model, reasoning parameters, account, mode, and source in `.stagewarden_models.json`.
 - Project handoff now synchronizes PRINCE2 role assignments so model calls receive implicit role ownership context without a manual resume.
 - Provider rate-limit recovery now records blocked-until metadata, switches automatically to an available provider/account, and asks the user whether to wait/stop when no alternative exists.
@@ -192,10 +194,22 @@ Phase 2 - Codex-style slash palette:
 
 Phase 3 - PRINCE2 role startup controls:
 
-- Add `roles check` to validate every PRINCE2 role has provider/model assignment and account availability when required.
-- Add `roles matrix --json` combining role domains, active assignment, provider-model, params, account, provider limit state, and readiness.
-- Add Project Board startup gate in `project start`: propose assignments, show matrix, require confirmation in interactive mode, and persist the approved baseline in handoff.
-- Validation: CLI tests for missing/complete roles, JSON schema tests, and wet-run `project start`.
+- Status: must be replanned before implementation because PRINCE2 roles are not limited to one model per role.
+- Replace the current flat role assignment assumption with a PRINCE2 organization tree.
+- Represent organization levels explicitly: business/programme/customer context, project board/direction, project management, team delivery, assurance/support/delegated authorities.
+- Represent each role as a node with: role id, display label, accountability boundary, responsibility domain, parent role, delegated authority, allowed context slices, primary model assignment, reviewer model assignments, fallback model pool, account/profile selection, provider-model parameters, readiness, and limit state.
+- Support multiple nodes for the same PRINCE2 role type where PRINCE2 allows it in practice: multiple Team Managers, multiple assurance perspectives, delegated Change Authority, specialist supplier/user representatives, and project support/PMO sub-functions.
+- Preserve PRINCE2 accountability rules: accountability remains clear even when operational responsibility is delegated; Executive accountability and Project Board direction must not be blurred by model routing.
+- Preserve separation rules: assurance context must remain independent from delivery execution; project support can maintain records but must not silently approve work; delegated change decisions must stay inside defined tolerances.
+- Add `roles tree` to render the hierarchical organization model.
+- Add `roles tree --json` for machine-readable role-node structure and context boundaries.
+- Add `role add-child <parent> <role_type>` or guided equivalent to create delegated/subordinate role nodes.
+- Add `role assign <role_node>` or guided equivalent to assign primary/reviewer/fallback model pools to a role node.
+- Add `roles check` to validate tree completeness, accountability clarity, independence constraints, account availability, provider limit state, and missing model pools.
+- Add `roles matrix --json` combining role tree, domains, active assignments, provider-models, params, accounts, provider/account limit state, readiness, and independence warnings.
+- Add Project Board startup gate in `project start`: propose a role tree from project scale/risk/delivery mode, show matrix, require confirmation in interactive mode, and persist the approved baseline in handoff.
+- Model calls must receive only the context slice allowed by the selected role node, not the entire project handoff by default.
+- Validation: unit tests for role-tree normalization, delegated role constraints, context-slice filtering, JSON schema tests, missing/complete tree checks, independence warnings, and wet-run `project start`.
 
 Phase 4 - status remediation and preflight:
 
@@ -273,7 +287,8 @@ Stagewarden UX target:
 - Commands should be grouped by operator intent: core, models, accounts, roles, PRINCE2 handoff, git, permissions, sources, Caveman, LJSON, diagnostics.
 - Every important shell surface should have a JSON equivalent where useful for automation.
 - Status surfaces should include next-action remediation when something blocks delivery: missing role baseline, active exception plan, dirty git, blocked provider/account, missing auth, missing source references, or restrictive permission mode.
-- Role-driven model assignment and context isolation must stay visible through `roles`, `roles domains`, future `roles check`, and future `roles matrix --json`.
+- Role-driven model assignment and context isolation must stay visible through `roles`, `roles domains`, future `roles tree`, future `roles check`, and future `roles matrix --json`.
+- PRINCE2 role routing must support a hierarchy of role nodes, not a fixed one-model-per-role table.
 
 Immediate next mini-block:
 
