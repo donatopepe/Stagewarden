@@ -86,6 +86,8 @@ PRINCE2 handoff behavior:
 - The handoff file is persisted as `.stagewarden_handoff.json`.
 - Resume is implicit: each new run inherits the latest project handoff context for the workspace.
 - The executor prompt always includes the current project handoff summary, so planning and execution stay aligned to the same controlled context.
+- PRINCE2 role automation scopes model context by role: Project Manager sees control context, Team Manager sees only the current work package/product-delivery domain, Project Assurance sees validation/risk/issue/quality evidence, Change Authority sees exception/change/tolerance context, and Project Executive sees business justification and stop-go context.
+- `project start`, `roles setup`, and `role configure [role]` assign provider, provider-model, reasoning parameters, and account per PRINCE2 role.
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
 - `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, classified provider lockout reason, last known provider message, and latest routed success/failure context.
@@ -94,7 +96,7 @@ PRINCE2 handoff behavior:
 - `stagewarden health --json` exposes a compact readiness snapshot for automation: authorization, boundary decision, open controls, recovery state, and minimal model/transcript signals.
 - `stagewarden report --json` exposes a compact closure/shareable summary with governance state, next action, recent lessons, backlog preview, model activity, and provider-limit posture.
 - `stagewarden risks|issues|quality|exception|lessons|todo --json` exposes PRINCE2 registers and backlog in machine-readable form.
-- The executor prompt also includes the active PRINCE2 registers: risks, issues, quality evidence, lessons learned, and any current exception plan.
+- The executor prompt includes only the PRINCE2 registers allowed by the active role domain, preventing a role-specific model from seeing unrelated governance context by default.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
 - `handoff` shows the full persisted project context, while `boundary` shows only the current PRINCE2 stage-boundary recommendation.
 - `boundary` now blocks closure when open issues remain and prefers an explicit exception-path decision when an exception plan is active.

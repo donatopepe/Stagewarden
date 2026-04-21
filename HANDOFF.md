@@ -145,6 +145,9 @@ Additional validation evidence:
 - Wet-run `python3 -m stagewarden.main status` confirmed the missing-role operational hint in the real workspace.
 - `python3 -m unittest tests/test_trace_cli.py` passed, 91 tests, after the status role-baseline section.
 - `python3 -m unittest discover -s tests` passed, 220 tests, after the status role-baseline section.
+- PRINCE2 role automation now routes execution by role domain: Project Manager for planning/control, Team Manager for implementation, Project Assurance for validation, Change Authority for exceptions/changes/tolerance breaches, Project Executive for business stop-go, Senior User for acceptance/benefits, Senior Supplier for technical feasibility, and Project Support for records/traceability.
+- Role-assigned models now receive scoped context only: unrelated risks/issues/exception plans/logs are omitted unless the active PRINCE2 role owns that domain.
+- Executor tests verify Team Manager routing uses the configured provider/model/params and does not expose business risk or exception-plan content outside the Team Manager domain.
 - `sources status` is implemented as a read-only external reference verifier for `docs/source_references.md`.
 - `sources status` reports local path presence, Git repository state, HEAD, upstream URL match with `.git` suffix normalization, and shallow-clone state.
 - Wet-runs `python3 -m stagewarden.main "sources status"` and `python3 -m stagewarden.main "sources status" --json` passed in the real workspace and reported Caveman, Codex, and Claude references as OK.
