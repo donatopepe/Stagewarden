@@ -224,6 +224,13 @@ Phase A - OS-aware shell runtime and preflight:
 - Validation 2026-04-22: wet-run `python3 -m stagewarden.main status --json` and `python3 -m stagewarden.main status --full` rendered remediation actions for dirty git, missing role baseline, and active recovery state.
 - Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 235 tests.
 - Git boundary 2026-04-22: status remediation mini-block committed locally as `e4867a9 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
+- Implemented mini-block 2026-04-22: added `stagewarden/shell_compat.py` for shell-specific env references, quoting, path literals, Windows PowerShell/cmd translations for simple read commands, and clear POSIX-only rejection for Windows backends.
+- Implemented mini-block 2026-04-22: `ShellTool` now prepares Windows backend commands through `shell_compat`, including PowerShell/cmd session markers.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/shell_compat.py stagewarden/tools/shell.py` passed.
+- Validation 2026-04-22: targeted tests passed for env/quote/path formatting, Windows command translation, POSIX-only rejection, and ShellTool backend preparation.
+- Validation 2026-04-22: wet-run `ShellTool(...).run("pwd")` on macOS still executed with `shell_backend=zsh executable=/bin/zsh` and returned `/Users/donato/Stagewarden`.
+- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 240 tests.
+- Git boundary 2026-04-22: shell compatibility mini-block committed locally as `2dc8d8a stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
 - Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
 - Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
 - On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
