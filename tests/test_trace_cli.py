@@ -525,6 +525,37 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("shell_backend", payload)
             self.assertEqual(payload["shell_backend"]["configured"], "zsh")
 
+    def test_preflight_reports_windows_shell_readiness_warning(self) -> None:
+        from unittest.mock import patch
+        from stagewarden.main import _configure_readonly_agent_for_workspace, _preflight_report
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            runtime = {
+                "os_family": "windows",
+                "platform_system": "Windows",
+                "platform_release": "11",
+                "platform_machine": "x86_64",
+                "cwd": str(root),
+                "default_shell": "powershell",
+                "path_separator": "\\",
+                "line_ending": "crlf",
+                "shells": {
+                    "bash": {"available": False, "path": None, "version": ""},
+                    "zsh": {"available": False, "path": None, "version": ""},
+                    "powershell": {"available": True, "path": "powershell", "version": "5.1"},
+                    "cmd": {"available": True, "path": "cmd", "version": ""},
+                },
+                "recommended_shell": "powershell",
+            }
+            with patch("stagewarden.main.detect_runtime_capabilities", return_value=runtime):
+                agent = _configure_readonly_agent_for_workspace(config)
+                payload = _preflight_report(agent, config)
+
+            codes = {item["code"] for item in payload["remediations"]}
+            self.assertIn("windows_shell_readiness", codes)
+
     def test_statusline_cli_json_exposes_compact_runtime_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
