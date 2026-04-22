@@ -191,6 +191,11 @@ Additional validation evidence:
 - The renderer remains deterministic plain text for backend compatibility, but the executor no longer builds the prompt as one unstructured block.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/executor.py tests/test_executor.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 27 tests, after structured turn packet adoption.
+- Status and resume UX have been upgraded with a shared operational focus snapshot inspired by Codex/Claude status surfaces.
+- `status`, `status --full`, `resume --show`, and `resume context` now expose the active route, current step, next action, boundary decision, latest evidence, and active provider-limit state in a more action-oriented form.
+- JSON reports now carry a `focus` or `active_route` section so downstream tools and future slash/status widgets can reuse the same snapshot without reparsing prose.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 104 tests, after status/resume focus snapshot adoption.
 
 Next implementation roadmap:
 

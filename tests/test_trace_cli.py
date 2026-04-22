@@ -307,6 +307,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["current_step"], "step-7")
             self.assertEqual(payload["current_step_status"], "in_progress")
             self.assertEqual(payload["next_action"], "continue step-7")
+            self.assertIn("focus", payload)
+            self.assertEqual(payload["focus"]["task"], "fix failing tests")
 
     def test_resume_context_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -368,6 +370,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "resume context")
             self.assertEqual(payload["task"], "fix failing tests")
             self.assertEqual(payload["current_step"], "step-7")
+            self.assertIn("active_route", payload)
+            self.assertTrue(payload["resume_ready"])
             self.assertEqual(payload["latest_model_attempt"]["route"]["model"], "claude")
             self.assertEqual(payload["latest_model_attempt"]["route"]["account"], "work")
             self.assertEqual(payload["latest_model_attempt"]["route"]["variant"], "sonnet")
@@ -439,6 +443,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("permissions", payload)
             self.assertIn("runtime", payload)
             self.assertIn("shell_backend", payload)
+            self.assertIn("focus", payload)
+            self.assertEqual(payload["focus"]["task"], "fix failing tests")
+            self.assertEqual(payload["focus"]["current_step"], "step-3")
             self.assertIn(payload["runtime"]["os_family"], {"macos", "linux", "windows", "unknown"})
             self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("remediations", payload)
@@ -475,6 +482,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("git", payload)
             self.assertIn("runtime", payload)
             self.assertIn("shell_backend", payload)
+            self.assertIn("focus", payload)
             self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("quality_gates", payload)
             self.assertIn("remediations", payload)
@@ -2661,6 +2669,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Resume target:", rendered)
             self.assertIn("- task: fix failing tests", rendered)
             self.assertIn("- current_step: step-7", rendered)
+            self.assertIn("- active_route: provider=", rendered)
+            self.assertIn("- resume_ready: true", rendered)
             self.assertIn("active_stage: step-7 [in_progress]", rendered)
 
     def test_interactive_shell_resume_context_shows_latest_execution_evidence(self) -> None:
@@ -2727,10 +2737,13 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Resume context:", rendered)
             self.assertIn("- task: fix failing tests", rendered)
+            self.assertIn("- boundary_decision:", rendered)
+            self.assertIn("- active_route: provider=", rendered)
             self.assertIn("- latest_model_attempt: step=step-7 action=write_file status=failed:invalid_output", rendered)
             self.assertIn("- latest_route: provider=openai account=work provider_model=gpt-5.4-mini", rendered)
             self.assertIn("- latest_tool_evidence: tool=files action=write_file status=failed:invalid_output duration_ms=245", rendered)
             self.assertIn("- latest_git_snapshot: ff00aa1 :: stagewarden: step step-7 failed [stage=at_risk boundary=review]", rendered)
+            self.assertIn("- resume_ready: true", rendered)
 
     def test_interactive_shell_resume_clear_archives_handoff_without_git_delete(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
