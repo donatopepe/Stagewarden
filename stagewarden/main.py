@@ -807,6 +807,8 @@ def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
 def _sync_prince2_roles_to_handoff(config: AgentConfig, prefs: ModelPreferences) -> None:
     handoff = ProjectHandoff.load(config.handoff_path)
     handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    if prefs.prince2_role_tree_baseline:
+        handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline))
     handoff.save(config.handoff_path)
 
 
@@ -909,17 +911,77 @@ def _render_prince2_role_matrix(config: AgentConfig) -> str:
     return render_prince2_role_matrix(_prince2_role_matrix_report(config))
 
 
+def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    return {
+        "version": "1",
+        "approved_at": datetime.now().isoformat(timespec="seconds"),
+        "source": source,
+        "status": "approved",
+        "tree": build_prince2_role_tree(prefs),
+        "flow": build_prince2_role_flow(),
+        "check": check_prince2_role_tree(prefs),
+        "matrix": build_prince2_role_matrix(prefs),
+    }
+
+
+def _approve_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, *, source: str) -> dict[str, object]:
+    baseline = _build_prince2_role_tree_baseline(config, source=source)
+    prefs.set_prince2_role_tree_baseline(baseline)
+    _save_model_preferences(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline or {}))
+    handoff.save(config.handoff_path)
+    return baseline
+
+
+def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    baseline = dict(prefs.prince2_role_tree_baseline or {})
+    return {
+        "command": "roles baseline",
+        "status": "approved" if baseline else "missing",
+        "baseline": baseline,
+    }
+
+
+def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
+    report = _prince2_role_tree_baseline_report(config)
+    baseline = report["baseline"]
+    if not isinstance(baseline, dict) or not baseline:
+        return "PRINCE2 role-tree baseline: missing\n- action: run /project start or /roles tree approve"
+    check = baseline.get("check", {})
+    matrix = baseline.get("matrix", {})
+    tree = baseline.get("tree", {})
+    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
+    rows = matrix.get("rows", []) if isinstance(matrix, dict) else []
+    check_status = check.get("status", "unknown") if isinstance(check, dict) else "unknown"
+    lines = [
+        "PRINCE2 role-tree baseline:",
+        f"- status: {baseline.get('status', 'approved')}",
+        f"- approved_at: {baseline.get('approved_at', 'unknown')}",
+        f"- source: {baseline.get('source', 'unknown')}",
+        f"- check_status: {check_status}",
+        f"- nodes: {len(nodes)}",
+        f"- matrix_rows: {len(rows)}",
+        "- rule: this approved role tree is the governance baseline for future role-routed context handoffs.",
+    ]
+    return "\n".join(lines)
+
+
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
+    tree_baseline = "approved" if prefs.prince2_role_tree_baseline else "missing"
     if configured == len(PRINCE2_ROLE_IDS):
-        return f"- prince2_role_baseline: complete ({configured}/{len(PRINCE2_ROLE_IDS)})"
+        return f"- prince2_role_baseline: complete ({configured}/{len(PRINCE2_ROLE_IDS)}); role_tree={tree_baseline}"
     if configured:
         return (
             f"- prince2_role_baseline: partial ({configured}/{len(PRINCE2_ROLE_IDS)}); "
-            "run /roles setup to complete governance ownership."
+            f"role_tree={tree_baseline}; run /roles setup to complete governance ownership."
         )
-    return "- prince2_role_baseline: missing; run /project start or /roles setup before controlled delivery."
+    return "- prince2_role_baseline: missing; role_tree=missing; run /project start or /roles setup before controlled delivery."
 
 
 def _role_options() -> list[tuple[str, str]]:
@@ -1092,7 +1154,7 @@ def _guided_roles_setup(
     if input_stream is None or output_stream is None:
         prefs.apply_prince2_role_proposal()
         _save_model_preferences(config, prefs)
-        _sync_prince2_roles_to_handoff(config, prefs)
+        _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
         return "Applied automatic PRINCE2 role proposal."
     choice = _prompt_menu_choice(
         title="PRINCE2 role setup:",
@@ -1111,8 +1173,13 @@ def _guided_roles_setup(
     if choice == "auto":
         prefs.apply_prince2_role_proposal()
         _save_model_preferences(config, prefs)
-        _sync_prince2_roles_to_handoff(config, prefs)
-        return "Applied automatic PRINCE2 role proposal.\n" + _render_prince2_roles(config)
+        _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
+        return (
+            "Applied automatic PRINCE2 role proposal.\n"
+            + _render_prince2_roles(config)
+            + "\n"
+            + _render_prince2_role_tree_baseline(config)
+        )
     while True:
         role = _prompt_menu_choice(
             title="Choose role to configure, or `done`:",
@@ -1152,9 +1219,14 @@ def _handle_role_command(
         prefs = _load_model_preferences(config)
         prefs.apply_prince2_role_proposal()
         _save_model_preferences(config, prefs)
-        _sync_prince2_roles_to_handoff(config, prefs)
+        _approve_prince2_role_tree_baseline(config, prefs, source="project_start")
         _apply_model_preferences(agent, config)
-        return "Project startup role baseline applied.\n" + _render_prince2_roles(config)
+        return (
+            "Project startup role baseline applied.\n"
+            + _render_prince2_roles(config)
+            + "\n"
+            + _render_prince2_role_tree_baseline(config)
+        )
     if parts[0] == "roles":
         prefs = _load_model_preferences(config)
         if len(parts) == 1:
@@ -1164,6 +1236,11 @@ def _handle_role_command(
             return _render_prince2_role_domains()
         if len(parts) == 2 and parts[1] == "tree":
             return _render_prince2_role_tree(config)
+        if len(parts) == 3 and parts[1] == "tree" and parts[2] == "approve":
+            _approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_approve")
+            return "Approved PRINCE2 role-tree baseline.\n" + _render_prince2_role_tree_baseline(config)
+        if len(parts) == 2 and parts[1] == "baseline":
+            return _render_prince2_role_tree_baseline(config)
         if len(parts) == 2 and parts[1] == "check":
             return _render_prince2_role_check(config)
         if len(parts) == 2 and parts[1] == "flow":
@@ -1173,9 +1250,14 @@ def _handle_role_command(
         if len(parts) == 2 and parts[1] == "propose":
             prefs.apply_prince2_role_proposal()
             _save_model_preferences(config, prefs)
-            _sync_prince2_roles_to_handoff(config, prefs)
+            _approve_prince2_role_tree_baseline(config, prefs, source="roles_propose")
             _apply_model_preferences(agent, config)
-            return "Applied automatic PRINCE2 role proposal.\n" + _render_prince2_roles(config)
+            return (
+                "Applied automatic PRINCE2 role proposal.\n"
+                + _render_prince2_roles(config)
+                + "\n"
+                + _render_prince2_role_tree_baseline(config)
+            )
         if len(parts) == 2 and parts[1] == "setup":
             return _guided_roles_setup(
                 prefs=prefs,
@@ -1183,7 +1265,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles tree | roles check | roles flow | roles matrix | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles check | roles flow | roles matrix | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) >= 2 and parts[1] == "configure":
@@ -5255,6 +5337,20 @@ def main() -> int:
         else:
             print(_render_prince2_role_tree(config))
         return 0
+    if task == "roles tree approve":
+        agent = _configure_readonly_agent_for_workspace(config)
+        response = _handle_role_command(task, agent, config)
+        if args.json:
+            print(dumps_ascii(_prince2_role_tree_baseline_report(config), indent=2))
+        else:
+            print(response)
+        return 0
+    if task == "roles baseline":
+        if args.json:
+            print(dumps_ascii(_prince2_role_tree_baseline_report(config), indent=2))
+        else:
+            print(_render_prince2_role_tree_baseline(config))
+        return 0
     if task == "roles check":
         if args.json:
             print(dumps_ascii(_prince2_role_check_report(config), indent=2))
@@ -5277,7 +5373,7 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: roles | roles domains | roles tree | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start")
+            print("Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start")
             return 1
         if args.json:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
