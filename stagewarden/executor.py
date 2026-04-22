@@ -119,7 +119,7 @@ class Executor:
         git_head_before = self._git_head()
         prefs = self._configure_handoff_accounts()
         prince2_role = self._role_for_step(task=task, step=step)
-        role_assignment = self._role_assignment_for_step(prefs, prince2_role)
+        role_assignment = self._role_assignment_for_step(prefs, prince2_role, task=task, step=step)
         if role_assignment:
             model = str(role_assignment["provider"])
             self._configure_handoff_role_route(role_assignment)
@@ -397,8 +397,8 @@ class Executor:
             return "project_support"
         return "project_manager"
 
-    def _role_assignment_for_step(self, prefs: ModelPreferences, role: str) -> dict[str, Any] | None:
-        node = self._role_tree_node_for_role(role)
+    def _role_assignment_for_step(self, prefs: ModelPreferences, role: str, *, task: str, step: PlanStep) -> dict[str, Any] | None:
+        node = self._role_tree_node_for_step(task=task, step=step, role=role)
         assignment = {}
         if node:
             candidate = node.get("assignment", {})
@@ -413,16 +413,32 @@ class Executor:
             return None
         return assignment
 
-    def _role_tree_node_for_role(self, role: str) -> dict[str, Any]:
+    def _role_tree_nodes(self) -> list[dict[str, Any]]:
         baseline = self.project_handoff.prince2_role_tree_baseline or {}
         tree = baseline.get("tree", {}) if isinstance(baseline, dict) else {}
         nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
-        for node in nodes:
-            if not isinstance(node, dict):
-                continue
+        return [dict(node) for node in nodes if isinstance(node, dict)]
+
+    def _role_tree_node_for_role(self, role: str) -> dict[str, Any]:
+        for node in self._role_tree_nodes():
             if str(node.get("role_type", "")).strip() == role:
-                return dict(node)
+                return node
         return {}
+
+    def _role_tree_node_for_step(self, *, task: str, step: PlanStep, role: str) -> dict[str, Any]:
+        nodes = [node for node in self._role_tree_nodes() if str(node.get("role_type", "")).strip() == role]
+        if not nodes:
+            return {}
+        text = f"{task} {step.id} {step.title} {step.instruction}".lower()
+        for node in nodes:
+            node_id = str(node.get("node_id", "")).strip().lower()
+            if node_id and node_id in text:
+                return node
+        for node in nodes:
+            label = str(node.get("label", "")).strip().lower()
+            if label and label in text:
+                return node
+        return nodes[0]
 
     def _git_head(self) -> str | None:
         result = self.git.head()
@@ -700,7 +716,7 @@ class Executor:
 
     def _prince2_role_automation_section(self, task: str, step: PlanStep) -> str:
         active_role = self._role_for_step(task=task, step=step)
-        active_node = self._role_tree_node_for_role(active_role)
+        active_node = self._role_tree_node_for_step(task=task, step=step, role=active_role)
         context_rule = active_node.get("context_rule", {}) if active_node else {}
         context_include = context_rule.get("include", []) if isinstance(context_rule, dict) else []
         context_exclude = context_rule.get("exclude", []) if isinstance(context_rule, dict) else []
@@ -714,7 +730,7 @@ class Executor:
             f"- active_node_delegated_authority: {active_node.get('delegated_authority', 'static role fallback') if active_node else 'static role fallback'}",
             "- automation_rule: plan via Project Manager, deliver via Team Manager, validate via Project Assurance, escalate exceptions or tolerance breaches via Change Authority.",
             "- governance_rule: do not bypass accountability; record evidence in handoff and use Project Executive for business/cost/benefit stop-go decisions.",
-            f"- context_scope: {self._role_scope_description(active_role)}",
+            f"- context_scope: {self._role_scope_description(active_role, active_node)}",
             f"- context_include: {', '.join(str(item) for item in context_include) if context_include else 'static role fallback'}",
             f"- context_exclude: {', '.join(str(item) for item in context_exclude) if context_exclude else 'static role fallback'}",
         ]
@@ -813,8 +829,8 @@ class Executor:
             "execution_log": True,
         }
 
-    def _role_scope_description(self, role: str) -> str:
-        node = self._role_tree_node_for_role(role)
+    def _role_scope_description(self, role: str, node: dict[str, Any] | None = None) -> str:
+        node = node or self._role_tree_node_for_role(role)
         if node.get("context_scope"):
             return str(node["context_scope"])
         return PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, "controlled project work")
