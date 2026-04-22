@@ -261,6 +261,23 @@ Phase 5b - self-update governance:
 - Respect permissions: never auto-apply destructive changes without user confirmation; allow read-only update checks in normal status/preflight.
 - Validation: temp-repo tests for no-update/update-available states, JSON schema tests, and a wet-run `update status` against the real GitHub remote.
 
+Phase 5c - web research, download, and compression governance:
+
+- Add controlled web research capability for the agent, governed by PRINCE2 role context, permission policy, citations, and handoff evidence.
+- Add `web search <query>` and `web search --json <query>` commands for operator-visible research; model-initiated research must still route through the executor/tool transcript.
+- Add `download <url> [path]` and `download --json <url> [path]` with explicit permission checks, URL validation, max-size limits, destination sandboxing, checksum recording, MIME/type detection, and failure-safe partial-file cleanup.
+- Add `download status` to list downloaded artifacts, source URL, timestamp, size, checksum, content type, role/node that requested it, and validation status.
+- Add `compress <path>` and `compress --json <path>` for controlled gzip/zip compression of files or directories, preserving originals unless explicit approved overwrite is given.
+- Add `compress verify <archive>` to perform a real wet-run extraction or integrity check; dry-run-only compression must not satisfy checkpoints.
+- Record every web search, download, and compression operation in memory transcript, LJSON trace, and project handoff with: PRINCE2 role node, purpose, source URL/query, output path, checksum, size, validation command/result, timestamp, and git boundary.
+- Research context must obey role-node context boundaries: a delivery node can research implementation details for its work package, but not pull unrelated business-case or board context unless a formal PRINCE2 escalation expands context.
+- Downloads must be treated as external inputs: mark risk/issue if source is untrusted, checksum changes, MIME mismatch occurs, license is unclear, or artifact cannot be verified.
+- Downloaded research artifacts must default to a governed folder such as `.stagewarden_downloads/` or `research/` with `.gitignore` policy decided by artifact type and copyright/license risk.
+- Web research must include source attribution in generated answers and avoid copying copyrighted source text into runtime prompts beyond concise summaries.
+- Compression must be available both as a generic file tool and as a handoff maintenance tool for large logs/traces/artifacts.
+- Validation: unit tests for URL/path validation, size-limit handling, checksum recording, partial cleanup, compression integrity, JSON schemas, and PRINCE2 context gating.
+- Wet-runs: perform a real small-file download from a safe local HTTP test server, verify checksum, compress it, verify archive extraction/integrity, and confirm handoff/transcript entries.
+
 Phase 6 - provider status and usage accounting:
 
 - Add provider-specific parsers for richer Codex/Claude status where machine-readable outputs are available.
@@ -347,6 +364,7 @@ Immediate next mini-block:
 - Tool invocation transcript: tool calls are recorded in memory, persisted as LJSON, and exposed through `transcript`/`trace`.
 - Shell execution across OS families: POSIX shell, PowerShell, cmd fallback.
 - File tools: read, write, patch, patch files, list, search.
+- Planned network/file artifact tools: governed web search, controlled downloads, checksum evidence, and verified compression with handoff recording.
 - Wet-run enforcement: dry-run or narrative completion is not accepted as final checkpoint.
 - LJSON core: encode/decode, numeric-key variant, gzip, schema version, streaming chunk support, benchmark examples.
 - LJSON use for runtime trace.
