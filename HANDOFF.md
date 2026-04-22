@@ -273,6 +273,8 @@ Additional validation evidence:
 - This closes the visibility gap for delegated nodes and reviewer/fallback pools while keeping `roles matrix` backward-compatible as the static layout view.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_baseline_matrix_shows_delegated_nodes_and_route_pools` passed.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline matrix" --json` passed in the real workspace and exposed delegated nodes plus route pools directly.
+- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 257 tests, after baseline matrix command addition.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
