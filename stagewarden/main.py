@@ -1492,6 +1492,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
     if active_model is None:
         active_model = next((item for item in model_report["models"] if item["active"]), None)
     providers = provider_limits["providers"]
+    focus = _focus_snapshot(agent, config)
     return {
         "command": "status",
         "view": "full",
@@ -1557,6 +1558,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "register_statuses": handoff["register_statuses"],
             "backlog_statuses": handoff["backlog_statuses"],
         },
+        "focus": focus,
         "usage": _model_usage_report(config)["report"],
         "quality_gates": {
             "wet_run_required": True,
@@ -1576,6 +1578,15 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
         f"- workspace: {report['identity']['workspace']}",
         f"- mode: {report['identity']['mode']}",
         f"- python: {report['identity']['python']}",
+        "Focus:",
+        f"- task: {report['focus']['task']}",
+        f"- current_step: {report['focus']['current_step']}",
+        f"- next_action: {report['focus']['next_action']}",
+        (
+            f"- active_route: provider={report['focus']['active_provider'] or 'none'} "
+            f"account={report['focus']['active_account']} "
+            f"provider_model={report['focus']['active_provider_model'] or 'none'}"
+        ),
         "Model:",
         f"- preferred_provider: {report['model']['preferred_provider']}",
         f"- active_provider: {report['model']['active_provider'] or 'none'}",
@@ -1696,6 +1707,104 @@ def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
         "used_percentage": windows["utilization"],
         "resets_at": windows["blocked_until"] or windows["overage_resets_at"],
     }
+
+
+def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    _apply_model_preferences(agent, config)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    prefs = _load_model_preferences(config)
+    memory = MemoryStore.load(config.memory_path)
+    model_report = _model_status_report(agent, config)
+    active_model = next((item for item in model_report["models"] if item["preferred"]), None)
+    if active_model is None:
+        active_model = next((item for item in model_report["models"] if item["active"]), None)
+    latest_attempt = memory.latest_attempt()
+    latest_tool = memory.latest_tool_event()
+    active_provider = None if active_model is None else active_model["provider"]
+    latest_limit = None
+    if active_provider:
+        latest_limit = dict(prefs.provider_limit_snapshot_by_model or {}).get(str(active_provider))
+    return {
+        "task": handoff.task or "none",
+        "current_step": handoff.current_step_id or "none",
+        "current_step_status": handoff.current_step_status or "none",
+        "next_action": handoff.rendered_next_action(),
+        "boundary_decision": handoff.stage_view()["boundary_decision"],
+        "active_provider": None if active_model is None else active_model["provider"],
+        "active_provider_model": None if active_model is None else active_model["provider_model"],
+        "active_account": "none"
+        if active_model is None
+        else ((_load_model_preferences(config).active_account_by_model or {}).get(str(active_model["provider"])) or "none"),
+        "active_provider_model_params": {} if active_model is None else dict(active_model["provider_model_params"]),
+        "latest_model_attempt": None
+        if latest_attempt is None
+        else {
+            "step": latest_attempt.step_id,
+            "action": latest_attempt.action_type,
+            "status": "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}",
+            "provider": latest_attempt.model,
+            "provider_model": latest_attempt.variant or "provider-default",
+        },
+        "latest_tool_evidence": None
+        if latest_tool is None
+        else {
+            "tool": latest_tool.tool,
+            "action": latest_tool.action_type,
+            "status": "ok" if latest_tool.success else f"failed:{latest_tool.error_type or 'unknown'}",
+        },
+        "active_limit": None
+        if not isinstance(latest_limit, dict)
+        else {
+            "status": latest_limit.get("status"),
+            "reason": latest_limit.get("reason"),
+            "blocked_until": latest_limit.get("blocked_until"),
+            "stale": bool(latest_limit.get("stale", False)),
+        },
+        "resume_ready": bool(handoff.task),
+    }
+
+
+def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
+    lines = [
+        "Focus snapshot:",
+        f"- task: {snapshot['task']}",
+        f"- current_step: {snapshot['current_step']}",
+        f"- current_step_status: {snapshot['current_step_status']}",
+        f"- next_action: {snapshot['next_action']}",
+        f"- boundary_decision: {snapshot['boundary_decision']}",
+        f"- active_route: provider={snapshot['active_provider'] or 'none'} account={snapshot['active_account']} provider_model={snapshot['active_provider_model'] or 'none'}",
+    ]
+    params = snapshot.get("active_provider_model_params")
+    if isinstance(params, dict) and params:
+        lines.append("- active_provider_model_params: " + ",".join(f"{key}={value}" for key, value in sorted(params.items())))
+    else:
+        lines.append("- active_provider_model_params: none")
+    latest_attempt = snapshot.get("latest_model_attempt")
+    if isinstance(latest_attempt, dict):
+        lines.append(
+            f"- latest_model_attempt: step={latest_attempt['step']} action={latest_attempt['action']} "
+            f"status={latest_attempt['status']} provider={latest_attempt['provider']} "
+            f"provider_model={latest_attempt['provider_model']}"
+        )
+    else:
+        lines.append("- latest_model_attempt: none")
+    latest_tool = snapshot.get("latest_tool_evidence")
+    if isinstance(latest_tool, dict):
+        lines.append(
+            f"- latest_tool_evidence: tool={latest_tool['tool']} action={latest_tool['action']} status={latest_tool['status']}"
+        )
+    else:
+        lines.append("- latest_tool_evidence: none")
+    active_limit = snapshot.get("active_limit")
+    if isinstance(active_limit, dict):
+        blocked = f" blocked_until={active_limit['blocked_until']}" if active_limit.get("blocked_until") else ""
+        reason = f" reason={active_limit['reason']}" if active_limit.get("reason") else ""
+        stale = " stale=true" if active_limit.get("stale") else ""
+        lines.append(f"- active_provider_limit: {active_limit['status'] or 'unknown'}{blocked}{reason}{stale}")
+    else:
+        lines.append("- active_provider_limit: none")
+    lines.append(f"- resume_ready: {str(bool(snapshot['resume_ready'])).lower()}")
+    return "\n".join(lines)
 
 
 def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
@@ -1894,6 +2003,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- trace: {config.trace_path.name}",
         f"- handoff: {config.handoff_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
+        _render_focus_snapshot(_focus_snapshot(agent, config)),
         _render_model_status(agent, config),
         _render_provider_limit_status(agent, config),
         _render_runtime_status(config),
@@ -2080,6 +2190,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "provider_limits": provider_limits,
         "runtime": detect_runtime_capabilities(config.workspace_root),
         "shell_backend": _shell_backend_report(config),
+        "focus": _focus_snapshot(agent, config),
         "roles": _prince2_roles_report(config),
         "permissions": permissions,
         "handoff": {
@@ -2583,12 +2694,16 @@ def _handoff_report(config: AgentConfig) -> dict[str, object]:
 
 def _render_resume_show(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
+    agent = _configure_readonly_agent_for_workspace(config)
+    focus = _focus_snapshot(agent, config)
     lines = [
         "Resume target:",
         f"- task: {handoff.task or 'none'}",
         f"- current_step: {handoff.current_step_id or 'none'}",
         f"- current_step_status: {handoff.current_step_status or 'none'}",
         f"- next_action: {handoff.rendered_next_action()}",
+        f"- active_route: provider={focus['active_provider'] or 'none'} account={focus['active_account']} provider_model={focus['active_provider_model'] or 'none'}",
+        f"- resume_ready: {str(bool(focus['resume_ready'])).lower()}",
         handoff.rendered_stage_view(),
     ]
     return "\n".join(lines)
@@ -2597,6 +2712,8 @@ def _render_resume_show(config: AgentConfig) -> str:
 def _resume_context_payload(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     memory = MemoryStore.load(config.memory_path)
+    agent = _configure_readonly_agent_for_workspace(config)
+    focus = _focus_snapshot(agent, config)
     latest_attempt = memory.latest_attempt()
     latest_tool = memory.latest_tool_event()
     latest_snapshot = handoff.latest_git_snapshot()
@@ -2636,9 +2753,18 @@ def _resume_context_payload(config: AgentConfig) -> dict[str, object]:
         "task": handoff.task or "none",
         "current_step": handoff.current_step_id or "none",
         "current_step_status": handoff.current_step_status or "none",
+        "active_route": {
+            "provider": focus["active_provider"] or "none",
+            "account": focus["active_account"],
+            "provider_model": focus["active_provider_model"] or "none",
+            "params": focus["active_provider_model_params"],
+        },
+        "resume_ready": bool(focus["resume_ready"]),
+        "boundary_decision": focus["boundary_decision"],
         "latest_model_attempt": attempt_payload,
         "latest_tool_evidence": tool_payload,
         "latest_git_snapshot": snapshot_payload,
+        "active_limit": focus["active_limit"],
     }
 
 
@@ -2649,7 +2775,15 @@ def _render_resume_context(config: AgentConfig) -> str:
         f"- task: {payload['task']}",
         f"- current_step: {payload['current_step']}",
         f"- current_step_status: {payload['current_step_status']}",
+        f"- boundary_decision: {payload['boundary_decision']}",
     ]
+    route = payload["active_route"]
+    lines.append(
+        f"- active_route: provider={route['provider']} account={route['account']} provider_model={route['provider_model']}"
+    )
+    params = route.get("params")
+    if isinstance(params, dict) and params:
+        lines.append("- active_provider_model_params: " + ",".join(f"{key}={value}" for key, value in sorted(params.items())))
     attempt = payload["latest_model_attempt"]
     if isinstance(attempt, dict):
         route = attempt["route"]
@@ -2678,11 +2812,20 @@ def _render_resume_context(config: AgentConfig) -> str:
         lines.append(f"- latest_git_snapshot: {snapshot['git_head']} :: {snapshot['summary']}")
     else:
         lines.append("- latest_git_snapshot: none")
+    active_limit = payload.get("active_limit")
+    if isinstance(active_limit, dict):
+        blocked = f" blocked_until={active_limit['blocked_until']}" if active_limit.get("blocked_until") else ""
+        reason = f" reason={active_limit['reason']}" if active_limit.get("reason") else ""
+        lines.append(f"- active_provider_limit: {active_limit['status'] or 'unknown'}{blocked}{reason}")
+    else:
+        lines.append("- active_provider_limit: none")
+    lines.append(f"- resume_ready: {str(bool(payload['resume_ready'])).lower()}")
     return "\n".join(lines)
 
 
 def _resume_show_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
+    agent = _configure_readonly_agent_for_workspace(config)
     return {
         "command": "resume --show",
         "task": handoff.task or "none",
@@ -2690,6 +2833,7 @@ def _resume_show_report(config: AgentConfig) -> dict[str, object]:
         "current_step_status": handoff.current_step_status or "none",
         "next_action": handoff.rendered_next_action(),
         "stage_view": handoff.stage_view(),
+        "focus": _focus_snapshot(agent, config),
     }
 
 
