@@ -266,6 +266,9 @@ Additional validation evidence:
 - Role baseline matrix payload now exposes `reviewer_routes` and `fallback_routes`; note that top-level `roles matrix` still renders the static role layout and a future baseline matrix view should be added.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/executor.py stagewarden/role_tree.py stagewarden/commands.py tests/test_trace_cli.py tests/test_executor.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_role_assign_supports_reviewer_and_fallback_pools tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_executor.ExecutorTests.test_executor_uses_node_fallback_pool_when_primary_provider_blocked` passed.
+- Wet-run 2026-04-22: CLI `role add-child` plus three `role assign` calls with `pool=primary`, `pool=reviewer`, and `pool=fallback` passed in the real workspace.
+- Wet-run 2026-04-22: `roles baseline --json` showed reviewer and fallback routes for `delivery.pool_team_20260422`.
+- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 256 tests, after role node route pools.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
