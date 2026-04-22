@@ -205,6 +205,9 @@ Additional validation evidence:
 - `/slash` now also renders lightweight operational hints from the current workspace state: enabled providers, active accounts, blocked providers, and command-specific hint summaries where relevant.
 - This keeps slash discovery aligned with Codex/Claude-style operator feedback: command discovery plus current runtime context in one surface.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after slash operational hint adoption.
+- Slash completion and palette now expose second-level model guidance: `provider_model` candidates for `model variant` and `reasoning_effort` candidates for `model param set`.
+- This brings model selection closer to Codex/Claude guided UX by surfacing valid next choices directly from the provider-model catalog.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after provider-model and reasoning-effort suggestion adoption.
 
 Next implementation roadmap:
 

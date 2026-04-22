@@ -497,7 +497,16 @@ def _render_slash_palette(config: AgentConfig, prefix: str = "") -> str:
         aliases = f" aliases={','.join(spec.aliases)}" if spec.aliases else ""
         json_hint = " json" if spec.json else ""
         hint = ""
-        if spec.name.startswith("model "):
+        if spec.name == "model variant":
+            variant_summary: list[str] = []
+            for provider in prefs.enabled_models or []:
+                variants = [item.id for item in provider_model_specs(provider)[:3]]
+                if variants:
+                    variant_summary.append(f"{provider}={','.join(variants)}")
+            hint = f" hint=provider_models[{'; '.join(variant_summary) or 'none'}]"
+        elif spec.name == "model param set":
+            hint = " hint=params[reasoning_effort]"
+        elif spec.name.startswith("model "):
             hint = f" hint=providers[{enabled}]"
         elif spec.name.startswith("account "):
             hint = f" hint=active_accounts[{', '.join(active_accounts) or 'none'}]"
@@ -4429,6 +4438,23 @@ def _prefixed_candidates(prefix: str, options: list[str], partial: str) -> list[
     return [f"{INTERACTIVE_COMMAND_PREFIX}{prefix}{item}" for item in matches]
 
 
+def _provider_model_candidates(provider: str, partial: str) -> list[str]:
+    try:
+        specs = provider_model_specs(provider)
+    except ValueError:
+        return []
+    lowered = partial.strip().lower()
+    return [spec.id for spec in specs if spec.id.lower().startswith(lowered)]
+
+
+def _reasoning_effort_candidates(provider: str, provider_model: str, partial: str) -> list[str]:
+    spec = provider_model_spec(provider, provider_model)
+    if spec is None:
+        return []
+    lowered = partial.strip().lower()
+    return [effort for effort in spec.reasoning_efforts if effort.lower().startswith(lowered)]
+
+
 def _account_name_candidates(config: AgentConfig, provider: str, partial: str) -> list[str]:
     try:
         prefs = _load_model_preferences(config)
@@ -4443,6 +4469,37 @@ def _interactive_contextual_candidates(normalized: str, config: AgentConfig) -> 
     provider_options = list(SUPPORTED_MODELS)
     role_options = list(PRINCE2_ROLE_IDS)
     backend_options = ["auto", "bash", "zsh", "powershell", "cmd"]
+    if lowered.startswith("model variant "):
+        parts = normalized.split()
+        if len(parts) >= 3:
+            provider = parts[2].strip().lower()
+            if provider in SUPPORTED_MODELS:
+                typed_after_provider = normalized.split(None, 3)
+                partial = typed_after_provider[3] if len(typed_after_provider) > 3 else ""
+                return _prefixed_candidates(
+                    f"model variant {provider} ",
+                    _provider_model_candidates(provider, partial),
+                    partial,
+                )
+    if lowered.startswith("model param set "):
+        parts = normalized.split()
+        if len(parts) == 4:
+            provider = parts[3].strip().lower()
+            if provider in SUPPORTED_MODELS:
+                return [f"{INTERACTIVE_COMMAND_PREFIX}model param set {provider} reasoning_effort "]
+        if len(parts) >= 5:
+            provider = parts[3].strip().lower()
+            key = parts[4].strip().lower()
+            if provider in SUPPORTED_MODELS and key == "reasoning_effort":
+                prefs = _load_model_preferences(config)
+                provider_model = prefs.variant_for_model(provider) or provider_capability(provider).default_model
+                typed_after_key = normalized.split(None, 5)
+                partial = typed_after_key[5] if len(typed_after_key) > 5 else ""
+                return _prefixed_candidates(
+                    f"model param set {provider} reasoning_effort ",
+                    _reasoning_effort_candidates(provider, provider_model, partial),
+                    partial,
+                )
     for prefix in ("account use ", "account logout ", "account remove ", "account block ", "account unblock ", "account limit-record ", "account limit-clear "):
         if lowered.startswith(prefix):
             parts = normalized.split()
