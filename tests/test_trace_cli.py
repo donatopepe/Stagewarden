@@ -1029,6 +1029,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles domains [--json]", rendered.stdout)
             self.assertIn("roles tree [--json]", rendered.stdout)
             self.assertIn("roles check [--json]", rendered.stdout)
+            self.assertIn("roles flow [--json]", rendered.stdout)
             self.assertIn("sources", rendered.stdout)
             self.assertIn("commands [--json]", rendered.stdout)
 
@@ -1042,12 +1043,14 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles domains", by_name)
             self.assertIn("roles tree", by_name)
             self.assertIn("roles check", by_name)
+            self.assertIn("roles flow", by_name)
             self.assertIn("sources", by_name)
             self.assertEqual(by_name["commands"]["group"], "core")
             self.assertTrue(by_name["commands"]["json"])
             self.assertEqual(by_name["roles domains"]["handler"], "roles")
             self.assertEqual(by_name["roles tree"]["handler"], "roles")
             self.assertEqual(by_name["roles check"]["handler"], "roles")
+            self.assertEqual(by_name["roles flow"]["handler"], "roles")
 
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1671,6 +1674,31 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_blocked", codes)
             self.assertIn("assurance_delivery_same_model", codes)
             self.assertEqual(payload["summary"]["assigned"], 8)
+
+    def test_roles_flow_shows_prince2_node_transitions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "roles flow")
+            json_completed = run_main_capture(root, "roles flow", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 role flow:", completed.stdout)
+            self.assertIn("authorize.project: board.executive -> management.project_manager", completed.stdout)
+            self.assertIn("issue.work_package: management.project_manager -> delivery.team_manager", completed.stdout)
+            self.assertIn("escalate.stage_exception: management.project_manager -> authority.change_authority", completed.stdout)
+            self.assertIn("context moves only along approved PRINCE2 flow edges", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles flow")
+            self.assertIn("approved PRINCE2 flow edges", payload["rule"])
+            edges = {item["edge_id"]: item for item in payload["edges"]}
+            self.assertEqual(edges["issue.work_package"]["source_node"], "management.project_manager")
+            self.assertEqual(edges["issue.work_package"]["target_node"], "delivery.team_manager")
+            self.assertIn("assigned_work_package", edges["issue.work_package"]["payload_scope"])
+            self.assertEqual(edges["assure.quality_risk"]["target_node"], "assurance.project_assurance")
+            self.assertIn("independent", edges["assure.quality_risk"]["validation_condition"])
+            self.assertEqual(edges["escalate.board_decision"]["target_node"], "board.executive")
 
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

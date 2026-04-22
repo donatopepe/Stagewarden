@@ -199,6 +199,8 @@ Phase B - PRINCE2 role tree routing:
 - Status: partially implemented.
 - Completed: `roles tree`, `roles tree --json`, `roles check`, and `roles check --json`.
 - Current role-tree nodes expose node id, role type, parent, level, accountability boundary, delegated authority, responsibility domain, context scope, include/exclude rules, expansion events, assignment, fallback pool, and readiness.
+- Completed: `roles flow` and `roles flow --json` render authorized PRINCE2 transitions between role-tree nodes.
+- Current flow edges expose trigger, source node, target node, flow type, payload scope, decision authority, expected evidence, validation condition, tolerance boundary, and return path.
 - Next: add `roles matrix --json` combining role tree, domains, assignments, provider-models, params, accounts, provider/account limit state, readiness, and independence warnings.
 - Next: add `role add-child <parent> <role_type>` or guided equivalent for delegated/subordinate nodes.
 - Next: add `role assign <role_node>` or guided equivalent for primary/reviewer/fallback model pools.
@@ -212,6 +214,13 @@ Phase B - PRINCE2 role tree routing:
 - Next: persist approved role-tree baseline in handoff and `.stagewarden_models.json`, then route model calls by role-node context rather than only the flat role map.
 - Context rule: every model call receives only the selected node context; context expansion is allowed only by PRINCE2 events such as escalation, exception, stage boundary, delegated change, assurance review, or board decision.
 - Rate-limit rule: fallback changes provider/model/account but must never widen the role-node context.
+- Flow rule: PRINCE2 defines movement between nodes, not only node ownership. Stagewarden must model controlled handoff flow between role nodes: Board authorization -> Project Manager planning/control -> Team Manager work package delivery -> Project Support records -> Project Assurance review -> Change Authority exception/change decisions -> Board stage/exception/closure decisions.
+- Each node transition must define trigger, source node, target node, payload/context slice, decision authority, expected evidence, validation condition, tolerance boundary, and return path.
+- Normal flow examples: Project Executive authorizes initiation/project/stage; Project Manager issues work package to Team Manager; Team Manager returns checkpoint/completion evidence; Project Support records baseline/register updates; Project Assurance reviews quality/risk evidence independently.
+- Exception flow examples: Team Manager escalates forecast tolerance breach to Project Manager; Project Manager escalates stage/project exception to Board or delegated Change Authority; Change Authority approves/rejects/re-baselines within delegated limits; Board handles out-of-tolerance decisions.
+- Context must move only along approved flow edges. A target node receives only the payload needed for its role and decision; broader context requires a formal PRINCE2 escalation/event and handoff record.
+- Add future `roles flow` and `roles flow --json` commands to render node transitions, allowed triggers, payload scopes, and escalation paths.
+- Add future tests for flow graph validity: no orphan nodes, no unauthorized direct delivery-to-board bypass except escalation, assurance remains independent, and exception/change flows respect delegated authority.
 - Validation: role-tree persistence tests, context-slice filtering tests, delegated node tests, matrix JSON tests, `project start` wet-run, and regression tests for current flat-role compatibility.
 
 Phase C - governed web research, download, and compression:
