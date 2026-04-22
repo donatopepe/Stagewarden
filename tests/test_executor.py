@@ -913,6 +913,12 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("Implicit project handoff context:", prompt)
             self.assertIn("Stage boundary view:", prompt)
             self.assertIn("PRINCE2 registers:", prompt)
+            self.assertIn("Thread Start:", prompt)
+            self.assertIn("Turn Context:", prompt)
+            self.assertIn("Typed transcript items:", prompt)
+            self.assertIn("[handoff_log]", prompt)
+            self.assertIn("[execution_log]", prompt)
+            self.assertIn("[tool_transcript]", prompt)
             self.assertIn("Risks:", prompt)
             self.assertIn("Issues:", prompt)
             self.assertIn("Quality:", prompt)
@@ -922,11 +928,10 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("Issues:\nOmitted by PRINCE2 role scope.", prompt)
             self.assertNotIn("validation pending", prompt)
             self.assertIn("git inspection should precede file edits", prompt)
-            self.assertIn("Recent handoff log:", prompt)
-            self.assertIn("Recent execution log:", prompt)
             self.assertIn("Omitted by PRINCE2 role scope.", prompt)
             self.assertIn("working tree clean", prompt)
             self.assertIn("boundary_decision: continue_current_stage", prompt)
+            self.assertIn("shell_backend_selected:", prompt)
 
     def test_executor_prompt_context_sections_are_bounded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -950,6 +955,53 @@ class ExecutorTests(unittest.TestCase):
 
             self.assertIn("[truncated risk_register:", prompt)
             self.assertLess(len(prompt), 40000)
+
+    def test_executor_builds_structured_model_communication_packet(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="local",
+                action_type="git_status",
+                action_signature='{"type":"git_status"}',
+                success=True,
+                observation="working tree clean",
+            )
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="git",
+                action_type="git_status",
+                success=True,
+                summary="git status",
+                detail="working tree clean",
+            )
+            project_handoff = ProjectHandoff()
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=FakeHandoff([]),
+                memory=memory,
+                project_handoff=project_handoff,
+            )
+            step = PlanStep(id="step-1", title="Analyze", instruction="inspect repo", validation="done")
+
+            packet = executor._build_model_communication_packet(
+                task="inspect repo",
+                step=step,
+                plan=[step],
+                last_observation="none",
+            )
+
+            self.assertEqual(packet.sections[0].title, "Thread Start")
+            self.assertTrue(any(section.title == "PRINCE2 registers" for section in packet.sections))
+            self.assertEqual([item.item_type for item in packet.transcript_items], ["handoff_log", "execution_log", "tool_transcript"])
+            rendered = executor._render_model_communication_packet(packet)
+            self.assertIn("protocol_style: structured_turn_packet", rendered)
+            self.assertIn("transcript_style: typed_items", rendered)
+            self.assertIn("Tool transcript:", rendered)
 
 
 if __name__ == "__main__":
