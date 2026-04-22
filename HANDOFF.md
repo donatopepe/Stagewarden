@@ -176,129 +176,97 @@ Additional validation evidence:
 
 Next implementation roadmap:
 
-Phase 1 - command discovery foundation:
+Roadmap rule:
+
+- Work in mini-blocks that are small enough to test and push independently.
+- Each block must add wet-run evidence, unit tests where feasible, handoff notes, and a git boundary.
+- Priority order is governed by operational risk: shell/runtime safety first, then PRINCE2 routing, then network/file artifact tools, then UX polish.
+- Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
+
+Phase A - OS-aware shell runtime and preflight:
+
+- Status: planned and highest priority.
+- Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
+- Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
+- On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
+- On Windows, `shell=auto` must execute PowerShell commands and cmd.exe commands, prefer PowerShell for structured work, and fall back to cmd only when appropriate or explicitly requested.
+- Add path translation, quoting rules, environment variable syntax differences, executable discovery, and clear rejection for POSIX-only commands that cannot be translated.
+- Surface OS/shell capabilities in `status`, `status --full --json`, future `preflight`, and shell tool transcript entries.
+- Validation: unit tests for OS detection normalization, shell backend selection, Windows PowerShell command construction, Windows cmd command construction, path/quote translation, missing bash detection, unsupported-shell rejection, status JSON fields, and a real wet-run on the current macOS workspace.
+
+Phase B - PRINCE2 role tree routing:
 
 - Status: partially implemented.
-- Completed: structured command registry, `commands`, `commands --json`, and registry-backed completion seed.
-- Completed: registry-backed rendering for the main help topics where practical: models, accounts, permissions, handoff/PRINCE2, and git.
-- Remaining: consider moving overview/topic metadata and examples into the registry or a companion metadata module.
-- Remaining: add command-topic filtering/search once slash palette work begins.
-- Validation complete for first mini-block: CLI catalog JSON, text rendering, and core completion candidates.
+- Completed: `roles tree`, `roles tree --json`, `roles check`, and `roles check --json`.
+- Current role-tree nodes expose node id, role type, parent, level, accountability boundary, delegated authority, responsibility domain, context scope, include/exclude rules, expansion events, assignment, fallback pool, and readiness.
+- Next: add `roles matrix --json` combining role tree, domains, assignments, provider-models, params, accounts, provider/account limit state, readiness, and independence warnings.
+- Next: add `role add-child <parent> <role_type>` or guided equivalent for delegated/subordinate nodes.
+- Next: add `role assign <role_node>` or guided equivalent for primary/reviewer/fallback model pools.
+- Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
+- `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
+- AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
+- The AI proposal must produce structured output: project assumptions, tree nodes, role type, parent, responsibility domain, context include/exclude slices, delegated authority, tolerances, primary/reviewer/fallback model suggestions, validation conditions, and open questions.
+- The AI proposal must be treated as a recommendation, not an approved baseline; the user/Project Board must review and approve or edit it before persistence.
+- Handoff must record the design model used, prompt purpose, proposal summary, selected tree baseline, unresolved assumptions, and git boundary.
+- Add `project design`, `project design --json`, or equivalent guided flow as the explicit first stage behind `project start`.
+- Next: persist approved role-tree baseline in handoff and `.stagewarden_models.json`, then route model calls by role-node context rather than only the flat role map.
+- Context rule: every model call receives only the selected node context; context expansion is allowed only by PRINCE2 events such as escalation, exception, stage boundary, delegated change, assurance review, or board decision.
+- Rate-limit rule: fallback changes provider/model/account but must never widen the role-node context.
+- Validation: role-tree persistence tests, context-slice filtering tests, delegated node tests, matrix JSON tests, `project start` wet-run, and regression tests for current flat-role compatibility.
 
-Phase 2 - Codex-style slash palette:
+Phase C - governed web research, download, and compression:
 
-- Implement an interactive slash command palette opened by `/` in the shell.
-- Palette must support filtering, fuzzy/substring matching, command descriptions, keyboard cursor movement, Enter selection, Esc/cancel, and fall back cleanly on non-TTY/test streams.
-- Keep Enter/Tab semantics predictable while palette is active, following Codex composer lessons.
-- Validation: unit tests for matching/filtering, CLI tests for non-TTY fallback, and manual wet-run in a real shell.
+- Status: planned.
+- Add controlled web research capability governed by PRINCE2 role context, permission policy, citations, and handoff evidence.
+- Add `web search <query>` and `web search --json <query>` for operator-visible research; model-initiated research must route through executor/tool transcript.
+- Add `download <url> [path]`, `download --json <url> [path]`, and `download status`.
+- Download rules: explicit permission checks, URL validation, max-size limits, destination sandboxing, checksum recording, MIME/type detection, license/copyright risk recording, and failure-safe partial-file cleanup.
+- Add `compress <path>`, `compress --json <path>`, and `compress verify <archive>`.
+- Compression rules: preserve originals unless overwrite is explicitly approved, verify archive integrity with a real extraction/integrity wet-run, and reject dry-run-only checkpoints.
+- Handoff rule: every search/download/compression operation records PRINCE2 role node, purpose, source URL/query, output path, checksum, size, validation result, timestamp, and git boundary.
+- Validation: local HTTP server wet-run for small-file download, checksum verification, compression, archive verification, transcript entry, and handoff entry.
 
-Phase 3 - PRINCE2 role startup controls:
+Phase D - preflight and status remediation:
 
-- Status: must be replanned before implementation because PRINCE2 roles are not limited to one model per role.
-- Replace the current flat role assignment assumption with a PRINCE2 organization tree.
-- Represent organization levels explicitly: business/programme/customer context, project board/direction, project management, team delivery, assurance/support/delegated authorities.
-- Represent each role as a node with: role id, display label, accountability boundary, responsibility domain, parent role, delegated authority, allowed context slices, primary model assignment, reviewer model assignments, fallback model pool, account/profile selection, provider-model parameters, readiness, and limit state.
-- Support multiple nodes for the same PRINCE2 role type where PRINCE2 allows it in practice: multiple Team Managers, multiple assurance perspectives, delegated Change Authority, specialist supplier/user representatives, and project support/PMO sub-functions.
-- Preserve PRINCE2 accountability rules: accountability remains clear even when operational responsibility is delegated; Executive accountability and Project Board direction must not be blurred by model routing.
-- Preserve separation rules: assurance context must remain independent from delivery execution; project support can maintain records but must not silently approve work; delegated change decisions must stay inside defined tolerances.
-- Add `roles tree` to render the hierarchical organization model.
-- Add `roles tree --json` for machine-readable role-node structure and context boundaries.
-- Add `role add-child <parent> <role_type>` or guided equivalent to create delegated/subordinate role nodes.
-- Add `role assign <role_node>` or guided equivalent to assign primary/reviewer/fallback model pools to a role node.
-- Add `roles check` to validate tree completeness, accountability clarity, independence constraints, account availability, provider limit state, and missing model pools.
-- Add `roles matrix --json` combining role tree, domains, active assignments, provider-models, params, accounts, provider/account limit state, readiness, and independence warnings.
-- Add Project Board startup gate in `project start`: propose a role tree from project scale/risk/delivery mode, show matrix, require confirmation in interactive mode, and persist the approved baseline in handoff.
-- Model calls must receive only the context slice allowed by the selected role node, not the entire project handoff by default.
-- Every role node must derive its context from PRINCE2 rules for that role: accountability, delegated responsibility, tolerance authority, product/work-package boundary, assurance independence, reporting line, and escalation path.
-- Each node context must include only what the role needs to decide or execute: assigned products/work packages, relevant risks/issues/quality records, applicable tolerances, dependencies, accepted baselines, latest observations, and required evidence.
-- Each node context must exclude unrelated domains by default: business justification outside non-board roles, supplier technical detail outside supplier/team roles, user acceptance detail outside user/quality roles, and full exception context outside authorized escalation roles.
-- Context expansion is allowed only through an explicit PRINCE2 event: escalation, exception, stage boundary review, delegated change decision, formal assurance review, or board decision.
-- Context expansion must be recorded in handoff with reason, requesting node, approving/receiving node, scope added, timestamp, and git boundary.
-- Fallback routing must preserve the node context exactly; changing provider/model/account must not widen the role's PRINCE2 context.
-- First role-tree implementation block is present: `roles tree` and `roles tree --json` render a PRINCE2 organization tree from the current flat role assignments without replacing existing routing yet.
-- Role-tree nodes currently expose node id, role type, parent, level, accountability boundary, delegated authority, responsibility domain, context scope, context include/exclude rules, expansion events, assignment, fallback pool, and readiness.
-- Wet-run `python3 -m stagewarden.main "roles tree"` passed in the real workspace.
-- Wet-run `python3 -m stagewarden.main "roles tree" --json` passed in the real workspace.
-- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_shows_hierarchy_and_node_context_rules tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_roles_domains_shows_prince2_context_boundaries` passed after role-tree implementation.
-- `roles check` and `roles check --json` now validate role-tree readiness, missing assignments, blocked providers/accounts, and assurance-vs-delivery independence warnings.
-- Wet-run `python3 -m stagewarden.main "roles check" --json` passed in the real workspace.
-- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_check_validates_tree_readiness_limits_and_independence tests.test_trace_cli.TraceAndCliTests.test_roles_tree_shows_hierarchy_and_node_context_rules tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json` passed after role-tree check implementation.
-- `project start` expected flow:
-- Step 1: assess project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
-- Step 2: generate a PRINCE2 organization tree sized to that assessment, keeping small projects lightweight and complex projects explicit.
-- Step 3: propose model/account assignments for each role node: primary model, reviewer model(s), fallback pool, provider-model params, and account profile.
-- Step 4: evaluate provider/account health before approval: blocked-until, stale limit data, missing credentials, unavailable local backends, and API errors.
-- Step 5: if a preferred provider/account is rate-limited, automatically propose the cheapest valid fallback that still satisfies the role domain and independence constraints.
-- Step 6: if no valid fallback exists, ask the user to choose between waiting until the known unblock time, selecting another provider/account manually, or pausing the project startup gate.
-- Step 7: show the role tree plus readiness matrix to the Project Board/user for approval, then persist the approved baseline in runtime handoff and `.stagewarden_models.json`.
-- Step 8: all later model handoffs route through the approved role-node tree; fallback changes caused by rate limits must be recorded in handoff with evidence and git boundary.
-- Rate-limit routing rules:
-- Prefer local/cheaper models when they satisfy the role domain and validation risk.
-- Do not route assurance review to the same role node/model instance that executed delivery when independence is required.
-- Do not bypass Project Executive/Project Board escalation when tolerances or business justification are affected.
-- Keep blocked provider/account metadata until the known unblock time and re-enable automatically only after that time is reached or explicit user override.
-- Preserve role context boundaries even during fallback: fallback changes model/provider, not the allowed context slice.
-- Validation: unit tests for role-tree normalization, delegated role constraints, context-slice filtering, JSON schema tests, missing/complete tree checks, independence warnings, and wet-run `project start`.
-
-Phase 4 - status remediation and preflight:
-
-- Add remediation section to `status` and `status --full`: missing role baseline, active exception plan, dirty git, blocked providers/accounts, missing auth, missing source references, restrictive permissions.
-- Add `preflight` and `preflight --json` combining doctor, sources status, roles check, model limits, git status, OS/shell capability detection, and permission posture.
-- Add explicit OS/runtime detection to status and preflight: OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
-- Shell execution must be OS-aware: prefer bash/zsh on macOS/Linux when available, use PowerShell or cmd on Windows, and reject commands that require an unavailable shell unless the agent can translate them safely.
-- Windows command execution is a required capability: the agent must execute PowerShell commands and cmd.exe commands on Windows, detect which backend is available, and choose the safest backend for the requested command.
-- Windows support must include path translation, quoting rules, environment variable syntax differences, line-ending handling, executable discovery, and clear errors when a POSIX-only command cannot be translated.
-- Add explicit shell selectors for tool actions and future CLI/session commands: `shell=bash`, `shell=zsh`, `shell=powershell`, `shell=cmd`, and `shell=auto`.
-- On Windows, `shell=auto` should prefer PowerShell for structured commands and fall back to cmd only when appropriate or explicitly requested.
-- Bash command support is required where bash exists; if bash is missing, this must be reported as a blocking preflight issue for tasks that explicitly require bash.
-- Every shell tool transcript entry must record detected OS family, selected shell backend, cwd, command, exit code, duration, and whether command translation was applied.
-- Validation: unit tests for OS detection normalization, shell backend selection, Windows PowerShell command construction, Windows cmd command construction, path/quote translation, missing bash detection, command rejection on unsupported shell, and status/preflight JSON fields.
+- Status: planned.
+- Add `preflight` and `preflight --json` combining doctor, OS/shell capabilities, roles check, model limits, sources status, git status, auth/account state, permissions, and active exception plan state.
+- Add remediation section to `status` and `status --full`: missing role baseline, active exception plan, dirty git, blocked providers/accounts, missing auth, missing source references, restrictive permissions, missing bash for bash-required tasks, and Windows shell backend readiness.
 - Validation: CLI JSON schema tests and wet-run in current workspace.
 
-Phase 5 - source governance:
+Phase E - source and self-update governance:
 
+- Status: planned.
 - Add `sources status --strict` to fail on missing repos, dirty repos, wrong remote, missing HEAD, or unexpected shallow state.
 - Add `sources update` to run `git pull --ff-only` in each reference repo and record old/new heads in handoff.
-- Validation: temp-repo tests for strict failures and successful update simulation; wet-run `sources status --strict`.
+- Add `update status`, `update check --json`, and `update apply` for controlled self-update from GitHub.
+- Self-update must show current version/head, target version/head, changelog or commit summary, rollback boundary, and require confirmation before applying changes.
+- Validation: temp-repo tests for strict source failures, update-available/no-update states, JSON schema tests, and a wet-run `update status`.
 
-Phase 5b - self-update governance:
+Phase F - provider status and usage accounting:
 
-- Add `update status` to check the configured GitHub repository for newer released versions or newer default-branch commits.
-- Add `update apply` to perform a controlled self-update from GitHub only after showing current version, target version/head, changelog or commit summary, and rollback boundary.
-- Add `update check --json` for automation and status/preflight integration.
-- Record update checks and applied updates in handoff, including old HEAD/version, new HEAD/version, remote URL, timestamp, and validation result.
-- Respect permissions: never auto-apply destructive changes without user confirmation; allow read-only update checks in normal status/preflight.
-- Validation: temp-repo tests for no-update/update-available states, JSON schema tests, and a wet-run `update status` against the real GitHub remote.
-
-Phase 5c - web research, download, and compression governance:
-
-- Add controlled web research capability for the agent, governed by PRINCE2 role context, permission policy, citations, and handoff evidence.
-- Add `web search <query>` and `web search --json <query>` commands for operator-visible research; model-initiated research must still route through the executor/tool transcript.
-- Add `download <url> [path]` and `download --json <url> [path]` with explicit permission checks, URL validation, max-size limits, destination sandboxing, checksum recording, MIME/type detection, and failure-safe partial-file cleanup.
-- Add `download status` to list downloaded artifacts, source URL, timestamp, size, checksum, content type, role/node that requested it, and validation status.
-- Add `compress <path>` and `compress --json <path>` for controlled gzip/zip compression of files or directories, preserving originals unless explicit approved overwrite is given.
-- Add `compress verify <archive>` to perform a real wet-run extraction or integrity check; dry-run-only compression must not satisfy checkpoints.
-- Record every web search, download, and compression operation in memory transcript, LJSON trace, and project handoff with: PRINCE2 role node, purpose, source URL/query, output path, checksum, size, validation command/result, timestamp, and git boundary.
-- Research context must obey role-node context boundaries: a delivery node can research implementation details for its work package, but not pull unrelated business-case or board context unless a formal PRINCE2 escalation expands context.
-- Downloads must be treated as external inputs: mark risk/issue if source is untrusted, checksum changes, MIME mismatch occurs, license is unclear, or artifact cannot be verified.
-- Downloaded research artifacts must default to a governed folder such as `.stagewarden_downloads/` or `research/` with `.gitignore` policy decided by artifact type and copyright/license risk.
-- Web research must include source attribution in generated answers and avoid copying copyrighted source text into runtime prompts beyond concise summaries.
-- Compression must be available both as a generic file tool and as a handoff maintenance tool for large logs/traces/artifacts.
-- Validation: unit tests for URL/path validation, size-limit handling, checksum recording, partial cleanup, compression integrity, JSON schemas, and PRINCE2 context gating.
-- Wet-runs: perform a real small-file download from a safe local HTTP test server, verify checksum, compress it, verify archive extraction/integrity, and confirm handoff/transcript entries.
-
-Phase 6 - provider status and usage accounting:
-
+- Status: planned.
 - Add provider-specific parsers for richer Codex/Claude status where machine-readable outputs are available.
 - Extend persisted limit snapshots with reset windows, utilization, overage fields, stale detection, and safe redacted raw-message previews.
 - Add token/context-window accounting to memory/handoff only when provider output exposes safe metadata.
 - Validation: parser unit tests, stale-limit tests, redaction tests, and status JSON schema tests.
 
-Phase 7 - extension architecture:
+Phase G - command UX and extension architecture:
 
-- Define Stagewarden extension layout inspired by Claude Code plugins: commands, role agents, skills, hooks, MCP definitions, and README per extension.
-- Keep extension APIs safe-by-default and permission-aware.
-- Validation: scaffold test plugin/extension in temp workspace and verify discovery without executing untrusted code.
+- Status: partially implemented for command registry.
+- Completed: structured command registry, `commands`, `commands --json`, registry-backed completion seed, and registry-backed rendering for main help topics.
+- Next: move overview/topic metadata and examples into the registry or a companion metadata module.
+- Next: implement Codex-style slash palette opened by `/` with filtering, fuzzy/substring matching, command descriptions, cursor selection, Enter selection, Esc/cancel, and non-TTY fallback.
+- Next: define extension layout inspired by Claude Code plugins: commands, role agents, skills, hooks, MCP definitions, and README per extension.
+- Validation: command matching tests, non-TTY fallback tests, manual palette wet-run, and scaffolded test extension discovery without executing untrusted code.
+
+Phase H - bilingual documentation:
+
+- Status: planned.
+- Add `README.it.md` as the Italian companion to the English `README.md`.
+- Keep both README files aligned on purpose, install/setup, interactive shell, slash commands, provider/account configuration, PRINCE2 role tree, handoff, OS-aware shell execution, web/download/compression governance, tests, license, and acknowledgements.
+- Add cross-links: English README links to Italian README; Italian README links back to English README.
+- Avoid embedding copyrighted PRINCE2 study material; describe only Stagewarden behaviour and high-level PRINCE2-inspired governance concepts.
+- Validation: documentation test or policy check ensuring `README.md` and `README.it.md` exist, include MIT license reference, author Donato Pepe, Caveman/Codex/Claude acknowledgements where applicable, and no `study/` content references.
 
 ## UX Reference Analysis: Codex CLI, Claude Code, Caveman
 
