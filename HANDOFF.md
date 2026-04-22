@@ -378,6 +378,12 @@ Phase B - PRINCE2 role tree routing:
 - Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
+- Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:
+- agent capability specification: real Stagewarden capabilities, available tools, shell/file/git/web/download/compression abilities, permission mode, OS/runtime constraints, provider/model/account availability, rate-limit state, and known validation/wet-run obligations.
+- project specification: task objective, scope, constraints, expected outputs, quality gates, stakeholders/roles, delivery mode, uncertainty, risk tolerance, and any user-provided governance requirements.
+- The tree-design packet must tell the model what the agent can actually do now, so node planning is grounded in executable capabilities instead of generic PRINCE2 theory.
+- The tree-design packet must also tell the model what project is being designed, so node structure, delegations, and escalation paths are proportional to the real project instead of the static default tree.
+- Missing capability context or missing project specification must be treated as a clarification gap before accepting an AI-proposed organization tree baseline.
 - The AI proposal must produce structured output: project assumptions, tree nodes, role type, parent, responsibility domain, context include/exclude slices, delegated authority, tolerances, primary/reviewer/fallback model suggestions, validation conditions, and open questions.
 - The AI proposal must be treated as a recommendation, not an approved baseline; the user/Project Board must review and approve or edit it before persistence.
 - Handoff must record the design model used, prompt purpose, proposal summary, selected tree baseline, unresolved assumptions, and git boundary.
