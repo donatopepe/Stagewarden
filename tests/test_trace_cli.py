@@ -2026,6 +2026,44 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["baseline"]["tree"]["command"], "roles tree")
             self.assertEqual(payload["baseline"]["matrix"]["command"], "roles matrix")
 
+    def test_role_add_child_and_assign_updates_role_tree_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            propose = run_main_capture(root, "roles propose")
+            add_child = run_main_capture(
+                root,
+                "role add-child management.project_manager team_manager delivery.api_team",
+            )
+            assign = run_main_capture(
+                root,
+                "role assign delivery.api_team openai gpt-5.4-mini reasoning_effort=medium",
+            )
+            baseline = run_main_capture(root, "roles baseline", "--json")
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+
+            self.assertEqual(propose.returncode, 0, propose.stderr)
+            self.assertEqual(add_child.returncode, 0, add_child.stderr)
+            self.assertEqual(assign.returncode, 0, assign.stderr)
+            self.assertIn("Added delegated PRINCE2 role node delivery.api_team", add_child.stdout)
+            self.assertIn("Assigned role node delivery.api_team: provider=openai provider_model=gpt-5.4-mini", assign.stdout)
+            self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "role_assign")
+            self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "role_assign")
+
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            payload = json.loads(baseline.stdout)
+            nodes = {
+                item["node_id"]: item
+                for item in payload["baseline"]["tree"]["nodes"]
+                if isinstance(item, dict)
+            }
+            self.assertIn("delivery.api_team", nodes)
+            self.assertEqual(nodes["delivery.api_team"]["parent_id"], "management.project_manager")
+            self.assertEqual(nodes["delivery.api_team"]["role_type"], "team_manager")
+            self.assertEqual(nodes["delivery.api_team"]["assignment"]["provider"], "openai")
+            self.assertEqual(nodes["delivery.api_team"]["assignment"]["provider_model"], "gpt-5.4-mini")
+            self.assertEqual(nodes["delivery.api_team"]["assignment"]["params"]["reasoning_effort"], "medium")
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

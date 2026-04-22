@@ -236,6 +236,12 @@ Additional validation evidence:
 - Validation 2026-04-22: `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_prefers_approved_role_tree_baseline_assignment_and_context tests.test_executor.ExecutorTests.test_executor_routes_step_through_configured_prince2_role` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 28 tests.
 - Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 251 tests, after executor baseline-node routing.
+- Phase B mini-block continued: added scriptable delegated role-tree node management.
+- `role add-child <parent_node> <role_type> [node_id]` adds a delegated/subordinate node to the approved baseline, inheriting PRINCE2 context rules from the selected role type while preserving parent accountability.
+- `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns a provider-model, params, and optional account to a specific baseline node.
+- Baseline checks and matrix can now be recomputed from an arbitrary baseline tree payload, not only from the static flat PRINCE2 layout.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/role_tree.py stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
@@ -337,8 +343,10 @@ Phase B - PRINCE2 role tree routing:
 - Completed: `roles flow` and `roles flow --json` render authorized PRINCE2 transitions between role-tree nodes.
 - Current flow edges expose trigger, source node, target node, flow type, payload scope, decision authority, expected evidence, validation condition, tolerance boundary, and return path.
 - Completed: `roles matrix` and `roles matrix --json` combine role tree, flow, assignments, provider-models, params, accounts, provider/account limit state, readiness, context slices, and findings.
-- Next: add `role add-child <parent> <role_type>` or guided equivalent for delegated/subordinate nodes.
-- Next: add `role assign <role_node>` or guided equivalent for primary/reviewer/fallback model pools.
+- Completed: `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate nodes to the approved role-tree baseline.
+- Completed: `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns provider-models to a specific node.
+- Next: add guided menu equivalents for delegated/subordinate nodes and node assignment.
+- Next: extend node assignment from single primary route to primary/reviewer/fallback model pools.
 - Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
