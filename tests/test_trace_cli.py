@@ -2046,7 +2046,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(add_child.returncode, 0, add_child.stderr)
             self.assertEqual(assign.returncode, 0, assign.stderr)
             self.assertIn("Added delegated PRINCE2 role node delivery.api_team", add_child.stdout)
-            self.assertIn("Assigned role node delivery.api_team: provider=openai provider_model=gpt-5.4-mini", assign.stdout)
+            self.assertIn("Assigned role node delivery.api_team: provider=openai provider_model=gpt-5.4-mini account=none pool=primary.", assign.stdout)
             self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "role_assign")
             self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "role_assign")
 
@@ -2079,6 +2079,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "gpt-5.4-mini\n"
                 "medium\n"
                 "1\n"
+                "primary\n"
                 "roles baseline\n"
                 "exit\n"
             )
@@ -2100,10 +2101,33 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 role-tree node assignment:", rendered)
             self.assertIn("Choose role-tree node:", rendered)
             self.assertIn("Choose provider for delivery.docs_team:", rendered)
-            self.assertIn("Assigned role node delivery.docs_team: provider=openai provider_model=gpt-5.4-mini account=none reasoning_effort=medium.", rendered)
+            self.assertIn("Choose assignment pool for delivery.docs_team:", rendered)
+            self.assertIn("Assigned role node delivery.docs_team: provider=openai provider_model=gpt-5.4-mini account=none reasoning_effort=medium pool=primary.", rendered)
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider"], "openai")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider_model"], "gpt-5.4-mini")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["params"]["reasoning_effort"], "medium")
+
+    def test_role_assign_supports_reviewer_and_fallback_pools(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            self.assertEqual(run_main_capture(root, "role add-child management.project_manager team_manager delivery.pool_team").returncode, 0)
+            primary = run_main_capture(root, "role assign delivery.pool_team openai gpt-5.4-mini reasoning_effort=medium")
+            reviewer = run_main_capture(root, "role assign delivery.pool_team cheap provider-default reasoning_effort=medium pool=reviewer")
+            fallback = run_main_capture(root, "role assign delivery.pool_team local provider-default pool=fallback")
+            baseline = run_main_capture(root, "roles baseline", "--json")
+
+            self.assertEqual(primary.returncode, 0, primary.stderr)
+            self.assertEqual(reviewer.returncode, 0, reviewer.stderr)
+            self.assertEqual(fallback.returncode, 0, fallback.stderr)
+            self.assertIn("pool=reviewer", reviewer.stdout)
+            self.assertIn("pool=fallback", fallback.stdout)
+            payload = json.loads(baseline.stdout)
+            rows = {item["node_id"]: item for item in payload["baseline"]["matrix"]["rows"]}
+            row = rows["delivery.pool_team"]
+            self.assertEqual(row["provider"], "openai")
+            self.assertEqual(row["reviewer_routes"][0]["provider"], "cheap")
+            self.assertEqual(row["fallback_routes"][0]["provider"], "local")
 
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
