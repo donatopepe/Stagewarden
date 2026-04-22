@@ -44,10 +44,13 @@ from .provider_registry import (
     provider_model_specs,
 )
 from .role_tree import (
+    ROLE_CONTEXT_RULES,
     build_prince2_role_flow,
     build_prince2_role_matrix,
+    build_prince2_role_matrix_payload,
     build_prince2_role_tree,
     check_prince2_role_tree,
+    check_prince2_role_tree_payload,
     render_prince2_role_check,
     render_prince2_role_flow,
     render_prince2_role_matrix,
@@ -936,6 +939,136 @@ def _approve_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPrefere
     return baseline
 
 
+def _refresh_prince2_role_tree_baseline_checks(baseline: dict[str, object], prefs: ModelPreferences) -> dict[str, object]:
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    baseline["check"] = check_prince2_role_tree_payload(tree, prefs)
+    baseline["matrix"] = build_prince2_role_matrix_payload(tree, prefs)
+    return baseline
+
+
+def _persist_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, baseline: dict[str, object]) -> None:
+    prefs.set_prince2_role_tree_baseline(baseline)
+    _save_model_preferences(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline or {}))
+    handoff.save(config.handoff_path)
+
+
+def _ensure_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, *, source: str) -> dict[str, object]:
+    baseline = dict(prefs.prince2_role_tree_baseline or {})
+    if baseline:
+        return baseline
+    return _build_prince2_role_tree_baseline(config, source=source)
+
+
+def _add_child_prince2_role_node(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    parent_id: str,
+    role_type: str,
+    node_id: str | None = None,
+) -> dict[str, object]:
+    if role_type not in PRINCE2_ROLE_IDS:
+        raise ValueError(f"Unsupported PRINCE2 role '{role_type}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_add_child")
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = list(tree.get("nodes", [])) if isinstance(tree.get("nodes", []), list) else []
+    parent = next((node for node in nodes if isinstance(node, dict) and node.get("node_id") == parent_id), None)
+    if parent is None:
+        raise ValueError(f"Parent role node '{parent_id}' not found.")
+    existing_ids = {str(node.get("node_id")) for node in nodes if isinstance(node, dict)}
+    if node_id is None:
+        base = f"{parent_id}.{role_type}"
+        candidate = base
+        index = 2
+        while candidate in existing_ids:
+            candidate = f"{base}_{index}"
+            index += 1
+        node_id = candidate
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", node_id):
+        raise ValueError("Node id must contain only letters, numbers, dot, dash, and underscore.")
+    if node_id in existing_ids:
+        raise ValueError(f"Role node '{node_id}' already exists.")
+    rule = ROLE_CONTEXT_RULES[role_type].as_dict()
+    child = {
+        "node_id": node_id,
+        "role_type": role_type,
+        "label": f"{PRINCE2_ROLE_LABELS[role_type]} Delegated",
+        "parent_id": parent_id,
+        "level": f"delegated_{parent.get('level', 'node')}",
+        "accountability_boundary": f"delegated {PRINCE2_ROLE_LABELS[role_type]} accountability under {parent.get('label', parent_id)}",
+        "delegated_authority": f"delegated by {parent.get('label', parent_id)}; cannot exceed parent authority or approved tolerances",
+        "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
+        "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
+        "context_rule": rule,
+        "assignment": {},
+        "fallback_pool": list(prefs.active_models() or prefs.enabled_models),
+        "readiness": "unassigned",
+    }
+    nodes.append(child)
+    tree["nodes"] = nodes
+    baseline["tree"] = tree
+    baseline["status"] = "approved"
+    baseline["source"] = "role_add_child"
+    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
+    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
+    _persist_prince2_role_tree_baseline(config, prefs, baseline)
+    return child
+
+
+def _assign_prince2_role_node(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    provider: str,
+    provider_model: str,
+    params: dict[str, str] | None = None,
+    account: str | None = None,
+) -> dict[str, object]:
+    if provider not in SUPPORTED_MODELS:
+        raise ValueError(f"Unsupported provider '{provider}'. Supported: {', '.join(SUPPORTED_MODELS)}")
+    canonical_model = canonicalize_model_variant(provider, provider_model)
+    if account is not None and account not in (prefs.accounts_by_model or {}).get(provider, []):
+        raise ValueError(f"Account '{account}' is not configured for provider '{provider}'.")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_assign")
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = list(tree.get("nodes", [])) if isinstance(tree.get("nodes", []), list) else []
+    target = next((node for node in nodes if isinstance(node, dict) and node.get("node_id") == node_id), None)
+    if target is None:
+        raise ValueError(f"Role node '{node_id}' not found.")
+    clean_params: dict[str, str] = {}
+    spec = provider_model_spec(provider, canonical_model)
+    for key, value in (params or {}).items():
+        if key != "reasoning_effort":
+            continue
+        if spec is not None and value in spec.reasoning_efforts:
+            clean_params[key] = value
+    target["assignment"] = {
+        "role": str(target.get("role_type", "")),
+        "node_id": node_id,
+        "label": str(target.get("label", node_id)),
+        "mode": "manual",
+        "provider": provider,
+        "provider_model": canonical_model,
+        "params": clean_params,
+        "account": account,
+        "source": "node_manual",
+    }
+    target["fallback_pool"] = [model for model in (prefs.active_models() or prefs.enabled_models) if model != provider]
+    target["readiness"] = "assigned"
+    tree["nodes"] = nodes
+    baseline["tree"] = tree
+    baseline["status"] = "approved"
+    baseline["source"] = "role_assign"
+    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
+    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
+    _persist_prince2_role_tree_baseline(config, prefs, baseline)
+    return dict(target)
+
+
 def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     baseline = dict(prefs.prince2_role_tree_baseline or {})
@@ -1268,6 +1401,49 @@ def _handle_role_command(
         return "Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles check | roles flow | roles matrix | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
+        if len(parts) in {4, 5} and parts[1] == "add-child":
+            try:
+                child = _add_child_prince2_role_node(
+                    config,
+                    prefs,
+                    parent_id=parts[2],
+                    role_type=parts[3],
+                    node_id=parts[4] if len(parts) == 5 else None,
+                )
+            except ValueError as exc:
+                return str(exc)
+            return (
+                f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}.\n"
+                + _render_prince2_role_tree_baseline(config)
+            )
+        if len(parts) >= 5 and parts[1] == "assign":
+            extra_params: dict[str, str] = {}
+            account = None
+            for token in parts[5:]:
+                key, separator, value = token.partition("=")
+                if not separator:
+                    return "Usage: role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]"
+                if key == "account":
+                    account = value or None
+                else:
+                    extra_params[key] = value
+            try:
+                node = _assign_prince2_role_node(
+                    config,
+                    prefs,
+                    node_id=parts[2],
+                    provider=parts[3],
+                    provider_model=parts[4],
+                    params=extra_params,
+                    account=account,
+                )
+            except ValueError as exc:
+                return str(exc)
+            assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+            return (
+                f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
+                f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'}."
+            )
         if len(parts) >= 2 and parts[1] == "configure":
             if len(parts) > 3:
                 return "Usage: role configure [role]"
@@ -1287,7 +1463,7 @@ def _handle_role_command(
             _save_model_preferences(config, prefs)
             _sync_prince2_roles_to_handoff(config, prefs)
             return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
-        return "Usage: role configure [role] | role clear <role>"
+        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]"
     return None
 
 

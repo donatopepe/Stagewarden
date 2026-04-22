@@ -315,6 +315,10 @@ def build_prince2_role_flow() -> dict[str, object]:
 
 def check_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
     tree = build_prince2_role_tree(prefs)
+    return check_prince2_role_tree_payload(tree, prefs)
+
+
+def check_prince2_role_tree_payload(tree: dict[str, object], prefs: ModelPreferences) -> dict[str, object]:
     nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
     findings: list[dict[str, object]] = []
 
@@ -392,8 +396,12 @@ def check_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
 
 def build_prince2_role_matrix(prefs: ModelPreferences) -> dict[str, object]:
     tree = build_prince2_role_tree(prefs)
+    return build_prince2_role_matrix_payload(tree, prefs)
+
+
+def build_prince2_role_matrix_payload(tree: dict[str, object], prefs: ModelPreferences) -> dict[str, object]:
     flow = build_prince2_role_flow()
-    check = check_prince2_role_tree(prefs)
+    check = check_prince2_role_tree_payload(tree, prefs)
     findings_by_node: dict[str, list[dict[str, object]]] = {}
     for finding in check["findings"]:
         if not isinstance(finding, dict):
