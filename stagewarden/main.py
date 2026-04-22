@@ -53,9 +53,9 @@ from .role_tree import (
     render_prince2_role_matrix,
     render_prince2_role_tree,
 )
-from .runtime_env import detect_runtime_capabilities
 from .project_handoff import ProjectHandoff
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
+from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
@@ -82,6 +82,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
     "status full",
     "statusline",
     "preflight",
+    "shell backend",
     "stream on",
     "stream off",
     "stream status",
@@ -448,6 +449,7 @@ def _interactive_help_overview() -> str:
             "- stagewarden> /health",
             "- stagewarden> /report",
             "- stagewarden> /preflight",
+            "- stagewarden> /shell backend",
             "- stagewarden> /stream status",
             "- stagewarden> /help models",
             "- stagewarden> /models",
@@ -498,6 +500,8 @@ def _interactive_help_topic(topic: str) -> str:
             "- status full",
             "- statusline",
             "- preflight",
+            "- shell backend",
+            "- shell backend use <auto|bash|zsh|powershell|cmd>",
             "- auth status <chatgpt|claude>",
             "- stream on | stream off | stream status",
             "- transcript | trace",
@@ -516,6 +520,8 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> status full",
             "- stagewarden> statusline",
             "- stagewarden> preflight",
+            "- stagewarden> shell backend",
+            "- stagewarden> shell backend use zsh",
             "- stagewarden> auth status chatgpt",
             "- stagewarden> stream off",
             "- stagewarden> doctor",
@@ -1530,6 +1536,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "files": status["files"],
         },
         "runtime": status["runtime"],
+        "shell_backend": status["shell_backend"],
         "permissions": {
             "mode": workspace_settings["mode"],
             "allow": workspace_settings["allow"],
@@ -1597,6 +1604,10 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
         f"- os_family: {report['runtime']['os_family']}",
         f"- recommended_shell: {report['runtime']['recommended_shell']}",
         f"- default_shell: {report['runtime']['default_shell'] or 'none'}",
+        "Shell Backend:",
+        f"- configured: {report['shell_backend']['configured']}",
+        f"- selected: {report['shell_backend']['selected'] or 'none'}",
+        f"- executable: {report['shell_backend']['executable'] or 'none'}",
         "Permissions:",
             f"- mode: {report['permissions']['mode']}",
             f"- allow: {len(report['permissions']['allow'])}",
@@ -1886,6 +1897,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_model_status(agent, config),
         _render_provider_limit_status(agent, config),
         _render_runtime_status(config),
+        _render_shell_backend(config),
         _render_resume_context(config),
         _render_permissions(config),
         "PRINCE2 roles:",
@@ -1957,6 +1969,61 @@ def _permissions_report(config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _workspace_settings_payload(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    payload = loads_text(read_text_utf8(path))
+    return payload if isinstance(payload, dict) else {}
+
+
+def _configured_shell_backend(config: AgentConfig) -> str:
+    payload = _workspace_settings_payload(config.settings_path)
+    shell = payload.get("shell", {}) if isinstance(payload, dict) else {}
+    if isinstance(shell, dict):
+        value = str(shell.get("backend", "auto")).strip().lower()
+        if value in {"auto", "bash", "zsh", "powershell", "cmd"}:
+            return value
+    return "auto"
+
+
+def _save_shell_backend(config: AgentConfig, backend: str) -> None:
+    payload = _workspace_settings_payload(config.settings_path)
+    shell = payload.get("shell", {})
+    if not isinstance(shell, dict):
+        shell = {}
+    shell["backend"] = backend
+    payload["shell"] = shell
+    write_text_utf8(config.settings_path, dumps_ascii(payload, indent=2))
+
+
+def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
+    configured = _configured_shell_backend(config)
+    capabilities = detect_runtime_capabilities(config.workspace_root)
+    selection = select_shell_backend(configured, capabilities)
+    return {
+        "command": "shell backend",
+        "configured": configured,
+        "selected": selection["selected"],
+        "available": selection["available"],
+        "executable": selection["executable"],
+        "reason": selection["reason"],
+    }
+
+
+def _render_shell_backend(config: AgentConfig) -> str:
+    report = _shell_backend_report(config)
+    return "\n".join(
+        [
+            "Shell backend:",
+            f"- configured: {report['configured']}",
+            f"- selected: {report['selected'] or 'none'}",
+            f"- available: {str(report['available']).lower()}",
+            f"- executable: {report['executable'] or 'none'}",
+            f"- reason: {report['reason']}",
+        ]
+    )
+
+
 def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     status = agent.router.status()
@@ -2012,6 +2079,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "models": _model_status_report(agent, config),
         "provider_limits": provider_limits,
         "runtime": detect_runtime_capabilities(config.workspace_root),
+        "shell_backend": _shell_backend_report(config),
         "roles": _prince2_roles_report(config),
         "permissions": permissions,
         "handoff": {
@@ -2090,6 +2158,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "ready": ready,
         "doctor": doctor,
         "runtime": doctor["runtime"],
+        "shell_backend": _shell_backend_report(config),
         "git": {
             "ok": git_status.ok,
             "head": git_head.stdout.strip() if git_head.ok else None,
@@ -2173,6 +2242,7 @@ def _render_preflight(agent: Agent, config: AgentConfig) -> str:
         "Stagewarden preflight:",
         f"- ready: {str(report['ready']).lower()}",
         f"- runtime: os={runtime['os_family']} shell={runtime['recommended_shell']} default={runtime['default_shell'] or 'none'}",
+        f"- shell_backend: configured={report['shell_backend']['configured']} selected={report['shell_backend']['selected'] or 'none'}",
         f"- git: ok={str(git['ok']).lower()} dirty={str(git['dirty']).lower()} head={git['head'] or 'none'}",
         f"- roles_check: {role_check['status']} errors={role_check['summary']['errors']} warnings={role_check['summary']['warnings']}",
         f"- providers: {len(report['provider_limits']['providers'])}",
@@ -2423,6 +2493,7 @@ def _render_doctor(config: AgentConfig) -> str:
     path_info = report["path_launcher"]
     repo_info = report["repository"]
     runtime_info = report["runtime"]
+    shell_backend = _shell_backend_report(config)
     providers = report["providers"]
     policy_info = report["policy"]
     lines = ["Stagewarden doctor:"]
@@ -2442,6 +2513,10 @@ def _render_doctor(config: AgentConfig) -> str:
     lines.append(
         f"- Runtime: os={runtime_info['os_family']} shell={runtime_info['recommended_shell']} "
         f"default={runtime_info['default_shell'] or 'none'} line_ending={runtime_info['line_ending']}"
+    )
+    lines.append(
+        f"- Shell backend: configured={shell_backend['configured']} selected={shell_backend['selected'] or 'none'} "
+        f"available={str(shell_backend['available']).lower()}"
     )
     lines.append("Provider capabilities:")
     for provider in providers:
@@ -3788,6 +3863,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_permissions(config)
     if parts[0] == "permission":
         return _handle_permission_command(parts, config, agent)
+    if parts[0] == "shell":
+        return _handle_shell_command(parts, config)
     if parts[0] != "mode":
         return None
     if len(parts) == 2:
@@ -3884,6 +3961,22 @@ def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Age
         "permission ask <rule> | permission deny <rule> | permission reset | "
         "permission session <mode|allow|ask|deny|reset> ..."
     )
+
+
+def _handle_shell_command(parts: list[str], config: AgentConfig) -> str | None:
+    if not parts or parts[0] != "shell":
+        return None
+    if len(parts) >= 2 and parts[1] == "backend":
+        if len(parts) == 2:
+            return _render_shell_backend(config)
+        if len(parts) == 4 and parts[2] == "use":
+            backend = parts[3].strip().lower()
+            if backend not in {"auto", "bash", "zsh", "powershell", "cmd"}:
+                return "Usage: shell backend use <auto|bash|zsh|powershell|cmd>"
+            _save_shell_backend(config, backend)
+            config.shell_backend = backend
+            return f"Shell backend set to {backend}.\n{_render_shell_backend(config)}"
+    return "Usage: shell backend | shell backend use <auto|bash|zsh|powershell|cmd>"
 
 
 def _handle_git_command(command: str, config: AgentConfig) -> str | None:
@@ -4499,6 +4592,7 @@ def main() -> int:
         verbose=args.verbose,
         strict_ascii_output=args.strict_ascii_output,
     )
+    config.shell_backend = _configured_shell_backend(config)
 
     if args.ljson_encode:
         source = Path(args.ljson_encode)
@@ -4589,6 +4683,20 @@ def main() -> int:
             print(dumps_ascii(_preflight_report(agent, config), indent=2))
         else:
             print(_render_preflight(agent, config))
+        return 0
+    if task == "shell backend":
+        if args.json:
+            print(dumps_ascii(_shell_backend_report(config), indent=2))
+        else:
+            print(_render_shell_backend(config))
+        return 0
+    if task.startswith("shell backend use "):
+        response = _handle_shell_command(task.split(), config)
+        payload = {"command": "shell backend use", "message": response, "report": _shell_backend_report(config)}
+        if args.json:
+            print(dumps_ascii(payload, indent=2))
+        else:
+            print(response)
         return 0
     if task.startswith("auth status "):
         provider = task.split(maxsplit=2)[2]

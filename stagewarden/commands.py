@@ -38,6 +38,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("stream off", "core", "Disable streaming output.", "stream off", handler="session"),
     CommandSpec("stream status", "core", "Show streaming mode.", "stream status", handler="session"),
     CommandSpec("doctor", "core", "Validate local prerequisites and configuration.", "doctor [--json]", json=True, handler="doctor"),
+    CommandSpec("shell backend", "core", "Show configured shell backend.", "shell backend", json=True, handler="shell"),
+    CommandSpec("shell backend use", "core", "Set configured shell backend.", "shell backend use <auto|bash|zsh|powershell|cmd>", handler="shell"),
     CommandSpec("models", "models", "Show configured providers and provider-model selections.", "models", json=True, handler="models"),
     CommandSpec("models usage", "models", "Show recent model usage.", "models usage", json=True, handler="models"),
     CommandSpec("models limits", "models", "Show provider/account limit status.", "models limits", aliases=("model limits",), json=True, handler="models"),
