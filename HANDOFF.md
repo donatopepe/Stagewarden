@@ -226,6 +226,9 @@ Additional validation evidence:
 - `.stagewarden_handoff.json` now syncs the same role-tree baseline so future role-routed handoffs have an implicit governance tree without manual resume.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/modelprefs.py stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_project_start_applies_role_baseline` passed.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline"` passed and rendered the missing-baseline guidance.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles tree approve" --json` passed and persisted the baseline in the real workspace.
+- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 250 tests, after role-tree baseline persistence.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
