@@ -196,6 +196,9 @@ Additional validation evidence:
 - JSON reports now carry a `focus` or `active_route` section so downstream tools and future slash/status widgets can reuse the same snapshot without reparsing prose.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py tests/test_trace_cli.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 104 tests, after status/resume focus snapshot adoption.
+- Slash UX has started converging toward Codex/Claude discoverability: a new `/slash [prefix]` command renders a readable slash-command palette with descriptions instead of requiring Tab completion only.
+- The slash palette is driven by the structured command registry, so future completion, palette, and help surfaces can share one command source of truth.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 105 tests, after slash palette adoption.
 
 Next implementation roadmap:
 

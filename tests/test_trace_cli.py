@@ -1142,6 +1142,22 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("/health", matches)
             command_matches = _interactive_completion_candidates("/com", config)
             self.assertIn("/commands", command_matches)
+            slash_matches = _interactive_completion_candidates("/sla", config)
+            self.assertIn("/slash", slash_matches)
+
+    def test_interactive_shell_renders_slash_palette(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
+            input_stream = StringIO("/slash mo\n/exit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Slash command palette:", rendered)
+            self.assertIn("- prefix: /mo", rendered)
+            self.assertIn("/models", rendered)
+            self.assertIn("/model use", rendered)
 
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

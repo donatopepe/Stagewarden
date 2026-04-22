@@ -20,7 +20,7 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
-from .commands import command_catalog, command_phrases, command_usages_for_groups, render_command_catalog
+from .commands import command_catalog, command_phrases, command_specs_by_prefix, command_usages_for_groups, render_command_catalog
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
@@ -72,6 +72,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
     "help git",
     "help caveman",
     "help ljson",
+    "slash",
     "exit",
     "quit",
     "reset",
@@ -432,6 +433,7 @@ def _interactive_help_overview() -> str:
             "Stagewarden interactive shell",
             "",
             "Use `/help` or `/help <topic>` for full commands and examples.",
+            "Use `/slash [prefix]` to open a readable slash-command palette.",
             "All shell commands start with `/`. Any input without `/` is sent to the agent as a task.",
             "",
             "Topics:",
@@ -446,6 +448,7 @@ def _interactive_help_overview() -> str:
             "",
             "Fast examples:",
             "- stagewarden> /overview",
+            "- stagewarden> /slash mo",
             "- stagewarden> /health",
             "- stagewarden> /report",
             "- stagewarden> /preflight",
@@ -462,6 +465,26 @@ def _interactive_help_overview() -> str:
             "- stagewarden> fix failing tests",
         ]
     )
+
+
+def _render_slash_palette(prefix: str = "") -> str:
+    lowered = prefix.strip().lower()
+    specs = command_specs_by_prefix(lowered)
+    lines = ["Slash command palette:"]
+    if lowered:
+        lines.append(f"- prefix: /{lowered}")
+    else:
+        lines.append("- prefix: /")
+    if not specs:
+        lines.append("- no matches")
+        return "\n".join(lines)
+    for spec in specs[:20]:
+        aliases = f" aliases={','.join(spec.aliases)}" if spec.aliases else ""
+        json_hint = " json" if spec.json else ""
+        lines.append(f"- /{spec.name}: {spec.description}{aliases}{json_hint}")
+    if len(specs) > 20:
+        lines.append(f"- truncated: showing 20 of {len(specs)} matches")
+    return "\n".join(lines)
 
 
 def _registry_help_lines(title: str, groups: tuple[str, ...], examples: tuple[str, ...]) -> list[str]:
@@ -4433,6 +4456,10 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     lowered = command.lower().strip()
     if lowered == "help":
         return None, interactive_help_text()
+    if lowered == "slash":
+        return None, _render_slash_palette()
+    if lowered.startswith("slash "):
+        return None, _render_slash_palette(command.split(maxsplit=1)[1])
     if lowered == "commands":
         return None, render_command_catalog()
     if lowered == "commands --json":
