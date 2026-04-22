@@ -250,6 +250,8 @@ Additional validation evidence:
 - This allows multiple nodes with the same PRINCE2 role type, such as several Team Manager sub-teams, while preserving each node's provider-model assignment and context boundary.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/executor.py tests/test_executor.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_selects_delegated_node_when_step_mentions_node_id tests.test_executor.ExecutorTests.test_executor_prefers_approved_role_tree_baseline_assignment_and_context` passed.
+- Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 29 tests.
+- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 253 tests, after delegated node selection.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
