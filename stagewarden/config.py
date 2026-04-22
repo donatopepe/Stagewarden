@@ -14,6 +14,7 @@ class AgentConfig:
     max_retries_per_step: int = 2
     model_timeout_seconds: int = 120
     shell_timeout_seconds: int = 120
+    shell_backend: str = "auto"
     verbose: bool = False
     prefer_local: bool = True
     enforce_git: bool = True

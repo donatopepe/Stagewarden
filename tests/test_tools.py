@@ -111,6 +111,42 @@ class ToolTests(unittest.TestCase):
             tool._windows_shell = lambda: "cmd"  # type: ignore[method-assign]
             self.assertEqual(tool._command_args("dir"), ["cmd", "/d", "/s", "/c", "dir"])
 
+    def test_shell_tool_auto_backend_uses_detected_posix_shell(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir), shell_backend="auto"))
+            tool.is_windows = False
+            tool.runtime_capabilities = {
+                "os_family": "macos",
+                "default_shell": "/bin/zsh",
+                "recommended_shell": "zsh",
+                "shells": {
+                    "zsh": {"available": True, "path": "/bin/zsh", "version": "zsh 5.9"},
+                    "bash": {"available": True, "path": "/bin/bash", "version": "bash 3.2"},
+                },
+            }
+
+            self.assertEqual(tool._command_args("pwd"), ["/bin/zsh", "-lc", "pwd"])
+
+    def test_shell_tool_rejects_missing_explicit_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir), shell_backend="bash"))
+            tool.runtime_capabilities = {
+                "os_family": "windows",
+                "default_shell": "",
+                "recommended_shell": "cmd",
+                "shells": {
+                    "bash": {"available": False, "path": None, "version": ""},
+                    "zsh": {"available": False, "path": None, "version": ""},
+                    "powershell": {"available": False, "path": None, "version": ""},
+                    "cmd": {"available": True, "path": "cmd", "version": ""},
+                },
+            }
+
+            result = tool.run("pwd")
+
+            self.assertFalse(result.ok)
+            self.assertIn("not available", result.error)
+
     def test_runtime_selects_windows_powershell_by_default(self) -> None:
         capabilities = {
             "os_family": "windows",

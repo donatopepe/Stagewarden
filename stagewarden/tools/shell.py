@@ -13,6 +13,7 @@ from pathlib import Path
 
 from ..config import AgentConfig
 from ..permissions import PermissionPolicy
+from ..runtime_env import detect_runtime_capabilities, select_shell_backend
 from ..textcodec import detect_confusables, to_ascii_safe_text
 
 
@@ -44,6 +45,7 @@ class ShellTool:
         self.sessions: dict[str, ShellSession] = {}
         self.os_name = platform.system().lower()
         self.is_windows = self.os_name == "windows"
+        self.runtime_capabilities = detect_runtime_capabilities(config.workspace_root)
         self.permissions = PermissionPolicy.load(config.settings_path, config.session_permission_settings)
 
     def refresh_permissions(self) -> None:
@@ -56,6 +58,10 @@ class ShellTool:
             return invalid
 
         run_cwd = self._resolve_cwd(cwd)
+        backend_error = self._validate_shell_backend()
+        if backend_error is not None:
+            return ShellResult(False, command, str(run_cwd), -1, error=backend_error)
+
         started = time.monotonic()
         try:
             completed = subprocess.run(
@@ -94,6 +100,10 @@ class ShellTool:
 
     def create_session(self, cwd: str | None = None) -> ShellResult:
         run_cwd = self._resolve_cwd(cwd)
+        backend_error = self._validate_shell_backend()
+        if backend_error is not None:
+            return ShellResult(False, "", str(run_cwd), -1, error=backend_error)
+
         session_id = uuid.uuid4().hex[:12]
         try:
             process = subprocess.Popen(
@@ -250,8 +260,9 @@ class ShellTool:
             if shell.endswith("cmd.exe") or shell.lower() == "cmd":
                 return [shell, "/d", "/s", "/c", command]
             return [shell, "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command]
-        shell = shutil.which("bash") or shutil.which("sh") or "/bin/sh"
-        if Path(shell).name == "bash":
+        backend = self._selected_shell_backend()
+        shell = str(backend.get("executable") or shutil.which("bash") or shutil.which("sh") or "/bin/sh")
+        if Path(shell).name in {"bash", "zsh"}:
             return [shell, "-lc", command]
         return [shell, "-c", command]
 
@@ -261,9 +272,12 @@ class ShellTool:
             if shell.endswith("cmd.exe") or shell.lower() == "cmd":
                 return [shell, "/d", "/q"]
             return [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass"]
-        shell = shutil.which("bash") or shutil.which("sh") or "/bin/sh"
+        backend = self._selected_shell_backend()
+        shell = str(backend.get("executable") or shutil.which("bash") or shutil.which("sh") or "/bin/sh")
         if Path(shell).name == "bash":
             return [shell, "--noprofile", "--norc"]
+        if Path(shell).name == "zsh":
+            return [shell, "-f"]
         return [shell]
 
     def _session_payload(self, command: str, marker: str) -> bytes:
@@ -272,7 +286,23 @@ class ShellTool:
         return f"{command}\nprintf '{marker}:%s\\n' $?\n".encode()
 
     def _windows_shell(self) -> str:
+        backend = self._selected_shell_backend()
+        executable = backend.get("executable")
+        if executable:
+            return str(executable)
         return shutil.which("pwsh") or shutil.which("powershell") or shutil.which("cmd") or "powershell"
+
+    def _selected_shell_backend(self) -> dict[str, object]:
+        return select_shell_backend(self.config.shell_backend, self.runtime_capabilities)
+
+    def _validate_shell_backend(self) -> str | None:
+        backend = self._selected_shell_backend()
+        configured = (self.config.shell_backend or "auto").strip().lower()
+        if configured == "auto":
+            return None
+        if backend.get("available"):
+            return None
+        return str(backend.get("reason") or f"Shell backend is not available: {configured}")
 
     def _resolve_cwd(self, cwd: str | None) -> Path:
         return self.config.resolve_path(cwd) if cwd else self.config.workspace_root_resolved
@@ -429,9 +459,11 @@ class ShellTool:
         sections = []
         if session_id:
             sections.append(f"session_id={session_id}")
+        backend = self._selected_shell_backend()
         sections.extend(
             [
                 f"$ {command}",
+                f"shell_backend={backend.get('selected') or 'none'} executable={backend.get('executable') or 'none'}",
                 f"exit_code={returncode}",
                 f"duration_ms={duration_ms}",
             ]
