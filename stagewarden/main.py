@@ -1121,6 +1121,29 @@ def _role_options() -> list[tuple[str, str]]:
     return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
 
 
+def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
+    prefs = _load_model_preferences(config)
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_menu")
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
+    options: list[tuple[str, str]] = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_id = str(node.get("node_id", "")).strip()
+        if not node_id:
+            continue
+        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+        provider = assignment.get("provider", "unassigned") if isinstance(assignment, dict) and assignment else "unassigned"
+        provider_model = assignment.get("provider_model", "none") if isinstance(assignment, dict) and assignment else "none"
+        label = (
+            f"{node.get('label', node_id)} [{node_id}] "
+            f"role={node.get('role_type', 'unknown')} provider={provider} provider_model={provider_model}"
+        )
+        options.append((node_id, label))
+    return options
+
+
 def _guided_provider_context(prefs: ModelPreferences, provider: str | None = None) -> str:
     enabled = ", ".join(prefs.enabled_models or []) or "none"
     preferred = prefs.preferred_model or "automatic"
@@ -1277,6 +1300,131 @@ def _guided_role_configure(
     )
 
 
+def _guided_role_add_child(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided role node creation is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role add-child`."
+    output_stream.write("PRINCE2 delegated node setup:\n")
+    output_stream.write("- rule: delegated nodes inherit PRINCE2 role context but remain under parent accountability.\n")
+    parent_id = _prompt_menu_choice(
+        title="Choose parent role-tree node:",
+        options=_role_tree_node_options(config),
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if parent_id is None:
+        return "Role node creation cancelled."
+    role_type = _prompt_menu_choice(
+        title="Choose delegated PRINCE2 role type:",
+        options=_role_options(),
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if role_type is None:
+        return "Role node creation cancelled."
+    output_stream.write("Optional node id, or blank for automatic id: ")
+    output_stream.flush()
+    response = input_stream.readline()
+    if response == "":
+        return "Role node creation cancelled."
+    node_id = response.strip() or None
+    try:
+        child = _add_child_prince2_role_node(config, prefs, parent_id=parent_id, role_type=role_type, node_id=node_id)
+    except ValueError as exc:
+        return str(exc)
+    return f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}."
+
+
+def _guided_role_assign(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided role node assignment is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role assign`."
+    output_stream.write("PRINCE2 role-tree node assignment:\n")
+    output_stream.write("- rule: choose a specific node so provider fallback does not widen context.\n")
+    node_id = _prompt_menu_choice(
+        title="Choose role-tree node:",
+        options=_role_tree_node_options(config),
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if node_id is None:
+        return "Role node assignment cancelled."
+    output_stream.write(_guided_provider_context(prefs) + "\n")
+    provider = _prompt_menu_choice(
+        title=f"Choose provider for {node_id}:",
+        options=[(provider, provider) for provider in (prefs.enabled_models or list(SUPPORTED_MODELS))],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if provider is None:
+        return "Role node assignment cancelled."
+    output_stream.write(_guided_provider_context(prefs, provider) + "\n")
+    specs = list(provider_model_specs(provider))
+    provider_model = _prompt_menu_choice(
+        title=f"Choose provider-model for {provider}:",
+        options=[(spec.id, f"{spec.id} | {spec.label}") for spec in specs],
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if provider_model is None:
+        return "Role node assignment cancelled."
+    spec = provider_model_spec(provider, provider_model)
+    params: dict[str, str] = {}
+    if spec is not None and spec.reasoning_efforts:
+        reasoning = _prompt_menu_choice(
+            title=f"Choose reasoning_effort for {provider}:{provider_model}:",
+            options=[
+                (effort, f"{effort}{' (default)' if effort == spec.reasoning_default else ''}")
+                for effort in spec.reasoning_efforts
+            ],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if reasoning is None:
+            return "Role node assignment cancelled."
+        params["reasoning_effort"] = reasoning
+    account_options = [("", "none")]
+    account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
+    account = _prompt_menu_choice(
+        title=f"Choose account for {provider}:",
+        options=account_options,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if account is None:
+        return "Role node assignment cancelled."
+    try:
+        node = _assign_prince2_role_node(
+            config,
+            prefs,
+            node_id=node_id,
+            provider=provider,
+            provider_model=provider_model,
+            params=params,
+            account=account or None,
+        )
+    except ValueError as exc:
+        return str(exc)
+    assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+    params_text = " ".join(f"{key}={value}" for key, value in sorted(params.items()))
+    return (
+        f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
+        f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'}"
+        + (f" {params_text}" if params_text else "")
+        + "."
+    )
+
+
 def _guided_roles_setup(
     *,
     prefs: ModelPreferences,
@@ -1416,6 +1564,13 @@ def _handle_role_command(
                 f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}.\n"
                 + _render_prince2_role_tree_baseline(config)
             )
+        if len(parts) == 2 and parts[1] == "add-child":
+            return _guided_role_add_child(
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
         if len(parts) >= 5 and parts[1] == "assign":
             extra_params: dict[str, str] = {}
             account = None
@@ -1443,6 +1598,13 @@ def _handle_role_command(
             return (
                 f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
                 f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'}."
+            )
+        if len(parts) == 2 and parts[1] == "assign":
+            return _guided_role_assign(
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
             )
         if len(parts) >= 2 and parts[1] == "configure":
             if len(parts) > 3:

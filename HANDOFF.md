@@ -252,6 +252,11 @@ Additional validation evidence:
 - Validation 2026-04-22: `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_selects_delegated_node_when_step_mentions_node_id tests.test_executor.ExecutorTests.test_executor_prefers_approved_role_tree_baseline_assignment_and_context` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 29 tests.
 - Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 253 tests, after delegated node selection.
+- Phase B mini-block continued: `role add-child` and `role assign` now open guided menus when called without arguments.
+- Guided node creation shows the PRINCE2 delegated-node rule, lets the user choose a parent node, choose a role type, and optionally enter a node id.
+- Guided node assignment shows the no-context-widening rule, lets the user choose a specific node, provider, provider-model, reasoning effort, and account.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
@@ -355,7 +360,7 @@ Phase B - PRINCE2 role tree routing:
 - Completed: `roles matrix` and `roles matrix --json` combine role tree, flow, assignments, provider-models, params, accounts, provider/account limit state, readiness, context slices, and findings.
 - Completed: `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate nodes to the approved role-tree baseline.
 - Completed: `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns provider-models to a specific node.
-- Next: add guided menu equivalents for delegated/subordinate nodes and node assignment.
+- Completed: guided menu equivalents for delegated/subordinate nodes and node assignment.
 - Next: extend node assignment from single primary route to primary/reviewer/fallback model pools.
 - Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.

@@ -2064,6 +2064,47 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(nodes["delivery.api_team"]["assignment"]["provider_model"], "gpt-5.4-mini")
             self.assertEqual(nodes["delivery.api_team"]["assignment"]["params"]["reasoning_effort"], "medium")
 
+    def test_interactive_shell_guided_role_node_add_child_and_assign(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            input_stream = StringIO(
+                "roles propose\n"
+                "role add-child\n"
+                "management.project_manager\n"
+                "team_manager\n"
+                "delivery.docs_team\n"
+                "role assign\n"
+                "delivery.docs_team\n"
+                "openai\n"
+                "gpt-5.4-mini\n"
+                "medium\n"
+                "1\n"
+                "roles baseline\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            nodes = {
+                item["node_id"]: item
+                for item in (prefs.prince2_role_tree_baseline or {})["tree"]["nodes"]
+                if isinstance(item, dict)
+            }
+
+            self.assertEqual(code, 0)
+            self.assertIn("PRINCE2 delegated node setup:", rendered)
+            self.assertIn("Choose parent role-tree node:", rendered)
+            self.assertIn("Choose delegated PRINCE2 role type:", rendered)
+            self.assertIn("Added delegated PRINCE2 role node delivery.docs_team under management.project_manager.", rendered)
+            self.assertIn("PRINCE2 role-tree node assignment:", rendered)
+            self.assertIn("Choose role-tree node:", rendered)
+            self.assertIn("Choose provider for delivery.docs_team:", rendered)
+            self.assertIn("Assigned role node delivery.docs_team: provider=openai provider_model=gpt-5.4-mini account=none reasoning_effort=medium.", rendered)
+            self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider"], "openai")
+            self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider_model"], "gpt-5.4-mini")
+            self.assertEqual(nodes["delivery.docs_team"]["assignment"]["params"]["reasoning_effort"], "medium")
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
