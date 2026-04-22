@@ -810,6 +810,87 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("active_role_level: delegated_delivery", prompt)
             self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
 
+    def test_executor_uses_node_fallback_pool_when_primary_provider_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.blocked_until_by_model = {"openai": "2026-05-01T18:30"}
+            prefs.save(config.model_prefs_path)
+            tree = build_prince2_role_tree(prefs)
+            team_node = next(node for node in tree["nodes"] if isinstance(node, dict) and node["node_id"] == "delivery.team_manager")
+            delegated = dict(team_node)
+            delegated["node_id"] = "delivery.fallback_team"
+            delegated["label"] = "Fallback Team Manager"
+            delegated["assignment"] = {
+                "role": "team_manager",
+                "node_id": "delivery.fallback_team",
+                "label": "Fallback Team Manager",
+                "mode": "manual",
+                "provider": "openai",
+                "provider_model": "gpt-5.4-mini",
+                "params": {"reasoning_effort": "medium"},
+                "account": None,
+                "source": "unit_test",
+            }
+            delegated["assignment_pool"] = {
+                "fallback": [
+                    {
+                        "role": "team_manager",
+                        "node_id": "delivery.fallback_team",
+                        "label": "Fallback Team Manager",
+                        "mode": "manual",
+                        "provider": "local",
+                        "provider_model": "provider-default",
+                        "params": {},
+                        "account": None,
+                        "source": "unit_test",
+                        "pool": "fallback",
+                    }
+                ]
+            }
+            delegated["readiness"] = "assigned"
+            tree["nodes"].append(delegated)
+            baseline = {
+                "version": "1",
+                "approved_at": "2026-04-22T18:00:00",
+                "source": "unit_test_fallback",
+                "status": "approved",
+                "tree": tree,
+                "flow": build_prince2_role_flow(),
+                "check": check_prince2_role_tree(prefs),
+                "matrix": build_prince2_role_matrix(prefs),
+            }
+            project_handoff = ProjectHandoff(task="implement fallback work package")
+            project_handoff.sync_prince2_role_tree_baseline(baseline)
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"], blocked_until_by_model=prefs.blocked_until_by_model)
+            executor = Executor(config=config, router=router, handoff=handoff, memory=MemoryStore(), project_handoff=project_handoff)
+            step = PlanStep(id="step-2", title="Implement delivery.fallback_team", instruction="implement delivery.fallback_team work", validation="validate")
+            outcome = executor.execute_step(task="implement delivery.fallback_team feature", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual(outcome.model, "local")
+            prompt = handoff.calls[0]
+            self.assertIn("RUN_MODEL: local", prompt)
+            self.assertIn("active_role_node: delivery.fallback_team", prompt)
+            self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
+            self.assertIn("active_role_fallback_pool: local:provider-default", prompt)
+
     def test_executor_retries_fallback_model_with_next_account_after_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

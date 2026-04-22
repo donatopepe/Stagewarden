@@ -260,6 +260,12 @@ Additional validation evidence:
 - Wet-run note 2026-04-22: unprefixed interactive inputs were correctly treated as natural-language tasks and rejected by the PRINCE2 gate, confirming command/context separation.
 - Wet-run 2026-04-22: prefixed interactive flow `/roles propose`, `/role add-child`, `/role assign`, `/roles baseline`, `/exit` passed in the real workspace.
 - Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 254 tests, after guided delegated node menus.
+- Phase B mini-block continued: role-tree node assignment now supports `pool=primary`, `pool=reviewer`, and `pool=fallback`.
+- `pool=primary` preserves the existing node `assignment`; `pool=reviewer` and `pool=fallback` append routes under `assignment_pool` without changing node context.
+- Executor now uses a same-node fallback route when the primary provider is blocked or inactive, preserving PRINCE2 context boundaries.
+- Role baseline matrix payload now exposes `reviewer_routes` and `fallback_routes`; note that top-level `roles matrix` still renders the static role layout and a future baseline matrix view should be added.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/executor.py stagewarden/role_tree.py stagewarden/commands.py tests/test_trace_cli.py tests/test_executor.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_role_assign_supports_reviewer_and_fallback_pools tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_executor.ExecutorTests.test_executor_uses_node_fallback_pool_when_primary_provider_blocked` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
@@ -364,7 +370,8 @@ Phase B - PRINCE2 role tree routing:
 - Completed: `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate nodes to the approved role-tree baseline.
 - Completed: `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns provider-models to a specific node.
 - Completed: guided menu equivalents for delegated/subordinate nodes and node assignment.
-- Next: extend node assignment from single primary route to primary/reviewer/fallback model pools.
+- Completed: node assignment supports primary/reviewer/fallback model pools.
+- Next: add a top-level baseline matrix command or flag so delegated nodes and route pools are visible without opening the full `roles baseline --json` payload.
 - Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.

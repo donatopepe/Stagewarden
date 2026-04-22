@@ -1027,7 +1027,11 @@ def _assign_prince2_role_node(
     provider_model: str,
     params: dict[str, str] | None = None,
     account: str | None = None,
+    pool: str = "primary",
 ) -> dict[str, object]:
+    clean_pool = str(pool).strip().lower() or "primary"
+    if clean_pool not in {"primary", "reviewer", "fallback"}:
+        raise ValueError("Pool must be primary, reviewer, or fallback.")
     if provider not in SUPPORTED_MODELS:
         raise ValueError(f"Unsupported provider '{provider}'. Supported: {', '.join(SUPPORTED_MODELS)}")
     canonical_model = canonicalize_model_variant(provider, provider_model)
@@ -1046,7 +1050,7 @@ def _assign_prince2_role_node(
             continue
         if spec is not None and value in spec.reasoning_efforts:
             clean_params[key] = value
-    target["assignment"] = {
+    route = {
         "role": str(target.get("role_type", "")),
         "node_id": node_id,
         "label": str(target.get("label", node_id)),
@@ -1057,8 +1061,26 @@ def _assign_prince2_role_node(
         "account": account,
         "source": "node_manual",
     }
-    target["fallback_pool"] = [model for model in (prefs.active_models() or prefs.enabled_models) if model != provider]
-    target["readiness"] = "assigned"
+    if clean_pool == "primary":
+        target["assignment"] = route
+        target["fallback_pool"] = [model for model in (prefs.active_models() or prefs.enabled_models) if model != provider]
+        target["readiness"] = "assigned"
+    else:
+        pools = target.get("assignment_pool", {}) if isinstance(target.get("assignment_pool"), dict) else {}
+        routes = [dict(item) for item in pools.get(clean_pool, []) if isinstance(item, dict)] if isinstance(pools.get(clean_pool, []), list) else []
+        routes = [
+            item
+            for item in routes
+            if not (item.get("provider") == provider and item.get("provider_model") == canonical_model and item.get("account") == account)
+        ]
+        route["pool"] = clean_pool
+        routes.append(route)
+        pools[clean_pool] = routes
+        target["assignment_pool"] = pools
+        if target.get("assignment"):
+            target["readiness"] = "assigned"
+        else:
+            target["readiness"] = "reviewer_pool_only" if clean_pool == "reviewer" else "fallback_pool_only"
     tree["nodes"] = nodes
     baseline["tree"] = tree
     baseline["status"] = "approved"
@@ -1178,6 +1200,14 @@ def _guided_provider_context(prefs: ModelPreferences, provider: str | None = Non
             ]
         )
     return "\n".join(lines)
+
+
+def _route_pool_options() -> list[tuple[str, str]]:
+    return [
+        ("primary", "primary - route used for normal execution"),
+        ("reviewer", "reviewer - independent review/assurance route"),
+        ("fallback", "fallback - same-context route used if primary is unavailable"),
+    ]
 
 
 def _guided_role_context(role: str) -> str:
@@ -1403,6 +1433,14 @@ def _guided_role_assign(
     )
     if account is None:
         return "Role node assignment cancelled."
+    pool = _prompt_menu_choice(
+        title=f"Choose assignment pool for {node_id}:",
+        options=_route_pool_options(),
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if pool is None:
+        return "Role node assignment cancelled."
     try:
         node = _assign_prince2_role_node(
             config,
@@ -1412,6 +1450,7 @@ def _guided_role_assign(
             provider_model=provider_model,
             params=params,
             account=account or None,
+            pool=pool,
         )
     except ValueError as exc:
         return str(exc)
@@ -1421,6 +1460,7 @@ def _guided_role_assign(
         f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
         f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'}"
         + (f" {params_text}" if params_text else "")
+        + f" pool={pool}"
         + "."
     )
 
@@ -1574,12 +1614,15 @@ def _handle_role_command(
         if len(parts) >= 5 and parts[1] == "assign":
             extra_params: dict[str, str] = {}
             account = None
+            pool = "primary"
             for token in parts[5:]:
                 key, separator, value = token.partition("=")
                 if not separator:
-                    return "Usage: role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]"
+                    return "Usage: role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]"
                 if key == "account":
                     account = value or None
+                elif key == "pool":
+                    pool = value
                 else:
                     extra_params[key] = value
             try:
@@ -1591,13 +1634,22 @@ def _handle_role_command(
                     provider_model=parts[4],
                     params=extra_params,
                     account=account,
+                    pool=pool,
                 )
             except ValueError as exc:
                 return str(exc)
             assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+            if pool == "primary":
+                return (
+                    f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
+                    f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'} pool=primary."
+                )
+            pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
+            routes = pools.get(pool, []) if isinstance(pools.get(pool, []), list) else []
+            route = routes[-1] if routes and isinstance(routes[-1], dict) else {}
             return (
-                f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
-                f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'}."
+                f"Assigned role node {node.get('node_id')}: provider={route.get('provider')} "
+                f"provider_model={route.get('provider_model')} account={route.get('account') or 'none'} pool={pool}."
             )
         if len(parts) == 2 and parts[1] == "assign":
             return _guided_role_assign(

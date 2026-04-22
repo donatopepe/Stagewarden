@@ -413,6 +413,7 @@ def build_prince2_role_matrix_payload(tree: dict[str, object], prefs: ModelPrefe
         if not isinstance(node, dict):
             continue
         assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+        pools = node.get("assignment_pool") if isinstance(node.get("assignment_pool"), dict) else {}
         provider = str(assignment.get("provider", "")) if assignment else ""
         account = str(assignment.get("account", "")) if assignment and assignment.get("account") else ""
         account_block_key = account_key(provider, account) if provider and account else ""
@@ -431,6 +432,8 @@ def build_prince2_role_matrix_payload(tree: dict[str, object], prefs: ModelPrefe
                 "provider_blocked_until": (prefs.blocked_until_by_model or {}).get(provider) if provider else None,
                 "account_blocked_until": (prefs.blocked_until_by_account or {}).get(account_block_key) if account_block_key else None,
                 "fallback_pool": list(node.get("fallback_pool", [])),
+                "reviewer_routes": list(pools.get("reviewer", [])) if isinstance(pools.get("reviewer", []), list) else [],
+                "fallback_routes": list(pools.get("fallback", [])) if isinstance(pools.get("fallback", []), list) else [],
                 "context_include": list((node.get("context_rule") or {}).get("include", [])) if isinstance(node.get("context_rule"), dict) else [],
                 "context_exclude": list((node.get("context_rule") or {}).get("exclude", [])) if isinstance(node.get("context_rule"), dict) else [],
                 "incoming_edges": [edge["edge_id"] for edge in flow["edges"] if isinstance(edge, dict) and edge.get("target_node") == node.get("node_id")],
@@ -466,7 +469,9 @@ def render_prince2_role_matrix(matrix: dict[str, object]) -> str:
         lines.append(
             f"- {row.get('label')} [{row.get('node_id')}]: readiness={row.get('readiness')} "
             f"provider={row.get('provider') or 'none'} provider_model={row.get('provider_model') or 'none'} "
-            f"account={row.get('account') or 'none'} findings={finding_text}{provider_block}{account_block}"
+            f"account={row.get('account') or 'none'} "
+            f"reviewers={len(row.get('reviewer_routes', []))} fallbacks={len(row.get('fallback_routes', []))} "
+            f"findings={finding_text}{provider_block}{account_block}"
         )
     return "\n".join(lines)
 

@@ -410,8 +410,22 @@ class Executor:
             return None
         provider = str(assignment.get("provider", "")).strip()
         if provider not in prefs.active_models():
+            fallback = self._fallback_assignment_for_node(prefs, node)
+            if fallback:
+                return fallback
             return None
         return assignment
+
+    def _fallback_assignment_for_node(self, prefs: ModelPreferences, node: dict[str, Any]) -> dict[str, Any] | None:
+        pools = node.get("assignment_pool", {}) if isinstance(node, dict) else {}
+        routes = pools.get("fallback", []) if isinstance(pools, dict) and isinstance(pools.get("fallback", []), list) else []
+        for route in routes:
+            if not isinstance(route, dict):
+                continue
+            provider = str(route.get("provider", "")).strip()
+            if provider in prefs.active_models():
+                return dict(route)
+        return None
 
     def _role_tree_nodes(self) -> list[dict[str, Any]]:
         baseline = self.project_handoff.prince2_role_tree_baseline or {}
@@ -737,6 +751,7 @@ class Executor:
         assignment = active_node.get("assignment", {}) if active_node else {}
         if not isinstance(assignment, dict) or not assignment:
             assignment = self.project_handoff.prince2_roles.get(active_role, {})
+        pools = active_node.get("assignment_pool", {}) if active_node and isinstance(active_node.get("assignment_pool"), dict) else {}
         if assignment:
             params = assignment.get("params", {})
             params_text = ",".join(f"{key}={value}" for key, value in sorted(params.items())) if isinstance(params, dict) else ""
@@ -748,6 +763,18 @@ class Executor:
             )
         else:
             lines.append("- active_role_route: unassigned; use router default and preserve role accountability in reasoning.")
+        for pool_name in ("reviewer", "fallback"):
+            routes = pools.get(pool_name, []) if isinstance(pools.get(pool_name, []), list) else []
+            if routes:
+                rendered = []
+                for route in routes:
+                    if not isinstance(route, dict):
+                        continue
+                    rendered.append(
+                        f"{route.get('provider', 'unknown')}:{route.get('provider_model', 'provider-default')}"
+                        + (f":{route.get('account')}" if route.get("account") else "")
+                    )
+                lines.append(f"- active_role_{pool_name}_pool: {', '.join(rendered) if rendered else 'none'}")
         return "\n".join(lines)
 
     def _role_scoped_context(self, role: str) -> dict[str, str | bool]:
