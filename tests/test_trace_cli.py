@@ -2129,6 +2129,31 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(row["reviewer_routes"][0]["provider"], "cheap")
             self.assertEqual(row["fallback_routes"][0]["provider"], "local")
 
+    def test_roles_baseline_matrix_shows_delegated_nodes_and_route_pools(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            self.assertEqual(run_main_capture(root, "role add-child management.project_manager team_manager delivery.matrix_team").returncode, 0)
+            self.assertEqual(run_main_capture(root, "role assign delivery.matrix_team local provider-default").returncode, 0)
+            self.assertEqual(run_main_capture(root, "role assign delivery.matrix_team cheap provider-default reasoning_effort=medium pool=reviewer").returncode, 0)
+            self.assertEqual(run_main_capture(root, "role assign delivery.matrix_team chatgpt gpt-5.1-codex-mini reasoning_effort=medium pool=fallback").returncode, 0)
+
+            completed = run_main_capture(root, "roles baseline matrix")
+            json_completed = run_main_capture(root, "roles baseline matrix", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 role matrix:", completed.stdout)
+            self.assertIn("delivery.matrix_team", completed.stdout)
+            self.assertIn("reviewers=1 fallbacks=1", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles baseline matrix")
+            rows = {item["node_id"]: item for item in payload["rows"]}
+            self.assertEqual(rows["delivery.matrix_team"]["provider"], "local")
+            self.assertEqual(rows["delivery.matrix_team"]["reviewer_routes"][0]["provider"], "cheap")
+            self.assertEqual(rows["delivery.matrix_team"]["fallback_routes"][0]["provider"], "chatgpt")
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -84,6 +84,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("roles tree", "prince2", "Show hierarchical PRINCE2 organization tree and node context boundaries.", "roles tree [--json]", json=True, handler="roles"),
     CommandSpec("roles tree approve", "prince2", "Approve and persist the current PRINCE2 role-tree baseline.", "roles tree approve [--json]", json=True, handler="roles"),
     CommandSpec("roles baseline", "prince2", "Show the approved PRINCE2 role-tree baseline.", "roles baseline [--json]", json=True, handler="roles"),
+    CommandSpec("roles baseline matrix", "prince2", "Show the approved role-tree baseline matrix including delegated nodes and route pools.", "roles baseline matrix [--json]", json=True, handler="roles"),
     CommandSpec("roles check", "prince2", "Validate PRINCE2 role tree readiness, rate-limit state, and independence warnings.", "roles check [--json]", json=True, handler="roles"),
     CommandSpec("roles flow", "prince2", "Show authorized PRINCE2 flow edges between role-tree nodes.", "roles flow [--json]", json=True, handler="roles"),
     CommandSpec("roles matrix", "prince2", "Show combined PRINCE2 role tree, flow, assignment, limit, and readiness matrix.", "roles matrix [--json]", json=True, handler="roles"),

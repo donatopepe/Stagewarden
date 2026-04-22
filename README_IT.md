@@ -83,6 +83,7 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/role configure [role]` mostra responsabilita PRINCE2 e scope del ruolo prima di assegnare provider/modello/account.
 - `/roles tree approve` salva l'albero PRINCE2 corrente come baseline approvata in `.stagewarden_models.json` e `.stagewarden_handoff.json`.
 - `/roles baseline` mostra la baseline approvata che guidera i futuri handoff di contesto per ruolo.
+- `/roles baseline matrix` mostra la matrice della baseline approvata, inclusi nodi delegati e pool reviewer/fallback.
 - `/role add-child` apre un menu guidato, oppure `/role add-child <parent_node> <role_type> [node_id]` aggiunge nodi PRINCE2 delegati/subordinati alla baseline approvata.
 - `/role assign` apre un menu guidato, oppure `/role assign <node_id> <provider> <provider_model> [reasoning_effort=<valore>] [account=<nome>] [pool=<primary|reviewer|fallback>]` assegna rotte primary, reviewer o fallback a un nodo specifico dell'albero.
 

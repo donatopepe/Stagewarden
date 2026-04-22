@@ -269,6 +269,10 @@ Additional validation evidence:
 - Wet-run 2026-04-22: CLI `role add-child` plus three `role assign` calls with `pool=primary`, `pool=reviewer`, and `pool=fallback` passed in the real workspace.
 - Wet-run 2026-04-22: `roles baseline --json` showed reviewer and fallback routes for `delivery.pool_team_20260422`.
 - Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 256 tests, after role node route pools.
+- Phase B mini-block continued: added `roles baseline matrix` and `roles baseline matrix --json` to expose the approved baseline matrix directly, without opening the full baseline payload.
+- This closes the visibility gap for delegated nodes and reviewer/fallback pools while keeping `roles matrix` backward-compatible as the static layout view.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_baseline_matrix_shows_delegated_nodes_and_route_pools` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
@@ -374,7 +378,7 @@ Phase B - PRINCE2 role tree routing:
 - Completed: `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns provider-models to a specific node.
 - Completed: guided menu equivalents for delegated/subordinate nodes and node assignment.
 - Completed: node assignment supports primary/reviewer/fallback model pools.
-- Next: add a top-level baseline matrix command or flag so delegated nodes and route pools are visible without opening the full `roles baseline --json` payload.
+- Completed: top-level baseline matrix command `roles baseline matrix` makes delegated nodes and route pools visible without opening the full `roles baseline --json` payload.
 - Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.

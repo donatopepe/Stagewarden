@@ -1125,6 +1125,29 @@ def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _prince2_role_tree_baseline_matrix_report(config: AgentConfig) -> dict[str, object]:
+    report = _prince2_role_tree_baseline_report(config)
+    baseline = report.get("baseline", {})
+    matrix = baseline.get("matrix", {}) if isinstance(baseline, dict) else {}
+    if not isinstance(matrix, dict) or not matrix:
+        return {
+            "command": "roles baseline matrix",
+            "status": "missing",
+            "message": "No approved PRINCE2 role-tree baseline matrix. Run /project start, /roles propose, or /roles tree approve first.",
+        }
+    payload = dict(matrix)
+    payload["command"] = "roles baseline matrix"
+    payload["baseline_status"] = report.get("status", "missing")
+    return payload
+
+
+def _render_prince2_role_tree_baseline_matrix(config: AgentConfig) -> str:
+    report = _prince2_role_tree_baseline_matrix_report(config)
+    if report.get("status") == "missing":
+        return str(report.get("message", "No approved PRINCE2 role-tree baseline matrix."))
+    return render_prince2_role_matrix(report)
+
+
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
@@ -1562,6 +1585,8 @@ def _handle_role_command(
             return "Approved PRINCE2 role-tree baseline.\n" + _render_prince2_role_tree_baseline(config)
         if len(parts) == 2 and parts[1] == "baseline":
             return _render_prince2_role_tree_baseline(config)
+        if len(parts) == 3 and parts[1] == "baseline" and parts[2] == "matrix":
+            return _render_prince2_role_tree_baseline_matrix(config)
         if len(parts) == 2 and parts[1] == "check":
             return _render_prince2_role_check(config)
         if len(parts) == 2 and parts[1] == "flow":
@@ -1586,7 +1611,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles check | roles flow | roles matrix | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles check | roles flow | roles matrix | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) in {4, 5} and parts[1] == "add-child":
@@ -5741,6 +5766,12 @@ def main() -> int:
         else:
             print(_render_prince2_role_tree_baseline(config))
         return 0
+    if task == "roles baseline matrix":
+        if args.json:
+            print(dumps_ascii(_prince2_role_tree_baseline_matrix_report(config), indent=2))
+        else:
+            print(_render_prince2_role_tree_baseline_matrix(config))
+        return 0
     if task == "roles check":
         if args.json:
             print(dumps_ascii(_prince2_role_check_report(config), indent=2))
@@ -5763,7 +5794,7 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start")
+            print("Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start")
             return 1
         if args.json:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
