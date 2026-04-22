@@ -45,10 +45,12 @@ from .provider_registry import (
 )
 from .role_tree import (
     build_prince2_role_flow,
+    build_prince2_role_matrix,
     build_prince2_role_tree,
     check_prince2_role_tree,
     render_prince2_role_check,
     render_prince2_role_flow,
+    render_prince2_role_matrix,
     render_prince2_role_tree,
 )
 from .project_handoff import ProjectHandoff
@@ -801,6 +803,14 @@ def _render_prince2_role_flow() -> str:
     return render_prince2_role_flow(_prince2_role_flow_report())
 
 
+def _prince2_role_matrix_report(config: AgentConfig) -> dict[str, object]:
+    return build_prince2_role_matrix(_load_model_preferences(config))
+
+
+def _render_prince2_role_matrix(config: AgentConfig) -> str:
+    return render_prince2_role_matrix(_prince2_role_matrix_report(config))
+
+
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
     prefs = _load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
@@ -1010,6 +1020,8 @@ def _handle_role_command(
             return _render_prince2_role_check(config)
         if len(parts) == 2 and parts[1] == "flow":
             return _render_prince2_role_flow()
+        if len(parts) == 2 and parts[1] == "matrix":
+            return _render_prince2_role_matrix(config)
         if len(parts) == 2 and parts[1] == "propose":
             prefs.apply_prince2_role_proposal()
             _save_model_preferences(config, prefs)
@@ -1023,7 +1035,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles tree | roles check | roles flow | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles tree | roles check | roles flow | roles matrix | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) >= 2 and parts[1] == "configure":
@@ -4486,11 +4498,17 @@ def main() -> int:
         else:
             print(_render_prince2_role_flow())
         return 0
+    if task == "roles matrix":
+        if args.json:
+            print(dumps_ascii(_prince2_role_matrix_report(config), indent=2))
+        else:
+            print(_render_prince2_role_matrix(config))
+        return 0
     if task.startswith("roles ") or task.startswith("role ") or task == "project start":
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: roles | roles domains | roles tree | roles check | roles flow | roles propose | roles setup | role configure [role] | role clear <role> | project start")
+            print("Usage: roles | roles domains | roles tree | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start")
             return 1
         if args.json:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))

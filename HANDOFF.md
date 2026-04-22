@@ -201,7 +201,7 @@ Phase B - PRINCE2 role tree routing:
 - Current role-tree nodes expose node id, role type, parent, level, accountability boundary, delegated authority, responsibility domain, context scope, include/exclude rules, expansion events, assignment, fallback pool, and readiness.
 - Completed: `roles flow` and `roles flow --json` render authorized PRINCE2 transitions between role-tree nodes.
 - Current flow edges expose trigger, source node, target node, flow type, payload scope, decision authority, expected evidence, validation condition, tolerance boundary, and return path.
-- Next: add `roles matrix --json` combining role tree, domains, assignments, provider-models, params, accounts, provider/account limit state, readiness, and independence warnings.
+- Completed: `roles matrix` and `roles matrix --json` combine role tree, flow, assignments, provider-models, params, accounts, provider/account limit state, readiness, context slices, and findings.
 - Next: add `role add-child <parent> <role_type>` or guided equivalent for delegated/subordinate nodes.
 - Next: add `role assign <role_node>` or guided equivalent for primary/reviewer/fallback model pools.
 - Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.

@@ -390,6 +390,79 @@ def check_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
     }
 
 
+def build_prince2_role_matrix(prefs: ModelPreferences) -> dict[str, object]:
+    tree = build_prince2_role_tree(prefs)
+    flow = build_prince2_role_flow()
+    check = check_prince2_role_tree(prefs)
+    findings_by_node: dict[str, list[dict[str, object]]] = {}
+    for finding in check["findings"]:
+        if not isinstance(finding, dict):
+            continue
+        findings_by_node.setdefault(str(finding.get("node_id")), []).append(dict(finding))
+
+    rows: list[dict[str, object]] = []
+    for node in tree["nodes"]:
+        if not isinstance(node, dict):
+            continue
+        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+        provider = str(assignment.get("provider", "")) if assignment else ""
+        account = str(assignment.get("account", "")) if assignment and assignment.get("account") else ""
+        account_block_key = account_key(provider, account) if provider and account else ""
+        rows.append(
+            {
+                "node_id": node.get("node_id"),
+                "role_type": node.get("role_type"),
+                "label": node.get("label"),
+                "parent_id": node.get("parent_id"),
+                "level": node.get("level"),
+                "readiness": node.get("readiness"),
+                "provider": provider or None,
+                "provider_model": assignment.get("provider_model") if assignment else None,
+                "params": dict(assignment.get("params", {})) if isinstance(assignment.get("params"), dict) else {},
+                "account": account or None,
+                "provider_blocked_until": (prefs.blocked_until_by_model or {}).get(provider) if provider else None,
+                "account_blocked_until": (prefs.blocked_until_by_account or {}).get(account_block_key) if account_block_key else None,
+                "fallback_pool": list(node.get("fallback_pool", [])),
+                "context_include": list((node.get("context_rule") or {}).get("include", [])) if isinstance(node.get("context_rule"), dict) else [],
+                "context_exclude": list((node.get("context_rule") or {}).get("exclude", [])) if isinstance(node.get("context_rule"), dict) else [],
+                "incoming_edges": [edge["edge_id"] for edge in flow["edges"] if isinstance(edge, dict) and edge.get("target_node") == node.get("node_id")],
+                "outgoing_edges": [edge["edge_id"] for edge in flow["edges"] if isinstance(edge, dict) and edge.get("source_node") == node.get("node_id")],
+                "findings": findings_by_node.get(str(node.get("node_id")), []),
+            }
+        )
+
+    return {
+        "command": "roles matrix",
+        "status": check["status"],
+        "summary": check["summary"],
+        "rule": "role matrix combines PRINCE2 tree, flow, assignments, provider/account limit state, readiness, and independence findings",
+        "rows": rows,
+        "flow_edges": flow["edges"],
+    }
+
+
+def render_prince2_role_matrix(matrix: dict[str, object]) -> str:
+    summary = matrix.get("summary") if isinstance(matrix.get("summary"), dict) else {}
+    lines = [
+        "PRINCE2 role matrix:",
+        f"- status: {matrix.get('status')}",
+        f"- nodes: {summary.get('nodes', 0)} assigned={summary.get('assigned', 0)} unassigned={summary.get('unassigned', 0)}",
+        f"- findings: errors={summary.get('errors', 0)} warnings={summary.get('warnings', 0)}",
+    ]
+    rows = [row for row in matrix.get("rows", []) if isinstance(row, dict)]
+    for row in rows:
+        findings = row.get("findings") if isinstance(row.get("findings"), list) else []
+        finding_text = ",".join(str(item.get("code")) for item in findings if isinstance(item, dict)) if findings else "none"
+        provider_block = f" provider_blocked_until={row.get('provider_blocked_until')}" if row.get("provider_blocked_until") else ""
+        account_block = f" account_blocked_until={row.get('account_blocked_until')}" if row.get("account_blocked_until") else ""
+        lines.append(
+            f"- {row.get('label')} [{row.get('node_id')}]: readiness={row.get('readiness')} "
+            f"provider={row.get('provider') or 'none'} provider_model={row.get('provider_model') or 'none'} "
+            f"account={row.get('account') or 'none'} findings={finding_text}{provider_block}{account_block}"
+        )
+    return "\n".join(lines)
+
+
 def render_prince2_role_check(report: dict[str, object]) -> str:
     summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
     lines = [
