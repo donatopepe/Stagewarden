@@ -215,6 +215,13 @@ Phase A - OS-aware shell runtime and preflight:
 - Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight --json` reported runtime macOS/zsh, git dirty state, role-check warnings, provider limits, sources status, and remediation list without initializing or mutating git.
 - Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight` rendered the human diagnostic summary.
 - Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 234 tests.
+- Implemented mini-block 2026-04-22: `status`, `status --json`, `status --full`, and `status --full --json` now include a remediation section derived from preflight signals.
+- Status remediations currently cover dirty git state, incomplete PRINCE2 role baseline, blocked provider limits, missing source references, and active recovery/exception lane.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py` passed.
+- Validation 2026-04-22: targeted status/preflight remediation tests passed.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main status --json` and `python3 -m stagewarden.main status --full` rendered remediation actions for dirty git, missing role baseline, and active recovery state.
+- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 235 tests.
+- Git boundary 2026-04-22: status remediation mini-block committed locally as `e4867a9 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
 - Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
 - Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
 - On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
