@@ -22,6 +22,8 @@ The working rule is PRINCE2-style controlled execution:
 - adapt governance to task size and risk: small work stays lightweight, complex work gets stronger controls
 - reduce ceremony, never principles
 - model roles are not limited to a flat one-role/one-model map: PRINCE2 organization can be hierarchical, delegated, combined, or split by domain while preserving accountability
+- clarification gate: for every user request, Stagewarden must identify all ambiguous points and ask every necessary clarification before execution starts; work may begin only after no material ambiguity remains or the user explicitly authorizes assumptions
+- clarification gate must stay proportional: simple unambiguous requests can proceed immediately, but any uncertainty about scope, files, provider/model/account, permissions, destructive effects, external network use, expected output, validation/wet-run, git/push boundary, or PRINCE2 role ownership must be resolved first
 
 ## Current Baseline
 
