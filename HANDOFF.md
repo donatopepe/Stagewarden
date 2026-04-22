@@ -211,6 +211,9 @@ Additional validation evidence:
 - Guided menus now render current selection context before choices: enabled providers, preferred provider, active accounts, blocked providers, selected provider, current provider-model, current reasoning effort, and configured accounts.
 - `role configure` now also renders the PRINCE2 role responsibility and context scope before asking for provider/model/account, making role assignment decisions explicit and auditable.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after guided menu context adoption.
+- Slash palette now has a reusable JSON report (`slash [prefix] --json`) exposing prefix, workspace context, command entries, aliases, JSON support, handler, and operational hints.
+- Text `/slash` rendering is now generated from the same report used by JSON output, avoiding divergence between operator UX and automation surfaces.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after slash palette JSON report adoption.
 
 Next implementation roadmap:
 
