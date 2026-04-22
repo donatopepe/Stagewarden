@@ -80,6 +80,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("roles tree", "prince2", "Show hierarchical PRINCE2 organization tree and node context boundaries.", "roles tree [--json]", json=True, handler="roles"),
     CommandSpec("roles check", "prince2", "Validate PRINCE2 role tree readiness, rate-limit state, and independence warnings.", "roles check [--json]", json=True, handler="roles"),
     CommandSpec("roles flow", "prince2", "Show authorized PRINCE2 flow edges between role-tree nodes.", "roles flow [--json]", json=True, handler="roles"),
+    CommandSpec("roles matrix", "prince2", "Show combined PRINCE2 role tree, flow, assignment, limit, and readiness matrix.", "roles matrix [--json]", json=True, handler="roles"),
     CommandSpec("role configure", "prince2", "Configure one PRINCE2 role assignment.", "role configure [role]", handler="roles"),
     CommandSpec("role clear", "prince2", "Clear one PRINCE2 role assignment.", "role clear <role>", handler="roles"),
     CommandSpec("handoff", "handoff", "Show persisted PRINCE2 handoff context.", "handoff", json=True, handler="handoff"),

@@ -1030,6 +1030,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles tree [--json]", rendered.stdout)
             self.assertIn("roles check [--json]", rendered.stdout)
             self.assertIn("roles flow [--json]", rendered.stdout)
+            self.assertIn("roles matrix [--json]", rendered.stdout)
             self.assertIn("sources", rendered.stdout)
             self.assertIn("commands [--json]", rendered.stdout)
 
@@ -1044,6 +1045,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles tree", by_name)
             self.assertIn("roles check", by_name)
             self.assertIn("roles flow", by_name)
+            self.assertIn("roles matrix", by_name)
             self.assertIn("sources", by_name)
             self.assertEqual(by_name["commands"]["group"], "core")
             self.assertTrue(by_name["commands"]["json"])
@@ -1051,6 +1053,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(by_name["roles tree"]["handler"], "roles")
             self.assertEqual(by_name["roles check"]["handler"], "roles")
             self.assertEqual(by_name["roles flow"]["handler"], "roles")
+            self.assertEqual(by_name["roles matrix"]["handler"], "roles")
 
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1699,6 +1702,37 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(edges["assure.quality_risk"]["target_node"], "assurance.project_assurance")
             self.assertIn("independent", edges["assure.quality_risk"]["validation_condition"])
             self.assertEqual(edges["escalate.board_decision"]["target_node"], "board.executive")
+
+    def test_roles_matrix_combines_tree_flow_assignments_and_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            propose = run_main_capture(root, "roles propose")
+            self.assertEqual(propose.returncode, 0, propose.stderr)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles matrix")
+            json_completed = run_main_capture(root, "roles matrix", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 role matrix:", completed.stdout)
+            self.assertIn("Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("provider_blocked", completed.stdout)
+            self.assertIn("provider_blocked_until=2026-05-01T18:30", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles matrix")
+            self.assertEqual(payload["status"], "error")
+            rows = {item["node_id"]: item for item in payload["rows"]}
+            self.assertEqual(rows["management.project_manager"]["provider"], "chatgpt")
+            self.assertEqual(rows["management.project_manager"]["provider_blocked_until"], "2026-05-01T18:30")
+            self.assertIn("authorize.project", rows["management.project_manager"]["incoming_edges"])
+            self.assertIn("issue.work_package", rows["management.project_manager"]["outgoing_edges"])
+            self.assertIn("stage_plan", rows["management.project_manager"]["context_include"])
+            self.assertIn("board_private_decision_context", rows["management.project_manager"]["context_exclude"])
+            self.assertTrue(payload["flow_edges"])
 
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
