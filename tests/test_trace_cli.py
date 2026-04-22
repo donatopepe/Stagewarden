@@ -1709,6 +1709,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(prefs.preferred_model, "chatgpt")
             self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.1-codex-mini")
             self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "high")
+            self.assertIn("Selection context:", rendered)
+            self.assertIn("- selected_provider: chatgpt", rendered)
+            self.assertIn("- current_provider_model: provider-default", rendered)
             self.assertIn("Choose provider-model for chatgpt:", rendered)
             self.assertIn("Choose reasoning_effort for chatgpt:gpt-5.1-codex-mini:", rendered)
             self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.1-codex-mini reasoning_effort=high.", rendered)
@@ -1735,6 +1738,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.4")
             self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "medium")
             self.assertIn("Choose provider:", rendered)
+            self.assertIn("- enabled_providers: local, cheap, chatgpt, openai, claude", rendered)
+            self.assertIn("- selected_provider: chatgpt", rendered)
             self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.4 reasoning_effort=medium.", rendered)
 
     def test_interactive_shell_model_preset_without_value_opens_model_choice(self) -> None:
@@ -1756,6 +1761,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(prefs.preferred_model, "chatgpt")
             self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.3-codex")
             self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "high")
+            self.assertIn("Selection context:", rendered)
+            self.assertIn("- selected_provider: chatgpt", rendered)
             self.assertIn("Choose provider-model for chatgpt:", rendered)
             self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.3-codex reasoning_effort=high.", rendered)
             self.assertIn("reasoning_effort_current: high", rendered)
@@ -1946,6 +1953,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(assignment["provider_model"], "gpt-5.4")
             self.assertEqual(assignment["params"]["reasoning_effort"], "medium")
             self.assertIsNone(assignment["account"])
+            self.assertIn("PRINCE2 role context:", rendered)
+            self.assertIn("- role: Project Manager (project_manager)", rendered)
+            self.assertIn("- responsibility: planning, coordination, controlled execution, reporting, and stage boundary control", rendered)
+            self.assertIn("Selection context:", rendered)
             self.assertIn("Choose provider for Project Manager:", rendered)
             self.assertIn("Assigned Project Manager: provider=chatgpt provider_model=gpt-5.4 account=none reasoning_effort=medium.", rendered)
 

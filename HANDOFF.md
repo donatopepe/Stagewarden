@@ -208,6 +208,9 @@ Additional validation evidence:
 - Slash completion and palette now expose second-level model guidance: `provider_model` candidates for `model variant` and `reasoning_effort` candidates for `model param set`.
 - This brings model selection closer to Codex/Claude guided UX by surfacing valid next choices directly from the provider-model catalog.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after provider-model and reasoning-effort suggestion adoption.
+- Guided menus now render current selection context before choices: enabled providers, preferred provider, active accounts, blocked providers, selected provider, current provider-model, current reasoning effort, and configured accounts.
+- `role configure` now also renders the PRINCE2 role responsibility and context scope before asking for provider/model/account, making role assignment decisions explicit and auditable.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after guided menu context adoption.
 
 Next implementation roadmap:
 

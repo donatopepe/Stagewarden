@@ -895,6 +895,53 @@ def _role_options() -> list[tuple[str, str]]:
     return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
 
 
+def _guided_provider_context(prefs: ModelPreferences, provider: str | None = None) -> str:
+    enabled = ", ".join(prefs.enabled_models or []) or "none"
+    preferred = prefs.preferred_model or "automatic"
+    lines = [
+        "Selection context:",
+        f"- enabled_providers: {enabled}",
+        f"- preferred_provider: {preferred}",
+    ]
+    active_accounts = []
+    for item in prefs.enabled_models or []:
+        account = (prefs.active_account_by_model or {}).get(item)
+        if account:
+            active_accounts.append(f"{item}={account}")
+    blocked = []
+    for item in prefs.enabled_models or []:
+        until = (prefs.blocked_until_by_model or {}).get(item)
+        if until:
+            blocked.append(f"{item}:{until}")
+    lines.append(f"- active_accounts: {', '.join(active_accounts) or 'none'}")
+    lines.append(f"- blocked_providers: {', '.join(blocked) or 'none'}")
+    if provider:
+        provider_model = prefs.variant_for_model(provider) or provider_capability(provider).default_model
+        params = prefs.params_for_model(provider)
+        reasoning = params.get("reasoning_effort") or "provider-default"
+        accounts = ", ".join((prefs.accounts_by_model or {}).get(provider, [])) or "none"
+        lines.extend(
+            [
+                f"- selected_provider: {provider}",
+                f"- current_provider_model: {provider_model}",
+                f"- current_reasoning_effort: {reasoning}",
+                f"- configured_accounts: {accounts}",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _guided_role_context(role: str) -> str:
+    return "\n".join(
+        [
+            "PRINCE2 role context:",
+            f"- role: {PRINCE2_ROLE_LABELS[role]} ({role})",
+            f"- responsibility: {PRINCE2_ROLE_AUTOMATION_RULES.get(role, 'controlled project work')}",
+            f"- context_scope: {PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, 'controlled project work')}",
+        ]
+    )
+
+
 def _guided_role_configure(
     *,
     requested_role: str | None,
@@ -917,6 +964,8 @@ def _guided_role_configure(
             return "Role configuration cancelled."
     if role not in PRINCE2_ROLE_IDS:
         return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
+    output_stream.write(_guided_role_context(role) + "\n")
+    output_stream.write(_guided_provider_context(prefs) + "\n")
     mode = _prompt_menu_choice(
         title=f"Configure {PRINCE2_ROLE_LABELS[role]}:",
         options=[("auto", "Automatic proposal for this role"), ("manual", "Manual provider/model/account selection")],
@@ -947,6 +996,7 @@ def _guided_role_configure(
     )
     if provider is None:
         return "Role configuration cancelled."
+    output_stream.write(_guided_provider_context(prefs, provider) + "\n")
     specs = list(provider_model_specs(provider))
     provider_model = _prompt_menu_choice(
         title=f"Choose provider-model for {provider}:",
@@ -3460,6 +3510,7 @@ def _guided_model_choice(
     if input_stream is None or output_stream is None:
         return "Guided model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `model choose`."
     providers = list(prefs.enabled_models or []) or list(SUPPORTED_MODELS)
+    output_stream.write(_guided_provider_context(prefs, requested_model if requested_model in SUPPORTED_MODELS else None) + "\n")
     model = requested_model
     if model is None:
         model = _prompt_menu_choice(
@@ -3474,6 +3525,7 @@ def _guided_model_choice(
         return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
     if model not in prefs.enabled_models:
         prefs.enabled_models.append(model)
+    output_stream.write(_guided_provider_context(prefs, model) + "\n")
     specs = list(provider_model_specs(model))
     provider_model = _prompt_menu_choice(
         title=f"Choose provider-model for {model}:",
