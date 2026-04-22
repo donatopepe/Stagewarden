@@ -94,6 +94,7 @@ PRINCE2 handoff behavior:
 - `roles tree approve` persists the current PRINCE2 organization tree as the approved role-tree baseline in `.stagewarden_models.json` and `.stagewarden_handoff.json`.
 - `roles baseline` shows the approved tree baseline used for future role-routed context handoffs.
 - `roles baseline matrix` shows the approved baseline matrix, including delegated nodes plus reviewer/fallback route pools.
+- `project design` shows the pre-design packet that future AI-assisted PRINCE2 tree planning must receive: agent capabilities, current project specification, and any clarification gaps.
 - `role add-child` opens a guided menu, or `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate PRINCE2 nodes to the approved tree.
 - `role assign` opens a guided menu, or `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]` assigns primary, reviewer, or fallback provider-model routes to a specific role-tree node.
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.

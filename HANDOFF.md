@@ -276,6 +276,13 @@ Additional validation evidence:
 - Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline matrix" --json` passed in the real workspace and exposed delegated nodes plus route pools directly.
 - Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 257 tests, after baseline matrix command addition.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
+- Phase B mini-block continued: added `project design` and `project design --json` as the explicit pre-design packet for future AI-assisted PRINCE2 tree construction.
+- `project design` now exposes two mandatory prompt inputs before any AI organization-tree proposal is accepted: `agent_capability_specification` and `project_specification`.
+- The report also surfaces `clarification_gaps`, so missing task/governance/runtime context is visible before a model designs or re-baselines the role tree.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 113 tests, after project-design packet adoption.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "project design"` passed in the real workspace.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "project design" --json` passed in the real workspace.
 
 Next implementation roadmap:
 
@@ -381,7 +388,8 @@ Phase B - PRINCE2 role tree routing:
 - Completed: guided menu equivalents for delegated/subordinate nodes and node assignment.
 - Completed: node assignment supports primary/reviewer/fallback model pools.
 - Completed: top-level baseline matrix command `roles baseline matrix` makes delegated nodes and route pools visible without opening the full `roles baseline --json` payload.
-- Next: upgrade `project start` to begin project design by building a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
+- Completed: `project design` now emits the explicit capability/project packet and clarification-gap surface required before AI-assisted tree design.
+- Next: upgrade `project start` to invoke the project-design stage first, then build a proportional PRINCE2 organization tree from project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
 - Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:

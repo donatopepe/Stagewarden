@@ -80,6 +80,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("roles", "prince2", "Show PRINCE2 role-to-model assignments.", "roles", json=True, handler="roles"),
     CommandSpec("roles setup", "prince2", "Open guided PRINCE2 role setup.", "roles setup", handler="roles"),
     CommandSpec("roles propose", "prince2", "Apply automatic PRINCE2 role assignment proposal.", "roles propose", aliases=("project start",), handler="roles"),
+    CommandSpec("project design", "prince2", "Show the design packet that future AI tree planning must receive.", "project design [--json]", json=True, handler="roles"),
     CommandSpec("roles domains", "prince2", "Show role domains and context visibility boundaries.", "roles domains [--json]", json=True, handler="roles"),
     CommandSpec("roles tree", "prince2", "Show hierarchical PRINCE2 organization tree and node context boundaries.", "roles tree [--json]", json=True, handler="roles"),
     CommandSpec("roles tree approve", "prince2", "Approve and persist the current PRINCE2 role-tree baseline.", "roles tree approve [--json]", json=True, handler="roles"),
