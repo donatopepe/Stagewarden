@@ -8,6 +8,8 @@ Licenza: MIT
 
 Stagewarden is a production-grade CLI coding agent for controlled software delivery, with Codex-style agent loops, multi-model routing, PRINCE2-aligned governance, structured traces, and safe file/shell execution.
 
+Italian documentation: see [`README_IT.md`](README_IT.md).
+
 Agent policy artifacts:
 
 - `AGENT_MANIFESTO.md`: short operating manifesto
@@ -199,6 +201,8 @@ Inside the shell:
 ```text
 stagewarden> /help
 stagewarden> /help models
+stagewarden> /slash
+stagewarden> /slash mo
 stagewarden> /help handoff
 stagewarden> /models
 stagewarden> /model limits
@@ -248,6 +252,13 @@ Interactive shell rule: commands start with `/`. Any input without `/` is sent t
 
 Interactive help is topic-based: `/help` shows compact categories, while `/help models`, `/help accounts`, `/help permissions`, `/help handoff`, `/help git`, `/help caveman`, and `/help ljson` show focused command examples.
 
+Slash UX:
+
+- `/slash [prefix]` shows a Codex/Claude-style command palette with descriptions and workspace-aware hints.
+- `stagewarden "slash mo" --json` exposes the same palette as structured data for automation.
+- Slash completion suggests contextual values, including providers, PRINCE2 roles, shell backends, configured account names, provider-model IDs, and `reasoning_effort` values.
+- The palette includes operational hints such as enabled providers, active accounts, blocked providers, provider-model examples, and supported parameters.
+
 Model control:
 
 - `models` shows enabled, active, preferred, blocked, and backend state.
@@ -259,6 +270,7 @@ Model control:
 - `model use <local|cheap|chatgpt|openai|claude>` pins a preferred model.
 - `model choose [provider]` opens a guided menu in the interactive shell to choose provider, provider-model, and supported parameters.
 - `model preset <provider>` without the preset value opens the guided provider-model picker in the interactive shell.
+- Guided model menus show current provider context before prompting: enabled providers, preferred provider, active accounts, blocked providers, current provider-model, current reasoning effort, and configured accounts.
 - `model add <local|cheap|chatgpt|openai|claude>` enables a model.
 - `model list <provider>` shows the official aliases or model IDs and provider capabilities for that provider.
 - `model params <provider>` shows supported and current provider-model parameters such as `reasoning_effort`.
@@ -283,6 +295,7 @@ Provider model selection is aligned to public provider behavior:
 - `claude` accepts Claude Code style aliases such as `default`, `sonnet`, `opus`, `haiku`, `sonnet[1m]`, and `opusplan`.
 - Stagewarden passes the selected variant to the backend via `STAGEWARDEN_MODEL_VARIANT` and the provider-native env var such as `OPENAI_MODEL` or `ANTHROPIC_MODEL`.
 - Provider auth capabilities live in `stagewarden/provider_registry.py`: ChatGPT plan login is separate from OpenAI API-key profiles, Claude can use API keys or imported Claude Code credentials, and Stagewarden does not scrape hidden browser tokens.
+- `role configure [role]` shows PRINCE2 role responsibility and context scope before provider/model/account assignment.
 - If no variant is pinned, Stagewarden now selects one automatically from task complexity:
   - `claude`: prefers `haiku` for simple tasks, `sonnet` for normal coding, `opus` for harder debugging, and `opusplan` for explicit planning/design work.
   - `openai`: prefers `gpt-5.4-mini` for light work, `gpt-5.2-codex` for normal coding, and `gpt-5.4` for harder debugging or risky changes.

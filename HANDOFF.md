@@ -214,6 +214,11 @@ Additional validation evidence:
 - Slash palette now has a reusable JSON report (`slash [prefix] --json`) exposing prefix, workspace context, command entries, aliases, JSON support, handler, and operational hints.
 - Text `/slash` rendering is now generated from the same report used by JSON output, avoiding divergence between operator UX and automation surfaces.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after slash palette JSON report adoption.
+- Documentation parity updated for the Codex/Claude-style UX work.
+- `README.md` now links to Italian documentation and documents `/slash`, slash JSON output, contextual completion, guided menu context, and `role configure` role-scope visibility.
+- Added `README_IT.md` with Italian setup, shell usage, slash UX, model/provider commands, PRINCE2 handoff behaviour, validation rules, JSON examples, and credits.
+- Validation 2026-04-22: `python3 -m stagewarden.main "slash mo" --json` passed as a wet-run after documentation update.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
 
