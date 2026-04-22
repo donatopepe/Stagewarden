@@ -1200,6 +1200,30 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("hint=provider_models[chatgpt=provider-default,codex-mini-latest,gpt-5.1-codex; openai=provider-default,gpt-5.4,gpt-5.4-mini]", rendered)
             self.assertIn("hint=params[reasoning_effort]", rendered)
 
+    def test_slash_palette_cli_json_exposes_reusable_context_and_hints(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "openai"]
+            prefs.accounts_by_model = {"openai": ["work"]}
+            prefs.active_account_by_model = {"openai": "work"}
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "slash mo", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "slash")
+            self.assertEqual(payload["prefix"], "/mo")
+            self.assertEqual(payload["context"]["enabled_providers"], ["chatgpt", "openai"])
+            self.assertEqual(payload["context"]["active_accounts"], ["openai=work"])
+            self.assertEqual(payload["context"]["blocked_providers"], ["chatgpt:2026-05-01T18:30"])
+            entries = {item["name"]: item for item in payload["entries"]}
+            self.assertIn("model variant", entries)
+            self.assertIn("provider_models[chatgpt=", entries["model variant"]["hint"])
+            self.assertEqual(entries["model param set"]["hint"], "params[reasoning_effort]")
+
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

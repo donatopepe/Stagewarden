@@ -25,6 +25,7 @@ class CommandSpec:
 
 COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("help", "core", "Show interactive help.", "help [topic]", aliases=("commands help",), handler="help"),
+    CommandSpec("slash", "core", "Show slash-command palette with workspace hints.", "slash [prefix]", json=True, handler="commands"),
     CommandSpec("commands", "core", "Show the structured command catalog.", "commands [--json]", json=True, handler="commands"),
     CommandSpec("exit", "core", "Close the interactive shell.", "exit", aliases=("quit",), handler="session"),
     CommandSpec("reset", "core", "Reset the in-memory agent session.", "reset", handler="session"),
