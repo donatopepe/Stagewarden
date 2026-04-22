@@ -192,6 +192,13 @@ Roadmap rule:
 - Work in mini-blocks that are small enough to test and push independently.
 - Each block must add wet-run evidence, unit tests where feasible, handoff notes, and a git boundary.
 - Priority order is governed by operational risk: shell/runtime safety first, then PRINCE2 routing, then network/file artifact tools, then UX polish.
+- Technical execution order after replanning on 2026-04-22:
+- `P0` complete Phase A runtime safety/control gaps that affect every command path.
+- `P1` complete Phase B PRINCE2 role-tree persistence and node assignment because context governance depends on it.
+- `P2` implement Phase C governed web/download/compression because external IO needs the Phase A/B guardrails.
+- `P3` implement Phase E/F operational governance (`sources --strict`, self-update, richer provider status) once runtime and role routing are stable.
+- `P4` implement Phase G UX polish only after control surfaces are stable enough to expose interactively.
+- `P5` keep Phase H documentation in lockstep whenever user-facing behavior changes; do not postpone README parity after feature completion.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Phase A - OS-aware shell runtime and preflight:
@@ -231,6 +238,16 @@ Phase A - OS-aware shell runtime and preflight:
 - Validation 2026-04-22: wet-run `ShellTool(...).run("pwd")` on macOS still executed with `shell_backend=zsh executable=/bin/zsh` and returned `/Users/donato/Stagewarden`.
 - Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 240 tests.
 - Git boundary 2026-04-22: shell compatibility mini-block committed locally as `2dc8d8a stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
+- Implemented mini-block 2026-04-22: shell backend control now defaults to automatic detection, with optional manual override through `shell backend` and `shell backend use <auto|bash|zsh|powershell|cmd>`.
+- Implemented mini-block 2026-04-22: configured backend is now surfaced in `status`, `status --full`, `doctor`, and `preflight`; command catalog/help expose the shell backend commands.
+- Implemented mini-block 2026-04-22: `.stagewarden_settings.json` is now treated as a local runtime artifact and ignored by git/runtime checkpoint governance.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py` passed.
+- Validation 2026-04-22: targeted shell-backend status/command tests passed.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main shell backend --json` reported `configured=auto` and `selected=zsh` on macOS.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main shell backend use zsh` and then `shell backend use auto` confirmed optional override works while preserving automatic default.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight` now reports the configured shell backend.
+- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 242 tests.
+- Git boundary 2026-04-22: shell backend control mini-block committed locally as `f3d3c32 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
 - Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
 - Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
 - On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
