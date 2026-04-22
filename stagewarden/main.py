@@ -1557,6 +1557,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "git_snapshot_required": True,
             "provider_limits_stale_after_minutes": 15,
         },
+        "remediations": status["remediations"],
     }
 
 
@@ -1618,8 +1619,14 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
             "- wet_run_required: true",
             "- dry_run_valid_checkpoint: false",
             "- git_snapshot_required: true",
+            "Remediations:",
         ]
     )
+    if report["remediations"]:
+        for item in report["remediations"]:
+            lines.append(f"- {item['severity']} {item['code']}: {item['action']}")
+    else:
+        lines.append("- none")
     return "\n".join(lines)
 
 
@@ -1867,6 +1874,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
+    status = _status_report(agent, config)
     lines = [
         "Stagewarden status:",
         f"- workspace: {config.workspace_root}",
@@ -1886,7 +1894,19 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         "Handoff summary:",
         handoff.summary(),
         handoff.rendered_operational_posture(),
+        _render_remediations(status["remediations"]),
     ]
+    return "\n".join(lines)
+
+
+def _render_remediations(remediations: object) -> str:
+    lines = ["Remediations:"]
+    if isinstance(remediations, list) and remediations:
+        for item in remediations:
+            if isinstance(item, dict):
+                lines.append(f"- {item.get('severity', 'info')} {item.get('code', 'unknown')}: {item.get('action', '')}")
+        return "\n".join(lines)
+    lines.append("- none")
     return "\n".join(lines)
 
 
@@ -1976,6 +1996,9 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
+    provider_limits = _provider_limit_status_report(agent, config)
+    permissions = _permissions_report(config)
+    stage_view = handoff.stage_view()
     return {
         "command": "status",
         "workspace": str(config.workspace_root),
@@ -1987,15 +2010,16 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "model_config": config.model_prefs_path.name,
         },
         "models": _model_status_report(agent, config),
-        "provider_limits": _provider_limit_status_report(agent, config),
+        "provider_limits": provider_limits,
         "runtime": detect_runtime_capabilities(config.workspace_root),
         "roles": _prince2_roles_report(config),
-        "permissions": _permissions_report(config),
+        "permissions": permissions,
         "handoff": {
             "summary": handoff.summary(),
             "operational_posture": handoff.rendered_operational_posture(),
-            "stage_view": handoff.stage_view(),
+            "stage_view": stage_view,
         },
+        "remediations": _status_remediation_report(provider_limits=provider_limits, stage_view=stage_view, config=config),
     }
 
 
@@ -2083,6 +2107,26 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "remediations": remediations,
     }
+
+
+def _status_remediation_report(
+    *,
+    provider_limits: dict[str, object],
+    stage_view: dict[str, object],
+    config: AgentConfig,
+) -> list[dict[str, str]]:
+    git = GitTool(config)
+    git_status = git.status()
+    git_dirty = git.status_porcelain()
+    return _preflight_remediations(
+        doctor={"python": {"ok": True}, "git": {"ok": True}},
+        git_status=git_status,
+        git_dirty=git_dirty,
+        role_check=_prince2_role_check_report(config),
+        provider_limits=provider_limits,
+        sources=_sources_status_report(config),
+        stage_view=stage_view,
+    )
 
 
 def _preflight_remediations(

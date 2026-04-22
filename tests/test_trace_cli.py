@@ -440,6 +440,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("runtime", payload)
             self.assertIn(payload["runtime"]["os_family"], {"macos", "linux", "windows", "unknown"})
             self.assertIn("recommended_shell", payload["runtime"])
+            self.assertIn("remediations", payload)
+            self.assertTrue(any(item["code"] == "roles" for item in payload["remediations"]))
 
     def test_status_full_cli_json_exposes_dashboard_sections(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -473,11 +475,22 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("runtime", payload)
             self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("quality_gates", payload)
+            self.assertIn("remediations", payload)
             self.assertTrue(payload["quality_gates"]["wet_run_required"])
             self.assertFalse(payload["quality_gates"]["dry_run_valid_checkpoint"])
             limits = {item["provider"]: item for item in payload["limits"]}
             self.assertEqual(limits["chatgpt"]["utilization"], 91.0)
             self.assertEqual(limits["chatgpt"]["rate_limit_type"], "usage_limit")
+
+    def test_status_full_cli_renders_remediations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "status", "--full")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Stagewarden full status:", completed.stdout)
+            self.assertIn("Remediations:", completed.stdout)
+            self.assertIn("roles", completed.stdout)
 
     def test_statusline_cli_json_exposes_compact_runtime_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
