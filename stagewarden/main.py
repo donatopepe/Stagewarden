@@ -4399,6 +4399,100 @@ def _workspace_relative_candidates(config: AgentConfig, partial: str) -> list[st
     return suggestions
 
 
+def _prefixed_candidates(prefix: str, options: list[str], partial: str) -> list[str]:
+    lowered = partial.strip().lower()
+    matches = [option for option in options if option.lower().startswith(lowered)]
+    return [f"{INTERACTIVE_COMMAND_PREFIX}{prefix}{item}" for item in matches]
+
+
+def _account_name_candidates(config: AgentConfig, provider: str, partial: str) -> list[str]:
+    try:
+        prefs = _load_model_preferences(config)
+    except OSError:
+        return []
+    accounts = list((prefs.accounts_by_model or {}).get(provider, []))
+    return _prefixed_candidates(f"account use {provider} ", accounts, partial)
+
+
+def _interactive_contextual_candidates(normalized: str, config: AgentConfig) -> list[str]:
+    lowered = normalized.lower()
+    provider_options = list(SUPPORTED_MODELS)
+    role_options = list(PRINCE2_ROLE_IDS)
+    backend_options = ["auto", "bash", "zsh", "powershell", "cmd"]
+    for prefix in ("account use ", "account logout ", "account remove ", "account block ", "account unblock ", "account limit-record ", "account limit-clear "):
+        if lowered.startswith(prefix):
+            parts = normalized.split()
+            if len(parts) >= 3:
+                provider = parts[2].strip().lower()
+                if provider in SUPPORTED_MODELS:
+                    typed_after_provider = normalized.split(None, 3)
+                    partial = typed_after_provider[3] if len(typed_after_provider) > 3 else ""
+                    return _prefixed_candidates(f"{prefix}{provider} ", list((_load_model_preferences(config).accounts_by_model or {}).get(provider, [])), partial)
+    prefix_map = (
+        ("model use ", provider_options),
+        ("model choose ", provider_options),
+        ("model preset ", provider_options),
+        ("model add ", provider_options),
+        ("model remove ", provider_options),
+        ("model list ", provider_options),
+        ("model params ", provider_options),
+        ("model variant ", provider_options),
+        ("model variant-clear ", provider_options),
+        ("model block ", provider_options),
+        ("model unblock ", provider_options),
+        ("model limit-record ", provider_options),
+        ("model limit-clear ", provider_options),
+        ("model param set ", provider_options),
+        ("model param clear ", provider_options),
+        ("account add ", provider_options),
+        ("account choose ", provider_options),
+        ("account login ", provider_options),
+        ("account login-device ", ["chatgpt", "openai"]),
+        ("account import ", provider_options),
+        ("account env ", provider_options),
+        ("account use ", provider_options),
+        ("account logout ", provider_options),
+        ("account remove ", provider_options),
+        ("account block ", provider_options),
+        ("account unblock ", provider_options),
+        ("account limit-record ", provider_options),
+        ("account limit-clear ", provider_options),
+        ("account clear ", provider_options),
+        ("role configure ", role_options),
+        ("role clear ", role_options),
+        ("shell backend use ", backend_options),
+    )
+    for prefix, options in prefix_map:
+        if lowered.startswith(prefix):
+            partial = normalized[len(prefix) :]
+            return _prefixed_candidates(prefix, options, partial)
+    return []
+
+
+def _ranked_command_phrase_matches(lowered: str) -> list[str]:
+    exact: list[str] = []
+    word_boundary: list[str] = []
+    contains: list[str] = []
+    for phrase in INTERACTIVE_COMMAND_PHRASES:
+        candidate = phrase.lower()
+        if candidate == lowered:
+            exact.append(phrase)
+        elif candidate.startswith(lowered):
+            exact.append(phrase)
+        elif any(part.startswith(lowered) for part in candidate.split()):
+            word_boundary.append(phrase)
+        elif lowered and lowered in candidate:
+            contains.append(phrase)
+    ordered = exact + word_boundary + contains
+    unique: list[str] = []
+    seen: set[str] = set()
+    for item in ordered:
+        if item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return [f"{INTERACTIVE_COMMAND_PREFIX}{phrase}" for phrase in unique]
+
+
 def _interactive_completion_candidates(text: str, config: AgentConfig) -> list[str]:
     normalized = text.lstrip()
     if not normalized.startswith(INTERACTIVE_COMMAND_PREFIX):
@@ -4410,14 +4504,16 @@ def _interactive_completion_candidates(text: str, config: AgentConfig) -> list[s
         if lowered.startswith(prefix):
             partial = normalized[len(prefix) :]
             return [f"{INTERACTIVE_COMMAND_PREFIX}{prefix}{entry}" for entry in _workspace_relative_candidates(config, partial)]
+    contextual = _interactive_contextual_candidates(normalized, config)
+    if contextual:
+        return contextual
     if lowered.startswith("git show "):
         return [
             f"{INTERACTIVE_COMMAND_PREFIX}{item}"
             for item in ("git show HEAD", "git show --stat HEAD")
             if item.startswith(lowered)
         ]
-    matches = [f"{INTERACTIVE_COMMAND_PREFIX}{phrase}" for phrase in INTERACTIVE_COMMAND_PHRASES if phrase.startswith(lowered)]
-    return matches
+    return _ranked_command_phrase_matches(lowered)
 
 
 def _configure_readline(config: AgentConfig) -> bool:
