@@ -2154,6 +2154,29 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(rows["delivery.matrix_team"]["reviewer_routes"][0]["provider"], "cheap")
             self.assertEqual(rows["delivery.matrix_team"]["fallback_routes"][0]["provider"], "chatgpt")
 
+    def test_project_design_report_exposes_capability_spec_project_spec_and_gaps(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "project design")
+            json_completed = run_main_capture(root, "project design", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project design packet:", completed.stdout)
+            self.assertIn("Agent capability specification:", completed.stdout)
+            self.assertIn("Project specification:", completed.stdout)
+            self.assertIn("Clarification gaps:", completed.stdout)
+            self.assertIn("missing_project_task", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "project design")
+            self.assertIn("agent_capability_specification", payload)
+            self.assertIn("project_specification", payload)
+            self.assertIn("clarification_gaps", payload)
+            self.assertFalse(payload["ready_for_ai_design"])
+            codes = {item["code"] for item in payload["clarification_gaps"]}
+            self.assertIn("missing_project_task", codes)
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
