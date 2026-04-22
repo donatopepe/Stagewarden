@@ -246,9 +246,13 @@ Phase 4 - status remediation and preflight:
 - Add `preflight` and `preflight --json` combining doctor, sources status, roles check, model limits, git status, OS/shell capability detection, and permission posture.
 - Add explicit OS/runtime detection to status and preflight: OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
 - Shell execution must be OS-aware: prefer bash/zsh on macOS/Linux when available, use PowerShell or cmd on Windows, and reject commands that require an unavailable shell unless the agent can translate them safely.
+- Windows command execution is a required capability: the agent must execute PowerShell commands and cmd.exe commands on Windows, detect which backend is available, and choose the safest backend for the requested command.
+- Windows support must include path translation, quoting rules, environment variable syntax differences, line-ending handling, executable discovery, and clear errors when a POSIX-only command cannot be translated.
+- Add explicit shell selectors for tool actions and future CLI/session commands: `shell=bash`, `shell=zsh`, `shell=powershell`, `shell=cmd`, and `shell=auto`.
+- On Windows, `shell=auto` should prefer PowerShell for structured commands and fall back to cmd only when appropriate or explicitly requested.
 - Bash command support is required where bash exists; if bash is missing, this must be reported as a blocking preflight issue for tasks that explicitly require bash.
 - Every shell tool transcript entry must record detected OS family, selected shell backend, cwd, command, exit code, duration, and whether command translation was applied.
-- Validation: unit tests for OS detection normalization, shell backend selection, missing bash detection, command rejection on unsupported shell, and status/preflight JSON fields.
+- Validation: unit tests for OS detection normalization, shell backend selection, Windows PowerShell command construction, Windows cmd command construction, path/quote translation, missing bash detection, command rejection on unsupported shell, and status/preflight JSON fields.
 - Validation: CLI JSON schema tests and wet-run in current workspace.
 
 Phase 5 - source governance:
