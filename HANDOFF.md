@@ -248,6 +248,12 @@ Phase A - OS-aware shell runtime and preflight:
 - Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight` now reports the configured shell backend.
 - Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 242 tests.
 - Git boundary 2026-04-22: shell backend control mini-block committed locally as `f3d3c32 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
+- Implemented mini-block 2026-04-22: Windows shell enforcement now distinguishes bash-required/POSIX-required commands and rejects them early with a backend-specific error before execution.
+- Implemented mini-block 2026-04-22: `status` and `preflight` now emit Windows shell readiness remediation when bash is unavailable on a Windows runtime, making the future rejection visible before task execution.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/shell_compat.py stagewarden/tools/shell.py stagewarden/main.py` passed.
+- Validation 2026-04-22: targeted tests passed for bash-required command detection, ShellTool enforcement, Windows readiness remediation, and shell backend command flow.
+- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 245 tests.
+- Git boundary 2026-04-22: Windows shell readiness/enforcement mini-block committed locally as `4ef007f stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
 - Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
 - Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
 - On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
