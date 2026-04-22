@@ -93,8 +93,8 @@ PRINCE2 handoff behavior:
 - `roles domains` shows the PRINCE2 responsibility and context boundary for each role before assigning models.
 - `roles tree approve` persists the current PRINCE2 organization tree as the approved role-tree baseline in `.stagewarden_models.json` and `.stagewarden_handoff.json`.
 - `roles baseline` shows the approved tree baseline used for future role-routed context handoffs.
-- `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate PRINCE2 nodes to the approved tree.
-- `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns a provider-model to a specific role-tree node.
+- `role add-child` opens a guided menu, or `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate PRINCE2 nodes to the approved tree.
+- `role assign` opens a guided menu, or `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns a provider-model to a specific role-tree node.
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
 - `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, classified provider lockout reason, last known provider message, and latest routed success/failure context.
