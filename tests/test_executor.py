@@ -733,6 +733,83 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("context_exclude: business_case_detail, full_exception_plan, unrelated_project_registers", prompt)
             self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
 
+    def test_executor_selects_delegated_node_when_step_mentions_node_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.save(config.model_prefs_path)
+            tree = build_prince2_role_tree(prefs)
+            team_node = next(node for node in tree["nodes"] if isinstance(node, dict) and node["node_id"] == "delivery.team_manager")
+            delegated = dict(team_node)
+            delegated["node_id"] = "delivery.api_team"
+            delegated["label"] = "API Team Manager"
+            delegated["parent_id"] = "management.project_manager"
+            delegated["level"] = "delegated_delivery"
+            delegated["assignment"] = {
+                "role": "team_manager",
+                "node_id": "delivery.api_team",
+                "label": "API Team Manager",
+                "mode": "manual",
+                "provider": "openai",
+                "provider_model": "gpt-5.4-mini",
+                "params": {"reasoning_effort": "low"},
+                "account": None,
+                "source": "unit_test",
+            }
+            delegated["readiness"] = "assigned"
+            tree["nodes"].append(delegated)
+            baseline = {
+                "version": "1",
+                "approved_at": "2026-04-22T17:45:00",
+                "source": "unit_test_delegated",
+                "status": "approved",
+                "tree": tree,
+                "flow": build_prince2_role_flow(),
+                "check": check_prince2_role_tree(prefs),
+                "matrix": build_prince2_role_matrix(prefs),
+            }
+            project_handoff = ProjectHandoff(task="implement API work package")
+            project_handoff.sync_prince2_role_tree_baseline(baseline)
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=MemoryStore(), project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-2",
+                title="Implement delivery.api_team endpoint",
+                instruction="implement the delivery.api_team work package",
+                validation="validate",
+            )
+            outcome = executor.execute_step(
+                task="implement API feature for delivery.api_team",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual(outcome.model, "openai")
+            self.assertEqual(outcome.variant, "gpt-5.4-mini")
+            self.assertEqual(handoff.model_params_by_model["openai"]["reasoning_effort"], "low")
+            prompt = handoff.calls[0]
+            self.assertIn("active_role_node: delivery.api_team", prompt)
+            self.assertIn("active_role_parent_node: management.project_manager", prompt)
+            self.assertIn("active_role_level: delegated_delivery", prompt)
+            self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
+
     def test_executor_retries_fallback_model_with_next_account_after_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
