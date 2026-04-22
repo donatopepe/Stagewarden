@@ -165,6 +165,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("- Python: OK", completed.stdout)
             self.assertIn("- Git: OK", completed.stdout)
             self.assertIn("- PATH launcher:", completed.stdout)
+            self.assertIn("- Runtime: os=", completed.stdout)
             self.assertIn("Provider capabilities:", completed.stdout)
             self.assertIn("- chatgpt: auth=chatgpt_plan_oauth", completed.stdout)
             self.assertIn("- openai: auth=openai_api_key", completed.stdout)
@@ -182,6 +183,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "doctor")
             self.assertEqual(payload["python"]["status"], "OK")
             self.assertTrue(payload["git"]["ok"])
+            self.assertIn("runtime", payload)
+            self.assertIn(payload["runtime"]["os_family"], {"macos", "linux", "windows", "unknown"})
+            self.assertIn("recommended_shell", payload["runtime"])
+            self.assertIn("bash", payload["runtime"]["shells"])
             self.assertIn("silent_install", payload["policy"])
             self.assertFalse(payload["policy"]["silent_install"])
             providers = {entry["provider"]: entry for entry in payload["providers"]}
@@ -432,6 +437,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("models", payload)
             self.assertIn("provider_limits", payload)
             self.assertIn("permissions", payload)
+            self.assertIn("runtime", payload)
+            self.assertIn(payload["runtime"]["os_family"], {"macos", "linux", "windows", "unknown"})
+            self.assertIn("recommended_shell", payload["runtime"])
 
     def test_status_full_cli_json_exposes_dashboard_sections(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -462,6 +470,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("identity", payload)
             self.assertIn("limits", payload)
             self.assertIn("git", payload)
+            self.assertIn("runtime", payload)
+            self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("quality_gates", payload)
             self.assertTrue(payload["quality_gates"]["wet_run_required"])
             self.assertFalse(payload["quality_gates"]["dry_run_valid_checkpoint"])
