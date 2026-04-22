@@ -167,6 +167,16 @@ def command_phrases() -> tuple[str, ...]:
     return tuple(phrases)
 
 
+def command_specs_by_prefix(prefix: str) -> list[CommandSpec]:
+    lowered = prefix.strip().lower()
+    matches: list[CommandSpec] = []
+    for spec in COMMAND_SPECS:
+        phrases = tuple(phrase.lower() for phrase in spec.phrases())
+        if not lowered or any(phrase.startswith(lowered) for phrase in phrases):
+            matches.append(spec)
+    return matches
+
+
 def render_command_catalog() -> str:
     groups: dict[str, list[CommandSpec]] = {}
     for spec in COMMAND_SPECS:
