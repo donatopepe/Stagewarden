@@ -55,6 +55,17 @@ class ToolTests(unittest.TestCase):
             self.assertTrue(history.ok, history.error)
             self.assertIn("test: first", history.stdout)
 
+    def test_git_tool_ignores_runtime_settings_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = GitTool(AgentConfig(workspace_root=root))
+
+            ensured = tool.ensure_runtime_ignores()
+
+            self.assertTrue(ensured.ok, ensured.error)
+            gitignore = (root / ".gitignore").read_text(encoding="utf-8")
+            self.assertIn(".stagewarden_settings.json", gitignore)
+
     def test_file_tool_search_and_list(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

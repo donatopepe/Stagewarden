@@ -22,6 +22,7 @@ class GitTool:
         ".stagewarden_trace.ljson",
         ".stagewarden_prince2_pid.json",
         ".stagewarden_models.json",
+        ".stagewarden_settings.json",
         ".stagewarden_handoff.json",
     )
 
