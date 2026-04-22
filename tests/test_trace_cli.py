@@ -1150,6 +1150,7 @@ class TraceAndCliTests(unittest.TestCase):
             root = Path(tmp_dir)
             prefs = ModelPreferences.default()
             prefs.accounts_by_model = {"openai": ["work", "personal"]}
+            prefs.variant_by_model = {"chatgpt": "gpt-5.4"}
             prefs.save(root / ".stagewarden_models.json")
             config = AgentConfig(workspace_root=root)
 
@@ -1158,6 +1159,9 @@ class TraceAndCliTests(unittest.TestCase):
             backend_matches = _interactive_completion_candidates("/shell backend use po", config)
             account_provider_matches = _interactive_completion_candidates("/account use op", config)
             account_name_matches = _interactive_completion_candidates("/account use openai wo", config)
+            variant_matches = _interactive_completion_candidates("/model variant chatgpt gpt-5.", config)
+            param_key_matches = _interactive_completion_candidates("/model param set chatgpt", config)
+            param_value_matches = _interactive_completion_candidates("/model param set chatgpt reasoning_effort h", config)
 
             self.assertIn("/model choose chatgpt", model_matches)
             self.assertIn("/role configure project_manager", role_matches)
@@ -1165,6 +1169,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("/shell backend use powershell", backend_matches)
             self.assertIn("/account use openai", account_provider_matches)
             self.assertIn("/account use openai work", account_name_matches)
+            self.assertIn("/model variant chatgpt gpt-5.4", variant_matches)
+            self.assertIn("/model param set chatgpt reasoning_effort ", param_key_matches)
+            self.assertIn("/model param set chatgpt reasoning_effort high", param_value_matches)
 
     def test_interactive_shell_renders_slash_palette(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1190,6 +1197,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("/models", rendered)
             self.assertIn("/model use", rendered)
             self.assertIn("hint=providers[chatgpt, openai]", rendered)
+            self.assertIn("hint=provider_models[chatgpt=provider-default,codex-mini-latest,gpt-5.1-codex; openai=provider-default,gpt-5.4,gpt-5.4-mini]", rendered)
+            self.assertIn("hint=params[reasoning_effort]", rendered)
 
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
