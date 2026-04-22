@@ -257,6 +257,9 @@ Additional validation evidence:
 - Guided node assignment shows the no-context-widening rule, lets the user choose a specific node, provider, provider-model, reasoning effort, and account.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline` passed.
+- Wet-run note 2026-04-22: unprefixed interactive inputs were correctly treated as natural-language tasks and rejected by the PRINCE2 gate, confirming command/context separation.
+- Wet-run 2026-04-22: prefixed interactive flow `/roles propose`, `/role add-child`, `/role assign`, `/roles baseline`, `/exit` passed in the real workspace.
+- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 254 tests, after guided delegated node menus.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
