@@ -1993,6 +1993,9 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("Project startup role baseline applied.", completed.stdout)
+            self.assertIn("Project design packet:", completed.stdout)
+            self.assertIn("Project design gate:", completed.stdout)
+            self.assertIn("missing_project_task", completed.stdout)
             self.assertIn("project_executive", prefs.prince2_roles or {})
             self.assertIn("project_executive", handoff.prince2_roles or {})
             self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("status"), "approved")
