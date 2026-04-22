@@ -33,6 +33,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("report", "core", "Show execution report.", "report", json=True, handler="status"),
     CommandSpec("status", "core", "Show workspace, model, permission, handoff, and provider status.", "status [--full|--json]", json=True, handler="status"),
     CommandSpec("statusline", "core", "Emit compact statusline JSON.", "statusline", json=True, handler="status"),
+    CommandSpec("preflight", "core", "Run read-only readiness checks before agent work.", "preflight [--json]", json=True, handler="status"),
     CommandSpec("stream on", "core", "Enable streaming output.", "stream on", handler="session"),
     CommandSpec("stream off", "core", "Disable streaming output.", "stream off", handler="session"),
     CommandSpec("stream status", "core", "Show streaming mode.", "stream status", handler="session"),
