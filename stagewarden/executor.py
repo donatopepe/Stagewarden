@@ -398,13 +398,31 @@ class Executor:
         return "project_manager"
 
     def _role_assignment_for_step(self, prefs: ModelPreferences, role: str) -> dict[str, Any] | None:
-        assignment = prefs.prince2_role_assignment(role)
+        node = self._role_tree_node_for_role(role)
+        assignment = {}
+        if node:
+            candidate = node.get("assignment", {})
+            if isinstance(candidate, dict):
+                assignment = dict(candidate)
+        if not assignment:
+            assignment = prefs.prince2_role_assignment(role)
         if not assignment:
             return None
         provider = str(assignment.get("provider", "")).strip()
         if provider not in prefs.active_models():
             return None
         return assignment
+
+    def _role_tree_node_for_role(self, role: str) -> dict[str, Any]:
+        baseline = self.project_handoff.prince2_role_tree_baseline or {}
+        tree = baseline.get("tree", {}) if isinstance(baseline, dict) else {}
+        nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            if str(node.get("role_type", "")).strip() == role:
+                return dict(node)
+        return {}
 
     def _git_head(self) -> str | None:
         result = self.git.head()
@@ -682,14 +700,27 @@ class Executor:
 
     def _prince2_role_automation_section(self, task: str, step: PlanStep) -> str:
         active_role = self._role_for_step(task=task, step=step)
+        active_node = self._role_tree_node_for_role(active_role)
+        context_rule = active_node.get("context_rule", {}) if active_node else {}
+        context_include = context_rule.get("include", []) if isinstance(context_rule, dict) else []
+        context_exclude = context_rule.get("exclude", []) if isinstance(context_rule, dict) else []
         lines = [
             f"- active_role: {active_role}",
+            f"- active_role_node: {active_node.get('node_id', 'unbaselined') if active_node else 'unbaselined'}",
+            f"- active_role_parent_node: {active_node.get('parent_id') or 'none' if active_node else 'none'}",
+            f"- active_role_level: {active_node.get('level', 'unbaselined') if active_node else 'unbaselined'}",
             f"- active_role_responsibility: {PRINCE2_ROLE_AUTOMATION_RULES.get(active_role, 'controlled project work')}",
+            f"- active_node_accountability_boundary: {active_node.get('accountability_boundary', 'static role fallback') if active_node else 'static role fallback'}",
+            f"- active_node_delegated_authority: {active_node.get('delegated_authority', 'static role fallback') if active_node else 'static role fallback'}",
             "- automation_rule: plan via Project Manager, deliver via Team Manager, validate via Project Assurance, escalate exceptions or tolerance breaches via Change Authority.",
             "- governance_rule: do not bypass accountability; record evidence in handoff and use Project Executive for business/cost/benefit stop-go decisions.",
             f"- context_scope: {self._role_scope_description(active_role)}",
+            f"- context_include: {', '.join(str(item) for item in context_include) if context_include else 'static role fallback'}",
+            f"- context_exclude: {', '.join(str(item) for item in context_exclude) if context_exclude else 'static role fallback'}",
         ]
-        assignment = self.project_handoff.prince2_roles.get(active_role, {})
+        assignment = active_node.get("assignment", {}) if active_node else {}
+        if not isinstance(assignment, dict) or not assignment:
+            assignment = self.project_handoff.prince2_roles.get(active_role, {})
         if assignment:
             params = assignment.get("params", {})
             params_text = ",".join(f"{key}={value}" for key, value in sorted(params.items())) if isinstance(params, dict) else ""
@@ -783,6 +814,9 @@ class Executor:
         }
 
     def _role_scope_description(self, role: str) -> str:
+        node = self._role_tree_node_for_role(role)
+        if node.get("context_scope"):
+            return str(node["context_scope"])
         return PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, "controlled project work")
 
     def _model_context_files_section(self) -> str:

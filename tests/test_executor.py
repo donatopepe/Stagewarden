@@ -12,6 +12,7 @@ from stagewarden.memory import MemoryStore
 from stagewarden.modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until
 from stagewarden.planner import PlanStep
 from stagewarden.project_handoff import ProjectHandoff
+from stagewarden.role_tree import build_prince2_role_flow, build_prince2_role_matrix, build_prince2_role_tree, check_prince2_role_tree
 from stagewarden.router import ModelRouter
 from stagewarden.tools.git import GitTool
 
@@ -669,6 +670,68 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("Risks:\nOmitted by PRINCE2 role scope.", handoff.calls[0])
             self.assertIn("Exception plan:\nOmitted by PRINCE2 role scope.", handoff.calls[0])
             self.assertNotIn("business risk outside team domain", handoff.calls[0])
+
+    def test_executor_prefers_approved_role_tree_baseline_assignment_and_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "team_manager",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="baseline_source",
+            )
+            baseline = {
+                "version": "1",
+                "approved_at": "2026-04-22T17:30:00",
+                "source": "unit_test",
+                "status": "approved",
+                "tree": build_prince2_role_tree(prefs),
+                "flow": build_prince2_role_flow(),
+                "check": check_prince2_role_tree(prefs),
+                "matrix": build_prince2_role_matrix(prefs),
+            }
+            prefs.clear_prince2_role_assignment("team_manager")
+            prefs.save(config.model_prefs_path)
+
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"])
+            project_handoff = ProjectHandoff(task="implement feature")
+            project_handoff.sync_prince2_role_tree_baseline(baseline)
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(id="step-2", title="Implement feature", instruction="implement requested code change", validation="validate")
+            outcome = executor.execute_step(task="implement feature", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual(outcome.model, "openai")
+            self.assertEqual(outcome.variant, "gpt-5.4-mini")
+            self.assertEqual(handoff.model_params_by_model["openai"]["reasoning_effort"], "medium")
+            prompt = handoff.calls[0]
+            self.assertIn("active_role_node: delivery.team_manager", prompt)
+            self.assertIn("active_role_parent_node: management.project_manager", prompt)
+            self.assertIn("active_role_level: delivery", prompt)
+            self.assertIn("active_node_accountability_boundary: delivery of assigned work package products within agreed tolerances", prompt)
+            self.assertIn("context_include: assigned_work_package, product_descriptions, quality_criteria, delivery_lessons, team_risks", prompt)
+            self.assertIn("context_exclude: business_case_detail, full_exception_plan, unrelated_project_registers", prompt)
+            self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
 
     def test_executor_retries_fallback_model_with_next_account_after_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
