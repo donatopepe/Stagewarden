@@ -1293,6 +1293,35 @@ def _render_project_design(agent: Agent, config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPreferences) -> str:
+    design = _project_design_report(agent, config)
+    prefs.apply_prince2_role_proposal()
+    _save_model_preferences(config, prefs)
+    _approve_prince2_role_tree_baseline(config, prefs, source="project_start")
+    _apply_model_preferences(agent, config)
+    sections = [
+        "Project startup role baseline applied.",
+        _render_project_design(agent, config),
+    ]
+    gaps = design.get("clarification_gaps", [])
+    if isinstance(gaps, list) and gaps:
+        warning_lines = [
+            "Project design gate:",
+            "- warning: project start proceeded with open clarification gaps; treat this baseline as provisional until the gaps are resolved.",
+        ]
+        for item in gaps:
+            if isinstance(item, dict):
+                warning_lines.append(f"- {item.get('code', 'gap')}: {item.get('message', 'missing')}")
+        sections.append("\n".join(warning_lines))
+    sections.extend(
+        [
+            _render_prince2_roles(config),
+            _render_prince2_role_tree_baseline(config),
+        ]
+    )
+    return "\n\n".join(sections)
+
+
 def _role_options() -> list[tuple[str, str]]:
     return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
 
@@ -1692,16 +1721,7 @@ def _handle_role_command(
         return None
     if parts[0] == "project" and len(parts) == 2 and parts[1] == "start":
         prefs = _load_model_preferences(config)
-        prefs.apply_prince2_role_proposal()
-        _save_model_preferences(config, prefs)
-        _approve_prince2_role_tree_baseline(config, prefs, source="project_start")
-        _apply_model_preferences(agent, config)
-        return (
-            "Project startup role baseline applied.\n"
-            + _render_prince2_roles(config)
-            + "\n"
-            + _render_prince2_role_tree_baseline(config)
-        )
+        return _render_project_start(agent, config, prefs)
     if parts[0] == "roles":
         prefs = _load_model_preferences(config)
         if len(parts) == 1:
