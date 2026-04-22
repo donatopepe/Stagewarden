@@ -1995,6 +1995,36 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Project startup role baseline applied.", completed.stdout)
             self.assertIn("project_executive", prefs.prince2_roles or {})
             self.assertIn("project_executive", handoff.prince2_roles or {})
+            self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("status"), "approved")
+            self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("status"), "approved")
+            self.assertIn("PRINCE2 role-tree baseline:", completed.stdout)
+
+    def test_roles_tree_approve_persists_role_tree_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            propose = run_main_capture(root, "roles propose")
+            completed = run_main_capture(root, "roles tree approve")
+            baseline = run_main_capture(root, "roles baseline")
+            json_completed = run_main_capture(root, "roles baseline", "--json")
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+
+            self.assertEqual(propose.returncode, 0, propose.stderr)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            self.assertIn("Approved PRINCE2 role-tree baseline.", completed.stdout)
+            self.assertIn("PRINCE2 role-tree baseline:", baseline.stdout)
+            self.assertIn("status: approved", baseline.stdout)
+            self.assertIn("rule: this approved role tree is the governance baseline", baseline.stdout)
+            self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "roles_tree_approve")
+            self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "roles_tree_approve")
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles baseline")
+            self.assertEqual(payload["status"], "approved")
+            self.assertEqual(payload["baseline"]["tree"]["command"], "roles tree")
+            self.assertEqual(payload["baseline"]["matrix"]["command"], "roles matrix")
 
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

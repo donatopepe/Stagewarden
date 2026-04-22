@@ -251,6 +251,7 @@ class ModelPreferences:
     provider_limit_snapshot_by_account: dict[str, dict[str, object]] | None = None
     params_by_model: dict[str, dict[str, str]] | None = None
     prince2_roles: dict[str, dict[str, object]] | None = None
+    prince2_role_tree_baseline: dict[str, object] | None = None
 
     @classmethod
     def default(cls) -> "ModelPreferences":
@@ -269,6 +270,7 @@ class ModelPreferences:
             provider_limit_snapshot_by_account={},
             params_by_model={},
             prince2_roles={},
+            prince2_role_tree_baseline={},
         )
 
     def normalize(self) -> "ModelPreferences":
@@ -347,6 +349,7 @@ class ModelPreferences:
             for normalized in [self._normalize_role_assignment(str(role), assignment)]
             if normalized
         }
+        prince2_role_tree_baseline = self._normalize_role_tree_baseline(self.prince2_role_tree_baseline or {})
         self.enabled_models = enabled
         self.preferred_model = preferred
         self.blocked_until_by_model = blocked
@@ -361,6 +364,7 @@ class ModelPreferences:
         self.provider_limit_snapshot_by_account = provider_limit_snapshot_by_account
         self.params_by_model = params_by_model
         self.prince2_roles = prince2_roles
+        self.prince2_role_tree_baseline = prince2_role_tree_baseline
         return self
 
     def is_blocked(self, model: str, at_time: datetime | None = None) -> bool:
@@ -611,6 +615,17 @@ class ModelPreferences:
             )
         return proposals
 
+    def set_prince2_role_tree_baseline(self, baseline: dict[str, object]) -> None:
+        normalized = self._normalize_role_tree_baseline(baseline)
+        if not normalized:
+            raise ValueError("Role tree baseline must be a JSON object.")
+        self.prince2_role_tree_baseline = normalized
+        self.normalize()
+
+    def clear_prince2_role_tree_baseline(self) -> None:
+        self.prince2_role_tree_baseline = {}
+        self.normalize()
+
     def as_dict(self) -> dict[str, object]:
         return {
             "_format": "stagewarden_model_preferences",
@@ -629,6 +644,7 @@ class ModelPreferences:
             "provider_limit_snapshot_by_account": dict(self.provider_limit_snapshot_by_account or {}),
             "params_by_model": {model: dict(params) for model, params in (self.params_by_model or {}).items()},
             "prince2_roles": {role: dict(assignment) for role, assignment in (self.prince2_roles or {}).items()},
+            "prince2_role_tree_baseline": dict(self.prince2_role_tree_baseline or {}),
         }
 
     def save(self, path: Path) -> None:
@@ -687,6 +703,9 @@ class ModelPreferences:
                 for key, value in payload.get("prince2_roles", {}).items()
                 if isinstance(value, dict)
             },
+            prince2_role_tree_baseline=dict(payload.get("prince2_role_tree_baseline", {}))
+            if isinstance(payload.get("prince2_role_tree_baseline", {}), dict)
+            else {},
         ).normalize()
 
     def _validate_model(self, model: str) -> None:
@@ -754,6 +773,20 @@ class ModelPreferences:
             "account": clean_account,
             "source": str(raw.get("source", mode)).strip() or mode,
         }
+
+    def _normalize_role_tree_baseline(self, raw: object) -> dict[str, object]:
+        if not isinstance(raw, dict):
+            return {}
+        normalized: dict[str, object] = {}
+        for key in ("approved_at", "source", "status", "version"):
+            value = raw.get(key)
+            if value is not None:
+                normalized[key] = str(value).strip()[:240]
+        for key in ("tree", "flow", "check", "matrix"):
+            value = raw.get(key)
+            if isinstance(value, dict):
+                normalized[key] = value
+        return normalized
 
     def _validate_prince2_role(self, role: str) -> None:
         if role not in PRINCE2_ROLE_IDS:

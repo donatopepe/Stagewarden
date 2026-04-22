@@ -91,6 +91,8 @@ PRINCE2 handoff behavior:
 - PRINCE2 role automation scopes model context by role: Project Manager sees control context, Team Manager sees only the current work package/product-delivery domain, Project Assurance sees validation/risk/issue/quality evidence, Change Authority sees exception/change/tolerance context, and Project Executive sees business justification and stop-go context.
 - `project start`, `roles setup`, and `role configure [role]` assign provider, provider-model, reasoning parameters, and account per PRINCE2 role.
 - `roles domains` shows the PRINCE2 responsibility and context boundary for each role before assigning models.
+- `roles tree approve` persists the current PRINCE2 organization tree as the approved role-tree baseline in `.stagewarden_models.json` and `.stagewarden_handoff.json`.
+- `roles baseline` shows the approved tree baseline used for future role-routed context handoffs.
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
 - `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, classified provider lockout reason, last known provider message, and latest routed success/failure context.

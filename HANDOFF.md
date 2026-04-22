@@ -218,6 +218,14 @@ Additional validation evidence:
 - `README.md` now links to Italian documentation and documents `/slash`, slash JSON output, contextual completion, guided menu context, and `role configure` role-scope visibility.
 - Added `README_IT.md` with Italian setup, shell usage, slash UX, model/provider commands, PRINCE2 handoff behaviour, validation rules, JSON examples, and credits.
 - Validation 2026-04-22: `python3 -m stagewarden.main "slash mo" --json` passed as a wet-run after documentation update.
+- Phase B mini-block started: PRINCE2 role-tree baseline can now be approved and persisted.
+- `project start`, `roles propose`, and `roles setup` now persist an approved role-tree baseline after applying role assignments.
+- Added `roles tree approve` to approve the current PRINCE2 role tree explicitly.
+- Added `roles baseline` and `roles baseline --json` to inspect the persisted baseline.
+- The baseline stores tree, authorized flow, readiness check, matrix, approval timestamp, source, status, and version in `.stagewarden_models.json`.
+- `.stagewarden_handoff.json` now syncs the same role-tree baseline so future role-routed handoffs have an implicit governance tree without manual resume.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/modelprefs.py stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_project_start_applies_role_baseline` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:

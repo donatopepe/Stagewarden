@@ -81,6 +81,8 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/resume context` mostra ultimo tentativo modello, route, evidenza tool e snapshot git.
 - `/roles domains` mostra responsabilita e perimetro dei ruoli.
 - `/role configure [role]` mostra responsabilita PRINCE2 e scope del ruolo prima di assegnare provider/modello/account.
+- `/roles tree approve` salva l'albero PRINCE2 corrente come baseline approvata in `.stagewarden_models.json` e `.stagewarden_handoff.json`.
+- `/roles baseline` mostra la baseline approvata che guidera i futuri handoff di contesto per ruolo.
 
 Il contesto passato ai modelli e limitato al dominio del ruolo PRINCE2 assegnato.
 

@@ -62,6 +62,7 @@ class ProjectHandoff:
     exception_plan: list[str] = field(default_factory=list)
     implementation_backlog: list[dict[str, str]] = field(default_factory=list)
     prince2_roles: dict[str, dict[str, Any]] = field(default_factory=dict)
+    prince2_role_tree_baseline: dict[str, Any] = field(default_factory=dict)
     updated_at: str = field(default_factory=_utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
 
@@ -160,6 +161,14 @@ class ProjectHandoff:
                 "source": str(assignment.get("source", "manual")).strip() or "manual",
             }
         self.prince2_roles = normalized
+        self.updated_at = _utc_now()
+
+    def sync_prince2_role_tree_baseline(self, baseline: dict[str, Any]) -> None:
+        if not isinstance(baseline, dict):
+            self.prince2_role_tree_baseline = {}
+            self.updated_at = _utc_now()
+            return
+        self.prince2_role_tree_baseline = dict(baseline)
         self.updated_at = _utc_now()
 
     def begin_step(
@@ -296,6 +305,7 @@ class ProjectHandoff:
             f"quality:{len(self.quality_register)} lessons:{len(self.lessons_log)} "
             f"backlog:{len(self.implementation_backlog)}",
             f"prince2_roles={len(self.prince2_roles)}",
+            f"prince2_role_tree_baseline={'approved' if self.prince2_role_tree_baseline else 'missing'}",
         ]
         for role, assignment in sorted(self.prince2_roles.items()):
             lines.append(
@@ -568,6 +578,7 @@ class ProjectHandoff:
             "exception_plan": list(self.exception_plan),
             "implementation_backlog": list(self.implementation_backlog),
             "prince2_roles": {role: dict(assignment) for role, assignment in self.prince2_roles.items()},
+            "prince2_role_tree_baseline": dict(self.prince2_role_tree_baseline),
             "updated_at": self.updated_at,
             "entries": [entry.as_dict() for entry in self.entries],
         }
@@ -834,6 +845,9 @@ class ProjectHandoff:
                 for key, value in payload.get("prince2_roles", {}).items()
                 if isinstance(value, dict)
             },
+            prince2_role_tree_baseline=dict(payload.get("prince2_role_tree_baseline", {}))
+            if isinstance(payload.get("prince2_role_tree_baseline", {}), dict)
+            else {},
             updated_at=str(payload.get("updated_at", _utc_now())),
         )
         for item in payload.get("entries", []):
