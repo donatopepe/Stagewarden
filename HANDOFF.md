@@ -229,6 +229,11 @@ Additional validation evidence:
 - Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline"` passed and rendered the missing-baseline guidance.
 - Wet-run 2026-04-22: `python3 -m stagewarden.main "roles tree approve" --json` passed and persisted the baseline in the real workspace.
 - Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 250 tests, after role-tree baseline persistence.
+- Phase B mini-block continued: executor now reads the approved role-tree baseline before falling back to the flat role map.
+- Role-routed prompts now include active node id, parent node, level, accountability boundary, delegated authority, context include rules, and context exclude rules from the approved baseline.
+- Baseline node assignment can route provider/provider-model/params even when the flat `prince2_roles` map is absent, preserving implicit PRINCE2 governance handoff.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/executor.py tests/test_executor.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_prefers_approved_role_tree_baseline_assignment_and_context tests.test_executor.ExecutorTests.test_executor_routes_step_through_configured_prince2_role` passed.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
