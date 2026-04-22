@@ -6,6 +6,7 @@ from pathlib import Path
 
 from stagewarden.config import AgentConfig
 from stagewarden.permissions import PermissionPolicy, PermissionSettings
+from stagewarden.runtime_env import select_shell_backend
 from stagewarden.tools.git import GitTool
 from stagewarden.tools.files import FileTool
 from stagewarden.tools.shell import ShellTool
@@ -109,6 +110,44 @@ class ToolTests(unittest.TestCase):
             tool.is_windows = True
             tool._windows_shell = lambda: "cmd"  # type: ignore[method-assign]
             self.assertEqual(tool._command_args("dir"), ["cmd", "/d", "/s", "/c", "dir"])
+
+    def test_runtime_selects_windows_powershell_by_default(self) -> None:
+        capabilities = {
+            "os_family": "windows",
+            "default_shell": "",
+            "recommended_shell": "powershell",
+            "shells": {
+                "powershell": {"available": True, "path": "pwsh", "version": "7.4.0"},
+                "cmd": {"available": True, "path": "cmd", "version": ""},
+                "bash": {"available": False, "path": None, "version": ""},
+                "zsh": {"available": False, "path": None, "version": ""},
+            },
+        }
+
+        selected = select_shell_backend("auto", capabilities)
+
+        self.assertTrue(selected["available"])
+        self.assertEqual(selected["selected"], "powershell")
+        self.assertEqual(selected["executable"], "pwsh")
+
+    def test_runtime_reports_missing_explicit_shell(self) -> None:
+        capabilities = {
+            "os_family": "windows",
+            "default_shell": "",
+            "recommended_shell": "cmd",
+            "shells": {
+                "powershell": {"available": False, "path": None, "version": ""},
+                "cmd": {"available": True, "path": "cmd", "version": ""},
+                "bash": {"available": False, "path": None, "version": ""},
+                "zsh": {"available": False, "path": None, "version": ""},
+            },
+        }
+
+        selected = select_shell_backend("bash", capabilities)
+
+        self.assertFalse(selected["available"])
+        self.assertEqual(selected["selected"], "bash")
+        self.assertIn("not available", selected["reason"])
 
     def test_shell_tool_builds_unix_session_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

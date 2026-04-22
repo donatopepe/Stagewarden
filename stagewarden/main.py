@@ -53,6 +53,7 @@ from .role_tree import (
     render_prince2_role_matrix,
     render_prince2_role_tree,
 )
+from .runtime_env import detect_runtime_capabilities
 from .project_handoff import ProjectHandoff
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .secrets import SecretStore
@@ -1524,6 +1525,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "cwd": status["workspace"],
             "files": status["files"],
         },
+        "runtime": status["runtime"],
         "permissions": {
             "mode": workspace_settings["mode"],
             "allow": workspace_settings["allow"],
@@ -1584,9 +1586,13 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
         lines.append(f"- {item['provider']}: {item['status']}{blocked}{reason}")
     lines.extend(
         [
-            "Workspace:",
-            f"- cwd: {report['workspace']['cwd']}",
-            "Permissions:",
+        "Workspace:",
+        f"- cwd: {report['workspace']['cwd']}",
+        "Runtime:",
+        f"- os_family: {report['runtime']['os_family']}",
+        f"- recommended_shell: {report['runtime']['recommended_shell']}",
+        f"- default_shell: {report['runtime']['default_shell'] or 'none'}",
+        "Permissions:",
             f"- mode: {report['permissions']['mode']}",
             f"- allow: {len(report['permissions']['allow'])}",
             f"- ask: {len(report['permissions']['ask'])}",
@@ -1867,6 +1873,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- model_config: {config.model_prefs_path.name}",
         _render_model_status(agent, config),
         _render_provider_limit_status(agent, config),
+        _render_runtime_status(config),
         _render_resume_context(config),
         _render_permissions(config),
         "PRINCE2 roles:",
@@ -1876,6 +1883,27 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         handoff.summary(),
         handoff.rendered_operational_posture(),
     ]
+    return "\n".join(lines)
+
+
+def _render_runtime_status(config: AgentConfig) -> str:
+    runtime = detect_runtime_capabilities(config.workspace_root)
+    shells = runtime["shells"]
+    lines = [
+        "Runtime:",
+        f"- os_family: {runtime['os_family']}",
+        f"- platform: {runtime['platform_system']} {runtime['platform_release']} {runtime['platform_machine']}",
+        f"- default_shell: {runtime['default_shell'] or 'none'}",
+        f"- recommended_shell: {runtime['recommended_shell']}",
+        f"- path_separator: {runtime['path_separator']}",
+        f"- line_ending: {runtime['line_ending']}",
+    ]
+    for name in ("bash", "zsh", "powershell", "cmd"):
+        info = shells.get(name, {}) if isinstance(shells, dict) else {}
+        state = "available" if info.get("available") else "unavailable"
+        path = info.get("path") or "none"
+        version = f" version={info['version']}" if info.get("version") else ""
+        lines.append(f"- {name}: {state} path={path}{version}")
     return "\n".join(lines)
 
 
@@ -1956,6 +1984,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "models": _model_status_report(agent, config),
         "provider_limits": _provider_limit_status_report(agent, config),
+        "runtime": detect_runtime_capabilities(config.workspace_root),
         "roles": _prince2_roles_report(config),
         "permissions": _permissions_report(config),
         "handoff": {
@@ -2149,6 +2178,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "git": {},
         "path_launcher": {},
         "repository": {},
+        "runtime": detect_runtime_capabilities(config.workspace_root),
         "providers": [],
         "policy": {
             "silent_install": False,
@@ -2239,6 +2269,7 @@ def _render_doctor(config: AgentConfig) -> str:
     git_info = report["git"]
     path_info = report["path_launcher"]
     repo_info = report["repository"]
+    runtime_info = report["runtime"]
     providers = report["providers"]
     policy_info = report["policy"]
     lines = ["Stagewarden doctor:"]
@@ -2255,6 +2286,10 @@ def _render_doctor(config: AgentConfig) -> str:
     else:
         lines.append(f"- PATH launcher: WARN {path_info['message']}")
     lines.append(f"- Repository: {repo_info['status']} {repo_info['message']}")
+    lines.append(
+        f"- Runtime: os={runtime_info['os_family']} shell={runtime_info['recommended_shell']} "
+        f"default={runtime_info['default_shell'] or 'none'} line_ending={runtime_info['line_ending']}"
+    )
     lines.append("Provider capabilities:")
     for provider in providers:
         lines.append(
