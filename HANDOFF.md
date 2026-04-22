@@ -289,6 +289,14 @@ Additional validation evidence:
 - Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_start_applies_role_baseline tests.test_trace_cli.TraceAndCliTests.test_project_design_report_exposes_capability_spec_project_spec_and_gaps` passed.
 - Wet-run 2026-04-22: `python3 -m stagewarden.main "project start"` passed in the real workspace and rendered the design packet before the approved baseline.
 - Wet-run 2026-04-22: `python3 -m stagewarden.main "project start" --json` passed in the real workspace.
+- Phase B mini-block continued: added structured `project brief` persistence inside `.stagewarden_handoff.json`.
+- `project brief`, `project brief set <field> <value>`, and `project brief clear [field]` now manage the explicit project-specification fields that future AI-assisted tree design must consume.
+- `project design` now embeds the persisted brief under `project_specification.brief` and turns missing key brief fields into explicit clarification gaps.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_design_report_exposes_capability_spec_project_spec_and_gaps tests.test_trace_cli.TraceAndCliTests.test_project_brief_commands_persist_and_feed_project_design` passed.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "project brief set objective Build a proportional PRINCE2 role tree"` passed in the real workspace.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "project brief"` and `python3 -m stagewarden.main "project brief" --json` passed in the real workspace.
+- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 259 tests, after project-brief adoption.
 
 Next implementation roadmap:
 
@@ -396,7 +404,8 @@ Phase B - PRINCE2 role tree routing:
 - Completed: top-level baseline matrix command `roles baseline matrix` makes delegated nodes and route pools visible without opening the full `roles baseline --json` payload.
 - Completed: `project design` now emits the explicit capability/project packet and clarification-gap surface required before AI-assisted tree design.
 - Completed: `project start` now invokes the project-design stage first and exposes any open clarification gaps before baseline application.
-- Next: replace the static automatic `project start` baseline with a proportional AI-assisted organization-tree proposal driven by project scale, delivery mode, uncertainty, supplier/user split, assurance needs, and tolerance/risk level.
+- Completed: structured project-brief fields are now persisted in runtime handoff and exposed inside `project design`.
+- Next: replace the static automatic `project start` baseline with a proportional AI-assisted organization-tree proposal driven by project scale, delivery mode, uncertainty, supplier/user split, assurance needs, tolerance/risk level, and the structured project brief.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
 - Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:
