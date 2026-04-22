@@ -950,6 +950,35 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["model_failures"], 1)
             self.assertEqual(payload["transcript_entries"], 1)
 
+    def test_preflight_cli_json_output_is_machine_readable_and_read_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "preflight", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "preflight")
+            self.assertIn("ready", payload)
+            self.assertIn("doctor", payload)
+            self.assertIn("runtime", payload)
+            self.assertIn("git", payload)
+            self.assertIn("roles_check", payload)
+            self.assertIn("provider_limits", payload)
+            self.assertIn("sources", payload)
+            self.assertIn("remediations", payload)
+            self.assertFalse((root / ".git").exists())
+
+    def test_preflight_cli_renders_remediations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "preflight")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Stagewarden preflight:", completed.stdout)
+            self.assertIn("- ready:", completed.stdout)
+            self.assertIn("Remediations:", completed.stdout)
+            self.assertIn("roles", completed.stdout)
+
     def test_report_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1042,6 +1071,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles flow [--json]", rendered.stdout)
             self.assertIn("roles matrix [--json]", rendered.stdout)
             self.assertIn("sources", rendered.stdout)
+            self.assertIn("preflight [--json]", rendered.stdout)
             self.assertIn("commands [--json]", rendered.stdout)
 
             completed = run_main_capture(root, "commands", "--json")
@@ -1050,6 +1080,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "commands")
             by_name = {item["name"]: item for item in payload["commands"]}
             self.assertIn("commands", by_name)
+            self.assertIn("preflight", by_name)
             self.assertIn("status", by_name)
             self.assertIn("roles domains", by_name)
             self.assertIn("roles tree", by_name)
@@ -1059,6 +1090,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("sources", by_name)
             self.assertEqual(by_name["commands"]["group"], "core")
             self.assertTrue(by_name["commands"]["json"])
+            self.assertTrue(by_name["preflight"]["json"])
             self.assertEqual(by_name["roles domains"]["handler"], "roles")
             self.assertEqual(by_name["roles tree"]["handler"], "roles")
             self.assertEqual(by_name["roles check"]["handler"], "roles")

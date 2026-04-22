@@ -81,6 +81,7 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
     "status",
     "status full",
     "statusline",
+    "preflight",
     "stream on",
     "stream off",
     "stream status",
@@ -433,7 +434,7 @@ def _interactive_help_overview() -> str:
             "All shell commands start with `/`. Any input without `/` is sent to the agent as a task.",
             "",
             "Topics:",
-            "- /help core: exit, reset, overview, health, report, status, stream, sessions, transcript",
+            "- /help core: exit, reset, overview, health, report, status, preflight, stream, sessions, transcript",
             "- /help models: provider routing, provider models, blocks",
             "- /help accounts: provider profiles, login, env vars, usage limits",
             "- /help permissions: plan/auto modes, allow/ask/deny rules",
@@ -446,6 +447,7 @@ def _interactive_help_overview() -> str:
             "- stagewarden> /overview",
             "- stagewarden> /health",
             "- stagewarden> /report",
+            "- stagewarden> /preflight",
             "- stagewarden> /stream status",
             "- stagewarden> /help models",
             "- stagewarden> /models",
@@ -495,6 +497,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- status",
             "- status full",
             "- statusline",
+            "- preflight",
             "- auth status <chatgpt|claude>",
             "- stream on | stream off | stream status",
             "- transcript | trace",
@@ -512,6 +515,7 @@ def _interactive_help_topic(topic: str) -> str:
             "- stagewarden> status",
             "- stagewarden> status full",
             "- stagewarden> statusline",
+            "- stagewarden> preflight",
             "- stagewarden> auth status chatgpt",
             "- stagewarden> stream off",
             "- stagewarden> doctor",
@@ -2033,6 +2037,111 @@ def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "model_calls": usage["totals"]["calls"],
         "transcript_entries": transcript["count"],
     }
+
+
+def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    doctor = _doctor_report(config)
+    git = GitTool(config)
+    git_status = git.status()
+    git_head = git.head()
+    git_dirty = git.status_porcelain()
+    role_check = _prince2_role_check_report(config)
+    provider_limits = _provider_limit_status_report(agent, config)
+    sources = _sources_status_report(config)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    stage_view = handoff.stage_view()
+    remediations = _preflight_remediations(
+        doctor=doctor,
+        git_status=git_status,
+        git_dirty=git_dirty,
+        role_check=role_check,
+        provider_limits=provider_limits,
+        sources=sources,
+        stage_view=stage_view,
+    )
+    ready = not any(item["severity"] == "blocker" for item in remediations)
+    return {
+        "command": "preflight",
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "ready": ready,
+        "doctor": doctor,
+        "runtime": doctor["runtime"],
+        "git": {
+            "ok": git_status.ok,
+            "head": git_head.stdout.strip() if git_head.ok else None,
+            "status": git_status.stdout.strip() if git_status.ok else git_status.error,
+            "dirty": bool(git_dirty.ok and git_dirty.stdout.strip()),
+            "dirty_paths": git_dirty.stdout.splitlines() if git_dirty.ok and git_dirty.stdout else [],
+        },
+        "roles_check": role_check,
+        "provider_limits": provider_limits,
+        "sources": sources,
+        "permissions": _permissions_report(config),
+        "handoff": {
+            "summary": handoff.summary(),
+            "stage_view": stage_view,
+        },
+        "remediations": remediations,
+    }
+
+
+def _preflight_remediations(
+    *,
+    doctor: dict[str, object],
+    git_status: object,
+    git_dirty: object,
+    role_check: dict[str, object],
+    provider_limits: dict[str, object],
+    sources: dict[str, object],
+    stage_view: dict[str, object],
+) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    if not doctor.get("python", {}).get("ok"):  # type: ignore[union-attr]
+        items.append({"severity": "blocker", "code": "python", "action": "Install Python 3.11+ and rerun `/preflight`."})
+    if not doctor.get("git", {}).get("ok"):  # type: ignore[union-attr]
+        items.append({"severity": "blocker", "code": "git", "action": "Install git; Stagewarden requires git for every project."})
+    if not getattr(git_status, "ok", False):
+        items.append({"severity": "warning", "code": "git_status", "action": "Run `/doctor` and confirm this folder is a git worktree."})
+    if getattr(git_dirty, "ok", False) and getattr(git_dirty, "stdout", "").strip():
+        items.append({"severity": "warning", "code": "dirty_git", "action": "Review `/git status`; commit or let Stagewarden checkpoint before execution."})
+    if role_check.get("status") == "error":
+        items.append({"severity": "warning", "code": "roles", "action": "Run `/roles setup` or `/roles propose` before PRINCE2 role-routed work."})
+    blocked = [
+        str(provider["provider"])
+        for provider in provider_limits.get("providers", [])
+        if isinstance(provider, dict) and provider.get("blocked_until")
+    ]
+    if blocked:
+        items.append({"severity": "warning", "code": "provider_limits", "action": f"Blocked providers: {', '.join(blocked)}. Run `/model limits` and choose another provider or wait."})
+    if not sources.get("ok"):
+        items.append({"severity": "warning", "code": "sources", "action": "Run `/sources status` before source-derived implementation work."})
+    if stage_view.get("recovery_state") != "none":
+        items.append({"severity": "warning", "code": "recovery", "action": "Review `/exception` and close recovery lane before normal-stage work."})
+    return items
+
+
+def _render_preflight(agent: Agent, config: AgentConfig) -> str:
+    report = _preflight_report(agent, config)
+    runtime = report["runtime"]
+    git = report["git"]
+    role_check = report["roles_check"]
+    lines = [
+        "Stagewarden preflight:",
+        f"- ready: {str(report['ready']).lower()}",
+        f"- runtime: os={runtime['os_family']} shell={runtime['recommended_shell']} default={runtime['default_shell'] or 'none'}",
+        f"- git: ok={str(git['ok']).lower()} dirty={str(git['dirty']).lower()} head={git['head'] or 'none'}",
+        f"- roles_check: {role_check['status']} errors={role_check['summary']['errors']} warnings={role_check['summary']['warnings']}",
+        f"- providers: {len(report['provider_limits']['providers'])}",
+        f"- sources: {'ok' if report['sources']['ok'] else 'warn'} count={report['sources']['count']}",
+        f"- stage_health: {report['handoff']['stage_view']['stage_health']}",
+        "Remediations:",
+    ]
+    if report["remediations"]:
+        for item in report["remediations"]:
+            lines.append(f"- {item['severity']} {item['code']}: {item['action']}")
+    else:
+        lines.append("- none")
+    return "\n".join(lines)
 
 
 def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
@@ -3597,6 +3706,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _render_status(agent, config)
     if parts[0] == "statusline":
         return dumps_ascii(_statusline_report(agent, config), indent=2)
+    if parts[0] == "preflight":
+        return _render_preflight(agent, config)
     if len(parts) == 3 and parts[0] == "auth" and parts[1] == "status":
         return _render_auth_status(parts[2])
     if parts[0] == "overview":
@@ -4427,6 +4538,13 @@ def main() -> int:
     if task == "statusline":
         agent = _configure_readonly_agent_for_workspace(config)
         print(dumps_ascii(_statusline_report(agent, config), indent=2))
+        return 0
+    if task == "preflight":
+        agent = _configure_readonly_agent_for_workspace(config)
+        if args.json:
+            print(dumps_ascii(_preflight_report(agent, config), indent=2))
+        else:
+            print(_render_preflight(agent, config))
         return 0
     if task.startswith("auth status "):
         provider = task.split(maxsplit=2)[2]
