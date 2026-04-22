@@ -242,6 +242,10 @@ Additional validation evidence:
 - Baseline checks and matrix can now be recomputed from an arbitrary baseline tree payload, not only from the static flat PRINCE2 layout.
 - Validation 2026-04-22: `python3 -m py_compile stagewarden/role_tree.py stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
 - Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline` passed.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "role add-child management.project_manager team_manager delivery.docs_team_20260422"` passed in the real workspace.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "role assign delivery.docs_team_20260422 local provider-default"` passed in the real workspace.
+- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline" --json` passed and showed the delegated node with assigned local provider.
+- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 252 tests, after delegated node management.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
 
 Next implementation roadmap:
