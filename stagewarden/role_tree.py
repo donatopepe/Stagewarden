@@ -43,6 +43,27 @@ class RoleTreeNode:
         return payload
 
 
+@dataclass(frozen=True)
+class RoleFlowEdge:
+    edge_id: str
+    trigger: str
+    source_node: str
+    target_node: str
+    flow_type: str
+    payload_scope: tuple[str, ...]
+    decision_authority: str
+    expected_evidence: tuple[str, ...]
+    validation_condition: str
+    tolerance_boundary: str
+    return_path: str
+
+    def as_dict(self) -> dict[str, object]:
+        payload = asdict(self)
+        payload["payload_scope"] = list(self.payload_scope)
+        payload["expected_evidence"] = list(self.expected_evidence)
+        return payload
+
+
 ROLE_TREE_LAYOUT: tuple[dict[str, str | None], ...] = (
     {
         "node_id": "board.executive",
@@ -155,6 +176,101 @@ ROLE_CONTEXT_RULES: dict[str, RoleContextRule] = {
 }
 
 
+ROLE_FLOW_EDGES: tuple[RoleFlowEdge, ...] = (
+    RoleFlowEdge(
+        edge_id="authorize.project",
+        trigger="project_start_or_stage_authorization",
+        source_node="board.executive",
+        target_node="management.project_manager",
+        flow_type="authorization",
+        payload_scope=("business_justification", "approved_tolerances", "stage_objectives", "reporting_controls"),
+        decision_authority="Project Executive / Project Board",
+        expected_evidence=("approved_brief_or_pid", "business_case_viability", "tolerance_set"),
+        validation_condition="Project Manager receives enough approved baseline context to plan/control the stage.",
+        tolerance_boundary="board-approved project/stage tolerances",
+        return_path="management.project_manager -> board.executive via highlight, exception, stage boundary, or closure report",
+    ),
+    RoleFlowEdge(
+        edge_id="issue.work_package",
+        trigger="work_package_authorization",
+        source_node="management.project_manager",
+        target_node="delivery.team_manager",
+        flow_type="delegation",
+        payload_scope=("assigned_work_package", "product_descriptions", "quality_criteria", "delivery_tolerances"),
+        decision_authority="Project Manager",
+        expected_evidence=("work_package_description", "quality_criteria", "checkpoint_frequency"),
+        validation_condition="Team Manager receives only the work package context needed for delivery.",
+        tolerance_boundary="work package tolerances",
+        return_path="delivery.team_manager -> management.project_manager via checkpoint or completion notification",
+    ),
+    RoleFlowEdge(
+        edge_id="record.project_evidence",
+        trigger="baseline_register_or_log_update",
+        source_node="management.project_manager",
+        target_node="support.project_support",
+        flow_type="record",
+        payload_scope=("approved_baseline_delta", "register_entry", "git_evidence", "decision_record"),
+        decision_authority="Project Manager for request; Project Support for record integrity",
+        expected_evidence=("traceable_record", "timestamp", "source_reference"),
+        validation_condition="Project Support records evidence without approving delivery or assurance decisions.",
+        tolerance_boundary="configuration and record-control rules",
+        return_path="support.project_support -> management.project_manager via record confirmation",
+    ),
+    RoleFlowEdge(
+        edge_id="assure.quality_risk",
+        trigger="formal_assurance_review",
+        source_node="management.project_manager",
+        target_node="assurance.project_assurance",
+        flow_type="assurance",
+        payload_scope=("quality_evidence", "risk_controls", "issue_controls", "lessons", "closure_evidence"),
+        decision_authority="Project Assurance reports independently to Project Board",
+        expected_evidence=("quality_records", "risk_issue_register_extract", "test_or_review_output"),
+        validation_condition="Assurance review remains independent from delivery execution.",
+        tolerance_boundary="assurance scope approved by Project Board",
+        return_path="assurance.project_assurance -> board.executive and management.project_manager via assurance finding",
+    ),
+    RoleFlowEdge(
+        edge_id="escalate.work_package_exception",
+        trigger="forecast_work_package_tolerance_breach",
+        source_node="delivery.team_manager",
+        target_node="management.project_manager",
+        flow_type="exception",
+        payload_scope=("breach_forecast", "impact_on_work_package", "options", "recommended_action"),
+        decision_authority="Project Manager within stage tolerances",
+        expected_evidence=("checkpoint_report", "variance_evidence", "impact_assessment"),
+        validation_condition="Project Manager can decide correction or escalate to delegated authority/Board.",
+        tolerance_boundary="work package tolerances",
+        return_path="management.project_manager -> delivery.team_manager via corrective action or revised work package",
+    ),
+    RoleFlowEdge(
+        edge_id="escalate.stage_exception",
+        trigger="forecast_stage_or_project_tolerance_breach",
+        source_node="management.project_manager",
+        target_node="authority.change_authority",
+        flow_type="exception",
+        payload_scope=("exception_report", "impact_assessment", "options", "risks", "issues", "rebaseline_need"),
+        decision_authority="Change Authority only within delegated limits",
+        expected_evidence=("exception_report", "updated_forecast", "recommended_options"),
+        validation_condition="Change Authority decides only inside delegated tolerance thresholds.",
+        tolerance_boundary="delegated change/exception tolerance",
+        return_path="authority.change_authority -> management.project_manager via approval/rejection/rebaseline decision",
+    ),
+    RoleFlowEdge(
+        edge_id="escalate.board_decision",
+        trigger="out_of_delegated_tolerance_or_business_justification_risk",
+        source_node="management.project_manager",
+        target_node="board.executive",
+        flow_type="board_decision",
+        payload_scope=("exception_report", "business_case_impact", "benefit_impact", "cost_time_risk_forecast"),
+        decision_authority="Project Executive / Project Board",
+        expected_evidence=("exception_report", "business_case_update", "options_and_recommendation"),
+        validation_condition="Board receives sufficient context for stop/go/rebaseline decision without delivery noise.",
+        tolerance_boundary="project tolerances and business justification",
+        return_path="board.executive -> management.project_manager via direction, exception plan authorization, or closure decision",
+    ),
+)
+
+
 def build_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
     active_models = tuple(prefs.active_models() or prefs.enabled_models)
     assignments = prefs.prince2_roles or {}
@@ -185,6 +301,15 @@ def build_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
         "rule": "each PRINCE2 role node receives only its role-derived context; fallback routing must not widen context",
         "expansion_rule": "context expands only through escalation, exception, stage boundary, delegated change, assurance review, or board decision",
         "nodes": nodes,
+    }
+
+
+def build_prince2_role_flow() -> dict[str, object]:
+    return {
+        "command": "roles flow",
+        "version": 1,
+        "rule": "context moves only along approved PRINCE2 flow edges; broader context requires formal escalation or decision event",
+        "edges": [edge.as_dict() for edge in ROLE_FLOW_EDGES],
     }
 
 
@@ -313,4 +438,23 @@ def render_prince2_role_tree(tree: dict[str, object]) -> str:
     for root in children.get(None, []):
         append_node(root, 0)
     lines.append(f"- expansion_rule: {tree.get('expansion_rule')}")
+    return "\n".join(lines)
+
+
+def render_prince2_role_flow(flow: dict[str, object]) -> str:
+    lines = ["PRINCE2 role flow:", f"- rule: {flow.get('rule')}"]
+    edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
+    for edge in edges:
+        payload = ", ".join(str(item) for item in edge.get("payload_scope", []))
+        evidence = ", ".join(str(item) for item in edge.get("expected_evidence", []))
+        lines.append(
+            f"- {edge.get('edge_id')}: {edge.get('source_node')} -> {edge.get('target_node')} "
+            f"trigger={edge.get('trigger')} type={edge.get('flow_type')}"
+        )
+        lines.append(f"  payload={payload}")
+        lines.append(f"  authority={edge.get('decision_authority')}")
+        lines.append(f"  evidence={evidence}")
+        lines.append(f"  validation={edge.get('validation_condition')}")
+        lines.append(f"  tolerance={edge.get('tolerance_boundary')}")
+        lines.append(f"  return={edge.get('return_path')}")
     return "\n".join(lines)
