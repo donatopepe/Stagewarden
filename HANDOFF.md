@@ -4,7 +4,7 @@ Author: Donato Pepe
 
 License: MIT
 
-Last updated: 2026-04-21
+Last updated: 2026-04-22
 
 ## Purpose
 
@@ -37,11 +37,12 @@ The working rule is PRINCE2-style controlled execution:
 - Agent manifesto: `AGENT_MANIFESTO.md`
 - Agent policy: `AGENT_POLICY.md`
 - Machine-readable policy: `AGENT_POLICY.json`
+- Local-only Codex resume helpers: `codex-resume.command` and `codex-resume.bat`
 
 Latest known baseline at the time of this handoff:
 
-- Local implementation snapshot: `5b79a4c stagewarden: initialize workspace`
-- Last confirmed pushed baseline before this pass: `d4d864c stagewarden: initialize workspace`
+- Local implementation snapshot: `9b0861d chore: ignore codex resume bat`
+- Last confirmed pushed baseline before this pass: `9b0861d chore: ignore codex resume bat`
 
 ## Current Implementation Pass
 
@@ -49,6 +50,14 @@ Status: pushed, continuing with incremental blocks
 
 Implemented in this pass:
 
+- Added local Codex resume helper files for the active conversation:
+- `codex-resume.command`
+- `codex-resume.bat`
+- Both contain `codex resume 019da0a4-552a-76b0-9cc9-b690a91cb34c`.
+- Both files are intentionally ignored by git; only `.gitignore` rules were committed.
+- Pushed commits:
+- `f2d924e chore: ignore codex resume command`
+- `9b0861d chore: ignore codex resume bat`
 - Persisted structured provider limit snapshots in `.stagewarden_models.json`.
 - Added model-level and account-level limit snapshots with sanitized fields only.
 - Captured limit metadata automatically when executor sees provider block messages.
