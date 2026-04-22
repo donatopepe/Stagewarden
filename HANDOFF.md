@@ -24,6 +24,7 @@ The working rule is PRINCE2-style controlled execution:
 - model roles are not limited to a flat one-role/one-model map: PRINCE2 organization can be hierarchical, delegated, combined, or split by domain while preserving accountability
 - clarification gate: for every user request, Stagewarden must identify all ambiguous points and ask every necessary clarification before execution starts; work may begin only after no material ambiguity remains or the user explicitly authorizes assumptions
 - clarification gate must stay proportional: simple unambiguous requests can proceed immediately, but any uncertainty about scope, files, provider/model/account, permissions, destructive effects, external network use, expected output, validation/wet-run, git/push boundary, or PRINCE2 role ownership must be resolved first
+- user-experience baseline is Codex CLI plus Claude Code: command feel, shell flow, status surfaces, transcript visibility, auth flow, model/provider selection, and conversational shell ergonomics must be learned from the locally cloned sources and reproduced in Stagewarden where compatible with project goals
 
 ## Current Baseline
 
@@ -184,6 +185,12 @@ Additional validation evidence:
 - `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands` passed after command catalog implementation.
 - Wet-run `printf '/help accounts\n/help handoff\n/exit\n' | python3 -m stagewarden.main` passed and confirmed slash-command routing with registry-backed help.
 - `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_supports_category_help tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json` passed after registry-backed help.
+- Agent-to-model communication has started migrating from flat prompt concatenation to a structured turn packet in the executor.
+- The packet now separates thread start identity, turn context, model context files, handoff summary, stage view, PRINCE2 role automation, scoped registers, typed transcript items, and execution contract.
+- Typed transcript items currently include `handoff_log`, `execution_log`, and `tool_transcript`, inspired by Codex thread items and Claude transcript/resume behaviour.
+- The renderer remains deterministic plain text for backend compatibility, but the executor no longer builds the prompt as one unstructured block.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/executor.py tests/test_executor.py` passed.
+- Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 27 tests, after structured turn packet adoption.
 
 Next implementation roadmap:
 
@@ -191,8 +198,12 @@ Roadmap rule:
 
 - Work in mini-blocks that are small enough to test and push independently.
 - Each block must add wet-run evidence, unit tests where feasible, handoff notes, and a git boundary.
+- Priority override from the current directive: UX parity with Codex CLI and Claude Code is now the baseline governing principle for all new CLI/shell interaction work.
 - Priority order is governed by operational risk: shell/runtime safety first, then PRINCE2 routing, then network/file artifact tools, then UX polish.
+- UX parity is not postponed to polish only: when a control surface affects prompting, shell conversation, slash commands, status, auth, resume, or model/provider selection, it must be designed against the Codex/Claude baseline during the implementation phase itself.
 - Technical execution order after replanning on 2026-04-22:
+- `P-UX0` keep Stagewarden UX aligned to Codex CLI and Claude Code for all operator-facing surfaces; use `external_sources/codex` and `external_sources/claude-code` as the baseline learning corpus and record adopted patterns here before implementation.
+- `P-UX1` improve agent<->model communication with a structured turn packet inspired by Codex thread start/items and Claude transcript/resume behaviour.
 - `P0` complete Phase A runtime safety/control gaps that affect every command path.
 - `P1` complete Phase B PRINCE2 role-tree persistence and node assignment because context governance depends on it.
 - `P2` implement Phase C governed web/download/compression because external IO needs the Phase A/B guardrails.
@@ -200,6 +211,16 @@ Roadmap rule:
 - `P4` implement Phase G UX polish only after control surfaces are stable enough to expose interactively.
 - `P5` keep Phase H documentation in lockstep whenever user-facing behavior changes; do not postpone README parity after feature completion.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
+
+Codex/Claude UX baseline now explicitly includes:
+
+- slash-command discoverability and completion
+- shell-first conversational loop
+- readable status surfaces with provider/account/model/limit context
+- typed transcript and resume-ready context
+- browser/device auth flows that feel native
+- guided provider-model selection with minimal ambiguity
+- visible routing/handoff context instead of opaque execution
 
 Phase A - OS-aware shell runtime and preflight:
 

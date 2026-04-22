@@ -35,6 +35,26 @@ class StepOutcome:
     prince2_role: str | None = None
 
 
+@dataclass(slots=True)
+class PromptSection:
+    title: str
+    body: str
+
+
+@dataclass(slots=True)
+class PromptTranscriptItem:
+    item_type: str
+    body: str
+
+
+@dataclass(slots=True)
+class ModelCommunicationPacket:
+    system_prompt: str
+    sections: list[PromptSection]
+    transcript_items: list[PromptTranscriptItem]
+    contract_sections: list[PromptSection]
+
+
 ALLOWED_MODEL_ACTIONS = {
     "shell",
     "shell_session_create",
@@ -487,6 +507,22 @@ class Executor:
         plan: list[PlanStep],
         last_observation: str,
     ) -> str:
+        packet = self._build_model_communication_packet(
+            task=task,
+            step=step,
+            plan=plan,
+            last_observation=last_observation,
+        )
+        return self._render_model_communication_packet(packet)
+
+    def _build_model_communication_packet(
+        self,
+        *,
+        task: str,
+        step: PlanStep,
+        plan: list[PlanStep],
+        last_observation: str,
+    ) -> ModelCommunicationPacket:
         plan_lines = "\n".join(
             f"- {item.id}: {item.title} [{item.status}] validation={item.validation} wet_run_required={item.wet_run_required}"
             for item in plan
@@ -505,100 +541,144 @@ class Executor:
         role_context = self._bounded_context("prince2_role_automation", self._prince2_role_automation_section(task, step), 2500)
         scoped_handoff_log = self._bounded_context("handoff_log", handoff_log if scoped["handoff_log"] else "Omitted by PRINCE2 role scope.", 4000)
         scoped_execution_log = self._bounded_context("execution_log", execution_log if scoped["execution_log"] else "Omitted by PRINCE2 role scope.", 4000)
-        return f"""{self.config.system_prompt}
+        selected_backend = self.shell._selected_shell_backend()
+        thread_start = "\n".join(
+            [
+                f"- workspace_root: {self.config.workspace_root}",
+                f"- shell_backend_configured: {self.config.shell_backend}",
+                f"- shell_backend_selected: {selected_backend.get('selected') or 'unknown'}",
+                f"- shell_executable: {selected_backend.get('shell_executable') or 'unknown'}",
+                f"- prince2_active_role: {active_role}",
+                "- protocol_style: structured_turn_packet",
+                "- transcript_style: typed_items",
+            ]
+        )
+        turn_context = "\n".join(
+            [
+                f"Task:\n{task}",
+                "Current step:",
+                f"id={step.id}",
+                f"title={step.title}",
+                f"instruction={step.instruction}",
+                f"validation={step.validation}",
+                f"wet_run_required={step.wet_run_required}",
+                "",
+                "Plan:",
+                plan_lines,
+                "",
+                "Previous observation:",
+                last_observation or "None",
+            ]
+        )
+        sections = [
+            PromptSection("Thread Start", thread_start),
+            PromptSection("Task", task),
+            PromptSection("Turn Context", turn_context),
+            PromptSection("Model context files", model_context),
+            PromptSection(
+                "Implicit project handoff context",
+                self._bounded_context("handoff_summary", self.project_handoff.summary(), 2500),
+            ),
+            PromptSection(
+                "Stage boundary view",
+                self._bounded_context("stage_view", self.project_handoff.rendered_stage_view(), 3500),
+            ),
+            PromptSection("PRINCE2 role automation", role_context),
+            PromptSection(
+                "PRINCE2 registers",
+                "\n\n".join(
+                    [
+                        f"Risks:\n{risk_register}",
+                        f"Issues:\n{issue_register}",
+                        f"Quality:\n{quality_register}",
+                        f"Lessons:\n{lessons_log}",
+                        f"Exception plan:\n{exception_plan}",
+                    ]
+                ),
+            ),
+            PromptSection("Recent memory", memory_summary),
+        ]
+        transcript_items = [
+            PromptTranscriptItem("handoff_log", scoped_handoff_log),
+            PromptTranscriptItem("execution_log", scoped_execution_log),
+            PromptTranscriptItem(
+                "tool_transcript",
+                self._bounded_context("tool_transcript", self.memory.transcript_summary(limit=8), 3000),
+            ),
+        ]
+        contract_sections = [
+            PromptSection(
+                "Validation policy",
+                "\n".join(
+                    [
+                        "- Always create or update relevant verification tests/checks for code or behavior changes.",
+                        "- A dry-run is not a valid checkpoint by itself.",
+                        "- A step may complete only after real wet-run evidence: executed tests, executed commands, observed files, or real tool output.",
+                        "- If a wet-run is blocked, find a feasible alternative wet-run instead of accepting dry-run completion.",
+                        "- Use complete only after the current step has real validation evidence.",
+                    ]
+                ),
+            ),
+            PromptSection(
+                "Available actions and required fields",
+                "\n".join(
+                    [
+                        '1. shell -> {"type":"shell","command":"...","cwd":"optional-relative-path"}',
+                        '2. shell_session_create -> {"type":"shell_session_create","cwd":"optional-relative-path"}',
+                        '3. shell_session_send -> {"type":"shell_session_send","session_id":"session id","command":"..."}',
+                        '4. shell_session_close -> {"type":"shell_session_close","session_id":"session id"}',
+                        '5. read_file -> {"type":"read_file","path":"relative/path"}',
+                        '6. write_file -> {"type":"write_file","path":"relative/path","content":"full file contents"}',
+                        '7. apply_patch -> {"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}',
+                        '8. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
+                        '9. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
+                        '10. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
+                        '11. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
+                        '12. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
+                        '13. git_status -> {"type":"git_status"}',
+                        '14. git_diff -> {"type":"git_diff"}',
+                        '15. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
+                        '16. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
+                        '17. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
+                        '18. git_commit -> {"type":"git_commit","message":"commit message"}',
+                        '19. complete -> {"type":"complete","message":"why the current step is done"}',
+                    ]
+                ),
+            ),
+            PromptSection(
+                "Respond with strict JSON",
+                "\n".join(
+                    [
+                        "{",
+                        '  "summary": "brief reasoning",',
+                        '  "confidence": 0.0,',
+                        '  "risks": ["risk if relevant"],',
+                        '  "validation": "how the action will be validated",',
+                        '  "action": {',
+                        '    "type": "one action"',
+                        "  }",
+                        "}",
+                    ]
+                ),
+            ),
+        ]
+        return ModelCommunicationPacket(
+            system_prompt=self.config.system_prompt,
+            sections=sections,
+            transcript_items=transcript_items,
+            contract_sections=contract_sections,
+        )
 
-Task:
-{task}
-
-Model context files:
-{model_context}
-
-Implicit project handoff context:
-{self._bounded_context("handoff_summary", self.project_handoff.summary(), 2500)}
-
-Stage boundary view:
-{self._bounded_context("stage_view", self.project_handoff.rendered_stage_view(), 3500)}
-
-PRINCE2 role automation:
-{role_context}
-
-PRINCE2 registers:
-Risks:
-{risk_register}
-
-Issues:
-{issue_register}
-
-Quality:
-{quality_register}
-
-Lessons:
-{lessons_log}
-
-Exception plan:
-{exception_plan}
-
-Recent handoff log:
-{scoped_handoff_log}
-
-Recent execution log:
-{scoped_execution_log}
-
-Current step:
-id={step.id}
-title={step.title}
-instruction={step.instruction}
-validation={step.validation}
-wet_run_required={step.wet_run_required}
-
-Plan:
-{plan_lines}
-
-Previous observation:
-{last_observation or "None"}
-
-Recent memory:
-{memory_summary}
-
-Validation policy:
-- Always create or update relevant verification tests/checks for code or behavior changes.
-- A dry-run is not a valid checkpoint by itself.
-- A step may complete only after real wet-run evidence: executed tests, executed commands, observed files, or real tool output.
-- If a wet-run is blocked, find a feasible alternative wet-run instead of accepting dry-run completion.
-- Use complete only after the current step has real validation evidence.
-
-Available actions and required fields:
-1. shell -> {{"type":"shell","command":"...","cwd":"optional-relative-path"}}
-2. shell_session_create -> {{"type":"shell_session_create","cwd":"optional-relative-path"}}
-3. shell_session_send -> {{"type":"shell_session_send","session_id":"session id","command":"..."}}
-4. shell_session_close -> {{"type":"shell_session_close","session_id":"session id"}}
-5. read_file -> {{"type":"read_file","path":"relative/path"}}
-6. write_file -> {{"type":"write_file","path":"relative/path","content":"full file contents"}}
-7. apply_patch -> {{"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}}
-8. patch_file -> {{"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}}
-9. patch_files -> {{"type":"patch_files","diff":"unified diff with one or more files"}}
-10. preview_patch_files -> {{"type":"preview_patch_files","diff":"unified diff with one or more files"}}
-11. list_files -> {{"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}}
-12. search_files -> {{"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}}
-13. git_status -> {{"type":"git_status"}}
-14. git_diff -> {{"type":"git_diff"}}
-15. git_log -> {{"type":"git_log","limit":20,"path":"optional-relative-path"}}
-16. git_show -> {{"type":"git_show","revision":"HEAD","stat":true}}
-17. git_file_history -> {{"type":"git_file_history","path":"relative/path","limit":20}}
-18. git_commit -> {{"type":"git_commit","message":"commit message"}}
-19. complete -> {{"type":"complete","message":"why the current step is done"}}
-
-Respond with strict JSON:
-{{
-  "summary": "brief reasoning",
-  "confidence": 0.0,
-  "risks": ["risk if relevant"],
-  "validation": "how the action will be validated",
-  "action": {{
-    "type": "one action"
-  }}
-}}
-"""
+    def _render_model_communication_packet(self, packet: ModelCommunicationPacket) -> str:
+        blocks = [packet.system_prompt]
+        for section in packet.sections:
+            blocks.append(f"{section.title}:\n{section.body}")
+        blocks.append("Typed transcript items:")
+        for item in packet.transcript_items:
+            blocks.append(f"[{item.item_type}]\n{item.body}")
+        for section in packet.contract_sections:
+            blocks.append(f"{section.title}:\n{section.body}")
+        return "\n\n".join(blocks) + "\n"
 
     def _prince2_role_automation_section(self, task: str, step: PlanStep) -> str:
         active_role = self._role_for_step(task=task, step=step)
