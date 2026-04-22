@@ -243,7 +243,12 @@ Phase 3 - PRINCE2 role startup controls:
 Phase 4 - status remediation and preflight:
 
 - Add remediation section to `status` and `status --full`: missing role baseline, active exception plan, dirty git, blocked providers/accounts, missing auth, missing source references, restrictive permissions.
-- Add `preflight` and `preflight --json` combining doctor, sources status, roles check, model limits, git status, and permission posture.
+- Add `preflight` and `preflight --json` combining doctor, sources status, roles check, model limits, git status, OS/shell capability detection, and permission posture.
+- Add explicit OS/runtime detection to status and preflight: OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
+- Shell execution must be OS-aware: prefer bash/zsh on macOS/Linux when available, use PowerShell or cmd on Windows, and reject commands that require an unavailable shell unless the agent can translate them safely.
+- Bash command support is required where bash exists; if bash is missing, this must be reported as a blocking preflight issue for tasks that explicitly require bash.
+- Every shell tool transcript entry must record detected OS family, selected shell backend, cwd, command, exit code, duration, and whether command translation was applied.
+- Validation: unit tests for OS detection normalization, shell backend selection, missing bash detection, command rejection on unsupported shell, and status/preflight JSON fields.
 - Validation: CLI JSON schema tests and wet-run in current workspace.
 
 Phase 5 - source governance:
@@ -362,7 +367,8 @@ Immediate next mini-block:
 - Live permission refresh: active agent tools reload permission policy after shell permission changes.
 - Approval prompt flow: interactive `ask` decisions support `y`, `n`, `always`, `session`, and `deny`; non-interactive tools remain fail-closed.
 - Tool invocation transcript: tool calls are recorded in memory, persisted as LJSON, and exposed through `transcript`/`trace`.
-- Shell execution across OS families: POSIX shell, PowerShell, cmd fallback.
+- Shell execution across OS families: POSIX shell, bash/zsh where available, PowerShell, cmd fallback.
+- Planned explicit OS/shell awareness: status/preflight must expose current OS, shell backend, bash availability, and shell transcript metadata.
 - File tools: read, write, patch, patch files, list, search.
 - Planned network/file artifact tools: governed web search, controlled downloads, checksum evidence, and verified compression with handoff recording.
 - Wet-run enforcement: dry-run or narrative completion is not accepted as final checkpoint.
