@@ -7,6 +7,7 @@ from pathlib import Path
 from stagewarden.config import AgentConfig
 from stagewarden.permissions import PermissionPolicy, PermissionSettings
 from stagewarden.runtime_env import select_shell_backend
+from stagewarden.shell_compat import prepare_command_for_shell, shell_env_reference, shell_path_literal, shell_quote
 from stagewarden.tools.git import GitTool
 from stagewarden.tools.files import FileTool
 from stagewarden.tools.shell import ShellTool
@@ -111,6 +112,27 @@ class ToolTests(unittest.TestCase):
             tool._windows_shell = lambda: "cmd"  # type: ignore[method-assign]
             self.assertEqual(tool._command_args("dir"), ["cmd", "/d", "/s", "/c", "dir"])
 
+    def test_shell_compat_formats_env_quote_and_paths(self) -> None:
+        self.assertEqual(shell_env_reference("HOME", "powershell"), "$env:HOME")
+        self.assertEqual(shell_env_reference("HOME", "cmd"), "%HOME%")
+        self.assertEqual(shell_env_reference("HOME", "bash"), "$HOME")
+        self.assertEqual(shell_quote("a'b", "powershell"), "'a''b'")
+        self.assertEqual(shell_path_literal("src/main.py", "powershell", os_family="windows"), "'src\\main.py'")
+
+    def test_shell_compat_translates_simple_windows_commands(self) -> None:
+        translated, error = prepare_command_for_shell("pwd", "powershell")
+        self.assertIsNone(error)
+        self.assertEqual(translated, "Get-Location")
+
+        translated, error = prepare_command_for_shell("cat README.md", "cmd")
+        self.assertIsNone(error)
+        self.assertEqual(translated, 'type "README.md"')
+
+    def test_shell_compat_rejects_posix_only_windows_commands(self) -> None:
+        translated, error = prepare_command_for_shell("sed -n 1p README.md", "powershell")
+        self.assertIsNone(translated)
+        self.assertIn("POSIX-only", error or "")
+
     def test_shell_tool_auto_backend_uses_detected_posix_shell(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir), shell_backend="auto"))
@@ -146,6 +168,44 @@ class ToolTests(unittest.TestCase):
 
             self.assertFalse(result.ok)
             self.assertIn("not available", result.error)
+
+    def test_shell_tool_translates_windows_powershell_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir), shell_backend="powershell"))
+            tool.is_windows = True
+            tool.runtime_capabilities = {
+                "os_family": "windows",
+                "default_shell": "",
+                "recommended_shell": "powershell",
+                "shells": {
+                    "powershell": {"available": True, "path": "powershell", "version": "5.1"},
+                    "cmd": {"available": True, "path": "cmd", "version": ""},
+                },
+            }
+            tool._windows_shell = lambda: "powershell"  # type: ignore[method-assign]
+
+            args = tool._command_args("pwd")
+
+            self.assertEqual(args[-1], "Get-Location")
+
+    def test_shell_tool_rejects_posix_only_command_on_windows_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir), shell_backend="powershell"))
+            tool.is_windows = True
+            tool.runtime_capabilities = {
+                "os_family": "windows",
+                "default_shell": "",
+                "recommended_shell": "powershell",
+                "shells": {
+                    "powershell": {"available": True, "path": "powershell", "version": "5.1"},
+                    "cmd": {"available": True, "path": "cmd", "version": ""},
+                },
+            }
+
+            result = tool.run("sed -n 1p README.md")
+
+            self.assertFalse(result.ok)
+            self.assertIn("POSIX-only", result.error)
 
     def test_runtime_selects_windows_powershell_by_default(self) -> None:
         capabilities = {

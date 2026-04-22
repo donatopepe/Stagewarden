@@ -14,6 +14,7 @@ from pathlib import Path
 from ..config import AgentConfig
 from ..permissions import PermissionPolicy
 from ..runtime_env import detect_runtime_capabilities, select_shell_backend
+from ..shell_compat import prepare_command_for_shell
 from ..textcodec import detect_confusables, to_ascii_safe_text
 
 
@@ -257,6 +258,7 @@ class ShellTool:
     def _command_args(self, command: str) -> list[str]:
         if self.is_windows:
             shell = self._windows_shell()
+            command = self._prepare_command_for_selected_backend(command)
             if shell.endswith("cmd.exe") or shell.lower() == "cmd":
                 return [shell, "/d", "/s", "/c", command]
             return [shell, "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command]
@@ -282,6 +284,10 @@ class ShellTool:
 
     def _session_payload(self, command: str, marker: str) -> bytes:
         if self.is_windows:
+            command = self._prepare_command_for_selected_backend(command)
+            shell = self._windows_shell()
+            if shell.endswith("cmd.exe") or shell.lower() == "cmd":
+                return f"{command}\necho {marker}:%ERRORLEVEL%\n".encode()
             return f"{command}\nWrite-Output \"{marker}:$LASTEXITCODE\"\n".encode()
         return f"{command}\nprintf '{marker}:%s\\n' $?\n".encode()
 
@@ -303,6 +309,14 @@ class ShellTool:
         if backend.get("available"):
             return None
         return str(backend.get("reason") or f"Shell backend is not available: {configured}")
+
+    def _prepare_command_for_selected_backend(self, command: str) -> str:
+        backend = self._selected_shell_backend()
+        selected = str(backend.get("selected") or "")
+        prepared, error = prepare_command_for_shell(command, selected)
+        if error:
+            raise OSError(error)
+        return prepared or command
 
     def _resolve_cwd(self, cwd: str | None) -> Path:
         return self.config.resolve_path(cwd) if cwd else self.config.workspace_root_resolved
