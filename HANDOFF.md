@@ -194,7 +194,15 @@ Roadmap rule:
 
 Phase A - OS-aware shell runtime and preflight:
 
-- Status: planned and highest priority.
+- Status: in progress.
+- Implemented mini-block 2026-04-22: added `stagewarden/runtime_env.py` with OS-family normalization, shell capability discovery for bash/zsh/PowerShell/cmd, default shell reporting, line-ending/path-separator reporting, and `select_shell_backend()` for `auto` or explicit backend selection.
+- Implemented mini-block 2026-04-22: `stagewarden status`, `status --json`, `status --full --json`, `doctor`, and `doctor --json` now expose runtime/shell capabilities without initializing git during doctor.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/runtime_env.py stagewarden/main.py` passed.
+- Validation 2026-04-22: targeted runtime/status/doctor tests passed.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main status --json` reported macOS Darwin arm64, default shell `/bin/zsh`, recommended shell `zsh`, bash available, PowerShell/cmd unavailable.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main doctor --json` reported runtime capabilities and repository state successfully.
+- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 230 tests.
+- Git boundary 2026-04-22: runtime mini-block committed locally as `7b54391 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
 - Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
 - Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
 - On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
