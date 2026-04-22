@@ -199,6 +199,9 @@ Additional validation evidence:
 - Slash UX has started converging toward Codex/Claude discoverability: a new `/slash [prefix]` command renders a readable slash-command palette with descriptions instead of requiring Tab completion only.
 - The slash palette is driven by the structured command registry, so future completion, palette, and help surfaces can share one command source of truth.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 105 tests, after slash palette adoption.
+- Interactive slash completion now has contextual value suggestions for providers, roles, shell backends, and configured account names, instead of only flat prefix matching.
+- Completion ranking now prefers exact/prefix matches and useful contextual expansions, moving Stagewarden closer to Codex/Claude guided slash UX.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after contextual slash completion adoption.
 
 Next implementation roadmap:
 

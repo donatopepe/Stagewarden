@@ -1145,6 +1145,27 @@ class TraceAndCliTests(unittest.TestCase):
             slash_matches = _interactive_completion_candidates("/sla", config)
             self.assertIn("/slash", slash_matches)
 
+    def test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.accounts_by_model = {"openai": ["work", "personal"]}
+            prefs.save(root / ".stagewarden_models.json")
+            config = AgentConfig(workspace_root=root)
+
+            model_matches = _interactive_completion_candidates("/model choose ch", config)
+            role_matches = _interactive_completion_candidates("/role configure pro", config)
+            backend_matches = _interactive_completion_candidates("/shell backend use po", config)
+            account_provider_matches = _interactive_completion_candidates("/account use op", config)
+            account_name_matches = _interactive_completion_candidates("/account use openai wo", config)
+
+            self.assertIn("/model choose chatgpt", model_matches)
+            self.assertIn("/role configure project_manager", role_matches)
+            self.assertIn("/role configure project_support", role_matches)
+            self.assertIn("/shell backend use powershell", backend_matches)
+            self.assertIn("/account use openai", account_provider_matches)
+            self.assertIn("/account use openai work", account_name_matches)
+
     def test_interactive_shell_renders_slash_palette(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
