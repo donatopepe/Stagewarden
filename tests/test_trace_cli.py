@@ -2179,6 +2179,41 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertFalse(payload["ready_for_ai_design"])
             codes = {item["code"] for item in payload["clarification_gaps"]}
             self.assertIn("missing_project_task", codes)
+            self.assertIn("missing_project_objective", codes)
+            self.assertIn("missing_project_scope", codes)
+            self.assertIn("missing_expected_outputs", codes)
+            self.assertIn("missing_delivery_mode", codes)
+
+    def test_project_brief_commands_persist_and_feed_project_design(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a governed coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope CLI, shell, git, and model routing").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs Production-ready CLI plus tests").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+
+            brief = run_main_capture(root, "project brief")
+            json_brief = run_main_capture(root, "project brief", "--json")
+            design_json = run_main_capture(root, "project design", "--json")
+
+            self.assertEqual(brief.returncode, 0, brief.stderr)
+            self.assertIn("Project brief:", brief.stdout)
+            self.assertIn("- objective: Build a governed coding agent", brief.stdout)
+
+            self.assertEqual(json_brief.returncode, 0, json_brief.stderr)
+            brief_payload = json.loads(json_brief.stdout)
+            self.assertEqual(brief_payload["command"], "project brief")
+            self.assertEqual(brief_payload["fields"]["delivery_mode"], "hybrid")
+
+            self.assertEqual(design_json.returncode, 0, design_json.stderr)
+            design_payload = json.loads(design_json.stdout)
+            self.assertEqual(design_payload["project_specification"]["brief"]["objective"], "Build a governed coding agent")
+            codes = {item["code"] for item in design_payload["clarification_gaps"]}
+            self.assertNotIn("missing_project_objective", codes)
+            self.assertNotIn("missing_project_scope", codes)
+            self.assertNotIn("missing_expected_outputs", codes)
+            self.assertNotIn("missing_delivery_mode", codes)
 
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

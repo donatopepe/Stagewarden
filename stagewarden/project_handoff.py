@@ -47,6 +47,7 @@ class HandoffEntry:
 @dataclass(slots=True)
 class ProjectHandoff:
     task: str = ""
+    project_brief: dict[str, str] = field(default_factory=dict)
     status: str = "idle"
     current_step_id: str | None = None
     current_step_title: str | None = None
@@ -300,6 +301,7 @@ class ProjectHandoff:
             f"plan_status={self.plan_status or 'unknown'}",
             f"current_step={self.current_step_id or 'none'}",
             f"git_head={self.git_head or 'unknown'}",
+            f"project_brief_fields={len(self.project_brief)}",
             "registers="
             f"risks:{len(self.risk_register)} issues:{len(self.issue_register)} "
             f"quality:{len(self.quality_register)} lessons:{len(self.lessons_log)} "
@@ -558,11 +560,21 @@ class ProjectHandoff:
             )
         return "\n".join(lines)
 
+    def rendered_project_brief(self) -> str:
+        lines = ["Project brief:"]
+        if not self.project_brief:
+            lines.append("- none")
+            return "\n".join(lines)
+        for key in sorted(self.project_brief):
+            lines.append(f"- {key}: {self.project_brief[key]}")
+        return "\n".join(lines)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",
             "_version": 1,
             "task": self.task,
+            "project_brief": dict(self.project_brief),
             "status": self.status,
             "current_step_id": self.current_step_id,
             "current_step_title": self.current_step_title,
@@ -607,6 +619,25 @@ class ProjectHandoff:
         self.lessons_log.append(
             {"step_id": step_id, "type": lesson_type, "lesson": lesson[:240], "recorded_at": _utc_now()}
         )
+
+    def update_project_brief(self, updates: dict[str, str]) -> None:
+        for key, value in updates.items():
+            clean_key = str(key).strip().lower()
+            clean_value = str(value).strip()
+            if not clean_key:
+                continue
+            if clean_value:
+                self.project_brief[clean_key] = clean_value[:1000]
+            elif clean_key in self.project_brief:
+                del self.project_brief[clean_key]
+        self.updated_at = _utc_now()
+
+    def clear_project_brief(self, field_name: str | None = None) -> None:
+        if field_name is None:
+            self.project_brief = {}
+        else:
+            self.project_brief.pop(field_name.strip().lower(), None)
+        self.updated_at = _utc_now()
 
     def close_issues_for_step(self, *, step_id: str, resolution: str) -> None:
         for item in self.issue_register:
@@ -826,6 +857,13 @@ class ProjectHandoff:
         payload = loads_text(read_text_utf8(path))
         context = cls(
             task=str(payload.get("task", "")),
+            project_brief={
+                str(key).strip().lower(): str(value).strip()
+                for key, value in payload.get("project_brief", {}).items()
+                if str(key).strip() and value is not None
+            }
+            if isinstance(payload.get("project_brief", {}), dict)
+            else {},
             status=str(payload.get("status", "idle")),
             current_step_id=str(payload["current_step_id"]) if payload.get("current_step_id") else None,
             current_step_title=str(payload["current_step_title"]) if payload.get("current_step_title") else None,
