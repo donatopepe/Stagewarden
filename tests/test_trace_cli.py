@@ -438,6 +438,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_limits", payload)
             self.assertIn("permissions", payload)
             self.assertIn("runtime", payload)
+            self.assertIn("shell_backend", payload)
             self.assertIn(payload["runtime"]["os_family"], {"macos", "linux", "windows", "unknown"})
             self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("remediations", payload)
@@ -473,6 +474,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("limits", payload)
             self.assertIn("git", payload)
             self.assertIn("runtime", payload)
+            self.assertIn("shell_backend", payload)
             self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("quality_gates", payload)
             self.assertIn("remediations", payload)
@@ -491,6 +493,37 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Stagewarden full status:", completed.stdout)
             self.assertIn("Remediations:", completed.stdout)
             self.assertIn("roles", completed.stdout)
+
+    def test_shell_backend_cli_can_set_and_report_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            set_completed = run_main_capture(root, "shell backend use zsh")
+
+            self.assertEqual(set_completed.returncode, 0, set_completed.stderr)
+            self.assertIn("Shell backend set to zsh.", set_completed.stdout)
+
+            completed = run_main_capture(root, "shell backend", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "shell backend")
+            self.assertEqual(payload["configured"], "zsh")
+            self.assertEqual(payload["selected"], "zsh")
+
+    def test_status_json_reports_configured_shell_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / ".stagewarden_settings.json").write_text(
+                json.dumps({"shell": {"backend": "zsh"}}),
+                encoding="utf-8",
+            )
+
+            completed = run_main_capture(root, "status", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertIn("shell_backend", payload)
+            self.assertEqual(payload["shell_backend"]["configured"], "zsh")
 
     def test_statusline_cli_json_exposes_compact_runtime_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1085,6 +1118,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles matrix [--json]", rendered.stdout)
             self.assertIn("sources", rendered.stdout)
             self.assertIn("preflight [--json]", rendered.stdout)
+            self.assertIn("shell backend", rendered.stdout)
             self.assertIn("commands [--json]", rendered.stdout)
 
             completed = run_main_capture(root, "commands", "--json")
@@ -1094,6 +1128,7 @@ class TraceAndCliTests(unittest.TestCase):
             by_name = {item["name"]: item for item in payload["commands"]}
             self.assertIn("commands", by_name)
             self.assertIn("preflight", by_name)
+            self.assertIn("shell backend", by_name)
             self.assertIn("status", by_name)
             self.assertIn("roles domains", by_name)
             self.assertIn("roles tree", by_name)
@@ -1104,6 +1139,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(by_name["commands"]["group"], "core")
             self.assertTrue(by_name["commands"]["json"])
             self.assertTrue(by_name["preflight"]["json"])
+            self.assertTrue(by_name["shell backend"]["json"])
             self.assertEqual(by_name["roles domains"]["handler"], "roles")
             self.assertEqual(by_name["roles tree"]["handler"], "roles")
             self.assertEqual(by_name["roles check"]["handler"], "roles")
