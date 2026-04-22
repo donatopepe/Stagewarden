@@ -346,7 +346,9 @@ Phase B - PRINCE2 role tree routing:
 - The AI proposal must be treated as a recommendation, not an approved baseline; the user/Project Board must review and approve or edit it before persistence.
 - Handoff must record the design model used, prompt purpose, proposal summary, selected tree baseline, unresolved assumptions, and git boundary.
 - Add `project design`, `project design --json`, or equivalent guided flow as the explicit first stage behind `project start`.
-- Next: persist approved role-tree baseline in handoff and `.stagewarden_models.json`, then route model calls by role-node context rather than only the flat role map.
+- Completed: approved role-tree baseline persists in handoff and `.stagewarden_models.json` through `project start`, `roles propose`, `roles setup`, and `roles tree approve`.
+- Completed: `roles baseline` and `roles baseline --json` render the approved baseline.
+- Completed: executor model calls now prefer approved role-tree node assignment/context before falling back to the flat role map.
 - Context rule: every model call receives only the selected node context; context expansion is allowed only by PRINCE2 events such as escalation, exception, stage boundary, delegated change, assurance review, or board decision.
 - Rate-limit rule: fallback changes provider/model/account but must never widen the role-node context.
 - Flow rule: PRINCE2 defines movement between nodes, not only node ownership. Stagewarden must model controlled handoff flow between role nodes: Board authorization -> Project Manager planning/control -> Team Manager work package delivery -> Project Support records -> Project Assurance review -> Change Authority exception/change decisions -> Board stage/exception/closure decisions.
