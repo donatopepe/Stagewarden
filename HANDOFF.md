@@ -209,6 +209,12 @@ Phase A - OS-aware shell runtime and preflight:
 - Validation 2026-04-22: wet-run `ShellTool(...).run("pwd")` executed in `/Users/donato/Stagewarden` with `shell_backend=zsh executable=/bin/zsh`.
 - Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 232 tests.
 - Git boundary 2026-04-22: shell backend mini-block committed locally as `154758b stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
+- Implemented mini-block 2026-04-22: added `preflight` and `preflight --json` as read-only readiness checks combining doctor, runtime/shell capabilities, git state, PRINCE2 role check, provider limits, sources status, permissions, handoff stage view, and remediation actions.
+- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py` passed.
+- Validation 2026-04-22: targeted `preflight`, command catalog, and completion tests passed.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight --json` reported runtime macOS/zsh, git dirty state, role-check warnings, provider limits, sources status, and remediation list without initializing or mutating git.
+- Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight` rendered the human diagnostic summary.
+- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 234 tests.
 - Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
 - Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
 - On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
