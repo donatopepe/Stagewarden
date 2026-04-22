@@ -7,7 +7,7 @@ from pathlib import Path
 from stagewarden.config import AgentConfig
 from stagewarden.permissions import PermissionPolicy, PermissionSettings
 from stagewarden.runtime_env import select_shell_backend
-from stagewarden.shell_compat import prepare_command_for_shell, shell_env_reference, shell_path_literal, shell_quote
+from stagewarden.shell_compat import command_requires_posix_shell, prepare_command_for_shell, shell_env_reference, shell_path_literal, shell_quote
 from stagewarden.tools.git import GitTool
 from stagewarden.tools.files import FileTool
 from stagewarden.tools.shell import ShellTool
@@ -144,6 +144,11 @@ class ToolTests(unittest.TestCase):
         self.assertIsNone(translated)
         self.assertIn("POSIX-only", error or "")
 
+    def test_shell_compat_flags_bash_required_patterns_on_windows(self) -> None:
+        self.assertTrue(command_requires_posix_shell("grep foo README.md", "powershell"))
+        self.assertTrue(command_requires_posix_shell("python3 -c \"print(1)\" && pwd", "cmd"))
+        self.assertFalse(command_requires_posix_shell("pwd", "powershell"))
+
     def test_shell_tool_auto_backend_uses_detected_posix_shell(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir), shell_backend="auto"))
@@ -216,7 +221,7 @@ class ToolTests(unittest.TestCase):
             result = tool.run("sed -n 1p README.md")
 
             self.assertFalse(result.ok)
-            self.assertIn("POSIX-only", result.error)
+            self.assertIn("POSIX shell or bash-compatible backend", result.error)
 
     def test_runtime_selects_windows_powershell_by_default(self) -> None:
         capabilities = {

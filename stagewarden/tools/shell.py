@@ -14,7 +14,7 @@ from pathlib import Path
 from ..config import AgentConfig
 from ..permissions import PermissionPolicy
 from ..runtime_env import detect_runtime_capabilities, select_shell_backend
-from ..shell_compat import prepare_command_for_shell
+from ..shell_compat import command_requires_posix_shell, prepare_command_for_shell
 from ..textcodec import detect_confusables, to_ascii_safe_text
 
 
@@ -241,6 +241,19 @@ class ShellTool:
         run_cwd = self._resolve_cwd(cwd)
         if not self.config.is_within_workspace(run_cwd):
             return ShellResult(False, command, str(run_cwd), -1, error="Working directory is outside the workspace.")
+        backend = self._selected_shell_backend()
+        selected = str(backend.get("selected") or "")
+        if command_requires_posix_shell(command, selected):
+            return ShellResult(
+                False,
+                command,
+                str(run_cwd),
+                -1,
+                error=(
+                    f"Command requires a POSIX shell or bash-compatible backend; current shell_backend={selected or 'none'}. "
+                    "Use `shell backend use bash`, `shell backend use zsh`, or translate the command."
+                ),
+            )
         return None
 
     def _approve_permission(self, capability: str, detail: str, decision: object) -> bool:

@@ -2144,6 +2144,8 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     stage_view = handoff.stage_view()
     remediations = _preflight_remediations(
         doctor=doctor,
+        runtime=doctor["runtime"],
+        shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
         role_check=role_check,
@@ -2189,6 +2191,8 @@ def _status_remediation_report(
     git_dirty = git.status_porcelain()
     return _preflight_remediations(
         doctor={"python": {"ok": True}, "git": {"ok": True}},
+        runtime=detect_runtime_capabilities(config.workspace_root),
+        shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
         role_check=_prince2_role_check_report(config),
@@ -2201,6 +2205,8 @@ def _status_remediation_report(
 def _preflight_remediations(
     *,
     doctor: dict[str, object],
+    runtime: dict[str, object],
+    shell_backend: dict[str, object],
     git_status: object,
     git_dirty: object,
     role_check: dict[str, object],
@@ -2213,6 +2219,18 @@ def _preflight_remediations(
         items.append({"severity": "blocker", "code": "python", "action": "Install Python 3.11+ and rerun `/preflight`."})
     if not doctor.get("git", {}).get("ok"):  # type: ignore[union-attr]
         items.append({"severity": "blocker", "code": "git", "action": "Install git; Stagewarden requires git for every project."})
+    if not shell_backend.get("available"):
+        items.append({"severity": "blocker", "code": "shell_backend", "action": "Choose an available backend with `/shell backend use <auto|bash|zsh|powershell|cmd>`."})
+    runtime_shells = runtime.get("shells", {}) if isinstance(runtime, dict) else {}
+    bash_info = runtime_shells.get("bash", {}) if isinstance(runtime_shells, dict) else {}
+    if runtime.get("os_family") == "windows" and not bash_info.get("available"):
+        items.append(
+            {
+                "severity": "warning",
+                "code": "windows_shell_readiness",
+                "action": "Bash is not available on this Windows runtime; bash-required or POSIX-only commands will be rejected unless you install bash or translate them.",
+            }
+        )
     if not getattr(git_status, "ok", False):
         items.append({"severity": "warning", "code": "git_status", "action": "Run `/doctor` and confirm this folder is a git worktree."})
     if getattr(git_dirty, "ok", False) and getattr(git_dirty, "stdout", "").strip():

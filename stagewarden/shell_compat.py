@@ -46,10 +46,10 @@ def prepare_command_for_shell(command: str, shell_backend: str) -> tuple[str | N
     if not tokens:
         return None, "Empty command."
 
-    first = tokens[0].lower()
-    if first in POSIX_ONLY_TOKENS:
+    if command_requires_posix_shell(command, shell_backend):
+        first = tokens[0].lower()
         return None, (
-            f"Command `{tokens[0]}` is POSIX-only for shell_backend={shell}. "
+            f"Command `{tokens[0]}` is POSIX-only or bash-required for shell_backend={shell}. "
             "Use a translated command, choose bash/zsh, or run through an explicit compatible tool."
         )
 
@@ -95,6 +95,19 @@ def _split_command(command: str, shell_backend: str) -> list[str]:
         return shlex.split(command, posix=shell_backend != "cmd")
     except ValueError:
         return command.split()
+
+
+def command_requires_posix_shell(command: str, shell_backend: str = "") -> bool:
+    shell = _normalize_shell(shell_backend)
+    if shell not in WINDOWS_BACKENDS:
+        return False
+    tokens = _split_command(command, shell)
+    if not tokens:
+        return False
+    first = tokens[0].lower()
+    if first in POSIX_ONLY_TOKENS:
+        return True
+    return any(token in command for token in ("&&", "||", "$(", "`"))
 
 
 def _clean_env_name(name: str) -> str:
