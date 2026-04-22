@@ -1168,7 +1168,14 @@ class TraceAndCliTests(unittest.TestCase):
 
     def test_interactive_shell_renders_slash_palette(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "openai"]
+            prefs.accounts_by_model = {"openai": ["work"]}
+            prefs.active_account_by_model = {"openai": "work"}
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
+            config = AgentConfig(workspace_root=root, max_steps=1)
             input_stream = StringIO("/slash mo\n/exit\n")
             output_stream = StringIO()
             code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
@@ -1177,8 +1184,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Slash command palette:", rendered)
             self.assertIn("- prefix: /mo", rendered)
+            self.assertIn("- enabled_providers: chatgpt, openai", rendered)
+            self.assertIn("- active_accounts: openai=work", rendered)
+            self.assertIn("- blocked_providers: chatgpt:2026-05-01T18:30", rendered)
             self.assertIn("/models", rendered)
             self.assertIn("/model use", rendered)
+            self.assertIn("hint=providers[chatgpt, openai]", rendered)
 
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

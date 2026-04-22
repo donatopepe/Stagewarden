@@ -202,6 +202,9 @@ Additional validation evidence:
 - Interactive slash completion now has contextual value suggestions for providers, roles, shell backends, and configured account names, instead of only flat prefix matching.
 - Completion ranking now prefers exact/prefix matches and useful contextual expansions, moving Stagewarden closer to Codex/Claude guided slash UX.
 - Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after contextual slash completion adoption.
+- `/slash` now also renders lightweight operational hints from the current workspace state: enabled providers, active accounts, blocked providers, and command-specific hint summaries where relevant.
+- This keeps slash discovery aligned with Codex/Claude-style operator feedback: command discovery plus current runtime context in one surface.
+- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after slash operational hint adoption.
 
 Next implementation roadmap:
 

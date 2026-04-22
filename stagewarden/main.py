@@ -467,21 +467,45 @@ def _interactive_help_overview() -> str:
     )
 
 
-def _render_slash_palette(prefix: str = "") -> str:
+def _render_slash_palette(config: AgentConfig, prefix: str = "") -> str:
     lowered = prefix.strip().lower()
     specs = command_specs_by_prefix(lowered)
+    prefs = _load_model_preferences(config)
     lines = ["Slash command palette:"]
     if lowered:
         lines.append(f"- prefix: /{lowered}")
     else:
         lines.append("- prefix: /")
+    enabled = ", ".join(prefs.enabled_models or []) or "none"
+    active_accounts = []
+    for provider in prefs.enabled_models or []:
+        active = (prefs.active_account_by_model or {}).get(provider)
+        if active:
+            active_accounts.append(f"{provider}={active}")
+    blocked = []
+    for provider in prefs.enabled_models or []:
+        until = (prefs.blocked_until_by_model or {}).get(provider)
+        if until:
+            blocked.append(f"{provider}:{until}")
+    lines.append(f"- enabled_providers: {enabled}")
+    lines.append(f"- active_accounts: {', '.join(active_accounts) or 'none'}")
+    lines.append(f"- blocked_providers: {', '.join(blocked) or 'none'}")
     if not specs:
         lines.append("- no matches")
         return "\n".join(lines)
     for spec in specs[:20]:
         aliases = f" aliases={','.join(spec.aliases)}" if spec.aliases else ""
         json_hint = " json" if spec.json else ""
-        lines.append(f"- /{spec.name}: {spec.description}{aliases}{json_hint}")
+        hint = ""
+        if spec.name.startswith("model "):
+            hint = f" hint=providers[{enabled}]"
+        elif spec.name.startswith("account "):
+            hint = f" hint=active_accounts[{', '.join(active_accounts) or 'none'}]"
+        elif spec.name.startswith("role "):
+            hint = f" hint=roles[{', '.join(PRINCE2_ROLE_IDS)}]"
+        elif spec.name == "shell backend use":
+            hint = " hint=backends[auto,bash,zsh,powershell,cmd]"
+        lines.append(f"- /{spec.name}: {spec.description}{aliases}{json_hint}{hint}")
     if len(specs) > 20:
         lines.append(f"- truncated: showing 20 of {len(specs)} matches")
     return "\n".join(lines)
@@ -4553,9 +4577,9 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     if lowered == "help":
         return None, interactive_help_text()
     if lowered == "slash":
-        return None, _render_slash_palette()
+        return None, _render_slash_palette(agent.config)
     if lowered.startswith("slash "):
-        return None, _render_slash_palette(command.split(maxsplit=1)[1])
+        return None, _render_slash_palette(agent.config, command.split(maxsplit=1)[1])
     if lowered == "commands":
         return None, render_command_catalog()
     if lowered == "commands --json":
