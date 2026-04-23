@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
-from .commands import command_catalog, command_phrases, command_specs_by_query, command_usages_for_groups, help_topic_lines, render_command_catalog
+from .commands import command_catalog, command_phrases, command_specs_by_query, help_topic_catalog, help_topic_lines, render_command_catalog
 from .config import AgentConfig
 from .extensions import discover_extensions, scaffold_extension
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant, format_run_model
@@ -465,23 +465,21 @@ def interactive_help_text(topic: str | None = None) -> str:
 
 
 def _interactive_help_overview() -> str:
-    return "\n".join(
-        [
-            "Stagewarden interactive shell",
-            "",
-            "Use `/help` or `/help <topic>` for full commands and examples.",
-            "Use `/slash [prefix]` to open a readable slash-command palette.",
-            "All shell commands start with `/`. Any input without `/` is sent to the agent as a task.",
-            "",
-            "Topics:",
-            "- /help core: exit, reset, overview, health, report, status, preflight, stream, sessions, transcript",
-            "- /help models: provider routing, provider models, blocks",
-            "- /help accounts: provider profiles, login, env vars, usage limits",
-            "- /help permissions: plan/auto modes, allow/ask/deny rules",
-            "- /help handoff: overview, PRINCE2 handoff, board review, registers, backlog",
-            "- /help git: status, log, file history, show",
-            "- /help caveman: Caveman aliases and modes",
-            "- /help ljson: encode, decode, benchmark",
+    lines = [
+        "Stagewarden interactive shell",
+        "",
+        "Use `/help` or `/help <topic>` for full commands and examples.",
+        "Use `/slash [prefix]` to open a readable slash-command palette.",
+        "All shell commands start with `/`. Any input without `/` is sent to the agent as a task.",
+        "",
+        "Topics:",
+    ]
+    for item in help_topic_catalog():
+        aliases = item.get("aliases", [])
+        alias_text = f" aliases={','.join(str(alias) for alias in aliases)}" if aliases else ""
+        lines.append(f"- /help {item['key']}: {item['summary']}{alias_text}")
+    lines.extend(
+        (
             "",
             "Fast examples:",
             "- stagewarden> /overview",
@@ -500,8 +498,9 @@ def _interactive_help_overview() -> str:
             "- stagewarden> board",
             "- stagewarden> handoff",
             "- stagewarden> fix failing tests",
-        ]
+        )
     )
+    return "\n".join(lines)
 
 
 def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, object]:

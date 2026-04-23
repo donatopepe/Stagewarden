@@ -28,6 +28,7 @@ class CommandSpec:
 class HelpTopic:
     key: str
     title: str
+    summary: str = ""
     groups: tuple[str, ...] = ()
     examples: tuple[str, ...] = ()
     extra_lines: tuple[str, ...] = ()
@@ -192,6 +193,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="core",
         title="Core commands",
+        summary="exit, reset, overview, health, report, status, preflight, stream, sessions, transcript",
         extra_lines=(
             "- help [topic]",
             "- exit | quit",
@@ -238,6 +240,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="models",
         title="Model commands",
+        summary="provider routing, provider models, blocks",
         groups=("models",),
         examples=(
             "models usage",
@@ -255,6 +258,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="accounts",
         title="Account commands",
+        summary="provider profiles, login, env vars, usage limits",
         groups=("accounts",),
         examples=(
             "account login chatgpt personale",
@@ -268,6 +272,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="permissions",
         title="Permission commands",
+        summary="plan/auto modes, allow/ask/deny rules",
         groups=("permissions",),
         examples=(
             "permission mode plan",
@@ -279,6 +284,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="handoff",
         title="Handoff and PRINCE2 commands",
+        summary="overview, PRINCE2 handoff, board review, registers, backlog",
         groups=("handoff", "prince2"),
         examples=(
             "overview",
@@ -295,6 +301,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="git",
         title="Git commands",
+        summary="status, log, file history, show",
         groups=("git",),
         examples=(
             "git status",
@@ -306,6 +313,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="update",
         title="Update commands",
+        summary="source sync, self-update status, checks, fast-forward apply",
         groups=("update", "sources"),
         examples=(
             "sources status --strict",
@@ -318,6 +326,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="external_io",
         title="External IO commands",
+        summary="web search, download, checksum, compression, archive verify",
         groups=("external_io",),
         examples=(
             "web search Stagewarden coding agent",
@@ -331,6 +340,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="extensions",
         title="Extension commands",
+        summary="extension discovery and scaffold",
         groups=("extensions",),
         examples=(
             "extensions",
@@ -341,6 +351,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="caveman",
         title="Caveman commands",
+        summary="Caveman aliases and modes",
         extra_lines=(
             "- /caveman help",
             "- /caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra> <task>",
@@ -360,6 +371,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="ljson",
         title="LJSON commands",
+        summary="encode, decode, benchmark",
         extra_lines=(
             "- stagewarden --ljson-encode records.json [--ljson-output out.ljson]",
             "- stagewarden --ljson-decode records.ljson [--ljson-output records.json]",
@@ -388,6 +400,21 @@ def help_topic_lines(topic: str) -> list[str] | None:
         if lowered == item.key or lowered in item.aliases:
             return item.to_lines()
     return None
+
+
+def help_topic_catalog() -> list[dict[str, object]]:
+    items: list[dict[str, object]] = []
+    for item in HELP_TOPICS:
+        items.append(
+            {
+                "key": item.key,
+                "title": item.title,
+                "summary": item.summary,
+                "aliases": list(item.aliases),
+                "examples": list(item.examples),
+            }
+        )
+    return items
 
 
 def command_catalog() -> list[dict[str, object]]:
