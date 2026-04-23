@@ -435,6 +435,20 @@ Pack `P2` validation evidence:
 - scope: richer provider/account status surfaces, status parity improvements, and any remaining safe token/context accounting gaps.
 - includes: parser improvements where primary/provider-owned machine-readable data exists, plus stale/missing-state rendering.
 - close condition: status surfaces are coherent, machine-readable, and covered by targeted parser/status tests plus one full suite.
+- status 2026-04-23: complete. Provider/account limit telemetry now shares one structured summary across `status`, `status --full`, `statusline`, and `model limits`, including blocked models/accounts, stale snapshots, last-error routing context, and read-only remediation signals.
+
+Pack `P3` validation evidence:
+
+- Added shared limit summary payload fields: `blocked_models`, `stale_models`, `blocked_accounts`, `stale_accounts`, `last_errors`, and `routes`.
+- `status --json` and `status --full --json` now expose `limits_summary`.
+- `statusline --json` now exposes `rate_limits_summary`, and each compact limit row now carries `rate_limit_type`, `stale`, and blocked-account count.
+- `model limits --json` now exposes the same top-level summary for parity with status surfaces.
+- Status/preflight remediation now warns explicitly on stale provider-limit snapshots.
+- Wet-run `python3 -m stagewarden.main statusline --json` passed in the real workspace.
+- Wet-run `python3 -m stagewarden.main status --full --json` passed in the real workspace.
+- Wet-run `python3 -m stagewarden.main "model limits" --json` passed in the real workspace.
+- Targeted validation on status/limits parity passed with 5 focused tests.
+- Full-suite closure `python3 -m unittest discover -s tests` passed with 290 tests and 3 expected skips.
 
 - `P4` Advanced palette interaction pack:
 - scope: only after metadata convergence is complete, evaluate safer cursor-oriented selection semantics or improved non-TTY fallback behavior.
