@@ -21,6 +21,8 @@ The working rule is PRINCE2-style controlled execution:
 - keep model handoff context available without requiring manual resume
 - adapt governance to task size and risk: small work stays lightweight, complex work gets stronger controls
 - reduce ceremony, never principles
+- communication and traceability rule: the AI agent must inform the user of every action it is about to perform, every material action it performs, and every relevant result; each action must also be recorded in handoff/log context with enough evidence to reconstruct what happened
+- no silent action rule: shell commands, file edits, model handoffs, role-tree changes, git snapshots, web/download/compression operations, approvals, force overrides, and recovery actions must never be invisible to the user or absent from handoff
 - model roles are not limited to a flat one-role/one-model map: PRINCE2 organization can be hierarchical, delegated, combined, or split by domain while preserving accountability
 - clarification gate: for every user request, Stagewarden must identify all ambiguous points and ask every necessary clarification before execution starts; work may begin only after no material ambiguity remains or the user explicitly authorizes assumptions
 - clarification gate must stay proportional: simple unambiguous requests can proceed immediately, but any uncertainty about scope, files, provider/model/account, permissions, destructive effects, external network use, expected output, validation/wet-run, git/push boundary, or PRINCE2 role ownership must be resolved first
@@ -313,6 +315,12 @@ Additional validation evidence:
 - Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree approve"` blocked in the real workspace because `scope` and `expected_outputs` are missing.
 - Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree approve --force"` approved and persisted the proposal baseline with `delivery.implementation_team`.
 - Wet-run 2026-04-23: sequential `python3 -m stagewarden.main "roles baseline" --json` confirmed `source=project_tree_approve_force`, 9 nodes, and preserved proposal metadata.
+- Phase B mini-block continued: `project start` now uses the controlled `project design -> project tree propose -> project tree approve` path instead of silently applying the static role baseline.
+- `project start` blocks startup when the project brief/proposal has unresolved clarification gaps and gives explicit next actions.
+- Startup ignores only the expected generative design gaps `missing_role_tree_baseline` and `role_tree_not_ready`, because creating that baseline is the purpose of startup.
+- Validation 2026-04-23: targeted project-start and project-tree approval tests passed.
+- Wet-run 2026-04-23: `python3 -m stagewarden.main "project start"` blocked in the real workspace because `scope` and `expected_outputs` are still missing.
+- Validation 2026-04-23: `python3 -m unittest discover -s tests` passed, 264 tests, after startup gate integration.
 
 Next implementation roadmap:
 
@@ -323,6 +331,7 @@ Roadmap rule:
 - Priority override from the current directive: UX parity with Codex CLI and Claude Code is now the baseline governing principle for all new CLI/shell interaction work.
 - Priority order is governed by operational risk: shell/runtime safety first, then PRINCE2 routing, then network/file artifact tools, then UX polish.
 - UX parity is not postponed to polish only: when a control surface affects prompting, shell conversation, slash commands, status, auth, resume, or model/provider selection, it must be designed against the Codex/Claude baseline during the implementation phase itself.
+- Mandatory transparency: all future implementation blocks must add or preserve user-facing action announcements and durable handoff/log entries for the action path being changed.
 - Technical execution order after replanning on 2026-04-22:
 - `P-UX0` keep Stagewarden UX aligned to Codex CLI and Claude Code for all operator-facing surfaces; use `external_sources/codex` and `external_sources/claude-code` as the baseline learning corpus and record adopted patterns here before implementation.
 - `P-UX1` improve agent<->model communication with a structured turn packet inspired by Codex thread start/items and Claude transcript/resume behaviour.
@@ -408,6 +417,7 @@ Phase A - OS-aware shell runtime and preflight:
 Phase B - PRINCE2 role tree routing:
 
 - Status: partially implemented.
+- New cross-cutting requirement: every PRINCE2 routing action must be announced to the user and recorded in handoff/log context, including proposal generation, approvals, forced approvals, role-node changes, route-pool changes, fallback decisions, and escalation/exception transitions.
 - Completed: `roles tree`, `roles tree --json`, `roles check`, and `roles check --json`.
 - Current role-tree nodes expose node id, role type, parent, level, accountability boundary, delegated authority, responsibility domain, context scope, include/exclude rules, expansion events, assignment, fallback pool, and readiness.
 - Completed: `roles flow` and `roles flow --json` render authorized PRINCE2 transitions between role-tree nodes.
@@ -423,7 +433,8 @@ Phase B - PRINCE2 role tree routing:
 - Completed: structured project-brief fields are now persisted in runtime handoff and exposed inside `project design`.
 - Completed: local proportional tree proposal is available through `project tree propose` without persisting a baseline.
 - Completed: `project tree approve` persists reviewed proposals and blocks unresolved gaps unless `--force` is explicit.
-- Next: connect `project start` to the proposal/approval path before introducing AI-assisted proposal generation.
+- Completed: `project start` is connected to the proposal/approval path and no longer silently applies the static baseline.
+- Next: add AI-assisted proposal generation that consumes `project design` plus structured brief, then compare/merge with the local proportional proposal before approval.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
 - Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:

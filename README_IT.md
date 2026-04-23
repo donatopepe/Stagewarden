@@ -88,7 +88,7 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/project design` mostra il pacchetto preliminare che un futuro planner IA PRINCE2 deve ricevere: capability reali dell'agente, specifica di progetto corrente e gap di chiarimento.
 - `/project tree propose` crea una proposta review-only di albero organizzativo PRINCE2 proporzionale alla brief strutturata; non persiste la baseline finche non viene usato un percorso di approvazione.
 - `/project tree approve` persiste la proposta revisionata come baseline approvata; blocca i gap aperti salvo uso esplicito di `/project tree approve --force`.
-- `/project start` mostra prima quel pacchetto di progettazione e solo dopo applica la baseline automatica, cosi le assunzioni di startup restano visibili.
+- `/project start` esegue ora il gate controllato di startup: pacchetto design, proposta proporzionale di albero e approvazione. Blocca i gap di chiarimento invece di applicare silenziosamente la baseline statica.
 - `/role add-child` apre un menu guidato, oppure `/role add-child <parent_node> <role_type> [node_id]` aggiunge nodi PRINCE2 delegati/subordinati alla baseline approvata.
 - `/role assign` apre un menu guidato, oppure `/role assign <node_id> <provider> <provider_model> [reasoning_effort=<valore>] [account=<nome>] [pool=<primary|reviewer|fallback>]` assegna rotte primary, reviewer o fallback a un nodo specifico dell'albero.
 
