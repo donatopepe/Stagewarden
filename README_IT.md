@@ -4,6 +4,7 @@ Autore: Donato Pepe
 Licenza: MIT
 
 Stagewarden e un agente CLI per coding controllato: loop stile Codex, routing multi-provider, governance PRINCE2, handoff persistente, strumenti shell/file/git e tracciamento verificabile.
+Include anche IO esterno governato: ricerca web, download HTTP/HTTPS, checksum, compressione gzip e verifica archivio con evidenza tracciata.
 
 ## Installazione
 
@@ -116,6 +117,11 @@ stagewarden> /report
 stagewarden> /transcript
 stagewarden> /git status
 stagewarden> /sources status
+stagewarden> /web search Stagewarden coding agent
+stagewarden> /download https://example.com/file.txt artifacts/file.txt
+stagewarden> /checksum artifacts/file.txt
+stagewarden> /compress artifacts/file.txt
+stagewarden> /archive verify artifacts/file.txt.gz
 ```
 
 Per output JSON:
@@ -130,6 +136,10 @@ stagewarden "resume context" --json
 ```
 
 `statusline --json` espone anche uso token/finestra di contesto quando il provider restituisce metadati sicuri.
+
+## IO Esterno Governato
+
+I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` registrano evidenza in transcript e handoff actions. I download accettano solo HTTP/HTTPS, scrivono solo dentro la workspace e rispettano `--max-bytes` per evitare acquisizioni incontrollate.
 
 ## Crediti
 

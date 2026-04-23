@@ -7,6 +7,7 @@ from dataclasses import replace
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -63,6 +64,7 @@ from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.git import GitTool
+from .tools.external_io import ExternalIOResult, ExternalIOTool
 
 
 INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
@@ -369,6 +371,18 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- git show --stat [revision]",
             "  Show revision summary with file stats.",
             "",
+            "External IO commands:",
+            "- web search <query>",
+            "  Run governed web search and store result evidence.",
+            "- download <url> [path] [--max-bytes N]",
+            "  Download HTTP/HTTPS into the workspace with checksum evidence.",
+            "- checksum <path>",
+            "  Compute SHA-256 for a workspace file.",
+            "- compress <path> [target.gz]",
+            "  Create a gzip archive inside the workspace.",
+            "- archive verify <path.gz>",
+            "  Verify gzip readability and checksum.",
+            "",
             "Task execution:",
             "- Any other input is executed as a task in the current workspace.",
             "",
@@ -426,6 +440,10 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- stagewarden> git log 5",
             "- stagewarden> git history stagewarden/main.py 10",
             "- stagewarden> git show --stat HEAD",
+            "- stagewarden> /download https://example.com/file.txt artifacts/file.txt",
+            "- stagewarden> /checksum artifacts/file.txt",
+            "- stagewarden> /compress artifacts/file.txt",
+            "- stagewarden> /archive verify artifacts/file.txt.gz",
             "- stagewarden> fix failing tests in router.py",
         ]
     )
@@ -573,6 +591,9 @@ def _interactive_help_topic(topic: str) -> str:
         "perm": "permissions",
         "prince2": "handoff",
         "history": "git",
+        "io": "external_io",
+        "network": "external_io",
+        "download": "external_io",
         "sessions": "core",
         "session": "core",
     }
@@ -677,6 +698,17 @@ def _interactive_help_topic(topic: str) -> str:
                 "git status",
                 "git log 5",
                 "git history stagewarden/main.py 10",
+            ),
+        ),
+        "external_io": _registry_help_lines(
+            "External IO commands",
+            ("external_io",),
+            (
+                "web search Stagewarden coding agent",
+                "download https://example.com/file.txt artifacts/file.txt --max-bytes 1048576",
+                "checksum artifacts/file.txt",
+                "compress artifacts/file.txt",
+                "archive verify artifacts/file.txt.gz",
             ),
         ),
         "caveman": [
@@ -1229,9 +1261,9 @@ def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, objec
             "shell": True,
             "files": True,
             "git": True,
-            "web_research": False,
-            "download": False,
-            "compression": False,
+            "web_research": True,
+            "download": True,
+            "compression": True,
             "wet_run_required": True,
         },
         "permission_mode": permissions["effective"]["mode"],
@@ -2683,6 +2715,132 @@ def _handle_sources_command(command: str, config: AgentConfig) -> str | None:
         return _render_sources_status(config)
     if command.startswith("sources "):
         return "Usage: sources | sources status"
+    return None
+
+
+def _external_io_result_to_text(result: ExternalIOResult) -> str:
+    lines = [f"{result.command}: {'OK' if result.ok else 'FAIL'} {result.message}"]
+    if result.url:
+        lines.append(f"- url: {result.url}")
+    if result.path:
+        lines.append(f"- path: {result.path}")
+    if result.bytes_written:
+        lines.append(f"- bytes: {result.bytes_written}")
+    if result.sha256:
+        lines.append(f"- sha256: {result.sha256}")
+    if result.content_type:
+        lines.append(f"- content_type: {result.content_type}")
+    if result.items:
+        lines.append("Results:")
+        for index, item in enumerate(result.items, 1):
+            title = item.get("title") or "(untitled)"
+            url = item.get("url") or ""
+            snippet = item.get("snippet") or ""
+            lines.append(f"- {index}. {title} {url}".rstrip())
+            if snippet:
+                lines.append(f"  {snippet}")
+    if result.error:
+        lines.append(f"- error: {result.error}")
+    return "\n".join(lines)
+
+
+def _record_external_io_evidence(config: AgentConfig, result: ExternalIOResult, *, task: str) -> None:
+    memory = MemoryStore.load(config.memory_path)
+    memory.record_tool_transcript(
+        iteration=0,
+        step_id="external-io",
+        tool="external_io",
+        action_type=result.command,
+        success=result.ok,
+        summary=result.message,
+        detail=dumps_ascii(result.as_dict()),
+        duration_ms=result.duration_ms,
+        error_type=None if result.ok else "external_io_error",
+    )
+    memory.save(config.memory_path)
+    phase_names = {
+        "web search": "web_search",
+        "download": "download_file",
+        "checksum": "checksum_file",
+        "compress": "compress_file",
+        "archive verify": "archive_verify",
+    }
+    phase = phase_names.get(result.command, result.command.replace(" ", "_"))
+    _record_handoff_action(
+        config,
+        phase=phase,
+        task=task,
+        summary=result.message,
+        details={
+            "ok": result.ok,
+            "path": result.path,
+            "url": result.url,
+            "bytes_written": result.bytes_written,
+            "sha256": result.sha256,
+            "content_type": result.content_type,
+            "error": result.error,
+            "items": result.items or [],
+        },
+    )
+
+
+def _external_io_report(command: str, config: AgentConfig) -> dict[str, object] | None:
+    result = _external_io_execute(command, config)
+    if result is None:
+        return None
+    _record_external_io_evidence(config, result, task=command)
+    return result.as_dict()
+
+
+def _handle_external_io_command(command: str, config: AgentConfig) -> str | None:
+    result = _external_io_execute(command, config)
+    if result is None:
+        return None
+    _record_external_io_evidence(config, result, task=command)
+    return _external_io_result_to_text(result)
+
+
+def _external_io_execute(command: str, config: AgentConfig) -> ExternalIOResult | None:
+    try:
+        parts = shlex.split(command)
+    except ValueError as exc:
+        return ExternalIOResult(ok=False, command="external io", message=str(exc), error=str(exc))
+    if not parts:
+        return None
+    tool = ExternalIOTool(config.workspace_root)
+    if parts[0] == "checksum" and len(parts) == 2:
+        return tool.checksum(parts[1])
+    if parts[0] == "download":
+        max_bytes: int | None = None
+        clean: list[str] = []
+        index = 1
+        while index < len(parts):
+            if parts[index] == "--max-bytes" and index + 1 < len(parts):
+                try:
+                    max_bytes = int(parts[index + 1])
+                except ValueError:
+                    return ExternalIOResult(ok=False, command="download", message="--max-bytes must be an integer.", error="invalid_max_bytes")
+                index += 2
+                continue
+            clean.append(parts[index])
+            index += 1
+        if len(clean) in {1, 2}:
+            return tool.download(clean[0], clean[1] if len(clean) == 2 else None, max_bytes=max_bytes)
+        return ExternalIOResult(ok=False, command="download", message="Usage: download <url> [path] [--max-bytes N]", error="usage")
+    if parts[0] == "compress" and len(parts) in {2, 3}:
+        return tool.gzip_compress(parts[1], parts[2] if len(parts) == 3 else None)
+    if parts[:2] == ["archive", "verify"] and len(parts) == 3:
+        return tool.verify_archive(parts[2])
+    if parts[:2] == ["web", "search"] and len(parts) >= 3:
+        endpoint = os.environ.get("STAGEWARDEN_WEB_SEARCH_ENDPOINT")
+        return tool.web_search(" ".join(parts[2:]), endpoint=endpoint)
+    if parts[0] in {"download", "checksum", "compress", "archive", "web"}:
+        return ExternalIOResult(
+            ok=False,
+            command=parts[0],
+            message="Usage: web search <query> | download <url> [path] [--max-bytes N] | checksum <path> | compress <path> [target.gz] | archive verify <path.gz>",
+            error="usage",
+        )
     return None
 
 
@@ -4204,7 +4362,9 @@ ACTION_PHASE_PREFIXES = (
     "shell_",
     "web_",
     "download_",
+    "checksum_",
     "compress_",
+    "archive_",
 )
 
 
@@ -6478,6 +6638,11 @@ def run_interactive_shell(
             sink.write(f"{sources_message}\n")
             sink.flush()
             continue
+        external_io_message = _handle_external_io_command(shell_command, config)
+        if external_io_message is not None:
+            sink.write(f"{external_io_message}\n")
+            sink.flush()
+            continue
         mode_message = _handle_mode_command(shell_command, agent, config)
         if mode_message is not None:
             sink.write(f"{mode_message}\n")
@@ -6827,6 +6992,21 @@ def main() -> int:
         else:
             print(response)
         return 0
+    if (
+        task.startswith("web search ")
+        or task.startswith("download ")
+        or task.startswith("checksum ")
+        or task.startswith("compress ")
+        or task.startswith("archive verify ")
+        or task in {"download", "checksum", "compress", "archive", "web"}
+    ):
+        if args.json:
+            report = _external_io_report(task, config)
+            print(dumps_ascii(report or {"command": task, "ok": False, "error": "Unsupported external IO command"}, indent=2))
+            return 0 if report and report.get("ok") else 1
+        response = _handle_external_io_command(task, config)
+        print(response or "Usage: web search <query> | download <url> [path] [--max-bytes N] | checksum <path> | compress <path> [target.gz] | archive verify <path.gz>")
+        return 0 if response and ": OK " in response else 1
     if task == "permissions":
         if args.json:
             print(dumps_ascii({"command": "permissions", "report": _permissions_report(config)}, indent=2))
