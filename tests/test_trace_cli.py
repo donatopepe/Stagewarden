@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -2636,6 +2638,58 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads(json_completed.stdout)
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["items"][0]["project"], "OpenAI Codex CLI")
+
+    def test_external_io_cli_download_records_evidence(self) -> None:
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                body = b"downloaded by stagewarden\n"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            except PermissionError as exc:
+                self.skipTest(f"local HTTP bind unavailable: {exc}")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_port}/artifact.txt"
+                downloaded = run_main_capture(root, "download", url, "artifacts/artifact.txt", "--json")
+                self.assertEqual(downloaded.returncode, 0, downloaded.stderr)
+                payload = json.loads(downloaded.stdout)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["path"], "artifacts/artifact.txt")
+                self.assertTrue(payload["sha256"])
+                self.assertTrue((root / "artifacts/artifact.txt").exists())
+
+                checksum = run_main_capture(root, "checksum", "artifacts/artifact.txt", "--json")
+                self.assertEqual(checksum.returncode, 0, checksum.stderr)
+                checksum_payload = json.loads(checksum.stdout)
+                self.assertEqual(checksum_payload["sha256"], payload["sha256"])
+
+                actions = run_main_capture(root, "handoff actions", "5", "--json")
+                self.assertEqual(actions.returncode, 0, actions.stderr)
+                action_payload = json.loads(actions.stdout)
+                phases = [entry["phase"] for entry in action_payload["entries"]]
+                self.assertIn("download_file", phases)
+                self.assertIn("checksum_file", phases)
+
+                transcript = run_main_capture(root, "transcript", "--json")
+                self.assertEqual(transcript.returncode, 0, transcript.stderr)
+                transcript_payload = json.loads(transcript.stdout)
+                self.assertGreaterEqual(transcript_payload["report"]["count"], 2)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
 
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

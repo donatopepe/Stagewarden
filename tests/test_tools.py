@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -9,12 +12,100 @@ from stagewarden.permissions import PermissionPolicy, PermissionSettings
 from stagewarden.runtime_env import select_shell_backend
 from stagewarden.shell_compat import command_requires_posix_shell, prepare_command_for_shell, shell_env_reference, shell_path_literal, shell_quote
 from stagewarden.tools.git import GitTool
+from stagewarden.tools.external_io import ExternalIOTool
 from stagewarden.tools.files import FileTool
 from stagewarden.tools.shell import ShellTool
 from stagewarden.textcodec import detect_confusables
 
 
 class ToolTests(unittest.TestCase):
+    def test_external_io_download_checksum_compress_and_verify(self) -> None:
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                body = b"stagewarden external io wet-run\n"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            except PermissionError as exc:
+                self.skipTest(f"local HTTP bind unavailable: {exc}")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                tool = ExternalIOTool(root, max_bytes=1024)
+                url = f"http://127.0.0.1:{server.server_port}/artifact.txt"
+                downloaded = tool.download(url, "artifacts/artifact.txt")
+                self.assertTrue(downloaded.ok, downloaded.error)
+                self.assertEqual(downloaded.bytes_written, len(b"stagewarden external io wet-run\n"))
+                self.assertTrue(downloaded.sha256)
+
+                checksum = tool.checksum("artifacts/artifact.txt")
+                self.assertTrue(checksum.ok, checksum.error)
+                self.assertEqual(checksum.sha256, downloaded.sha256)
+
+                compressed = tool.gzip_compress("artifacts/artifact.txt")
+                self.assertTrue(compressed.ok, compressed.error)
+                self.assertTrue((root / "artifacts/artifact.txt.gz").exists())
+
+                verified = tool.verify_archive("artifacts/artifact.txt.gz")
+                self.assertTrue(verified.ok, verified.error)
+                self.assertIn("uncompressed", verified.message)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+
+    def test_external_io_rejects_unsafe_url_and_workspace_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ExternalIOTool(Path(tmp_dir))
+            blocked_url = tool.download("file:///etc/passwd", "passwd")
+            self.assertFalse(blocked_url.ok)
+            self.assertIn("Only http and https", blocked_url.error or "")
+            blocked_path = tool.checksum("../outside.txt")
+            self.assertFalse(blocked_path.ok)
+            self.assertIn("inside the workspace", blocked_path.error or "")
+
+    def test_external_io_web_search_parses_json_results(self) -> None:
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                body = json.dumps({"results": [{"title": "Stagewarden", "url": "https://example.test", "snippet": "Agent"}]}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            except PermissionError as exc:
+                self.skipTest(f"local HTTP bind unavailable: {exc}")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                result = ExternalIOTool(Path(tmp_dir)).web_search(
+                    "stagewarden",
+                    endpoint=f"http://127.0.0.1:{server.server_port}/search",
+                )
+                self.assertTrue(result.ok, result.error)
+                self.assertEqual(result.items[0]["title"], "Stagewarden")
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+
     def test_git_tool_initializes_repository_and_commits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
