@@ -1333,6 +1333,22 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertFalse(payload["ok"])
 
+    def test_interactive_slash_choose_returns_selected_command_without_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("/slash choose upgrade\n1\n/exit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Choose slash command:", rendered)
+            self.assertIn("Selected slash command: /update apply --yes", rendered)
+            actions = run_main_capture(root, "handoff actions", "5", "--json")
+            phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
+            self.assertNotIn("update_apply", phases)
+
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
