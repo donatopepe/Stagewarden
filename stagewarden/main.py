@@ -1340,13 +1340,39 @@ def _render_project_design(agent: Agent, config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
-def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPreferences) -> str:
+def _project_tree_ai_needed(design: dict[str, object], proposal: dict[str, object]) -> bool:
+    if proposal.get("status") != "ready_for_review":
+        return False
+    project = design.get("project_specification") if isinstance(design.get("project_specification"), dict) else {}
+    brief = project.get("brief") if isinstance(project.get("brief"), dict) else {}
+    text = " ".join(str(value).lower() for value in brief.values())
+    complexity_tokens = (
+        "complex",
+        "regulated",
+        "enterprise",
+        "multi-vendor",
+        "multi provider",
+        "rate-limit",
+        "rate limit",
+        "high uncertainty",
+        "alto rischio",
+        "alta incertezza",
+        "security",
+        "auth",
+        "compliance",
+    )
+    return any(token in text for token in complexity_tokens)
+
+
+def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPreferences, *, force_ai: bool = False) -> str:
     design = _project_design_report(agent, config)
-    proposal = _project_tree_proposal_report(config)
+    local_proposal = _project_tree_proposal_report(config)
+    use_ai = force_ai or _project_tree_ai_needed(design, local_proposal)
+    proposal = _project_tree_proposal_report(config, agent=agent, use_ai=True) if use_ai else local_proposal
     sections = [
         "Project startup design gate:",
         _render_project_design(agent, config),
-        _render_project_tree_proposal(config),
+        _render_project_tree_proposal_report(proposal),
     ]
     ignored_startup_design_gaps = {"role_tree_not_ready", "missing_role_tree_baseline"}
     raw_design_gaps = design.get("clarification_gaps", [])
@@ -1367,6 +1393,8 @@ def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPrefere
                 "design_gaps": design_gaps,
                 "proposal_gaps": proposal_gaps if isinstance(proposal_gaps, list) else [],
                 "proposal_status": proposal.get("status"),
+                "ai_requested": proposal.get("ai_requested"),
+                "ai_assistance": proposal.get("ai_assistance"),
             },
         )
         lines = [
@@ -1383,7 +1411,7 @@ def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPrefere
                 lines.append(f"- proposal_gap {item.get('code', 'gap')}: {item.get('message', 'missing')}")
         sections.append("\n".join(lines))
         return "\n\n".join(sections)
-    approval = _approve_project_tree_proposal(config, force=False)
+    approval = _approve_project_tree_proposal(config, force=False, proposal_report=proposal)
     _apply_model_preferences(agent, config)
     _record_handoff_action(
         config,
@@ -1394,6 +1422,8 @@ def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPrefere
             "approval_status": approval.get("status"),
             "forced": approval.get("forced"),
             "proposal_added_nodes": proposal.get("added_nodes", []),
+            "ai_requested": proposal.get("ai_requested"),
+            "ai_assistance": proposal.get("ai_assistance"),
         },
     )
     sections.append(_render_project_tree_approval_report(approval, config))
@@ -1859,8 +1889,13 @@ def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def _approve_project_tree_proposal(config: AgentConfig, *, force: bool = False) -> dict[str, object]:
-    report = _project_tree_proposal_report(config)
+def _approve_project_tree_proposal(
+    config: AgentConfig,
+    *,
+    force: bool = False,
+    proposal_report: dict[str, object] | None = None,
+) -> dict[str, object]:
+    report = proposal_report or _project_tree_proposal_report(config)
     gaps = report.get("clarification_gaps", [])
     if isinstance(gaps, list) and gaps and not force:
         _record_handoff_action(
@@ -1900,6 +1935,8 @@ def _approve_project_tree_proposal(config: AgentConfig, *, force: bool = False) 
             "added_nodes": list(report.get("added_nodes", [])) if isinstance(report.get("added_nodes"), list) else [],
             "clarification_gaps": list(gaps) if isinstance(gaps, list) else [],
             "project_brief": dict(report.get("project_brief", {})) if isinstance(report.get("project_brief"), dict) else {},
+            "ai_requested": bool(report.get("ai_requested")),
+            "ai_assistance": dict(report.get("ai_assistance", {})) if isinstance(report.get("ai_assistance"), dict) else {},
             "forced": force,
         },
     }
@@ -2350,9 +2387,11 @@ def _handle_role_command(
     parts = command.split()
     if not parts:
         return None
-    if parts[0] == "project" and len(parts) == 2 and parts[1] == "start":
+    if parts[0] == "project" and parts[1:2] == ["start"] and len(parts) in {2, 3}:
+        if len(parts) == 3 and parts[2] != "--ai":
+            return "Usage: project start [--ai]"
         prefs = _load_model_preferences(config)
-        return _render_project_start(agent, config, prefs)
+        return _render_project_start(agent, config, prefs, force_ai=len(parts) == 3)
     if parts[0] == "roles":
         prefs = _load_model_preferences(config)
         if len(parts) == 1:
@@ -6725,17 +6764,17 @@ def main() -> int:
         else:
             print(response)
         return 0
-    if task.startswith("roles ") or task.startswith("role ") or task == "project start":
+    if task.startswith("roles ") or task.startswith("role ") or task in {"project start", "project start --ai"}:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start")
+            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start [--ai]")
             return 1
         if args.json:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
         else:
             print(response)
-        return 1 if task == "project start" and not _project_start_ready(config) else 0
+        return 1 if task.startswith("project start") and not _project_start_ready(config) else 0
     if task in {"sources", "sources status"} or task.startswith("sources "):
         response = _handle_sources_command(task, config)
         if response is None or response.startswith("Usage:"):

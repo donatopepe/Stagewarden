@@ -2062,6 +2062,56 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("project_start_approved", phases)
             self.assertIn("PRINCE2 role-tree baseline:", completed.stdout)
 
+    def test_project_start_ai_persists_valid_ai_tree_patch_after_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = root / "run_model_ai_start_stub.py"
+            stub.write_text(
+                "#!/usr/bin/env python3\n"
+                "from __future__ import annotations\n"
+                "import json\n"
+                "print(json.dumps({\n"
+                "  'summary': 'Add release governance for start approval.',\n"
+                "  'tree_patches': [{\n"
+                "    'node_id': 'delivery.release_manager',\n"
+                "    'role_type': 'team_manager',\n"
+                "    'label': 'Release Team Manager',\n"
+                "    'parent_id': 'management.project_manager',\n"
+                "    'level': 'delivery',\n"
+                "    'accountability_boundary': 'delegated release packaging and wet-run evidence inside stage tolerances',\n"
+                "    'delegated_authority': 'coordinates release work packages and escalates forecast tolerance breaches'\n"
+                "  }]\n"
+                "}))\n",
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            handoff.task = "build a governed CLI coding agent"
+            handoff.save(root / ".stagewarden_handoff.json")
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing browser login and release packaging").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                completed = run_main_capture(root, "project start --ai")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("delivery.release_manager", completed.stdout)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            proposal = baseline.get("proposal", {})
+            self.assertTrue(proposal.get("ai_requested"))
+            self.assertIn("delivery.release_manager", proposal.get("added_nodes", []))
+            node_ids = {item["node_id"] for item in baseline.get("tree", {}).get("nodes", [])}
+            self.assertIn("delivery.release_manager", node_ids)
+
     def test_roles_tree_approve_persists_role_tree_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
