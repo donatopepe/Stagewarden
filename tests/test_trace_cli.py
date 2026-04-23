@@ -2304,6 +2304,57 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("assurance.validation_assurance", node_ids)
             self.assertEqual(payload["clarification_gaps"], [])
 
+    def test_project_tree_propose_ai_merges_model_suggestions_without_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = root / "run_model_ai_tree_stub.py"
+            stub.write_text(
+                "#!/usr/bin/env python3\n"
+                "from __future__ import annotations\n"
+                "import json\n"
+                "print(json.dumps({\n"
+                "  'summary': 'Add release governance for cross-platform delivery.',\n"
+                "  'assumptions': ['Release evidence needs independent coordination.'],\n"
+                "  'tree_patches': [{\n"
+                "    'node_id': 'delivery.release_manager',\n"
+                "    'role_type': 'team_manager',\n"
+                "    'label': 'Release Team Manager',\n"
+                "    'parent_id': 'management.project_manager',\n"
+                "    'level': 'delivery',\n"
+                "    'accountability_boundary': 'delegated release packaging and wet-run evidence inside stage tolerances',\n"
+                "    'delegated_authority': 'coordinates release work packages and escalates forecast tolerance breaches'\n"
+                "  }]\n"
+                "}))\n",
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                completed = run_main_capture(root, "project tree propose --ai")
+                json_completed = run_main_capture(root, "project tree propose --ai", "--json")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("AI assistance:", completed.stdout)
+            self.assertIn("delivery.release_manager", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertTrue(payload["ai_requested"])
+            self.assertTrue(payload["ai_assistance"]["ok"])
+            self.assertIn("delivery.release_manager", payload["ai_assistance"]["valid_added_nodes"])
+            self.assertIn("delivery.release_manager", payload["added_nodes"])
+            self.assertEqual(ModelPreferences.load(root / ".stagewarden_models.json").prince2_role_tree_baseline, {})
+
     def test_project_tree_propose_reports_missing_brief_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

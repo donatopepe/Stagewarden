@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import copy
 from dataclasses import replace
 import os
 import platform
@@ -22,7 +23,7 @@ from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
 from .commands import command_catalog, command_phrases, command_specs_by_prefix, command_usages_for_groups, render_command_catalog
 from .config import AgentConfig
-from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant
+from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant, format_run_model
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .memory import MemoryStore
 from .modelprefs import (
@@ -1527,7 +1528,7 @@ def _role_node_from_template(
     }
 
 
-def _project_tree_proposal_report(config: AgentConfig) -> dict[str, object]:
+def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = None, use_ai: bool = False) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     prefs = _load_model_preferences(config)
     proposed_roles = prefs.propose_prince2_roles()
@@ -1626,10 +1627,20 @@ def _project_tree_proposal_report(config: AgentConfig) -> dict[str, object]:
     for required in ("objective", "scope", "expected_outputs", "delivery_mode"):
         if not brief.get(required):
             gaps.append({"code": f"missing_{required}", "message": f"Project brief is missing {required}."})
-    return {
+    report = {
         "command": "project tree propose",
         "status": "ready_for_review" if not gaps and check.get("status") != "error" else "needs_clarification",
         "source": "local_rules",
+        "ai_requested": bool(use_ai),
+        "ai_assistance": {
+            "attempted": False,
+            "ok": None,
+            "model": None,
+            "account": None,
+            "message": "AI assistance was not requested.",
+            "valid_added_nodes": [],
+            "rejected_nodes": [],
+        },
         "project_brief": brief,
         "assumptions": assumptions,
         "added_nodes": added_nodes,
@@ -1639,21 +1650,186 @@ def _project_tree_proposal_report(config: AgentConfig) -> dict[str, object]:
         "clarification_gaps": gaps,
         "approval_rule": "proposal only; user or Project Board must approve before persistence",
     }
+    if use_ai:
+        active_agent = agent or _configure_readonly_agent_for_workspace(config)
+        report = _merge_ai_project_tree_proposal(active_agent, config, report)
+    return report
+
+
+def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, object]) -> str:
+    packet = {
+        "purpose": "Design a proportional PRINCE2 role-tree proposal for Stagewarden.",
+        "rules": [
+            "Return only valid JSON.",
+            "Do not persist or approve anything.",
+            "Suggest only additional nodes that are justified by the project brief.",
+            "Each node must have node_id, role_type, label, parent_id, level, accountability_boundary, and delegated_authority.",
+            "Allowed role_type values: " + ", ".join(PRINCE2_ROLE_IDS),
+            "Respect PRINCE2 accountability boundaries and keep each node context limited to its responsibility domain.",
+            "Prefer cheaper/local providers unless the node domain requires stronger reasoning.",
+        ],
+        "expected_schema": {
+            "summary": "short rationale",
+            "assumptions": ["short assumption"],
+            "tree_patches": [
+                {
+                    "node_id": "lowercase.dot_or_underscore_id",
+                    "role_type": "project_manager",
+                    "label": "Node label",
+                    "parent_id": "management.project_manager",
+                    "level": "management",
+                    "accountability_boundary": "bounded accountability/delegation statement",
+                    "delegated_authority": "what this node may decide or execute",
+                }
+            ],
+        },
+        "project_design_packet": design,
+        "local_proposal": local_report,
+    }
+    return dumps_ascii(packet)
+
+
+def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_report: dict[str, object]) -> dict[str, object]:
+    report = copy.deepcopy(local_report)
+    design = _project_design_report(agent, config)
+    prompt = _project_tree_ai_prompt(design, local_report)
+    _apply_model_preferences(agent, config)
+    prefs = _load_model_preferences(config)
+    model = agent.router.choose_model(
+        "AI-assisted PRINCE2 project tree design",
+        "handoff project design capability specification role tree proposal",
+        0,
+    )
+    account = prefs.account_for_model(model)
+    result = agent.handoff.execute(format_run_model(model, prompt, account=account))
+    assistance: dict[str, object] = {
+        "attempted": True,
+        "ok": False,
+        "model": model,
+        "account": account or None,
+        "message": "",
+        "valid_added_nodes": [],
+        "rejected_nodes": [],
+    }
+    if not result.ok:
+        assistance["message"] = result.error or "AI proposal model call failed; using local proposal only."
+        report["ai_assistance"] = assistance
+        report["source"] = "local_rules_ai_failed"
+        return report
+    try:
+        payload = loads_text(result.output)
+    except ValueError as exc:
+        assistance["message"] = f"AI proposal output was not valid JSON: {exc}"
+        report["ai_assistance"] = assistance
+        report["source"] = "local_rules_ai_invalid"
+        return report
+    if not isinstance(payload, dict):
+        assistance["message"] = "AI proposal output must be a JSON object."
+        report["ai_assistance"] = assistance
+        report["source"] = "local_rules_ai_invalid"
+        return report
+
+    prefs = _load_model_preferences(config)
+    proposed_roles = prefs.propose_prince2_roles()
+    merged_roles = dict(proposed_roles)
+    merged_roles.update(prefs.prince2_roles or {})
+    proposal_prefs = replace(prefs, prince2_roles=merged_roles)
+    active_models = list(proposal_prefs.active_models() or proposal_prefs.enabled_models)
+    tree = report["tree"] if isinstance(report.get("tree"), dict) else {}
+    nodes = [dict(node) for node in tree.get("nodes", []) if isinstance(node, dict)]
+    existing = {str(node.get("node_id", "")) for node in nodes}
+    patches = payload.get("tree_patches", payload.get("nodes", []))
+    if not isinstance(patches, list):
+        patches = []
+    rejected: list[dict[str, str]] = []
+    added: list[str] = []
+    for raw_patch in patches:
+        if not isinstance(raw_patch, dict):
+            rejected.append({"node_id": "unknown", "reason": "patch is not an object"})
+            continue
+        node_id = str(raw_patch.get("node_id", "")).strip().lower()
+        role_type = str(raw_patch.get("role_type", "")).strip()
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_.-]{2,80}", node_id):
+            rejected.append({"node_id": node_id or "unknown", "reason": "invalid node_id"})
+            continue
+        if node_id in existing:
+            rejected.append({"node_id": node_id, "reason": "duplicate node_id"})
+            continue
+        if role_type not in PRINCE2_ROLE_IDS:
+            rejected.append({"node_id": node_id, "reason": "unsupported role_type"})
+            continue
+        parent_id = str(raw_patch.get("parent_id") or "management.project_manager").strip()
+        node = _role_node_from_template(
+            node_id=node_id,
+            role_type=role_type,
+            label=str(raw_patch.get("label") or PRINCE2_ROLE_LABELS.get(role_type, role_type)).strip(),
+            parent_id=parent_id,
+            level=str(raw_patch.get("level") or "delegated").strip(),
+            accountability_boundary=str(raw_patch.get("accountability_boundary") or "delegated PRINCE2 accountability within agreed tolerances").strip(),
+            delegated_authority=str(raw_patch.get("delegated_authority") or "executes delegated work and escalates tolerance breaches").strip(),
+            assignment=_assignment_for_role(proposal_prefs, role_type),
+            active_models=active_models,
+        )
+        nodes.append(node)
+        existing.add(node_id)
+        added.append(node_id)
+
+    tree["nodes"] = nodes
+    tree["source"] = "project_brief_local_rules_plus_ai"
+    report["tree"] = tree
+    report["source"] = "local_rules_plus_ai" if added else "local_rules_ai_no_changes"
+    report["check"] = check_prince2_role_tree_payload(tree, proposal_prefs)
+    report["matrix"] = build_prince2_role_matrix_payload(tree, proposal_prefs)
+    report["added_nodes"] = list(dict.fromkeys([*report.get("added_nodes", []), *added]))
+    assumptions = list(report.get("assumptions", [])) if isinstance(report.get("assumptions"), list) else []
+    summary = str(payload.get("summary", "")).strip()
+    if summary:
+        assumptions.append(f"AI tree designer: {summary}")
+    ai_assumptions = payload.get("assumptions", [])
+    if isinstance(ai_assumptions, list):
+        assumptions.extend(str(item).strip() for item in ai_assumptions if str(item).strip())
+    report["assumptions"] = assumptions
+    assistance["ok"] = True
+    assistance["message"] = "AI proposal merged into review-only project tree." if added else "AI proposal returned no valid new nodes; using local proposal."
+    assistance["valid_added_nodes"] = added
+    assistance["rejected_nodes"] = rejected
+    report["ai_assistance"] = assistance
+    return report
 
 
 def _render_project_tree_proposal(config: AgentConfig) -> str:
     report = _project_tree_proposal_report(config)
+    return _render_project_tree_proposal_report(report)
+
+
+def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
     check = report["check"] if isinstance(report.get("check"), dict) else {}
     summary = check.get("summary", {}) if isinstance(check.get("summary"), dict) else {}
     lines = [
         "Project tree proposal:",
         f"- status: {report['status']}",
         f"- source: {report['source']}",
+        f"- ai_requested: {str(bool(report.get('ai_requested'))).lower()}",
         f"- nodes: {summary.get('nodes', 0)} assigned={summary.get('assigned', 0)} unassigned={summary.get('unassigned', 0)}",
         f"- added_nodes: {', '.join(report['added_nodes']) or 'none'}",
         f"- approval_rule: {report['approval_rule']}",
-        "Assumptions:",
+        "AI assistance:",
     ]
+    ai_assistance = report.get("ai_assistance") if isinstance(report.get("ai_assistance"), dict) else {}
+    if ai_assistance:
+        added = ai_assistance.get("valid_added_nodes", [])
+        rejected = ai_assistance.get("rejected_nodes", [])
+        lines.append(
+            f"- attempted: {str(bool(ai_assistance.get('attempted'))).lower()} "
+            f"ok={ai_assistance.get('ok')} model={ai_assistance.get('model') or 'none'} "
+            f"account={ai_assistance.get('account') or 'none'}"
+        )
+        lines.append(f"- message: {ai_assistance.get('message') or 'none'}")
+        lines.append(f"- valid_added_nodes: {', '.join(added) if isinstance(added, list) and added else 'none'}")
+        lines.append(f"- rejected_nodes: {len(rejected) if isinstance(rejected, list) else 0}")
+    else:
+        lines.append("- none")
+    lines.append("Assumptions:")
     assumptions = report["assumptions"]
     if isinstance(assumptions, list) and assumptions:
         for item in assumptions:
@@ -6205,8 +6381,10 @@ def run_interactive_shell(
             sink.write(f"{project_brief_message}\n")
             sink.flush()
             continue
-        if shell_command == "project tree propose":
-            sink.write(f"{_render_project_tree_proposal(config)}\n")
+        if shell_command in {"project tree propose", "project tree propose --ai"}:
+            use_ai = shell_command.endswith(" --ai")
+            report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
+            sink.write(f"{_render_project_tree_proposal_report(report)}\n")
             sink.flush()
             continue
         if shell_command in {"project tree approve", "project tree approve --force"}:
@@ -6470,11 +6648,14 @@ def main() -> int:
         else:
             print(_render_project_design(agent, config))
         return 0
-    if task == "project tree propose":
+    if task in {"project tree propose", "project tree propose --ai"}:
+        use_ai = task.endswith(" --ai")
+        agent = _configure_readonly_agent_for_workspace(config) if use_ai else None
+        report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
         if args.json:
-            print(dumps_ascii(_project_tree_proposal_report(config), indent=2))
+            print(dumps_ascii(report, indent=2))
         else:
-            print(_render_project_tree_proposal(config))
+            print(_render_project_tree_proposal_report(report))
         return 0
     if task in {"project tree approve", "project tree approve --force"}:
         force = task.endswith(" --force")
