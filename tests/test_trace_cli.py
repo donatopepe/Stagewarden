@@ -2687,6 +2687,66 @@ class TraceAndCliTests(unittest.TestCase):
             phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
             self.assertIn("sources_update", phases)
 
+    def test_update_status_check_and_apply_fast_forward(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            remote = root / "remote.git"
+            seed = root / "seed"
+            work = root / "work"
+            subprocess.run(["git", "init", "--bare", str(remote)], capture_output=True, text=True, check=True)
+            subprocess.run(["git", "clone", str(remote), str(seed)], capture_output=True, text=True, check=True)
+            subprocess.run(["git", "branch", "-M", "main"], cwd=seed, capture_output=True, text=True, check=True)
+            (seed / "README.md").write_text("v1\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "v1"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "symbolic-ref", "HEAD", "refs/heads/main"], cwd=remote, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "clone", str(remote), str(work)], capture_output=True, text=True, check=True)
+
+            status = run_main_capture(work, "update status", "--json")
+            self.assertEqual(status.returncode, 0, status.stderr)
+            status_payload = json.loads(status.stdout)
+            self.assertFalse(status_payload["update_available"])
+            self.assertEqual(status_payload["behind"], 0)
+
+            (seed / "README.md").write_text("v2\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "v2"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=seed, capture_output=True, text=True, check=True)
+
+            check = run_main_capture(work, "update check --json")
+            self.assertEqual(check.returncode, 0, check.stderr)
+            check_payload = json.loads(check.stdout)
+            self.assertTrue(check_payload["update_available"])
+            self.assertEqual(check_payload["behind"], 1)
+
+            blocked = run_main_capture(work, "update apply", "--json")
+            self.assertNotEqual(blocked.returncode, 0)
+            blocked_payload = json.loads(blocked.stdout)
+            self.assertTrue(blocked_payload["needs_confirmation"])
+
+            applied = run_main_capture(work, "update apply --yes", "--json")
+            self.assertEqual(applied.returncode, 0, applied.stderr)
+            applied_payload = json.loads(applied.stdout)
+            self.assertTrue(applied_payload["ok"])
+            self.assertTrue(applied_payload["applied"])
+            self.assertEqual((work / "README.md").read_text(encoding="utf-8"), "v2\n")
+
+            actions = run_main_capture(work, "handoff actions", "3", "--json")
+            phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
+            self.assertIn("update_apply", phases)
+
+    def test_update_apply_refuses_dirty_worktree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=root, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "branch", "-M", "main"], cwd=root, capture_output=True, text=True, check=True)
+            (root / "README.md").write_text("dirty\n", encoding="utf-8")
+            result = run_main_capture(root, "update apply --yes", "--json")
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+
     def test_external_io_cli_download_records_evidence(self) -> None:
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:  # noqa: N802

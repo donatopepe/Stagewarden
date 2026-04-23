@@ -175,6 +175,9 @@ stagewarden report
 stagewarden report --json
 stagewarden "sources status"
 stagewarden "sources status" --json
+stagewarden "sources status --strict" --json
+stagewarden "update status"
+stagewarden "update check --json"
 ```
 
 `doctor` validates Python 3.11+, Git availability, PATH launcher visibility, repository state, and provider capabilities/token env expectations without installing anything or initializing git. Use `stagewarden doctor --json` for machine-readable automation output.
@@ -191,6 +194,16 @@ stagewarden "archive verify artifacts/file.txt.gz"
 ```
 
 External IO is intentionally constrained: only HTTP/HTTPS downloads are allowed, output paths must stay inside the workspace, downloads have a byte limit, and every successful operation records checksum/evidence in the tool transcript and handoff actions.
+
+Self-update governance:
+
+```bash
+stagewarden "update status"
+stagewarden "update check --json"
+stagewarden "update apply --yes"
+```
+
+`update apply` is fast-forward only, requires explicit `--yes`, refuses dirty working trees, and records before/after evidence in handoff actions.
 `report` is the shareable operator summary for issue updates, project closure notes, or quick GitHub-ready status text.
 `sources status` verifies local third-party reference clones by path, upstream URL, HEAD, and shallow-clone state without reading or vendoring their source content.
 

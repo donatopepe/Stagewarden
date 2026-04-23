@@ -371,6 +371,18 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- git show --stat [revision]",
             "  Show revision summary with file stats.",
             "",
+            "Update commands:",
+            "- sources status --strict",
+            "  Fail closed when source reference repositories are missing or mismatched.",
+            "- sources update",
+            "  Fast-forward local external source repositories and record evidence.",
+            "- update status",
+            "  Show current self-update Git posture.",
+            "- update check --json",
+            "  Fetch upstream metadata and report update availability.",
+            "- update apply --yes",
+            "  Apply a fast-forward-only self-update after explicit confirmation.",
+            "",
             "External IO commands:",
             "- web search <query>",
             "  Run governed web search and store result evidence.",
@@ -440,6 +452,8 @@ def interactive_help_text(topic: str | None = None) -> str:
             "- stagewarden> git log 5",
             "- stagewarden> git history stagewarden/main.py 10",
             "- stagewarden> git show --stat HEAD",
+            "- stagewarden> /update status",
+            "- stagewarden> /update check --json",
             "- stagewarden> /download https://example.com/file.txt artifacts/file.txt",
             "- stagewarden> /checksum artifacts/file.txt",
             "- stagewarden> /compress artifacts/file.txt",
@@ -698,6 +712,17 @@ def _interactive_help_topic(topic: str) -> str:
                 "git status",
                 "git log 5",
                 "git history stagewarden/main.py 10",
+            ),
+        ),
+        "update": _registry_help_lines(
+            "Update commands",
+            ("update", "sources"),
+            (
+                "sources status --strict",
+                "sources update",
+                "update status",
+                "update check --json",
+                "update apply --yes",
             ),
         ),
         "external_io": _registry_help_lines(
@@ -2642,6 +2667,17 @@ def _git_output(cwd: Path, *args: str) -> tuple[bool, str]:
     return completed.returncode == 0, output
 
 
+def _git_completed(cwd: Path, *args: str, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
 def _normalize_git_url(url: str | None) -> str:
     clean = str(url or "").strip().rstrip("/")
     if clean.endswith(".git"):
@@ -2783,6 +2819,147 @@ def _handle_sources_command(command: str, config: AgentConfig) -> str | None:
         return _render_sources_update(config)
     if command.startswith("sources "):
         return "Usage: sources | sources status [--strict] | sources update"
+    return None
+
+
+def _update_status_report(config: AgentConfig, *, fetch: bool = False) -> dict[str, object]:
+    root = config.workspace_root
+    inside_ok, inside = _git_output(root, "rev-parse", "--is-inside-work-tree")
+    if not inside_ok or inside != "true":
+        return {
+            "command": "update check" if fetch else "update status",
+            "ok": False,
+            "repository": False,
+            "message": "Workspace is not a git repository.",
+            "update_available": False,
+        }
+    fetch_message = None
+    if fetch:
+        fetched = _git_completed(root, "fetch", "--quiet", "--prune", timeout=60)
+        fetch_message = fetched.stdout.strip() or fetched.stderr.strip() or "fetch completed"
+        if fetched.returncode != 0:
+            return {
+                "command": "update check",
+                "ok": False,
+                "repository": True,
+                "message": fetch_message,
+                "update_available": False,
+            }
+    branch_ok, branch = _git_output(root, "branch", "--show-current")
+    head_ok, head = _git_output(root, "rev-parse", "--short", "HEAD")
+    upstream_ok, upstream = _git_output(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+    upstream_head_ok, upstream_head = (False, "")
+    ahead = behind = 0
+    if upstream_ok:
+        upstream_head_ok, upstream_head = _git_output(root, "rev-parse", "--short", upstream)
+        counts_ok, counts = _git_output(root, "rev-list", "--left-right", "--count", f"HEAD...{upstream}")
+        if counts_ok:
+            parts = counts.split()
+            if len(parts) == 2:
+                ahead, behind = int(parts[0]), int(parts[1])
+    dirty_ok, dirty = _git_output(root, "status", "--porcelain")
+    remote_ok, remote = _git_output(root, "remote", "get-url", "origin")
+    ok = bool(branch_ok and head_ok and upstream_ok and upstream_head_ok and dirty_ok)
+    return {
+        "command": "update check" if fetch else "update status",
+        "ok": ok,
+        "repository": True,
+        "branch": branch if branch_ok else None,
+        "head": head if head_ok else None,
+        "upstream": upstream if upstream_ok else None,
+        "upstream_head": upstream_head if upstream_head_ok else None,
+        "remote": remote if remote_ok else None,
+        "ahead": ahead,
+        "behind": behind,
+        "dirty": bool(dirty.strip()) if dirty_ok else None,
+        "update_available": behind > 0,
+        "fetch_message": fetch_message,
+        "message": "ok" if ok else "No upstream configured or git metadata unavailable.",
+    }
+
+
+def _render_update_status(config: AgentConfig, *, fetch: bool = False) -> str:
+    report = _update_status_report(config, fetch=fetch)
+    lines = ["Stagewarden self-update:"]
+    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
+    lines.append(f"- branch: {report.get('branch') or 'unknown'}")
+    lines.append(f"- head: {report.get('head') or 'unknown'}")
+    lines.append(f"- upstream: {report.get('upstream') or 'none'}")
+    lines.append(f"- upstream_head: {report.get('upstream_head') or 'unknown'}")
+    lines.append(f"- ahead: {report.get('ahead', 0)}")
+    lines.append(f"- behind: {report.get('behind', 0)}")
+    lines.append(f"- dirty: {str(report.get('dirty')).lower()}")
+    lines.append(f"- update_available: {str(bool(report.get('update_available'))).lower()}")
+    if report.get("fetch_message"):
+        lines.append(f"- fetch: {report['fetch_message']}")
+    if not report.get("ok"):
+        lines.append(f"- message: {report.get('message')}")
+    return "\n".join(lines)
+
+
+def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dict[str, object]:
+    before = _update_status_report(config, fetch=True)
+    if not confirmed:
+        return {
+            "command": "update apply",
+            "ok": False,
+            "applied": False,
+            "needs_confirmation": True,
+            "message": "Use update apply --yes to confirm fast-forward self-update.",
+            "before": before,
+        }
+    if not before.get("ok"):
+        return {"command": "update apply", "ok": False, "applied": False, "message": before.get("message"), "before": before}
+    if before.get("dirty"):
+        return {"command": "update apply", "ok": False, "applied": False, "message": "Refusing self-update with dirty working tree.", "before": before}
+    if not before.get("update_available"):
+        return {"command": "update apply", "ok": True, "applied": False, "message": "Already up to date.", "before": before, "after": before}
+    pulled = _git_completed(config.workspace_root, "pull", "--ff-only", timeout=60)
+    after = _update_status_report(config, fetch=False)
+    output = pulled.stdout.strip() or pulled.stderr.strip()
+    report = {
+        "command": "update apply",
+        "ok": pulled.returncode == 0 and bool(after.get("ok")),
+        "applied": pulled.returncode == 0 and before.get("head") != after.get("head"),
+        "message": output or "fast-forward applied",
+        "before": before,
+        "after": after,
+    }
+    _record_handoff_action(
+        config,
+        phase="update_apply",
+        task="update apply --yes",
+        summary=str(report["message"]),
+        details=report,
+    )
+    return report
+
+
+def _render_update_apply(config: AgentConfig, *, confirmed: bool = False) -> str:
+    report = _update_apply_report(config, confirmed=confirmed)
+    lines = ["Stagewarden self-update apply:"]
+    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
+    lines.append(f"- applied: {str(bool(report.get('applied'))).lower()}")
+    if report.get("needs_confirmation"):
+        lines.append("- needs_confirmation: yes")
+    lines.append(f"- message: {report.get('message')}")
+    before = report.get("before", {}) if isinstance(report.get("before"), dict) else {}
+    after = report.get("after", {}) if isinstance(report.get("after"), dict) else {}
+    lines.append(f"- before_head: {before.get('head') or 'unknown'}")
+    if after:
+        lines.append(f"- after_head: {after.get('head') or 'unknown'}")
+    return "\n".join(lines)
+
+
+def _handle_update_command(command: str, config: AgentConfig) -> str | None:
+    if command == "update status":
+        return _render_update_status(config)
+    if command in {"update check", "update check --json"}:
+        return _render_update_status(config, fetch=True)
+    if command in {"update apply", "update apply --yes"}:
+        return _render_update_apply(config, confirmed=command.endswith(" --yes"))
+    if command.startswith("update "):
+        return "Usage: update status | update check [--json] | update apply --yes"
     return None
 
 
@@ -4429,6 +4606,7 @@ ACTION_PHASE_PREFIXES = (
     "git_",
     "shell_",
     "sources_",
+    "update_",
     "web_",
     "download_",
     "checksum_",
@@ -6707,6 +6885,11 @@ def run_interactive_shell(
             sink.write(f"{sources_message}\n")
             sink.flush()
             continue
+        update_message = _handle_update_command(shell_command, config)
+        if update_message is not None:
+            sink.write(f"{update_message}\n")
+            sink.flush()
+            continue
         external_io_message = _handle_external_io_command(shell_command, config)
         if external_io_message is not None:
             sink.write(f"{external_io_message}\n")
@@ -7067,6 +7250,24 @@ def main() -> int:
             return 1
         print(response)
         return 0 if task != "sources status --strict" or _sources_status_report(config, strict=True).get("ok") else 1
+    if task in {"update status", "update check", "update check --json", "update apply", "update apply --yes"} or task.startswith("update "):
+        if args.json or task == "update check --json":
+            if task in {"update status"}:
+                report = _update_status_report(config)
+            elif task in {"update check", "update check --json"}:
+                report = _update_status_report(config, fetch=True)
+            elif task in {"update apply", "update apply --yes"}:
+                report = _update_apply_report(config, confirmed=task.endswith(" --yes"))
+            else:
+                report = {"command": task, "ok": False, "error": "Usage: update status | update check [--json] | update apply --yes"}
+            print(dumps_ascii(report, indent=2))
+            return 0 if report.get("ok") else 1
+        response = _handle_update_command(task, config)
+        if response is None or response.startswith("Usage:"):
+            print(response or "Usage: update status | update check [--json] | update apply --yes")
+            return 1
+        print(response)
+        return 0 if "\n- ok: false" not in response else 1
     if (
         task.startswith("web search ")
         or task.startswith("download ")

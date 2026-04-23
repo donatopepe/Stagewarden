@@ -117,6 +117,9 @@ stagewarden> /report
 stagewarden> /transcript
 stagewarden> /git status
 stagewarden> /sources status
+stagewarden> /sources status --strict
+stagewarden> /update status
+stagewarden> /update check --json
 stagewarden> /web search Stagewarden coding agent
 stagewarden> /download https://example.com/file.txt artifacts/file.txt
 stagewarden> /checksum artifacts/file.txt
@@ -140,6 +143,10 @@ stagewarden "resume context" --json
 ## IO Esterno Governato
 
 I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` registrano evidenza in transcript e handoff actions. I download accettano solo HTTP/HTTPS, scrivono solo dentro la workspace e rispettano `--max-bytes` per evitare acquisizioni incontrollate.
+
+## Aggiornamento Governato
+
+`update status` mostra branch, HEAD, upstream, ahead/behind e stato dirty. `update check --json` aggiorna i metadati upstream e segnala se esiste una nuova versione. `update apply --yes` applica solo fast-forward, richiede conferma esplicita, rifiuta worktree sporco e registra evidenza prima/dopo nell'handoff.
 
 ## Crediti
 
