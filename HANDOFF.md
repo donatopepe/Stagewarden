@@ -445,6 +445,8 @@ Phase B - PRINCE2 role tree routing:
 - Next: add AI-assisted proposal generation that consumes `project design` plus structured brief, then compare/merge with the local proportional proposal before approval.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
+- Completed: `project tree propose --ai` builds a prompt from `project design` plus the local proposal, calls the selected model only through `RUN_MODEL`, validates suggested tree patches, and merges valid nodes into the review-only proposal without approval/persistence.
+- Completed: AI tree proposal reports `ai_requested`, model/account used, valid added nodes, rejected nodes, and fallback/local-only status for auditability.
 - Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:
 - agent capability specification: real Stagewarden capabilities, available tools, shell/file/git/web/download/compression abilities, permission mode, OS/runtime constraints, provider/model/account availability, rate-limit state, and known validation/wet-run obligations.
 - project specification: task objective, scope, constraints, expected outputs, quality gates, stakeholders/roles, delivery mode, uncertainty, risk tolerance, and any user-provided governance requirements.

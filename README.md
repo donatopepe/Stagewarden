@@ -96,7 +96,7 @@ PRINCE2 handoff behavior:
 - `roles baseline matrix` shows the approved baseline matrix, including delegated nodes plus reviewer/fallback route pools.
 - `project brief` shows the structured project brief stored in runtime handoff; use `project brief set <field> <value>` and `project brief clear [field]` to manage it.
 - `project design` shows the pre-design packet that future AI-assisted PRINCE2 tree planning must receive: agent capabilities, current project specification, and any clarification gaps.
-- `project tree propose` creates a review-only proportional PRINCE2 organization-tree proposal from the structured project brief; it does not persist the baseline until an approval path is used.
+- `project tree propose` creates a review-only proportional PRINCE2 organization-tree proposal from the structured project brief; `project tree propose --ai` asks an available model for additional validated tree patches through `RUN_MODEL` while still avoiding persistence until approval.
 - `project tree approve` persists the reviewed proposal as the approved baseline; it blocks open clarification gaps unless `project tree approve --force` is used.
 - `project start` now runs the controlled startup gate: design packet, proportional tree proposal, and approval. It blocks unresolved clarification gaps instead of silently applying the static baseline.
 - `role add-child` opens a guided menu, or `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate PRINCE2 nodes to the approved tree.
