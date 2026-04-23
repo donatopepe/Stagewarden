@@ -40,11 +40,17 @@ class PromptSection:
     title: str
     body: str
 
+    def as_dict(self) -> dict[str, str]:
+        return {"title": self.title, "body": self.body}
+
 
 @dataclass(slots=True)
 class PromptTranscriptItem:
     item_type: str
     body: str
+
+    def as_dict(self) -> dict[str, str]:
+        return {"item_type": self.item_type, "body": self.body}
 
 
 @dataclass(slots=True)
@@ -53,6 +59,14 @@ class ModelCommunicationPacket:
     sections: list[PromptSection]
     transcript_items: list[PromptTranscriptItem]
     contract_sections: list[PromptSection]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "system_prompt": self.system_prompt,
+            "sections": [section.as_dict() for section in self.sections],
+            "transcript_items": [item.as_dict() for item in self.transcript_items],
+            "contract_sections": [section.as_dict() for section in self.contract_sections],
+        }
 
 
 ALLOWED_MODEL_ACTIONS = {
@@ -261,6 +275,7 @@ class Executor:
             )
 
         action = parsed["action"]
+        usage_metadata = self._extract_usage_metadata(parsed.get("payload", {}))
         action_type = action.get("type", "").strip()
         observation = self._run_action(action, iteration=iteration, step_id=step.id)
         ok = observation["ok"]
@@ -278,6 +293,10 @@ class Executor:
             success=ok,
             observation=observation["message"],
             error_type=error_type,
+            input_tokens=usage_metadata.get("input_tokens"),
+            output_tokens=usage_metadata.get("output_tokens"),
+            context_window_size=usage_metadata.get("context_window_size"),
+            current_usage=usage_metadata.get("current_usage"),
         )
 
         if ok and not step_completed:
@@ -336,6 +355,52 @@ class Executor:
             prince2_assessment=prince2_assessment,
             prince2_role=prince2_role,
         )
+
+    def _extract_usage_metadata(self, payload: object) -> dict[str, int | None]:
+        if not isinstance(payload, dict):
+            return {}
+        candidates = [
+            payload.get("usage"),
+            payload.get("token_usage"),
+            payload.get("context_window"),
+        ]
+        merged: dict[str, object] = {}
+        for candidate in candidates:
+            if isinstance(candidate, dict):
+                merged.update(candidate)
+        aliases = {
+            "input_tokens": ("input_tokens", "prompt_tokens", "total_input_tokens"),
+            "output_tokens": ("output_tokens", "completion_tokens", "total_output_tokens"),
+            "context_window_size": ("context_window_size", "context_size", "window_size"),
+            "current_usage": ("current_usage", "used_tokens", "total_tokens"),
+        }
+        extracted: dict[str, int | None] = {}
+        for target, keys in aliases.items():
+            extracted[target] = None
+            for key in keys:
+                if key not in merged:
+                    continue
+                value = self._safe_positive_int(merged.get(key))
+                if value is not None:
+                    extracted[target] = value
+                    break
+        if extracted.get("current_usage") is None:
+            input_tokens = extracted.get("input_tokens") or 0
+            output_tokens = extracted.get("output_tokens") or 0
+            total = input_tokens + output_tokens
+            extracted["current_usage"] = total if total else None
+        return extracted
+
+    def _safe_positive_int(self, value: object) -> int | None:
+        if isinstance(value, bool):
+            return None
+        try:
+            number = int(float(str(value).strip()))
+        except (TypeError, ValueError):
+            return None
+        if number < 0:
+            return None
+        return number
 
     def _configure_handoff_accounts(self) -> ModelPreferences:
         try:

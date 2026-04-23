@@ -628,6 +628,33 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(limits["chatgpt"]["used_percentage"], 91.0)
             self.assertEqual(limits["chatgpt"]["resets_at"], "2026-05-01T18:30")
 
+    def test_statusline_cli_json_exposes_context_usage_from_memory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="step-1",
+                model="chatgpt",
+                action_type="complete",
+                action_signature="{}",
+                success=True,
+                observation="ok",
+                input_tokens=400,
+                output_tokens=100,
+                context_window_size=2000,
+            )
+            memory.save(root / ".stagewarden_memory.json")
+
+            completed = run_main_capture(root, "statusline", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["context_window"]["total_input_tokens"], 400)
+            self.assertEqual(payload["context_window"]["total_output_tokens"], 100)
+            self.assertEqual(payload["context_window"]["current_usage"], 500)
+            self.assertEqual(payload["context_window"]["used_percentage"], 25.0)
+
     def test_auth_status_chatgpt_uses_codex_without_token_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

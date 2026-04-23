@@ -139,6 +139,42 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(stats["totals"]["highest_tier"], "high")
         self.assertEqual(stats["totals"]["escalation_path"], "local -> cheap -> openai")
 
+    def test_context_window_stats_aggregate_safe_token_metadata(self) -> None:
+        memory = MemoryStore()
+        memory.record_attempt(
+            iteration=1,
+            step_id="step-1",
+            model="chatgpt",
+            action_type="complete",
+            action_signature="a",
+            success=True,
+            observation="ok",
+            input_tokens=200,
+            output_tokens=50,
+            context_window_size=1000,
+        )
+        memory.record_attempt(
+            iteration=2,
+            step_id="step-2",
+            model="chatgpt",
+            action_type="complete",
+            action_signature="b",
+            success=True,
+            observation="ok",
+            input_tokens=100,
+            output_tokens=25,
+            context_window_size=1000,
+        )
+
+        stats = memory.model_usage_stats()["totals"]
+        context = memory.context_window_stats()
+
+        self.assertEqual(stats["input_tokens"], 300)
+        self.assertEqual(stats["output_tokens"], 75)
+        self.assertEqual(stats["current_usage"], 375)
+        self.assertEqual(context["used_percentage"], 37.5)
+        self.assertEqual(context["remaining_percentage"], 62.5)
+
     def test_tool_transcript_is_persisted_and_rendered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / ".stagewarden_memory.json"

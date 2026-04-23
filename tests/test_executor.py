@@ -1219,10 +1219,65 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual(packet.sections[0].title, "Thread Start")
             self.assertTrue(any(section.title == "PRINCE2 registers" for section in packet.sections))
             self.assertEqual([item.item_type for item in packet.transcript_items], ["handoff_log", "execution_log", "tool_transcript"])
+            payload = packet.as_dict()
+            self.assertEqual(payload["sections"][0]["title"], "Thread Start")
+            self.assertEqual(payload["transcript_items"][0]["item_type"], "handoff_log")
             rendered = executor._render_model_communication_packet(packet)
             self.assertIn("protocol_style: structured_turn_packet", rendered)
             self.assertIn("transcript_style: typed_items", rendered)
             self.assertIn("Tool transcript:", rendered)
+
+    def test_executor_records_safe_model_usage_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir), max_retries_per_step=1)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete",
+                                "usage": {
+                                    "input_tokens": 120,
+                                    "output_tokens": 30,
+                                    "context_window_size": 1000,
+                                },
+                                "action": {"type": "complete", "message": "validation completed exit_code=0"},
+                            }
+                        ),
+                    }
+                ]
+            )
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=handoff,
+                memory=memory,
+                project_handoff=ProjectHandoff(task="usage test"),
+            )
+            step = PlanStep(id="step-1", title="Validate", instruction="validate", validation="exit_code=0")
+
+            outcome = executor.execute_step(
+                task="usage test",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertTrue(outcome.ok)
+            stats = memory.model_usage_stats()["totals"]
+            self.assertEqual(stats["input_tokens"], 120)
+            self.assertEqual(stats["output_tokens"], 30)
+            self.assertEqual(stats["current_usage"], 150)
+            self.assertEqual(stats["context_window_size"], 1000)
+            context = memory.context_window_stats()
+            self.assertEqual(context["used_percentage"], 15.0)
 
 
 if __name__ == "__main__":
