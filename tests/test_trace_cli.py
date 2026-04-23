@@ -1424,6 +1424,23 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Extension commands", rendered)
             self.assertIn("extension scaffold local-tools", rendered)
 
+    def test_interactive_help_overview_uses_topic_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("/help\n/exit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Topics:", rendered)
+            self.assertIn("/help core: exit, reset, overview, health, report, status, preflight, stream, sessions, transcript", rendered)
+            self.assertIn("/help models: provider routing, provider models, blocks aliases=model", rendered)
+            self.assertIn("/help external_io: web search, download, checksum, compression, archive verify aliases=io,network,download", rendered)
+            self.assertIn("/help caveman: Caveman aliases and modes", rendered)
+            self.assertIn("/help ljson: encode, decode, benchmark", rendered)
+
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
