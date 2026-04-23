@@ -382,6 +382,9 @@ Roadmap rule:
 - `G5` implementation: CLI `stagewarden "slash choose <query>"` now uses chooser semantics too, instead of falling back to raw slash filtering; `--json` returns the top chooser candidates.
 - `G5` wet-run: `python3 -m stagewarden.main "slash choose upgrade"` rendered numbered candidates; `--json` returned `update apply`.
 - `G5` validation: `python3 -m unittest discover -s tests` passed with 285 tests and 3 expected sandbox HTTP skips.
+- `G5` implementation: `/help` topic metadata for update/external-io/extensions is now registry-driven from `stagewarden.commands`, reducing drift between help, command catalog, and slash surfaces.
+- `G5` wet-run: interactive `/help update`, `/help io`, and `/help extension` rendered the registry-backed topic content in the real shell.
+- `G5` validation: `python3 -m unittest discover -s tests` passed with 286 tests and 3 expected sandbox HTTP skips.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:
