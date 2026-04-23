@@ -368,6 +368,10 @@ Roadmap rule:
 - `G4` validation: `python3 -m unittest discover -s tests` passed with 280 tests and 3 expected sandbox HTTP skips.
 - `G5` Codex/Claude-style operator UX and extension architecture: implement slash palette with fuzzy filtering/cursor selection/non-TTY fallback, registry-backed examples/topic metadata, extension layout for commands/roles/skills/hooks/MCP, and bilingual README parity.
 - `G5 test pack`: command registry tests, fuzzy matcher tests, non-TTY slash fallback tests, guided menu tests, scaffolded extension discovery tests without untrusted execution, README/README_IT command parity checks, manual interactive wet-run, and full unittest suite.
+- `G5` partial status: slash palette fuzzy/example discovery implemented locally; extension scaffold and cursor-selection UI still pending.
+- `G5` implementation: command registry entries now support examples, `/slash` uses fuzzy/example matching, JSON palette entries expose examples, and completion falls back to fuzzy query results when direct matches fail.
+- `G5` wet-run: `python3 -m stagewarden.main "slash scarica" --json` found `download`; interactive `/slash upgrade stagewarden` found `update apply`.
+- `G5` validation: targeted slash palette, command catalog, completion, and JSON tests passed.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:

@@ -41,6 +41,7 @@ Stagewarden usa Codex CLI e Claude Code come baseline di esperienza utente:
 - `/slash [prefisso]` mostra una palette comandi con descrizioni.
 - `/slash mo` mostra i comandi relativi ai modelli.
 - `stagewarden "slash mo" --json` espone la stessa palette in formato strutturato.
+- La ricerca slash usa anche fuzzy matching ed esempi: `slash scarica` trova `download`, `slash upgrade stagewarden` trova `update apply`.
 - Il completamento slash suggerisce provider, ruoli PRINCE2, backend shell, account configurati, provider-model e valori `reasoning_effort`.
 - La palette mostra anche contesto operativo: provider abilitati, account attivi, provider bloccati e hint sui parametri.
 

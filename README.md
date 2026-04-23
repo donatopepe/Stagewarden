@@ -296,6 +296,7 @@ Slash UX:
 
 - `/slash [prefix]` shows a Codex/Claude-style command palette with descriptions and workspace-aware hints.
 - `stagewarden "slash mo" --json` exposes the same palette as structured data for automation.
+- Slash search also uses fuzzy/example matching, so prompts such as `slash scarica` or `slash upgrade stagewarden` can discover the relevant command even when the text does not match the command name exactly.
 - Slash completion suggests contextual values, including providers, PRINCE2 roles, shell backends, configured account names, provider-model IDs, and `reasoning_effort` values.
 - The palette includes operational hints such as enabled providers, active accounts, blocked providers, provider-model examples, and supported parameters.
 
