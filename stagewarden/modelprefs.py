@@ -782,7 +782,7 @@ class ModelPreferences:
             value = raw.get(key)
             if value is not None:
                 normalized[key] = str(value).strip()[:240]
-        for key in ("tree", "flow", "check", "matrix"):
+        for key in ("tree", "flow", "check", "matrix", "proposal"):
             value = raw.get(key)
             if isinstance(value, dict):
                 normalized[key] = value

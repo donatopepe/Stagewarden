@@ -2256,6 +2256,48 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("missing_objective", codes)
             self.assertIn("missing_scope", codes)
 
+    def test_project_tree_approve_blocks_until_brief_is_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "project tree approve", "--json")
+
+            self.assertEqual(completed.returncode, 1, completed.stdout)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "project tree approve")
+            self.assertEqual(payload["status"], "blocked")
+            codes = {item["code"] for item in payload["clarification_gaps"]}
+            self.assertIn("missing_objective", codes)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            self.assertEqual(prefs.prince2_role_tree_baseline, {})
+
+    def test_project_tree_approve_persists_reviewed_proposal_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+
+            completed = run_main_capture(root, "project tree approve")
+            json_completed = run_main_capture(root, "roles baseline", "--json")
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project tree approval:", completed.stdout)
+            self.assertIn("- status: approved", completed.stdout)
+            self.assertIn("delivery.implementation_team", completed.stdout)
+            self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
+            self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
+            proposal = (prefs.prince2_role_tree_baseline or {}).get("proposal", {})
+            self.assertIn("delivery.implementation_team", proposal.get("added_nodes", []))
+            node_ids = {item["node_id"] for item in (prefs.prince2_role_tree_baseline or {})["tree"]["nodes"]}
+            self.assertIn("delivery.implementation_team", node_ids)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["baseline"]["source"], "project_tree_approve")
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

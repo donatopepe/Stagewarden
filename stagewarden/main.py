@@ -1612,6 +1612,76 @@ def _render_project_tree_proposal(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _approve_project_tree_proposal(config: AgentConfig, *, force: bool = False) -> dict[str, object]:
+    report = _project_tree_proposal_report(config)
+    gaps = report.get("clarification_gaps", [])
+    if isinstance(gaps, list) and gaps and not force:
+        return {
+            "command": "project tree approve",
+            "status": "blocked",
+            "message": "Project tree proposal has clarification gaps; resolve them or rerun with --force.",
+            "clarification_gaps": gaps,
+            "proposal": report,
+        }
+    prefs = _load_model_preferences(config)
+    merged_roles = dict(prefs.propose_prince2_roles())
+    merged_roles.update(prefs.prince2_roles or {})
+    proposal_prefs = replace(prefs, prince2_roles=merged_roles)
+    baseline = {
+        "version": "1",
+        "approved_at": datetime.now().isoformat(timespec="seconds"),
+        "source": "project_tree_approve_force" if force else "project_tree_approve",
+        "status": "approved",
+        "tree": report["tree"],
+        "flow": build_prince2_role_flow(),
+        "check": report["check"],
+        "matrix": report["matrix"],
+        "proposal": {
+            "source": report["source"],
+            "assumptions": list(report.get("assumptions", [])) if isinstance(report.get("assumptions"), list) else [],
+            "added_nodes": list(report.get("added_nodes", [])) if isinstance(report.get("added_nodes"), list) else [],
+            "clarification_gaps": list(gaps) if isinstance(gaps, list) else [],
+            "project_brief": dict(report.get("project_brief", {})) if isinstance(report.get("project_brief"), dict) else {},
+            "forced": force,
+        },
+    }
+    _persist_prince2_role_tree_baseline(config, proposal_prefs, baseline)
+    return {
+        "command": "project tree approve",
+        "status": "approved",
+        "forced": force,
+        "message": "Approved project-tree proposal as PRINCE2 role-tree baseline.",
+        "baseline": _prince2_role_tree_baseline_report(config),
+    }
+
+
+def _render_project_tree_approval_report(report: dict[str, object], config: AgentConfig) -> str:
+    lines = ["Project tree approval:"]
+    lines.append(f"- status: {report['status']}")
+    lines.append(f"- message: {report['message']}")
+    if report["status"] == "blocked":
+        lines.append("Clarification gaps:")
+        gaps = report.get("clarification_gaps", [])
+        if isinstance(gaps, list) and gaps:
+            for item in gaps:
+                if isinstance(item, dict):
+                    lines.append(f"- {item.get('code')}: {item.get('message')}")
+        lines.append("- action: resolve missing project brief fields or rerun /project tree approve --force")
+        return "\n".join(lines)
+    lines.append(f"- forced: {str(bool(report.get('forced'))).lower()}")
+    baseline = report.get("baseline") if isinstance(report.get("baseline"), dict) else {}
+    lines.append(f"- baseline_status: {baseline.get('status', 'unknown')}")
+    if isinstance(baseline.get("baseline"), dict):
+        proposal = baseline["baseline"].get("proposal", {})
+        added = proposal.get("added_nodes", []) if isinstance(proposal, dict) else []
+        lines.append(f"- added_nodes: {', '.join(added) if isinstance(added, list) and added else 'none'}")
+    return "\n".join(lines) + "\n" + _render_prince2_role_tree_baseline(config)
+
+
+def _render_project_tree_approval(config: AgentConfig, *, force: bool = False) -> str:
+    return _render_project_tree_approval_report(_approve_project_tree_proposal(config, force=force), config)
+
+
 def _role_options() -> list[tuple[str, str]]:
     return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
 
@@ -5946,6 +6016,10 @@ def run_interactive_shell(
             sink.write(f"{_render_project_tree_proposal(config)}\n")
             sink.flush()
             continue
+        if shell_command in {"project tree approve", "project tree approve --force"}:
+            sink.write(f"{_render_project_tree_approval(config, force=shell_command.endswith(' --force'))}\n")
+            sink.flush()
+            continue
         role_message = _handle_role_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if role_message is not None:
             sink.write(f"{role_message}\n")
@@ -6209,6 +6283,14 @@ def main() -> int:
         else:
             print(_render_project_tree_proposal(config))
         return 0
+    if task in {"project tree approve", "project tree approve --force"}:
+        force = task.endswith(" --force")
+        report = _approve_project_tree_proposal(config, force=force)
+        if args.json:
+            print(dumps_ascii(report, indent=2))
+        else:
+            print(_render_project_tree_approval_report(report, config))
+        return 0 if report["status"] == "approved" else 1
     if task == "roles domains":
         if args.json:
             print(dumps_ascii(_prince2_role_domains_report(), indent=2))

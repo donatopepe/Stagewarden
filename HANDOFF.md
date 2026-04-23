@@ -305,6 +305,14 @@ Additional validation evidence:
 - Validation 2026-04-23: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_tree_propose_builds_proportional_review_proposal_from_brief tests.test_trace_cli.TraceAndCliTests.test_project_tree_propose_reports_missing_brief_gaps` passed.
 - Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree propose"` passed in the real workspace and reported missing brief fields as clarification gaps.
 - Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree propose" --json` passed in the real workspace.
+- Phase B mini-block continued: added `project tree approve` and `project tree approve --force`.
+- `project tree approve` blocks when the proportional proposal still has clarification gaps; `--force` persists the baseline with `proposal.forced=true` so the governance exception remains explicit.
+- Approved project-tree baselines preserve proposal metadata: source, assumptions, added nodes, clarification gaps, project brief snapshot, and forced flag.
+- Validation 2026-04-23: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py stagewarden/modelprefs.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-23: targeted project-tree approval tests passed for blocked approval, persisted approval, and proposal generation.
+- Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree approve"` blocked in the real workspace because `scope` and `expected_outputs` are missing.
+- Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree approve --force"` approved and persisted the proposal baseline with `delivery.implementation_team`.
+- Wet-run 2026-04-23: sequential `python3 -m stagewarden.main "roles baseline" --json` confirmed `source=project_tree_approve_force`, 9 nodes, and preserved proposal metadata.
 
 Next implementation roadmap:
 
@@ -414,7 +422,8 @@ Phase B - PRINCE2 role tree routing:
 - Completed: `project start` now invokes the project-design stage first and exposes any open clarification gaps before baseline application.
 - Completed: structured project-brief fields are now persisted in runtime handoff and exposed inside `project design`.
 - Completed: local proportional tree proposal is available through `project tree propose` without persisting a baseline.
-- Next: add `project tree approve` to persist a reviewed proposal, then connect `project start` to this proposal/approval path before introducing AI-assisted proposal generation.
+- Completed: `project tree approve` persists reviewed proposals and blocks unresolved gaps unless `--force` is explicit.
+- Next: connect `project start` to the proposal/approval path before introducing AI-assisted proposal generation.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
 - Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:
