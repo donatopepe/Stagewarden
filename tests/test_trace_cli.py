@@ -1999,6 +1999,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("missing_project_task", completed.stdout)
             self.assertEqual(prefs.prince2_role_tree_baseline, {})
             self.assertEqual(handoff.prince2_role_tree_baseline, {})
+            self.assertIn("project_start_blocked", [entry.phase for entry in handoff.entries])
 
     def test_project_start_approves_ready_project_tree_proposal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2024,6 +2025,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("project_executive", handoff.prince2_roles or {})
             self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
             self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
+            phases = [entry.phase for entry in handoff.entries]
+            self.assertIn("project_tree_approval", phases)
+            self.assertIn("project_start_approved", phases)
             self.assertIn("PRINCE2 role-tree baseline:", completed.stdout)
 
     def test_roles_tree_approve_persists_role_tree_baseline(self) -> None:
@@ -2292,7 +2296,9 @@ class TraceAndCliTests(unittest.TestCase):
             codes = {item["code"] for item in payload["clarification_gaps"]}
             self.assertIn("missing_objective", codes)
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
             self.assertEqual(prefs.prince2_role_tree_baseline, {})
+            self.assertIn("project_tree_approval_blocked", [entry.phase for entry in handoff.entries])
 
     def test_project_tree_approve_persists_reviewed_proposal_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2313,6 +2319,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("delivery.implementation_team", completed.stdout)
             self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
             self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
+            self.assertIn("project_tree_approval", [entry.phase for entry in handoff.entries])
             proposal = (prefs.prince2_role_tree_baseline or {}).get("proposal", {})
             self.assertIn("delivery.implementation_team", proposal.get("added_nodes", []))
             node_ids = {item["node_id"] for item in (prefs.prince2_role_tree_baseline or {})["tree"]["nodes"]}

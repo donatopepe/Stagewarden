@@ -914,6 +914,30 @@ def _render_prince2_role_matrix(config: AgentConfig) -> str:
     return render_prince2_role_matrix(_prince2_role_matrix_report(config))
 
 
+def _current_git_head(config: AgentConfig) -> str | None:
+    result = GitTool(config).head()
+    return result.stdout.strip() if result.ok and result.stdout.strip() else None
+
+
+def _record_handoff_action(
+    config: AgentConfig,
+    *,
+    phase: str,
+    summary: str,
+    task: str = "",
+    details: dict[str, object] | None = None,
+) -> None:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    handoff.record_action(
+        phase=phase,
+        summary=summary,
+        task=task,
+        git_head=_current_git_head(config),
+        details=dict(details or {}),
+    )
+    handoff.save(config.handoff_path)
+
+
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     return {
@@ -1333,6 +1357,17 @@ def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPrefere
     proposal_gaps = proposal.get("clarification_gaps", [])
     has_gaps = bool(design_gaps or proposal_gaps)
     if has_gaps or proposal.get("status") != "ready_for_review":
+        _record_handoff_action(
+            config,
+            phase="project_start_blocked",
+            summary="Project startup blocked by unresolved design/proposal clarification gaps.",
+            task="project start",
+            details={
+                "design_gaps": design_gaps,
+                "proposal_gaps": proposal_gaps if isinstance(proposal_gaps, list) else [],
+                "proposal_status": proposal.get("status"),
+            },
+        )
         lines = [
             "Project startup blocked:",
             "- reason: project design/proposal has unresolved clarification gaps.",
@@ -1349,6 +1384,17 @@ def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPrefere
         return "\n\n".join(sections)
     approval = _approve_project_tree_proposal(config, force=False)
     _apply_model_preferences(agent, config)
+    _record_handoff_action(
+        config,
+        phase="project_start_approved",
+        summary="Project startup approved through controlled project-tree proposal path.",
+        task="project start",
+        details={
+            "approval_status": approval.get("status"),
+            "forced": approval.get("forced"),
+            "proposal_added_nodes": proposal.get("added_nodes", []),
+        },
+    )
     sections.append(_render_project_tree_approval_report(approval, config))
     sections.extend(
         [
@@ -1641,6 +1687,17 @@ def _approve_project_tree_proposal(config: AgentConfig, *, force: bool = False) 
     report = _project_tree_proposal_report(config)
     gaps = report.get("clarification_gaps", [])
     if isinstance(gaps, list) and gaps and not force:
+        _record_handoff_action(
+            config,
+            phase="project_tree_approval_blocked",
+            summary="Project tree approval blocked by unresolved clarification gaps.",
+            task="project tree approve",
+            details={
+                "clarification_gaps": gaps,
+                "proposal_status": report.get("status"),
+                "added_nodes": report.get("added_nodes", []),
+            },
+        )
         return {
             "command": "project tree approve",
             "status": "blocked",
@@ -1671,6 +1728,19 @@ def _approve_project_tree_proposal(config: AgentConfig, *, force: bool = False) 
         },
     }
     _persist_prince2_role_tree_baseline(config, proposal_prefs, baseline)
+    _record_handoff_action(
+        config,
+        phase="project_tree_approval",
+        summary="Project tree proposal approved and persisted as PRINCE2 role-tree baseline.",
+        task="project tree approve --force" if force else "project tree approve",
+        details={
+            "forced": force,
+            "source": baseline["source"],
+            "added_nodes": baseline["proposal"]["added_nodes"],
+            "clarification_gaps": baseline["proposal"]["clarification_gaps"],
+            "node_count": len(report.get("tree", {}).get("nodes", [])) if isinstance(report.get("tree"), dict) else 0,
+        },
+    )
     return {
         "command": "project tree approve",
         "status": "approved",

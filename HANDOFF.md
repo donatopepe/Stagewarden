@@ -434,6 +434,10 @@ Phase B - PRINCE2 role tree routing:
 - Completed: local proportional tree proposal is available through `project tree propose` without persisting a baseline.
 - Completed: `project tree approve` persists reviewed proposals and blocks unresolved gaps unless `--force` is explicit.
 - Completed: `project start` is connected to the proposal/approval path and no longer silently applies the static baseline.
+- Completed: `ProjectHandoff.record_action()` now provides a generic durable action log for user-visible operational actions.
+- Completed: `project start` records `project_start_blocked` and `project_start_approved` handoff entries with design/proposal gap details, approval status, forced flag, and proposed added nodes.
+- Completed: `project tree approve` records `project_tree_approval_blocked` or `project_tree_approval` with gaps, proposal status, forced flag, source, node count, and added-node metadata.
+- Wet-run 2026-04-23: sequential inspection of `.stagewarden_handoff.json` confirmed `project_start_blocked` is recorded with missing `scope` and `expected_outputs` details.
 - Next: add AI-assisted proposal generation that consumes `project design` plus structured brief, then compare/merge with the local proportional proposal before approval.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
