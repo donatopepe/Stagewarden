@@ -338,6 +338,39 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
         ),
         aliases=("extension",),
     ),
+    HelpTopic(
+        key="caveman",
+        title="Caveman commands",
+        extra_lines=(
+            "- /caveman help",
+            "- /caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra> <task>",
+            "- /caveman commit",
+            "- /caveman review",
+            "- /caveman compress <file>",
+            "- caveman help | caveman on [level] | caveman off",
+            "- mode caveman <level>",
+            "- mode normal",
+        ),
+        examples=(
+            "caveman on ultra",
+            "/caveman review",
+            "mode normal",
+        ),
+    ),
+    HelpTopic(
+        key="ljson",
+        title="LJSON commands",
+        extra_lines=(
+            "- stagewarden --ljson-encode records.json [--ljson-output out.ljson]",
+            "- stagewarden --ljson-decode records.ljson [--ljson-output records.json]",
+            "- stagewarden --ljson-encode records.json --ljson-numeric --ljson-gzip",
+            "- stagewarden --ljson-benchmark records.json",
+        ),
+        examples=(
+            "python3 -m stagewarden.main --ljson-encode data.json",
+            "python3 -m stagewarden.main --ljson-benchmark data.json",
+        ),
+    ),
 )
 
 

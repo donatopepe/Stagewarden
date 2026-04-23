@@ -636,40 +636,6 @@ def _render_slash_choice_candidates(config: AgentConfig, query: str = "") -> str
 
 def _interactive_help_topic(topic: str) -> str:
     lines = help_topic_lines(topic)
-    topics = {
-        "caveman": [
-            "Caveman commands",
-            "",
-            "- /caveman help",
-            "- /caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra> <task>",
-            "- /caveman commit",
-            "- /caveman review",
-            "- /caveman compress <file>",
-            "- caveman help | caveman on [level] | caveman off",
-            "- mode caveman <level>",
-            "- mode normal",
-            "",
-            "Examples:",
-            "- stagewarden> caveman on ultra",
-            "- stagewarden> /caveman review",
-            "- stagewarden> mode normal",
-        ],
-        "ljson": [
-            "LJSON commands",
-            "",
-            "- stagewarden --ljson-encode records.json [--ljson-output out.ljson]",
-            "- stagewarden --ljson-decode records.ljson [--ljson-output records.json]",
-            "- stagewarden --ljson-encode records.json --ljson-numeric --ljson-gzip",
-            "- stagewarden --ljson-benchmark records.json",
-            "",
-            "Examples:",
-            "- python3 -m stagewarden.main --ljson-encode data.json",
-            "- python3 -m stagewarden.main --ljson-benchmark data.json",
-        ],
-    }
-    if lines is None:
-        normalized = topic.strip().lower()
-        lines = topics.get(normalized)
     if lines is None:
         return _interactive_help_overview() + f"\n\nUnknown help topic: {topic}"
     return "\n".join(lines)
