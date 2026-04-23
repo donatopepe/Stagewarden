@@ -13,6 +13,7 @@ class CommandSpec:
     interactive: bool = True
     json: bool = False
     handler: str = ""
+    examples: tuple[str, ...] = ()
 
     def phrases(self) -> tuple[str, ...]:
         return (self.name, *self.aliases)
@@ -45,7 +46,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("models usage", "models", "Show recent model usage.", "models usage", json=True, handler="models"),
     CommandSpec("models limits", "models", "Show provider/account limit status.", "models limits", aliases=("model limits",), json=True, handler="models"),
     CommandSpec("model use", "models", "Set preferred provider.", "model use <local|cheap|chatgpt|openai|claude>", handler="models"),
-    CommandSpec("model choose", "models", "Open guided provider/model/parameter menu.", "model choose [local|cheap|chatgpt|openai|claude]", handler="models"),
+    CommandSpec("model choose", "models", "Open guided provider/model/parameter menu.", "model choose [local|cheap|chatgpt|openai|claude]", handler="models", examples=("model choose chatgpt", "choose model", "provider picker")),
     CommandSpec("model preset", "models", "Apply or choose a provider preset.", "model preset <provider> [preset]", handler="models"),
     CommandSpec("model add", "models", "Enable a provider.", "model add <local|cheap|chatgpt|openai|claude>", handler="models"),
     CommandSpec("model remove", "models", "Disable a provider.", "model remove <local|cheap|chatgpt|openai|claude>", handler="models"),
@@ -95,7 +96,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("roles check", "prince2", "Validate PRINCE2 role tree readiness, rate-limit state, and independence warnings.", "roles check [--json]", json=True, handler="roles"),
     CommandSpec("roles flow", "prince2", "Show authorized PRINCE2 flow edges between role-tree nodes.", "roles flow [--json]", json=True, handler="roles"),
     CommandSpec("roles matrix", "prince2", "Show combined PRINCE2 role tree, flow, assignment, limit, and readiness matrix.", "roles matrix [--json]", json=True, handler="roles"),
-    CommandSpec("role configure", "prince2", "Configure one PRINCE2 role assignment.", "role configure [role]", handler="roles"),
+    CommandSpec("role configure", "prince2", "Configure one PRINCE2 role assignment.", "role configure [role]", handler="roles", examples=("role configure project_manager", "assign role model", "prince2 role model")),
     CommandSpec("role clear", "prince2", "Clear one PRINCE2 role assignment.", "role clear <role>", handler="roles"),
     CommandSpec("role add-child", "prince2", "Add a delegated PRINCE2 child node to the approved role-tree baseline.", "role add-child [parent_node role_type [node_id]]", handler="roles"),
     CommandSpec("role assign", "prince2", "Assign provider/provider-model/params to one PRINCE2 role-tree node.", "role assign [node_id provider provider_model [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]]", handler="roles"),
@@ -130,8 +131,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("session send last", "shell", "Run command in last persistent shell session.", "session send <id|last> <command>", handler="sessions"),
     CommandSpec("session close last", "shell", "Close persistent shell session.", "session close <id|last>", handler="sessions"),
     CommandSpec("patch preview", "files", "Preview a patch target path.", "patch preview <path>", handler="files"),
-    CommandSpec("web search", "external_io", "Run governed web search with result evidence.", "web search <query>", json=True, handler="external_io"),
-    CommandSpec("download", "external_io", "Download HTTP/HTTPS file inside workspace with checksum evidence.", "download <url> [path] [--max-bytes N]", json=True, handler="external_io"),
+    CommandSpec("web search", "external_io", "Run governed web search with result evidence.", "web search <query>", json=True, handler="external_io", examples=("search web", "research online", "rete ricerca")),
+    CommandSpec("download", "external_io", "Download HTTP/HTTPS file inside workspace with checksum evidence.", "download <url> [path] [--max-bytes N]", json=True, handler="external_io", examples=("download file", "scarica file", "fetch artifact")),
     CommandSpec("checksum", "external_io", "Compute SHA-256 for a workspace file.", "checksum <path>", json=True, handler="external_io"),
     CommandSpec("compress", "external_io", "Gzip-compress one workspace file.", "compress <path> [target.gz]", json=True, handler="external_io"),
     CommandSpec("archive verify", "external_io", "Verify a gzip archive and report checksum evidence.", "archive verify <path.gz>", json=True, handler="external_io"),
@@ -143,9 +144,9 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("sources", "sources", "Show local external source repositories.", "sources", aliases=("sources status",), json=True, handler="sources"),
     CommandSpec("sources status --strict", "sources", "Fail sources status when any source is missing or mismatched.", "sources status --strict", json=True, handler="sources"),
     CommandSpec("sources update", "sources", "Fast-forward local external source repositories and record evidence.", "sources update", json=True, handler="sources"),
-    CommandSpec("update status", "update", "Show controlled self-update state for the current repository.", "update status", json=True, handler="update"),
-    CommandSpec("update check", "update", "Fetch upstream metadata and report whether an update is available.", "update check [--json]", json=True, handler="update"),
-    CommandSpec("update apply", "update", "Apply a fast-forward self-update after explicit confirmation.", "update apply --yes", json=True, handler="update"),
+    CommandSpec("update status", "update", "Show controlled self-update state for the current repository.", "update status", json=True, handler="update", examples=("self update status", "version status")),
+    CommandSpec("update check", "update", "Fetch upstream metadata and report whether an update is available.", "update check [--json]", json=True, handler="update", examples=("check for updates", "new version")),
+    CommandSpec("update apply", "update", "Apply a fast-forward self-update after explicit confirmation.", "update apply --yes", json=True, handler="update", examples=("apply update", "upgrade stagewarden")),
     CommandSpec("mode normal", "caveman", "Switch to normal mode.", "mode normal", handler="caveman"),
     CommandSpec("mode caveman", "caveman", "Switch to Caveman mode.", "mode caveman [level]", handler="caveman"),
     CommandSpec("mode plan", "caveman", "Switch to plan permission mode.", "mode plan", handler="caveman"),
@@ -199,6 +200,43 @@ def command_specs_by_prefix(prefix: str) -> list[CommandSpec]:
         if not lowered or any(phrase.startswith(lowered) for phrase in phrases):
             matches.append(spec)
     return matches
+
+
+def _fuzzy_score(query: str, candidate: str) -> int | None:
+    lowered_query = query.strip().lower()
+    lowered_candidate = candidate.strip().lower()
+    if not lowered_query:
+        return 0
+    if lowered_candidate.startswith(lowered_query):
+        return 0
+    if lowered_query in lowered_candidate:
+        return 10 + lowered_candidate.index(lowered_query)
+    position = 0
+    gaps = 0
+    for char in lowered_query:
+        found = lowered_candidate.find(char, position)
+        if found < 0:
+            return None
+        gaps += max(0, found - position)
+        position = found + 1
+    return 100 + gaps + len(lowered_candidate)
+
+
+def command_specs_by_query(query: str) -> list[CommandSpec]:
+    lowered = query.strip().lower()
+    if not lowered:
+        return list(COMMAND_SPECS)
+    scored: list[tuple[int, int, CommandSpec]] = []
+    for index, spec in enumerate(COMMAND_SPECS):
+        scores = [
+            score
+            for phrase in (spec.name, spec.usage, spec.description, *spec.aliases, *spec.examples)
+            if (score := _fuzzy_score(lowered, phrase)) is not None
+        ]
+        if scores:
+            scored.append((min(scores), index, spec))
+    scored.sort(key=lambda item: (item[0], item[1]))
+    return [item[2] for item in scored]
 
 
 def render_command_catalog() -> str:

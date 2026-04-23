@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
-from .commands import command_catalog, command_phrases, command_specs_by_prefix, command_usages_for_groups, render_command_catalog
+from .commands import command_catalog, command_phrases, command_specs_by_query, command_usages_for_groups, render_command_catalog
 from .config import AgentConfig
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant, format_run_model
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
@@ -505,7 +505,7 @@ def _interactive_help_overview() -> str:
 
 def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, object]:
     lowered = prefix.strip().lower()
-    specs = command_specs_by_prefix(lowered)
+    specs = command_specs_by_query(lowered)
     prefs = _load_model_preferences(config)
     enabled = ", ".join(prefs.enabled_models or []) or "none"
     active_accounts: list[str] = []
@@ -546,6 +546,7 @@ def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, ob
                 "aliases": list(spec.aliases),
                 "json": spec.json,
                 "handler": spec.handler,
+                "examples": list(spec.examples),
                 "hint": hint,
             }
         )
@@ -582,6 +583,8 @@ def _render_slash_palette(config: AgentConfig, prefix: str = "") -> str:
         json_hint = " json" if item["json"] else ""
         hint = f" hint={item['hint']}" if item["hint"] else ""
         lines.append(f"- /{item['name']}: {item['description']}{aliases}{json_hint}{hint}")
+        if item.get("examples"):
+            lines.append(f"  example: /{item['examples'][0]}")
     if len(entries) > 20:
         lines.append(f"- truncated: showing 20 of {len(entries)} matches")
     return "\n".join(lines)
@@ -6514,6 +6517,8 @@ def _ranked_command_phrase_matches(lowered: str) -> list[str]:
         if item not in seen:
             seen.add(item)
             unique.append(item)
+    if not unique and lowered:
+        unique = [spec.name for spec in command_specs_by_query(lowered)[:20]]
     return [f"{INTERACTIVE_COMMAND_PREFIX}{phrase}" for phrase in unique]
 
 
