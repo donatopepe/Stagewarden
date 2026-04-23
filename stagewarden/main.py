@@ -1317,24 +1317,39 @@ def _render_project_design(agent: Agent, config: AgentConfig) -> str:
 
 def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPreferences) -> str:
     design = _project_design_report(agent, config)
-    prefs.apply_prince2_role_proposal()
-    _save_model_preferences(config, prefs)
-    _approve_prince2_role_tree_baseline(config, prefs, source="project_start")
-    _apply_model_preferences(agent, config)
+    proposal = _project_tree_proposal_report(config)
     sections = [
-        "Project startup role baseline applied.",
+        "Project startup design gate:",
         _render_project_design(agent, config),
+        _render_project_tree_proposal(config),
     ]
-    gaps = design.get("clarification_gaps", [])
-    if isinstance(gaps, list) and gaps:
-        warning_lines = [
-            "Project design gate:",
-            "- warning: project start proceeded with open clarification gaps; treat this baseline as provisional until the gaps are resolved.",
+    ignored_startup_design_gaps = {"role_tree_not_ready", "missing_role_tree_baseline"}
+    raw_design_gaps = design.get("clarification_gaps", [])
+    design_gaps = [
+        item
+        for item in raw_design_gaps
+        if isinstance(item, dict) and str(item.get("code", "")) not in ignored_startup_design_gaps
+    ] if isinstance(raw_design_gaps, list) else []
+    proposal_gaps = proposal.get("clarification_gaps", [])
+    has_gaps = bool(design_gaps or proposal_gaps)
+    if has_gaps or proposal.get("status") != "ready_for_review":
+        lines = [
+            "Project startup blocked:",
+            "- reason: project design/proposal has unresolved clarification gaps.",
+            "- action: complete /project brief fields, rerun /project tree propose, then rerun /project start.",
+            "- override: use /project tree approve --force if the Project Board accepts the gaps explicitly.",
         ]
-        for item in gaps:
+        for item in design_gaps if isinstance(design_gaps, list) else []:
             if isinstance(item, dict):
-                warning_lines.append(f"- {item.get('code', 'gap')}: {item.get('message', 'missing')}")
-        sections.append("\n".join(warning_lines))
+                lines.append(f"- design_gap {item.get('code', 'gap')}: {item.get('message', 'missing')}")
+        for item in proposal_gaps if isinstance(proposal_gaps, list) else []:
+            if isinstance(item, dict):
+                lines.append(f"- proposal_gap {item.get('code', 'gap')}: {item.get('message', 'missing')}")
+        sections.append("\n".join(lines))
+        return "\n\n".join(sections)
+    approval = _approve_project_tree_proposal(config, force=False)
+    _apply_model_preferences(agent, config)
+    sections.append(_render_project_tree_approval_report(approval, config))
     sections.extend(
         [
             _render_prince2_roles(config),
@@ -1342,6 +1357,16 @@ def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPrefere
         ]
     )
     return "\n\n".join(sections)
+
+
+def _project_start_ready(config: AgentConfig) -> bool:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    if not handoff.task.strip():
+        return False
+    for field_name in ("objective", "scope", "expected_outputs", "delivery_mode"):
+        if not handoff.project_brief.get(field_name):
+            return False
+    return True
 
 
 PROJECT_BRIEF_FIELDS: dict[str, str] = {
@@ -6361,7 +6386,7 @@ def main() -> int:
             print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
         else:
             print(response)
-        return 0
+        return 1 if task == "project start" and not _project_start_ready(config) else 0
     if task in {"sources", "sources status"} or task.startswith("sources "):
         response = _handle_sources_command(task, config)
         if response is None or response.startswith("Usage:"):
