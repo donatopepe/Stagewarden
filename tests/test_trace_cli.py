@@ -2329,6 +2329,42 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads(json_completed.stdout)
             self.assertEqual(payload["baseline"]["source"], "project_tree_approve")
 
+    def test_handoff_actions_renders_action_entries_and_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            handoff.record_action(
+                phase="project_tree_approval",
+                summary="Project tree approved.",
+                task="project tree approve",
+                git_head="abc123",
+                details={"forced": False, "added_nodes": ["delivery.implementation_team"]},
+            )
+            handoff.record_action(
+                phase="project_start_blocked",
+                summary="Project start blocked.",
+                task="project start",
+                git_head="def456",
+                details={"proposal_status": "needs_clarification"},
+            )
+            handoff.save(root / ".stagewarden_handoff.json")
+
+            completed = run_main_capture(root, "handoff actions")
+            json_completed = run_main_capture(root, "handoff actions 1", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Handoff actions:", completed.stdout)
+            self.assertIn("project_tree_approval", completed.stdout)
+            self.assertIn("project_start_blocked", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "handoff actions")
+            self.assertEqual(payload["count"], 2)
+            self.assertEqual(payload["limit"], 1)
+            self.assertEqual(len(payload["entries"]), 1)
+            self.assertEqual(payload["entries"][0]["phase"], "project_start_blocked")
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

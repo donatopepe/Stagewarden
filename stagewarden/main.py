@@ -3932,6 +3932,81 @@ def _handoff_report(config: AgentConfig) -> dict[str, object]:
     }
 
 
+ACTION_PHASE_PREFIXES = (
+    "project_",
+    "role_",
+    "model_",
+    "account_",
+    "permission_",
+    "git_",
+    "shell_",
+    "web_",
+    "download_",
+    "compress_",
+)
+
+
+def _handoff_actions_report(config: AgentConfig, *, limit: int = 20) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    safe_limit = max(1, min(int(limit), 200))
+    action_entries = [
+        entry
+        for entry in handoff.entries
+        if entry.phase.endswith("_approval")
+        or entry.phase.endswith("_blocked")
+        or entry.phase.startswith(ACTION_PHASE_PREFIXES)
+    ]
+    selected = action_entries[-safe_limit:]
+    return {
+        "command": "handoff actions",
+        "count": len(action_entries),
+        "limit": safe_limit,
+        "entries": [
+            {
+                "timestamp": entry.timestamp,
+                "phase": entry.phase,
+                "task": entry.task,
+                "summary": entry.summary,
+                "git_head": entry.git_head,
+                "details": dict(entry.details),
+            }
+            for entry in selected
+        ],
+    }
+
+
+def _render_handoff_actions(config: AgentConfig, *, limit: int = 20) -> str:
+    report = _handoff_actions_report(config, limit=limit)
+    lines = [
+        "Handoff actions:",
+        f"- count: {report['count']}",
+        f"- showing: {len(report['entries'])}/{report['count']}",
+    ]
+    entries = report["entries"]
+    if not isinstance(entries, list) or not entries:
+        lines.append("- none")
+        return "\n".join(lines)
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        details = item.get("details") if isinstance(item.get("details"), dict) else {}
+        detail_keys = ", ".join(sorted(details)) if details else "none"
+        lines.append(
+            f"- [{item.get('phase')}] {item.get('summary')} "
+            f"task={item.get('task') or 'none'} head={item.get('git_head') or 'unknown'} details={detail_keys}"
+        )
+    return "\n".join(lines)
+
+
+def _parse_optional_limit(parts: list[str], *, default: int = 20) -> int:
+    if len(parts) <= 2:
+        return default
+    try:
+        return max(1, min(int(parts[2]), 200))
+    except ValueError:
+        return default
+
+
 def _render_resume_show(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
     agent = _configure_readonly_agent_for_workspace(config)
@@ -5244,6 +5319,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     if parts[0] == "handoff":
         if len(parts) == 2 and parts[1] in {"md", "export"}:
             return _export_handoff_markdown(config)
+        if len(parts) >= 2 and parts[1] == "actions":
+            return _render_handoff_actions(config, limit=_parse_optional_limit(parts))
         return _render_handoff(config)
     if parts[0] == "board" or command == "stage review":
         return _render_board(config)
@@ -6554,6 +6631,14 @@ def main() -> int:
             print(dumps_ascii(_handoff_report(config), indent=2))
         else:
             print(_render_handoff(config))
+        return 0
+    if task == "handoff actions" or task.startswith("handoff actions "):
+        parts = task.split()
+        limit = _parse_optional_limit(parts)
+        if args.json:
+            print(dumps_ascii(_handoff_actions_report(config, limit=limit), indent=2))
+        else:
+            print(_render_handoff_actions(config, limit=limit))
         return 0
     if task in {"handoff export", "handoff md"}:
         if args.json:

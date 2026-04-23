@@ -102,6 +102,7 @@ PRINCE2 handoff behavior:
 - `role add-child` opens a guided menu, or `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate PRINCE2 nodes to the approved tree.
 - `role assign` opens a guided menu, or `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]` assigns primary, reviewer, or fallback provider-model routes to a specific role-tree node.
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
+- `handoff actions` shows durable action/audit entries recorded in runtime handoff; `handoff actions 50 --json` exposes the same history for tooling.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
 - `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, classified provider lockout reason, last known provider message, and latest routed success/failure context.
 - `stagewarden board --json` or `stagewarden "stage review" --json` exposes the PRINCE2 board-level authorization recommendation.

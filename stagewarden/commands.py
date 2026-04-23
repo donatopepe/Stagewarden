@@ -99,6 +99,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("role add-child", "prince2", "Add a delegated PRINCE2 child node to the approved role-tree baseline.", "role add-child [parent_node role_type [node_id]]", handler="roles"),
     CommandSpec("role assign", "prince2", "Assign provider/provider-model/params to one PRINCE2 role-tree node.", "role assign [node_id provider provider_model [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]]", handler="roles"),
     CommandSpec("handoff", "handoff", "Show persisted PRINCE2 handoff context.", "handoff", json=True, handler="handoff"),
+    CommandSpec("handoff actions", "handoff", "Show durable action/audit entries from handoff.", "handoff actions [limit] [--json]", json=True, handler="handoff"),
     CommandSpec("handoff export", "handoff", "Export runtime handoff to HANDOFF.md.", "handoff export", aliases=("handoff md",), handler="handoff"),
     CommandSpec("board", "handoff", "Show project board view.", "board", json=True, handler="handoff"),
     CommandSpec("stage review", "handoff", "Show stage boundary review.", "stage review", json=True, handler="handoff"),
