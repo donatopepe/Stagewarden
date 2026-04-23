@@ -354,6 +354,12 @@ Roadmap rule:
 - `G3` wet-run: interactive `/help external_io` rendered the governed IO help topic.
 - `G4` Source and self-update governance: implement `sources status --strict`, `sources update`, `update status`, `update check --json`, `update apply` with confirmation, rollback boundary, source head tracking, and handoff evidence.
 - `G4 test pack`: temp git repo tests for strict failures and ff-only update states, self-update no-update/update-available parser tests, JSON schema tests, `sources status --strict`, `update status`, and full unittest suite.
+- `G4` partial status: source governance slice implemented locally; self-update commands still pending.
+- `G4` implementation: added `sources status --strict` to fail closed when any local source reference is missing, mismatched, or not a git repository.
+- `G4` implementation: added `sources update` to fast-forward local external source repositories with before/after HEAD evidence and durable `sources_update` handoff action.
+- `G4` validation: temp local Git remote fast-forward test passed for strict status, update, and handoff action evidence.
+- `G4` wet-run: `python3 -m stagewarden.main "sources status --strict" --json` passed in the real workspace and confirmed Caveman, Codex CLI, and Claude Code references are coherent.
+- `G4` validation: `python3 -m unittest discover -s tests` passed with 278 tests and 3 expected sandbox HTTP skips.
 - `G5` Codex/Claude-style operator UX and extension architecture: implement slash palette with fuzzy filtering/cursor selection/non-TTY fallback, registry-backed examples/topic metadata, extension layout for commands/roles/skills/hooks/MCP, and bilingual README parity.
 - `G5 test pack`: command registry tests, fuzzy matcher tests, non-TTY slash fallback tests, guided menu tests, scaffolded extension discovery tests without untrusted execution, README/README_IT command parity checks, manual interactive wet-run, and full unittest suite.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
