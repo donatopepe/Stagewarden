@@ -304,6 +304,7 @@ Interactive help is topic-based: `/help` shows compact categories, while `/help 
 Slash UX:
 
 - `/slash [prefix]` shows a Codex/Claude-style command palette with descriptions and workspace-aware hints.
+- `/slash choose [query]` opens a portable guided chooser and returns the selected command without executing it.
 - `stagewarden "slash mo" --json` exposes the same palette as structured data for automation.
 - Slash search also uses fuzzy/example matching, so prompts such as `slash scarica` or `slash upgrade stagewarden` can discover the relevant command even when the text does not match the command name exactly.
 - Slash completion suggests contextual values, including providers, PRINCE2 roles, shell backends, configured account names, provider-model IDs, and `reasoning_effort` values.

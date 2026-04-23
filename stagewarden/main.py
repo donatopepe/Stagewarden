@@ -591,6 +591,34 @@ def _render_slash_palette(config: AgentConfig, prefix: str = "") -> str:
     return "\n".join(lines)
 
 
+def _guided_slash_choice(
+    config: AgentConfig,
+    query: str,
+    *,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Slash chooser unavailable without an interactive input/output stream."
+    entries = list(_slash_palette_report(config, query)["entries"])[:20]
+    if not entries:
+        return "No slash commands match the query."
+    options = [
+        (str(item["usage"]), f"/{item['usage']} - {item['description']}")
+        for item in entries
+        if isinstance(item, dict)
+    ]
+    selected = _prompt_menu_choice(
+        title="Choose slash command:",
+        options=options,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if selected is None:
+        return "Slash chooser cancelled."
+    return f"Selected slash command: /{selected}"
+
+
 def _registry_help_lines(title: str, groups: tuple[str, ...], examples: tuple[str, ...]) -> list[str]:
     lines = [title, ""]
     lines.extend(f"- {usage}" for usage in command_usages_for_groups(*groups))
@@ -6906,6 +6934,11 @@ def run_interactive_shell(
             stream_enabled = shell_command == "stream on"
             apply_stream_callback(agent)
             sink.write(f"Model streaming {'enabled' if stream_enabled else 'disabled'} for this session.\n")
+            sink.flush()
+            continue
+        if shell_command == "slash choose" or shell_command.startswith("slash choose "):
+            query = "" if shell_command == "slash choose" else shell_command.split(maxsplit=2)[2]
+            sink.write(f"{_guided_slash_choice(config, query, input_stream=source, output_stream=sink)}\n")
             sink.flush()
             continue
         rewritten, immediate = _rewrite_shell_command(shell_command, agent)
