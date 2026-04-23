@@ -1299,6 +1299,40 @@ class TraceAndCliTests(unittest.TestCase):
             completion_matches = _interactive_completion_candidates("/upg stg", AgentConfig(workspace_root=root))
             self.assertIn("/update apply", completion_matches)
 
+    def test_extension_scaffold_and_discovery_are_read_only_safe(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            scaffold = run_main_capture(root, "extension scaffold Local Tools", "--json")
+            self.assertEqual(scaffold.returncode, 0, scaffold.stderr)
+            payload = json.loads(scaffold.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["name"], "local-tools")
+            self.assertTrue((root / ".stagewarden/extensions/local-tools/extension.json").exists())
+            self.assertTrue((root / ".stagewarden/extensions/local-tools/commands").is_dir())
+            self.assertTrue((root / ".stagewarden/extensions/local-tools/roles").is_dir())
+            self.assertTrue((root / ".stagewarden/extensions/local-tools/skills").is_dir())
+            self.assertTrue((root / ".stagewarden/extensions/local-tools/hooks").is_dir())
+            self.assertTrue((root / ".stagewarden/extensions/local-tools/mcp").is_dir())
+
+            discovered = run_main_capture(root, "extensions", "--json")
+            self.assertEqual(discovered.returncode, 0, discovered.stderr)
+            discovered_payload = json.loads(discovered.stdout)
+            self.assertTrue(discovered_payload["ok"])
+            self.assertEqual(discovered_payload["extensions"][0]["name"], "local-tools")
+            self.assertEqual(discovered_payload["extensions"][0]["capabilities"], [])
+
+            actions = run_main_capture(root, "handoff actions", "3", "--json")
+            phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
+            self.assertIn("extension_scaffold", phases)
+
+    def test_extension_scaffold_rejects_unsafe_names(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            result = run_main_capture(root, "extension scaffold ../bad", "--json")
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

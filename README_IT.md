@@ -149,6 +149,10 @@ I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` re
 
 `update status` mostra branch, HEAD, upstream, ahead/behind e stato dirty. `update check --json` aggiorna i metadati upstream e segnala se esiste una nuova versione. `update apply --yes` applica solo fast-forward, richiede conferma esplicita, rifiuta worktree sporco e registra evidenza prima/dopo nell'handoff.
 
+## Estensioni
+
+`extension scaffold <nome>` crea una struttura sicura sotto `.stagewarden/extensions/<nome>/` con `commands/`, `roles/`, `skills/`, `hooks/`, `mcp/` ed `extension.json`. `extensions --json` scopre le estensioni in sola lettura e non esegue codice non fidato.
+
 ## Crediti
 
 Stagewarden studia e riproduce, dove compatibile, pattern UX e architetturali ispirati a Codex CLI, Claude Code e Caveman. Le fonti locali servono come riferimento tecnico; non vengono vendorizzati contenuti protetti nel progetto.

@@ -24,6 +24,7 @@ from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
 from .commands import command_catalog, command_phrases, command_specs_by_query, command_usages_for_groups, render_command_catalog
 from .config import AgentConfig
+from .extensions import discover_extensions, scaffold_extension
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant, format_run_model
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .memory import MemoryStore
@@ -611,6 +612,8 @@ def _interactive_help_topic(topic: str) -> str:
         "io": "external_io",
         "network": "external_io",
         "download": "external_io",
+        "extension": "extensions",
+        "extensions": "extensions",
         "sessions": "core",
         "session": "core",
     }
@@ -737,6 +740,14 @@ def _interactive_help_topic(topic: str) -> str:
                 "checksum artifacts/file.txt",
                 "compress artifacts/file.txt",
                 "archive verify artifacts/file.txt.gz",
+            ),
+        ),
+        "extensions": _registry_help_lines(
+            "Extension commands",
+            ("extensions",),
+            (
+                "extensions",
+                "extension scaffold local-tools",
             ),
         ),
         "caveman": [
@@ -2966,6 +2977,54 @@ def _handle_update_command(command: str, config: AgentConfig) -> str | None:
     return None
 
 
+def _render_extensions_report(report: dict[str, object]) -> str:
+    lines = ["Stagewarden extensions:"]
+    lines.append(f"- root: {report.get('root', '.stagewarden/extensions')}")
+    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
+    lines.append(f"- count: {report.get('count', 0)}")
+    extensions = report.get("extensions", [])
+    if isinstance(extensions, list) and extensions:
+        for item in extensions:
+            if not isinstance(item, dict):
+                continue
+            caps = ", ".join(str(cap) for cap in item.get("capabilities", []) or []) or "none"
+            lines.append(
+                f"- {item.get('name')}: {'OK' if item.get('ok') else 'FAIL'} "
+                f"version={item.get('version') or 'unknown'} path={item.get('path')} capabilities={caps}"
+            )
+            if item.get("message") and item.get("message") != "ok":
+                lines.append(f"  message={item['message']}")
+    return "\n".join(lines)
+
+
+def _handle_extension_command(command: str, config: AgentConfig) -> str | None:
+    if command == "extensions":
+        return _render_extensions_report(discover_extensions(config.workspace_root))
+    if command.startswith("extension scaffold "):
+        name = command.split(maxsplit=2)[2]
+        try:
+            report = scaffold_extension(config.workspace_root, name)
+        except ValueError as exc:
+            return f"Extension scaffold failed: {exc}"
+        _record_handoff_action(
+            config,
+            phase="extension_scaffold",
+            task=command,
+            summary=f"Created extension scaffold {report['name']}.",
+            details=report,
+        )
+        return (
+            "Extension scaffold created:\n"
+            f"- name: {report['name']}\n"
+            f"- path: {report['path']}\n"
+            f"- manifest: {report['manifest']}\n"
+            "- execution: disabled-by-default"
+        )
+    if command.startswith("extension ") or command.startswith("extensions "):
+        return "Usage: extensions | extension scaffold <name>"
+    return None
+
+
 def _external_io_result_to_text(result: ExternalIOResult) -> str:
     lines = [f"{result.command}: {'OK' if result.ok else 'FAIL'} {result.message}"]
     if result.url:
@@ -4610,6 +4669,7 @@ ACTION_PHASE_PREFIXES = (
     "shell_",
     "sources_",
     "update_",
+    "extension_",
     "web_",
     "download_",
     "checksum_",
@@ -6895,6 +6955,11 @@ def run_interactive_shell(
             sink.write(f"{update_message}\n")
             sink.flush()
             continue
+        extension_message = _handle_extension_command(shell_command, config)
+        if extension_message is not None:
+            sink.write(f"{extension_message}\n")
+            sink.flush()
+            continue
         external_io_message = _handle_external_io_command(shell_command, config)
         if external_io_message is not None:
             sink.write(f"{external_io_message}\n")
@@ -7273,6 +7338,32 @@ def main() -> int:
             return 1
         print(response)
         return 0 if "\n- ok: false" not in response else 1
+    if task == "extensions" or task.startswith("extension ") or task.startswith("extensions "):
+        if args.json:
+            if task == "extensions":
+                report = discover_extensions(config.workspace_root)
+            elif task.startswith("extension scaffold "):
+                try:
+                    report = scaffold_extension(config.workspace_root, task.split(maxsplit=2)[2])
+                    _record_handoff_action(
+                        config,
+                        phase="extension_scaffold",
+                        task=task,
+                        summary=f"Created extension scaffold {report['name']}.",
+                        details=report,
+                    )
+                except ValueError as exc:
+                    report = {"command": "extension scaffold", "ok": False, "error": str(exc)}
+            else:
+                report = {"command": task, "ok": False, "error": "Usage: extensions | extension scaffold <name>"}
+            print(dumps_ascii(report, indent=2))
+            return 0 if report.get("ok") else 1
+        response = _handle_extension_command(task, config)
+        if response is None or response.startswith("Usage:") or response.startswith("Extension scaffold failed"):
+            print(response or "Usage: extensions | extension scaffold <name>")
+            return 1
+        print(response)
+        return 0
     if (
         task.startswith("web search ")
         or task.startswith("download ")

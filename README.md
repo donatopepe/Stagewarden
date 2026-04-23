@@ -204,6 +204,15 @@ stagewarden "update apply --yes"
 ```
 
 `update apply` is fast-forward only, requires explicit `--yes`, refuses dirty working trees, and records before/after evidence in handoff actions.
+
+Extension scaffolds:
+
+```bash
+stagewarden "extension scaffold local-tools"
+stagewarden "extensions" --json
+```
+
+Extensions live under `.stagewarden/extensions/<name>/` with `commands/`, `roles/`, `skills/`, `hooks/`, and `mcp/` folders plus `extension.json`. Discovery is read-only and does not execute extension code.
 `report` is the shareable operator summary for issue updates, project closure notes, or quick GitHub-ready status text.
 `sources status` verifies local third-party reference clones by path, upstream URL, HEAD, and shallow-clone state without reading or vendoring their source content.
 
