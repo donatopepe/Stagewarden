@@ -24,6 +24,31 @@ class CommandSpec:
         return payload
 
 
+@dataclass(frozen=True)
+class HelpTopic:
+    key: str
+    title: str
+    groups: tuple[str, ...] = ()
+    examples: tuple[str, ...] = ()
+    extra_lines: tuple[str, ...] = ()
+    aliases: tuple[str, ...] = ()
+
+    def to_lines(self) -> list[str]:
+        lines = [self.title, ""]
+        if self.groups:
+            lines.extend(f"- {usage}" for usage in command_usages_for_groups(*self.groups))
+        if self.extra_lines:
+            if lines and lines[-1] != "":
+                lines.append("")
+            lines.extend(self.extra_lines)
+        if self.examples:
+            if lines and lines[-1] != "":
+                lines.append("")
+            lines.append("Examples:")
+            lines.extend(f"- stagewarden> {example}" for example in self.examples)
+        return lines
+
+
 COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("help", "core", "Show interactive help.", "help [topic]", aliases=("commands help",), handler="help"),
     CommandSpec("slash", "core", "Show slash-command palette with workspace hints.", "slash [prefix]", json=True, handler="commands"),
@@ -163,8 +188,173 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
 )
 
 
+HELP_TOPICS: tuple[HelpTopic, ...] = (
+    HelpTopic(
+        key="core",
+        title="Core commands",
+        extra_lines=(
+            "- help [topic]",
+            "- exit | quit",
+            "- reset",
+            "- overview",
+            "- health",
+            "- report",
+            "- status",
+            "- status full",
+            "- statusline",
+            "- preflight",
+            "- shell backend",
+            "- shell backend use <auto|bash|zsh|powershell|cmd>",
+            "- auth status <chatgpt|claude>",
+            "- stream on | stream off | stream status",
+            "- transcript | trace",
+            "- doctor",
+            "- sessions | session list",
+            "- session create [cwd]",
+            "- session send <id|last> <command>",
+            "- session close <id|last>",
+            "- patch preview <diff-file>",
+        ),
+        examples=(
+            "overview",
+            "health",
+            "report",
+            "status",
+            "status full",
+            "statusline",
+            "preflight",
+            "shell backend",
+            "shell backend use zsh",
+            "auth status chatgpt",
+            "stream off",
+            "doctor",
+            "session create",
+            "session send last pwd",
+            "patch preview changes.diff",
+            "transcript",
+        ),
+        aliases=("sessions", "session"),
+    ),
+    HelpTopic(
+        key="models",
+        title="Model commands",
+        groups=("models",),
+        examples=(
+            "models usage",
+            "model limits",
+            "model choose chatgpt",
+            "model list claude",
+            "model params chatgpt",
+            "model variant openai gpt-5.4-mini",
+            "model preset chatgpt",
+            "model param set chatgpt reasoning_effort high",
+            "model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.",
+        ),
+        aliases=("model",),
+    ),
+    HelpTopic(
+        key="accounts",
+        title="Account commands",
+        groups=("accounts",),
+        examples=(
+            "account login chatgpt personale",
+            "account choose openai",
+            "account login-device openai lavoro",
+            "account add openai lavoro OPENAI_API_KEY_WORK",
+            "account import claude lavoro ~/.claude/.credentials.json",
+        ),
+        aliases=("account",),
+    ),
+    HelpTopic(
+        key="permissions",
+        title="Permission commands",
+        groups=("permissions",),
+        examples=(
+            "permission mode plan",
+            "permission ask shell:python3 -m unittest",
+            "permission session allow shell:git status",
+        ),
+        aliases=("permission", "perm"),
+    ),
+    HelpTopic(
+        key="handoff",
+        title="Handoff and PRINCE2 commands",
+        groups=("handoff", "prince2"),
+        examples=(
+            "overview",
+            "handoff",
+            "board",
+            "roles",
+            "roles domains",
+            "resume --show",
+            "boundary",
+            "handoff export",
+        ),
+        aliases=("prince2",),
+    ),
+    HelpTopic(
+        key="git",
+        title="Git commands",
+        groups=("git",),
+        examples=(
+            "git status",
+            "git log 5",
+            "git history stagewarden/main.py 10",
+        ),
+        aliases=("history",),
+    ),
+    HelpTopic(
+        key="update",
+        title="Update commands",
+        groups=("update", "sources"),
+        examples=(
+            "sources status --strict",
+            "sources update",
+            "update status",
+            "update check --json",
+            "update apply --yes",
+        ),
+    ),
+    HelpTopic(
+        key="external_io",
+        title="External IO commands",
+        groups=("external_io",),
+        examples=(
+            "web search Stagewarden coding agent",
+            "download https://example.com/file.txt artifacts/file.txt --max-bytes 1048576",
+            "checksum artifacts/file.txt",
+            "compress artifacts/file.txt",
+            "archive verify artifacts/file.txt.gz",
+        ),
+        aliases=("io", "network", "download"),
+    ),
+    HelpTopic(
+        key="extensions",
+        title="Extension commands",
+        groups=("extensions",),
+        examples=(
+            "extensions",
+            "extension scaffold local-tools",
+        ),
+        aliases=("extension",),
+    ),
+)
+
+
 def command_specs() -> tuple[CommandSpec, ...]:
     return COMMAND_SPECS
+
+
+def help_topics() -> tuple[HelpTopic, ...]:
+    return HELP_TOPICS
+
+
+def help_topic_lines(topic: str) -> list[str] | None:
+    lowered = topic.strip().lower()
+    for item in HELP_TOPICS:
+        if lowered == item.key or lowered in item.aliases:
+            return item.to_lines()
+    return None
 
 
 def command_catalog() -> list[dict[str, object]]:
