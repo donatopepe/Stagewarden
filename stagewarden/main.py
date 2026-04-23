@@ -22,7 +22,15 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
-from .commands import command_catalog, command_phrases, command_specs_by_query, help_topic_catalog, help_topic_lines, render_command_catalog
+from .commands import (
+    command_catalog,
+    command_phrases,
+    command_specs_by_query,
+    help_topic_catalog,
+    help_topic_lines,
+    help_topic_report,
+    render_command_catalog,
+)
 from .config import AgentConfig
 from .extensions import discover_extensions, scaffold_extension
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant, format_run_model
@@ -220,248 +228,6 @@ def interactive_help_text(topic: str | None = None) -> str:
     if topic:
         return _interactive_help_topic(topic)
     return _interactive_help_overview()
-    return "\n".join(
-        [
-            "Stagewarden interactive shell",
-            "",
-            "Core commands:",
-            "- help",
-            "  Show this full help with examples.",
-            "- commands | commands --json",
-            "  Show the structured command catalog.",
-            "- exit | quit",
-            "  Close the interactive session.",
-            "- reset",
-            "  Start a fresh in-memory agent session in the same workspace.",
-            "- status",
-            "  Show workspace, mode, model routing, and state file locations.",
-            "- handoff",
-            "  Show the current persisted PRINCE2 handoff context for this workspace.",
-            "- resume context",
-            "  Show the latest implicit resume context: model attempt, tool evidence, and git snapshot.",
-            "- handoff export | handoff md",
-            "  Export the runtime handoff into the generated section of HANDOFF.md.",
-            "- boundary",
-            "  Show only the current PRINCE2 stage boundary recommendation.",
-            "- risks | issues | quality | exception",
-            "  Show the dedicated PRINCE2 registers from the persisted handoff.",
-            "- lessons",
-            "  Show the persistent lessons log derived from execution outcomes.",
-            "- transcript | trace",
-            "  Show the recent tool invocation transcript from workspace memory.",
-            "- todo",
-            "  Show the persisted implementation backlog tracked in handoff.",
-            "- permissions",
-            "  Show the active workspace permission settings.",
-            "- permission mode <default|accept_edits|plan|auto|dont_ask>",
-            "  Set the default permission mode for this workspace.",
-            "- permission session mode <default|accept_edits|plan|auto|dont_ask>",
-            "  Set a temporary permission mode for the current shell session only.",
-            "- permission allow <rule>",
-            "  Add an allow rule to the workspace permission settings.",
-            "- permission ask <rule>",
-            "  Add an ask rule to the workspace permission settings.",
-            "- permission deny <rule>",
-            "  Add a deny rule to the workspace permission settings.",
-            "- permission session allow <rule> | permission session ask <rule> | permission session deny <rule>",
-            "  Add a temporary session-only permission rule.",
-            "- permission session reset",
-            "  Clear all temporary session permission overrides.",
-            "- permission reset",
-            "  Reset workspace permission settings to defaults.",
-            "- sessions | session list",
-            "  List active persistent shell sessions in this process.",
-            "- session create [cwd]",
-            "  Start a persistent shell session in the workspace or relative cwd.",
-            "- session send <id|last> <command>",
-            "  Execute one command inside a persistent shell session with normal permission checks.",
-            "- session close <id|last>",
-            "  Close a persistent shell session.",
-            "- commands",
-            "  Show the structured command catalog.",
-            "- Interactive shell rule: every shell command starts with `/`; anything else is sent to the agent as a task.",
-            "",
-            "Model commands:",
-            "- models",
-            "  Show enabled providers, preferred provider, and current provider-model selection.",
-            "- model use <local|cheap|chatgpt|openai|claude>",
-            "  Set the preferred provider and persist it in this workspace.",
-            "- model choose [local|cheap|chatgpt|openai|claude]",
-            "  Guided menu: choose provider, provider-model, and supported parameters interactively.",
-            "- model preset <provider> [fast|balanced|deep|plan]",
-            "  Apply a preset directly; without the preset value, open a guided provider-model picker.",
-            "- model add <local|cheap|chatgpt|openai|claude>",
-            "  Enable a provider in this workspace.",
-            "- model list <local|cheap|chatgpt|openai|claude>",
-            "  Show the official provider-model aliases or model IDs for one provider.",
-            "- model variant <local|cheap|chatgpt|openai|claude> <variant>",
-            "  Pin the provider-specific model alias or model ID for that provider.",
-            "- model variant-clear <local|cheap|chatgpt|openai|claude>",
-            "  Clear the provider-model pin and return to automatic/provider-default selection.",
-            "- model remove <local|cheap|chatgpt|openai|claude>",
-            "  Disable a provider in this workspace.",
-            "- model block <local|cheap|chatgpt|openai|claude> until YYYY-MM-DDTHH:MM",
-            "  Keep the provider in the list but block routing to it until the given date and time.",
-            "- model unblock <local|cheap|chatgpt|openai|claude>",
-            "  Remove the temporary block from a provider.",
-            "- model clear",
-            "  Clear the preferred provider and restore automatic routing.",
-            "- accounts",
-            "  Show configured account profiles for each model.",
-            "- roles",
-            "  Show PRINCE2 role assignments and routed model ownership.",
-            "- roles domains",
-            "  Show PRINCE2 role domains, accountability boundaries, and context visibility.",
-            "- roles setup",
-            "  Guided startup wizard for PRINCE2 role-to-model assignments.",
-            "- roles propose | project start",
-            "  Apply an automatic PRINCE2 role proposal based on available providers, accounts, and models.",
-            "- sources | sources status",
-            "  Verify local external reference repositories by path, upstream URL, HEAD, and shallow state.",
-            "- account add <model> <name> [ENV_VAR]",
-            "  Add an account profile. Optional ENV_VAR points to the token variable for that account.",
-            "- account login <model> <name>",
-            "  Log in to a provider and save credentials in the OS secret store. chatgpt uses browser login; openai can use device-code OAuth.",
-            "- account login-device <chatgpt|openai> <name>",
-            "  Alias for the Codex-style OpenAI/ChatGPT device-code login.",
-            "- account logout <model> <name>",
-            "  Delete the saved token for one profile.",
-            "- account env <model> <name> <ENV_VAR>",
-            "  Set or change the environment variable used as token source for a profile.",
-            "- account import <model> <name> [PATH]",
-            "  Import credentials from a provider-owned credentials file. For claude the default is ~/.claude/.credentials.json or $CLAUDE_CONFIG_DIR/.credentials.json.",
-            "- account use <model> <name>",
-            "  Prefer one account profile for a model.",
-            "- account choose [model]",
-            "  Guided menu: choose provider and one configured account profile interactively.",
-            "- account remove <model> <name>",
-            "  Remove an account profile.",
-            "- account block <model> <name> until YYYY-MM-DDTHH:MM",
-            "  Temporarily block one account profile after usage limits.",
-            "- account unblock <model> <name>",
-            "  Remove a temporary account block.",
-            "- account clear <model>",
-            "  Clear the preferred account for one model.",
-            "- role configure [role]",
-            "  Guided menu: choose one PRINCE2 role and assign provider, provider-model, params, and account.",
-            "- role clear <role>",
-            "  Remove a saved PRINCE2 role assignment.",
-            "",
-            "Caveman commands:",
-            "- /caveman help",
-            "- /caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra> <task>",
-            "- /caveman commit",
-            "- /caveman review",
-            "- /caveman compress <file>",
-            "- stop caveman | normal mode",
-            "- mode caveman <lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra>",
-            "- mode normal",
-            "- mode plan | mode auto | mode accept-edits | mode dont-ask | mode default",
-            "- caveman help | caveman on [level] | caveman off",
-            "- caveman commit | caveman review | caveman compress <file>",
-            "",
-            "Git commands:",
-            "- git status",
-            "  Show branch and working-tree changes.",
-            "- git log [limit]",
-            "  Show recent commits, default 20.",
-            "- git history <path> [limit]",
-            "  Show commit history for one file or directory.",
-            "- git show [revision]",
-            "  Show a revision, default HEAD.",
-            "- git show --stat [revision]",
-            "  Show revision summary with file stats.",
-            "",
-            "Update commands:",
-            "- sources status --strict",
-            "  Fail closed when source reference repositories are missing or mismatched.",
-            "- sources update",
-            "  Fast-forward local external source repositories and record evidence.",
-            "- update status",
-            "  Show current self-update Git posture.",
-            "- update check --json",
-            "  Fetch upstream metadata and report update availability.",
-            "- update apply --yes",
-            "  Apply a fast-forward-only self-update after explicit confirmation.",
-            "",
-            "External IO commands:",
-            "- web search <query>",
-            "  Run governed web search and store result evidence.",
-            "- download <url> [path] [--max-bytes N]",
-            "  Download HTTP/HTTPS into the workspace with checksum evidence.",
-            "- checksum <path>",
-            "  Compute SHA-256 for a workspace file.",
-            "- compress <path> [target.gz]",
-            "  Create a gzip archive inside the workspace.",
-            "- archive verify <path.gz>",
-            "  Verify gzip readability and checksum.",
-            "",
-            "Task execution:",
-            "- Any other input is executed as a task in the current workspace.",
-            "",
-            "Examples:",
-            "- stagewarden> /models",
-            "- stagewarden> /account login chatgpt personale",
-            "- stagewarden> /roles",
-            "- stagewarden> /roles domains",
-            "- stagewarden> /roles setup",
-            "- stagewarden> /role configure project_manager",
-            "- stagewarden> /sources status",
-            "- stagewarden> /model choose",
-            "- stagewarden> /model choose chatgpt",
-            "- stagewarden> /model preset chatgpt",
-            "- stagewarden> /model use openai",
-            "- stagewarden> /model list claude",
-            "- stagewarden> model variant claude opus",
-            "- stagewarden> model variant openai gpt-5.4-mini",
-            "- stagewarden> model remove claude",
-            "- stagewarden> model block openai until 2026-05-01T18:30",
-            "- stagewarden> account add openai lavoro OPENAI_API_KEY_WORK",
-            "- stagewarden> account login openai lavoro",
-            "- stagewarden> account add openai personale OPENAI_API_KEY_PERSONAL",
-            "- stagewarden> account use openai lavoro",
-            "- stagewarden> account choose openai",
-            "- stagewarden> account block openai lavoro until 2026-05-01T18:30",
-            "- stagewarden> model unblock openai",
-            "- stagewarden> status",
-            "- stagewarden> handoff",
-            "- stagewarden> handoff export",
-            "- stagewarden> boundary",
-            "- stagewarden> risks",
-            "- stagewarden> issues",
-            "- stagewarden> quality",
-            "- stagewarden> exception",
-            "- stagewarden> lessons",
-            "- stagewarden> transcript",
-            "- stagewarden> todo",
-            "- stagewarden> permissions",
-            "- stagewarden> permission mode plan",
-            "- stagewarden> permission session mode auto",
-            "- stagewarden> permission allow shell:git status",
-            "- stagewarden> permission session allow shell:python3 -m pytest",
-            "- stagewarden> permission deny shell:rm",
-            "- stagewarden> mode caveman ultra",
-            "- stagewarden> mode normal",
-            "- stagewarden> mode plan",
-            "- stagewarden> mode auto",
-            "- stagewarden> mode accept-edits",
-            "- stagewarden> mode dont-ask",
-            "- stagewarden> mode default",
-            "- stagewarden> caveman on ultra",
-            "- stagewarden> /caveman review",
-            "- stagewarden> git status",
-            "- stagewarden> git log 5",
-            "- stagewarden> git history stagewarden/main.py 10",
-            "- stagewarden> git show --stat HEAD",
-            "- stagewarden> /update status",
-            "- stagewarden> /update check --json",
-            "- stagewarden> /download https://example.com/file.txt artifacts/file.txt",
-            "- stagewarden> /checksum artifacts/file.txt",
-            "- stagewarden> /compress artifacts/file.txt",
-            "- stagewarden> /archive verify artifacts/file.txt.gz",
-            "- stagewarden> fix failing tests in router.py",
-        ]
-    )
 
 
 def _interactive_help_overview() -> str:
@@ -631,6 +397,10 @@ def _render_slash_choice_candidates(config: AgentConfig, query: str = "") -> str
         lines.append(f"{index}. /{item['usage']} - {item['description']}")
     lines.append("- note: use interactive /slash choose to select one item.")
     return "\n".join(lines)
+
+
+def _help_json_report(topic: str | None = None) -> dict[str, object]:
+    return help_topic_report(topic)
 
 
 def _interactive_help_topic(topic: str) -> str:
@@ -6495,6 +6265,8 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     lowered = command.lower().strip()
     if lowered == "help":
         return None, interactive_help_text()
+    if lowered in {"help topics", "help topics --json", "help --json"}:
+        return None, dumps_ascii(_help_json_report(), indent=2) if lowered.endswith("--json") else interactive_help_text()
     if lowered == "slash choose":
         return None, _render_slash_choice_candidates(agent.config)
     if lowered.startswith("slash choose "):
@@ -6516,8 +6288,17 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
         return None, dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2)
     if lowered.startswith("help "):
         topic = command.split(maxsplit=1)[1]
+        if topic.lower().strip() == "--json":
+            return None, dumps_ascii(_help_json_report(), indent=2)
         if topic.lower().strip() == "caveman":
             return None, agent.caveman.help_text()
+        if topic.lower().strip() == "topics":
+            return None, interactive_help_text()
+        if topic.lower().strip().endswith(" --json"):
+            raw_topic = topic[: -len(" --json")].strip()
+            if raw_topic.lower() == "caveman":
+                return None, dumps_ascii({"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}, indent=2)
+            return None, dumps_ascii(_help_json_report(raw_topic), indent=2)
         return None, interactive_help_text(topic)
     if lowered.startswith("commands "):
         topic = command.split(maxsplit=1)[1]
@@ -6920,6 +6701,33 @@ def main() -> int:
         task = f"/caveman {args.caveman} {task}".strip()
     elif args.interactive or not task:
         return run_interactive_shell(config)
+    if task in {"help", "help topics", "help --json", "help topics --json"}:
+        if args.json or task.endswith("--json"):
+            print(dumps_ascii(_help_json_report(), indent=2))
+        else:
+            print(interactive_help_text())
+        return 0
+    if task.startswith("help "):
+        topic = task.split(maxsplit=1)[1]
+        if topic == "--json":
+            print(dumps_ascii(_help_json_report(), indent=2))
+            return 0
+        if topic.endswith(" --json"):
+            raw_topic = topic[: -len(" --json")].strip()
+            if raw_topic.lower() == "caveman":
+                print(dumps_ascii({"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}, indent=2))
+            else:
+                print(dumps_ascii(_help_json_report(raw_topic), indent=2))
+            return 0
+        if args.json:
+            print(dumps_ascii(_help_json_report(topic), indent=2))
+        elif topic.lower() == "caveman":
+            print(Agent(config=config).caveman.help_text())
+        elif topic.lower() == "topics":
+            print(interactive_help_text())
+        else:
+            print(interactive_help_text(topic))
+        return 0
     if task in {"commands", "commands --json"}:
         if args.json or task == "commands --json":
             print(dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2))
