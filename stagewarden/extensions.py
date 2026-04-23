@@ -24,6 +24,10 @@ class ExtensionRecord:
     version: str | None = None
     description: str | None = None
     capabilities: list[str] | None = None
+    schema_version: str | None = None
+    execution: str | None = None
+    entrypoints: dict[str, str] | None = None
+    missing_entrypoints: list[str] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -35,6 +39,10 @@ class ExtensionRecord:
             "version": self.version,
             "description": self.description,
             "capabilities": list(self.capabilities or []),
+            "schema_version": self.schema_version,
+            "execution": self.execution,
+            "entrypoints": dict(self.entrypoints or {}),
+            "missing_entrypoints": list(self.missing_entrypoints or []),
         }
 
 
@@ -49,6 +57,56 @@ def safe_extension_name(name: str) -> str:
 
 def extension_root(workspace: Path) -> Path:
     return (workspace / EXTENSION_ROOT).resolve()
+
+
+def _default_entrypoints() -> dict[str, str]:
+    return {name: f"{name}/" for name in EXTENSION_SUBDIRS}
+
+
+def _validate_extension_manifest(workspace: Path, candidate: Path, payload: dict[str, Any]) -> ExtensionRecord:
+    name = safe_extension_name(str(payload.get("name") or candidate.name))
+    capabilities = payload.get("capabilities", [])
+    if not isinstance(capabilities, list):
+        raise ValueError("capabilities must be a list")
+    execution = str(payload.get("execution") or "disabled-by-default").strip()
+    if execution not in {"disabled-by-default", "manual-only"}:
+        raise ValueError("execution must be disabled-by-default or manual-only")
+    entrypoints = payload.get("entrypoints") or _default_entrypoints()
+    if not isinstance(entrypoints, dict):
+        raise ValueError("entrypoints must be an object")
+    validated_entrypoints: dict[str, str] = {}
+    missing_entrypoints: list[str] = []
+    for subdir in EXTENSION_SUBDIRS:
+        raw_value = entrypoints.get(subdir)
+        if not isinstance(raw_value, str) or not raw_value.strip():
+            raise ValueError(f"entrypoints.{subdir} must be a non-empty string")
+        relative = raw_value.strip()
+        if relative.startswith("/") or ".." in Path(relative).parts:
+            raise ValueError(f"entrypoints.{subdir} must stay inside the extension directory")
+        validated_entrypoints[subdir] = relative
+        target = (candidate / relative).resolve()
+        if not target.exists():
+            missing_entrypoints.append(subdir)
+    if missing_entrypoints:
+        message = f"missing entrypoints: {', '.join(missing_entrypoints)}"
+        ok = False
+    else:
+        message = "ok"
+        ok = True
+    return ExtensionRecord(
+        name=name,
+        path=str(candidate.relative_to(workspace)),
+        manifest_path=str((candidate / EXTENSION_MANIFEST).relative_to(workspace)),
+        ok=ok,
+        message=message,
+        version=str(payload.get("version") or ""),
+        description=str(payload.get("description") or ""),
+        capabilities=[str(item) for item in capabilities],
+        schema_version=str(payload.get("schema_version") or "1"),
+        execution=execution,
+        entrypoints=validated_entrypoints,
+        missing_entrypoints=missing_entrypoints,
+    )
 
 
 def scaffold_extension(workspace: Path, name: str) -> dict[str, Any]:
@@ -67,16 +125,11 @@ def scaffold_extension(workspace: Path, name: str) -> dict[str, Any]:
     if not manifest.exists():
         payload = {
             "name": safe_name,
+            "schema_version": "1",
             "version": "0.1.0",
             "description": "Stagewarden extension scaffold.",
             "capabilities": [],
-            "entrypoints": {
-                "commands": "commands/",
-                "roles": "roles/",
-                "skills": "skills/",
-                "hooks": "hooks/",
-                "mcp": "mcp/",
-            },
+            "entrypoints": _default_entrypoints(),
             "execution": "disabled-by-default",
         }
         write_text_utf8(manifest, dumps_ascii(payload, indent=2) + "\n")
@@ -110,22 +163,9 @@ def discover_extensions(workspace: Path) -> dict[str, Any]:
             continue
         try:
             payload = json.loads(read_text_utf8(manifest))
-            name = safe_extension_name(str(payload.get("name") or candidate.name))
-            capabilities = payload.get("capabilities", [])
-            if not isinstance(capabilities, list):
-                raise ValueError("capabilities must be a list")
-            records.append(
-                ExtensionRecord(
-                    name=name,
-                    path=str(candidate.relative_to(workspace)),
-                    manifest_path=str(manifest.relative_to(workspace)),
-                    ok=True,
-                    message="ok",
-                    version=str(payload.get("version") or ""),
-                    description=str(payload.get("description") or ""),
-                    capabilities=[str(item) for item in capabilities],
-                )
-            )
+            if not isinstance(payload, dict):
+                raise ValueError("manifest root must be an object")
+            records.append(_validate_extension_manifest(workspace, candidate, payload))
         except (OSError, json.JSONDecodeError, ValueError, TypeError) as exc:
             records.append(
                 ExtensionRecord(

@@ -152,7 +152,7 @@ I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` re
 
 ## Estensioni
 
-`extension scaffold <nome>` crea una struttura sicura sotto `.stagewarden/extensions/<nome>/` con `commands/`, `roles/`, `skills/`, `hooks/`, `mcp/` ed `extension.json`. `extensions --json` scopre le estensioni in sola lettura e non esegue codice non fidato.
+`extension scaffold <nome>` crea una struttura sicura sotto `.stagewarden/extensions/<nome>/` con `commands/`, `roles/`, `skills/`, `hooks/`, `mcp/` ed `extension.json`. Lo scaffold scrive anche `schema_version`, `entrypoints` ed `execution=disabled-by-default`. `extensions --json` scopre le estensioni in sola lettura, valida manifest e percorsi degli entrypoint, segnala directory mancanti e non esegue codice non fidato.
 
 ## Crediti
 

@@ -1320,6 +1320,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(discovered_payload["ok"])
             self.assertEqual(discovered_payload["extensions"][0]["name"], "local-tools")
             self.assertEqual(discovered_payload["extensions"][0]["capabilities"], [])
+            self.assertEqual(discovered_payload["extensions"][0]["schema_version"], "1")
+            self.assertEqual(discovered_payload["extensions"][0]["execution"], "disabled-by-default")
+            self.assertEqual(discovered_payload["extensions"][0]["missing_entrypoints"], [])
+            self.assertEqual(discovered_payload["extensions"][0]["entrypoints"]["commands"], "commands/")
 
             actions = run_main_capture(root, "handoff actions", "3", "--json")
             phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
@@ -1332,6 +1336,46 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             payload = json.loads(result.stdout)
             self.assertFalse(payload["ok"])
+
+    def test_extensions_discovery_flags_manifest_schema_and_missing_entrypoints(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            extension_root = root / ".stagewarden" / "extensions" / "broken-tools"
+            extension_root.mkdir(parents=True)
+            manifest = extension_root / "extension.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "name": "broken-tools",
+                        "schema_version": "1",
+                        "version": "0.2.0",
+                        "description": "Broken extension for validation.",
+                        "capabilities": ["commands"],
+                        "entrypoints": {
+                            "commands": "commands/",
+                            "roles": "roles/",
+                            "skills": "skills/",
+                            "hooks": "hooks/",
+                            "mcp": "mcp/",
+                        },
+                        "execution": "disabled-by-default",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (extension_root / "commands").mkdir()
+
+            discovered = run_main_capture(root, "extensions", "--json")
+            self.assertEqual(discovered.returncode, 0, discovered.stderr)
+            payload = json.loads(discovered.stdout)
+            self.assertFalse(payload["ok"])
+            record = payload["extensions"][0]
+            self.assertEqual(record["name"], "broken-tools")
+            self.assertEqual(record["schema_version"], "1")
+            self.assertEqual(record["execution"], "disabled-by-default")
+            self.assertEqual(record["entrypoints"]["commands"], "commands/")
+            self.assertIn("roles", record["missing_entrypoints"])
+            self.assertEqual(record["message"], "missing entrypoints: roles, skills, hooks, mcp")
 
     def test_interactive_slash_choose_returns_selected_command_without_execution(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
