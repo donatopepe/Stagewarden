@@ -372,6 +372,11 @@ Roadmap rule:
 - `G5` implementation: command registry entries now support examples, `/slash` uses fuzzy/example matching, JSON palette entries expose examples, and completion falls back to fuzzy query results when direct matches fail.
 - `G5` wet-run: `python3 -m stagewarden.main "slash scarica" --json` found `download`; interactive `/slash upgrade stagewarden` found `update apply`.
 - `G5` validation: targeted slash palette, command catalog, completion, and JSON tests passed.
+- `G5` partial status: safe extension scaffold/discovery implemented locally; cursor-selection UI remains pending.
+- `G5` implementation: added `.stagewarden/extensions/<name>/` scaffold with `commands/`, `roles/`, `skills/`, `hooks/`, `mcp/`, and `extension.json`.
+- `G5` safety controls: extension discovery is read-only and does not execute untrusted extension code; `.stagewarden/` is ignored by git by default.
+- `G5` wet-run: `python3 -m stagewarden.main "extension scaffold local-tools" --json` created a local scaffold; `python3 -m stagewarden.main "extensions" --json` discovered it.
+- `G5` validation: `python3 -m unittest discover -s tests` passed with 283 tests and 3 expected sandbox HTTP skips.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:
