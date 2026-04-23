@@ -2404,6 +2404,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("delivery.release_manager", payload["ai_assistance"]["valid_added_nodes"])
             self.assertIn("delivery.release_manager", payload["added_nodes"])
             self.assertEqual(ModelPreferences.load(root / ".stagewarden_models.json").prince2_role_tree_baseline, {})
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertIn("project_tree_proposal_ai", [entry.phase for entry in handoff.entries])
 
     def test_project_tree_propose_reports_missing_brief_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
