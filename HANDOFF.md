@@ -326,21 +326,26 @@ Next implementation roadmap:
 
 Roadmap rule:
 
-- Work in mini-blocks that are small enough to test and push independently.
-- Each block must add wet-run evidence, unit tests where feasible, handoff notes, and a git boundary.
+- Work in grouped implementation blocks, not one-line micro changes. Each group should combine coherent code changes and run one grouped validation pack before commit/push.
+- Mini-blocks are still allowed inside a group for reasoning, but they should not force separate commits when one grouped wet-run can validate the whole feature slice.
+- Each grouped block must add wet-run evidence, unit tests where feasible, handoff notes, and a git boundary.
 - Priority override from the current directive: UX parity with Codex CLI and Claude Code is now the baseline governing principle for all new CLI/shell interaction work.
 - Priority order is governed by operational risk: shell/runtime safety first, then PRINCE2 routing, then network/file artifact tools, then UX polish.
 - UX parity is not postponed to polish only: when a control surface affects prompting, shell conversation, slash commands, status, auth, resume, or model/provider selection, it must be designed against the Codex/Claude baseline during the implementation phase itself.
 - Mandatory transparency: all future implementation blocks must add or preserve user-facing action announcements and durable handoff/log entries for the action path being changed.
-- Technical execution order after replanning on 2026-04-22:
-- `P-UX0` keep Stagewarden UX aligned to Codex CLI and Claude Code for all operator-facing surfaces; use `external_sources/codex` and `external_sources/claude-code` as the baseline learning corpus and record adopted patterns here before implementation.
-- `P-UX1` improve agent<->model communication with a structured turn packet inspired by Codex thread start/items and Claude transcript/resume behaviour.
-- `P0` complete Phase A runtime safety/control gaps that affect every command path.
-- `P1` complete Phase B PRINCE2 role-tree persistence and node assignment because context governance depends on it.
-- `P2` implement Phase C governed web/download/compression because external IO needs the Phase A/B guardrails.
-- `P3` implement Phase E/F operational governance (`sources --strict`, self-update, richer provider status) once runtime and role routing are stable.
-- `P4` implement Phase G UX polish only after control surfaces are stable enough to expose interactively.
-- `P5` keep Phase H documentation in lockstep whenever user-facing behavior changes; do not postpone README parity after feature completion.
+- Technical execution order after regrouping on 2026-04-23:
+- Remaining grouped blocks: 5.
+- Runtime `.stagewarden_handoff.json` currently exposes 6 generic placeholder steps, but the actionable implementation plan is the grouped plan below.
+- `G1` Model communication and provider telemetry: finish structured agent<->model turn packets, provider-limit/credit/window persistence, token/context accounting, safe redaction, rate-limit fallback prompts, and richer status/statusline surfaces.
+- `G1 test pack`: parser unit tests, stale-limit tests, redaction tests, model packet tests, status JSON schema tests, `status --full --json`, `statusline --json`, `auth status chatgpt --json`, `auth status claude --json`, and full unittest suite.
+- `G2` PRINCE2 context-flow enforcement: finish AI proposal schema fields, role-node payload slicing on every flow edge, explicit escalation/context-expansion records, assurance independence checks, and fallback-without-context-widening tests.
+- `G2 test pack`: role-tree/flow/matrix tests, AI proposal stub tests, context-slice tests, executor role routing tests, `project design --json`, `project tree propose --ai`, `project start --ai`, `roles flow --json`, `roles matrix --json`, and full unittest suite.
+- `G3` Governed external IO: implement web search, download, checksum evidence, MIME/size/sandbox controls, compression, archive verification, transcript entries, and handoff action records.
+- `G3 test pack`: local HTTP server wet-run, small-file download, checksum validation, blocked URL/path tests, compression and archive verification wet-run, JSON command tests, transcript/handoff evidence tests, and full unittest suite.
+- `G4` Source and self-update governance: implement `sources status --strict`, `sources update`, `update status`, `update check --json`, `update apply` with confirmation, rollback boundary, source head tracking, and handoff evidence.
+- `G4 test pack`: temp git repo tests for strict failures and ff-only update states, self-update no-update/update-available parser tests, JSON schema tests, `sources status --strict`, `update status`, and full unittest suite.
+- `G5` Codex/Claude-style operator UX and extension architecture: implement slash palette with fuzzy filtering/cursor selection/non-TTY fallback, registry-backed examples/topic metadata, extension layout for commands/roles/skills/hooks/MCP, and bilingual README parity.
+- `G5 test pack`: command registry tests, fuzzy matcher tests, non-TTY slash fallback tests, guided menu tests, scaffolded extension discovery tests without untrusted execution, README/README_IT command parity checks, manual interactive wet-run, and full unittest suite.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:
