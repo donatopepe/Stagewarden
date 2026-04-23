@@ -49,9 +49,21 @@ class HelpTopic:
             lines.extend(f"- stagewarden> {example}" for example in self.examples)
         return lines
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "key": self.key,
+            "title": self.title,
+            "summary": self.summary,
+            "aliases": list(self.aliases),
+            "groups": list(self.groups),
+            "commands": command_usages_for_groups(*self.groups),
+            "examples": list(self.examples),
+            "extra_lines": list(self.extra_lines),
+        }
+
 
 COMMAND_SPECS: tuple[CommandSpec, ...] = (
-    CommandSpec("help", "core", "Show interactive help.", "help [topic]", aliases=("commands help",), handler="help"),
+    CommandSpec("help", "core", "Show interactive help and help-topic metadata.", "help [topic] [--json]", aliases=("commands help", "help topics"), json=True, handler="help"),
     CommandSpec("slash", "core", "Show slash-command palette with workspace hints.", "slash [prefix]", json=True, handler="commands"),
     CommandSpec("slash choose", "core", "Open a guided slash-command chooser.", "slash choose [query]", handler="commands", examples=("choose command", "command picker")),
     CommandSpec("commands", "core", "Show the structured command catalog.", "commands [--json]", json=True, handler="commands"),
@@ -394,12 +406,17 @@ def help_topics() -> tuple[HelpTopic, ...]:
     return HELP_TOPICS
 
 
-def help_topic_lines(topic: str) -> list[str] | None:
+def help_topic_entry(topic: str) -> HelpTopic | None:
     lowered = topic.strip().lower()
     for item in HELP_TOPICS:
         if lowered == item.key or lowered in item.aliases:
-            return item.to_lines()
+            return item
     return None
+
+
+def help_topic_lines(topic: str) -> list[str] | None:
+    item = help_topic_entry(topic)
+    return None if item is None else item.to_lines()
 
 
 def help_topic_catalog() -> list[dict[str, object]]:
@@ -415,6 +432,25 @@ def help_topic_catalog() -> list[dict[str, object]]:
             }
         )
     return items
+
+
+def help_topic_report(topic: str | None = None) -> dict[str, object]:
+    if topic is None:
+        return {"command": "help", "topics": help_topic_catalog()}
+    item = help_topic_entry(topic)
+    if item is None:
+        return {
+            "command": "help",
+            "ok": False,
+            "topic": topic,
+            "message": f"Unknown help topic: {topic}",
+            "topics": help_topic_catalog(),
+        }
+    payload = item.to_dict()
+    payload["command"] = "help"
+    payload["ok"] = True
+    payload["topic"] = item.key
+    return payload
 
 
 def command_catalog() -> list[dict[str, object]]:

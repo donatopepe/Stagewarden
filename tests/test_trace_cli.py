@@ -1441,6 +1441,38 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("/help caveman: Caveman aliases and modes", rendered)
             self.assertIn("/help ljson: encode, decode, benchmark", rendered)
 
+    def test_help_cli_and_interactive_json_use_shared_topic_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            completed = run_main_capture(root, "help", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            overview_payload = json.loads(completed.stdout)
+            self.assertEqual(overview_payload["command"], "help")
+            topics = {item["key"]: item for item in overview_payload["topics"]}
+            self.assertIn("models", topics)
+            self.assertIn("external_io", topics)
+            self.assertIn("io", topics["external_io"]["aliases"])
+
+            completed = run_main_capture(root, "help", "models", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            topic_payload = json.loads(completed.stdout)
+            self.assertTrue(topic_payload["ok"])
+            self.assertEqual(topic_payload["topic"], "models")
+            self.assertIn("model choose [local|cheap|chatgpt|openai|claude]", topic_payload["commands"])
+            self.assertIn("model choose chatgpt", topic_payload["examples"])
+
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("/help models --json\n/exit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn('"command": "help"', rendered)
+            self.assertIn('"topic": "models"', rendered)
+            self.assertIn('"ok": true', rendered)
+
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
