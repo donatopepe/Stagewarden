@@ -108,6 +108,29 @@ class ProjectHandoff:
             )
         )
 
+    def record_action(
+        self,
+        *,
+        phase: str,
+        summary: str,
+        task: str = "",
+        git_head: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        self.git_head = git_head or self.git_head
+        self.updated_at = _utc_now()
+        self.entries.append(
+            HandoffEntry(
+                timestamp=self.updated_at,
+                phase=phase,
+                iteration=max((entry.iteration for entry in self.entries), default=0),
+                task=task or self.task,
+                summary=summary[:500],
+                git_head=git_head,
+                details=dict(details or {}),
+            )
+        )
+
     def sync_implementation_backlog(self, items: list[dict[str, str]]) -> None:
         backlog: list[dict[str, str]] = []
         seen_active = False
