@@ -86,6 +86,7 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/roles baseline matrix` mostra la matrice della baseline approvata, inclusi nodi delegati e pool reviewer/fallback.
 - `/project brief` mostra la specifica progetto strutturata salvata nell'handoff runtime; usa `/project brief set <campo> <valore>` e `/project brief clear [campo]` per gestirla.
 - `/project design` mostra il pacchetto preliminare che un futuro planner IA PRINCE2 deve ricevere: capability reali dell'agente, specifica di progetto corrente e gap di chiarimento.
+- `/project tree propose` crea una proposta review-only di albero organizzativo PRINCE2 proporzionale alla brief strutturata; non persiste la baseline finche non viene usato un percorso di approvazione.
 - `/project start` mostra prima quel pacchetto di progettazione e solo dopo applica la baseline automatica, cosi le assunzioni di startup restano visibili.
 - `/role add-child` apre un menu guidato, oppure `/role add-child <parent_node> <role_type> [node_id]` aggiunge nodi PRINCE2 delegati/subordinati alla baseline approvata.
 - `/role assign` apre un menu guidato, oppure `/role assign <node_id> <provider> <provider_model> [reasoning_effort=<valore>] [account=<nome>] [pool=<primary|reviewer|fallback>]` assegna rotte primary, reviewer o fallback a un nodo specifico dell'albero.

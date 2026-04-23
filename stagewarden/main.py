@@ -1414,6 +1414,204 @@ def _handle_project_brief_command(command: str, config: AgentConfig) -> str | No
     return "Usage: project brief | project brief set <field> <value> | project brief clear [field]"
 
 
+def _assignment_for_role(prefs: ModelPreferences, role: str) -> dict[str, object]:
+    proposal = prefs.propose_prince2_roles()
+    assignment = dict((prefs.prince2_roles or {}).get(role) or proposal.get(role, {}))
+    if not assignment:
+        return {}
+    assignment.setdefault("role", role)
+    assignment.setdefault("label", PRINCE2_ROLE_LABELS.get(role, role))
+    assignment.setdefault("mode", "auto")
+    assignment.setdefault("source", "project_tree_proposal")
+    return assignment
+
+
+def _role_node_from_template(
+    *,
+    node_id: str,
+    role_type: str,
+    label: str,
+    parent_id: str | None,
+    level: str,
+    accountability_boundary: str,
+    delegated_authority: str,
+    assignment: dict[str, object],
+    active_models: list[str],
+) -> dict[str, object]:
+    provider = str(assignment.get("provider", "")) if assignment else ""
+    return {
+        "node_id": node_id,
+        "role_type": role_type,
+        "label": label,
+        "parent_id": parent_id,
+        "level": level,
+        "accountability_boundary": accountability_boundary,
+        "delegated_authority": delegated_authority,
+        "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
+        "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
+        "context_rule": ROLE_CONTEXT_RULES[role_type].as_dict(),
+        "assignment": assignment,
+        "fallback_pool": [item for item in active_models if item != provider],
+        "readiness": "assigned" if assignment else "unassigned",
+    }
+
+
+def _project_tree_proposal_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    prefs = _load_model_preferences(config)
+    proposed_roles = prefs.propose_prince2_roles()
+    merged_roles = dict(proposed_roles)
+    merged_roles.update(prefs.prince2_roles or {})
+    proposal_prefs = replace(prefs, prince2_roles=merged_roles)
+    active_models = list(proposal_prefs.active_models() or proposal_prefs.enabled_models)
+    base_tree = build_prince2_role_tree(proposal_prefs)
+    nodes = [dict(node) for node in base_tree.get("nodes", []) if isinstance(node, dict)]
+    brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
+    joined = " ".join(brief.values()).lower()
+    assumptions: list[str] = []
+    added_nodes: list[str] = []
+
+    delivery_keywords = ("cli", "shell", "git", "code", "coding", "test", "tests", "download", "web", "compression", "multi", "windows", "linux", "macos")
+    complex_delivery = any(keyword in joined for keyword in delivery_keywords) or brief.get("delivery_mode", "").lower() in {"hybrid", "agile", "iterative", "investigative"}
+    if complex_delivery:
+        node_id = "delivery.implementation_team"
+        nodes.append(
+            _role_node_from_template(
+                node_id=node_id,
+                role_type="team_manager",
+                label="Implementation Team Manager",
+                parent_id="management.project_manager",
+                level="delivery",
+                accountability_boundary="delegated delivery of implementation work packages within agreed tolerances",
+                delegated_authority="executes implementation work packages and escalates forecast tolerance breaches",
+                assignment=_assignment_for_role(proposal_prefs, "team_manager"),
+                active_models=active_models,
+            )
+        )
+        added_nodes.append(node_id)
+        assumptions.append("Project brief indicates implementation complexity, so a delegated implementation Team Manager node is proposed.")
+
+    if any(keyword in joined for keyword in ("test", "tests", "quality", "wet-run", "validation", "verifica", "collaudo")):
+        node_id = "assurance.validation_assurance"
+        nodes.append(
+            _role_node_from_template(
+                node_id=node_id,
+                role_type="project_assurance",
+                label="Validation Assurance",
+                parent_id="board.executive",
+                level="assurance",
+                accountability_boundary="independent validation of wet-run evidence, quality gates, and acceptance readiness",
+                delegated_authority="reviews evidence independently; does not execute delivery work",
+                assignment=_assignment_for_role(proposal_prefs, "project_assurance"),
+                active_models=active_models,
+            )
+        )
+        added_nodes.append(node_id)
+        assumptions.append("Project brief mentions validation/testing, so an independent validation assurance node is proposed.")
+
+    if any(keyword in joined for keyword in ("user", "utente", "account", "login", "auth", "browser", "ux", "interactive", "shell")):
+        node_id = "board.user_acceptance"
+        nodes.append(
+            _role_node_from_template(
+                node_id=node_id,
+                role_type="senior_user",
+                label="User Acceptance Delegate",
+                parent_id="board.senior_user",
+                level="direction",
+                accountability_boundary="delegated user acceptance and usability feedback inside Senior User accountability",
+                delegated_authority="reviews user-facing acceptance evidence and escalates adoption issues",
+                assignment=_assignment_for_role(proposal_prefs, "senior_user"),
+                active_models=active_models,
+            )
+        )
+        added_nodes.append(node_id)
+        assumptions.append("Project brief indicates user-facing behaviour, so a delegated user acceptance node is proposed.")
+
+    if any(keyword in joined for keyword in ("rate-limit", "limit", "provider", "model", "handoff", "exception", "risk")):
+        node_id = "authority.model_change_authority"
+        nodes.append(
+            _role_node_from_template(
+                node_id=node_id,
+                role_type="change_authority",
+                label="Model Routing Change Authority",
+                parent_id="board.executive",
+                level="delegated_authority",
+                accountability_boundary="delegated model/provider routing changes inside approved tolerances",
+                delegated_authority="approves provider/model fallback and re-baseline decisions within delegated limits",
+                assignment=_assignment_for_role(proposal_prefs, "change_authority"),
+                active_models=active_models,
+            )
+        )
+        added_nodes.append(node_id)
+        assumptions.append("Project brief indicates provider/rate-limit or exception complexity, so a delegated change authority node is proposed.")
+
+    tree = dict(base_tree)
+    tree["command"] = "project tree propose"
+    tree["source"] = "project_brief_local_rules"
+    tree["nodes"] = nodes
+    check = check_prince2_role_tree_payload(tree, proposal_prefs)
+    matrix = build_prince2_role_matrix_payload(tree, proposal_prefs)
+    gaps: list[dict[str, str]] = []
+    for required in ("objective", "scope", "expected_outputs", "delivery_mode"):
+        if not brief.get(required):
+            gaps.append({"code": f"missing_{required}", "message": f"Project brief is missing {required}."})
+    return {
+        "command": "project tree propose",
+        "status": "ready_for_review" if not gaps and check.get("status") != "error" else "needs_clarification",
+        "source": "local_rules",
+        "project_brief": brief,
+        "assumptions": assumptions,
+        "added_nodes": added_nodes,
+        "tree": tree,
+        "check": check,
+        "matrix": matrix,
+        "clarification_gaps": gaps,
+        "approval_rule": "proposal only; user or Project Board must approve before persistence",
+    }
+
+
+def _render_project_tree_proposal(config: AgentConfig) -> str:
+    report = _project_tree_proposal_report(config)
+    check = report["check"] if isinstance(report.get("check"), dict) else {}
+    summary = check.get("summary", {}) if isinstance(check.get("summary"), dict) else {}
+    lines = [
+        "Project tree proposal:",
+        f"- status: {report['status']}",
+        f"- source: {report['source']}",
+        f"- nodes: {summary.get('nodes', 0)} assigned={summary.get('assigned', 0)} unassigned={summary.get('unassigned', 0)}",
+        f"- added_nodes: {', '.join(report['added_nodes']) or 'none'}",
+        f"- approval_rule: {report['approval_rule']}",
+        "Assumptions:",
+    ]
+    assumptions = report["assumptions"]
+    if isinstance(assumptions, list) and assumptions:
+        for item in assumptions:
+            lines.append(f"- {item}")
+    else:
+        lines.append("- none")
+    lines.append("Clarification gaps:")
+    gaps = report["clarification_gaps"]
+    if isinstance(gaps, list) and gaps:
+        for item in gaps:
+            if isinstance(item, dict):
+                lines.append(f"- {item.get('code')}: {item.get('message')}")
+    else:
+        lines.append("- none")
+    lines.append("Node preview:")
+    tree = report["tree"] if isinstance(report.get("tree"), dict) else {}
+    for node in tree.get("nodes", []) if isinstance(tree.get("nodes"), list) else []:
+        if not isinstance(node, dict):
+            continue
+        marker = "added" if node.get("node_id") in report["added_nodes"] else "base"
+        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+        lines.append(
+            f"- [{marker}] {node.get('node_id')} role={node.get('role_type')} "
+            f"parent={node.get('parent_id') or 'none'} provider={assignment.get('provider') or 'none'} "
+            f"provider_model={assignment.get('provider_model') or 'none'}"
+        )
+    return "\n".join(lines)
+
+
 def _role_options() -> list[tuple[str, str]]:
     return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
 
@@ -5744,6 +5942,10 @@ def run_interactive_shell(
             sink.write(f"{project_brief_message}\n")
             sink.flush()
             continue
+        if shell_command == "project tree propose":
+            sink.write(f"{_render_project_tree_proposal(config)}\n")
+            sink.flush()
+            continue
         role_message = _handle_role_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if role_message is not None:
             sink.write(f"{role_message}\n")
@@ -6000,6 +6202,12 @@ def main() -> int:
             print(dumps_ascii(_project_design_report(agent, config), indent=2))
         else:
             print(_render_project_design(agent, config))
+        return 0
+    if task == "project tree propose":
+        if args.json:
+            print(dumps_ascii(_project_tree_proposal_report(config), indent=2))
+        else:
+            print(_render_project_tree_proposal(config))
         return 0
     if task == "roles domains":
         if args.json:
