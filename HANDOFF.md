@@ -391,6 +391,10 @@ Roadmap rule:
 - `G5` wet-run: interactive `/help ljson` rendered registry-backed content while `/help caveman` still returned the specialized Caveman help text.
 - `G5` implementation: `/help` overview topic list is now derived from the help-topic catalog, including topic aliases and summaries, instead of hardcoded topic rows in `main.py`.
 - `G5` wet-run: interactive `/help` rendered the catalog-derived topic overview in the real shell.
+- `G5` implementation: `help` now has a machine-readable metadata surface aligned with `commands --json`; `help --json`, `help topics --json`, and `help <topic> --json` now reuse the shared help-topic catalog/report path in both CLI and interactive shell.
+- `G5` implementation: removed the stale unreachable hardcoded help block from `stagewarden/main.py`, leaving only the catalog-driven help path.
+- `G5` wet-run: `python3 -m stagewarden.main help --json`, `python3 -m stagewarden.main "help models" --json`, and interactive `/help models --json` all rendered the same shared metadata successfully.
+- `G5` validation: targeted `python3 -m unittest tests/test_trace_cli.py` passed with 138 tests and 1 expected skip; full suite `python3 -m unittest discover -s tests` passed with 288 tests and 3 expected skips.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Regrouped execution plan override:
@@ -409,6 +413,7 @@ Active grouped packs from this point:
 - scope: finish command-surface convergence around slash/help/chooser/palette behavior, topic metadata, and safe non-executing discovery flows.
 - includes: remaining Codex/Claude-style shell discoverability gaps that do not require untrusted UI frameworks.
 - close condition: shell help/chooser/palette behavior is metadata-driven, consistent between interactive shell and CLI, and covered by focused tests plus one full suite.
+- status 2026-04-23: complete. Shared metadata now drives command catalog, slash palette, text help overview/topics, and machine-readable help topic discovery across CLI and interactive shell.
 
 - `P2` Extension governance pack:
 - scope: strengthen extension metadata, manifest validation, README-level extension docs, and read-only discovery surfaces for commands/roles/skills/hooks/MCP.
