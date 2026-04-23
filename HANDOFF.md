@@ -389,6 +389,8 @@ Roadmap rule:
 - `G5` wet-run: interactive `/help models`, `/help accounts`, `/help permissions`, `/help handoff`, and `/help git` rendered registry-backed content in the real shell.
 - `G5` implementation: `ljson` help is now also registry-driven; `caveman` intentionally remains special and continues to use the richer Caveman module help text.
 - `G5` wet-run: interactive `/help ljson` rendered registry-backed content while `/help caveman` still returned the specialized Caveman help text.
+- `G5` implementation: `/help` overview topic list is now derived from the help-topic catalog, including topic aliases and summaries, instead of hardcoded topic rows in `main.py`.
+- `G5` wet-run: interactive `/help` rendered the catalog-derived topic overview in the real shell.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:
