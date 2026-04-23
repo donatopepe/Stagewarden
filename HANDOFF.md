@@ -340,8 +340,18 @@ Roadmap rule:
 - `G1 test pack`: parser unit tests, stale-limit tests, redaction tests, model packet tests, status JSON schema tests, `status --full --json`, `statusline --json`, `auth status chatgpt --json`, `auth status claude --json`, and full unittest suite.
 - `G2` PRINCE2 context-flow enforcement: finish AI proposal schema fields, role-node payload slicing on every flow edge, explicit escalation/context-expansion records, assurance independence checks, and fallback-without-context-widening tests.
 - `G2 test pack`: role-tree/flow/matrix tests, AI proposal stub tests, context-slice tests, executor role routing tests, `project design --json`, `project tree propose --ai`, `project start --ai`, `roles flow --json`, `roles matrix --json`, and full unittest suite.
+- `G2` status: implemented and pushed as `f3bebcd`.
+- `G2` validation: targeted role-flow/context tests passed, `project design --json`, `project tree propose --ai`, controlled-block `project start --ai`, `roles flow --json`, `roles matrix --json`, and `python3 -m unittest discover -s tests` passed with 273 tests.
 - `G3` Governed external IO: implement web search, download, checksum evidence, MIME/size/sandbox controls, compression, archive verification, transcript entries, and handoff action records.
 - `G3 test pack`: local HTTP server wet-run, small-file download, checksum validation, blocked URL/path tests, compression and archive verification wet-run, JSON command tests, transcript/handoff evidence tests, and full unittest suite.
+- `G3` status: implemented locally; pending push boundary.
+- `G3` implementation: added `stagewarden.tools.external_io.ExternalIOTool` with governed HTTP/HTTPS download, SHA-256 checksum, gzip compression, gzip verification, and JSON/HTML web-search parsing.
+- `G3` implementation: added commands `web search`, `download`, `checksum`, `compress`, and `archive verify` to CLI, interactive slash shell, command registry, help topic, transcript, and durable handoff action records.
+- `G3` safety controls: URLs are restricted to HTTP/HTTPS, destination paths must remain inside the workspace, downloads enforce `--max-bytes`, outputs include content type and SHA-256, and failed operations are recorded as controlled external IO errors.
+- `G3` validation: standard sandbox suite passed with `python3 -m unittest discover -s tests`, 277 tests, 3 skips for local HTTP bind unavailable in sandbox.
+- `G3` wet-run: elevated local HTTP server tests passed for real download, checksum, web-search endpoint parsing, transcript evidence, and handoff actions.
+- `G3` wet-run: `python3 -m stagewarden.main "checksum README.md" --json` passed in the real workspace and recorded checksum evidence.
+- `G3` wet-run: interactive `/help external_io` rendered the governed IO help topic.
 - `G4` Source and self-update governance: implement `sources status --strict`, `sources update`, `update status`, `update check --json`, `update apply` with confirmation, rollback boundary, source head tracking, and handoff evidence.
 - `G4 test pack`: temp git repo tests for strict failures and ff-only update states, self-update no-update/update-available parser tests, JSON schema tests, `sources status --strict`, `update status`, and full unittest suite.
 - `G5` Codex/Claude-style operator UX and extension architecture: implement slash palette with fuzzy filtering/cursor selection/non-TTY fallback, registry-backed examples/topic metadata, extension layout for commands/roles/skills/hooks/MCP, and bilingual README parity.
