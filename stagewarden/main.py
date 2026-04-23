@@ -2649,7 +2649,7 @@ def _normalize_git_url(url: str | None) -> str:
     return clean
 
 
-def _sources_status_report(config: AgentConfig) -> dict[str, object]:
+def _sources_status_report(config: AgentConfig, *, strict: bool = False) -> dict[str, object]:
     manifest = _source_reference_manifest(config)
     items: list[dict[str, object]] = []
     for entry in manifest:
@@ -2681,22 +2681,25 @@ def _sources_status_report(config: AgentConfig) -> dict[str, object]:
                 "upstream": remote if remote_ok else None,
                 "upstream_matches": bool(remote_ok and _normalize_git_url(remote) == _normalize_git_url(entry["upstream"])),
                 "shallow": (shallow == "true") if shallow_ok else None,
-                "status": "OK" if message == "ok" else "WARN",
+                "status": "OK" if message == "ok" else ("FAIL" if strict else "WARN"),
                 "message": message,
             }
         )
     return {
-        "command": "sources status",
+        "command": "sources status --strict" if strict else "sources status",
         "manifest": "docs/source_references.md",
+        "strict": strict,
         "count": len(items),
         "ok": bool(items) and all(item["status"] == "OK" for item in items),
         "items": items,
     }
 
 
-def _render_sources_status(config: AgentConfig) -> str:
-    report = _sources_status_report(config)
+def _render_sources_status(config: AgentConfig, *, strict: bool = False) -> str:
+    report = _sources_status_report(config, strict=strict)
     lines = ["External source references:"]
+    if strict:
+        lines.append("- strict: yes")
     if not report["items"]:
         return "\n".join(lines + ["- WARN manifest missing or contains no external source rows."])
     for item in report["items"]:
@@ -2710,11 +2713,76 @@ def _render_sources_status(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _sources_update_report(config: AgentConfig) -> dict[str, object]:
+    status = _sources_status_report(config)
+    items: list[dict[str, object]] = []
+    for item in status["items"]:
+        if not item.get("exists") or not item.get("git_repository"):
+            items.append({**item, "updated": False, "ok": False, "update_message": "missing or not a git repository"})
+            continue
+        local_path = config.workspace_root / str(item["path"])
+        before_ok, before = _git_output(local_path, "rev-parse", "--short", "HEAD")
+        completed = subprocess.run(
+            ["git", "pull", "--ff-only"],
+            cwd=local_path,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        after_ok, after = _git_output(local_path, "rev-parse", "--short", "HEAD")
+        output = completed.stdout.strip() or completed.stderr.strip()
+        items.append(
+            {
+                **item,
+                "ok": completed.returncode == 0 and after_ok,
+                "updated": bool(before_ok and after_ok and before != after),
+                "before_head": before if before_ok else None,
+                "after_head": after if after_ok else None,
+                "update_message": output or "already up to date",
+            }
+        )
+    report = {
+        "command": "sources update",
+        "count": len(items),
+        "ok": bool(items) and all(bool(item.get("ok")) for item in items),
+        "items": items,
+    }
+    _record_handoff_action(
+        config,
+        phase="sources_update",
+        task="sources update",
+        summary=f"Updated {sum(1 for item in items if item.get('updated'))}/{len(items)} external source repositories.",
+        details=report,
+    )
+    return report
+
+
+def _render_sources_update(config: AgentConfig) -> str:
+    report = _sources_update_report(config)
+    lines = ["External source update:"]
+    lines.append(f"- ok: {str(report['ok']).lower()}")
+    for item in report["items"]:
+        lines.append(
+            f"- {item['project']}: {'OK' if item.get('ok') else 'FAIL'} "
+            f"updated={str(bool(item.get('updated'))).lower()} "
+            f"before={item.get('before_head') or item.get('head') or 'unknown'} "
+            f"after={item.get('after_head') or 'unknown'}"
+        )
+        if item.get("update_message"):
+            lines.append(f"  message={item['update_message']}")
+    return "\n".join(lines)
+
+
 def _handle_sources_command(command: str, config: AgentConfig) -> str | None:
     if command in {"sources", "sources status"}:
         return _render_sources_status(config)
+    if command == "sources status --strict":
+        return _render_sources_status(config, strict=True)
+    if command == "sources update":
+        return _render_sources_update(config)
     if command.startswith("sources "):
-        return "Usage: sources | sources status"
+        return "Usage: sources | sources status [--strict] | sources update"
     return None
 
 
@@ -4360,6 +4428,7 @@ ACTION_PHASE_PREFIXES = (
     "permission_",
     "git_",
     "shell_",
+    "sources_",
     "web_",
     "download_",
     "checksum_",
@@ -6980,18 +7049,24 @@ def main() -> int:
             print(response)
         return 1 if task.startswith("project start") and not _project_start_ready(config) else 0
     if task in {"sources", "sources status"} or task.startswith("sources "):
+        if args.json:
+            if task == "sources update":
+                report = _sources_update_report(config)
+                print(dumps_ascii(report, indent=2))
+                return 0 if report.get("ok") else 1
+            if task in {"sources", "sources status", "sources status --strict"}:
+                strict = task == "sources status --strict"
+                report = _sources_status_report(config, strict=strict)
+                print(dumps_ascii(report, indent=2))
+                return 0 if not strict or report.get("ok") else 1
+            print(dumps_ascii({"command": task, "ok": False, "error": "Usage: sources | sources status [--strict] | sources update"}, indent=2))
+            return 1
         response = _handle_sources_command(task, config)
         if response is None or response.startswith("Usage:"):
-            if args.json:
-                print(dumps_ascii({"command": task, "ok": False, "error": response or "Unsupported sources command"}, indent=2))
-            else:
-                print(response or "Usage: sources | sources status")
+            print(response or "Usage: sources | sources status [--strict] | sources update")
             return 1
-        if args.json:
-            print(dumps_ascii(_sources_status_report(config), indent=2))
-        else:
-            print(response)
-        return 0
+        print(response)
+        return 0 if task != "sources status --strict" or _sources_status_report(config, strict=True).get("ok") else 1
     if (
         task.startswith("web search ")
         or task.startswith("download ")

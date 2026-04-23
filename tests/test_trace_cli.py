@@ -2639,6 +2639,54 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["items"][0]["project"], "OpenAI Codex CLI")
 
+    def test_sources_status_strict_and_update_fast_forward(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            remote = root / "remote.git"
+            source_root = root / "external_sources" / "codex"
+            seed = root / "seed"
+            docs = root / "docs"
+            docs.mkdir()
+            subprocess.run(["git", "init", "--bare", str(remote)], capture_output=True, text=True, check=True)
+            subprocess.run(["git", "clone", str(remote), str(seed)], capture_output=True, text=True, check=True)
+            subprocess.run(["git", "branch", "-M", "main"], cwd=seed, capture_output=True, text=True, check=True)
+            (seed / "README.md").write_text("v1\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "v1"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "symbolic-ref", "HEAD", "refs/heads/main"], cwd=remote, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "clone", str(remote), str(source_root)], capture_output=True, text=True, check=True)
+            (docs / "source_references.md").write_text(
+                "\n".join(
+                    [
+                        "| Project | Local path | Upstream | Purpose | License/source note |",
+                        "| --- | --- | --- | --- | --- |",
+                        f"| OpenAI Codex CLI | `external_sources/codex` | `{remote}` | Study. | Public. |",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            strict = run_main_capture(root, "sources status --strict", "--json")
+            self.assertEqual(strict.returncode, 0, strict.stderr)
+            self.assertTrue(json.loads(strict.stdout)["ok"])
+
+            (seed / "README.md").write_text("v2\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "v2"], cwd=seed, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=seed, capture_output=True, text=True, check=True)
+
+            updated = run_main_capture(root, "sources update", "--json")
+            self.assertEqual(updated.returncode, 0, updated.stderr)
+            payload = json.loads(updated.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["items"][0]["updated"])
+            self.assertEqual((source_root / "README.md").read_text(encoding="utf-8"), "v2\n")
+
+            actions = run_main_capture(root, "handoff actions", "3", "--json")
+            phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
+            self.assertIn("sources_update", phases)
+
     def test_external_io_cli_download_records_evidence(self) -> None:
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:  # noqa: N802
