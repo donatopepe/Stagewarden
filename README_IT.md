@@ -91,6 +91,7 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/project start` esegue ora il gate controllato di startup: pacchetto design, proposta proporzionale di albero e approvazione. Blocca i gap di chiarimento invece di applicare silenziosamente la baseline statica; `/project start --ai` forza la proposta IA prima dell'approvazione.
 - `/role add-child` apre un menu guidato, oppure `/role add-child <parent_node> <role_type> [node_id]` aggiunge nodi PRINCE2 delegati/subordinati alla baseline approvata.
 - `/role assign` apre un menu guidato, oppure `/role assign <node_id> <provider> <provider_model> [reasoning_effort=<valore>] [account=<nome>] [pool=<primary|reviewer|fallback>]` assegna rotte primary, reviewer o fallback a un nodo specifico dell'albero.
+- I prompt modello instradati per ruolo includono edge PRINCE2 attivi, payload scope e condizioni di validazione, cosi il fallback non puo allargare silenziosamente il contesto del ruolo.
 - `/handoff actions` mostra le azioni operative tracciate nell'handoff; `/handoff actions 50 --json` espone la stessa cronologia in formato macchina.
 - `/status`, `/status --json` e `/statusline --json` mostrano anche l'ultima azione handoff tracciata, cosi l'utente vede subito l'ultima operazione eseguita o bloccata.
 

@@ -101,6 +101,7 @@ PRINCE2 handoff behavior:
 - `project start` now runs the controlled startup gate: design packet, proportional tree proposal, and approval. It blocks unresolved clarification gaps instead of silently applying the static baseline; `project start --ai` forces AI-assisted tree proposal before approval.
 - `role add-child` opens a guided menu, or `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate PRINCE2 nodes to the approved tree.
 - `role assign` opens a guided menu, or `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]` assigns primary, reviewer, or fallback provider-model routes to a specific role-tree node.
+- Role-routed model prompts include the active PRINCE2 flow edges, payload scopes, and validation conditions so fallback routing cannot silently widen role context.
 - `stagewarden handoff --json` and `stagewarden "resume --show" --json` expose the same runtime state for automation.
 - `handoff actions` shows durable action/audit entries recorded in runtime handoff; `handoff actions 50 --json` exposes the same history for tooling.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.

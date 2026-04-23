@@ -1696,6 +1696,8 @@ def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, o
             "Each node must have node_id, role_type, label, parent_id, level, accountability_boundary, and delegated_authority.",
             "Allowed role_type values: " + ", ".join(PRINCE2_ROLE_IDS),
             "Respect PRINCE2 accountability boundaries and keep each node context limited to its responsibility domain.",
+            "If you propose custom context slices, include context_include/context_exclude and do not widen beyond the node domain.",
+            "Include tolerance_boundary, validation_condition, and open_questions when useful for review.",
             "Prefer cheaper/local providers unless the node domain requires stronger reasoning.",
         ],
         "expected_schema": {
@@ -1710,6 +1712,13 @@ def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, o
                     "level": "management",
                     "accountability_boundary": "bounded accountability/delegation statement",
                     "delegated_authority": "what this node may decide or execute",
+                    "responsibility_domain": "bounded domain of competence",
+                    "context_scope": "short context visibility scope",
+                    "context_include": ["allowed context slice"],
+                    "context_exclude": ["forbidden context slice"],
+                    "tolerance_boundary": "delegated tolerance boundary",
+                    "validation_condition": "how the node proves its work/decision",
+                    "open_questions": ["review question"],
                 }
             ],
         },
@@ -1800,6 +1809,22 @@ def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_rep
             assignment=_assignment_for_role(proposal_prefs, role_type),
             active_models=active_models,
         )
+        context_include = raw_patch.get("context_include")
+        context_exclude = raw_patch.get("context_exclude")
+        if isinstance(context_include, list) or isinstance(context_exclude, list):
+            base_rule = node.get("context_rule") if isinstance(node.get("context_rule"), dict) else {}
+            node["context_rule"] = {
+                "include": [str(item) for item in context_include] if isinstance(context_include, list) else list(base_rule.get("include", [])),
+                "exclude": [str(item) for item in context_exclude] if isinstance(context_exclude, list) else list(base_rule.get("exclude", [])),
+                "expansion_events": list(base_rule.get("expansion_events", [])),
+            }
+        for optional_key in ("responsibility_domain", "context_scope", "tolerance_boundary", "validation_condition"):
+            value = str(raw_patch.get(optional_key, "")).strip()
+            if value:
+                node[optional_key] = value
+        open_questions = raw_patch.get("open_questions")
+        if isinstance(open_questions, list):
+            node["open_questions"] = [str(item) for item in open_questions if str(item).strip()]
         nodes.append(node)
         existing.add(node_id)
         added.append(node_id)

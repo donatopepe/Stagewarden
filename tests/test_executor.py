@@ -731,6 +731,10 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("active_node_accountability_boundary: delivery of assigned work package products within agreed tolerances", prompt)
             self.assertIn("context_include: assigned_work_package, product_descriptions, quality_criteria, delivery_lessons, team_risks", prompt)
             self.assertIn("context_exclude: business_case_detail, full_exception_plan, unrelated_project_registers", prompt)
+            self.assertIn("active_flow_rule: context moves only through approved PRINCE2 flow edges", prompt)
+            self.assertIn("active_flow_incoming: issue.work_package", prompt)
+            self.assertIn("active_flow_outgoing: escalate.work_package_exception", prompt)
+            self.assertIn("flow_edge issue.work_package: trigger=work_package_authorization", prompt)
             self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
 
     def test_executor_selects_delegated_node_when_step_mentions_node_id(self) -> None:

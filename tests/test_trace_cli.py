@@ -1955,6 +1955,19 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("assurance_delivery_same_model", codes)
             self.assertEqual(payload["summary"]["assigned"], 8)
 
+    def test_roles_check_warns_for_assigned_nodes_without_explicit_flow_edge(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            self.assertEqual(run_main_capture(root, "role add-child management.project_manager team_manager delivery.release_manager").returncode, 0)
+            completed = run_main_capture(root, "roles check", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            codes = {item["code"] for item in payload["findings"]}
+            self.assertIn("node_without_flow_edge", codes)
+            self.assertEqual(payload["status"], "warning")
+
     def test_roles_flow_shows_prince2_node_transitions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -2430,9 +2443,65 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(payload["ai_assistance"]["ok"])
             self.assertIn("delivery.release_manager", payload["ai_assistance"]["valid_added_nodes"])
             self.assertIn("delivery.release_manager", payload["added_nodes"])
+            release_node = next(item for item in payload["tree"]["nodes"] if item["node_id"] == "delivery.release_manager")
+            self.assertEqual(release_node["role_type"], "team_manager")
             self.assertEqual(ModelPreferences.load(root / ".stagewarden_models.json").prince2_role_tree_baseline, {})
             handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
             self.assertIn("project_tree_proposal_ai", [entry.phase for entry in handoff.entries])
+
+    def test_project_tree_propose_ai_accepts_context_and_validation_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = root / "run_model_ai_context_stub.py"
+            stub.write_text(
+                "#!/usr/bin/env python3\n"
+                "from __future__ import annotations\n"
+                "import json\n"
+                "print(json.dumps({\n"
+                "  'summary': 'Add release governance with bounded context.',\n"
+                "  'tree_patches': [{\n"
+                "    'node_id': 'delivery.release_manager',\n"
+                "    'role_type': 'team_manager',\n"
+                "    'label': 'Release Team Manager',\n"
+                "    'parent_id': 'management.project_manager',\n"
+                "    'level': 'delivery',\n"
+                "    'accountability_boundary': 'release work package accountability only',\n"
+                "    'delegated_authority': 'coordinate release validation and escalate tolerance breaches',\n"
+                "    'responsibility_domain': 'release packaging and rollout evidence',\n"
+                "    'context_scope': 'release package, rollout checklist, and wet-run evidence only',\n"
+                "    'context_include': ['release_package', 'rollout_checklist', 'wet_run_evidence'],\n"
+                "    'context_exclude': ['business_case_detail', 'unrelated_registers'],\n"
+                "    'tolerance_boundary': 'work package release tolerance',\n"
+                "    'validation_condition': 'release wet-run evidence exists',\n"
+                "    'open_questions': ['Who approves release rollback?']\n"
+                "  }]\n"
+                "}))\n",
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing release packaging").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                completed = run_main_capture(root, "project tree propose --ai", "--json")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            release_node = next(item for item in payload["tree"]["nodes"] if item["node_id"] == "delivery.release_manager")
+            self.assertEqual(release_node["responsibility_domain"], "release packaging and rollout evidence")
+            self.assertEqual(release_node["context_rule"]["include"], ["release_package", "rollout_checklist", "wet_run_evidence"])
+            self.assertEqual(release_node["context_rule"]["exclude"], ["business_case_detail", "unrelated_registers"])
+            self.assertEqual(release_node["tolerance_boundary"], "work package release tolerance")
+            self.assertEqual(release_node["validation_condition"], "release wet-run evidence exists")
+            self.assertEqual(release_node["open_questions"], ["Who approves release rollback?"])
 
     def test_project_tree_propose_reports_missing_brief_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
