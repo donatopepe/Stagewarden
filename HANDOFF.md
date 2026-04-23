@@ -377,6 +377,8 @@ Roadmap rule:
 - `G5` safety controls: extension discovery is read-only and does not execute untrusted extension code; `.stagewarden/` is ignored by git by default.
 - `G5` wet-run: `python3 -m stagewarden.main "extension scaffold local-tools" --json` created a local scaffold; `python3 -m stagewarden.main "extensions" --json` discovered it.
 - `G5` validation: `python3 -m unittest discover -s tests` passed with 283 tests and 3 expected sandbox HTTP skips.
+- `G5` implementation: added `/slash choose [query]` as a portable guided command chooser; it returns the selected command text without executing it, preventing accidental mutating actions.
+- `G5` wet-run: interactive `/slash choose upgrade` selected `/update apply --yes` and did not create an `update_apply` action.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:
