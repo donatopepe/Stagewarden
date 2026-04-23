@@ -1889,6 +1889,24 @@ def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _record_project_tree_proposal_action(config: AgentConfig, report: dict[str, object], *, task: str) -> None:
+    _record_handoff_action(
+        config,
+        phase="project_tree_proposal_ai" if report.get("ai_requested") else "project_tree_proposal",
+        summary="Project tree proposal generated for review; no baseline persisted.",
+        task=task,
+        details={
+            "status": report.get("status"),
+            "source": report.get("source"),
+            "ai_requested": report.get("ai_requested"),
+            "ai_assistance": report.get("ai_assistance"),
+            "added_nodes": report.get("added_nodes", []),
+            "clarification_gaps": report.get("clarification_gaps", []),
+            "node_count": len(report.get("tree", {}).get("nodes", [])) if isinstance(report.get("tree"), dict) else 0,
+        },
+    )
+
+
 def _approve_project_tree_proposal(
     config: AgentConfig,
     *,
@@ -6423,6 +6441,7 @@ def run_interactive_shell(
         if shell_command in {"project tree propose", "project tree propose --ai"}:
             use_ai = shell_command.endswith(" --ai")
             report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
+            _record_project_tree_proposal_action(config, report, task=shell_command)
             sink.write(f"{_render_project_tree_proposal_report(report)}\n")
             sink.flush()
             continue
@@ -6691,6 +6710,7 @@ def main() -> int:
         use_ai = task.endswith(" --ai")
         agent = _configure_readonly_agent_for_workspace(config) if use_ai else None
         report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
+        _record_project_tree_proposal_action(config, report, task=task)
         if args.json:
             print(dumps_ascii(report, indent=2))
         else:
