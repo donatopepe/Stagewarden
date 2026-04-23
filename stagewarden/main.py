@@ -2612,10 +2612,20 @@ def _render_extensions_report(report: dict[str, object]) -> str:
             if not isinstance(item, dict):
                 continue
             caps = ", ".join(str(cap) for cap in item.get("capabilities", []) or []) or "none"
+            execution = str(item.get("execution") or "unknown")
+            schema_version = str(item.get("schema_version") or "unknown")
             lines.append(
                 f"- {item.get('name')}: {'OK' if item.get('ok') else 'FAIL'} "
-                f"version={item.get('version') or 'unknown'} path={item.get('path')} capabilities={caps}"
+                f"version={item.get('version') or 'unknown'} schema={schema_version} "
+                f"execution={execution} path={item.get('path')} capabilities={caps}"
             )
+            entrypoints = item.get("entrypoints", {})
+            if isinstance(entrypoints, dict) and entrypoints:
+                rendered = ", ".join(f"{key}={value}" for key, value in sorted(entrypoints.items()))
+                lines.append(f"  entrypoints={rendered}")
+            missing = item.get("missing_entrypoints", [])
+            if isinstance(missing, list) and missing:
+                lines.append(f"  missing_entrypoints={', '.join(str(value) for value in missing)}")
             if item.get("message") and item.get("message") != "ok":
                 lines.append(f"  message={item['message']}")
     return "\n".join(lines)
@@ -7036,6 +7046,8 @@ def main() -> int:
             else:
                 report = {"command": task, "ok": False, "error": "Usage: extensions | extension scaffold <name>"}
             print(dumps_ascii(report, indent=2))
+            if task == "extensions":
+                return 0
             return 0 if report.get("ok") else 1
         response = _handle_extension_command(task, config)
         if response is None or response.startswith("Usage:") or response.startswith("Extension scaffold failed"):
