@@ -379,6 +379,9 @@ Roadmap rule:
 - `G5` validation: `python3 -m unittest discover -s tests` passed with 283 tests and 3 expected sandbox HTTP skips.
 - `G5` implementation: added `/slash choose [query]` as a portable guided command chooser; it returns the selected command text without executing it, preventing accidental mutating actions.
 - `G5` wet-run: interactive `/slash choose upgrade` selected `/update apply --yes` and did not create an `update_apply` action.
+- `G5` implementation: CLI `stagewarden "slash choose <query>"` now uses chooser semantics too, instead of falling back to raw slash filtering; `--json` returns the top chooser candidates.
+- `G5` wet-run: `python3 -m stagewarden.main "slash choose upgrade"` rendered numbered candidates; `--json` returned `update apply`.
+- `G5` validation: `python3 -m unittest discover -s tests` passed with 285 tests and 3 expected sandbox HTTP skips.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:
