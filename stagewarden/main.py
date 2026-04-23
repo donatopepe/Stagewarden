@@ -634,15 +634,6 @@ def _render_slash_choice_candidates(config: AgentConfig, query: str = "") -> str
     return "\n".join(lines)
 
 
-def _registry_help_lines(title: str, groups: tuple[str, ...], examples: tuple[str, ...]) -> list[str]:
-    lines = [title, ""]
-    lines.extend(f"- {usage}" for usage in command_usages_for_groups(*groups))
-    if examples:
-        lines.extend(["", "Examples:"])
-        lines.extend(f"- stagewarden> {example}" for example in examples)
-    return lines
-
-
 def _interactive_help_topic(topic: str) -> str:
     lines = help_topic_lines(topic)
     topics = {
