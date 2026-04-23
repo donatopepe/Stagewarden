@@ -2857,6 +2857,52 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
     }
 
 
+def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[str, object]:
+    providers = [
+        item
+        for item in provider_limits.get("providers", [])
+        if isinstance(item, dict)
+    ]
+    blocked_models = [str(item["provider"]) for item in providers if item.get("blocked_until")]
+    stale_models = [
+        str(item["provider"])
+        for item in providers
+        if bool(_provider_limit_windows(item).get("stale"))
+    ]
+    blocked_accounts = [
+        f"{item['provider']}:{account['name']}"
+        for item in providers
+        for account in item.get("blocked_accounts", [])
+        if isinstance(account, dict) and account.get("blocked_until")
+    ]
+    stale_accounts = [
+        f"{item['provider']}:{account['name']}"
+        for item in providers
+        for account in item.get("blocked_accounts", [])
+        if isinstance(account, dict)
+        and isinstance(account.get("limit_snapshot"), dict)
+        and _provider_limit_snapshot_is_stale(account["limit_snapshot"].get("captured_at"))
+    ]
+    last_errors = [
+        f"{item['provider']}={item['last_error_reason']}"
+        for item in providers
+        if item.get("last_error_reason")
+    ]
+    active_routes = [
+        f"{item['provider']}:{item['active_account']}/{item['variant']}"
+        for item in providers
+    ]
+    return {
+        "providers_count": len(providers),
+        "blocked_models": blocked_models,
+        "stale_models": stale_models,
+        "blocked_accounts": blocked_accounts,
+        "stale_accounts": stale_accounts,
+        "last_errors": last_errors,
+        "routes": active_routes,
+    }
+
+
 def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
     report = _provider_limit_status_report(agent, config)
     lines = ["Provider limit status:"]
@@ -2906,6 +2952,7 @@ def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]
     report = _provider_limit_status_report(agent, config)
     return {
         "command": "model limits",
+        "summary": _provider_limit_summary_report(report),
         "providers": [
             {
                 "provider": item["provider"],
@@ -2937,6 +2984,14 @@ def _render_model_limits(agent: Agent, config: AgentConfig) -> str:
     if not report["providers"]:
         lines.append("- none")
         return "\n".join(lines)
+    summary = report["summary"]
+    lines.append(
+        "- summary: "
+        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'} "
+        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'} "
+        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'} "
+        f"stale_accounts={','.join(summary['stale_accounts']) if summary['stale_accounts'] else 'none'}"
+    )
     for item in report["providers"]:
         blocked = f" blocked_until={item['blocked_until']}" if item["blocked_until"] else ""
         reason = f" reason={item['reason']}" if item["reason"] else ""
@@ -3129,6 +3184,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             }
             for item in providers
         ],
+        "limits_summary": _provider_limit_summary_report(provider_limits),
         "workspace": {
             "cwd": status["workspace"],
             "files": status["files"],
@@ -3203,7 +3259,16 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
     for item in report["limits"]:
         blocked = f" blocked_until={item['blocked_until']}" if item["blocked_until"] else ""
         reason = f" reason={item['reason']}" if item["reason"] else ""
-        lines.append(f"- {item['provider']}: {item['status']}{blocked}{reason}")
+        stale = " stale=true" if item["stale"] else ""
+        lines.append(f"- {item['provider']}: {item['status']}{blocked}{reason}{stale}")
+    summary = report["limits_summary"]
+    lines.append(
+        "- limits_summary: "
+        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'} "
+        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'} "
+        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'} "
+        f"stale_accounts={','.join(summary['stale_accounts']) if summary['stale_accounts'] else 'none'}"
+    )
     lines.extend(
         [
         "Workspace:",
@@ -3282,6 +3347,7 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "context_window": memory.context_window_stats(),
         "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
+        "rate_limits_summary": _provider_limit_summary_report(status["provider_limits"]),
         "handoff": status["handoff"]["stage_view"],
         "latest_handoff_action": status["focus"].get("latest_handoff_action"),
         "usage": usage["totals"],
@@ -3296,6 +3362,9 @@ def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
         "status": windows["status"],
         "blocked_until": windows["blocked_until"],
         "reason": windows["reason"],
+        "rate_limit_type": windows["rate_limit_type"],
+        "stale": windows["stale"],
+        "blocked_accounts": len(item.get("blocked_accounts", [])),
         "used_percentage": windows["utilization"],
         "resets_at": windows["blocked_until"] or windows["overage_resets_at"],
     }
@@ -3410,30 +3479,17 @@ def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
 
 def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
     report = _provider_limit_status_report(agent, config)
-    providers = report["providers"]
-    if not providers:
+    summary = _provider_limit_summary_report(report)
+    if not summary["providers_count"]:
         return "none"
-    blocked_models = [item["provider"] for item in providers if item["blocked_until"]]
-    blocked_accounts = [
-        f"{item['provider']}:{account['name']}"
-        for item in providers
-        for account in item["blocked_accounts"]
-    ]
-    last_errors = [
-        f"{item['provider']}={item['last_error_reason']}"
-        for item in providers
-        if item["last_error_reason"]
-    ]
-    active_routes = [
-        f"{item['provider']}:{item['active_account']}/{item['variant']}"
-        for item in providers
-    ]
     parts = [
-        f"providers={len(providers)}",
-        f"blocked_models={','.join(blocked_models) if blocked_models else 'none'}",
-        f"blocked_accounts={','.join(blocked_accounts) if blocked_accounts else 'none'}",
-        f"last_errors={','.join(last_errors) if last_errors else 'none'}",
-        f"routes={','.join(active_routes)}",
+        f"providers={summary['providers_count']}",
+        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'}",
+        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'}",
+        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'}",
+        f"stale_accounts={','.join(summary['stale_accounts']) if summary['stale_accounts'] else 'none'}",
+        f"last_errors={','.join(summary['last_errors']) if summary['last_errors'] else 'none'}",
+        f"routes={','.join(summary['routes'])}",
     ]
     return " ".join(parts)
 
@@ -3789,6 +3845,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "models": _model_status_report(agent, config),
         "provider_limits": provider_limits,
+        "limits_summary": _provider_limit_summary_report(provider_limits),
         "runtime": detect_runtime_capabilities(config.workspace_root),
         "shell_backend": _shell_backend_report(config),
         "focus": _focus_snapshot(agent, config),
@@ -3956,6 +4013,19 @@ def _preflight_remediations(
     ]
     if blocked:
         items.append({"severity": "warning", "code": "provider_limits", "action": f"Blocked providers: {', '.join(blocked)}. Run `/model limits` and choose another provider or wait."})
+    stale = [
+        str(provider["provider"])
+        for provider in provider_limits.get("providers", [])
+        if isinstance(provider, dict) and bool(_provider_limit_windows(provider).get("stale"))
+    ]
+    if stale:
+        items.append(
+            {
+                "severity": "warning",
+                "code": "provider_limits_stale",
+                "action": f"Stale provider limit snapshots: {', '.join(stale)}. Refresh routing evidence or clear outdated limits before execution decisions.",
+            }
+        )
     if not sources.get("ok"):
         items.append({"severity": "warning", "code": "sources", "action": "Run `/sources status` before source-derived implementation work."})
     if stage_view.get("recovery_state") != "none":
