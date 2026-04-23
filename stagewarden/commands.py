@@ -81,6 +81,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("project brief", "prince2", "Show the persisted structured project brief.", "project brief [--json]", json=True, handler="roles"),
     CommandSpec("project brief set", "prince2", "Set one structured project-brief field.", "project brief set <field> <value>", handler="roles"),
     CommandSpec("project brief clear", "prince2", "Clear one or all structured project-brief fields.", "project brief clear [field]", handler="roles"),
+    CommandSpec("project tree propose", "prince2", "Propose a proportional PRINCE2 organization tree from the project brief.", "project tree propose [--json]", json=True, handler="roles"),
     CommandSpec("roles setup", "prince2", "Open guided PRINCE2 role setup.", "roles setup", handler="roles"),
     CommandSpec("roles propose", "prince2", "Apply automatic PRINCE2 role assignment proposal.", "roles propose", aliases=("project start",), handler="roles"),
     CommandSpec("project design", "prince2", "Show the design packet that future AI tree planning must receive.", "project design [--json]", json=True, handler="roles"),
