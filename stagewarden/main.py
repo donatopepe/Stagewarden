@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
-from .commands import command_catalog, command_phrases, command_specs_by_query, command_usages_for_groups, render_command_catalog
+from .commands import command_catalog, command_phrases, command_specs_by_query, command_usages_for_groups, help_topic_lines, render_command_catalog
 from .config import AgentConfig
 from .extensions import discover_extensions, scaffold_extension
 from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant, format_run_model
@@ -644,155 +644,8 @@ def _registry_help_lines(title: str, groups: tuple[str, ...], examples: tuple[st
 
 
 def _interactive_help_topic(topic: str) -> str:
-    normalized = topic.strip().lower()
-    aliases = {
-        "model": "models",
-        "account": "accounts",
-        "permission": "permissions",
-        "perm": "permissions",
-        "prince2": "handoff",
-        "history": "git",
-        "io": "external_io",
-        "network": "external_io",
-        "download": "external_io",
-        "extension": "extensions",
-        "extensions": "extensions",
-        "sessions": "core",
-        "session": "core",
-    }
-    normalized = aliases.get(normalized, normalized)
+    lines = help_topic_lines(topic)
     topics = {
-        "core": [
-            "Core commands",
-            "",
-            "- help [topic]",
-            "- exit | quit",
-            "- reset",
-            "- overview",
-            "- health",
-            "- report",
-            "- status",
-            "- status full",
-            "- statusline",
-            "- preflight",
-            "- shell backend",
-            "- shell backend use <auto|bash|zsh|powershell|cmd>",
-            "- auth status <chatgpt|claude>",
-            "- stream on | stream off | stream status",
-            "- transcript | trace",
-            "- doctor",
-            "- sessions | session list",
-            "- session create [cwd]",
-            "- session send <id|last> <command>",
-            "- session close <id|last>",
-            "- patch preview <diff-file>",
-            "",
-            "Examples:",
-            "- stagewarden> overview",
-            "- stagewarden> health",
-            "- stagewarden> report",
-            "- stagewarden> status",
-            "- stagewarden> status full",
-            "- stagewarden> statusline",
-            "- stagewarden> preflight",
-            "- stagewarden> shell backend",
-            "- stagewarden> shell backend use zsh",
-            "- stagewarden> auth status chatgpt",
-            "- stagewarden> stream off",
-            "- stagewarden> doctor",
-            "- stagewarden> session create",
-            "- stagewarden> session send last pwd",
-            "- stagewarden> patch preview changes.diff",
-            "- stagewarden> transcript",
-        ],
-        "models": _registry_help_lines(
-            "Model commands",
-            ("models",),
-            (
-                "models usage",
-                "model limits",
-                "model choose chatgpt",
-                "model list claude",
-                "model params chatgpt",
-                "model variant openai gpt-5.4-mini",
-                "model preset chatgpt",
-                "model param set chatgpt reasoning_effort high",
-                "model limit-record chatgpt You've hit your usage limit. Try again at 8:05 PM.",
-            ),
-        ),
-        "accounts": _registry_help_lines(
-            "Account commands",
-            ("accounts",),
-            (
-                "account login chatgpt personale",
-                "account choose openai",
-                "account login-device openai lavoro",
-                "account add openai lavoro OPENAI_API_KEY_WORK",
-                "account import claude lavoro ~/.claude/.credentials.json",
-            ),
-        ),
-        "permissions": _registry_help_lines(
-            "Permission commands",
-            ("permissions",),
-            (
-                "permission mode plan",
-                "permission ask shell:python3 -m unittest",
-                "permission session allow shell:git status",
-            ),
-        ),
-        "handoff": _registry_help_lines(
-            "Handoff and PRINCE2 commands",
-            ("handoff", "prince2"),
-            (
-                "overview",
-                "handoff",
-                "board",
-                "roles",
-                "roles domains",
-                "resume --show",
-                "boundary",
-                "handoff export",
-            ),
-        ),
-        "git": _registry_help_lines(
-            "Git commands",
-            ("git",),
-            (
-                "git status",
-                "git log 5",
-                "git history stagewarden/main.py 10",
-            ),
-        ),
-        "update": _registry_help_lines(
-            "Update commands",
-            ("update", "sources"),
-            (
-                "sources status --strict",
-                "sources update",
-                "update status",
-                "update check --json",
-                "update apply --yes",
-            ),
-        ),
-        "external_io": _registry_help_lines(
-            "External IO commands",
-            ("external_io",),
-            (
-                "web search Stagewarden coding agent",
-                "download https://example.com/file.txt artifacts/file.txt --max-bytes 1048576",
-                "checksum artifacts/file.txt",
-                "compress artifacts/file.txt",
-                "archive verify artifacts/file.txt.gz",
-            ),
-        ),
-        "extensions": _registry_help_lines(
-            "Extension commands",
-            ("extensions",),
-            (
-                "extensions",
-                "extension scaffold local-tools",
-            ),
-        ),
         "caveman": [
             "Caveman commands",
             "",
@@ -823,7 +676,9 @@ def _interactive_help_topic(topic: str) -> str:
             "- python3 -m stagewarden.main --ljson-benchmark data.json",
         ],
     }
-    lines = topics.get(normalized)
+    if lines is None:
+        normalized = topic.strip().lower()
+        lines = topics.get(normalized)
     if lines is None:
         return _interactive_help_overview() + f"\n\nUnknown help topic: {topic}"
     return "\n".join(lines)

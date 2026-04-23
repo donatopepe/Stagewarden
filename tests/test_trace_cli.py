@@ -1407,6 +1407,23 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(by_name["roles flow"]["handler"], "roles")
             self.assertEqual(by_name["roles matrix"]["handler"], "roles")
 
+    def test_interactive_help_topics_use_registry_metadata_and_aliases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            input_stream = StringIO("/help update\n/help io\n/help extension\n/exit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Update commands", rendered)
+            self.assertIn("update apply --yes", rendered)
+            self.assertIn("External IO commands", rendered)
+            self.assertIn("download https://example.com/file.txt", rendered)
+            self.assertIn("Extension commands", rendered)
+            self.assertIn("extension scaffold local-tools", rendered)
+
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
