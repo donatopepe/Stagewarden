@@ -1285,6 +1285,20 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_models[chatgpt=", entries["model variant"]["hint"])
             self.assertEqual(entries["model param set"]["hint"], "params[reasoning_effort]")
 
+    def test_slash_palette_uses_fuzzy_examples_and_returns_examples(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            rendered = run_main_capture(root, "slash scarica", "--json")
+
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            payload = json.loads(rendered.stdout)
+            entries = {item["name"]: item for item in payload["entries"]}
+            self.assertIn("download", entries)
+            self.assertIn("scarica file", entries["download"]["examples"])
+
+            completion_matches = _interactive_completion_candidates("/upg stg", AgentConfig(workspace_root=root))
+            self.assertIn("/update apply", completion_matches)
+
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
