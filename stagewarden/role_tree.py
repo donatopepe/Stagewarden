@@ -359,6 +359,29 @@ def check_prince2_role_tree_payload(tree: dict[str, object], prefs: ModelPrefere
             add("warning", "account_not_selected", node_id, f"{role_type} provider {provider} has profiles but no active account on this node.")
 
     by_role = {str(node.get("role_type")): node for node in nodes}
+    flow = build_prince2_role_flow()
+    connected_nodes = {
+        str(edge.get("source_node"))
+        for edge in flow["edges"]
+        if isinstance(edge, dict) and edge.get("source_node")
+    } | {
+        str(edge.get("target_node"))
+        for edge in flow["edges"]
+        if isinstance(edge, dict) and edge.get("target_node")
+    }
+    for node in nodes:
+        node_id = str(node.get("node_id"))
+        parent_id = node.get("parent_id")
+        if node_id == "board.executive":
+            continue
+        if node_id not in connected_nodes and parent_id not in {None, ""}:
+            add(
+                "warning",
+                "node_without_flow_edge",
+                node_id,
+                "Node is assigned but has no explicit PRINCE2 flow edge; context movement depends on its parent until a flow edge is defined.",
+            )
+
     assurance = by_role.get("project_assurance", {})
     team_manager = by_role.get("team_manager", {})
     assurance_assignment = assurance.get("assignment") if isinstance(assurance.get("assignment"), dict) else {}

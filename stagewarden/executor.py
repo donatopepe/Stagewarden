@@ -12,6 +12,7 @@ from .planner import PlanStep
 from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
 from .router import ModelRouter
+from .role_tree import build_prince2_role_flow
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .textcodec import dumps_ascii, loads_text
 from .tools.files import FileTool
@@ -812,6 +813,7 @@ class Executor:
             f"- context_scope: {self._role_scope_description(active_role, active_node)}",
             f"- context_include: {', '.join(str(item) for item in context_include) if context_include else 'static role fallback'}",
             f"- context_exclude: {', '.join(str(item) for item in context_exclude) if context_exclude else 'static role fallback'}",
+            self._active_flow_context(active_node),
         ]
         assignment = active_node.get("assignment", {}) if active_node else {}
         if not isinstance(assignment, dict) or not assignment:
@@ -840,6 +842,29 @@ class Executor:
                         + (f":{route.get('account')}" if route.get("account") else "")
                     )
                 lines.append(f"- active_role_{pool_name}_pool: {', '.join(rendered) if rendered else 'none'}")
+        return "\n".join(lines)
+
+    def _active_flow_context(self, active_node: dict[str, Any]) -> str:
+        node_id = str(active_node.get("node_id", "")) if active_node else ""
+        flow = build_prince2_role_flow()
+        edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
+        incoming = [edge for edge in edges if edge.get("target_node") == node_id]
+        outgoing = [edge for edge in edges if edge.get("source_node") == node_id]
+        if not node_id:
+            return "- active_flow_edges: none; context expansion requires formal PRINCE2 event."
+        lines = [
+            "- active_flow_rule: context moves only through approved PRINCE2 flow edges; fallback changes route, not context scope.",
+            f"- active_flow_incoming: {', '.join(str(edge.get('edge_id')) for edge in incoming) if incoming else 'none'}",
+            f"- active_flow_outgoing: {', '.join(str(edge.get('edge_id')) for edge in outgoing) if outgoing else 'none'}",
+        ]
+        for edge in incoming + outgoing:
+            payload = edge.get("payload_scope", [])
+            payload_text = ", ".join(str(item) for item in payload) if isinstance(payload, list) else str(payload)
+            lines.append(
+                f"- flow_edge {edge.get('edge_id')}: trigger={edge.get('trigger')} "
+                f"type={edge.get('flow_type')} payload_scope={payload_text} "
+                f"validation={edge.get('validation_condition')}"
+            )
         return "\n".join(lines)
 
     def _role_scoped_context(self, role: str) -> dict[str, str | bool]:
