@@ -385,6 +385,8 @@ Roadmap rule:
 - `G5` implementation: `/help` topic metadata for update/external-io/extensions is now registry-driven from `stagewarden.commands`, reducing drift between help, command catalog, and slash surfaces.
 - `G5` wet-run: interactive `/help update`, `/help io`, and `/help extension` rendered the registry-backed topic content in the real shell.
 - `G5` validation: `python3 -m unittest discover -s tests` passed with 286 tests and 3 expected sandbox HTTP skips.
+- `G5` implementation: registry-driven help now also covers models, accounts, permissions, handoff/PRINCE2, and git, leaving only special Caveman/LJSON topics outside the shared metadata path.
+- `G5` wet-run: interactive `/help models`, `/help accounts`, `/help permissions`, `/help handoff`, and `/help git` rendered registry-backed content in the real shell.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
 Codex/Claude UX baseline now explicitly includes:
