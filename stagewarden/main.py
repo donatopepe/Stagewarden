@@ -2898,7 +2898,6 @@ def _render_update_status(config: AgentConfig, *, fetch: bool = False) -> str:
 
 
 def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dict[str, object]:
-    before = _update_status_report(config, fetch=True)
     if not confirmed:
         return {
             "command": "update apply",
@@ -2906,8 +2905,8 @@ def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dic
             "applied": False,
             "needs_confirmation": True,
             "message": "Use update apply --yes to confirm fast-forward self-update.",
-            "before": before,
         }
+    before = _update_status_report(config, fetch=True)
     if not before.get("ok"):
         return {"command": "update apply", "ok": False, "applied": False, "message": before.get("message"), "before": before}
     if before.get("dirty"):
@@ -2945,7 +2944,8 @@ def _render_update_apply(config: AgentConfig, *, confirmed: bool = False) -> str
     lines.append(f"- message: {report.get('message')}")
     before = report.get("before", {}) if isinstance(report.get("before"), dict) else {}
     after = report.get("after", {}) if isinstance(report.get("after"), dict) else {}
-    lines.append(f"- before_head: {before.get('head') or 'unknown'}")
+    if before:
+        lines.append(f"- before_head: {before.get('head') or 'unknown'}")
     if after:
         lines.append(f"- after_head: {after.get('head') or 'unknown'}")
     return "\n".join(lines)
