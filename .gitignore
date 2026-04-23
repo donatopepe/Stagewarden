@@ -56,5 +56,6 @@ Applications/
 .qt/
 .vscode/
 .stagewarden_handoff.json
+.stagewarden/
 codex-resume.command
 codex-resume.bat

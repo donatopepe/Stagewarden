@@ -147,6 +147,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("update status", "update", "Show controlled self-update state for the current repository.", "update status", json=True, handler="update", examples=("self update status", "version status")),
     CommandSpec("update check", "update", "Fetch upstream metadata and report whether an update is available.", "update check [--json]", json=True, handler="update", examples=("check for updates", "new version")),
     CommandSpec("update apply", "update", "Apply a fast-forward self-update after explicit confirmation.", "update apply --yes", json=True, handler="update", examples=("apply update", "upgrade stagewarden")),
+    CommandSpec("extensions", "extensions", "Discover local Stagewarden extensions without executing them.", "extensions", json=True, handler="extensions", examples=("list extensions", "plugin list")),
+    CommandSpec("extension scaffold", "extensions", "Create a safe local extension scaffold.", "extension scaffold <name>", json=True, handler="extensions", examples=("create extension", "new plugin")),
     CommandSpec("mode normal", "caveman", "Switch to normal mode.", "mode normal", handler="caveman"),
     CommandSpec("mode caveman", "caveman", "Switch to Caveman mode.", "mode caveman [level]", handler="caveman"),
     CommandSpec("mode plan", "caveman", "Switch to plan permission mode.", "mode plan", handler="caveman"),
