@@ -455,6 +455,8 @@ Phase B - PRINCE2 role tree routing:
 - Completed: `project start` now detects high-complexity/high-risk brief signals and can invoke the AI-assisted proposal path before approval; `project start --ai` forces the same path explicitly.
 - Completed: approved AI-assisted startup baselines persist proposal AI metadata and valid AI-added nodes, while blocked startup entries record AI attempt/fallback metadata in handoff.
 - Completed: explicit `project tree propose` and `project tree propose --ai` commands now record durable `project_tree_proposal` / `project_tree_proposal_ai` handoff actions with status, source, AI metadata, added nodes, gaps, and node count.
+- Completed G1 slice: `ModelCommunicationPacket` is now machine-serializable for inspection/tests, and model JSON responses can expose safe `usage` / `token_usage` / `context_window` metadata.
+- Completed G1 slice: memory records input/output/current/context-window token metadata only when the provider output exposes it, aggregates it in `models usage`/budget stats, and `statusline --json` now reports context-window usage from memory.
 - Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:
 - agent capability specification: real Stagewarden capabilities, available tools, shell/file/git/web/download/compression abilities, permission mode, OS/runtime constraints, provider/model/account availability, rate-limit state, and known validation/wet-run obligations.
 - project specification: task objective, scope, constraints, expected outputs, quality gates, stakeholders/roles, delivery mode, uncertainty, risk tolerance, and any user-provided governance requirements.

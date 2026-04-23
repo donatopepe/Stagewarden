@@ -3128,6 +3128,7 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
 def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     status = _status_report(agent, config)
     usage = _model_usage_report(config)["report"]
+    memory = MemoryStore.load(config.memory_path)
     git = GitTool(config)
     git_head = git.head()
     provider_limits = status["provider_limits"]["providers"]
@@ -3155,14 +3156,7 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "provider_model_selection": None if active_model is None else active_model["provider_model_selection"],
             "provider_model_params": {} if active_model is None else active_model["provider_model_params"],
         },
-        "context_window": {
-            "total_input_tokens": None,
-            "total_output_tokens": None,
-            "context_window_size": None,
-            "current_usage": None,
-            "used_percentage": None,
-            "remaining_percentage": None,
-        },
+        "context_window": memory.context_window_stats(),
         "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
         "handoff": status["handoff"]["stage_view"],
         "latest_handoff_action": status["focus"].get("latest_handoff_action"),

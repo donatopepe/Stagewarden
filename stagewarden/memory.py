@@ -20,6 +20,10 @@ class AttemptRecord:
     account: str | None = None
     variant: str | None = None
     error_type: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    context_window_size: int | None = None
+    current_usage: int | None = None
 
 
 @dataclass(slots=True)
@@ -55,7 +59,14 @@ class MemoryStore:
         success: bool,
         observation: str,
         error_type: str | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        context_window_size: int | None = None,
+        current_usage: int | None = None,
     ) -> None:
+        if current_usage is None:
+            derived_usage = (input_tokens or 0) + (output_tokens or 0)
+            current_usage = derived_usage if derived_usage else None
         self.attempts.append(
             AttemptRecord(
                 iteration=iteration,
@@ -68,6 +79,10 @@ class MemoryStore:
                 success=success,
                 observation=observation,
                 error_type=error_type,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                context_window_size=context_window_size,
+                current_usage=current_usage,
             )
         )
         self.models_by_step.setdefault(step_id, []).append(model)
@@ -203,12 +218,16 @@ class MemoryStore:
                     "failures": 0,
                     "steps": 0,
                     "failure_rate": "0.00",
-                    "highest_tier": "none",
-                    "highest_tier_model": "none",
-                    "last_model": "none",
-                    "escalation_path": "none",
-                },
-            }
+                "highest_tier": "none",
+                "highest_tier_model": "none",
+                "last_model": "none",
+                "escalation_path": "none",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "current_usage": 0,
+                "context_window_size": None,
+            },
+        }
 
         counts: dict[str, int] = {}
         failures: dict[str, int] = {}
@@ -251,8 +270,36 @@ class MemoryStore:
                 "highest_tier_model": highest_model,
                 "last_model": self.attempts[-1].model,
                 "escalation_path": " -> ".join(ordered_models) if ordered_models else "none",
+                "input_tokens": sum(item.input_tokens or 0 for item in self.attempts),
+                "output_tokens": sum(item.output_tokens or 0 for item in self.attempts),
+                "current_usage": sum(item.current_usage or 0 for item in self.attempts),
+                "context_window_size": self._latest_context_window_size(),
             },
         }
+
+    def context_window_stats(self) -> dict[str, Any]:
+        totals = self.model_usage_stats()["totals"]
+        context_window_size = totals.get("context_window_size")
+        current_usage = totals.get("current_usage")
+        used_percentage = None
+        remaining_percentage = None
+        if isinstance(context_window_size, int) and context_window_size > 0 and isinstance(current_usage, int):
+            used_percentage = round(min(100.0, (current_usage / context_window_size) * 100), 2)
+            remaining_percentage = round(max(0.0, 100.0 - used_percentage), 2)
+        return {
+            "total_input_tokens": totals.get("input_tokens") or None,
+            "total_output_tokens": totals.get("output_tokens") or None,
+            "context_window_size": context_window_size,
+            "current_usage": current_usage or None,
+            "used_percentage": used_percentage,
+            "remaining_percentage": remaining_percentage,
+        }
+
+    def _latest_context_window_size(self) -> int | None:
+        for item in reversed(self.attempts):
+            if item.context_window_size:
+                return item.context_window_size
+        return None
 
     def model_usage_summary(self) -> str:
         stats = self.model_usage_stats()
@@ -296,6 +343,7 @@ class MemoryStore:
             f"- failed_model_calls: {totals['failures']}",
             f"- failure_rate: {totals['failure_rate']}%",
             f"- escalation_path: {totals['escalation_path']}",
+            f"- tokens: input={totals.get('input_tokens', 0)} output={totals.get('output_tokens', 0)} current_usage={totals.get('current_usage', 0)} context_window={totals.get('context_window_size') or 'unknown'}",
         ]
         return "\n".join(lines)
 
@@ -336,6 +384,10 @@ class MemoryStore:
         if "attempts_ljson" in payload:
             attempts = decode_ljson(payload["attempts_ljson"])
         for item in attempts or []:
+            item.setdefault("input_tokens", None)
+            item.setdefault("output_tokens", None)
+            item.setdefault("context_window_size", None)
+            item.setdefault("current_usage", None)
             store.attempts.append(AttemptRecord(**item))
         transcript = payload.get("tool_transcript")
         if "tool_transcript_ljson" in payload:

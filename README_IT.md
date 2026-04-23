@@ -124,8 +124,11 @@ stagewarden status --json
 stagewarden "slash mo" --json
 stagewarden "model limits" --json
 stagewarden "roles matrix" --json
+stagewarden statusline --json
 stagewarden "resume context" --json
 ```
+
+`statusline --json` espone anche uso token/finestra di contesto quando il provider restituisce metadati sicuri.
 
 ## Crediti
 
