@@ -393,6 +393,38 @@ Roadmap rule:
 - `G5` wet-run: interactive `/help` rendered the catalog-derived topic overview in the real shell.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
 
+Regrouped execution plan override:
+
+- The old mini-block notes remain as historical evidence, but active execution now follows grouped delivery packs only.
+- Grouped work is now preferred over micro-steps: each pack should bundle coherent code, documentation, wet-runs, and one full-suite closure.
+- Each grouped pack closes only after:
+- targeted tests for the changed slice
+- at least one real wet-run on the changed operator surface
+- one final `python3 -m unittest discover -s tests`
+- one git boundary and push
+
+Active grouped packs from this point:
+
+- `P1` Shell UX parity pack:
+- scope: finish command-surface convergence around slash/help/chooser/palette behavior, topic metadata, and safe non-executing discovery flows.
+- includes: remaining Codex/Claude-style shell discoverability gaps that do not require untrusted UI frameworks.
+- close condition: shell help/chooser/palette behavior is metadata-driven, consistent between interactive shell and CLI, and covered by focused tests plus one full suite.
+
+- `P2` Extension governance pack:
+- scope: strengthen extension metadata, manifest validation, README-level extension docs, and read-only discovery surfaces for commands/roles/skills/hooks/MCP.
+- includes: scaffold validation, richer manifest schema, and reporting surfaces; no untrusted extension execution.
+- close condition: extension scaffold/discovery is stable, validated, documented, and fully covered by grouped tests plus one full suite.
+
+- `P3` Provider-status and telemetry pack:
+- scope: richer provider/account status surfaces, status parity improvements, and any remaining safe token/context accounting gaps.
+- includes: parser improvements where primary/provider-owned machine-readable data exists, plus stale/missing-state rendering.
+- close condition: status surfaces are coherent, machine-readable, and covered by targeted parser/status tests plus one full suite.
+
+- `P4` Advanced palette interaction pack:
+- scope: only after metadata convergence is complete, evaluate safer cursor-oriented selection semantics or improved non-TTY fallback behavior.
+- includes: selection UX refinement without breaking current shell semantics.
+- close condition: interactive command discovery is improved without regressions, with manual wet-run evidence and one full suite.
+
 Codex/Claude UX baseline now explicitly includes:
 
 - slash-command discoverability and completion
