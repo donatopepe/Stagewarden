@@ -360,6 +360,12 @@ Roadmap rule:
 - `G4` validation: temp local Git remote fast-forward test passed for strict status, update, and handoff action evidence.
 - `G4` wet-run: `python3 -m stagewarden.main "sources status --strict" --json` passed in the real workspace and confirmed Caveman, Codex CLI, and Claude Code references are coherent.
 - `G4` validation: `python3 -m unittest discover -s tests` passed with 278 tests and 3 expected sandbox HTTP skips.
+- `G4` status: self-update governance implemented locally; pending push boundary.
+- `G4` implementation: added `update status`, `update check --json`, and `update apply --yes` with branch, HEAD, upstream, ahead/behind, dirty state, and update availability.
+- `G4` safety controls: `update apply` requires explicit `--yes`, performs fetch/check only after confirmation, refuses dirty worktrees, uses `git pull --ff-only`, and records before/after evidence in `update_apply` handoff actions.
+- `G4` validation: temp Git remote tests passed for no-update, update-available, confirmation block, fast-forward apply, and invalid/dirty repository refusal.
+- `G4` wet-run: `python3 -m stagewarden.main "update status" --json` passed in the real workspace; interactive `/update apply` blocked without confirmation as expected.
+- `G4` validation: `python3 -m unittest discover -s tests` passed with 280 tests and 3 expected sandbox HTTP skips.
 - `G5` Codex/Claude-style operator UX and extension architecture: implement slash palette with fuzzy filtering/cursor selection/non-TTY fallback, registry-backed examples/topic metadata, extension layout for commands/roles/skills/hooks/MCP, and bilingual README parity.
 - `G5 test pack`: command registry tests, fuzzy matcher tests, non-TTY slash fallback tests, guided menu tests, scaffolded extension discovery tests without untrusted execution, README/README_IT command parity checks, manual interactive wet-run, and full unittest suite.
 - Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
