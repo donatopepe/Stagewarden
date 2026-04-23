@@ -533,6 +533,38 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("shell_backend", payload)
             self.assertEqual(payload["shell_backend"]["configured"], "zsh")
 
+    def test_status_surfaces_latest_handoff_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            handoff.record_action(
+                phase="project_start_blocked",
+                summary="Project start blocked until brief is complete.",
+                task="project start",
+                git_head="abc123",
+                details={"missing_fields": ["scope", "expected_outputs"]},
+            )
+            handoff.save(root / ".stagewarden_handoff.json")
+
+            completed = run_main_capture(root, "status")
+            json_completed = run_main_capture(root, "status", "--json")
+            statusline_completed = run_main_capture(root, "statusline", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("latest_handoff_action: phase=project_start_blocked", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            latest = payload["focus"]["latest_handoff_action"]
+            self.assertEqual(latest["phase"], "project_start_blocked")
+            self.assertEqual(latest["task"], "project start")
+            self.assertEqual(latest["git_head"], "abc123")
+            self.assertEqual(latest["details"]["missing_fields"], ["scope", "expected_outputs"])
+
+            self.assertEqual(statusline_completed.returncode, 0, statusline_completed.stderr)
+            statusline = json.loads(statusline_completed.stdout)
+            self.assertEqual(statusline["latest_handoff_action"]["phase"], "project_start_blocked")
+
     def test_preflight_reports_windows_shell_readiness_warning(self) -> None:
         from unittest.mock import patch
         from stagewarden.main import _configure_readonly_agent_for_workspace, _preflight_report

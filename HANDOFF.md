@@ -440,6 +440,8 @@ Phase B - PRINCE2 role tree routing:
 - Wet-run 2026-04-23: sequential inspection of `.stagewarden_handoff.json` confirmed `project_start_blocked` is recorded with missing `scope` and `expected_outputs` details.
 - Completed: `handoff actions [limit]` and `handoff actions [limit] --json` expose durable action/audit entries directly from runtime handoff.
 - This closes the discoverability gap for the transparency rule: the user can inspect operational actions without opening `.stagewarden_handoff.json`.
+- Completed: `status`, `status --json`, and `statusline --json` now surface the latest durable handoff action in the focus/statusline payloads.
+- This strengthens the transparency rule: every user-visible status surface can show the last tracked operational action without requiring a separate handoff command.
 - Next: add AI-assisted proposal generation that consumes `project design` plus structured brief, then compare/merge with the local proportional proposal before approval.
 - `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
 - AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.

@@ -56,7 +56,7 @@ from .role_tree import (
     render_prince2_role_matrix,
     render_prince2_role_tree,
 )
-from .project_handoff import ProjectHandoff
+from .project_handoff import HandoffEntry, ProjectHandoff
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .secrets import SecretStore
@@ -2932,6 +2932,7 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
         "handoff": status["handoff"]["stage_view"],
+        "latest_handoff_action": status["focus"].get("latest_handoff_action"),
         "usage": usage["totals"],
     }
 
@@ -3000,6 +3001,7 @@ def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "blocked_until": latest_limit.get("blocked_until"),
             "stale": bool(latest_limit.get("stale", False)),
         },
+        "latest_handoff_action": _latest_handoff_action(config),
         "resume_ready": bool(handoff.task),
     }
 
@@ -3043,6 +3045,14 @@ def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
         lines.append(f"- active_provider_limit: {active_limit['status'] or 'unknown'}{blocked}{reason}{stale}")
     else:
         lines.append("- active_provider_limit: none")
+    latest_action = snapshot.get("latest_handoff_action")
+    if isinstance(latest_action, dict):
+        lines.append(
+            f"- latest_handoff_action: phase={latest_action['phase']} task={latest_action['task']} "
+            f"summary={latest_action['summary']} git_head={latest_action['git_head'] or 'none'}"
+        )
+    else:
+        lines.append("- latest_handoff_action: none")
     lines.append(f"- resume_ready: {str(bool(snapshot['resume_ready'])).lower()}")
     return "\n".join(lines)
 
@@ -3946,32 +3956,43 @@ ACTION_PHASE_PREFIXES = (
 )
 
 
+def _is_handoff_action_entry(entry: HandoffEntry) -> bool:
+    return (
+        entry.phase.endswith("_approval")
+        or entry.phase.endswith("_blocked")
+        or entry.phase.startswith(ACTION_PHASE_PREFIXES)
+    )
+
+
+def _handoff_action_payload(entry: HandoffEntry) -> dict[str, object]:
+    return {
+        "timestamp": entry.timestamp,
+        "phase": entry.phase,
+        "task": entry.task,
+        "summary": entry.summary,
+        "git_head": entry.git_head,
+        "details": dict(entry.details),
+    }
+
+
+def _latest_handoff_action(config: AgentConfig) -> dict[str, object] | None:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    for entry in reversed(handoff.entries):
+        if _is_handoff_action_entry(entry):
+            return _handoff_action_payload(entry)
+    return None
+
+
 def _handoff_actions_report(config: AgentConfig, *, limit: int = 20) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     safe_limit = max(1, min(int(limit), 200))
-    action_entries = [
-        entry
-        for entry in handoff.entries
-        if entry.phase.endswith("_approval")
-        or entry.phase.endswith("_blocked")
-        or entry.phase.startswith(ACTION_PHASE_PREFIXES)
-    ]
+    action_entries = [entry for entry in handoff.entries if _is_handoff_action_entry(entry)]
     selected = action_entries[-safe_limit:]
     return {
         "command": "handoff actions",
         "count": len(action_entries),
         "limit": safe_limit,
-        "entries": [
-            {
-                "timestamp": entry.timestamp,
-                "phase": entry.phase,
-                "task": entry.task,
-                "summary": entry.summary,
-                "git_head": entry.git_head,
-                "details": dict(entry.details),
-            }
-            for entry in selected
-        ],
+        "entries": [_handoff_action_payload(entry) for entry in selected],
     }
 
 
