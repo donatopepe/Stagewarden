@@ -1349,6 +1349,22 @@ class TraceAndCliTests(unittest.TestCase):
             phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
             self.assertNotIn("update_apply", phases)
 
+    def test_cli_slash_choose_renders_candidates_and_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            rendered = run_main_capture(root, "slash choose upgrade")
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            self.assertIn("Slash chooser candidates:", rendered.stdout)
+            self.assertIn("/update apply --yes", rendered.stdout)
+            self.assertIn("use interactive /slash choose", rendered.stdout)
+
+            json_rendered = run_main_capture(root, "slash choose upgrade", "--json")
+            self.assertEqual(json_rendered.returncode, 0, json_rendered.stderr)
+            payload = json.loads(json_rendered.stdout)
+            self.assertEqual(payload["command"], "slash choose")
+            names = [item["name"] for item in payload["entries"]]
+            self.assertIn("update apply", names)
+
     def test_commands_catalog_cli_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

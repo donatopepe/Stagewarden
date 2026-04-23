@@ -619,6 +619,21 @@ def _guided_slash_choice(
     return f"Selected slash command: /{selected}"
 
 
+def _render_slash_choice_candidates(config: AgentConfig, query: str = "") -> str:
+    entries = list(_slash_palette_report(config, query)["entries"])[:10]
+    lines = ["Slash chooser candidates:"]
+    lines.append(f"- query: {query or '(none)'}")
+    if not entries:
+        lines.append("- no matches")
+        return "\n".join(lines)
+    for index, item in enumerate(entries, start=1):
+        if not isinstance(item, dict):
+            continue
+        lines.append(f"{index}. /{item['usage']} - {item['description']}")
+    lines.append("- note: use interactive /slash choose to select one item.")
+    return "\n".join(lines)
+
+
 def _registry_help_lines(title: str, groups: tuple[str, ...], examples: tuple[str, ...]) -> list[str]:
     lines = [title, ""]
     lines.extend(f"- {usage}" for usage in command_usages_for_groups(*groups))
@@ -6669,6 +6684,11 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     lowered = command.lower().strip()
     if lowered == "help":
         return None, interactive_help_text()
+    if lowered == "slash choose":
+        return None, _render_slash_choice_candidates(agent.config)
+    if lowered.startswith("slash choose "):
+        query = command.split(maxsplit=2)[2]
+        return None, _render_slash_choice_candidates(agent.config, query)
     if lowered == "slash":
         return None, _render_slash_palette(agent.config)
     if lowered == "slash --json":
@@ -7094,6 +7114,13 @@ def main() -> int:
             print(dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2))
         else:
             print(render_command_catalog())
+        return 0
+    if task == "slash choose" or task.startswith("slash choose "):
+        query = "" if task == "slash choose" else task.split(maxsplit=2)[2]
+        if args.json:
+            print(dumps_ascii({"command": "slash choose", "query": query, "entries": _slash_palette_report(config, query)["entries"][:10]}, indent=2))
+        else:
+            print(_render_slash_choice_candidates(config, query))
         return 0
     if task == "slash" or task.startswith("slash "):
         prefix = "" if task == "slash" else task.split(maxsplit=1)[1]
