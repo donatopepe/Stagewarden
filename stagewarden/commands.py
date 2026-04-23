@@ -141,6 +141,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("git show", "git", "Show revision contents.", "git show [revision]", handler="git"),
     CommandSpec("git show --stat", "git", "Show revision stats.", "git show --stat [revision]", handler="git"),
     CommandSpec("sources", "sources", "Show local external source repositories.", "sources", aliases=("sources status",), json=True, handler="sources"),
+    CommandSpec("sources status --strict", "sources", "Fail sources status when any source is missing or mismatched.", "sources status --strict", json=True, handler="sources"),
+    CommandSpec("sources update", "sources", "Fast-forward local external source repositories and record evidence.", "sources update", json=True, handler="sources"),
     CommandSpec("mode normal", "caveman", "Switch to normal mode.", "mode normal", handler="caveman"),
     CommandSpec("mode caveman", "caveman", "Switch to Caveman mode.", "mode caveman [level]", handler="caveman"),
     CommandSpec("mode plan", "caveman", "Switch to plan permission mode.", "mode plan", handler="caveman"),
