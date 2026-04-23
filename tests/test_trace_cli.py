@@ -1984,22 +1984,46 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Choose provider for Project Manager:", rendered)
             self.assertIn("Assigned Project Manager: provider=chatgpt provider_model=gpt-5.4 account=none reasoning_effort=medium.", rendered)
 
-    def test_project_start_applies_role_baseline(self) -> None:
+    def test_project_start_blocks_when_design_or_brief_has_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             completed = run_main_capture(root, "project start")
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
             handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
 
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertIn("Project startup role baseline applied.", completed.stdout)
+            self.assertEqual(completed.returncode, 1, completed.stdout)
+            self.assertIn("Project startup design gate:", completed.stdout)
             self.assertIn("Project design packet:", completed.stdout)
-            self.assertIn("Project design gate:", completed.stdout)
+            self.assertIn("Project tree proposal:", completed.stdout)
+            self.assertIn("Project startup blocked:", completed.stdout)
             self.assertIn("missing_project_task", completed.stdout)
+            self.assertEqual(prefs.prince2_role_tree_baseline, {})
+            self.assertEqual(handoff.prince2_role_tree_baseline, {})
+
+    def test_project_start_approves_ready_project_tree_proposal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            handoff.task = "build a governed CLI coding agent"
+            handoff.save(root / ".stagewarden_handoff.json")
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+
+            completed = run_main_capture(root, "project start")
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project startup design gate:", completed.stdout)
+            self.assertIn("Project tree proposal:", completed.stdout)
+            self.assertIn("Project tree approval:", completed.stdout)
+            self.assertIn("delivery.implementation_team", completed.stdout)
             self.assertIn("project_executive", prefs.prince2_roles or {})
             self.assertIn("project_executive", handoff.prince2_roles or {})
-            self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("status"), "approved")
-            self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("status"), "approved")
+            self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
+            self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "project_tree_approve")
             self.assertIn("PRINCE2 role-tree baseline:", completed.stdout)
 
     def test_roles_tree_approve_persists_role_tree_baseline(self) -> None:
