@@ -419,6 +419,17 @@ Active grouped packs from this point:
 - scope: strengthen extension metadata, manifest validation, README-level extension docs, and read-only discovery surfaces for commands/roles/skills/hooks/MCP.
 - includes: scaffold validation, richer manifest schema, and reporting surfaces; no untrusted extension execution.
 - close condition: extension scaffold/discovery is stable, validated, documented, and fully covered by grouped tests plus one full suite.
+- status 2026-04-23: complete. Extension scaffold now writes explicit schema metadata, discovery validates manifest shape and entrypoint paths in read-only mode, reports missing entrypoints without executing code, and keeps `extensions --json` usable as a non-mutating inspection surface even when findings exist.
+
+Pack `P2` validation evidence:
+
+- Scaffold manifest now includes `schema_version`, `entrypoints`, and `execution=disabled-by-default`.
+- Discovery now reports `schema_version`, `execution`, `entrypoints`, and `missing_entrypoints` per extension.
+- Discovery exit semantics were tightened for governance: `extensions --json` remains exit-code `0` for read-only validation findings, while mutating scaffold errors still fail closed.
+- Wet-run `python3 -m stagewarden.main "extension scaffold local-tools" --json` passed in the real workspace.
+- Wet-run `python3 -m stagewarden.main "extensions" --json` passed in the real workspace and showed schema/entrypoint metadata.
+- Targeted validation `python3 -m unittest tests/test_trace_cli.py` passed with 139 tests and 1 expected skip.
+- Full-suite closure `python3 -m unittest discover -s tests` passed with 289 tests and 3 expected skips.
 
 - `P3` Provider-status and telemetry pack:
 - scope: richer provider/account status surfaces, status parity improvements, and any remaining safe token/context accounting gaps.
