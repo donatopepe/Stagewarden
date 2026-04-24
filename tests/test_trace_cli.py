@@ -4707,6 +4707,77 @@ class TraceAndCliTests(unittest.TestCase):
             remediation_codes = {item["code"] for item in payload["remediations"]}
             self.assertIn("provider_limits_stale", remediation_codes)
 
+    def test_status_full_reports_local_fallback_partial_remediation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "delivery.team_manager",
+                                "role_type": "team_manager",
+                                "label": "Team Manager",
+                                "parent_id": "management.project_manager",
+                                "level": "delivery",
+                                "assignment": {"provider": "cheap", "provider_model": "provider-default"},
+                                "assignment_pool": {},
+                                "local_execution_candidates": ["deepseek-r1:14b", "qwen2.5-coder:7b"],
+                            }
+                        ]
+                    },
+                    "local_execution": {
+                        "status": "ok",
+                        "candidates": [{"id": "deepseek-r1:14b"}, {"id": "qwen2.5-coder:7b"}],
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "status", "--full", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            remediation_codes = {item["code"] for item in payload["remediations"]}
+            self.assertIn("local_fallback_partial", remediation_codes)
+
+    def test_status_full_reports_local_fallback_missing_remediation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "delivery.team_manager",
+                                "role_type": "team_manager",
+                                "label": "Team Manager",
+                                "parent_id": "management.project_manager",
+                                "level": "delivery",
+                                "assignment": {"provider": "cheap", "provider_model": "provider-default"},
+                                "assignment_pool": {},
+                                "local_execution_candidates": [],
+                            }
+                        ]
+                    },
+                    "local_execution": {"status": "missing", "candidates": []},
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "status", "--full", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            remediation_codes = {item["code"] for item in payload["remediations"]}
+            self.assertIn("local_fallback_missing", remediation_codes)
+
     def test_interactive_shell_renders_health_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
