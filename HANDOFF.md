@@ -1782,13 +1782,17 @@ Local Ollama operator lessons captured on 2026-04-24:
   - `roles baseline` continues to expose the preloaded local candidate summary through the approved baseline render, so the operator can verify the planned local fallback set without opening JSON.
   - `status`, `statusline`, `status --full`, and `roles control` now expose a unified `local_fallback` readiness view showing whether delivery nodes already have local fallback routes preloaded and which discovered local models are available to them.
   - This visibility is computed from the approved baseline rather than inferred ad hoc, so board/operator views stay consistent with the persisted PRINCE2 routing plan.
+  - `status` remediation now flags two local-fallback gaps explicitly:
+    - `local_fallback_partial` when candidates exist but are not preloaded across all delivery nodes
+    - `local_fallback_missing` when delivery nodes exist but no local candidates are available and execution remains cloud-only
   - Validation 2026-04-24:
     - new CLI regression covers `roles propose` + dynamic Ollama discovery + persisted fallback routes
     - new interactive-shell regression covers guided `role assign` local fallback recommendation flow
     - new interactive-shell regression covers `roles setup` manual approval with recommended local fallback preload
     - new CLI regression covers `project start` approved baseline with visible local fallback preload
     - new grouped regression covers `statusline`, `roles control`, and `status` local fallback readiness visibility
-    - full suite passed: `python3 -m unittest discover -s tests` -> `326 tests`, `OK`, `3 skip`
+    - new grouped regression covers `status --full` remediation for partial vs missing local fallback readiness
+    - full suite passed: `python3 -m unittest discover -s tests` -> `328 tests`, `OK`, `3 skip`
 
 Next implementation candidates:
 
