@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from datetime import datetime
@@ -272,6 +273,85 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertEqual((root / "notes.txt").read_text(encoding="utf-8"), "one\ntwo\n")
             self.assertEqual(memory.tool_transcript[-1].action_type, "normalize_line_endings_file")
+
+    def test_executor_supports_metadata_inspection_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "notes.txt").write_text("one\n", encoding="utf-8")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "inspect metadata",
+                                "action": {
+                                    "type": "inspect_metadata_file",
+                                    "path": "notes.txt",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Inspect metadata", instruction="inspect metadata", validation="A command executed successfully.")
+
+            outcome = executor.execute_step(task="inspect metadata", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertIn('"command": "file stat"', outcome.observation)
+            self.assertEqual(memory.tool_transcript[-1].action_type, "inspect_metadata_file")
+
+    def test_executor_supports_filesystem_mutation_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "source.txt").write_text("alpha\n", encoding="utf-8")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            if os.name == "nt" or not hasattr(os, "chown"):
+                chown_user = "0"
+                chown_group = "0"
+            else:
+                chown_user = str(os.getuid())
+                chown_group = str(os.getgid())
+            handoff = FakeHandoff(
+                [
+                    {"ok": True, "model": "local", "backend": "local/ollama", "prompt": "x", "command": "run_model local x", "output": json.dumps({"summary": "copy path", "action": {"type": "copy_path_file", "source": "source.txt", "destination": "copy.txt", "dry_run": False}}), "error": ""},
+                    {"ok": True, "model": "local", "backend": "local/ollama", "prompt": "x", "command": "run_model local x", "output": json.dumps({"summary": "move path", "action": {"type": "move_path_file", "source": "copy.txt", "destination": "moved.txt", "dry_run": False}}), "error": ""},
+                    {"ok": True, "model": "local", "backend": "local/ollama", "prompt": "x", "command": "run_model local x", "output": json.dumps({"summary": "chmod path", "action": {"type": "chmod_path_file", "path": "moved.txt", "mode": "0600", "dry_run": False}}), "error": ""},
+                    {"ok": True, "model": "local", "backend": "local/ollama", "prompt": "x", "command": "run_model local x", "output": json.dumps({"summary": "chown path", "action": {"type": "chown_path_file", "path": "moved.txt", "user": chown_user, "group": chown_group, "dry_run": False}}), "error": ""},
+                    {"ok": True, "model": "local", "backend": "local/ollama", "prompt": "x", "command": "run_model local x", "output": json.dumps({"summary": "delete path", "action": {"type": "delete_path_file", "path": "moved.txt", "dry_run": False}}), "error": ""},
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Mutate path", instruction="mutate path", validation="The target files or behavior exist and are internally consistent.")
+
+            copy_outcome = executor.execute_step(task="copy path", step=step, plan=[step], iteration=1, last_observation="none")
+            move_outcome = executor.execute_step(task="move path", step=step, plan=[step], iteration=2, last_observation="none")
+            chmod_outcome = executor.execute_step(task="chmod path", step=step, plan=[step], iteration=3, last_observation="none")
+            chown_outcome = executor.execute_step(task="chown path", step=step, plan=[step], iteration=4, last_observation="none")
+            delete_outcome = executor.execute_step(task="delete path", step=step, plan=[step], iteration=5, last_observation="none")
+
+            self.assertTrue(copy_outcome.ok)
+            self.assertTrue(move_outcome.ok)
+            self.assertTrue(chmod_outcome.ok)
+            self.assertTrue(chown_outcome.ok)
+            self.assertTrue(delete_outcome.ok)
+            self.assertFalse((root / "copy.txt").exists())
+            self.assertFalse((root / "moved.txt").exists())
+            self.assertEqual(memory.tool_transcript[-5].action_type, "copy_path_file")
+            self.assertEqual(memory.tool_transcript[-4].action_type, "move_path_file")
+            self.assertEqual(memory.tool_transcript[-3].action_type, "chmod_path_file")
+            self.assertEqual(memory.tool_transcript[-2].action_type, "chown_path_file")
+            self.assertEqual(memory.tool_transcript[-1].action_type, "delete_path_file")
 
     def test_executor_tracks_invalid_output_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1470,6 +1550,9 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("context_include: stage_plan, registers", prompt)
             self.assertIn("communication_incoming_edges: authorize.project", prompt)
             self.assertIn("model_actions:", prompt)
+            self.assertIn("inspect_metadata_file", prompt)
+            self.assertIn("copy_path_file", prompt)
+            self.assertIn("chmod_path_file", prompt)
 
     def test_executor_records_safe_model_usage_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

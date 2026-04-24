@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import difflib
 import fnmatch
+import os
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -67,6 +69,18 @@ class FileTool:
             "warnings": warnings,
         }
         return FileResult(True, path=str(resolved), content=text, warnings=warnings, report=report)
+
+    def inspect_metadata(self, path: str) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="Path does not exist.")
+        try:
+            report = self._stat_report(resolved)
+        except OSError as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        return FileResult(True, path=str(resolved), content="", report=report)
 
     def write(self, path: str, content: str) -> FileResult:
         resolved = self.config.resolve_path(path)
@@ -282,6 +296,191 @@ class FileTool:
                 "target_newline": target_newline,
             },
         )
+
+    def copy_path(self, source: str, destination: str, *, overwrite: bool = False, dry_run: bool = False) -> FileResult:
+        resolved_source = self.config.resolve_path(source)
+        resolved_destination = self.config.resolve_path(destination)
+        source_error = self._validate_workspace_path(resolved_source, require_exists=True, noun="Source")
+        if source_error is not None:
+            return source_error
+        destination_error = self._validate_workspace_path(resolved_destination, require_exists=False, noun="Destination")
+        if destination_error is not None:
+            return destination_error
+        denied = self._check_write_permission(resolved_destination)
+        if denied is not None:
+            return denied
+        destination_exists = resolved_destination.exists()
+        if destination_exists and not overwrite:
+            return FileResult(False, path=str(resolved_destination), error="Destination already exists.")
+        report = {
+            "operation": "copy_path",
+            "source_path": str(resolved_source),
+            "destination_path": str(resolved_destination),
+            "source_kind": self._path_kind(resolved_source),
+            "destination_exists": destination_exists,
+            "overwrite": overwrite,
+            "dry_run": dry_run,
+            "changed": True,
+        }
+        if dry_run:
+            return FileResult(True, path=str(resolved_destination), content="Dry-run preview for copy_path.", report=report)
+        try:
+            if destination_exists:
+                self._remove_path(resolved_destination, recursive=True)
+            resolved_destination.parent.mkdir(parents=True, exist_ok=True)
+            if resolved_source.is_dir():
+                shutil.copytree(resolved_source, resolved_destination)
+            else:
+                shutil.copy2(resolved_source, resolved_destination)
+            report["written"] = True
+            return FileResult(True, path=str(resolved_destination), content=f"Copied {source} -> {destination}", report=report)
+        except OSError as exc:
+            return FileResult(False, path=str(resolved_destination), error=str(exc), report=report)
+
+    def move_path(self, source: str, destination: str, *, overwrite: bool = False, dry_run: bool = False) -> FileResult:
+        resolved_source = self.config.resolve_path(source)
+        resolved_destination = self.config.resolve_path(destination)
+        source_error = self._validate_workspace_path(resolved_source, require_exists=True, noun="Source")
+        if source_error is not None:
+            return source_error
+        destination_error = self._validate_workspace_path(resolved_destination, require_exists=False, noun="Destination")
+        if destination_error is not None:
+            return destination_error
+        denied = self._check_write_permission(resolved_source)
+        if denied is not None:
+            return denied
+        denied = self._check_write_permission(resolved_destination)
+        if denied is not None:
+            return denied
+        destination_exists = resolved_destination.exists()
+        if destination_exists and not overwrite:
+            return FileResult(False, path=str(resolved_destination), error="Destination already exists.")
+        report = {
+            "operation": "move_path",
+            "source_path": str(resolved_source),
+            "destination_path": str(resolved_destination),
+            "source_kind": self._path_kind(resolved_source),
+            "destination_exists": destination_exists,
+            "overwrite": overwrite,
+            "dry_run": dry_run,
+            "changed": True,
+        }
+        if dry_run:
+            return FileResult(True, path=str(resolved_destination), content="Dry-run preview for move_path.", report=report)
+        try:
+            if destination_exists:
+                self._remove_path(resolved_destination, recursive=True)
+            resolved_destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(resolved_source), str(resolved_destination))
+            report["written"] = True
+            return FileResult(True, path=str(resolved_destination), content=f"Moved {source} -> {destination}", report=report)
+        except (OSError, shutil.Error) as exc:
+            return FileResult(False, path=str(resolved_destination), error=str(exc), report=report)
+
+    def delete_path(self, path: str, *, recursive: bool = False, dry_run: bool = False) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        error = self._validate_workspace_path(resolved, require_exists=True, noun="Path")
+        if error is not None:
+            return error
+        denied = self._check_write_permission(resolved)
+        if denied is not None:
+            return denied
+        is_dir = resolved.is_dir() and not resolved.is_symlink()
+        if is_dir and any(resolved.iterdir()) and not recursive:
+            return FileResult(False, path=str(resolved), error="Directory is not empty; use recursive delete.")
+        report = {
+            "operation": "delete_path",
+            "path": str(resolved),
+            "kind": self._path_kind(resolved),
+            "recursive": recursive,
+            "dry_run": dry_run,
+            "changed": True,
+        }
+        if dry_run:
+            return FileResult(True, path=str(resolved), content="Dry-run preview for delete_path.", report=report)
+        try:
+            self._remove_path(resolved, recursive=recursive)
+            report["written"] = True
+            return FileResult(True, path=str(resolved), content=f"Deleted {path}", report=report)
+        except OSError as exc:
+            return FileResult(False, path=str(resolved), error=str(exc), report=report)
+
+    def chmod_path(self, path: str, mode: str | int, *, recursive: bool = False, dry_run: bool = False) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        error = self._validate_workspace_path(resolved, require_exists=True, noun="Path")
+        if error is not None:
+            return error
+        denied = self._check_write_permission(resolved)
+        if denied is not None:
+            return denied
+        try:
+            normalized_mode = self._parse_mode(mode)
+        except ValueError as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        targets = self._iter_permission_targets(resolved, recursive=recursive)
+        report = {
+            "operation": "chmod_path",
+            "path": str(resolved),
+            "mode": f"{normalized_mode:04o}",
+            "recursive": recursive,
+            "dry_run": dry_run,
+            "target_count": len(targets),
+            "changed": True,
+        }
+        if dry_run:
+            return FileResult(True, path=str(resolved), content="Dry-run preview for chmod_path.", report=report)
+        try:
+            for target in targets:
+                target.chmod(normalized_mode)
+            report["written"] = True
+            return FileResult(True, path=str(resolved), content=f"Updated mode to {normalized_mode:04o}", report=report)
+        except OSError as exc:
+            return FileResult(False, path=str(resolved), error=str(exc), report=report)
+
+    def chown_path(
+        self,
+        path: str,
+        *,
+        user: str | int | None = None,
+        group: str | int | None = None,
+        recursive: bool = False,
+        dry_run: bool = False,
+    ) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        error = self._validate_workspace_path(resolved, require_exists=True, noun="Path")
+        if error is not None:
+            return error
+        denied = self._check_write_permission(resolved)
+        if denied is not None:
+            return denied
+        if not hasattr(os, "chown"):
+            return FileResult(False, path=str(resolved), error="chown is not supported on this platform.")
+        try:
+            uid, gid = self._resolve_owner_group(resolved, user=user, group=group)
+        except (KeyError, ValueError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        targets = self._iter_permission_targets(resolved, recursive=recursive)
+        report = {
+            "operation": "chown_path",
+            "path": str(resolved),
+            "uid": uid,
+            "gid": gid,
+            "recursive": recursive,
+            "dry_run": dry_run,
+            "target_count": len(targets),
+            "changed": True,
+        }
+        if dry_run:
+            return FileResult(True, path=str(resolved), content="Dry-run preview for chown_path.", report=report)
+        try:
+            for target in targets:
+                os.chown(target, uid, gid)
+            report["written"] = True
+            return FileResult(True, path=str(resolved), content=f"Updated owner to uid={uid} gid={gid}", report=report)
+        except PermissionError as exc:
+            return FileResult(False, path=str(resolved), error=f"chown permission denied: {exc}", report=report)
+        except OSError as exc:
+            return FileResult(False, path=str(resolved), error=str(exc), report=report)
 
     def delete_range(self, path: str, start_line: int, end_line: int, *, dry_run: bool = False) -> FileResult:
         return self._line_edit(
@@ -860,6 +1059,121 @@ class FileTool:
 
     def _write_text_with_encoding(self, path: Path, content: str, encoding: str) -> None:
         path.write_text(content, encoding=encoding, newline="")
+
+    def _validate_workspace_path(self, path: Path, *, require_exists: bool, noun: str) -> FileResult | None:
+        if not self.config.is_within_workspace(path):
+            return FileResult(False, path=str(path), error=f"{noun} is outside the workspace.")
+        if require_exists and not path.exists():
+            return FileResult(False, path=str(path), error=f"{noun} does not exist.")
+        return None
+
+    def _path_kind(self, path: Path) -> str:
+        if path.is_symlink():
+            return "symlink"
+        if path.is_dir():
+            return "directory"
+        if path.is_file():
+            return "file"
+        return "other"
+
+    def _stat_report(self, path: Path) -> dict[str, object]:
+        stats = path.stat()
+        report: dict[str, object] = {
+            "command": "file stat",
+            "path": str(path),
+            "kind": self._path_kind(path),
+            "exists": path.exists(),
+            "size": stats.st_size,
+            "mode_octal": f"{stats.st_mode & 0o7777:04o}",
+            "uid": getattr(stats, "st_uid", None),
+            "gid": getattr(stats, "st_gid", None),
+            "mtime": stats.st_mtime,
+            "atime": stats.st_atime,
+            "ctime": stats.st_ctime,
+            "is_symlink": path.is_symlink(),
+            "readable": os.access(path, os.R_OK),
+            "writable": os.access(path, os.W_OK),
+            "executable": os.access(path, os.X_OK),
+        }
+        if path.is_symlink():
+            try:
+                report["symlink_target"] = str(path.resolve(strict=False))
+            except OSError:
+                report["symlink_target"] = "unresolved"
+        return report
+
+    def _remove_path(self, path: Path, *, recursive: bool) -> None:
+        if path.is_symlink() or path.is_file():
+            path.unlink()
+            return
+        if path.is_dir():
+            if recursive:
+                shutil.rmtree(path)
+            else:
+                path.rmdir()
+            return
+        raise OSError(f"Unsupported path type: {path}")
+
+    def _iter_permission_targets(self, path: Path, *, recursive: bool) -> list[Path]:
+        if not recursive or not path.is_dir() or path.is_symlink():
+            return [path]
+        targets = [path]
+        targets.extend(sorted(item for item in path.rglob("*")))
+        return targets
+
+    def _parse_mode(self, mode: str | int) -> int:
+        if isinstance(mode, int):
+            if mode < 0:
+                raise ValueError("mode must be a positive integer.")
+            return mode
+        raw = str(mode).strip().lower()
+        if raw.startswith("0o"):
+            raw = raw[2:]
+        if not raw or any(char not in "01234567" for char in raw):
+            raise ValueError("mode must be an octal value like 644 or 0755.")
+        return int(raw, 8)
+
+    def _resolve_owner_group(self, path: Path, *, user: str | int | None, group: str | int | None) -> tuple[int, int]:
+        current = path.stat()
+        uid = current.st_uid
+        gid = current.st_gid
+        if user is not None:
+            uid = self._resolve_user(user)
+        if group is not None:
+            gid = self._resolve_group(group)
+        if user is None and group is None:
+            raise ValueError("At least one of user or group must be provided.")
+        return uid, gid
+
+    def _resolve_user(self, value: str | int) -> int:
+        if isinstance(value, int):
+            return value
+        raw = str(value).strip()
+        if raw.isdigit():
+            return int(raw)
+        try:
+            import pwd
+
+            return pwd.getpwnam(raw).pw_uid
+        except ImportError as exc:
+            raise ValueError("Named users are not supported on this platform.") from exc
+        except KeyError as exc:
+            raise KeyError(f"Unknown user: {raw}") from exc
+
+    def _resolve_group(self, value: str | int) -> int:
+        if isinstance(value, int):
+            return value
+        raw = str(value).strip()
+        if raw.isdigit():
+            return int(raw)
+        try:
+            import grp
+
+            return grp.getgrnam(raw).gr_gid
+        except ImportError as exc:
+            raise ValueError("Named groups are not supported on this platform.") from exc
+        except KeyError as exc:
+            raise KeyError(f"Unknown group: {raw}") from exc
 
     def _finalize_text_edit(
         self,

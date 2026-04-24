@@ -79,6 +79,7 @@ ALLOWED_MODEL_ACTIONS = {
     "shell_session_close",
     "read_file",
     "inspect_file",
+    "inspect_metadata_file",
     "write_file",
     "apply_patch",
     "search_replace_file",
@@ -88,6 +89,11 @@ ALLOWED_MODEL_ACTIONS = {
     "replace_range_file",
     "convert_encoding_file",
     "normalize_line_endings_file",
+    "copy_path_file",
+    "move_path_file",
+    "delete_path_file",
+    "chmod_path_file",
+    "chown_path_file",
     "patch_file",
     "patch_files",
     "preview_patch_files",
@@ -755,27 +761,33 @@ class Executor:
                         '4. shell_session_close -> {"type":"shell_session_close","session_id":"session id"}',
                         '5. read_file -> {"type":"read_file","path":"relative/path"}',
                         '6. inspect_file -> {"type":"inspect_file","path":"relative/path"}',
-                        '7. write_file -> {"type":"write_file","path":"relative/path","content":"full file contents"}',
-                        '8. apply_patch -> {"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}',
-                        '9. search_replace_file -> {"type":"search_replace_file","path":"relative/path","search":"old text","replace":"new text","count":1,"dry_run":false}',
-                        '10. insert_text_file -> {"type":"insert_text_file","path":"relative/path","content":"text to insert","line_number":12,"pattern":"optional anchor","position":"before|after","occurrence":1,"dry_run":false}',
-                        '11. delete_range_file -> {"type":"delete_range_file","path":"relative/path","start_line":4,"end_line":7,"dry_run":false}',
-                        '12. delete_backward_file -> {"type":"delete_backward_file","path":"relative/path","count":2,"line_number":10,"pattern":"optional anchor","occurrence":1,"dry_run":false}',
-                        '13. replace_range_file -> {"type":"replace_range_file","path":"relative/path","start_line":4,"end_line":7,"content":"replacement block","dry_run":false}',
-                        '14. convert_encoding_file -> {"type":"convert_encoding_file","path":"relative/path","target_encoding":"utf-8","source_encoding":"optional-codec","dry_run":false}',
-                        '15. normalize_line_endings_file -> {"type":"normalize_line_endings_file","path":"relative/path","newline":"lf|crlf|cr","dry_run":false}',
-                        '16. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
-                        '17. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
-                        '18. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
-                        '19. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
-                        '20. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
-                        '21. git_status -> {"type":"git_status"}',
-                        '22. git_diff -> {"type":"git_diff"}',
-                        '23. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
-                        '24. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
-                        '25. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
-                        '26. git_commit -> {"type":"git_commit","message":"commit message"}',
-                        '27. complete -> {"type":"complete","message":"why the current step is done"}',
+                        '7. inspect_metadata_file -> {"type":"inspect_metadata_file","path":"relative/path"}',
+                        '8. write_file -> {"type":"write_file","path":"relative/path","content":"full file contents"}',
+                        '9. apply_patch -> {"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}',
+                        '10. search_replace_file -> {"type":"search_replace_file","path":"relative/path","search":"old text","replace":"new text","count":1,"dry_run":false}',
+                        '11. insert_text_file -> {"type":"insert_text_file","path":"relative/path","content":"text to insert","line_number":12,"pattern":"optional anchor","position":"before|after","occurrence":1,"dry_run":false}',
+                        '12. delete_range_file -> {"type":"delete_range_file","path":"relative/path","start_line":4,"end_line":7,"dry_run":false}',
+                        '13. delete_backward_file -> {"type":"delete_backward_file","path":"relative/path","count":2,"line_number":10,"pattern":"optional anchor","occurrence":1,"dry_run":false}',
+                        '14. replace_range_file -> {"type":"replace_range_file","path":"relative/path","start_line":4,"end_line":7,"content":"replacement block","dry_run":false}',
+                        '15. convert_encoding_file -> {"type":"convert_encoding_file","path":"relative/path","target_encoding":"utf-8","source_encoding":"optional-codec","dry_run":false}',
+                        '16. normalize_line_endings_file -> {"type":"normalize_line_endings_file","path":"relative/path","newline":"lf|crlf|cr","dry_run":false}',
+                        '17. copy_path_file -> {"type":"copy_path_file","source":"relative/path","destination":"relative/path","overwrite":false,"dry_run":false}',
+                        '18. move_path_file -> {"type":"move_path_file","source":"relative/path","destination":"relative/path","overwrite":false,"dry_run":false}',
+                        '19. delete_path_file -> {"type":"delete_path_file","path":"relative/path","recursive":false,"dry_run":false}',
+                        '20. chmod_path_file -> {"type":"chmod_path_file","path":"relative/path","mode":"0644","recursive":false,"dry_run":false}',
+                        '21. chown_path_file -> {"type":"chown_path_file","path":"relative/path","user":"uid-or-name","group":"gid-or-name","recursive":false,"dry_run":false}',
+                        '22. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
+                        '23. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
+                        '24. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
+                        '25. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
+                        '26. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
+                        '27. git_status -> {"type":"git_status"}',
+                        '28. git_diff -> {"type":"git_diff"}',
+                        '29. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
+                        '30. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
+                        '31. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
+                        '32. git_commit -> {"type":"git_commit","message":"commit message"}',
+                        '33. complete -> {"type":"complete","message":"why the current step is done"}',
                     ]
                 ),
             ),
@@ -911,7 +923,7 @@ class Executor:
             f"- shell_backend_selected: {selected_backend.get('selected') or 'unknown'}",
             f"- core_agent_capabilities: shell=true files=true git=true wet_run_required=true",
             f"- model_actions: {', '.join(sorted(ALLOWED_MODEL_ACTIONS))}",
-            "- file_operations: read_file, inspect_file, write_file, apply_patch, search_replace_file, insert_text_file, delete_range_file, delete_backward_file, replace_range_file, convert_encoding_file, normalize_line_endings_file, patch_file, patch_files, preview_patch_files, list_files, search_files",
+            "- file_operations: read_file, inspect_file, inspect_metadata_file, write_file, apply_patch, search_replace_file, insert_text_file, delete_range_file, delete_backward_file, replace_range_file, convert_encoding_file, normalize_line_endings_file, copy_path_file, move_path_file, delete_path_file, chmod_path_file, chown_path_file, patch_file, patch_files, preview_patch_files, list_files, search_files",
             "- git_operations: git_status, git_diff, git_log, git_show, git_file_history, git_commit",
             "- shell_operations: shell, shell_session_create, shell_session_send, shell_session_close",
             f"- project_task: {self.project_handoff.task or 'none'}",
@@ -1217,6 +1229,15 @@ class Executor:
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
+        if action_type == "inspect_metadata_file":
+            result = self.files.inspect_metadata(action.get("path", ""))
+            if result.ok and isinstance(result.report, dict):
+                message = json.dumps(result.report, ensure_ascii=True)
+            else:
+                message = result.error or "File metadata inspection failed."
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
         if action_type == "write_file":
             result = self.files.write(action.get("path", ""), action.get("content", ""))
             message = f"Wrote file {result.path}" if result.ok else result.error
@@ -1313,6 +1334,61 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("normalized", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "copy_path_file":
+            result = self.files.copy_path(
+                action.get("source", ""),
+                action.get("destination", ""),
+                overwrite=bool(action.get("overwrite", False)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("copied", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "move_path_file":
+            result = self.files.move_path(
+                action.get("source", ""),
+                action.get("destination", ""),
+                overwrite=bool(action.get("overwrite", False)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("moved", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "delete_path_file":
+            result = self.files.delete_path(
+                action.get("path", ""),
+                recursive=bool(action.get("recursive", False)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("deleted", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "chmod_path_file":
+            result = self.files.chmod_path(
+                action.get("path", ""),
+                action.get("mode", ""),
+                recursive=bool(action.get("recursive", False)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("chmod-updated", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "chown_path_file":
+            result = self.files.chown_path(
+                action.get("path", ""),
+                user=action.get("user"),
+                group=action.get("group"),
+                recursive=bool(action.get("recursive", False)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("chown-updated", result, dry_run=bool(action.get("dry_run", False)))
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
@@ -1456,6 +1532,7 @@ class Executor:
             "shell_session_send",
             "read_file",
             "inspect_file",
+            "inspect_metadata_file",
             "write_file",
             "apply_patch",
             "search_replace_file",
@@ -1463,6 +1540,13 @@ class Executor:
             "delete_range_file",
             "delete_backward_file",
             "replace_range_file",
+            "convert_encoding_file",
+            "normalize_line_endings_file",
+            "copy_path_file",
+            "move_path_file",
+            "delete_path_file",
+            "chmod_path_file",
+            "chown_path_file",
             "patch_file",
             "patch_files",
             "preview_patch_files",
