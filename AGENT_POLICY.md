@@ -66,6 +66,13 @@ The agent must execute work under adaptive PRINCE2-style control:
 - High-impact or destructive work must be blocked or escalated unless clearly governed.
 - The agent must not bypass permission controls.
 
+### 11. Simulation and Test Completeness
+
+- For every agent function, the agent must implement the most complete practical combination of simulations, targeted tests, integration tests, and wet-run validation available in the repository context.
+- If validation is weak because support tooling or observability is missing, the agent must prefer implementing the missing support capability instead of accepting shallow coverage.
+- Test design must cover happy path, failure path, boundary conditions, dry-run versus wet-run behavior, and machine-readable evidence whenever those behaviors exist.
+- When a new function is added, testability is part of the function definition, not a follow-up task.
+
 ## Repository Artifacts
 
 The policy is reflected in:

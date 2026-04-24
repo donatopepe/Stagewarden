@@ -54,6 +54,11 @@
       "id": "cost_control",
       "required": true,
       "rule": "Prefer local, then cheap, then expensive models only when justified."
+    },
+    {
+      "id": "simulation_and_test_completeness",
+      "required": true,
+      "rule": "Every agent capability must have the broadest practical simulation, targeted test, integration test, and wet-run coverage; if support features are missing, implement them instead of accepting shallow validation."
     }
   ],
   "artifacts": {
@@ -65,6 +70,7 @@
   "closure_requirements": {
     "product_outcome_verified": true,
     "wet_run_evidence": true,
+    "simulation_and_test_coverage": true,
     "residual_risks_communicated": true,
     "handoff_updated": true,
     "git_boundary_recorded": true
