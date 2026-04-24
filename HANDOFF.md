@@ -1777,11 +1777,13 @@ Local Ollama operator lessons captured on 2026-04-24:
   - `roles propose` and approved PRINCE2 role-tree baselines now preload discovered local candidates into delivery-node `assignment_pool.fallback` routes while keeping the primary assignment cloud-first.
   - The persisted baseline now retains `local_execution` metadata end-to-end in `.stagewarden_models.json` and handoff sync, so matrix/runtime views can inspect the planned local fallback routes after reload.
   - Guided `role assign` now asks for the route pool before provider selection, shows node-scoped fallback recommendations, prioritizes `local` for delivery-node fallback assignment when candidates exist, and narrows the local provider-model menu to the recommended discovered models.
-  - `roles setup` and `roles baseline` now expose the preloaded local candidate summary through the approved baseline render, so the operator can verify the planned local fallback set without opening JSON.
+  - `roles setup` manual mode now offers a one-step decision to approve the baseline with recommended local delivery fallbacks already preloaded, so operators do not need to re-enter `role assign` for the common recommended path.
+  - `roles baseline` continues to expose the preloaded local candidate summary through the approved baseline render, so the operator can verify the planned local fallback set without opening JSON.
   - Validation 2026-04-24:
     - new CLI regression covers `roles propose` + dynamic Ollama discovery + persisted fallback routes
     - new interactive-shell regression covers guided `role assign` local fallback recommendation flow
-    - full suite passed: `python3 -m unittest discover -s tests` -> `323 tests`, `OK`, `3 skip`
+    - new interactive-shell regression covers `roles setup` manual approval with recommended local fallback preload
+    - full suite passed: `python3 -m unittest discover -s tests` -> `324 tests`, `OK`, `3 skip`
 
 Next implementation candidates:
 
