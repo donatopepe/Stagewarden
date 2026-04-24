@@ -1746,6 +1746,21 @@ Study targets to extract into Stagewarden:
 - Claude Code npm bundle, official package only: `claude auth status`, rate-limit headers, `rate_limit_event`, `resetsAt`, `rateLimitType`, `overageStatus`, `billing_error`, `authentication_failed`.
 - Caveman: command grammar, hook activation, statusline integration, compression skills, benchmark/test structure.
 
+Local Ollama operator lessons captured on 2026-04-24:
+
+- Codex already exposes `ollama` as a built-in provider, so Stagewarden guidance must never tell users to override `[model_providers.ollama]` in Codex config.
+- Safe local agentic defaults from observed operator testing:
+  - `qwen2.5-coder:7b` for the primary local coding path
+  - `qwen3.5:9b` for a stronger local coding/reasoning path
+  - `deepseek-r1:14b` for slower deep-local reasoning
+- `codestral:latest` is not safe as a default Codex-style agentic route when the bridge reports `does not support tools`; Stagewarden should not recommend it as the primary local preset.
+- Preserve Ollama health checks in operator guidance and future diagnostics:
+  - LaunchAgent path `/usr/local/bin/ollama`
+  - `curl http://127.0.0.1:11434/api/tags`
+  - `ollama ps`
+  - `launchctl print gui/$(id -u)/com.ollama.serve`
+  - `tail -f /tmp/ollama.log`
+
 Next implementation candidates:
 
 - Add `sources update` command that runs `git pull --ff-only` in each reference repo and writes a handoff event with old/new heads.
