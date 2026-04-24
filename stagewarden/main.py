@@ -1015,6 +1015,7 @@ def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str,
                 "role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]",
                 "role wake <node_id> trigger=<name>",
                 "role tick <node_id>",
+                "roles tick [max_nodes]",
             ],
         },
         "agent_capabilities": _agent_capability_surface_for_node(config),
@@ -1159,6 +1160,26 @@ def _tick_prince2_role_node(
         phase="role_tick",
         task=f"role tick {node_id}",
         summary=f"Node {node_id} advanced to {result.get('state', 'unknown')}.",
+        details=dict(result),
+    )
+    return result
+
+
+def _tick_prince2_role_runtime(
+    config: AgentConfig,
+    *,
+    max_nodes: int | None = None,
+) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    result = handoff.tick_prince2_runtime(max_nodes=max_nodes)
+    handoff.save(config.handoff_path)
+    _record_handoff_action(
+        config,
+        phase="roles_tick",
+        task=f"roles tick {max_nodes if max_nodes is not None else ''}".strip(),
+        summary=f"Batch advanced PRINCE2 runtime across {result.get('processed', 0)} node(s).",
         details=dict(result),
     )
     return result
@@ -2455,6 +2476,19 @@ def _handle_role_command(
             return _render_prince2_role_messages(config, node_id=parts[2] if len(parts) == 3 else None)
         if len(parts) == 2 and parts[1] == "runtime":
             return _render_prince2_role_runtime(config)
+        if len(parts) in {2, 3} and parts[1] == "tick":
+            max_nodes = None
+            if len(parts) == 3:
+                try:
+                    max_nodes = int(parts[2])
+                except ValueError:
+                    return "Usage: roles tick [max_nodes]"
+            result = _tick_prince2_role_runtime(config, max_nodes=max_nodes)
+            return (
+                f"Batch advanced PRINCE2 runtime: processed={result.get('processed')} "
+                f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')}.\n"
+                + _render_prince2_role_runtime(config)
+            )
         if len(parts) == 2 and parts[1] == "check":
             return _render_prince2_role_check(config)
         if len(parts) == 2 and parts[1] == "flow":
@@ -2479,7 +2513,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles check | roles flow | roles matrix | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) in {4, 5} and parts[1] == "add-child":
@@ -2672,7 +2706,7 @@ def _handle_role_command(
             _save_model_preferences(config, prefs)
             _sync_prince2_roles_to_handoff(config, prefs)
             return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
-        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id>"
+        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]"
     return None
 
 
@@ -7551,6 +7585,39 @@ def main() -> int:
         else:
             print(_render_prince2_role_runtime(config))
         return 0
+    if task == "roles tick" or task.startswith("roles tick "):
+        max_nodes = None
+        if task != "roles tick":
+            try:
+                max_nodes = int(task.split(maxsplit=2)[2])
+            except (ValueError, IndexError):
+                error_payload = {"command": "roles tick", "ok": False, "error": "Usage: roles tick [max_nodes]"}
+                if args.json:
+                    print(dumps_ascii(error_payload, indent=2))
+                else:
+                    print(error_payload["error"])
+                return 1
+        result = _tick_prince2_role_runtime(config, max_nodes=max_nodes)
+        if args.json:
+            print(
+                dumps_ascii(
+                    {
+                        "command": "roles tick",
+                        "ok": True,
+                        "result": result,
+                        "runtime": _prince2_role_runtime_report(config),
+                        "messages": _prince2_role_messages_report(config),
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            print(
+                f"Batch advanced PRINCE2 runtime: processed={result.get('processed')} "
+                f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')}.\n"
+                + _render_prince2_role_runtime(config)
+            )
+        return 0
     if task == "roles check":
         if args.json:
             print(dumps_ascii(_prince2_role_check_report(config), indent=2))
@@ -7583,7 +7650,7 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text_with_underscores> | role wake <node_id> trigger=<name> | role tick <node_id> | project start [--ai]")
+            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text_with_underscores> | role wake <node_id> trigger=<name> | role tick <node_id> | project start [--ai]")
             return 1
         if args.json:
             if task.startswith("role message "):
@@ -7609,6 +7676,21 @@ def main() -> int:
                             "message": response,
                             "runtime": _prince2_role_runtime_report(config),
                             "messages": _prince2_role_messages_report(config, node_id=node_id),
+                        },
+                        indent=2,
+                    )
+                )
+            elif task.startswith("roles tick"):
+                print(
+                    dumps_ascii(
+                        {
+                            "command": task,
+                            "result": _tick_prince2_role_runtime(
+                                config,
+                                max_nodes=int(task.split(maxsplit=2)[2]) if len(task.split(maxsplit=2)) == 3 else None,
+                            ),
+                            "runtime": _prince2_role_runtime_report(config),
+                            "messages": _prince2_role_messages_report(config),
                         },
                         indent=2,
                     )

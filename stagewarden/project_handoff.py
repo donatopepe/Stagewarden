@@ -889,6 +889,87 @@ class ProjectHandoff:
             }
         raise ValueError(f"Node '{node_id}' is not ready to tick from state '{state}'.")
 
+    def tick_prince2_runtime(self, *, max_nodes: int | None = None) -> dict[str, Any]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        if not runtime:
+            raise ValueError("No materialized PRINCE2 node runtime. Approve a role-tree baseline first.")
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        if not nodes:
+            raise ValueError("No materialized PRINCE2 nodes are available to tick.")
+        limit = max_nodes if isinstance(max_nodes, int) and max_nodes > 0 else len(nodes)
+        processed = 0
+        woken = 0
+        progressed = 0
+        skipped = 0
+        results: list[dict[str, Any]] = []
+        for node in nodes:
+            if processed >= limit:
+                break
+            node_id = str(node.get("node_id", "")).strip()
+            if not node_id:
+                continue
+            processed += 1
+            state = str(node.get("state", "idle")).strip().lower() or "idle"
+            inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
+            if state == "waiting" and inbox:
+                allowed = [str(item).strip() for item in node.get("wake_triggers", []) if str(item).strip()]
+                if "message_received" in allowed:
+                    woke_node = self.wake_prince2_node(node_id=node_id, trigger="message_received")
+                    state = str(woke_node.get("state", "ready")).strip().lower() or "ready"
+                    woken += 1
+                    results.append(
+                        {
+                            "node_id": node_id,
+                            "action": "wake",
+                            "state": state,
+                            "reason": "message_received",
+                        }
+                    )
+                else:
+                    skipped += 1
+                    results.append(
+                        {
+                            "node_id": node_id,
+                            "action": "skip",
+                            "state": state,
+                            "reason": "message_waiting_without_authorized_trigger",
+                        }
+                    )
+                    continue
+            if state in {"ready", "running", "completed"}:
+                tick = self.tick_prince2_node(node_id=node_id)
+                progressed += 1
+                results.append(
+                    {
+                        "node_id": node_id,
+                        "action": "tick",
+                        "state": tick.get("state", state),
+                        "consumed_message": tick.get("consumed_message"),
+                        "remaining_inbox": tick.get("remaining_inbox", 0),
+                    }
+                )
+                continue
+            skipped += 1
+            results.append(
+                {
+                    "node_id": node_id,
+                    "action": "skip",
+                    "state": state,
+                    "reason": "not_ready",
+                }
+            )
+        self.updated_at = _utc_now()
+        return {
+            "command": "roles tick",
+            "processed": processed,
+            "woken": woken,
+            "progressed": progressed,
+            "skipped": skipped,
+            "max_nodes": limit,
+            "results": results,
+            "summary": self.prince2_node_runtime_summary(),
+        }
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",
