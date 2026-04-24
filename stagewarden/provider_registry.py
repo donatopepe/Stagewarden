@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 from dataclasses import dataclass
+from urllib.error import URLError
+from urllib.request import urlopen
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,26 +44,17 @@ PROVIDER_CAPABILITIES: dict[str, ProviderCapability] = {
         provider_label="ollama",
         backend_label="local/ollama",
         auth_type="none",
-        model_aliases=(
-            "provider-default",
-            "qwen2.5-coder:7b",
-            "qwen3.5:9b",
-            "deepseek-r1:14b",
-            "sqlcoder:15b",
-            "gpt-oss:20b",
-            "Qwen3-Coder:latest",
-            "codestral:latest",
-        ),
+        model_aliases=("provider-default",),
         default_model="provider-default",
-        context_assumption="Local Ollama context depends on the selected local model; prefer tool-capable coding models for agentic execution.",
+        context_assumption="Local Ollama context depends on the selected local model discovered at runtime from the local Ollama registry.",
         supports_account_profiles=False,
         supports_browser_login=False,
         supports_api_key=False,
         token_env="",
         model_env="OLLAMA_MODEL",
         login_url="",
-        login_hint="No login required. Configure Ollama and optionally OLLAMA_MODEL. For agentic use prefer qwen2.5-coder:7b or qwen3.5:9b over models that do not support tools.",
-        source="workspace/provider setting + local Ollama operator guidance",
+        login_hint="No login required. Configure Ollama and optionally OLLAMA_MODEL. Stagewarden discovers local models dynamically from Ollama.",
+        source="workspace/provider setting + dynamic Ollama discovery",
     ),
     "cheap": ProviderCapability(
         name="cheap",
@@ -162,69 +157,6 @@ PROVIDER_MODEL_SPECS: dict[str, tuple[ProviderModelSpec, ...]] = {
             availability="workspace",
             source="workspace/provider setting",
         ),
-        ProviderModelSpec(
-            id="qwen2.5-coder:7b",
-            label="Qwen 2.5 Coder 7B",
-            reasoning_efforts=("low", "medium"),
-            reasoning_default="medium",
-            context_window_hint="Recommended local agentic default for Codex-style file/tool work.",
-            availability="local-agentic",
-            source="local Ollama operator guidance",
-        ),
-        ProviderModelSpec(
-            id="qwen3.5:9b",
-            label="Qwen 3.5 9B",
-            reasoning_efforts=("medium", "high"),
-            reasoning_default="medium",
-            context_window_hint="Stronger local general reasoning choice when qwen2.5-coder is insufficient.",
-            availability="local-agentic",
-            source="local Ollama operator guidance",
-        ),
-        ProviderModelSpec(
-            id="deepseek-r1:14b",
-            label="DeepSeek R1 14B",
-            reasoning_efforts=("medium", "high"),
-            reasoning_default="high",
-            context_window_hint="Use for deeper local reasoning when latency is acceptable.",
-            availability="local-agentic",
-            source="local Ollama operator guidance",
-        ),
-        ProviderModelSpec(
-            id="sqlcoder:15b",
-            label="SQLCoder 15B",
-            reasoning_efforts=("medium",),
-            reasoning_default="medium",
-            context_window_hint="Specialized local SQL work; narrower than the default coding path.",
-            availability="local-specialized",
-            source="local Ollama operator guidance",
-        ),
-        ProviderModelSpec(
-            id="gpt-oss:20b",
-            label="GPT-OSS 20B",
-            reasoning_efforts=("medium", "high"),
-            reasoning_default="medium",
-            context_window_hint="Large local general model; validate tool behavior before using as the default agentic route.",
-            availability="local-experimental",
-            source="local Ollama operator guidance",
-        ),
-        ProviderModelSpec(
-            id="Qwen3-Coder:latest",
-            label="Qwen3 Coder Latest",
-            reasoning_efforts=("medium", "high"),
-            reasoning_default="medium",
-            context_window_hint="Large local coding model; useful when RAM and latency allow.",
-            availability="local-agentic",
-            source="local Ollama operator guidance",
-        ),
-        ProviderModelSpec(
-            id="codestral:latest",
-            label="Codestral Latest",
-            reasoning_efforts=("low", "medium"),
-            reasoning_default="low",
-            context_window_hint="Not suitable as the default agentic path when the local Codex/Ollama bridge reports no tool support.",
-            availability="local-limited",
-            source="local Ollama operator guidance",
-        ),
     ),
     "cheap": (
         ProviderModelSpec(
@@ -272,6 +204,150 @@ PROVIDER_MODEL_SPECS: dict[str, tuple[ProviderModelSpec, ...]] = {
 SUPPORTED_MODELS = tuple(PROVIDER_CAPABILITIES.keys())
 
 
+def _ollama_base_url() -> str:
+    return os.environ.get("STAGEWARDEN_OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+
+
+def _parse_parameter_size_billions(parameter_size: str) -> float | None:
+    match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*B", str(parameter_size), re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def _dynamic_local_reasoning_efforts(name: str, parameter_size: str) -> tuple[tuple[str, ...], str | None]:
+    lowered = name.lower()
+    size_b = _parse_parameter_size_billions(parameter_size)
+    if "sqlcoder" in lowered:
+        return ("medium",), "medium"
+    if "deepseek" in lowered or "r1" in lowered:
+        return ("medium", "high"), "high"
+    if "coder" in lowered:
+        if size_b is not None and size_b <= 10:
+            return ("low", "medium"), "medium"
+        return ("medium", "high"), "medium"
+    if size_b is not None and size_b <= 8:
+        return ("low", "medium"), "medium"
+    return ("medium", "high"), "medium"
+
+
+def _dynamic_local_availability(name: str, remote_host: str) -> str:
+    lowered = name.lower()
+    if remote_host:
+        return "local-remote"
+    if "codestral" in lowered:
+        return "local-limited"
+    if "sqlcoder" in lowered:
+        return "local-specialized"
+    if "coder" in lowered or "deepseek" in lowered:
+        return "local-agentic"
+    return "local-available"
+
+
+def _dynamic_local_hint(name: str, details: dict[str, object], remote_host: str) -> str:
+    lowered = name.lower()
+    parameter_size = str(details.get("parameter_size", "") or "").strip()
+    family = str(details.get("family", "") or "").strip()
+    quant = str(details.get("quantization_level", "") or "").strip()
+    parts: list[str] = []
+    if parameter_size:
+        parts.append(f"size={parameter_size}")
+    if family:
+        parts.append(f"family={family}")
+    if quant:
+        parts.append(f"quant={quant}")
+    if remote_host:
+        parts.append(f"remote_host={remote_host}")
+    if "codestral" in lowered:
+        parts.append("validate tool support before agentic use")
+    elif "sqlcoder" in lowered:
+        parts.append("specialized for SQL-oriented work")
+    elif "deepseek" in lowered or "r1" in lowered:
+        parts.append("better fit for deeper local reasoning")
+    elif "coder" in lowered:
+        parts.append("strong candidate for local coding/tool workflows")
+    return "; ".join(parts) or "Discovered dynamically from Ollama tags."
+
+
+def _dynamic_local_label(name: str) -> str:
+    base = name.split(":", 1)[0].replace("-", " ").replace("_", " ").strip()
+    if not base:
+        return name
+    return " ".join(part.upper() if part.isupper() else part.capitalize() for part in base.split())
+
+
+def _discover_local_provider_model_specs() -> tuple[ProviderModelSpec, ...]:
+    base_url = _ollama_base_url()
+    request_url = f"{base_url}/api/tags"
+    try:
+        with urlopen(request_url, timeout=1.5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, URLError, ValueError, json.JSONDecodeError):
+        return PROVIDER_MODEL_SPECS["local"]
+    models = payload.get("models", [])
+    if not isinstance(models, list):
+        return PROVIDER_MODEL_SPECS["local"]
+    specs: list[ProviderModelSpec] = [PROVIDER_MODEL_SPECS["local"][0]]
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        model_id = str(item.get("name") or item.get("model") or "").strip()
+        if not model_id:
+            continue
+        details = item.get("details", {})
+        if not isinstance(details, dict):
+            details = {}
+        reasoning_efforts, reasoning_default = _dynamic_local_reasoning_efforts(
+            model_id,
+            str(details.get("parameter_size", "") or ""),
+        )
+        remote_host = str(item.get("remote_host", "") or "").strip()
+        specs.append(
+            ProviderModelSpec(
+                id=model_id,
+                label=_dynamic_local_label(model_id),
+                reasoning_efforts=reasoning_efforts,
+                reasoning_default=reasoning_default,
+                context_window_hint=_dynamic_local_hint(model_id, details, remote_host),
+                availability=_dynamic_local_availability(model_id, remote_host),
+                source=f"dynamic Ollama discovery ({request_url})",
+            )
+        )
+    unique: dict[str, ProviderModelSpec] = {}
+    for spec in specs:
+        unique[spec.id] = spec
+    return tuple(unique.values())
+
+
+def _choose_dynamic_local_preset(discovered: tuple[ProviderModelSpec, ...], preset: str) -> tuple[str, dict[str, str]]:
+    normalized = str(preset).strip().lower()
+    ids = {spec.id: spec for spec in discovered}
+    ordered_ids = [spec.id for spec in discovered if spec.id != "provider-default"]
+    preference_groups: dict[str, tuple[str, ...]] = {
+        "fast": ("qwen2.5-coder:7b", "qwen3.5:9b", "Qwen3-Coder:latest"),
+        "balanced": ("qwen2.5-coder:7b", "qwen3.5:9b", "deepseek-r1:14b", "Qwen3-Coder:latest"),
+        "deep": ("qwen3.5:9b", "deepseek-r1:14b", "Qwen3-Coder:latest", "gpt-oss:20b"),
+        "plan": ("deepseek-r1:14b", "qwen3.5:9b", "gpt-oss:20b", "Qwen3-Coder:latest"),
+    }
+    defaults = {
+        "fast": {"reasoning_effort": "low"},
+        "balanced": {"reasoning_effort": "medium"},
+        "deep": {"reasoning_effort": "high"},
+        "plan": {"reasoning_effort": "high"},
+    }
+    if normalized not in defaults:
+        raise ValueError(f"Unsupported preset '{preset}' for local. Allowed: fast, balanced, deep, plan")
+    for candidate in preference_groups[normalized]:
+        if candidate in ids:
+            return candidate, dict(defaults[normalized])
+    if ordered_ids:
+        return ordered_ids[0], dict(defaults[normalized])
+    return "provider-default", {}
+
+
 def provider_capability(model: str) -> ProviderCapability:
     try:
         return PROVIDER_CAPABILITIES[model]
@@ -280,6 +356,8 @@ def provider_capability(model: str) -> ProviderCapability:
 
 
 def available_model_variants(model: str) -> tuple[str, ...]:
+    if model == "local":
+        return tuple(spec.id for spec in provider_model_specs(model))
     return provider_capability(model).model_aliases
 
 
@@ -330,6 +408,8 @@ def login_urls() -> dict[str, str]:
 
 def provider_model_specs(model: str) -> tuple[ProviderModelSpec, ...]:
     try:
+        if model == "local":
+            return _discover_local_provider_model_specs()
         return PROVIDER_MODEL_SPECS[model]
     except KeyError as exc:
         raise ValueError(f"Unsupported model '{model}'.") from exc
@@ -368,12 +448,12 @@ def provider_model_preset(model: str, preset: str) -> tuple[str, dict[str, str]]
             "balanced": ("provider-default", {"reasoning_effort": "medium"}),
         },
         "local": {
-            "fast": ("qwen2.5-coder:7b", {"reasoning_effort": "low"}),
-            "balanced": ("qwen2.5-coder:7b", {"reasoning_effort": "medium"}),
-            "deep": ("qwen3.5:9b", {"reasoning_effort": "high"}),
-            "plan": ("deepseek-r1:14b", {"reasoning_effort": "high"}),
+            "fast": ("provider-default", {}),
+            "balanced": ("provider-default", {}),
         },
     }
+    if model == "local":
+        return _choose_dynamic_local_preset(provider_model_specs("local"), normalized)
     provider_presets = presets.get(model, {})
     if normalized not in provider_presets:
         raise ValueError(

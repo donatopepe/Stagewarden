@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import os
 import unittest
+from unittest.mock import patch
 
 from stagewarden.provider_registry import (
     SUPPORTED_MODELS,
@@ -11,6 +14,20 @@ from stagewarden.provider_registry import (
     provider_model_preset,
     provider_model_specs,
 )
+
+
+class _FakeResponse:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self.payload = json.dumps(payload).encode("utf-8")
+
+    def read(self) -> bytes:
+        return self.payload
+
+    def __enter__(self) -> "_FakeResponse":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        return False
 
 
 class ProviderRegistryTests(unittest.TestCase):
@@ -32,21 +49,45 @@ class ProviderRegistryTests(unittest.TestCase):
         backends = model_backends()
         self.assertEqual(backends["claude"]["label"], "claude/sonnet")
         self.assertIn("opusplan", available_model_variants("claude"))
-        self.assertIn("qwen2.5-coder:7b", available_model_variants("local"))
         self.assertEqual(canonicalize_model_variant("openai", "gpt-5.4-mini"), "gpt-5.4-mini")
 
-    def test_local_provider_exposes_agentic_safe_presets_and_specs(self) -> None:
-        specs = {spec.id: spec for spec in provider_model_specs("local")}
-        self.assertIn("qwen2.5-coder:7b", specs)
-        self.assertIn("codestral:latest", specs)
-        self.assertIn("tool support", specs["codestral:latest"].context_window_hint.lower())
+    def test_local_provider_uses_dynamic_ollama_catalog_and_presets(self) -> None:
+        original = os.environ.get("STAGEWARDEN_OLLAMA_BASE_URL")
+        os.environ["STAGEWARDEN_OLLAMA_BASE_URL"] = "http://127.0.0.1:11434"
+        self.addCleanup(lambda: os.environ.pop("STAGEWARDEN_OLLAMA_BASE_URL", None) if original is None else os.environ.__setitem__("STAGEWARDEN_OLLAMA_BASE_URL", original))
+        payload = {
+            "models": [
+                {
+                    "name": "qwen2.5-coder:7b",
+                    "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                },
+                {
+                    "name": "deepseek-r1:14b",
+                    "details": {"family": "qwen2", "parameter_size": "14.8B", "quantization_level": "Q4_K_M"},
+                },
+                {
+                    "name": "codestral:latest",
+                    "details": {"family": "llama", "parameter_size": "22.2B", "quantization_level": "Q4_0"},
+                },
+            ]
+        }
+        with patch("stagewarden.provider_registry.urlopen", return_value=_FakeResponse(payload)):
+            specs = {spec.id: spec for spec in provider_model_specs("local")}
 
-        fast_model, fast_params = provider_model_preset("local", "fast")
-        plan_model, plan_params = provider_model_preset("local", "plan")
-        self.assertEqual(fast_model, "qwen2.5-coder:7b")
-        self.assertEqual(fast_params["reasoning_effort"], "low")
-        self.assertEqual(plan_model, "deepseek-r1:14b")
-        self.assertEqual(plan_params["reasoning_effort"], "high")
+            self.assertIn("qwen2.5-coder:7b", specs)
+            self.assertIn("deepseek-r1:14b", specs)
+            self.assertIn("codestral:latest", specs)
+            self.assertEqual(specs["qwen2.5-coder:7b"].availability, "local-agentic")
+            self.assertEqual(specs["codestral:latest"].availability, "local-limited")
+            self.assertIn("validate tool support", specs["codestral:latest"].context_window_hint.lower())
+            self.assertIn("qwen2.5-coder:7b", available_model_variants("local"))
+
+            fast_model, fast_params = provider_model_preset("local", "fast")
+            plan_model, plan_params = provider_model_preset("local", "plan")
+            self.assertEqual(fast_model, "qwen2.5-coder:7b")
+            self.assertEqual(fast_params["reasoning_effort"], "low")
+            self.assertEqual(plan_model, "deepseek-r1:14b")
+            self.assertEqual(plan_params["reasoning_effort"], "high")
 
 
 if __name__ == "__main__":

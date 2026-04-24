@@ -5802,8 +5802,12 @@ def _handle_model_command(
             if model not in SUPPORTED_MODELS:
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
             capability = provider_capability(model)
-            source = MODEL_VARIANT_CATALOG[model]["source"]
             specs = provider_model_specs(model)
+            source = (
+                next((spec.source for spec in specs if spec.id != "provider-default" and spec.source), capability.source)
+                if model == "local"
+                else MODEL_VARIANT_CATALOG[model]["source"]
+            )
             lines = [
                 f"Provider-model catalog for {model}:",
                 f"Default provider-model: {capability.default_model}",
