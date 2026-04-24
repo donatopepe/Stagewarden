@@ -4904,16 +4904,34 @@ def _preflight_remediations(
     if not getattr(git_status, "ok", False):
         items.append({"severity": "warning", "code": "git_status", "action": "Run `/doctor` and confirm this folder is a git worktree."})
     if getattr(git_dirty, "ok", False) and getattr(git_dirty, "stdout", "").strip():
-        items.append({"severity": "warning", "code": "dirty_git", "action": "Review `/git status`; commit or let Stagewarden checkpoint before execution."})
+        items.append(
+            {
+                "severity": "warning",
+                "code": "dirty_git",
+                "action": "Run `/git status`, then commit or checkpoint before execution. If the tree is intentionally dirty, confirm the boundary with `/report` and `/board` before continuing.",
+            }
+        )
     if role_check.get("status") == "error":
-        items.append({"severity": "warning", "code": "roles", "action": "Run `/roles setup` or `/roles propose` before PRINCE2 role-routed work."})
+        items.append(
+            {
+                "severity": "warning",
+                "code": "roles",
+                "action": "Run `/roles setup` for guided configuration or `/roles propose` for automatic PRINCE2 routing, then confirm with `/roles baseline` before role-routed work.",
+            }
+        )
     blocked = [
         str(provider["provider"])
         for provider in provider_limits.get("providers", [])
         if isinstance(provider, dict) and provider.get("blocked_until")
     ]
     if blocked:
-        items.append({"severity": "warning", "code": "provider_limits", "action": f"Blocked providers: {', '.join(blocked)}. Run `/model limits` and choose another provider or wait."})
+        items.append(
+            {
+                "severity": "warning",
+                "code": "provider_limits",
+                "action": f"Blocked providers: {', '.join(blocked)}. Run `/model limits`, switch route with `/model use <provider>` or `/account use <provider> <profile>`, or wait for reset before execution.",
+            }
+        )
     stale = [
         str(provider["provider"])
         for provider in provider_limits.get("providers", [])
@@ -4930,7 +4948,13 @@ def _preflight_remediations(
     if not sources.get("ok"):
         items.append({"severity": "warning", "code": "sources", "action": "Run `/sources status` before source-derived implementation work."})
     if stage_view.get("recovery_state") != "none":
-        items.append({"severity": "warning", "code": "recovery", "action": "Review `/exception` and close recovery lane before normal-stage work."})
+        items.append(
+            {
+                "severity": "warning",
+                "code": "recovery",
+                "action": "Run `/exception` to inspect the active recovery lane, then use `/report`, `/board`, or `/project start` only after the exception path is closed and the stage is re-baselined.",
+            }
+        )
     return items
 
 
