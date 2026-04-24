@@ -4752,6 +4752,33 @@ class TraceAndCliTests(unittest.TestCase):
             remediation_codes = {item["code"] for item in payload["remediations"]}
             self.assertIn("provider_limits_stale", remediation_codes)
 
+    def test_status_remediations_include_explicit_next_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "local"]
+            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.save(root / ".stagewarden_models.json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            handoff.status = "exception"
+            handoff.exception_plan = ["Rebaseline stage before continuing."]
+            handoff.save(root / ".stagewarden_handoff.json")
+            (root / "dirty.txt").write_text("x\n", encoding="utf-8")
+            subprocess.run(["git", "init"], cwd=root, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "add", "dirty.txt"], cwd=root, capture_output=True, text=True, check=True)
+
+            completed = run_main_capture(root, "status", "--full", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            by_code = {item["code"]: item["action"] for item in payload["remediations"]}
+            self.assertIn("/roles setup", by_code["roles"])
+            self.assertIn("/roles propose", by_code["roles"])
+            self.assertIn("/model limits", by_code["provider_limits"])
+            self.assertIn("/model use <provider>", by_code["provider_limits"])
+            self.assertIn("/git status", by_code["dirty_git"])
+            self.assertIn("/exception", by_code["recovery"])
+
     def test_status_full_reports_local_fallback_partial_remediation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
