@@ -1760,6 +1760,11 @@ Local Ollama operator lessons captured on 2026-04-24:
   - `ollama ps`
   - `launchctl print gui/$(id -u)/com.ollama.serve`
   - `tail -f /tmp/ollama.log`
+- Dynamic local-model discovery rule 2026-04-24:
+  - Stagewarden must not maintain a static catalog for provider `local`.
+  - `model list local`, guided menus, and local presets must derive the runtime inventory from Ollama tags, with only `provider-default` as a technical fallback when discovery is unavailable.
+  - `model inspect local [provider_model]` now asks an available model to synthesize the peculiarities of the discovered local models and merges that synthesis with the raw Ollama metadata.
+  - If the AI inspection call fails or returns invalid JSON, Stagewarden falls back to metadata-derived local profiles instead of blocking the operator.
 
 Next implementation candidates:
 
