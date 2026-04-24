@@ -651,6 +651,56 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["rate_limits_summary"]["stale_models"], ["chatgpt"])
             self.assertEqual(payload["rate_limits_summary"]["blocked_accounts"], ["claude:team"])
 
+    def test_status_and_control_expose_local_fallback_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON")
+            os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = json.dumps(
+                {
+                    "models": [
+                        {
+                            "name": "qwen2.5-coder:7b",
+                            "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                        },
+                        {
+                            "name": "deepseek-r1:14b",
+                            "details": {"family": "qwen2", "parameter_size": "14.8B", "quantization_level": "Q4_K_M"},
+                        },
+                    ]
+                }
+            )
+            try:
+                handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+                handoff.task = "build a governed CLI coding agent"
+                handoff.save(root / ".stagewarden_handoff.json")
+                self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+                self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+                self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+                self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+                self.assertEqual(run_main_capture(root, "project start").returncode, 0)
+                status_json = run_main_capture(root, "statusline", "--json")
+                control_json = run_main_capture(root, "roles control", "--json")
+                status_text = run_main_capture(root, "status")
+            finally:
+                if original is None:
+                    os.environ.pop("STAGEWARDEN_OLLAMA_TAGS_JSON", None)
+                else:
+                    os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = original
+
+            self.assertEqual(status_json.returncode, 0, status_json.stderr)
+            self.assertEqual(control_json.returncode, 0, control_json.stderr)
+            self.assertEqual(status_text.returncode, 0, status_text.stderr)
+            status_payload = json.loads(status_json.stdout)
+            control_payload = json.loads(control_json.stdout)
+            self.assertEqual(status_payload["local_fallback"]["status"], "ready")
+            self.assertEqual(status_payload["local_fallback"]["delivery_nodes_with_local_fallback"], 2)
+            self.assertIn("deepseek-r1:14b", status_payload["local_fallback"]["candidate_ids"])
+            self.assertEqual(control_payload["local_fallback"]["status"], "ready")
+            self.assertGreaterEqual(control_payload["local_fallback"]["delivery_nodes"], 1)
+            self.assertIn("qwen2.5-coder:7b", control_payload["local_fallback"]["candidate_ids"])
+            self.assertIn("Local fallback readiness:", status_text.stdout)
+            self.assertIn("status=ready", status_text.stdout)
+
     def test_statusline_cli_json_exposes_context_usage_from_memory(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
