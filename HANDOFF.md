@@ -509,7 +509,7 @@ Grouped execution plan for `P6` from 2026-04-24:
 - `P6-G4` User and model surfaces:
 - expose runtime tree/node status, queues, active waits, recent node messages, and controlled wake/resume commands through status/help/JSON surfaces and model capability packets.
 - success condition: the user and routed models can inspect the live PRINCE2 runtime organization safely and clearly.
-- status 2026-04-24: context-packet slice complete. Each node can now expose a structured AI context packet that combines runtime state, PRINCE2 role scope, communications, and real Stagewarden capability surfaces.
+- status 2026-04-24: expanded supervision slice complete. Each node can now expose a structured AI context packet, and the live runtime now also has compact supervision views for active nodes and queue pressure.
 
 Pack `P6-G1` validation evidence:
 
@@ -572,6 +572,11 @@ Pack `P6-G4` validation evidence:
 - Validation 2026-04-24: internal prompt render check confirmed the executor prompt contains `node_id: management.project_manager`, `context_include: stage_plan, registers`, and `communication_incoming_edges: authorize.project`.
 - Note 2026-04-24: this earlier `P5-G2` blocker is now closed. Preserve-content file rewrites no longer corrupt Unicode by forcing ASCII escapes during encoding conversion or newline normalization.
 - Executor integration detail 2026-04-24: the prompt packet now carries runtime state, wake triggers, queue counts, transcript refs, assignment route, PRINCE2 include/exclude slices, communication commands, and real Stagewarden capability surfaces for the active node IA.
+- Added `roles active` for compact inspection of non-completed runtime nodes.
+- Added `roles queues` for compact supervision of inbox/outbox pressure across the materialized PRINCE2 runtime.
+- Validation 2026-04-24: targeted runtime supervision tests passed (`3 tests`, `OK`).
+- Wet-run 2026-04-24: real CLI JSON execution of `roles active` and `roles queues` passed after queuing a governed node message; supervision showed `ACTIVE 2`, `INBOX_TOTAL 1`, and `OUTBOX_TOTAL 1`.
+- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 316 tests, 3 expected skips.
 
 Pack `P5-G2` validation evidence:
 
