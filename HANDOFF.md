@@ -1226,14 +1226,14 @@ Implemented behaviour:
 
 - Track model usage counts from persisted execution attempts.
 - Record model chosen per step in handoff through existing step completion entries.
-- Expose budget policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.
+- Expose budget policy: prefer cloud analysis first, then use local only when available and selected from discovered local-model characteristics or as fallback.
 - Expose `models usage` and `cost` shell commands.
 
 Validation:
 
 - Memory tests cover model usage counts, failures, step coverage, and cost tiers.
 - CLI tests cover `models usage` and `cost` alias.
-- Existing router tests continue to validate local-first/simple-task routing.
+- Existing router tests continue to validate cloud-first/simple-task routing and no assumption that local models are installed.
 - Failures escalate according to policy.
 - Usage summary is visible in shell.
 

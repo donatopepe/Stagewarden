@@ -6,7 +6,7 @@ from .provider_registry import SUPPORTED_MODELS
 
 
 class ModelRouter:
-    ORDER = SUPPORTED_MODELS
+    ORDER = ("cheap", "chatgpt", "openai", "claude", "local")
 
     def __init__(self) -> None:
         self.enabled_models = set(self.ORDER)
@@ -63,7 +63,7 @@ class ModelRouter:
         if failure_count >= 3:
             return self._best_available("claude")
         if failure_count >= 2:
-            return self._best_available("chatgpt")
+            return self._best_available("openai")
 
         text = f"{task} {step_text}".lower()
         risky_tokens = ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")
@@ -85,10 +85,10 @@ class ModelRouter:
         if any(token in text for token in debug_tokens) and any(token in text for token in ("complex", "traceback")):
             return self._best_available("chatgpt")
         if complexity <= 1:
-            return self._best_available("local")
-        if complexity <= 3:
             return self._best_available("cheap")
-        return self._best_available("chatgpt")
+        if complexity <= 3:
+            return self._best_available("chatgpt")
+        return self._best_available("openai")
 
     def escalate(self, current: str) -> str:
         if current == "chatgpt":
@@ -106,13 +106,13 @@ class ModelRouter:
 
     def fallback_for_api_failure(self, current: str) -> str:
         if current == "chatgpt":
-            return self._best_available("cheap")
-        if current == "openai":
-            return self._best_available("chatgpt")
-        if current == "claude":
             return self._best_available("openai")
-        if current == "cheap":
+        if current == "openai":
+            return self._best_available("claude")
+        if current == "claude":
             return self._best_available("local")
+        if current == "cheap":
+            return self._best_available("chatgpt")
         return self._best_available("local")
 
     def choose_variant(self, model: str, task: str, step_text: str, failure_count: int = 0) -> str | None:

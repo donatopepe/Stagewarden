@@ -6,9 +6,9 @@ from stagewarden.router import ModelRouter
 
 
 class RouterTests(unittest.TestCase):
-    def test_simple_task_prefers_local(self) -> None:
+    def test_simple_task_prefers_cloud_entry_tier(self) -> None:
         router = ModelRouter()
-        self.assertEqual(router.choose_model("list files", "inspect workspace"), "local")
+        self.assertEqual(router.choose_model("list files", "inspect workspace"), "cheap")
 
     def test_complex_debug_task_prefers_gpt(self) -> None:
         router = ModelRouter()
@@ -22,12 +22,12 @@ class RouterTests(unittest.TestCase):
 
     def test_failure_escalation_progression(self) -> None:
         router = ModelRouter()
-        self.assertEqual(router.choose_model("x", "y", failure_count=2), "chatgpt")
+        self.assertEqual(router.choose_model("x", "y", failure_count=2), "openai")
         self.assertEqual(router.choose_model("x", "y", failure_count=3), "claude")
         self.assertEqual(router.escalate("chatgpt"), "openai")
         self.assertEqual(router.escalate("openai"), "claude")
-        self.assertEqual(router.fallback_for_api_failure("chatgpt"), "cheap")
-        self.assertEqual(router.fallback_for_api_failure("openai"), "chatgpt")
+        self.assertEqual(router.fallback_for_api_failure("chatgpt"), "openai")
+        self.assertEqual(router.fallback_for_api_failure("openai"), "claude")
 
     def test_router_chooses_provider_specific_variants(self) -> None:
         router = ModelRouter()
