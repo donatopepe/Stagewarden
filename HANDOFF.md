@@ -1801,7 +1801,13 @@ Local Ollama operator lessons captured on 2026-04-24:
 
 Next implementation candidates:
 
-- Add Claude-style provider-limit fields: `rate_limit_type`, `utilization`, `resets_at`, `overage_status`, `overage_resets_at`, `overage_disabled_reason`.
+- Provider-limit telemetry alignment completed on 2026-04-24:
+  - `status --full --json`, `statusline --json`, and `model limits --json` now share one normalized provider-limit contract.
+  - Added consistent fields across surfaces: `rate_limit_type`, `utilization`, `resets_at`, `overage_status`, `overage_resets_at`, `overage_disabled_reason`.
+  - Added normalized blocked-account detail in `model limits --json` and `status --full --json`, including per-account `status`, `rate_limit_type`, `resets_at`, and stale markers.
+  - Validation 2026-04-24:
+    - targeted regressions passed for `status --full --json`, `statusline --json`, and `model limits --json`
+    - full suite passed: `python3 -m unittest discover -s tests` -> `330 tests`, `OK`, `3 skip`
 
 ## Status Research: Codex and Claude
 
