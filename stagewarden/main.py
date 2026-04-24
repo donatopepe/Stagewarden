@@ -860,6 +860,59 @@ def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
+def _delivery_local_fallback_report(config: AgentConfig) -> dict[str, object]:
+    baseline = _prince2_role_tree_baseline_report(config).get("baseline", {})
+    if not isinstance(baseline, dict) or not baseline:
+        return {
+            "status": "missing",
+            "delivery_nodes": 0,
+            "delivery_nodes_with_local_fallback": 0,
+            "candidate_ids": [],
+            "ready_nodes": [],
+            "message": "No approved baseline available.",
+        }
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = [item for item in tree.get("nodes", []) if isinstance(item, dict)]
+    delivery_nodes = [item for item in nodes if str(item.get("level", "")).startswith("delivery")]
+    ready_nodes: list[dict[str, object]] = []
+    candidate_ids: list[str] = []
+    for node in delivery_nodes:
+        node_candidates = [str(item).strip() for item in node.get("local_execution_candidates", []) if str(item).strip()]
+        for item in node_candidates:
+            if item not in candidate_ids:
+                candidate_ids.append(item)
+        pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
+        fallback_routes = [dict(item) for item in pools.get("fallback", []) if isinstance(item, dict)]
+        local_routes = [item for item in fallback_routes if str(item.get("provider", "")).strip() == "local"]
+        if local_routes:
+            ready_nodes.append(
+                {
+                    "node_id": str(node.get("node_id", "")),
+                    "label": str(node.get("label", node.get("node_id", ""))),
+                    "local_candidates": node_candidates,
+                    "fallback_models": [
+                        str(item.get("provider_model", "")).strip()
+                        for item in local_routes
+                        if str(item.get("provider_model", "")).strip()
+                    ],
+                }
+            )
+    status = "ready" if ready_nodes else ("available" if candidate_ids else "missing")
+    message = (
+        f"{len(ready_nodes)}/{len(delivery_nodes)} delivery node(s) have preloaded local fallback routes."
+        if delivery_nodes
+        else "No delivery nodes in the approved baseline."
+    )
+    return {
+        "status": status,
+        "delivery_nodes": len(delivery_nodes),
+        "delivery_nodes_with_local_fallback": len(ready_nodes),
+        "candidate_ids": candidate_ids,
+        "ready_nodes": ready_nodes,
+        "message": message,
+    }
+
+
 def _prince2_role_tree_baseline_matrix_report(config: AgentConfig) -> dict[str, object]:
     report = _prince2_role_tree_baseline_report(config)
     baseline = report.get("baseline", {})
@@ -922,14 +975,46 @@ def _prince2_role_control_report(config: AgentConfig) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     _sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_control_report()
+    report = handoff.prince2_node_control_report()
+    report["local_fallback"] = _delivery_local_fallback_report(config)
+    return report
 
 
 def _render_prince2_role_control(config: AgentConfig) -> str:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_control()
+    report = _prince2_role_control_report(config)
+    if report["status"] == "missing":
+        return "PRINCE2 control view: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
+    decision = report.get("decision", {}) if isinstance(report.get("decision"), dict) else {}
+    summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
+    queue_summary = report.get("queue_summary", {}) if isinstance(report.get("queue_summary"), dict) else {}
+    local_fallback = report.get("local_fallback", {}) if isinstance(report.get("local_fallback"), dict) else {}
+    lines = [
+        "PRINCE2 control view:",
+        f"- board_signal: {decision.get('board_signal', 'unknown')} next_action={decision.get('next_action', 'unknown')}",
+        f"- reason: {decision.get('reason', 'none')}",
+        f"- nodes: {summary.get('nodes', 0)} active={report.get('active_nodes', 0)} completed={report.get('completed_nodes', 0)}",
+        f"- waiting: {report.get('waiting_nodes', 0)} blocked={report.get('blocked_nodes', 0)} escalated={report.get('escalated_nodes', 0)}",
+        f"- queues: inbox_total={queue_summary.get('inbox_total', 0)} outbox_total={queue_summary.get('outbox_total', 0)} inbox_nodes={report.get('queued_inbox_nodes', 0)}",
+        (
+            "- local_fallback: "
+            f"status={local_fallback.get('status', 'missing')} "
+            f"ready_nodes={local_fallback.get('delivery_nodes_with_local_fallback', 0)}/{local_fallback.get('delivery_nodes', 0)} "
+            f"candidates={','.join(local_fallback.get('candidate_ids', [])) if local_fallback.get('candidate_ids') else 'none'}"
+        ),
+    ]
+    critical_nodes = [item for item in report.get("critical_nodes", []) if isinstance(item, dict)]
+    if critical_nodes:
+        lines.append("- critical_nodes:")
+        for node in critical_nodes:
+            lines.append(
+                f"  - {node.get('label')} [{node.get('node_id')}]: severity={node.get('severity')} "
+                f"state={node.get('state')} wait={node.get('wait_status')} "
+                f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
+                f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
+            )
+    else:
+        lines.append("- critical_nodes: none")
+    return "\n".join(lines)
 
 
 def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = None) -> dict[str, object]:
@@ -4046,6 +4131,12 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
                 f"running={report['handoff']['node_runtime_summary']['running']} "
                 f"blocked={report['handoff']['node_runtime_summary']['blocked']}"
             ),
+            (
+                "- local_fallback: "
+                f"status={report['local_fallback']['status']} "
+                f"ready_nodes={report['local_fallback']['delivery_nodes_with_local_fallback']}/{report['local_fallback']['delivery_nodes']} "
+                f"candidates={','.join(report['local_fallback']['candidate_ids']) if report['local_fallback']['candidate_ids'] else 'none'}"
+            ),
             "Usage:",
             f"- calls: {report['usage']['totals']['calls']}",
             f"- failures: {report['usage']['totals']['failures']}",
@@ -4099,6 +4190,7 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "context_window": memory.context_window_stats(),
         "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
         "rate_limits_summary": _provider_limit_summary_report(status["provider_limits"]),
+        "local_fallback": status["local_fallback"],
         "handoff": status["handoff"]["stage_view"],
         "latest_handoff_action": status["focus"].get("latest_handoff_action"),
         "usage": usage["totals"],
@@ -4424,6 +4516,12 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         "Handoff summary:",
         handoff.summary(),
         handoff.rendered_operational_posture(),
+        "Local fallback readiness:",
+        (
+            f"- status={status['local_fallback']['status']} "
+            f"ready_nodes={status['local_fallback']['delivery_nodes_with_local_fallback']}/{status['local_fallback']['delivery_nodes']} "
+            f"candidates={','.join(status['local_fallback']['candidate_ids']) if status['local_fallback']['candidate_ids'] else 'none'}"
+        ),
         _render_remediations(status["remediations"]),
     ]
     return "\n".join(lines)
@@ -4584,6 +4682,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     provider_limits = _provider_limit_status_report(agent, config)
     permissions = _permissions_report(config)
     stage_view = handoff.stage_view()
+    local_fallback = _delivery_local_fallback_report(config)
     return {
         "command": "status",
         "workspace": str(config.workspace_root),
@@ -4607,6 +4706,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "operational_posture": handoff.rendered_operational_posture(),
             "stage_view": stage_view,
         },
+        "local_fallback": local_fallback,
         "remediations": _status_remediation_report(provider_limits=provider_limits, stage_view=stage_view, config=config),
     }
 
