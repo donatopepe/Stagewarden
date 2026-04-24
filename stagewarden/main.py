@@ -73,6 +73,7 @@ from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTION
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
+from .tools.files import FileTool
 from .tools.git import GitTool
 from .tools.external_io import ExternalIOResult, ExternalIOTool
 
@@ -6492,6 +6493,78 @@ def _handle_patch_command(command: str, agent: Agent) -> str | None:
     return f"Patch preview:\n{result.content}"
 
 
+def _file_command_report(command: str, config: AgentConfig) -> dict[str, object] | None:
+    parts = command.split()
+    if len(parts) < 2 or parts[0] != "file":
+        return None
+    tool = FileTool(config)
+    action = parts[1]
+    flags = set(part for part in parts[2:] if part.startswith("--"))
+    args = [part for part in parts[2:] if not part.startswith("--")]
+    dry_run = "--dry-run" in flags
+    overwrite = "--overwrite" in flags
+    recursive = "--recursive" in flags
+
+    if action == "inspect":
+        if len(args) != 1:
+            return {"command": "file inspect", "ok": False, "error": "Usage: file inspect <path>"}
+        result = tool.inspect(args[0])
+        return {"command": "file inspect", "path": args[0], "ok": result.ok, "error": result.error, "report": result.report}
+    if action == "stat":
+        if len(args) != 1:
+            return {"command": "file stat", "ok": False, "error": "Usage: file stat <path>"}
+        result = tool.inspect_metadata(args[0])
+        return {"command": "file stat", "path": args[0], "ok": result.ok, "error": result.error, "report": result.report}
+    if action == "copy":
+        if len(args) != 2:
+            return {"command": "file copy", "ok": False, "error": "Usage: file copy <source> <destination> [--overwrite] [--dry-run]"}
+        result = tool.copy_path(args[0], args[1], overwrite=overwrite, dry_run=dry_run)
+        return {"command": "file copy", "source": args[0], "destination": args[1], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
+    if action == "move":
+        if len(args) != 2:
+            return {"command": "file move", "ok": False, "error": "Usage: file move <source> <destination> [--overwrite] [--dry-run]"}
+        result = tool.move_path(args[0], args[1], overwrite=overwrite, dry_run=dry_run)
+        return {"command": "file move", "source": args[0], "destination": args[1], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
+    if action == "delete":
+        if len(args) != 1:
+            return {"command": "file delete", "ok": False, "error": "Usage: file delete <path> [--recursive] [--dry-run]"}
+        result = tool.delete_path(args[0], recursive=recursive, dry_run=dry_run)
+        return {"command": "file delete", "path": args[0], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
+    if action == "chmod":
+        if len(args) != 2:
+            return {"command": "file chmod", "ok": False, "error": "Usage: file chmod <path> <mode> [--recursive] [--dry-run]"}
+        result = tool.chmod_path(args[0], args[1], recursive=recursive, dry_run=dry_run)
+        return {"command": "file chmod", "path": args[0], "mode": args[1], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
+    if action == "chown":
+        if len(args) not in {2, 3}:
+            return {"command": "file chown", "ok": False, "error": "Usage: file chown <path> <user> [group] [--recursive] [--dry-run]"}
+        group = args[2] if len(args) == 3 else None
+        result = tool.chown_path(args[0], user=args[1], group=group, recursive=recursive, dry_run=dry_run)
+        return {"command": "file chown", "path": args[0], "user": args[1], "group": group, "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
+    return {"command": "file", "ok": False, "error": "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]"}
+
+
+def _render_file_command(report: dict[str, object]) -> str:
+    if not report.get("ok"):
+        return str(report.get("error") or "File command failed.")
+    command = str(report.get("command", "file"))
+    detail = report.get("report")
+    message = str(report.get("message") or "").strip()
+    if command in {"file inspect", "file stat"} and isinstance(detail, dict):
+        lines = [f"{command}:"]
+        for key, value in detail.items():
+            lines.append(f"- {key}: {value}")
+        return "\n".join(lines)
+    return message or f"{command}: OK"
+
+
+def _handle_file_command(command: str, config: AgentConfig) -> str | None:
+    report = _file_command_report(command, config)
+    if report is None:
+        return None
+    return _render_file_command(report)
+
+
 def _resolve_shell_session_id(agent: Agent, requested: str) -> str | None:
     sessions = agent.executor.shell.sessions
     if requested == "last":
@@ -6714,7 +6787,16 @@ def _interactive_completion_candidates(text: str, config: AgentConfig) -> list[s
         return []
     normalized = normalized[len(INTERACTIVE_COMMAND_PREFIX) :]
     lowered = normalized.lower()
-    path_prefixes = ("git history ", "patch preview ", "session create ")
+    path_prefixes = (
+        "git history ",
+        "patch preview ",
+        "session create ",
+        "file inspect ",
+        "file stat ",
+        "file delete ",
+        "file chmod ",
+        "file chown ",
+    )
     for prefix in path_prefixes:
         if lowered.startswith(prefix):
             partial = normalized[len(prefix) :]
@@ -6844,6 +6926,7 @@ def _is_known_interactive_command(command: str) -> bool:
         "mode ",
         "caveman ",
         "git ",
+        "file ",
         "session ",
         "patch preview ",
         "resume ",
@@ -7125,6 +7208,11 @@ def run_interactive_shell(
         git_message = _handle_git_command(shell_command, config)
         if git_message is not None:
             sink.write(f"{git_message}\n")
+            sink.flush()
+            continue
+        file_message = _handle_file_command(shell_command, config)
+        if file_message is not None:
+            sink.write(f"{file_message}\n")
             sink.flush()
             continue
         shell_session_message = _handle_shell_session_command(shell_command, agent)
@@ -7595,6 +7683,14 @@ def main() -> int:
             return 1
         print(response)
         return 0
+    if task.startswith("file "):
+        report = _file_command_report(task, config)
+        if args.json:
+            print(dumps_ascii(report or {"command": task, "ok": False, "error": "Unsupported file command"}, indent=2))
+            return 0 if report and report.get("ok") else 1
+        response = _handle_file_command(task, config)
+        print(response or "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]")
+        return 0 if report and report.get("ok") else 1
     if (
         task.startswith("web search ")
         or task.startswith("download ")

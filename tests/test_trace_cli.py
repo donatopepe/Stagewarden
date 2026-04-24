@@ -1452,6 +1452,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("preflight [--json]", rendered.stdout)
             self.assertIn("shell backend", rendered.stdout)
             self.assertIn("commands [--json]", rendered.stdout)
+            self.assertIn("file inspect <path> [--json]", rendered.stdout)
+            self.assertIn("file stat <path> [--json]", rendered.stdout)
+            self.assertIn("file copy <source> <destination> [--overwrite] [--dry-run] [--json]", rendered.stdout)
 
             completed = run_main_capture(root, "commands", "--json")
             self.assertEqual(completed.returncode, 0, completed.stderr)
@@ -1468,6 +1471,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles flow", by_name)
             self.assertIn("roles matrix", by_name)
             self.assertIn("sources", by_name)
+            self.assertIn("file inspect", by_name)
+            self.assertIn("file stat", by_name)
+            self.assertIn("file copy", by_name)
             self.assertEqual(by_name["commands"]["group"], "core")
             self.assertTrue(by_name["commands"]["json"])
             self.assertTrue(by_name["preflight"]["json"])
@@ -1477,12 +1483,14 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(by_name["roles check"]["handler"], "roles")
             self.assertEqual(by_name["roles flow"]["handler"], "roles")
             self.assertEqual(by_name["roles matrix"]["handler"], "roles")
+            self.assertEqual(by_name["file inspect"]["group"], "files")
+            self.assertEqual(by_name["file copy"]["handler"], "files")
 
     def test_interactive_help_topics_use_registry_metadata_and_aliases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             config = AgentConfig(workspace_root=root, max_steps=1)
-            input_stream = StringIO("/help update\n/help io\n/help extension\n/exit\n")
+            input_stream = StringIO("/help update\n/help io\n/help extension\n/help files\n/exit\n")
             output_stream = StringIO()
             code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
             rendered = output_stream.getvalue()
@@ -1494,6 +1502,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("download https://example.com/file.txt", rendered)
             self.assertIn("Extension commands", rendered)
             self.assertIn("extension scaffold local-tools", rendered)
+            self.assertIn("File commands", rendered)
+            self.assertIn("file stat stagewarden", rendered)
 
     def test_interactive_help_overview_uses_topic_catalog(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1523,7 +1533,9 @@ class TraceAndCliTests(unittest.TestCase):
             topics = {item["key"]: item for item in overview_payload["topics"]}
             self.assertIn("models", topics)
             self.assertIn("external_io", topics)
+            self.assertIn("files", topics)
             self.assertIn("io", topics["external_io"]["aliases"])
+            self.assertIn("fs", topics["files"]["aliases"])
 
             completed = run_main_capture(root, "help", "models", "--json")
             self.assertEqual(completed.returncode, 0, completed.stderr)
@@ -1544,6 +1556,14 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn('"topic": "models"', rendered)
             self.assertIn('"ok": true', rendered)
 
+            file_topic = run_main_capture(root, "help", "files", "--json")
+            self.assertEqual(file_topic.returncode, 0, file_topic.stderr)
+            file_topic_payload = json.loads(file_topic.stdout)
+            self.assertTrue(file_topic_payload["ok"])
+            self.assertEqual(file_topic_payload["topic"], "files")
+            self.assertIn("file inspect <path> [--json]", file_topic_payload["commands"])
+            self.assertIn("file copy README.md docs/README.copy.md --dry-run", file_topic_payload["examples"])
+
     def test_interactive_completion_candidates_expand_workspace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1554,9 +1574,40 @@ class TraceAndCliTests(unittest.TestCase):
 
             history_matches = _interactive_completion_candidates("/git history tr", config)
             patch_matches = _interactive_completion_candidates("/patch preview do", config)
+            file_matches = _interactive_completion_candidates("/file inspect do", config)
 
             self.assertIn("/git history tracked.txt", history_matches)
             self.assertIn("/patch preview docs/", patch_matches)
+            self.assertIn("/file inspect docs/", file_matches)
+
+    def test_file_cli_commands_are_machine_readable_and_execute(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "data.txt").write_text("alpha\n", encoding="utf-8")
+
+            stat_payload = json.loads(run_main_capture(root, "file stat data.txt", "--json").stdout)
+            inspect_payload = json.loads(run_main_capture(root, "file inspect data.txt", "--json").stdout)
+            copy_payload = json.loads(run_main_capture(root, "file copy data.txt copied.txt", "--json").stdout)
+
+            self.assertTrue(stat_payload["ok"])
+            self.assertEqual(stat_payload["report"]["command"], "file stat")
+            self.assertEqual(stat_payload["report"]["kind"], "file")
+            self.assertTrue(inspect_payload["ok"])
+            self.assertEqual(inspect_payload["report"]["encoding"], "utf-8")
+            self.assertTrue(copy_payload["ok"])
+            self.assertTrue((root / "copied.txt").exists())
+
+            chmod_payload = json.loads(run_main_capture(root, "file chmod copied.txt 0600", "--json").stdout)
+            self.assertTrue(chmod_payload["ok"])
+            self.assertEqual((root / "copied.txt").stat().st_mode & 0o777, 0o600)
+
+            delete_preview_payload = json.loads(run_main_capture(root, "file delete copied.txt --dry-run", "--json").stdout)
+            self.assertTrue(delete_preview_payload["ok"])
+            self.assertTrue((root / "copied.txt").exists())
+
+            delete_payload = json.loads(run_main_capture(root, "file delete copied.txt", "--json").stdout)
+            self.assertTrue(delete_payload["ok"])
+            self.assertFalse((root / "copied.txt").exists())
 
     def test_git_cli_json_outputs_are_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
