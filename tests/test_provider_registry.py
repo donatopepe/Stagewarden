@@ -8,6 +8,8 @@ from stagewarden.provider_registry import (
     canonicalize_model_variant,
     model_backends,
     provider_capability,
+    provider_model_preset,
+    provider_model_specs,
 )
 
 
@@ -30,7 +32,21 @@ class ProviderRegistryTests(unittest.TestCase):
         backends = model_backends()
         self.assertEqual(backends["claude"]["label"], "claude/sonnet")
         self.assertIn("opusplan", available_model_variants("claude"))
+        self.assertIn("qwen2.5-coder:7b", available_model_variants("local"))
         self.assertEqual(canonicalize_model_variant("openai", "gpt-5.4-mini"), "gpt-5.4-mini")
+
+    def test_local_provider_exposes_agentic_safe_presets_and_specs(self) -> None:
+        specs = {spec.id: spec for spec in provider_model_specs("local")}
+        self.assertIn("qwen2.5-coder:7b", specs)
+        self.assertIn("codestral:latest", specs)
+        self.assertIn("tool support", specs["codestral:latest"].context_window_hint.lower())
+
+        fast_model, fast_params = provider_model_preset("local", "fast")
+        plan_model, plan_params = provider_model_preset("local", "plan")
+        self.assertEqual(fast_model, "qwen2.5-coder:7b")
+        self.assertEqual(fast_params["reasoning_effort"], "low")
+        self.assertEqual(plan_model, "deepseek-r1:14b")
+        self.assertEqual(plan_params["reasoning_effort"], "high")
 
 
 if __name__ == "__main__":
