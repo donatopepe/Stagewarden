@@ -1798,11 +1798,7 @@ def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_rep
     prompt = _project_tree_ai_prompt(design, local_report)
     _apply_model_preferences(agent, config)
     prefs = _load_model_preferences(config)
-    model = agent.router.choose_model(
-        "AI-assisted PRINCE2 project tree design",
-        "handoff project design capability specification role tree proposal",
-        0,
-    )
+    model = _choose_cloud_priority_model(agent, prefs)
     account = prefs.account_for_model(model)
     result = agent.handoff.execute(format_run_model(model, prompt, account=account))
     assistance: dict[str, object] = {
@@ -5521,7 +5517,7 @@ def _model_usage_report(config: AgentConfig) -> dict[str, object]:
             "command": "models usage",
             "report": MemoryStore.load(config.memory_path).model_usage_stats(),
             "policy": {
-                "routing_budget": "prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+                "routing_budget": "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
             },
         }
     except (OSError, ValueError, TypeError):
@@ -5529,7 +5525,7 @@ def _model_usage_report(config: AgentConfig) -> dict[str, object]:
             "command": "models usage",
             "report": MemoryStore().model_usage_stats(),
             "policy": {
-                "routing_budget": "prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+                "routing_budget": "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
             },
         }
 
@@ -5557,6 +5553,14 @@ def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
         or "provider-default"
     )
     return provider, account, provider_model
+
+
+def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
+    active = set(agent.router.status().get("active_models", []))
+    for candidate in ("chatgpt", "openai", "claude", "cheap", "local"):
+        if candidate in active:
+            return candidate
+    return agent.router.choose_model("fallback cloud priority", "analysis", 0)
 
 
 def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = None) -> str:
@@ -5798,11 +5802,7 @@ def _inspect_provider_models(
         return report
     _apply_model_preferences(agent, config)
     prefs = _load_model_preferences(config)
-    analysis_model = agent.router.choose_model(
-        "inspect local provider models",
-        "dynamic local ollama model peculiarities analysis",
-        0,
-    )
+    analysis_model = _choose_cloud_priority_model(agent, prefs)
     account = prefs.account_for_model(analysis_model)
     result = agent.handoff.execute(format_run_model(analysis_model, _local_model_inspection_prompt(catalog, provider_model), account=account))
     ai_analysis = {

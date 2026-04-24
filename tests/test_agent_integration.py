@@ -87,7 +87,7 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertTrue((root / "hello.txt").exists())
             self.assertTrue((root / ".git").exists())
             self.assertIn("Cost and budget:", result.message)
-            self.assertIn("policy: prefer local, then cheap", result.message)
+            self.assertIn("policy: prefer cloud analysis first", result.message)
             self.assertIn("Operational posture:", result.message)
             self.assertIn("governance=clean", result.message)
             self.assertIn("Stage boundary:", result.message)

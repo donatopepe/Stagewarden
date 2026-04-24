@@ -320,7 +320,7 @@ class MemoryStore:
             f"- routing: last_model={totals['last_model']} highest_tier={totals['highest_tier']} "
             f"highest_model={totals['highest_tier_model']} escalation_path={totals['escalation_path']}"
         )
-        lines.append("Budget policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.")
+        lines.append("Budget policy: prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.")
         return "\n".join(lines)
 
     def budget_summary(self) -> str:
@@ -330,14 +330,14 @@ class MemoryStore:
                 [
                     "Cost and budget:",
                     "- no model attempts recorded",
-                    "- policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+                    "- policy: prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
                 ]
             )
         totals = stats["totals"]
         usage = ", ".join(f"{item['model']}={item['calls']}" for item in stats["models"])
         lines = [
             "Cost and budget:",
-            "- policy: prefer local, then cheap, then ChatGPT/OpenAI/Claude for complex or failing tasks.",
+            "- policy: prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
             f"- usage: {usage}",
             f"- highest_tier_used: {totals['highest_tier']} ({totals['highest_tier_model']})",
             f"- failed_model_calls: {totals['failures']}",

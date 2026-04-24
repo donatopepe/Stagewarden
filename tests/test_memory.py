@@ -94,7 +94,7 @@ class MemoryTests(unittest.TestCase):
         )
         rendered = memory.budget_summary()
         self.assertIn("Cost and budget:", rendered)
-        self.assertIn("policy: prefer local, then cheap", rendered)
+        self.assertIn("policy: prefer cloud analysis first", rendered)
         self.assertIn("usage: local=1, openai=1", rendered)
         self.assertIn("highest_tier_used: high (openai)", rendered)
         self.assertIn("failed_model_calls: 1", rendered)
