@@ -4038,6 +4038,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "backlog_statuses": handoff["backlog_statuses"],
             "node_runtime_summary": handoff["node_runtime_summary"],
         },
+        "local_fallback": status["local_fallback"],
         "focus": focus,
         "usage": _model_usage_report(config)["report"],
         "quality_gates": {
