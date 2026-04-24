@@ -3884,6 +3884,7 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads(json_completed.stdout)
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["items"][0]["project"], "OpenAI Codex CLI")
+            self.assertEqual(payload["summary"]["ok"], 1)
 
     def test_sources_status_strict_and_update_fast_forward(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3927,11 +3928,55 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads(updated.stdout)
             self.assertTrue(payload["ok"])
             self.assertTrue(payload["items"][0]["updated"])
+            self.assertEqual(payload["updated_count"], 1)
+            self.assertEqual(payload["failed_count"], 0)
             self.assertEqual((source_root / "README.md").read_text(encoding="utf-8"), "v2\n")
 
             actions = run_main_capture(root, "handoff actions", "3", "--json")
             phases = [entry["phase"] for entry in json.loads(actions.stdout)["entries"]]
             self.assertIn("sources_update", phases)
+
+    def test_sources_update_skips_upstream_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source_root = root / "external_sources" / "codex"
+            docs = root / "docs"
+            docs.mkdir()
+            source_root.mkdir(parents=True)
+            subprocess.run(["git", "init"], cwd=source_root, capture_output=True, text=True, check=True)
+            subprocess.run(["git", "remote", "add", "origin", "https://github.com/not-the-right/upstream"], cwd=source_root, capture_output=True, text=True, check=True)
+            (source_root / "README.md").write_text("reference\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=source_root, capture_output=True, text=True, check=True)
+            subprocess.run(
+                ["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-m", "init"],
+                cwd=source_root,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            (docs / "source_references.md").write_text(
+                "\n".join(
+                    [
+                        "| Project | Local path | Upstream | Purpose | License/source note |",
+                        "| --- | --- | --- | --- | --- |",
+                        "| OpenAI Codex CLI | `external_sources/codex` | `https://github.com/openai/codex` | Study. | Public. |",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            strict = run_main_capture(root, "sources status --strict", "--json")
+            updated = run_main_capture(root, "sources update", "--json")
+
+            self.assertEqual(strict.returncode, 1, strict.stderr)
+            strict_payload = json.loads(strict.stdout)
+            self.assertFalse(strict_payload["ok"])
+            self.assertEqual(strict_payload["summary"]["fail"], 1)
+            self.assertEqual(updated.returncode, 1, updated.stderr)
+            payload = json.loads(updated.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["failed_count"], 1)
+            self.assertEqual(payload["items"][0]["update_message"], "skipped: upstream mismatch")
 
     def test_update_status_check_and_apply_fast_forward(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
