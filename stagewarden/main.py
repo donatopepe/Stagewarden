@@ -4810,7 +4810,7 @@ def _status_remediation_report(
     git = GitTool(config)
     git_status = git.status()
     git_dirty = git.status_porcelain()
-    return _preflight_remediations(
+    items = _preflight_remediations(
         doctor={"python": {"ok": True}, "git": {"ok": True}},
         runtime=detect_runtime_capabilities(config.workspace_root),
         shell_backend=_shell_backend_report(config),
@@ -4821,6 +4821,30 @@ def _status_remediation_report(
         sources=_sources_status_report(config),
         stage_view=stage_view,
     )
+    local_fallback = _delivery_local_fallback_report(config)
+    if local_fallback["status"] == "available":
+        items.append(
+            {
+                "severity": "warning",
+                "code": "local_fallback_partial",
+                "action": (
+                    "Discovered local fallback candidates exist but are not preloaded on every delivery node. "
+                    "Run `/roles setup`, `/role assign`, or `/project start` to preload the recommended local fallback routes."
+                ),
+            }
+        )
+    elif local_fallback["status"] == "missing" and int(local_fallback.get("delivery_nodes", 0) or 0) > 0:
+        items.append(
+            {
+                "severity": "info",
+                "code": "local_fallback_missing",
+                "action": (
+                    "No local fallback candidates are available for the current delivery nodes. "
+                    "Continue on cloud providers or start Ollama and rerun discovery before planning local fallback execution."
+                ),
+            }
+        )
+    return items
 
 
 def _preflight_remediations(
