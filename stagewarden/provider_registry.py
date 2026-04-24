@@ -280,11 +280,16 @@ def _dynamic_local_label(name: str) -> str:
 
 
 def _discover_local_provider_model_specs() -> tuple[ProviderModelSpec, ...]:
-    base_url = _ollama_base_url()
-    request_url = f"{base_url}/api/tags"
     try:
-        with urlopen(request_url, timeout=1.5) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        inline_payload = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON", "").strip()
+        if inline_payload:
+            payload = json.loads(inline_payload)
+            request_url = "env:STAGEWARDEN_OLLAMA_TAGS_JSON"
+        else:
+            base_url = _ollama_base_url()
+            request_url = f"{base_url}/api/tags"
+            with urlopen(request_url, timeout=1.5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
     except (OSError, URLError, ValueError, json.JSONDecodeError):
         return PROVIDER_MODEL_SPECS["local"]
     models = payload.get("models", [])

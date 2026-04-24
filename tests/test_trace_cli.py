@@ -2002,6 +2002,69 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("gpt-5.3-codex", completed.stdout)
             self.assertIn("reasoning_effort=[low,medium,high]", completed.stdout)
 
+    def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = root / "run_model_inspect_stub.py"
+            stub.write_text(
+                "\n".join(
+                    [
+                        "#!/usr/bin/env python3",
+                        "from __future__ import annotations",
+                        "import json",
+                        "import sys",
+                        "",
+                        "payload = {",
+                        '  "models": [',
+                        '    {"id": "qwen2.5-coder:7b", "summary": "Fast local coding model.", "strengths": ["good coding speed"], "weaknesses": ["smaller context"], "best_for": ["daily coding"], "agentic_fit": "high", "tool_support_risk": "medium"},',
+                        '    {"id": "codestral:latest", "summary": "Needs explicit tool-support validation.", "strengths": ["strong code prior"], "weaknesses": ["tool support uncertain"], "best_for": ["manual comparison"], "agentic_fit": "low", "tool_support_risk": "high"}',
+                        "  ],",
+                        '  "global_recommendation": "Prefer qwen2.5-coder:7b for local agentic work."',
+                        "}",
+                        "print(json.dumps(payload))",
+                        "raise SystemExit(0)",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            original_run_model = os.environ.get("RUN_MODEL_BIN")
+            original_tags = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = json.dumps(
+                {
+                    "models": [
+                        {
+                            "name": "qwen2.5-coder:7b",
+                            "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                        },
+                        {
+                            "name": "codestral:latest",
+                            "details": {"family": "llama", "parameter_size": "22.2B", "quantization_level": "Q4_0"},
+                        },
+                    ]
+                }
+            )
+            self.addCleanup(lambda: os.environ.pop("RUN_MODEL_BIN", None) if original_run_model is None else os.environ.__setitem__("RUN_MODEL_BIN", original_run_model))
+            self.addCleanup(lambda: os.environ.pop("STAGEWARDEN_OLLAMA_TAGS_JSON", None) if original_tags is None else os.environ.__setitem__("STAGEWARDEN_OLLAMA_TAGS_JSON", original_tags))
+
+            json_completed = run_main_capture(root, "model inspect local", "--json")
+            text_completed = run_main_capture(root, "model inspect local qwen2.5-coder:7b")
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            self.assertEqual(text_completed.returncode, 0, text_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "model inspect")
+            self.assertEqual(payload["provider"], "local")
+            self.assertTrue(payload["ai_analysis"]["attempted"])
+            self.assertTrue(payload["ai_analysis"]["ok"])
+            self.assertEqual(payload["global_recommendation"], "Prefer qwen2.5-coder:7b for local agentic work.")
+            ids = {item["id"]: item for item in payload["models"]}
+            self.assertEqual(ids["qwen2.5-coder:7b"]["agentic_fit"], "high")
+            self.assertEqual(ids["codestral:latest"]["tool_support_risk"], "high")
+            self.assertIn("Provider-model inspection for local:", text_completed.stdout)
+            self.assertIn("qwen2.5-coder:7b", text_completed.stdout)
+
     def test_interactive_shell_persists_provider_model_param(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

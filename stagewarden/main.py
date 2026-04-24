@@ -5662,6 +5662,234 @@ def _prompt_menu_choice(
         output_stream.write("Invalid selection. Try again or enter `q` to cancel.\n")
 
 
+def _local_model_profile_from_spec(spec) -> dict[str, object]:
+    agentic_fit = "medium"
+    tool_support_risk = "unknown"
+    availability = str(spec.availability or "unknown")
+    hint = str(spec.context_window_hint or "")
+    lowered_hint = hint.lower()
+    if availability == "local-agentic":
+        agentic_fit = "high"
+        tool_support_risk = "medium"
+    elif availability == "local-limited":
+        agentic_fit = "low"
+        tool_support_risk = "high"
+    elif availability == "local-specialized":
+        agentic_fit = "medium"
+        tool_support_risk = "medium"
+    strengths: list[str] = []
+    weaknesses: list[str] = []
+    best_for: list[str] = []
+    if "coder" in spec.id.lower():
+        strengths.append("coding-oriented local model")
+        best_for.append("code editing and repository tasks")
+    if "deepseek" in spec.id.lower() or "r1" in spec.id.lower():
+        strengths.append("stronger reasoning-oriented profile")
+        best_for.append("deeper debugging and analysis")
+    if "sqlcoder" in spec.id.lower():
+        strengths.append("specialized SQL profile")
+        best_for.append("SQL generation and schema work")
+    if "validate tool support" in lowered_hint:
+        weaknesses.append("tool support must be validated before agentic routing")
+        best_for.append("manual/local chat unless validated")
+    if not strengths:
+        strengths.append("available local model discovered from Ollama")
+    if not best_for:
+        best_for.append("general local experimentation")
+    summary = hint or f"Discovered local model {spec.id}."
+    return {
+        "id": spec.id,
+        "label": spec.label,
+        "availability": availability,
+        "reasoning_efforts": list(spec.reasoning_efforts),
+        "reasoning_default": spec.reasoning_default,
+        "metadata_hint": hint,
+        "summary": summary,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "best_for": best_for,
+        "agentic_fit": agentic_fit,
+        "tool_support_risk": tool_support_risk,
+        "source": spec.source,
+    }
+
+
+def _local_model_inspection_prompt(catalog: list[dict[str, object]], selected_model: str | None) -> str:
+    inventory = dumps_ascii({"models": catalog}, indent=2)
+    return "\n".join(
+        [
+            "You are evaluating dynamically discovered local Ollama models for a Codex-style coding agent.",
+            "Task: analyze the discovered local model inventory and summarize the peculiarities of each model.",
+            "Rules:",
+            "- Use only the provided model ids and metadata hints.",
+            "- Do not invent benchmark numbers.",
+            "- If tool support is uncertain, say so explicitly.",
+            "- Return valid JSON only.",
+            "- JSON schema:",
+            '{',
+            '  "models": [',
+            '    {',
+            '      "id": "model id",',
+            '      "summary": "short summary",',
+            '      "strengths": ["..."],',
+            '      "weaknesses": ["..."],',
+            '      "best_for": ["..."],',
+            '      "agentic_fit": "high|medium|low",',
+            '      "tool_support_risk": "low|medium|high|unknown"',
+            "    }",
+            "  ],",
+            '  "global_recommendation": "short recommendation"',
+            "}",
+            f"Selected model: {selected_model or 'all discovered local models'}",
+            "Discovered inventory:",
+            inventory,
+        ]
+    )
+
+
+def _inspect_provider_models(
+    agent: Agent,
+    config: AgentConfig,
+    *,
+    provider: str,
+    provider_model: str | None = None,
+) -> dict[str, object]:
+    if provider not in SUPPORTED_MODELS:
+        raise ValueError(f"Unsupported model '{provider}'. Supported: {', '.join(SUPPORTED_MODELS)}")
+    specs = [spec for spec in provider_model_specs(provider) if spec.id != "provider-default"]
+    if provider_model is not None:
+        specs = [spec for spec in specs if spec.id == provider_model]
+        if not specs:
+            raise ValueError(f"Provider-model '{provider_model}' not found for provider '{provider}'.")
+    catalog = [_local_model_profile_from_spec(spec) for spec in specs] if provider == "local" else [
+        {
+            "id": spec.id,
+            "label": spec.label,
+            "availability": spec.availability,
+            "reasoning_efforts": list(spec.reasoning_efforts),
+            "reasoning_default": spec.reasoning_default,
+            "metadata_hint": spec.context_window_hint,
+            "summary": spec.context_window_hint or spec.label,
+            "strengths": [],
+            "weaknesses": [],
+            "best_for": [],
+            "agentic_fit": "unknown",
+            "tool_support_risk": "unknown",
+            "source": spec.source,
+        }
+        for spec in specs
+    ]
+    report: dict[str, object] = {
+        "command": "model inspect",
+        "provider": provider,
+        "provider_model": provider_model,
+        "status": "ok",
+        "catalog_source": next((item["source"] for item in catalog if item.get("source")), provider_capability(provider).source) if catalog else provider_capability(provider).source,
+        "models": catalog,
+        "ai_analysis": {
+            "attempted": False,
+            "ok": False,
+            "model": None,
+            "account": None,
+            "message": "",
+        },
+    }
+    if provider != "local" or not catalog:
+        return report
+    _apply_model_preferences(agent, config)
+    prefs = _load_model_preferences(config)
+    analysis_model = agent.router.choose_model(
+        "inspect local provider models",
+        "dynamic local ollama model peculiarities analysis",
+        0,
+    )
+    account = prefs.account_for_model(analysis_model)
+    result = agent.handoff.execute(format_run_model(analysis_model, _local_model_inspection_prompt(catalog, provider_model), account=account))
+    ai_analysis = {
+        "attempted": True,
+        "ok": False,
+        "model": analysis_model,
+        "account": account or None,
+        "message": "",
+    }
+    if not result.ok:
+        ai_analysis["message"] = result.error or "Model inspection call failed."
+        report["ai_analysis"] = ai_analysis
+        report["global_recommendation"] = "Using metadata-derived local model profiles only."
+        return report
+    try:
+        payload = loads_text(result.output)
+    except ValueError as exc:
+        ai_analysis["message"] = f"Inspection output was not valid JSON: {exc}"
+        report["ai_analysis"] = ai_analysis
+        report["global_recommendation"] = "Using metadata-derived local model profiles only."
+        return report
+    ai_models = payload.get("models", []) if isinstance(payload, dict) else []
+    ai_by_id = {
+        str(item.get("id", "")).strip(): item
+        for item in ai_models
+        if isinstance(item, dict) and str(item.get("id", "")).strip()
+    }
+    merged_models: list[dict[str, object]] = []
+    for item in catalog:
+        merged = dict(item)
+        candidate = ai_by_id.get(str(item.get("id")))
+        if isinstance(candidate, dict):
+            for key in ("summary", "agentic_fit", "tool_support_risk"):
+                value = candidate.get(key)
+                if isinstance(value, str) and value.strip():
+                    merged[key] = value.strip()
+            for key in ("strengths", "weaknesses", "best_for"):
+                value = candidate.get(key)
+                if isinstance(value, list):
+                    merged[key] = [str(entry).strip() for entry in value if str(entry).strip()]
+        merged_models.append(merged)
+    ai_analysis["ok"] = True
+    ai_analysis["message"] = "AI synthesis applied to discovered local model inventory."
+    report["models"] = merged_models
+    report["ai_analysis"] = ai_analysis
+    report["global_recommendation"] = (
+        str(payload.get("global_recommendation", "")).strip()
+        if isinstance(payload, dict) and str(payload.get("global_recommendation", "")).strip()
+        else "Prefer models with high agentic fit and lower tool support risk."
+    )
+    return report
+
+
+def _render_provider_model_inspection(report: dict[str, object]) -> str:
+    lines = [
+        f"Provider-model inspection for {report.get('provider', 'unknown')}:",
+        f"- provider_model_filter: {report.get('provider_model') or 'all'}",
+        f"- catalog_source: {report.get('catalog_source', 'unknown')}",
+    ]
+    ai = report.get("ai_analysis", {}) if isinstance(report.get("ai_analysis"), dict) else {}
+    lines.append(
+        f"- ai_analysis: attempted={ai.get('attempted', False)} ok={ai.get('ok', False)} "
+        f"model={ai.get('model') or 'none'} account={ai.get('account') or 'none'}"
+    )
+    if ai.get("message"):
+        lines.append(f"- ai_message: {ai.get('message')}")
+    if report.get("global_recommendation"):
+        lines.append(f"- recommendation: {report.get('global_recommendation')}")
+    models = [item for item in report.get("models", []) if isinstance(item, dict)]
+    if not models:
+        lines.append("- models: none")
+        return "\n".join(lines)
+    lines.append("Models:")
+    for item in models:
+        lines.append(
+            f"- {item.get('id')}: fit={item.get('agentic_fit')} tool_support_risk={item.get('tool_support_risk')} "
+            f"availability={item.get('availability')} summary={item.get('summary')}"
+        )
+        strengths = ", ".join(str(entry) for entry in item.get("strengths", []) if str(entry).strip()) or "none"
+        weaknesses = ", ".join(str(entry) for entry in item.get("weaknesses", []) if str(entry).strip()) or "none"
+        best_for = ", ".join(str(entry) for entry in item.get("best_for", []) if str(entry).strip()) or "none"
+        lines.append(f"  strengths: {strengths}")
+        lines.append(f"  weaknesses: {weaknesses}")
+        lines.append(f"  best_for: {best_for}")
+    return "\n".join(lines)
+
+
 def _guided_model_choice(
     *,
     requested_model: str | None,
@@ -5830,6 +6058,13 @@ def _handle_model_command(
                     f"default_reasoning={default_effort} availability={spec.availability}"
                 )
             return "\n".join(lines)
+        if action == "inspect":
+            if len(parts) not in {3, 4}:
+                return "Usage: model inspect <provider> [provider_model]"
+            provider = parts[2]
+            provider_model = parts[3] if len(parts) == 4 else None
+            report = _inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
+            return _render_provider_model_inspection(report)
         if action == "params":
             if len(parts) != 3:
                 return "Usage: model params <provider>"
@@ -5996,7 +6231,7 @@ def _handle_model_command(
 
 def _model_usage() -> str:
     return (
-        "Usage: model use <name> | model choose [name] | model add <name> | model list <name> | "
+        "Usage: model use <name> | model choose [name] | model add <name> | model list <name> | model inspect <provider> [provider_model] | "
         "model params <name> | model variant <name> <variant> | model variant-clear <name> | "
         "model preset <name> <fast|balanced|deep|plan> | "
         "model param set <name> <key> <value> | model param clear <name> <key> | "
@@ -7534,6 +7769,32 @@ def main() -> int:
         else:
             print(response or "No limit message recorded.")
         return 0 if response else 1
+    if task == "model inspect" or task.startswith("model inspect "):
+        agent = _configure_readonly_agent_for_workspace(config)
+        parts = task.split()
+        if len(parts) not in {3, 4}:
+            payload = {"command": "model inspect", "ok": False, "error": "Usage: model inspect <provider> [provider_model]"}
+            if args.json:
+                print(dumps_ascii(payload, indent=2))
+            else:
+                print(payload["error"])
+            return 1
+        provider = parts[2]
+        provider_model = parts[3] if len(parts) == 4 else None
+        try:
+            report = _inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
+        except ValueError as exc:
+            payload = {"command": "model inspect", "ok": False, "error": str(exc)}
+            if args.json:
+                print(dumps_ascii(payload, indent=2))
+            else:
+                print(payload["error"])
+            return 1
+        if args.json:
+            print(dumps_ascii(report, indent=2))
+        else:
+            print(_render_provider_model_inspection(report))
+        return 0
     if task.startswith("model "):
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_model_command(task, agent, config)

@@ -89,6 +89,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("model preset", "models", "Apply or choose a provider preset.", "model preset <provider> [preset]", handler="models"),
     CommandSpec("model add", "models", "Enable a provider.", "model add <local|cheap|chatgpt|openai|claude>", handler="models"),
     CommandSpec("model remove", "models", "Disable a provider.", "model remove <local|cheap|chatgpt|openai|claude>", handler="models"),
+    CommandSpec("model inspect", "models", "Inspect dynamic provider-model peculiarities, with AI synthesis for discovered local models.", "model inspect <provider> [provider_model]", json=True, handler="models"),
     CommandSpec("model list", "models", "List provider-specific models.", "model list [local|cheap|chatgpt|openai|claude]", json=True, handler="models"),
     CommandSpec("model params", "models", "Show provider-model parameters.", "model params <local|cheap|chatgpt|openai|claude>", json=True, handler="models"),
     CommandSpec("model variant", "models", "Pin provider-specific model variant.", "model variant <provider> <variant>", handler="models"),
