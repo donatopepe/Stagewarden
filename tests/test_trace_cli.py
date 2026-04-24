@@ -2438,6 +2438,69 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Choose provider for Project Manager:", rendered)
             self.assertIn("Assigned Project Manager: provider=chatgpt provider_model=gpt-5.4 account=none reasoning_effort=medium.", rendered)
 
+    def test_interactive_shell_roles_setup_manual_can_approve_baseline_with_local_fallbacks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON")
+            os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = json.dumps(
+                {
+                    "models": [
+                        {
+                            "name": "qwen2.5-coder:7b",
+                            "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                        },
+                        {
+                            "name": "deepseek-r1:14b",
+                            "details": {"family": "qwen2", "parameter_size": "14.8B", "quantization_level": "Q4_K_M"},
+                        },
+                    ]
+                }
+            )
+            try:
+                input_stream = StringIO(
+                    "roles setup\n"
+                    "manual\n"
+                    "team_manager\n"
+                    "auto\n"
+                    "done\n"
+                    "yes\n"
+                    "exit\n"
+                )
+                output_stream = StringIO()
+                code = run_interactive_shell(
+                    AgentConfig(workspace_root=root, max_steps=1),
+                    input_stream=input_stream,
+                    output_stream=output_stream,
+                )
+            finally:
+                if original is None:
+                    os.environ.pop("STAGEWARDEN_OLLAMA_TAGS_JSON", None)
+                else:
+                    os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = original
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            team_node = next(
+                item
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict) and item.get("node_id") == "delivery.team_manager"
+            )
+            fallback_by_model = {
+                item["provider_model"]: item
+                for item in team_node.get("assignment_pool", {}).get("fallback", [])
+                if isinstance(item, dict)
+            }
+
+            self.assertEqual(code, 0)
+            self.assertIn("PRINCE2 role setup:", rendered)
+            self.assertIn("Recommended local fallback candidates discovered:", rendered)
+            self.assertIn("Approve baseline with recommended local delivery fallbacks now?", rendered)
+            self.assertIn("Role setup completed with approved baseline and recommended local delivery fallbacks.", rendered)
+            self.assertEqual(baseline.get("source"), "roles_setup_manual_local_fallbacks")
+            self.assertIn("deepseek-r1:14b", fallback_by_model)
+            self.assertIn("qwen2.5-coder:7b", fallback_by_model)
+            self.assertIn("local_execution_candidates: ", rendered)
+
     def test_project_start_blocks_when_design_or_brief_has_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
