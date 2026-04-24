@@ -27,6 +27,7 @@ The working rule is PRINCE2-style controlled execution:
 - clarification gate: for every user request, Stagewarden must identify all ambiguous points and ask every necessary clarification before execution starts; work may begin only after no material ambiguity remains or the user explicitly authorizes assumptions
 - clarification gate must stay proportional: simple unambiguous requests can proceed immediately, but any uncertainty about scope, files, provider/model/account, permissions, destructive effects, external network use, expected output, validation/wet-run, git/push boundary, or PRINCE2 role ownership must be resolved first
 - user-experience baseline is Codex CLI plus Claude Code: command feel, shell flow, status surfaces, transcript visibility, auth flow, model/provider selection, and conversational shell ergonomics must be learned from the locally cloned sources and reproduced in Stagewarden where compatible with project goals
+- simulation-and-test completeness rule: for every implemented or modified agent function, Stagewarden must add the broadest practical combination of simulations, targeted tests, integration tests, and wet-run evidence; if support capabilities are missing, Stagewarden must implement those too instead of settling for shallow validation
 
 ## Current Baseline
 
