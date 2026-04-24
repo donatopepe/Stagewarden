@@ -3185,12 +3185,18 @@ def _sources_status_report(config: AgentConfig, *, strict: bool = False) -> dict
                 "message": message,
             }
         )
+    ok = bool(items) and all(item["status"] == "OK" for item in items)
     return {
         "command": "sources status --strict" if strict else "sources status",
         "manifest": "docs/source_references.md",
         "strict": strict,
         "count": len(items),
-        "ok": bool(items) and all(item["status"] == "OK" for item in items),
+        "ok": ok,
+        "summary": {
+            "ok": sum(1 for item in items if item["status"] == "OK"),
+            "warn": sum(1 for item in items if item["status"] == "WARN"),
+            "fail": sum(1 for item in items if item["status"] == "FAIL"),
+        },
         "items": items,
     }
 
@@ -3200,6 +3206,10 @@ def _render_sources_status(config: AgentConfig, *, strict: bool = False) -> str:
     lines = ["External source references:"]
     if strict:
         lines.append("- strict: yes")
+    summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
+    lines.append(
+        f"- summary: ok={summary.get('ok', 0)} warn={summary.get('warn', 0)} fail={summary.get('fail', 0)}"
+    )
     if not report["items"]:
         return "\n".join(lines + ["- WARN manifest missing or contains no external source rows."])
     for item in report["items"]:
@@ -3219,6 +3229,18 @@ def _sources_update_report(config: AgentConfig) -> dict[str, object]:
     for item in status["items"]:
         if not item.get("exists") or not item.get("git_repository"):
             items.append({**item, "updated": False, "ok": False, "update_message": "missing or not a git repository"})
+            continue
+        if not item.get("upstream_matches"):
+            items.append(
+                {
+                    **item,
+                    "updated": False,
+                    "ok": False,
+                    "before_head": item.get("head"),
+                    "after_head": item.get("head"),
+                    "update_message": "skipped: upstream mismatch",
+                }
+            )
             continue
         local_path = config.workspace_root / str(item["path"])
         before_ok, before = _git_output(local_path, "rev-parse", "--short", "HEAD")
@@ -3245,6 +3267,8 @@ def _sources_update_report(config: AgentConfig) -> dict[str, object]:
     report = {
         "command": "sources update",
         "count": len(items),
+        "updated_count": sum(1 for item in items if item.get("updated")),
+        "failed_count": sum(1 for item in items if not item.get("ok")),
         "ok": bool(items) and all(bool(item.get("ok")) for item in items),
         "items": items,
     }
@@ -3262,6 +3286,7 @@ def _render_sources_update(config: AgentConfig) -> str:
     report = _sources_update_report(config)
     lines = ["External source update:"]
     lines.append(f"- ok: {str(report['ok']).lower()}")
+    lines.append(f"- summary: updated={report['updated_count']} failed={report['failed_count']} total={report['count']}")
     for item in report["items"]:
         lines.append(
             f"- {item['project']}: {'OK' if item.get('ok') else 'FAIL'} "
