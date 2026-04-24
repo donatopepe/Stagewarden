@@ -504,7 +504,7 @@ Grouped execution plan for `P6` from 2026-04-24:
 - `P6-G3` Concurrent execution orchestration:
 - implement actor/thread orchestration so a node can wait, resume, react to incoming messages, and continue autonomous work while other nodes are active.
 - success condition: Stagewarden supports independent node lifecycles instead of a single monolithic control loop.
-- status 2026-04-24: first orchestration slice complete. Stagewarden now supports explicit node lifecycle transitions for `waiting`, `ready`, `running`, and `completed` through governed CLI/runtime operations, including wake triggers and one-step node advancement.
+- status 2026-04-24: expanded orchestration slice complete. Stagewarden now supports explicit node lifecycle transitions for `waiting`, `ready`, `running`, and `completed` through governed CLI/runtime operations, plus batch runtime progression across the approved node tree.
 
 - `P6-G4` User and model surfaces:
 - expose runtime tree/node status, queues, active waits, recent node messages, and controlled wake/resume commands through status/help/JSON surfaces and model capability packets.
@@ -547,6 +547,11 @@ Pack `P6-G3` validation evidence:
 - Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 154 tests, 1 expected skip.
 - Wet-run 2026-04-24: isolated workspace sequential flow `role wait delivery.team_manager ...` -> `role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package` -> `role wake delivery.team_manager trigger=message_received` -> `role tick delivery.team_manager --json` passed.
 - Wet-run 2026-04-24: final `role tick` JSON showed `delivery.team_manager` in `state=running`, empty inbox, and transcript ref `message:<message_id>` persisted in the node runtime.
+- Added `roles tick [max_nodes]` for batch orchestration across the materialized PRINCE2 runtime.
+- Batch runtime progression now advances eligible nodes in one pass, preserves explicit node results, and keeps waiting nodes blocked unless an authorized message-trigger wake is possible.
+- Validation 2026-04-24: targeted runtime batch-orchestration tests passed (`3 tests`, `OK`).
+- Wet-run 2026-04-24: real CLI JSON execution of `roles tick` passed after queuing a governed work-package message; the runtime showed `management.project_manager=completed` and `delivery.team_manager=running`.
+- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 315 tests, 3 expected skips.
 
 Pack `P6-G4` validation evidence:
 
