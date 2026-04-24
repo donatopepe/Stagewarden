@@ -472,6 +472,7 @@ Grouped execution plan for `P5` from 2026-04-24:
 - `P5-G2` File conversion and normalization:
 - implement encoding conversion, line-ending normalization, ASCII-safe rewrite reporting, and governed file rewrite previews.
 - success condition: Stagewarden can inspect and convert text files without silent corruption and with explicit evidence.
+- status 2026-04-24: complete. `convert_encoding` and `normalize_line_endings` now preserve textual content exactly during wet-run rewrites, instead of incorrectly forcing ASCII escapes on sensitive paths, while still emitting explicit machine-readable evidence and preview/apply semantics.
 
 - `P5-G3` Metadata and filesystem operations:
 - implement stat/permissions inspection plus governed rename/move/copy/delete and OS-aware chmod/chown support or explicit rejection where unsupported.
@@ -562,8 +563,17 @@ Pack `P6-G4` validation evidence:
 - Executor integration 2026-04-24: the model communication packet now includes a dedicated `PRINCE2 node AI context packet` section so the routed model receives the node-scoped capability/context packet directly in its prompt.
 - Validation 2026-04-24: targeted executor tests for packet rendering and node-context prompt inclusion passed.
 - Validation 2026-04-24: internal prompt render check confirmed the executor prompt contains `node_id: management.project_manager`, `context_include: stage_plan, registers`, and `communication_incoming_edges: authorize.project`.
-- Note 2026-04-24: the broader `tests/test_executor.py tests/test_persistence.py tests/test_trace_cli.py` suite is still blocked only by the already-known unrelated `P5-G2` encoding-conversion failure (`convert_encoding_file` currently writes `caf\\xe9` instead of `café`). The node-context executor integration itself is green in targeted validation.
+- Note 2026-04-24: this earlier `P5-G2` blocker is now closed. Preserve-content file rewrites no longer corrupt Unicode by forcing ASCII escapes during encoding conversion or newline normalization.
 - Executor integration detail 2026-04-24: the prompt packet now carries runtime state, wake triggers, queue counts, transcript refs, assignment route, PRINCE2 include/exclude slices, communication commands, and real Stagewarden capability surfaces for the active node IA.
+
+Pack `P5-G2` validation evidence:
+
+- Root-cause isolated 2026-04-24: preserve-content rewrites were incorrectly routing sensitive-path content through ASCII forcing, causing `café` to be rewritten as `caf\\xe9` during encoding conversion.
+- Fixed 2026-04-24: `_prepare_preserving_text()` now preserves the original Unicode text for content-preserving operations, leaving ASCII-safety forcing to explicit output-rewriting paths instead of conversion/normalization workflows.
+- Added regression test for preserve-content operations on sensitive files, confirming that `.state.json` can be re-encoded and newline-normalized without silent text corruption.
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/tools/files.py tests/test_tools.py` passed.
+- Validation 2026-04-24: `python3 -m unittest tests.test_tools.ToolTests.test_file_tool_can_convert_encoding_and_normalize_line_endings tests.test_tools.ToolTests.test_preserve_content_operations_do_not_force_ascii_on_sensitive_files tests.test_executor.ExecutorTests.test_executor_supports_encoding_conversion_action` passed.
+- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 307 tests, 3 expected skips.
 
 New file-operations specification added on 2026-04-24:
 
