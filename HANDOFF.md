@@ -465,6 +465,7 @@ Grouped execution plan for `P5` from 2026-04-24:
 - `P5-G1` Structured text editing and encoding introspection:
 - implement encoding-aware file inspection, codec reporting, search/replace with dry-run/wet-run, insert before/after, delete range/backward delete, replace range, and machine-readable edit evidence.
 - success condition: agent-accessible structured text edits exist with explicit preview/apply semantics and focused wet-run validation.
+- status 2026-04-24: complete. `FileTool` now exposes encoding-aware inspection plus structured text edits with explicit `dry_run`/`wet_run` semantics, and the executor/model action contract can request these operations directly.
 
 - `P5-G2` File conversion and normalization:
 - implement encoding conversion, line-ending normalization, ASCII-safe rewrite reporting, and governed file rewrite previews.
@@ -511,6 +512,31 @@ Rules for this specification:
 - The agent prompt/tool contract must list these file capabilities explicitly so routed models know they can request them.
 - If an operation can be expressed both as patch and as structured edit, Stagewarden should prefer the safest primitive that yields auditable evidence.
 - Additional file capabilities may be invented where needed, but each new capability must be explicit, permission-aware, testable, and included in the agent capability surface.
+
+Pack `P5-G1` validation evidence:
+
+- Added `FileTool.inspect()` with encoding detection (`utf-8`, BOM-aware UTF variants, latin-1 fallback), newline reporting, byte/line counts, ASCII/confusable warnings, and machine-readable inspection reports.
+- Added structured file-edit primitives:
+- `search_replace(..., dry_run=...)`
+- `insert_text(..., dry_run=...)`
+- `delete_range(..., dry_run=...)`
+- `delete_backward(..., dry_run=...)`
+- `replace_range(..., dry_run=...)`
+- Added structured edit evidence payloads: operation, path, dry-run flag, changed flag, encoding, newline style, preview diff, and operation-specific fields such as match counts or line spans.
+- Extended executor/model action surface with:
+- `inspect_file`
+- `search_replace_file`
+- `insert_text_file`
+- `delete_range_file`
+- `delete_backward_file`
+- `replace_range_file`
+- Executor validation now treats real structured file edits as wet-run-capable when not marked dry-run.
+- Wet-run local script passed:
+- file inspection on UTF-8 text
+- `search_replace(..., dry_run=True)` preview
+- `replace_range(..., dry_run=False)` persisted change
+- Targeted validation passed for new tool and executor actions.
+- Full-suite closure `python3 -m unittest discover -s tests` passed with 294 tests and 3 expected skips.
 
 Codex/Claude UX baseline now explicitly includes:
 
