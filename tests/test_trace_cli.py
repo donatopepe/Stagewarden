@@ -3270,6 +3270,98 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("assurance.validation_assurance", node_ids)
             self.assertEqual(payload["clarification_gaps"], [])
 
+    def test_project_tree_propose_ai_attaches_local_execution_candidates_when_discovered(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = root / "run_model_ai_tree_and_local_stub.py"
+            stub.write_text(
+                "\n".join(
+                    [
+                        "#!/usr/bin/env python3",
+                        "from __future__ import annotations",
+                        "import json",
+                        "import sys",
+                        "",
+                        "prompt = sys.argv[2] if len(sys.argv) > 2 else ''",
+                        "if 'evaluating dynamically discovered local ollama models' in prompt.lower():",
+                        "    print(json.dumps({",
+                        "      'models': [",
+                        "        {",
+                        "          'id': 'qwen2.5-coder:7b',",
+                        "          'summary': 'Preferred local coding executor.',",
+                        "          'strengths': ['good coding speed'],",
+                        "          'weaknesses': ['smaller context'],",
+                        "          'best_for': ['delivery node execution'],",
+                        "          'agentic_fit': 'high',",
+                        "          'tool_support_risk': 'medium'",
+                        "        },",
+                        "        {",
+                        "          'id': 'codestral:latest',",
+                        "          'summary': 'Requires explicit tool validation.',",
+                        "          'strengths': ['code prior'],",
+                        "          'weaknesses': ['tool support uncertain'],",
+                        "          'best_for': ['manual comparison'],",
+                        "          'agentic_fit': 'low',",
+                        "          'tool_support_risk': 'high'",
+                        "        }",
+                        "      ],",
+                        "      'global_recommendation': 'Prefer qwen2.5-coder:7b for bounded delivery execution.'",
+                        "    }))",
+                        "else:",
+                        "    print(json.dumps({",
+                        "      'summary': 'Add release governance.',",
+                        "      'tree_patches': []",
+                        "    }))",
+                        "raise SystemExit(0)",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            original = os.environ.get("RUN_MODEL_BIN")
+            original_tags = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = json.dumps(
+                {
+                    "models": [
+                        {
+                            "name": "qwen2.5-coder:7b",
+                            "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                        },
+                        {
+                            "name": "codestral:latest",
+                            "details": {"family": "llama", "parameter_size": "22.2B", "quantization_level": "Q4_0"},
+                        },
+                    ]
+                }
+            )
+            try:
+                completed = run_main_capture(root, "project tree propose --ai", "--json")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+                if original_tags is None:
+                    os.environ.pop("STAGEWARDEN_OLLAMA_TAGS_JSON", None)
+                else:
+                    os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = original_tags
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["local_execution"]["ai_analysis"]["model"], "chatgpt")
+            self.assertEqual(payload["local_execution"]["candidates"][0]["id"], "qwen2.5-coder:7b")
+            self.assertEqual(
+                payload["local_execution"]["message"],
+                "Prefer qwen2.5-coder:7b for bounded delivery execution.",
+            )
+            implementation = next(item for item in payload["tree"]["nodes"] if item["node_id"] == "delivery.implementation_team")
+            self.assertIn("qwen2.5-coder:7b", implementation["local_execution_candidates"])
+
     def test_project_tree_propose_ai_merges_model_suggestions_without_approval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

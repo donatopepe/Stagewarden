@@ -1630,8 +1630,17 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     merged_roles.update(prefs.prince2_roles or {})
     proposal_prefs = replace(prefs, prince2_roles=merged_roles)
     active_models = list(proposal_prefs.active_models() or proposal_prefs.enabled_models)
+    local_execution = _local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
+    local_candidate_ids = [
+        str(item.get("id"))
+        for item in local_execution.get("candidates", [])
+        if isinstance(item, dict) and str(item.get("id", "")).strip()
+    ]
     base_tree = build_prince2_role_tree(proposal_prefs)
     nodes = [dict(node) for node in base_tree.get("nodes", []) if isinstance(node, dict)]
+    for node in nodes:
+        if isinstance(node, dict) and str(node.get("level", "")).startswith("delivery"):
+            node["local_execution_candidates"] = list(local_candidate_ids)
     brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
     joined = " ".join(brief.values()).lower()
     assumptions: list[str] = []
@@ -1711,6 +1720,10 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
         added_nodes.append(node_id)
         assumptions.append("Project brief indicates provider/rate-limit or exception complexity, so a delegated change authority node is proposed.")
 
+    for node in nodes:
+        if isinstance(node, dict) and str(node.get("level", "")).startswith("delivery"):
+            node["local_execution_candidates"] = list(local_candidate_ids)
+
     tree = dict(base_tree)
     tree["command"] = "project tree propose"
     tree["source"] = "project_brief_local_rules"
@@ -1739,6 +1752,7 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
         "assumptions": assumptions,
         "added_nodes": added_nodes,
         "tree": tree,
+        "local_execution": local_execution,
         "check": check,
         "matrix": matrix,
         "clarification_gaps": gaps,
@@ -1942,6 +1956,27 @@ def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
         lines.append(f"- message: {ai_assistance.get('message') or 'none'}")
         lines.append(f"- valid_added_nodes: {', '.join(added) if isinstance(added, list) and added else 'none'}")
         lines.append(f"- rejected_nodes: {len(rejected) if isinstance(rejected, list) else 0}")
+    else:
+        lines.append("- none")
+    local_execution = report.get("local_execution") if isinstance(report.get("local_execution"), dict) else {}
+    lines.append("Local execution candidates:")
+    if local_execution:
+        ai = local_execution.get("ai_analysis", {}) if isinstance(local_execution.get("ai_analysis"), dict) else {}
+        lines.append(
+            f"- source: {local_execution.get('catalog_source', 'unknown')} "
+            f"ai_attempted={str(bool(ai.get('attempted'))).lower()} ai_ok={ai.get('ok')}"
+        )
+        if local_execution.get("message"):
+            lines.append(f"- recommendation: {local_execution.get('message')}")
+        candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
+        if candidates:
+            for item in candidates:
+                lines.append(
+                    f"- {item.get('id')}: fit={item.get('agentic_fit')} risk={item.get('tool_support_risk')} "
+                    f"best_for={', '.join(str(entry) for entry in item.get('best_for', [])) or 'none'}"
+                )
+        else:
+            lines.append("- none")
     else:
         lines.append("- none")
     lines.append("Assumptions:")
@@ -5888,6 +5923,52 @@ def _render_provider_model_inspection(report: dict[str, object]) -> str:
         lines.append(f"  weaknesses: {weaknesses}")
         lines.append(f"  best_for: {best_for}")
     return "\n".join(lines)
+
+
+def _local_execution_candidates_report(
+    config: AgentConfig,
+    *,
+    agent: Agent | None = None,
+    use_ai: bool = False,
+) -> dict[str, object]:
+    specs = [spec for spec in provider_model_specs("local") if spec.id != "provider-default"]
+    if not specs:
+        return {
+            "status": "missing",
+            "message": "No local models discovered from Ollama.",
+            "models": [],
+            "candidates": [],
+            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Local discovery unavailable."},
+        }
+    if use_ai and agent is not None:
+        report = _inspect_provider_models(agent, config, provider="local")
+    else:
+        report = {
+            "status": "ok",
+            "provider": "local",
+            "models": [_local_model_profile_from_spec(spec) for spec in specs],
+            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Metadata-only local profile."},
+            "global_recommendation": "Use local models only when runtime-discovered and appropriate for bounded node execution.",
+        }
+    models = [item for item in report.get("models", []) if isinstance(item, dict)]
+    fit_rank = {"high": 0, "medium": 1, "low": 2, "unknown": 3}
+    risk_rank = {"low": 0, "medium": 1, "unknown": 2, "high": 3}
+    candidates = sorted(
+        models,
+        key=lambda item: (
+            fit_rank.get(str(item.get("agentic_fit", "unknown")), 3),
+            risk_rank.get(str(item.get("tool_support_risk", "unknown")), 2),
+            str(item.get("id", "")),
+        ),
+    )
+    return {
+        "status": "ok",
+        "message": report.get("global_recommendation", ""),
+        "models": models,
+        "candidates": candidates[:3],
+        "ai_analysis": report.get("ai_analysis", {}),
+        "catalog_source": report.get("catalog_source", "dynamic local inspection"),
+    }
 
 
 def _guided_model_choice(
