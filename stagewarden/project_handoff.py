@@ -767,6 +767,158 @@ class ProjectHandoff:
             )
         return "\n".join(lines)
 
+    def prince2_node_control_report(self) -> dict[str, Any]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        if not runtime or not nodes:
+            return {
+                "command": "roles control",
+                "status": "missing",
+                "message": "No materialized PRINCE2 node runtime. Approve a role-tree baseline first.",
+                "decision": {
+                    "next_action": "materialize_runtime",
+                    "board_signal": "missing_runtime",
+                    "reason": "No active runtime is available for stage control.",
+                },
+                "summary": self.prince2_node_runtime_summary(),
+                "critical_nodes": [],
+            }
+        active = self.prince2_node_active_report()
+        queues = self.prince2_node_queue_report()
+        active_nodes = [node for node in active.get("nodes", []) if isinstance(node, dict)]
+        queue_rows = {
+            str(item.get("node_id", "")): item
+            for item in queues.get("queues", [])
+            if isinstance(item, dict)
+        }
+        critical_nodes: list[dict[str, Any]] = []
+        waiting_nodes = 0
+        blocked_nodes = 0
+        escalated_nodes = 0
+        inbox_nodes = 0
+        for node in active_nodes:
+            node_id = str(node.get("node_id", ""))
+            state = str(node.get("state", "idle")).strip().lower() or "idle"
+            wait_status = str(node.get("wait_status", "none")).strip().lower() or "none"
+            inbox_count = int(node.get("inbox_count", 0) or 0)
+            outbox_count = int(node.get("outbox_count", 0) or 0)
+            reasons: list[str] = []
+            severity = "monitor"
+            if state == "escalated":
+                escalated_nodes += 1
+                severity = "exception"
+                reasons.append("node escalated beyond delegated tolerance")
+            if state == "blocked":
+                blocked_nodes += 1
+                severity = "exception"
+                reasons.append("node blocked and requires intervention")
+            if state == "waiting":
+                waiting_nodes += 1
+                severity = "warning" if severity != "exception" else severity
+                reasons.append(f"node waiting for trigger: {wait_status}")
+            if inbox_count > 0:
+                inbox_nodes += 1
+                if severity == "monitor":
+                    severity = "warning"
+                reasons.append(f"{inbox_count} queued inbound message(s)")
+            if outbox_count > 0 and not reasons:
+                reasons.append(f"{outbox_count} outbound message(s) pending visibility")
+            if reasons:
+                queue_row = queue_rows.get(node_id, {})
+                critical_nodes.append(
+                    {
+                        "node_id": node_id,
+                        "label": str(node.get("label", node_id)),
+                        "state": state,
+                        "wait_status": wait_status,
+                        "inbox_count": inbox_count,
+                        "outbox_count": outbox_count,
+                        "severity": severity,
+                        "reasons": reasons,
+                        "provider": str(node.get("provider", "none")),
+                        "provider_model": str(node.get("provider_model", "none")),
+                        "queue_state": str(queue_row.get("state", state)),
+                    }
+                )
+        summary = self.prince2_node_runtime_summary()
+        queue_summary = queues.get("summary", {}) if isinstance(queues.get("summary"), dict) else {}
+        completed = int(summary.get("completed", 0) or 0)
+        total_nodes = int(summary.get("nodes", 0) or 0)
+        active_count = int(active.get("count", 0) or 0)
+        if escalated_nodes or blocked_nodes:
+            decision = {
+                "next_action": "escalate_board_decision",
+                "board_signal": "exception",
+                "reason": "At least one runtime node is blocked or escalated beyond local control.",
+            }
+        elif waiting_nodes:
+            decision = {
+                "next_action": "unblock_waiting_nodes",
+                "board_signal": "attention",
+                "reason": "Waiting nodes need authorized wake triggers or upstream decisions.",
+            }
+        elif int(queue_summary.get("inbox_total", 0) or 0) > 0:
+            decision = {
+                "next_action": "process_queued_work",
+                "board_signal": "attention",
+                "reason": "Inbound queues contain governed work that should be consumed before closing the stage.",
+            }
+        elif active_count and completed < total_nodes:
+            decision = {
+                "next_action": "continue_execution",
+                "board_signal": "go",
+                "reason": "Runtime is progressing within delegated control and can continue.",
+            }
+        else:
+            decision = {
+                "next_action": "stage_ready_for_gate",
+                "board_signal": "review",
+                "reason": "No active pressure remains; prepare the next gate or close the stage.",
+            }
+        return {
+            "command": "roles control",
+            "status": "ok",
+            "summary": summary,
+            "queue_summary": queue_summary,
+            "decision": decision,
+            "critical_nodes": critical_nodes,
+            "active_nodes": active_count,
+            "completed_nodes": completed,
+            "waiting_nodes": waiting_nodes,
+            "blocked_nodes": blocked_nodes,
+            "escalated_nodes": escalated_nodes,
+            "queued_inbox_nodes": inbox_nodes,
+        }
+
+    def rendered_prince2_node_control(self) -> str:
+        report = self.prince2_node_control_report()
+        if report["status"] == "missing":
+            return "PRINCE2 control view: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
+        decision = report.get("decision", {}) if isinstance(report.get("decision"), dict) else {}
+        summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
+        queue_summary = report.get("queue_summary", {}) if isinstance(report.get("queue_summary"), dict) else {}
+        lines = [
+            "PRINCE2 control view:",
+            f"- board_signal: {decision.get('board_signal', 'unknown')} next_action={decision.get('next_action', 'unknown')}",
+            f"- reason: {decision.get('reason', 'none')}",
+            f"- nodes: {summary.get('nodes', 0)} active={report.get('active_nodes', 0)} completed={report.get('completed_nodes', 0)}",
+            f"- waiting: {report.get('waiting_nodes', 0)} blocked={report.get('blocked_nodes', 0)} escalated={report.get('escalated_nodes', 0)}",
+            f"- queues: inbox_total={queue_summary.get('inbox_total', 0)} outbox_total={queue_summary.get('outbox_total', 0)} inbox_nodes={report.get('queued_inbox_nodes', 0)}",
+        ]
+        critical_nodes = [item for item in report.get("critical_nodes", []) if isinstance(item, dict)]
+        if not critical_nodes:
+            lines.append("- critical_nodes: none")
+            return "\n".join(lines)
+        lines.append("- critical_nodes:")
+        for node in critical_nodes:
+            lines.append(
+                f"  - {node.get('label')} [{node.get('node_id')}]: severity={node.get('severity')} "
+                f"state={node.get('state')} wait={node.get('wait_status')} "
+                f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
+                f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
+            )
+        return "\n".join(lines)
+
     def prince2_node_messages_report(self, node_id: str | None = None) -> dict[str, Any]:
         runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
         nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]

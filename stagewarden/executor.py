@@ -916,7 +916,7 @@ class Executor:
             f"- context_exclude: {', '.join(str(item) for item in context_rule.get('exclude', [])) if isinstance(context_rule.get('exclude', []), list) and context_rule.get('exclude', []) else 'none'}",
             f"- communication_incoming_edges: {', '.join(str(edge.get('edge_id')) for edge in incoming) if incoming else 'none'}",
             f"- communication_outgoing_edges: {', '.join(str(edge.get('edge_id')) for edge in outgoing) if outgoing else 'none'}",
-            "- communication_commands: roles active [--json] | roles queues [--json] | roles messages [node_id] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text> | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]",
+            "- communication_commands: roles active [--json] | roles control [--json] | roles queues [--json] | roles messages [node_id] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text> | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]",
             f"- workspace: {self.config.workspace_root}",
             f"- os_family: {runtime_capabilities.get('os_family', 'unknown')}",
             f"- recommended_shell: {runtime_capabilities.get('recommended_shell', 'unknown')}",
