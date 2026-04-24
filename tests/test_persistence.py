@@ -328,6 +328,68 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(nodes["delivery.team_manager"]["state"], "running")
         self.assertEqual(nodes["delivery.team_manager"]["inbox_count"], 0)
 
+    def test_project_handoff_can_build_prince2_control_report(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.sync_prince2_role_tree_baseline(
+            {
+                "status": "approved",
+                "source": "unit_test",
+                "tree": {
+                    "nodes": [
+                        {
+                            "node_id": "board.executive",
+                            "role_type": "executive",
+                            "label": "Executive",
+                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                        },
+                        {
+                            "node_id": "management.project_manager",
+                            "role_type": "project_manager",
+                            "label": "Project Manager",
+                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                        },
+                        {
+                            "node_id": "delivery.team_manager",
+                            "role_type": "team_manager",
+                            "label": "Team Manager",
+                            "assignment": {"provider": "local", "provider_model": "provider-default"},
+                        },
+                    ]
+                },
+                "flow": {
+                    "edges": [
+                        {
+                            "edge_id": "issue.work_package",
+                            "source_node": "management.project_manager",
+                            "target_node": "delivery.team_manager",
+                            "payload_scope": ["assigned_work_package"],
+                        }
+                    ]
+                },
+            }
+        )
+        handoff.set_prince2_node_waiting(
+            node_id="delivery.team_manager",
+            reason="await assignment",
+            wake_triggers=["message_received"],
+        )
+        handoff.send_prince2_node_message(
+            source_node="management.project_manager",
+            target_node="delivery.team_manager",
+            edge_id="issue.work_package",
+            payload_scope=["assigned_work_package"],
+        )
+
+        report = handoff.prince2_node_control_report()
+
+        self.assertEqual(report["command"], "roles control")
+        self.assertEqual(report["status"], "ok")
+        self.assertEqual(report["decision"]["next_action"], "process_queued_work")
+        self.assertEqual(report["decision"]["board_signal"], "attention")
+        critical = {item["node_id"]: item for item in report["critical_nodes"]}
+        self.assertIn("delivery.team_manager", critical)
+        self.assertIn("queued inbound message(s)", " ".join(critical["delivery.team_manager"]["reasons"]))
+
     def test_project_handoff_can_close_step_issues_and_clear_exception_plan(self) -> None:
         handoff = ProjectHandoff(
             current_step_id="step-1",
