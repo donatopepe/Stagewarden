@@ -2923,7 +2923,79 @@ class TraceAndCliTests(unittest.TestCase):
                 for item in tick_payload["runtime"]["runtime"]["nodes"]
             }
             self.assertEqual(tick_rows["delivery.team_manager"]["state"], "running")
-            self.assertEqual(tick_payload["messages"]["nodes"][0]["inbox"], [])
+
+    def test_roles_tick_advances_runtime_in_batch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "context_rule": {"expansion_events": ["escalation"]},
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            },
+                            {
+                                "node_id": "delivery.team_manager",
+                                "role_type": "team_manager",
+                                "label": "Team Manager",
+                                "context_rule": {"expansion_events": ["delivery_checkpoint", "message_received"]},
+                                "assignment": {"provider": "local", "provider_model": "provider-default"},
+                            },
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "issue.work_package",
+                                "source_node": "management.project_manager",
+                                "target_node": "delivery.team_manager",
+                                "flow_type": "delegation",
+                                "payload_scope": ["assigned_work_package"],
+                                "expected_evidence": ["work_package_description"],
+                                "validation_condition": "delivery scoped",
+                                "decision_authority": "Project Manager",
+                                "return_path": "checkpoint",
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            wait_completed = run_main_capture(
+                root,
+                "role wait delivery.team_manager reason=await_assignment wake=message_received",
+                "--json",
+            )
+            message_completed = run_main_capture(
+                root,
+                "role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package",
+                "--json",
+            )
+            batch_completed = run_main_capture(root, "roles tick", "--json")
+
+            self.assertEqual(wait_completed.returncode, 0, wait_completed.stderr)
+            self.assertEqual(message_completed.returncode, 0, message_completed.stderr)
+            self.assertEqual(batch_completed.returncode, 0, batch_completed.stderr)
+            payload = json.loads(batch_completed.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["result"]["command"], "roles tick")
+            self.assertEqual(payload["result"]["woken"], 0)
+            self.assertEqual(payload["result"]["progressed"], 2)
+            rows = {
+                item["node_id"]: item
+                for item in payload["runtime"]["runtime"]["nodes"]
+            }
+            self.assertEqual(rows["management.project_manager"]["state"], "completed")
+            self.assertEqual(rows["delivery.team_manager"]["state"], "running")
+            self.assertEqual(payload["messages"]["nodes"][0]["inbox"], [])
 
     def test_project_design_report_exposes_capability_spec_project_spec_and_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
