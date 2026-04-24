@@ -509,7 +509,7 @@ Grouped execution plan for `P6` from 2026-04-24:
 - `P6-G4` User and model surfaces:
 - expose runtime tree/node status, queues, active waits, recent node messages, and controlled wake/resume commands through status/help/JSON surfaces and model capability packets.
 - success condition: the user and routed models can inspect the live PRINCE2 runtime organization safely and clearly.
-- status 2026-04-24: expanded supervision slice complete. Each node can now expose a structured AI context packet, and the live runtime now also has compact supervision views for active nodes and queue pressure.
+- status 2026-04-24: expanded supervision slice complete. Each node can now expose a structured AI context packet, the live runtime has compact supervision views for active nodes and queue pressure, and a board-facing control view now proposes the next gating action from runtime pressure signals.
 
 Pack `P6-G1` validation evidence:
 
@@ -573,10 +573,15 @@ Pack `P6-G4` validation evidence:
 - Note 2026-04-24: this earlier `P5-G2` blocker is now closed. Preserve-content file rewrites no longer corrupt Unicode by forcing ASCII escapes during encoding conversion or newline normalization.
 - Executor integration detail 2026-04-24: the prompt packet now carries runtime state, wake triggers, queue counts, transcript refs, assignment route, PRINCE2 include/exclude slices, communication commands, and real Stagewarden capability surfaces for the active node IA.
 - Added `roles active` for compact inspection of non-completed runtime nodes.
+- Added `roles control` for a board-facing PRINCE2 control summary over blockers, queue pressure, and next gating decision.
 - Added `roles queues` for compact supervision of inbox/outbox pressure across the materialized PRINCE2 runtime.
+- `roles control` now classifies critical nodes, distinguishes monitor/warning/exception pressure, and proposes `materialize_runtime`, `escalate_board_decision`, `unblock_waiting_nodes`, `process_queued_work`, `continue_execution`, or `stage_ready_for_gate` as the next action.
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/commands.py stagewarden/main.py stagewarden/executor.py tests/test_persistence.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 161 tests, 1 expected skip.
+- Wet-run 2026-04-24: real CLI JSON execution of `roles control` passed after a governed wait/message sequence and returned `next_action=process_queued_work`, `board_signal=attention`, `inbox_total=1`, and `delivery.team_manager` as a critical node.
 - Validation 2026-04-24: targeted runtime supervision tests passed (`3 tests`, `OK`).
 - Wet-run 2026-04-24: real CLI JSON execution of `roles active` and `roles queues` passed after queuing a governed node message; supervision showed `ACTIVE 2`, `INBOX_TOTAL 1`, and `OUTBOX_TOTAL 1`.
-- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 316 tests, 3 expected skips.
+- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 318 tests, 3 expected skips.
 
 Pack `P5-G2` validation evidence:
 
