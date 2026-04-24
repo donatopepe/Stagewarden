@@ -477,6 +477,7 @@ Grouped execution plan for `P5` from 2026-04-24:
 - `P5-G3` Metadata and filesystem operations:
 - implement stat/permissions inspection plus governed rename/move/copy/delete and OS-aware chmod/chown support or explicit rejection where unsupported.
 - success condition: file metadata and filesystem mutation surfaces are permission-aware, machine-readable, and wet-run validated.
+- status 2026-04-24: complete. Stagewarden now exposes machine-readable metadata inspection plus governed copy/move/delete/chmod/chown filesystem primitives with `dry_run`/`wet_run` semantics, workspace-bound validation, and explicit unsupported-platform handling for ownership changes.
 
 - `P5-G4` Agent capability surface integration:
 - expose all new file primitives in command/help/discovery surfaces and in the model-facing tool capability packet so routed models know these operations exist.
@@ -574,6 +575,19 @@ Pack `P5-G2` validation evidence:
 - Validation 2026-04-24: `python3 -m py_compile stagewarden/tools/files.py tests/test_tools.py` passed.
 - Validation 2026-04-24: `python3 -m unittest tests.test_tools.ToolTests.test_file_tool_can_convert_encoding_and_normalize_line_endings tests.test_tools.ToolTests.test_preserve_content_operations_do_not_force_ascii_on_sensitive_files tests.test_executor.ExecutorTests.test_executor_supports_encoding_conversion_action` passed.
 - Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 307 tests, 3 expected skips.
+
+Pack `P5-G3` validation evidence:
+
+- Added `FileTool.inspect_metadata()` for machine-readable stat/permission inspection with kind, size, mode, uid/gid, timestamps, and access flags.
+- Added governed filesystem mutation primitives: `copy_path`, `move_path`, `delete_path`, `chmod_path`, and `chown_path`.
+- Every mutation validates workspace boundaries, supports `dry_run` and `wet_run`, and emits structured evidence reports including operation type, source/destination paths, overwrite flags, recursion flags, target counts, and applied mode/owner fields.
+- Ownership changes now behave OS-aware: use real `chown` when supported and reject explicitly when unsupported or unavailable.
+- Executor/model action contract now exposes `inspect_metadata_file`, `copy_path_file`, `move_path_file`, `delete_path_file`, `chmod_path_file`, and `chown_path_file`.
+- Node AI capability/context packets now advertise the new filesystem primitives so routed models can use them without hidden tooling assumptions.
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/tools/files.py stagewarden/executor.py stagewarden/main.py tests/test_tools.py tests/test_executor.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-24: targeted tests for metadata inspection, filesystem mutation actions, and node capability-packet exposure passed (`6 tests`, `OK`).
+- Wet-run 2026-04-24: real temp-workspace execution of `inspect_metadata`, `copy_path`, `move_path`, `chmod_path`, `chown_path`, and `delete_path` passed.
+- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 312 tests, 3 expected skips.
 
 New file-operations specification added on 2026-04-24:
 
