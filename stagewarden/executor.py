@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -76,8 +77,14 @@ ALLOWED_MODEL_ACTIONS = {
     "shell_session_send",
     "shell_session_close",
     "read_file",
+    "inspect_file",
     "write_file",
     "apply_patch",
+    "search_replace_file",
+    "insert_text_file",
+    "delete_range_file",
+    "delete_backward_file",
+    "replace_range_file",
     "patch_file",
     "patch_files",
     "preview_patch_files",
@@ -742,20 +749,26 @@ class Executor:
                         '3. shell_session_send -> {"type":"shell_session_send","session_id":"session id","command":"..."}',
                         '4. shell_session_close -> {"type":"shell_session_close","session_id":"session id"}',
                         '5. read_file -> {"type":"read_file","path":"relative/path"}',
-                        '6. write_file -> {"type":"write_file","path":"relative/path","content":"full file contents"}',
-                        '7. apply_patch -> {"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}',
-                        '8. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
-                        '9. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
-                        '10. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
-                        '11. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
-                        '12. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
-                        '13. git_status -> {"type":"git_status"}',
-                        '14. git_diff -> {"type":"git_diff"}',
-                        '15. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
-                        '16. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
-                        '17. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
-                        '18. git_commit -> {"type":"git_commit","message":"commit message"}',
-                        '19. complete -> {"type":"complete","message":"why the current step is done"}',
+                        '6. inspect_file -> {"type":"inspect_file","path":"relative/path"}',
+                        '7. write_file -> {"type":"write_file","path":"relative/path","content":"full file contents"}',
+                        '8. apply_patch -> {"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}',
+                        '9. search_replace_file -> {"type":"search_replace_file","path":"relative/path","search":"old text","replace":"new text","count":1,"dry_run":false}',
+                        '10. insert_text_file -> {"type":"insert_text_file","path":"relative/path","content":"text to insert","line_number":12,"pattern":"optional anchor","position":"before|after","occurrence":1,"dry_run":false}',
+                        '11. delete_range_file -> {"type":"delete_range_file","path":"relative/path","start_line":4,"end_line":7,"dry_run":false}',
+                        '12. delete_backward_file -> {"type":"delete_backward_file","path":"relative/path","count":2,"line_number":10,"pattern":"optional anchor","occurrence":1,"dry_run":false}',
+                        '13. replace_range_file -> {"type":"replace_range_file","path":"relative/path","start_line":4,"end_line":7,"content":"replacement block","dry_run":false}',
+                        '14. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
+                        '15. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
+                        '16. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
+                        '17. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
+                        '18. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
+                        '19. git_status -> {"type":"git_status"}',
+                        '20. git_diff -> {"type":"git_diff"}',
+                        '21. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
+                        '22. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
+                        '23. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
+                        '24. git_commit -> {"type":"git_commit","message":"commit message"}',
+                        '25. complete -> {"type":"complete","message":"why the current step is done"}',
                     ]
                 ),
             ),
@@ -1132,6 +1145,15 @@ class Executor:
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
+        if action_type == "inspect_file":
+            result = self.files.inspect(action.get("path", ""))
+            if result.ok and isinstance(result.report, dict):
+                message = json.dumps(result.report, ensure_ascii=True)
+            else:
+                message = result.error or "File inspection failed."
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
         if action_type == "write_file":
             result = self.files.write(action.get("path", ""), action.get("content", ""))
             message = f"Wrote file {result.path}" if result.ok else result.error
@@ -1145,6 +1167,68 @@ class Executor:
                 action.get("replace", ""),
             )
             message = f"Patched file {result.path}" if result.ok else result.error
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "search_replace_file":
+            result = self.files.search_replace(
+                action.get("path", ""),
+                action.get("search", ""),
+                action.get("replace", ""),
+                count=int(action.get("count", 1)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("search-replaced", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "insert_text_file":
+            result = self.files.insert_text(
+                action.get("path", ""),
+                action.get("content", ""),
+                line_number=int(action["line_number"]) if action.get("line_number") is not None else None,
+                pattern=action.get("pattern"),
+                position=str(action.get("position", "after")),
+                occurrence=int(action.get("occurrence", 1)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "delete_range_file":
+            result = self.files.delete_range(
+                action.get("path", ""),
+                int(action.get("start_line", 0)),
+                int(action.get("end_line", 0)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "delete_backward_file":
+            result = self.files.delete_backward(
+                action.get("path", ""),
+                int(action.get("count", 0)),
+                line_number=int(action["line_number"]) if action.get("line_number") is not None else None,
+                pattern=action.get("pattern"),
+                occurrence=int(action.get("occurrence", 1)),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "replace_range_file":
+            result = self.files.replace_range(
+                action.get("path", ""),
+                int(action.get("start_line", 0)),
+                int(action.get("end_line", 0)),
+                action.get("content", ""),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
@@ -1241,6 +1325,17 @@ class Executor:
             error_type=error_type,
         )
 
+    def _file_edit_message(self, verb: str, result: object, *, dry_run: bool) -> str:
+        if not bool(getattr(result, "ok", False)):
+            return str(getattr(result, "error", "file operation failed"))
+        path = str(getattr(result, "path", ""))
+        report = getattr(result, "report", None)
+        if dry_run:
+            return f"Dry-run {verb} file {path}"
+        if isinstance(report, dict) and report.get("changed"):
+            return f"Edited file {path}"
+        return f"No-op edit for file {path}"
+
     def _git_observation(self, iteration: int, step_id: str, action_type: str, summary: str, message: str, ok: bool) -> dict[str, Any]:
         self._record_tool_transcript(
             iteration=iteration,
@@ -1264,7 +1359,7 @@ class Executor:
             return True
         if step.validation.lower().startswith("a command") and observation:
             return True
-        if "wrote file" in lower or "patched file" in lower:
+        if "wrote file" in lower or "patched file" in lower or "edited file" in lower:
             return True
         return False
 
@@ -1276,8 +1371,14 @@ class Executor:
             "shell",
             "shell_session_send",
             "read_file",
+            "inspect_file",
             "write_file",
             "apply_patch",
+            "search_replace_file",
+            "insert_text_file",
+            "delete_range_file",
+            "delete_backward_file",
+            "replace_range_file",
             "patch_file",
             "patch_files",
             "preview_patch_files",

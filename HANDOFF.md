@@ -455,6 +455,63 @@ Pack `P3` validation evidence:
 - includes: selection UX refinement without breaking current shell semantics.
 - close condition: interactive command discovery is improved without regressions, with manual wet-run evidence and one full suite.
 
+- `P5` Advanced file-operations pack:
+- scope: expand Stagewarden file tooling so the agent and routed models can perform advanced, governed file operations comparable to a serious coding agent workspace toolset.
+- includes: read encoding detection, file re-encoding/conversion, search/replace, structured insert/delete operations, reverse/backward delete operations, patch preview/apply parity, dry-run and wet-run modes, metadata operations, and any additional safe file capabilities needed by the project.
+- close condition: advanced file tooling is exposed as explicit agent capabilities, covered by tests, governed by permissions, and documented in handoff/help surfaces with real wet-run evidence.
+
+Grouped execution plan for `P5` from 2026-04-24:
+
+- `P5-G1` Structured text editing and encoding introspection:
+- implement encoding-aware file inspection, codec reporting, search/replace with dry-run/wet-run, insert before/after, delete range/backward delete, replace range, and machine-readable edit evidence.
+- success condition: agent-accessible structured text edits exist with explicit preview/apply semantics and focused wet-run validation.
+
+- `P5-G2` File conversion and normalization:
+- implement encoding conversion, line-ending normalization, ASCII-safe rewrite reporting, and governed file rewrite previews.
+- success condition: Stagewarden can inspect and convert text files without silent corruption and with explicit evidence.
+
+- `P5-G3` Metadata and filesystem operations:
+- implement stat/permissions inspection plus governed rename/move/copy/delete and OS-aware chmod/chown support or explicit rejection where unsupported.
+- success condition: file metadata and filesystem mutation surfaces are permission-aware, machine-readable, and wet-run validated.
+
+- `P5-G4` Agent capability surface integration:
+- expose all new file primitives in command/help/discovery surfaces and in the model-facing tool capability packet so routed models know these operations exist.
+- success condition: command/help/tool capability surfaces are synchronized and tested.
+
+New file-operations specification added on 2026-04-24:
+
+- Stagewarden must expose richer file-tool capabilities to the AI, not just basic read/write/patch.
+- The AI capability packet and tool surface must eventually include at least:
+- file read with encoding awareness
+- file encoding detection/reporting
+- file encoding conversion/rewrite
+- search-only
+- search and replace with count/report
+- insert before line / insert after line
+- insert before pattern / insert after pattern
+- delete line range
+- delete from match backward or delete backward from cursor/line anchor when requested
+- replace line range
+- normalize line endings
+- preview diff / dry-run for every mutating file operation
+- wet-run execution path for every mutating file operation
+- permission-aware metadata operations such as chmod and chown when the OS/runtime allows them
+- file mode/stat inspection
+- rename/move/copy/delete with governed preview
+- any additional file manipulation primitives needed to let the AI operate safely and precisely on source trees
+
+Rules for this specification:
+
+- Every mutating file tool must support explicit dry-run preview and real wet-run execution.
+- Dry-run is never a sufficient checkpoint by itself; if the operation is intended to change the workspace, a wet-run or equivalent real verification path is required.
+- Encoding operations must be ASCII-safe by default and preserve or explicitly report ambiguous/unmappable characters.
+- If a file cannot be safely decoded, the tool must report the codec issue explicitly and offer a governed conversion path instead of silently corrupting content.
+- Search/replace and insert/delete tools must return machine-readable evidence: target, match count, line spans, preview summary, and actual write outcome.
+- Metadata-changing operations such as chmod/chown must remain permission-gated, OS-aware, and no-op or clearly rejected where unsupported.
+- The agent prompt/tool contract must list these file capabilities explicitly so routed models know they can request them.
+- If an operation can be expressed both as patch and as structured edit, Stagewarden should prefer the safest primitive that yields auditable evidence.
+- Additional file capabilities may be invented where needed, but each new capability must be explicit, permission-aware, testable, and included in the agent capability surface.
+
 Codex/Claude UX baseline now explicitly includes:
 
 - slash-command discoverability and completion

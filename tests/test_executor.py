@@ -114,6 +114,88 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual(memory.tool_transcript[-1].action_type, "write_file")
             self.assertIn("hello.txt", memory.tool_transcript[-1].summary)
 
+    def test_executor_supports_structured_file_edit_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "notes.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "replace line range",
+                                "action": {
+                                    "type": "replace_range_file",
+                                    "path": "notes.txt",
+                                    "start_line": 2,
+                                    "end_line": 2,
+                                    "content": "TWO",
+                                    "dry_run": False,
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="step-1",
+                title="Edit",
+                instruction="replace the second line",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+
+            outcome = executor.execute_step(task="edit file", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertTrue(outcome.step_completed)
+            self.assertEqual((root / "notes.txt").read_text(encoding="utf-8"), "one\nTWO\nthree\n")
+            self.assertEqual(memory.tool_transcript[-1].action_type, "replace_range_file")
+
+    def test_executor_supports_file_inspection_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "notes.txt").write_text("one\ntwo\n", encoding="utf-8")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "inspect file encoding",
+                                "action": {
+                                    "type": "inspect_file",
+                                    "path": "notes.txt",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Inspect", instruction="inspect file", validation="A command executed successfully.")
+
+            outcome = executor.execute_step(task="inspect file", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertIn('"encoding": "utf-8"', outcome.observation)
+            self.assertEqual(memory.tool_transcript[-1].action_type, "inspect_file")
+
     def test_executor_tracks_invalid_output_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))

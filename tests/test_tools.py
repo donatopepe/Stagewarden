@@ -173,6 +173,48 @@ class ToolTests(unittest.TestCase):
             self.assertTrue(found.ok)
             self.assertIn("README.md:1:hello", found.content)
 
+    def test_file_tool_inspect_detects_encoding_and_reports_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            sample = root / "sample.txt"
+            sample.write_text("ciao\nseconda riga\n", encoding="utf-8")
+            tool = FileTool(AgentConfig(workspace_root=root))
+
+            result = tool.inspect("sample.txt")
+
+            self.assertTrue(result.ok, result.error)
+            self.assertEqual(result.report["encoding"], "utf-8")
+            self.assertEqual(result.report["line_count"], 2)
+            self.assertEqual(result.report["newline"], "\n")
+
+    def test_file_tool_structured_edit_supports_dry_run_and_wet_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            sample = root / "sample.txt"
+            sample.write_text("one\ntwo\nthree\nfour\n", encoding="utf-8")
+            tool = FileTool(AgentConfig(workspace_root=root))
+
+            preview = tool.search_replace("sample.txt", "two", "TWO", dry_run=True)
+            self.assertTrue(preview.ok, preview.error)
+            self.assertTrue(preview.report["dry_run"])
+            self.assertTrue(preview.report["changed"])
+            self.assertIn("-two", preview.report["preview"])
+            self.assertEqual(sample.read_text(encoding="utf-8"), "one\ntwo\nthree\nfour\n")
+
+            inserted = tool.insert_text("sample.txt", "one-point-five", line_number=1, position="after")
+            self.assertTrue(inserted.ok, inserted.error)
+            self.assertIn("one-point-five\n", sample.read_text(encoding="utf-8"))
+
+            deleted = tool.delete_backward("sample.txt", 1, pattern="three", dry_run=False)
+            self.assertTrue(deleted.ok, deleted.error)
+            self.assertNotIn("TWO", sample.read_text(encoding="utf-8"))
+
+            replaced = tool.replace_range("sample.txt", 2, 3, "middle-a\nmiddle-b", dry_run=False)
+            self.assertTrue(replaced.ok, replaced.error)
+            final_text = sample.read_text(encoding="utf-8")
+            self.assertIn("middle-a\n", final_text)
+            self.assertIn("middle-b\n", final_text)
+
     def test_shell_tool_returns_preview_and_duration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))

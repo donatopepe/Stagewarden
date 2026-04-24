@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import difflib
 import fnmatch
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ..config import AgentConfig
 from ..permissions import PermissionPolicy
@@ -18,6 +20,7 @@ class FileResult:
     error: str = ""
     matches: list[str] | None = None
     warnings: list[str] | None = None
+    report: dict[str, Any] | None = None
 
 
 class FileTool:
@@ -38,6 +41,32 @@ class FileTool:
             return FileResult(True, path=str(resolved), content=read_text_utf8(resolved))
         except (OSError, UnicodeDecodeError) as exc:
             return FileResult(False, path=str(resolved), error=str(exc))
+
+    def inspect(self, path: str) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        try:
+            text, meta = self._read_text_with_metadata(resolved)
+        except (OSError, UnicodeDecodeError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        warnings = detect_confusables(text)
+        report = {
+            "command": "file inspect",
+            "path": str(resolved),
+            "encoding": meta["encoding"],
+            "encoding_confidence": meta["encoding_confidence"],
+            "byte_count": meta["byte_count"],
+            "char_count": len(text),
+            "line_count": len(text.splitlines()),
+            "newline": meta["newline"],
+            "has_bom": meta["has_bom"],
+            "ascii_only": not contains_raw_non_ascii(text),
+            "warnings": warnings,
+        }
+        return FileResult(True, path=str(resolved), content=text, warnings=warnings, report=report)
 
     def write(self, path: str, content: str) -> FileResult:
         resolved = self.config.resolve_path(path)
@@ -100,6 +129,171 @@ class FileTool:
         except OSError as exc:
             return FileResult(False, path=str(resolved), error=str(exc))
         return FileResult(True, path=str(resolved), content=final_content, warnings=warnings)
+
+    def search_replace(self, path: str, search: str, replace: str, *, count: int = 1, dry_run: bool = False) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        if not search:
+            return FileResult(False, path=str(resolved), error="Search text must not be empty.")
+        if not dry_run:
+            denied = self._check_write_permission(resolved)
+            if denied is not None:
+                return denied
+        try:
+            original, meta = self._read_text_with_metadata(resolved)
+        except (OSError, UnicodeDecodeError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        match_count = original.count(search)
+        if match_count == 0:
+            return FileResult(False, path=str(resolved), error="Search text not found.")
+        applied_count = match_count if count <= 0 else min(match_count, count)
+        updated = original.replace(search, replace, applied_count)
+        return self._finalize_text_edit(
+            resolved,
+            original,
+            updated,
+            operation="search_replace",
+            dry_run=dry_run,
+            encoding=str(meta["encoding"]),
+            newline=str(meta["newline"]),
+            extra_report={
+                "search": search,
+                "replace": replace,
+                "match_count": match_count,
+                "applied_count": applied_count,
+            },
+        )
+
+    def replace_range(self, path: str, start_line: int, end_line: int, content: str, *, dry_run: bool = False) -> FileResult:
+        return self._line_edit(
+            path,
+            operation="replace_range",
+            dry_run=dry_run,
+            start_line=start_line,
+            end_line=end_line,
+            new_content=content,
+        )
+
+    def delete_range(self, path: str, start_line: int, end_line: int, *, dry_run: bool = False) -> FileResult:
+        return self._line_edit(
+            path,
+            operation="delete_range",
+            dry_run=dry_run,
+            start_line=start_line,
+            end_line=end_line,
+            new_content="",
+        )
+
+    def insert_text(
+        self,
+        path: str,
+        content: str,
+        *,
+        line_number: int | None = None,
+        pattern: str | None = None,
+        position: str = "after",
+        occurrence: int = 1,
+        dry_run: bool = False,
+    ) -> FileResult:
+        if position not in {"before", "after"}:
+            return FileResult(False, error="position must be before or after.")
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        if not dry_run:
+            denied = self._check_write_permission(resolved)
+            if denied is not None:
+                return denied
+        try:
+            original, meta = self._read_text_with_metadata(resolved)
+        except (OSError, UnicodeDecodeError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        lines = original.splitlines(keepends=True)
+        anchor_index = self._resolve_anchor_index(lines, line_number=line_number, pattern=pattern, occurrence=occurrence)
+        if anchor_index is None:
+            return FileResult(False, path=str(resolved), error="Anchor not found.")
+        insert_at = anchor_index if position == "before" else anchor_index + 1
+        block = self._coerce_block(content, str(meta["newline"]))
+        updated_lines = list(lines)
+        updated_lines[insert_at:insert_at] = block
+        updated = "".join(updated_lines)
+        return self._finalize_text_edit(
+            resolved,
+            original,
+            updated,
+            operation="insert_text",
+            dry_run=dry_run,
+            encoding=str(meta["encoding"]),
+            newline=str(meta["newline"]),
+            extra_report={
+                "line_number": line_number,
+                "pattern": pattern,
+                "position": position,
+                "occurrence": occurrence,
+                "inserted_lines": len(block),
+                "anchor_line": anchor_index + 1,
+            },
+        )
+
+    def delete_backward(
+        self,
+        path: str,
+        count: int,
+        *,
+        line_number: int | None = None,
+        pattern: str | None = None,
+        occurrence: int = 1,
+        dry_run: bool = False,
+    ) -> FileResult:
+        if count <= 0:
+            return FileResult(False, error="count must be positive.")
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        if not dry_run:
+            denied = self._check_write_permission(resolved)
+            if denied is not None:
+                return denied
+        try:
+            original, meta = self._read_text_with_metadata(resolved)
+        except (OSError, UnicodeDecodeError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        lines = original.splitlines(keepends=True)
+        anchor_index = self._resolve_anchor_index(lines, line_number=line_number, pattern=pattern, occurrence=occurrence)
+        if anchor_index is None:
+            return FileResult(False, path=str(resolved), error="Anchor not found.")
+        start = max(0, anchor_index - count)
+        end = anchor_index
+        if start == end:
+            return FileResult(False, path=str(resolved), error="No lines available before the anchor.")
+        updated_lines = list(lines)
+        del updated_lines[start:end]
+        updated = "".join(updated_lines)
+        return self._finalize_text_edit(
+            resolved,
+            original,
+            updated,
+            operation="delete_backward",
+            dry_run=dry_run,
+            encoding=str(meta["encoding"]),
+            newline=str(meta["newline"]),
+            extra_report={
+                "count": count,
+                "line_number": line_number,
+                "pattern": pattern,
+                "occurrence": occurrence,
+                "deleted_start_line": start + 1,
+                "deleted_end_line": end,
+                "anchor_line": anchor_index + 1,
+            },
+        )
 
     def patch(self, path: str, diff: str) -> FileResult:
         resolved = self.config.resolve_path(path)
@@ -406,3 +600,167 @@ class FileTool:
         if sensitive and contains_raw_non_ascii(content):
             return to_ascii_safe_text(content), warnings + ["sensitive_file_ascii_forced"]
         return content, warnings
+
+    def _line_edit(
+        self,
+        path: str,
+        *,
+        operation: str,
+        dry_run: bool,
+        start_line: int,
+        end_line: int,
+        new_content: str,
+    ) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        if start_line <= 0 or end_line < start_line:
+            return FileResult(False, path=str(resolved), error="Invalid line range.")
+        if not dry_run:
+            denied = self._check_write_permission(resolved)
+            if denied is not None:
+                return denied
+        try:
+            original, meta = self._read_text_with_metadata(resolved)
+        except (OSError, UnicodeDecodeError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        lines = original.splitlines(keepends=True)
+        if end_line > len(lines):
+            return FileResult(False, path=str(resolved), error="Line range exceeds file length.")
+        replacement = self._coerce_block(new_content, str(meta["newline"]))
+        updated_lines = list(lines)
+        updated_lines[start_line - 1 : end_line] = replacement
+        updated = "".join(updated_lines)
+        return self._finalize_text_edit(
+            resolved,
+            original,
+            updated,
+            operation=operation,
+            dry_run=dry_run,
+            encoding=str(meta["encoding"]),
+            newline=str(meta["newline"]),
+            extra_report={
+                "start_line": start_line,
+                "end_line": end_line,
+                "replacement_lines": len(replacement),
+            },
+        )
+
+    def _resolve_anchor_index(
+        self,
+        lines: list[str],
+        *,
+        line_number: int | None,
+        pattern: str | None,
+        occurrence: int,
+    ) -> int | None:
+        if line_number is not None:
+            if line_number <= 0 or line_number > len(lines):
+                return None
+            return line_number - 1
+        if pattern:
+            seen = 0
+            for index, line in enumerate(lines):
+                if pattern in line:
+                    seen += 1
+                    if seen == occurrence:
+                        return index
+        return None
+
+    def _read_text_with_metadata(self, path: Path) -> tuple[str, dict[str, object]]:
+        raw = path.read_bytes()
+        detected = self._detect_encoding(raw)
+        text = raw.decode(str(detected["encoding"]))
+        return text, {
+            "encoding": detected["encoding"],
+            "encoding_confidence": detected["encoding_confidence"],
+            "byte_count": len(raw),
+            "newline": self._detect_newline(text),
+            "has_bom": detected["has_bom"],
+        }
+
+    def _detect_encoding(self, raw: bytes) -> dict[str, object]:
+        if raw.startswith(b"\xef\xbb\xbf"):
+            return {"encoding": "utf-8-sig", "encoding_confidence": "bom", "has_bom": True}
+        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            return {"encoding": "utf-16", "encoding_confidence": "bom", "has_bom": True}
+        try:
+            raw.decode("utf-8")
+            return {"encoding": "utf-8", "encoding_confidence": "strict", "has_bom": False}
+        except UnicodeDecodeError:
+            pass
+        if b"\x00" in raw:
+            try:
+                raw.decode("utf-16")
+                return {"encoding": "utf-16", "encoding_confidence": "heuristic", "has_bom": False}
+            except UnicodeDecodeError:
+                pass
+        return {"encoding": "latin-1", "encoding_confidence": "fallback", "has_bom": False}
+
+    def _detect_newline(self, text: str) -> str:
+        if "\r\n" in text:
+            return "\r\n"
+        if "\r" in text:
+            return "\r"
+        return "\n"
+
+    def _coerce_block(self, content: str, newline: str) -> list[str]:
+        if not content:
+            return []
+        normalized = content.replace("\r\n", "\n").replace("\r", "\n").replace("\n", newline)
+        if not normalized.endswith(newline):
+            normalized += newline
+        return normalized.splitlines(keepends=True)
+
+    def _render_diff_preview(self, path: Path, original: str, updated: str) -> str:
+        diff = difflib.unified_diff(
+            original.splitlines(),
+            updated.splitlines(),
+            fromfile=str(path),
+            tofile=str(path),
+            lineterm="",
+            n=3,
+        )
+        preview = "\n".join(diff)
+        return preview[:4000]
+
+    def _write_text_with_encoding(self, path: Path, content: str, encoding: str) -> None:
+        path.write_text(content, encoding=encoding, newline="")
+
+    def _finalize_text_edit(
+        self,
+        path: Path,
+        original: str,
+        updated: str,
+        *,
+        operation: str,
+        dry_run: bool,
+        encoding: str,
+        newline: str,
+        extra_report: dict[str, Any],
+    ) -> FileResult:
+        changed = updated != original
+        preview = self._render_diff_preview(path, original, updated) if changed else ""
+        report = {
+            "operation": operation,
+            "path": str(path),
+            "dry_run": dry_run,
+            "changed": changed,
+            "encoding": encoding,
+            "newline": newline,
+            "preview": preview,
+            **extra_report,
+        }
+        if not changed:
+            return FileResult(True, path=str(path), content="No changes.", report=report)
+        if dry_run:
+            return FileResult(True, path=str(path), content=f"Dry-run preview for {operation}:\n{preview}", report=report)
+        try:
+            final_content, warnings = self._prepare_output_text(path, updated)
+            self._write_text_with_encoding(path, final_content, encoding)
+            report["written"] = True
+            return FileResult(True, path=str(path), content=final_content, warnings=warnings, report=report)
+        except (OSError, UnicodeEncodeError) as exc:
+            return FileResult(False, path=str(path), error=str(exc), report=report)
