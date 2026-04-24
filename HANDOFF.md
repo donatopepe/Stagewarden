@@ -1770,6 +1770,10 @@ Local Ollama operator lessons captured on 2026-04-24:
   - The global router no longer assumes `local` is the default entry tier; simple tasks enter through the cheapest cloud path, and heavier analysis escalates through ChatGPT/OpenAI/Claude before considering local fallback.
   - Local models are optional, discovered at runtime, and should be selected for node execution only when available and when cloud-priority analysis has characterized their peculiarities.
   - `project tree propose --ai` and `model inspect local` now prefer a cloud model first for synthesis when one is active, falling back to local only if no cloud model is available.
+- PRINCE2 proposal integration rule 2026-04-24:
+  - `project tree propose` now carries a `local_execution` packet with discovered local candidates and recommendations.
+  - Delivery-level nodes in the proposal now expose `local_execution_candidates`, so local execution can be assigned later from observed local-model characteristics instead of static assumptions.
+  - If no local models are discovered, the proposal keeps working and reports `No local models discovered from Ollama.` instead of fabricating candidates.
 
 Next implementation candidates:
 
