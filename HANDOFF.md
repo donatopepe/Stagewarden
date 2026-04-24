@@ -482,6 +482,7 @@ Grouped execution plan for `P5` from 2026-04-24:
 - `P5-G4` Agent capability surface integration:
 - expose all new file primitives in command/help/discovery surfaces and in the model-facing tool capability packet so routed models know these operations exist.
 - success condition: command/help/tool capability surfaces are synchronized and tested.
+- status 2026-04-24: complete. The advanced file primitives are now exposed coherently through command catalog, help topics, slash discovery/completion, CLI JSON surfaces, and node/model capability packets.
 
 - `P6` Active PRINCE2 node runtime pack:
 - scope: evolve the approved PRINCE2 role tree from a static routed baseline into a governed runtime of communicating nodes.
@@ -588,6 +589,18 @@ Pack `P5-G3` validation evidence:
 - Validation 2026-04-24: targeted tests for metadata inspection, filesystem mutation actions, and node capability-packet exposure passed (`6 tests`, `OK`).
 - Wet-run 2026-04-24: real temp-workspace execution of `inspect_metadata`, `copy_path`, `move_path`, `chmod_path`, `chown_path`, and `delete_path` passed.
 - Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 312 tests, 3 expected skips.
+
+Pack `P5-G4` validation evidence:
+
+- Added user-facing file command specs for `file inspect`, `file stat`, `file copy`, `file move`, `file delete`, `file chmod`, and `file chown`.
+- Added a dedicated `files` help topic so `/help files`, `help files --json`, command catalog, and slash discovery expose the advanced file tooling consistently.
+- Added a real CLI file-command handler with machine-readable JSON output plus human-readable text rendering.
+- Interactive shell command recognition and path completion now understand `file ...` surfaces.
+- Command catalog/help/discovery now advertise the same advanced file primitives already exposed in node/model capability packets, removing the earlier surface mismatch.
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/commands.py stagewarden/main.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-24: targeted trace/CLI tests for catalog, help topics, completion, and file-command execution passed (`5 tests`, `OK`).
+- Wet-run 2026-04-24: real CLI JSON execution of `file stat`, `file copy`, `file chmod`, `file delete --dry-run`, and `file delete` passed in a temporary workspace.
+- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 313 tests, 3 expected skips.
 
 New file-operations specification added on 2026-04-24:
 
