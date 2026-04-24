@@ -2547,6 +2547,60 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("project_start_approved", phases)
             self.assertIn("PRINCE2 role-tree baseline:", completed.stdout)
 
+    def test_project_start_preloads_local_delivery_fallbacks_when_discovered(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON")
+            os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = json.dumps(
+                {
+                    "models": [
+                        {
+                            "name": "qwen2.5-coder:7b",
+                            "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                        },
+                        {
+                            "name": "deepseek-r1:14b",
+                            "details": {"family": "qwen2", "parameter_size": "14.8B", "quantization_level": "Q4_K_M"},
+                        },
+                    ]
+                }
+            )
+            try:
+                handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+                handoff.task = "build a governed CLI coding agent"
+                handoff.save(root / ".stagewarden_handoff.json")
+                self.assertEqual(run_main_capture(root, "project brief set objective Build a CLI coding agent").returncode, 0)
+                self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+                self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation").returncode, 0)
+                self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+
+                completed = run_main_capture(root, "project start")
+            finally:
+                if original is None:
+                    os.environ.pop("STAGEWARDEN_OLLAMA_TAGS_JSON", None)
+                else:
+                    os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = original
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project start local fallback preload:", completed.stdout)
+            self.assertIn("deepseek-r1:14b", completed.stdout)
+            self.assertIn("qwen2.5-coder:7b", completed.stdout)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            team_node = next(
+                item
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict) and item.get("node_id") == "delivery.team_manager"
+            )
+            fallback_by_model = {
+                item["provider_model"]: item
+                for item in team_node.get("assignment_pool", {}).get("fallback", [])
+                if isinstance(item, dict)
+            }
+            self.assertIn("deepseek-r1:14b", fallback_by_model)
+            self.assertIn("qwen2.5-coder:7b", fallback_by_model)
+            self.assertEqual((baseline.get("local_execution") or {}).get("status"), "ok")
+
     def test_project_start_ai_persists_valid_ai_tree_patch_after_approval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
