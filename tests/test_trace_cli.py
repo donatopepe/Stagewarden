@@ -2610,11 +2610,11 @@ class TraceAndCliTests(unittest.TestCase):
                 "delivery.docs_team\n"
                 "role assign\n"
                 "delivery.docs_team\n"
+                "primary\n"
                 "openai\n"
                 "gpt-5.4-mini\n"
                 "medium\n"
                 "1\n"
-                "primary\n"
                 "roles baseline\n"
                 "exit\n"
             )
@@ -2635,12 +2635,76 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Added delegated PRINCE2 role node delivery.docs_team under management.project_manager.", rendered)
             self.assertIn("PRINCE2 role-tree node assignment:", rendered)
             self.assertIn("Choose role-tree node:", rendered)
-            self.assertIn("Choose provider for delivery.docs_team:", rendered)
             self.assertIn("Choose assignment pool for delivery.docs_team:", rendered)
+            self.assertIn("Choose provider for delivery.docs_team:", rendered)
+            self.assertIn("Node assignment context:", rendered)
             self.assertIn("Assigned role node delivery.docs_team: provider=openai provider_model=gpt-5.4-mini account=none reasoning_effort=medium pool=primary.", rendered)
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider"], "openai")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider_model"], "gpt-5.4-mini")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["params"]["reasoning_effort"], "medium")
+
+    def test_interactive_shell_role_assign_prioritizes_local_fallback_candidates_for_delivery_node(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON")
+            os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = json.dumps(
+                {
+                    "models": [
+                        {
+                            "name": "qwen2.5-coder:7b",
+                            "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                        },
+                        {
+                            "name": "deepseek-r1:14b",
+                            "details": {"family": "qwen2", "parameter_size": "14.8B", "quantization_level": "Q4_K_M"},
+                        },
+                    ]
+                }
+            )
+            try:
+                input_stream = StringIO(
+                    "roles propose\n"
+                    "role assign\n"
+                    "delivery.team_manager\n"
+                    "fallback\n"
+                    "local\n"
+                    "deepseek-r1:14b\n"
+                    "2\n"
+                    "1\n"
+                    "roles baseline\n"
+                    "exit\n"
+                )
+                output_stream = StringIO()
+                code = run_interactive_shell(
+                    AgentConfig(workspace_root=root, max_steps=1),
+                    input_stream=input_stream,
+                    output_stream=output_stream,
+                )
+            finally:
+                if original is None:
+                    os.environ.pop("STAGEWARDEN_OLLAMA_TAGS_JSON", None)
+                else:
+                    os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = original
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            nodes = {
+                item["node_id"]: item
+                for item in (prefs.prince2_role_tree_baseline or {})["tree"]["nodes"]
+                if isinstance(item, dict)
+            }
+            fallback_routes = nodes["delivery.team_manager"]["assignment_pool"]["fallback"]
+            fallback_by_model = {item["provider_model"]: item for item in fallback_routes}
+
+            self.assertEqual(code, 0)
+            self.assertIn("Node assignment context:", rendered)
+            self.assertIn("recommended_local_fallbacks:", rendered)
+            self.assertIn("deepseek-r1:14b(high)", rendered)
+            self.assertIn("qwen2.5-coder:7b(medium)", rendered)
+            self.assertIn("local | recommended for this node fallback", rendered)
+            self.assertIn("deepseek-r1:14b | recommended local fallback reasoning=high", rendered)
+            self.assertIn("Assigned role node delivery.team_manager: provider=local provider_model=deepseek-r1:14b account=none reasoning_effort=high pool=fallback.", rendered)
+            self.assertEqual(fallback_by_model["deepseek-r1:14b"]["params"]["reasoning_effort"], "high")
+            self.assertIn("local_execution_candidates: ", rendered)
 
     def test_role_assign_supports_reviewer_and_fallback_pools(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

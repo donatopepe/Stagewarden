@@ -837,6 +837,7 @@ def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
     check = baseline.get("check", {})
     matrix = baseline.get("matrix", {})
     tree = baseline.get("tree", {})
+    local_execution = baseline.get("local_execution", {}) if isinstance(baseline.get("local_execution"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
     rows = matrix.get("rows", []) if isinstance(matrix, dict) else []
     check_status = check.get("status", "unknown") if isinstance(check, dict) else "unknown"
@@ -850,6 +851,12 @@ def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
         f"- matrix_rows: {len(rows)}",
         "- rule: this approved role tree is the governance baseline for future role-routed context handoffs.",
     ]
+    if local_execution:
+        candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
+        lines.append(
+            "- local_execution_candidates: "
+            + (", ".join(str(item.get("id", "")) for item in candidates if str(item.get("id", "")).strip()) or "none")
+        )
     return "\n".join(lines)
 
 
@@ -2219,6 +2226,98 @@ def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
     return options
 
 
+def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, object] | None:
+    prefs = _load_model_preferences(config)
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_node_context")
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
+    for node in nodes:
+        if isinstance(node, dict) and str(node.get("node_id", "")).strip() == node_id:
+            return dict(node)
+    return None
+
+
+def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:
+    pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
+    routes = pools.get("fallback", []) if isinstance(pools.get("fallback"), list) else []
+    local_routes = [dict(item) for item in routes if isinstance(item, dict) and item.get("provider") == "local"]
+    local_routes.sort(key=lambda item: str(item.get("provider_model", "")))
+    return local_routes
+
+
+def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool: str) -> str:
+    node = _role_tree_node_record(config, node_id)
+    if not node:
+        return ""
+    lines = [
+        "Node assignment context:",
+        f"- node_id: {node_id}",
+        f"- role_type: {node.get('role_type', 'unknown')}",
+        f"- level: {node.get('level', 'unknown')}",
+        f"- selected_pool: {pool}",
+    ]
+    local_routes = _node_local_fallback_candidates(node)
+    if local_routes:
+        lines.append(
+            "- recommended_local_fallbacks: "
+            + ", ".join(
+                f"{item.get('provider_model')}({((item.get('params') or {}).get('reasoning_effort') or 'provider-default')})"
+                for item in local_routes
+            )
+        )
+    else:
+        lines.append("- recommended_local_fallbacks: none")
+    return "\n".join(lines)
+
+
+def _guided_provider_options_for_node(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    pool: str,
+) -> list[tuple[str, str]]:
+    providers = list(prefs.enabled_models or list(SUPPORTED_MODELS))
+    node = _role_tree_node_record(config, node_id)
+    local_routes = _node_local_fallback_candidates(node) if node else []
+    recommended_local = bool(pool == "fallback" and local_routes)
+    ordered: list[str] = []
+    if recommended_local and "local" in providers:
+        ordered.append("local")
+    for provider in providers:
+        if provider not in ordered:
+            ordered.append(provider)
+    options: list[tuple[str, str]] = []
+    for provider in ordered:
+        label = provider
+        if provider == "local" and local_routes:
+            label += " | recommended for this node fallback"
+        options.append((provider, label))
+    return options
+
+
+def _guided_provider_model_options_for_node(
+    config: AgentConfig,
+    *,
+    provider: str,
+    node_id: str,
+    pool: str,
+) -> list[tuple[str, str]]:
+    node = _role_tree_node_record(config, node_id)
+    local_routes = _node_local_fallback_candidates(node) if node else []
+    if provider == "local" and pool == "fallback" and local_routes:
+        return [
+            (
+                str(item.get("provider_model", "")),
+                f"{item.get('provider_model')} | recommended local fallback reasoning={((item.get('params') or {}).get('reasoning_effort') or 'provider-default')}",
+            )
+            for item in local_routes
+            if str(item.get("provider_model", "")).strip()
+        ]
+    specs = list(provider_model_specs(provider))
+    return [(spec.id, f"{spec.id} | {spec.label}") for spec in specs]
+
+
 def _guided_provider_context(prefs: ModelPreferences, provider: str | None = None) -> str:
     enabled = ", ".join(prefs.enabled_models or []) or "none"
     preferred = prefs.preferred_model or "automatic"
@@ -2442,20 +2541,28 @@ def _guided_role_assign(
     )
     if node_id is None:
         return "Role node assignment cancelled."
+    pool = _prompt_menu_choice(
+        title=f"Choose assignment pool for {node_id}:",
+        options=_route_pool_options(),
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if pool is None:
+        return "Role node assignment cancelled."
+    output_stream.write(_guided_role_node_assignment_context(config, node_id, pool) + "\n")
     output_stream.write(_guided_provider_context(prefs) + "\n")
     provider = _prompt_menu_choice(
         title=f"Choose provider for {node_id}:",
-        options=[(provider, provider) for provider in (prefs.enabled_models or list(SUPPORTED_MODELS))],
+        options=_guided_provider_options_for_node(config, prefs, node_id=node_id, pool=pool),
         input_stream=input_stream,
         output_stream=output_stream,
     )
     if provider is None:
         return "Role node assignment cancelled."
     output_stream.write(_guided_provider_context(prefs, provider) + "\n")
-    specs = list(provider_model_specs(provider))
     provider_model = _prompt_menu_choice(
         title=f"Choose provider-model for {provider}:",
-        options=[(spec.id, f"{spec.id} | {spec.label}") for spec in specs],
+        options=_guided_provider_model_options_for_node(config, provider=provider, node_id=node_id, pool=pool),
         input_stream=input_stream,
         output_stream=output_stream,
     )
@@ -2486,14 +2593,6 @@ def _guided_role_assign(
     )
     if account is None:
         return "Role node assignment cancelled."
-    pool = _prompt_menu_choice(
-        title=f"Choose assignment pool for {node_id}:",
-        options=_route_pool_options(),
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if pool is None:
-        return "Role node assignment cancelled."
     try:
         node = _assign_prince2_role_node(
             config,
@@ -2509,9 +2608,20 @@ def _guided_role_assign(
         return str(exc)
     assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
     params_text = " ".join(f"{key}={value}" for key, value in sorted(params.items()))
+    if pool == "primary":
+        provider_display = assignment.get("provider")
+        provider_model_display = assignment.get("provider_model")
+        account_display = assignment.get("account") or "none"
+    else:
+        pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
+        routes = pools.get(pool, []) if isinstance(pools.get(pool), list) else []
+        route = routes[-1] if routes and isinstance(routes[-1], dict) else {}
+        provider_display = route.get("provider")
+        provider_model_display = route.get("provider_model")
+        account_display = route.get("account") or "none"
     return (
-        f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
-        f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'}"
+        f"Assigned role node {node.get('node_id')}: provider={provider_display} "
+        f"provider_model={provider_model_display} account={account_display}"
         + (f" {params_text}" if params_text else "")
         + f" pool={pool}"
         + "."
