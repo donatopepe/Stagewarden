@@ -1785,6 +1785,8 @@ Local Ollama operator lessons captured on 2026-04-24:
   - `status` remediation now flags two local-fallback gaps explicitly:
     - `local_fallback_partial` when candidates exist but are not preloaded across all delivery nodes
     - `local_fallback_missing` when delivery nodes exist but no local candidates are available and execution remains cloud-only
+  - `sources status --strict` now emits summary counts (`ok|warn|fail`) and fails closed for CI/operator use when any source reference is missing or mismatched.
+  - `sources update` now refuses repositories whose `origin` does not match the expected upstream from the manifest, records updated/failed counts, and keeps before/after head evidence in the handoff update action.
   - Validation 2026-04-24:
     - new CLI regression covers `roles propose` + dynamic Ollama discovery + persisted fallback routes
     - new interactive-shell regression covers guided `role assign` local fallback recommendation flow
@@ -1792,12 +1794,11 @@ Local Ollama operator lessons captured on 2026-04-24:
     - new CLI regression covers `project start` approved baseline with visible local fallback preload
     - new grouped regression covers `statusline`, `roles control`, and `status` local fallback readiness visibility
     - new grouped regression covers `status --full` remediation for partial vs missing local fallback readiness
-    - full suite passed: `python3 -m unittest discover -s tests` -> `328 tests`, `OK`, `3 skip`
+    - new grouped regression covers `sources status --strict` summary and `sources update` upstream-mismatch safety
+    - full suite passed: `python3 -m unittest discover -s tests` -> `329 tests`, `OK`, `3 skip`
 
 Next implementation candidates:
 
-- Add `sources update` command that runs `git pull --ff-only` in each reference repo and writes a handoff event with old/new heads.
-- Add `sources status --strict` for CI/operator preflight checks.
 - Extend Stagewarden `status` remediation output with explicit next commands for incomplete PRINCE2 role baseline, active exception plan, dirty git state, and blocked provider limits.
 - Add Claude-style provider-limit fields: `rate_limit_type`, `utilization`, `resets_at`, `overage_status`, `overage_resets_at`, `overage_disabled_reason`.
 
