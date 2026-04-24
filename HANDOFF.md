@@ -1765,6 +1765,11 @@ Local Ollama operator lessons captured on 2026-04-24:
   - `model list local`, guided menus, and local presets must derive the runtime inventory from Ollama tags, with only `provider-default` as a technical fallback when discovery is unavailable.
   - `model inspect local [provider_model]` now asks an available model to synthesize the peculiarities of the discovered local models and merges that synthesis with the raw Ollama metadata.
   - If the AI inspection call fails or returns invalid JSON, Stagewarden falls back to metadata-derived local profiles instead of blocking the operator.
+- Cloud-priority routing rule 2026-04-24:
+  - Cloud providers are now the primary analysis tier for routing, inspection, and governance work.
+  - The global router no longer assumes `local` is the default entry tier; simple tasks enter through the cheapest cloud path, and heavier analysis escalates through ChatGPT/OpenAI/Claude before considering local fallback.
+  - Local models are optional, discovered at runtime, and should be selected for node execution only when available and when cloud-priority analysis has characterized their peculiarities.
+  - `project tree propose --ai` and `model inspect local` now prefer a cloud model first for synthesis when one is active, falling back to local only if no cloud model is available.
 
 Next implementation candidates:
 
