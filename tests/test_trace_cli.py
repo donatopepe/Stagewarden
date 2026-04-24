@@ -2358,6 +2358,50 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("board_private_decision_context", rows["management.project_manager"]["context_exclude"])
             self.assertTrue(payload["flow_edges"])
 
+    def test_roles_propose_preloads_local_execution_candidates_into_delivery_fallbacks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            original = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON")
+            os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = json.dumps(
+                {
+                    "models": [
+                        {
+                            "name": "qwen2.5-coder:7b",
+                            "details": {"family": "qwen2", "parameter_size": "7.6B", "quantization_level": "Q4_K_M"},
+                        },
+                        {
+                            "name": "deepseek-r1:14b",
+                            "details": {"family": "qwen2", "parameter_size": "14.8B", "quantization_level": "Q4_K_M"},
+                        },
+                    ]
+                }
+            )
+            try:
+                propose = run_main_capture(root, "roles propose")
+                baseline = run_main_capture(root, "roles baseline", "--json")
+            finally:
+                if original is None:
+                    os.environ.pop("STAGEWARDEN_OLLAMA_TAGS_JSON", None)
+                else:
+                    os.environ["STAGEWARDEN_OLLAMA_TAGS_JSON"] = original
+
+            self.assertEqual(propose.returncode, 0, propose.stderr)
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            payload = json.loads(baseline.stdout)
+            tree = payload["baseline"]["tree"]
+            nodes = {item["node_id"]: item for item in tree["nodes"]}
+            team_node = nodes["delivery.team_manager"]
+            self.assertEqual(team_node["assignment"]["provider"], "cheap")
+            self.assertEqual(team_node["local_execution_candidates"], ["qwen2.5-coder:7b", "deepseek-r1:14b"])
+            fallback_routes = team_node["assignment_pool"]["fallback"]
+            self.assertEqual(fallback_routes[0]["provider"], "local")
+            self.assertEqual(fallback_routes[0]["provider_model"], "qwen2.5-coder:7b")
+            self.assertEqual(fallback_routes[0]["params"]["reasoning_effort"], "medium")
+            self.assertEqual(fallback_routes[1]["provider_model"], "deepseek-r1:14b")
+            self.assertEqual(payload["baseline"]["local_execution"]["status"], "ok")
+            matrix_rows = {item["node_id"]: item for item in payload["baseline"]["matrix"]["rows"]}
+            self.assertEqual(matrix_rows["delivery.team_manager"]["fallback_routes"][0]["provider_model"], "qwen2.5-coder:7b")
+
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -641,15 +641,18 @@ def _record_handoff_action(
 
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
     prefs = _load_model_preferences(config)
+    local_execution = _local_execution_candidates_report(config)
+    tree = _enrich_tree_with_local_execution_candidates(build_prince2_role_tree(prefs), local_execution)
     return {
         "version": "1",
         "approved_at": datetime.now().isoformat(timespec="seconds"),
         "source": source,
         "status": "approved",
-        "tree": build_prince2_role_tree(prefs),
+        "tree": tree,
         "flow": build_prince2_role_flow(),
-        "check": check_prince2_role_tree(prefs),
-        "matrix": build_prince2_role_matrix(prefs),
+        "check": check_prince2_role_tree_payload(tree, prefs),
+        "matrix": build_prince2_role_matrix_payload(tree, prefs),
+        "local_execution": local_execution,
     }
 
 
@@ -1622,6 +1625,73 @@ def _role_node_from_template(
     }
 
 
+def _route_from_local_execution_candidate(candidate: dict[str, object], *, node: dict[str, object]) -> dict[str, object] | None:
+    provider_model = str(candidate.get("id", "")).strip()
+    if not provider_model:
+        return None
+    params: dict[str, str] = {}
+    reasoning_default = str(candidate.get("reasoning_default", "")).strip()
+    if reasoning_default:
+        params["reasoning_effort"] = reasoning_default
+    return {
+        "role": str(node.get("role_type", "")),
+        "node_id": str(node.get("node_id", "")),
+        "label": str(node.get("label", node.get("node_id", ""))),
+        "mode": "auto",
+        "provider": "local",
+        "provider_model": provider_model,
+        "params": params,
+        "account": None,
+        "source": "auto_local_execution_candidate",
+        "pool": "fallback",
+    }
+
+
+def _enrich_tree_with_local_execution_candidates(
+    tree: dict[str, object],
+    local_execution: dict[str, object],
+) -> dict[str, object]:
+    nodes = [dict(node) for node in tree.get("nodes", []) if isinstance(node, dict)]
+    candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
+    candidate_ids = [str(item.get("id", "")).strip() for item in candidates if str(item.get("id", "")).strip()]
+    for node in nodes:
+        if not str(node.get("level", "")).startswith("delivery"):
+            continue
+        node["local_execution_candidates"] = list(candidate_ids)
+        if not candidates:
+            continue
+        pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
+        routes = [dict(item) for item in pools.get("fallback", []) if isinstance(item, dict)] if isinstance(pools.get("fallback", []), list) else []
+        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+        assignment_provider = str(assignment.get("provider", "")).strip()
+        assignment_model = str(assignment.get("provider_model", "")).strip()
+        existing = {
+            (str(item.get("provider", "")).strip(), str(item.get("provider_model", "")).strip(), str(item.get("account", "")).strip())
+            for item in routes
+        }
+        for candidate in candidates:
+            route = _route_from_local_execution_candidate(candidate, node=node)
+            if route is None:
+                continue
+            signature = (
+                str(route.get("provider", "")).strip(),
+                str(route.get("provider_model", "")).strip(),
+                str(route.get("account", "")).strip(),
+            )
+            if assignment_provider == "local" and assignment_model == signature[1]:
+                continue
+            if signature in existing:
+                continue
+            routes.append(route)
+            existing.add(signature)
+        if routes:
+            pools["fallback"] = routes
+            node["assignment_pool"] = pools
+    enriched = dict(tree)
+    enriched["nodes"] = nodes
+    return enriched
+
+
 def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = None, use_ai: bool = False) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     prefs = _load_model_preferences(config)
@@ -1631,16 +1701,8 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     proposal_prefs = replace(prefs, prince2_roles=merged_roles)
     active_models = list(proposal_prefs.active_models() or proposal_prefs.enabled_models)
     local_execution = _local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
-    local_candidate_ids = [
-        str(item.get("id"))
-        for item in local_execution.get("candidates", [])
-        if isinstance(item, dict) and str(item.get("id", "")).strip()
-    ]
     base_tree = build_prince2_role_tree(proposal_prefs)
     nodes = [dict(node) for node in base_tree.get("nodes", []) if isinstance(node, dict)]
-    for node in nodes:
-        if isinstance(node, dict) and str(node.get("level", "")).startswith("delivery"):
-            node["local_execution_candidates"] = list(local_candidate_ids)
     brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
     joined = " ".join(brief.values()).lower()
     assumptions: list[str] = []
@@ -1720,14 +1782,11 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
         added_nodes.append(node_id)
         assumptions.append("Project brief indicates provider/rate-limit or exception complexity, so a delegated change authority node is proposed.")
 
-    for node in nodes:
-        if isinstance(node, dict) and str(node.get("level", "")).startswith("delivery"):
-            node["local_execution_candidates"] = list(local_candidate_ids)
-
     tree = dict(base_tree)
     tree["command"] = "project tree propose"
     tree["source"] = "project_brief_local_rules"
     tree["nodes"] = nodes
+    tree = _enrich_tree_with_local_execution_candidates(tree, local_execution)
     check = check_prince2_role_tree_payload(tree, proposal_prefs)
     matrix = build_prince2_role_matrix_payload(tree, proposal_prefs)
     gaps: list[dict[str, str]] = []
@@ -2063,10 +2122,13 @@ def _approve_project_tree_proposal(
         "approved_at": datetime.now().isoformat(timespec="seconds"),
         "source": "project_tree_approve_force" if force else "project_tree_approve",
         "status": "approved",
-        "tree": report["tree"],
+        "tree": _enrich_tree_with_local_execution_candidates(
+            dict(report["tree"]) if isinstance(report.get("tree"), dict) else {},
+            dict(report.get("local_execution", {})) if isinstance(report.get("local_execution"), dict) else {},
+        ),
         "flow": build_prince2_role_flow(),
-        "check": report["check"],
-        "matrix": report["matrix"],
+        "check": {},
+        "matrix": {},
         "proposal": {
             "source": report["source"],
             "assumptions": list(report.get("assumptions", [])) if isinstance(report.get("assumptions"), list) else [],
@@ -2075,9 +2137,11 @@ def _approve_project_tree_proposal(
             "project_brief": dict(report.get("project_brief", {})) if isinstance(report.get("project_brief"), dict) else {},
             "ai_requested": bool(report.get("ai_requested")),
             "ai_assistance": dict(report.get("ai_assistance", {})) if isinstance(report.get("ai_assistance"), dict) else {},
+            "local_execution": dict(report.get("local_execution", {})) if isinstance(report.get("local_execution"), dict) else {},
             "forced": force,
         },
     }
+    _refresh_prince2_role_tree_baseline_checks(baseline, proposal_prefs)
     _persist_prince2_role_tree_baseline(config, proposal_prefs, baseline)
     _record_handoff_action(
         config,

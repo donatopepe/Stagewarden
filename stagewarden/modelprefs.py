@@ -813,9 +813,9 @@ class ModelPreferences:
             "senior_user": ("cheap", "chatgpt", "openai", "claude", "local"),
             "senior_supplier": ("claude", "openai", "chatgpt", "cheap", "local"),
             "project_manager": ("chatgpt", "openai", "claude", "cheap", "local"),
-            "team_manager": ("local", "cheap", "chatgpt", "openai", "claude"),
-            "project_assurance": ("cheap", "local", "chatgpt", "openai", "claude"),
-            "project_support": ("local", "cheap", "chatgpt", "openai", "claude"),
+            "team_manager": ("cheap", "chatgpt", "openai", "claude", "local"),
+            "project_assurance": ("cheap", "chatgpt", "openai", "claude", "local"),
+            "project_support": ("cheap", "chatgpt", "openai", "claude", "local"),
             "change_authority": ("chatgpt", "cheap", "openai", "claude", "local"),
         }
         for candidate in preference_order.get(role, SUPPORTED_MODELS):
