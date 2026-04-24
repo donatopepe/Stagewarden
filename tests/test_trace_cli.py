@@ -2392,15 +2392,19 @@ class TraceAndCliTests(unittest.TestCase):
             nodes = {item["node_id"]: item for item in tree["nodes"]}
             team_node = nodes["delivery.team_manager"]
             self.assertEqual(team_node["assignment"]["provider"], "cheap")
-            self.assertEqual(team_node["local_execution_candidates"], ["qwen2.5-coder:7b", "deepseek-r1:14b"])
+            self.assertCountEqual(team_node["local_execution_candidates"], ["deepseek-r1:14b", "qwen2.5-coder:7b"])
             fallback_routes = team_node["assignment_pool"]["fallback"]
-            self.assertEqual(fallback_routes[0]["provider"], "local")
-            self.assertEqual(fallback_routes[0]["provider_model"], "qwen2.5-coder:7b")
-            self.assertEqual(fallback_routes[0]["params"]["reasoning_effort"], "medium")
-            self.assertEqual(fallback_routes[1]["provider_model"], "deepseek-r1:14b")
+            self.assertTrue(all(item["provider"] == "local" for item in fallback_routes))
+            fallback_by_model = {item["provider_model"]: item for item in fallback_routes}
+            self.assertEqual(set(fallback_by_model), {"deepseek-r1:14b", "qwen2.5-coder:7b"})
+            self.assertEqual(fallback_by_model["deepseek-r1:14b"]["params"]["reasoning_effort"], "high")
+            self.assertEqual(fallback_by_model["qwen2.5-coder:7b"]["params"]["reasoning_effort"], "medium")
             self.assertEqual(payload["baseline"]["local_execution"]["status"], "ok")
             matrix_rows = {item["node_id"]: item for item in payload["baseline"]["matrix"]["rows"]}
-            self.assertEqual(matrix_rows["delivery.team_manager"]["fallback_routes"][0]["provider_model"], "qwen2.5-coder:7b")
+            matrix_fallback_by_model = {
+                item["provider_model"]: item for item in matrix_rows["delivery.team_manager"]["fallback_routes"]
+            }
+            self.assertEqual(set(matrix_fallback_by_model), {"deepseek-r1:14b", "qwen2.5-coder:7b"})
 
     def test_interactive_shell_role_configure_menu_persists_manual_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
