@@ -177,6 +177,112 @@ class FileTool:
             new_content=content,
         )
 
+    def convert_encoding(
+        self,
+        path: str,
+        target_encoding: str,
+        *,
+        source_encoding: str | None = None,
+        dry_run: bool = False,
+    ) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        if not dry_run:
+            denied = self._check_write_permission(resolved)
+            if denied is not None:
+                return denied
+        try:
+            original_text, meta = self._read_text_with_metadata(resolved, forced_encoding=source_encoding)
+        except (OSError, UnicodeDecodeError, LookupError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        normalized_target = self._normalize_encoding_name(target_encoding)
+        try:
+            original_text.encode(normalized_target)
+        except UnicodeEncodeError as exc:
+            return FileResult(
+                False,
+                path=str(resolved),
+                error=f"Target encoding cannot represent file contents: {exc}",
+                report={
+                    "operation": "convert_encoding",
+                    "path": str(resolved),
+                    "dry_run": dry_run,
+                    "changed": False,
+                    "source_encoding": meta["encoding"],
+                    "target_encoding": normalized_target,
+                    "newline": meta["newline"],
+                },
+            )
+        changed = self._normalize_encoding_name(str(meta["encoding"])) != normalized_target
+        report = {
+            "operation": "convert_encoding",
+            "path": str(resolved),
+            "dry_run": dry_run,
+            "changed": changed,
+            "source_encoding": meta["encoding"],
+            "target_encoding": normalized_target,
+            "newline": meta["newline"],
+            "byte_count": meta["byte_count"],
+        }
+        if not changed:
+            return FileResult(True, path=str(resolved), content="No changes.", report=report)
+        if dry_run:
+            return FileResult(
+                True,
+                path=str(resolved),
+                content=f"Dry-run preview for convert_encoding: {meta['encoding']} -> {normalized_target}",
+                report=report,
+            )
+        try:
+            final_content, warnings = self._prepare_preserving_text(resolved, original_text)
+            self._write_text_with_encoding(resolved, final_content, normalized_target)
+            report["written"] = True
+            return FileResult(True, path=str(resolved), content=final_content, warnings=warnings, report=report)
+        except (OSError, UnicodeEncodeError, LookupError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc), report=report)
+
+    def normalize_line_endings(
+        self,
+        path: str,
+        newline: str,
+        *,
+        dry_run: bool = False,
+    ) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        if newline not in {"lf", "crlf", "cr"}:
+            return FileResult(False, path=str(resolved), error="newline must be one of: lf, crlf, cr.")
+        if not dry_run:
+            denied = self._check_write_permission(resolved)
+            if denied is not None:
+                return denied
+        try:
+            original, meta = self._read_text_with_metadata(resolved)
+        except (OSError, UnicodeDecodeError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        target_newline = {"lf": "\n", "crlf": "\r\n", "cr": "\r"}[newline]
+        normalized = original.replace("\r\n", "\n").replace("\r", "\n").replace("\n", target_newline)
+        return self._finalize_text_edit(
+            resolved,
+            original,
+            normalized,
+            operation="normalize_line_endings",
+            dry_run=dry_run,
+            encoding=str(meta["encoding"]),
+            newline=target_newline,
+            preserve_content=True,
+            extra_report={
+                "source_newline": meta["newline"],
+                "target_newline": target_newline,
+            },
+        )
+
     def delete_range(self, path: str, start_line: int, end_line: int, *, dry_run: bool = False) -> FileResult:
         return self._line_edit(
             path,
@@ -601,6 +707,10 @@ class FileTool:
             return to_ascii_safe_text(content), warnings + ["sensitive_file_ascii_forced"]
         return content, warnings
 
+    def _prepare_preserving_text(self, path: Path, content: str) -> tuple[str, list[str]]:
+        warnings = detect_confusables(content)
+        return content, warnings
+
     def _line_edit(
         self,
         path: str,
@@ -669,9 +779,9 @@ class FileTool:
                         return index
         return None
 
-    def _read_text_with_metadata(self, path: Path) -> tuple[str, dict[str, object]]:
+    def _read_text_with_metadata(self, path: Path, *, forced_encoding: str | None = None) -> tuple[str, dict[str, object]]:
         raw = path.read_bytes()
-        detected = self._detect_encoding(raw)
+        detected = self._detect_encoding(raw, forced_encoding=forced_encoding)
         text = raw.decode(str(detected["encoding"]))
         return text, {
             "encoding": detected["encoding"],
@@ -681,7 +791,13 @@ class FileTool:
             "has_bom": detected["has_bom"],
         }
 
-    def _detect_encoding(self, raw: bytes) -> dict[str, object]:
+    def _detect_encoding(self, raw: bytes, *, forced_encoding: str | None = None) -> dict[str, object]:
+        if forced_encoding:
+            return {
+                "encoding": self._normalize_encoding_name(forced_encoding),
+                "encoding_confidence": "forced",
+                "has_bom": raw.startswith((b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff")),
+            }
         if raw.startswith(b"\xef\xbb\xbf"):
             return {"encoding": "utf-8-sig", "encoding_confidence": "bom", "has_bom": True}
         if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
@@ -698,6 +814,22 @@ class FileTool:
             except UnicodeDecodeError:
                 pass
         return {"encoding": "latin-1", "encoding_confidence": "fallback", "has_bom": False}
+
+    def _normalize_encoding_name(self, value: str) -> str:
+        lowered = value.strip().lower().replace("_", "-")
+        aliases = {
+            "utf8": "utf-8",
+            "utf-8": "utf-8",
+            "utf-8-sig": "utf-8-sig",
+            "utf16": "utf-16",
+            "utf-16": "utf-16",
+            "latin1": "latin-1",
+            "latin-1": "latin-1",
+            "cp1252": "cp1252",
+            "windows-1252": "cp1252",
+            "ascii": "ascii",
+        }
+        return aliases.get(lowered, lowered)
 
     def _detect_newline(self, text: str) -> str:
         if "\r\n" in text:
@@ -739,6 +871,7 @@ class FileTool:
         dry_run: bool,
         encoding: str,
         newline: str,
+        preserve_content: bool = False,
         extra_report: dict[str, Any],
     ) -> FileResult:
         changed = updated != original
@@ -758,7 +891,10 @@ class FileTool:
         if dry_run:
             return FileResult(True, path=str(path), content=f"Dry-run preview for {operation}:\n{preview}", report=report)
         try:
-            final_content, warnings = self._prepare_output_text(path, updated)
+            if preserve_content:
+                final_content, warnings = self._prepare_preserving_text(path, updated)
+            else:
+                final_content, warnings = self._prepare_output_text(path, updated)
             self._write_text_with_encoding(path, final_content, encoding)
             report["written"] = True
             return FileResult(True, path=str(path), content=final_content, warnings=warnings, report=report)

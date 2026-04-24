@@ -4,7 +4,7 @@ Author: Donato Pepe
 
 License: MIT
 
-Last updated: 2026-04-22
+Last updated: 2026-04-24
 
 ## Purpose
 
@@ -24,6 +24,7 @@ The working rule is PRINCE2-style controlled execution:
 - communication and traceability rule: the AI agent must inform the user of every action it is about to perform, every material action it performs, and every relevant result; each action must also be recorded in handoff/log context with enough evidence to reconstruct what happened
 - no silent action rule: shell commands, file edits, model handoffs, role-tree changes, git snapshots, web/download/compression operations, approvals, force overrides, and recovery actions must never be invisible to the user or absent from handoff
 - model roles are not limited to a flat one-role/one-model map: PRINCE2 organization can be hierarchical, delegated, combined, or split by domain while preserving accountability
+- role-tree runtime rule: approved PRINCE2 nodes must eventually run as active concurrent actors, not passive assignments; each node must own scoped context, local state, inbox/outbox communication, waiting/resume behavior, and auditable message exchange with other nodes
 - clarification gate: for every user request, Stagewarden must identify all ambiguous points and ask every necessary clarification before execution starts; work may begin only after no material ambiguity remains or the user explicitly authorizes assumptions
 - clarification gate must stay proportional: simple unambiguous requests can proceed immediately, but any uncertainty about scope, files, provider/model/account, permissions, destructive effects, external network use, expected output, validation/wet-run, git/push boundary, or PRINCE2 role ownership must be resolved first
 - user-experience baseline is Codex CLI plus Claude Code: command feel, shell flow, status surfaces, transcript visibility, auth flow, model/provider selection, and conversational shell ergonomics must be learned from the locally cloned sources and reproduced in Stagewarden where compatible with project goals
@@ -479,6 +480,90 @@ Grouped execution plan for `P5` from 2026-04-24:
 - `P5-G4` Agent capability surface integration:
 - expose all new file primitives in command/help/discovery surfaces and in the model-facing tool capability packet so routed models know these operations exist.
 - success condition: command/help/tool capability surfaces are synchronized and tested.
+
+- `P6` Active PRINCE2 node runtime pack:
+- scope: evolve the approved PRINCE2 role tree from a static routed baseline into a governed runtime of communicating nodes.
+- includes: node runtime state, thread/actor lifecycle, inbox/outbox messaging, blocking wait states, wake-up triggers, parent/child/peer communication, flow-edge enforcement, node transcripts, and scoped context exchange.
+- close condition: Stagewarden can run an approved PRINCE2 tree as concurrent governed nodes whose communication is explicit, auditable, and limited to approved authority/context boundaries.
+
+Grouped execution plan for `P6` from 2026-04-24:
+
+- `P6-G1` Node runtime model:
+- define the node state machine and persistence model: idle, ready, waiting, running, blocked, escalated, completed, and closed; persist inbox/outbox, wait reason, wake triggers, and node-local transcript references.
+- success condition: the project baseline can be materialized into runtime node state without losing PRINCE2 accountability or context boundaries.
+- status 2026-04-24: in progress, first implementation slice complete. `ProjectHandoff` now materializes approved role-tree baselines into a persisted node-runtime model with per-node state, wait metadata, wake triggers, queue counts, transcript refs, and incoming/outgoing flow-edge visibility.
+
+- `P6-G2` Governed node communication:
+- implement structured inter-node messages with sender, receiver, flow edge, payload scope, evidence references, validation condition, and return path; reject unauthorized message routes or payload widening.
+- success condition: nodes can speak to each other only through approved PRINCE2 flows and every exchange is auditable in handoff/log state.
+- status 2026-04-24: first implementation slice complete. Stagewarden now supports governed node-to-node messages persisted inside the PRINCE2 node runtime, with flow-edge validation, payload-scope enforcement, evidence refs, inbox/outbox queues, and blocked-message audit entries.
+
+- `P6-G3` Concurrent execution orchestration:
+- implement actor/thread orchestration so a node can wait, resume, react to incoming messages, and continue autonomous work while other nodes are active.
+- success condition: Stagewarden supports independent node lifecycles instead of a single monolithic control loop.
+- status 2026-04-24: first orchestration slice complete. Stagewarden now supports explicit node lifecycle transitions for `waiting`, `ready`, `running`, and `completed` through governed CLI/runtime operations, including wake triggers and one-step node advancement.
+
+- `P6-G4` User and model surfaces:
+- expose runtime tree/node status, queues, active waits, recent node messages, and controlled wake/resume commands through status/help/JSON surfaces and model capability packets.
+- success condition: the user and routed models can inspect the live PRINCE2 runtime organization safely and clearly.
+- status 2026-04-24: context-packet slice complete. Each node can now expose a structured AI context packet that combines runtime state, PRINCE2 role scope, communications, and real Stagewarden capability surfaces.
+
+Pack `P6-G1` validation evidence:
+
+- Added persisted `prince2_node_runtime` into `.stagewarden_handoff.json`.
+- Role-tree baseline sync now materializes runtime actor state from approved baseline tree + flow while preserving any previously persisted node-local queues/wait metadata.
+- Added `roles runtime` and `roles runtime --json` to inspect the materialized PRINCE2 node runtime directly.
+- `handoff` and status/full-status surfaces now expose the node-runtime summary so live actor-state visibility is part of normal operational reporting.
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_persistence.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-24: targeted tests for runtime persistence and CLI materialization passed.
+- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 149 tests, 1 expected skip.
+- Wet-run 2026-04-24: isolated workspace `roles runtime --json` passed and showed a materialized `management.project_manager` node with `state=ready`, `incoming_edges=['authorize.project']`, and wake triggers `escalation` plus `stage_boundary_review`.
+
+Pack `P6-G2` validation evidence:
+
+- Added `role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]`.
+- Added `roles messages [node_id]` and `roles messages [node_id] --json` for inbox/outbox inspection.
+- Message send now validates that the specified `edge_id` exists for the selected source/target nodes and rejects payload widening beyond the approved `payload_scope`.
+- Successful sends append the message to source outbox and target inbox inside `prince2_node_runtime`, preserving evidence refs, validation condition, decision authority, and return path.
+- Blocked sends now record `role_message_blocked` in handoff actions for auditability.
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_persistence.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-24: targeted governed-message tests passed.
+- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 152 tests, 1 expected skip.
+- Wet-run 2026-04-24: isolated workspace `role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package,quality_criteria evidence=wp-001 summary=issue_work_package` passed and immediately exposed the queued inbox entry for `delivery.team_manager`.
+- Wet-run 2026-04-24: isolated workspace `roles messages delivery.team_manager --json` passed and returned the persisted queued message with edge id, payload scope, evidence refs, validation condition, and return path.
+
+Pack `P6-G3` validation evidence:
+
+- Added `role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]`.
+- Added `role wake <node_id> trigger=<name>`.
+- Added `role tick <node_id>`.
+- Runtime nodes can now be put into `waiting`, woken only by authorized triggers, and advanced one controlled lifecycle step at a time.
+- `role tick` now consumes one queued inbox message when present, records a transcript reference for the consumed message, and moves the node to `running`; without inbox work it advances a ready/running node to `completed`.
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_persistence.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-24: targeted wait/wake/tick tests passed.
+- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 154 tests, 1 expected skip.
+- Wet-run 2026-04-24: isolated workspace sequential flow `role wait delivery.team_manager ...` -> `role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package` -> `role wake delivery.team_manager trigger=message_received` -> `role tick delivery.team_manager --json` passed.
+- Wet-run 2026-04-24: final `role tick` JSON showed `delivery.team_manager` in `state=running`, empty inbox, and transcript ref `message:<message_id>` persisted in the node runtime.
+
+Pack `P6-G4` validation evidence:
+
+- Added `roles context <node_id>` and `roles context <node_id> --json`.
+- The node context packet now includes:
+- runtime state, wait status, wake triggers, queue counts, and transcript refs
+- provider/provider-model assignment for the node
+- PRINCE2 role responsibility domain, context scope, accountability boundary, delegated authority, and include/exclude context slices
+- incoming/outgoing PRINCE2 flow edges and communication commands
+- real Stagewarden capability surface for the node AI: shell, files, git, web/download/compression flags, allowed model actions, file operations, git operations, and shell operations
+- current project context snapshot from handoff
+- Validation 2026-04-24: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
+- Validation 2026-04-24: targeted `roles context` test passed.
+- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 155 tests, 1 expected skip.
+- Wet-run 2026-04-24: isolated workspace `roles context management.project_manager --json` passed and returned a complete node AI context packet with capability surface, PRINCE2 context include/exclude rules, communication commands, and incoming flow edge `authorize.project`.
+- Executor integration 2026-04-24: the model communication packet now includes a dedicated `PRINCE2 node AI context packet` section so the routed model receives the node-scoped capability/context packet directly in its prompt.
+- Validation 2026-04-24: targeted executor tests for packet rendering and node-context prompt inclusion passed.
+- Validation 2026-04-24: internal prompt render check confirmed the executor prompt contains `node_id: management.project_manager`, `context_include: stage_plan, registers`, and `communication_incoming_edges: authorize.project`.
+- Note 2026-04-24: the broader `tests/test_executor.py tests/test_persistence.py tests/test_trace_cli.py` suite is still blocked only by the already-known unrelated `P5-G2` encoding-conversion failure (`convert_encoding_file` currently writes `caf\\xe9` instead of `café`). The node-context executor integration itself is green in targeted validation.
+- Executor integration detail 2026-04-24: the prompt packet now carries runtime state, wake triggers, queue counts, transcript refs, assignment route, PRINCE2 include/exclude slices, communication commands, and real Stagewarden capability surfaces for the active node IA.
 
 New file-operations specification added on 2026-04-24:
 

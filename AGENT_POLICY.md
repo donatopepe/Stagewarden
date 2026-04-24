@@ -73,6 +73,13 @@ The agent must execute work under adaptive PRINCE2-style control:
 - Test design must cover happy path, failure path, boundary conditions, dry-run versus wet-run behavior, and machine-readable evidence whenever those behaviors exist.
 - When a new function is added, testability is part of the function definition, not a follow-up task.
 
+### 12. Active PRINCE2 Role Nodes
+
+- An approved PRINCE2 role tree must be executable as a runtime organization, not only as static configuration.
+- Each node must be able to live as an independent thread or actor with its own scoped context, wait state, incoming queue, outgoing messages, and auditable lifecycle.
+- Node-to-node communication must follow approved PRINCE2 flow edges only; context may move only through governed messages, escalation, delegation, assurance review, or boundary events.
+- A node may collaborate with peer, parent, or child nodes, but it must never widen another node's context beyond that node's authorized responsibility domain.
+
 ## Repository Artifacts
 
 The policy is reflected in:

@@ -105,6 +105,163 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(len(loaded.lessons_log), 1)
             self.assertEqual(loaded.prince2_roles["project_manager"]["provider_model"], "gpt-5.4")
 
+    def test_project_handoff_materializes_prince2_node_runtime_from_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / ".stagewarden_handoff.json"
+            handoff = ProjectHandoff()
+            handoff.sync_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "parent_id": "board.executive",
+                                "level": "management",
+                                "accountability_boundary": "day-to-day management",
+                                "delegated_authority": "authorizes work packages",
+                                "responsibility_domain": "planning and control",
+                                "context_scope": "stage plan and registers",
+                                "context_rule": {"expansion_events": ["escalation", "stage_boundary_review"]},
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            }
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "authorize.project",
+                                "source_node": "board.executive",
+                                "target_node": "management.project_manager",
+                            }
+                        ]
+                    },
+                }
+            )
+            handoff.save(path)
+            loaded = ProjectHandoff.load(path)
+            runtime = loaded.prince2_node_runtime_report()
+            self.assertEqual(runtime["status"], "materialized")
+            self.assertEqual(runtime["summary"]["nodes"], 1)
+            self.assertEqual(runtime["summary"]["ready"], 1)
+            self.assertEqual(runtime["runtime"]["nodes"][0]["node_id"], "management.project_manager")
+            self.assertEqual(runtime["runtime"]["nodes"][0]["state"], "ready")
+            self.assertEqual(runtime["runtime"]["nodes"][0]["wake_triggers"], ["escalation", "stage_boundary_review"])
+
+    def test_project_handoff_rejects_prince2_message_payload_outside_edge_scope(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.sync_prince2_role_tree_baseline(
+            {
+                "status": "approved",
+                "source": "unit_test",
+                "tree": {
+                    "nodes": [
+                        {
+                            "node_id": "management.project_manager",
+                            "role_type": "project_manager",
+                            "label": "Project Manager",
+                            "context_rule": {"expansion_events": ["escalation"]},
+                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                        },
+                        {
+                            "node_id": "delivery.team_manager",
+                            "role_type": "team_manager",
+                            "label": "Team Manager",
+                            "context_rule": {"expansion_events": ["delivery_checkpoint"]},
+                            "assignment": {"provider": "local", "provider_model": "provider-default"},
+                        },
+                    ]
+                },
+                "flow": {
+                    "edges": [
+                        {
+                            "edge_id": "issue.work_package",
+                            "source_node": "management.project_manager",
+                            "target_node": "delivery.team_manager",
+                            "payload_scope": ["assigned_work_package", "quality_criteria"],
+                            "expected_evidence": ["work_package_description"],
+                            "validation_condition": "delivery scoped",
+                            "decision_authority": "Project Manager",
+                            "return_path": "checkpoint",
+                        }
+                    ]
+                },
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "Payload scope exceeds authorized PRINCE2 flow edge"):
+            handoff.send_prince2_node_message(
+                source_node="management.project_manager",
+                target_node="delivery.team_manager",
+                edge_id="issue.work_package",
+                payload_scope=["business_case_detail"],
+            )
+
+    def test_project_handoff_can_wait_wake_and_tick_prince2_node(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.sync_prince2_role_tree_baseline(
+            {
+                "status": "approved",
+                "source": "unit_test",
+                "tree": {
+                    "nodes": [
+                        {
+                            "node_id": "management.project_manager",
+                            "role_type": "project_manager",
+                            "label": "Project Manager",
+                            "context_rule": {"expansion_events": ["escalation"]},
+                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                        },
+                        {
+                            "node_id": "delivery.team_manager",
+                            "role_type": "team_manager",
+                            "label": "Team Manager",
+                            "context_rule": {"expansion_events": ["delivery_checkpoint"]},
+                            "assignment": {"provider": "local", "provider_model": "provider-default"},
+                        },
+                    ]
+                },
+                "flow": {
+                    "edges": [
+                        {
+                            "edge_id": "issue.work_package",
+                            "source_node": "management.project_manager",
+                            "target_node": "delivery.team_manager",
+                            "payload_scope": ["assigned_work_package"],
+                            "expected_evidence": ["work_package_description"],
+                            "validation_condition": "delivery scoped",
+                            "decision_authority": "Project Manager",
+                            "return_path": "checkpoint",
+                        }
+                    ]
+                },
+            }
+        )
+        waiting = handoff.set_prince2_node_waiting(
+            node_id="delivery.team_manager",
+            reason="await checkpoint",
+            wake_triggers=["delivery_checkpoint", "message_received"],
+        )
+        self.assertEqual(waiting["state"], "waiting")
+        self.assertEqual(waiting["wait_status"], "waiting_for_trigger")
+
+        handoff.send_prince2_node_message(
+            source_node="management.project_manager",
+            target_node="delivery.team_manager",
+            edge_id="issue.work_package",
+            payload_scope=["assigned_work_package"],
+        )
+        woken = handoff.wake_prince2_node(node_id="delivery.team_manager", trigger="message_received")
+        self.assertEqual(woken["state"], "ready")
+        self.assertEqual(woken["wait_status"], "none")
+
+        ticked = handoff.tick_prince2_node(node_id="delivery.team_manager")
+        self.assertEqual(ticked["state"], "running")
+        self.assertIsNotNone(ticked["consumed_message"])
+        self.assertEqual(ticked["remaining_inbox"], 0)
+
     def test_project_handoff_can_close_step_issues_and_clear_exception_plan(self) -> None:
         handoff = ProjectHandoff(
             current_step_id="step-1",
