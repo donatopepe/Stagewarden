@@ -3804,28 +3804,7 @@ def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]
     return {
         "command": "model limits",
         "summary": _provider_limit_summary_report(report),
-        "providers": [
-            {
-                "provider": item["provider"],
-                "account": item["active_account"],
-                "variant": item["variant"],
-                "provider_model": item["provider_model"],
-                "provider_model_selection": item["provider_model_selection"],
-                "provider_model_params": item["provider_model_params"],
-                **_provider_limit_windows(item),
-                "blocked_accounts": [
-                    {
-                        "name": account["name"],
-                        "active": account["active"],
-                        "blocked_until": account["blocked_until"],
-                        "reason": account["last_limit_reason"],
-                        "snapshot": account["limit_snapshot"],
-                    }
-                    for account in item["blocked_accounts"]
-                ],
-            }
-            for item in report["providers"]
-        ],
+        "providers": [_provider_limit_entry_view(item, include_accounts=True) for item in report["providers"]],
     }
 
 
@@ -3969,6 +3948,76 @@ def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
     return base
 
 
+def _provider_limit_resets_at(windows: dict[str, object]) -> object:
+    return windows.get("blocked_until") or windows.get("overage_resets_at")
+
+
+def _provider_limit_account_view(account: dict[str, object]) -> dict[str, object]:
+    snapshot = account.get("limit_snapshot")
+    windows = _provider_limit_windows(
+        {
+            "blocked_until": account.get("blocked_until"),
+            "last_error_reason": account.get("last_limit_reason"),
+            "limit_snapshot": snapshot,
+        }
+    )
+    return {
+        "name": account["name"],
+        "active": account["active"],
+        "status": windows["status"],
+        "blocked_until": windows["blocked_until"],
+        "reason": windows["reason"],
+        "rate_limit_type": windows["rate_limit_type"],
+        "utilization": windows["utilization"],
+        "resets_at": _provider_limit_resets_at(windows),
+        "overage_status": windows["overage_status"],
+        "overage_resets_at": windows["overage_resets_at"],
+        "overage_disabled_reason": windows["overage_disabled_reason"],
+        "stale": windows["stale"],
+        "captured_at": windows["captured_at"],
+        "snapshot": snapshot,
+    }
+
+
+def _provider_limit_entry_view(
+    item: dict[str, object],
+    *,
+    include_accounts: bool = False,
+) -> dict[str, object]:
+    windows = _provider_limit_windows(item)
+    blocked_accounts = [
+        _provider_limit_account_view(account)
+        for account in item.get("blocked_accounts", [])
+        if isinstance(account, dict)
+    ]
+    view = {
+        "provider": item["provider"],
+        "account": item["active_account"],
+        "variant": item["variant"],
+        "provider_model": item["provider_model"],
+        "provider_model_selection": item["provider_model_selection"],
+        "provider_model_params": item["provider_model_params"],
+        "status": windows["status"],
+        "reason": windows["reason"],
+        "blocked_until": windows["blocked_until"],
+        "primary_window": windows["primary_window"],
+        "secondary_window": windows["secondary_window"],
+        "credits": windows["credits"],
+        "rate_limit_type": windows["rate_limit_type"],
+        "utilization": windows["utilization"],
+        "resets_at": _provider_limit_resets_at(windows),
+        "overage_status": windows["overage_status"],
+        "overage_resets_at": windows["overage_resets_at"],
+        "overage_disabled_reason": windows["overage_disabled_reason"],
+        "stale": windows["stale"],
+        "captured_at": windows["captured_at"],
+        "blocked_accounts_count": len(blocked_accounts),
+    }
+    if include_accounts:
+        view["blocked_accounts"] = blocked_accounts
+    return view
+
+
 def _provider_limit_snapshot_is_stale(captured_at: object, *, stale_after_minutes: int = 15) -> bool:
     if not captured_at:
         return False
@@ -4026,15 +4075,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
                 for item in model_report["models"]
             },
         },
-        "limits": [
-            {
-                "provider": item["provider"],
-                "account": item["active_account"],
-                "variant": item["variant"],
-                **_provider_limit_windows(item),
-            }
-            for item in providers
-        ],
+        "limits": [_provider_limit_entry_view(item, include_accounts=True) for item in providers],
         "limits_summary": _provider_limit_summary_report(provider_limits),
         "workspace": {
             "cwd": status["workspace"],
@@ -4224,18 +4265,22 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 
 def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
-    windows = _provider_limit_windows(item)
+    entry = _provider_limit_entry_view(item, include_accounts=False)
     return {
-        "provider": item["provider"],
-        "account": item["active_account"],
-        "status": windows["status"],
-        "blocked_until": windows["blocked_until"],
-        "reason": windows["reason"],
-        "rate_limit_type": windows["rate_limit_type"],
-        "stale": windows["stale"],
-        "blocked_accounts": len(item.get("blocked_accounts", [])),
-        "used_percentage": windows["utilization"],
-        "resets_at": windows["blocked_until"] or windows["overage_resets_at"],
+        "provider": entry["provider"],
+        "account": entry["account"],
+        "status": entry["status"],
+        "blocked_until": entry["blocked_until"],
+        "reason": entry["reason"],
+        "rate_limit_type": entry["rate_limit_type"],
+        "stale": entry["stale"],
+        "blocked_accounts": entry["blocked_accounts_count"],
+        "used_percentage": entry["utilization"],
+        "utilization": entry["utilization"],
+        "resets_at": entry["resets_at"],
+        "overage_status": entry["overage_status"],
+        "overage_resets_at": entry["overage_resets_at"],
+        "overage_disabled_reason": entry["overage_disabled_reason"],
     }
 
 

@@ -468,6 +468,9 @@ class TraceAndCliTests(unittest.TestCase):
                     "blocked_until": "2026-05-01T18:30",
                     "rate_limit_type": "usage_limit",
                     "utilization": 91,
+                    "overage_status": "disabled",
+                    "overage_resets_at": "2026-05-01T20:00",
+                    "overage_disabled_reason": "plan_cap",
                     "captured_at": "2000-01-01T17:30",
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
@@ -493,6 +496,10 @@ class TraceAndCliTests(unittest.TestCase):
             limits = {item["provider"]: item for item in payload["limits"]}
             self.assertEqual(limits["chatgpt"]["utilization"], 91.0)
             self.assertEqual(limits["chatgpt"]["rate_limit_type"], "usage_limit")
+            self.assertEqual(limits["chatgpt"]["resets_at"], "2026-05-01T18:30")
+            self.assertEqual(limits["chatgpt"]["overage_status"], "disabled")
+            self.assertEqual(limits["chatgpt"]["overage_resets_at"], "2026-05-01T20:00")
+            self.assertEqual(limits["chatgpt"]["overage_disabled_reason"], "plan_cap")
 
     def test_status_full_cli_renders_remediations(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -613,6 +620,9 @@ class TraceAndCliTests(unittest.TestCase):
                     "blocked_until": "2026-05-01T18:30",
                     "rate_limit_type": "usage_limit",
                     "utilization": 91,
+                    "overage_status": "disabled",
+                    "overage_resets_at": "2026-05-01T20:00",
+                    "overage_disabled_reason": "plan_cap",
                     "captured_at": "2000-01-01T17:30",
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
@@ -643,8 +653,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("context_window", payload)
             limits = {item["provider"]: item for item in payload["rate_limits"]}
             self.assertEqual(limits["chatgpt"]["used_percentage"], 91.0)
+            self.assertEqual(limits["chatgpt"]["utilization"], 91.0)
             self.assertEqual(limits["chatgpt"]["resets_at"], "2026-05-01T18:30")
             self.assertEqual(limits["chatgpt"]["rate_limit_type"], "usage_limit")
+            self.assertEqual(limits["chatgpt"]["overage_status"], "disabled")
+            self.assertEqual(limits["chatgpt"]["overage_resets_at"], "2026-05-01T20:00")
+            self.assertEqual(limits["chatgpt"]["overage_disabled_reason"], "plan_cap")
             self.assertTrue(limits["chatgpt"]["stale"])
             self.assertEqual(limits["claude"]["blocked_accounts"], 1)
             self.assertEqual(payload["rate_limits_summary"]["blocked_models"], ["chatgpt"])
@@ -918,6 +932,9 @@ class TraceAndCliTests(unittest.TestCase):
                     "blocked_until": "2026-05-01T18:30",
                     "rate_limit_type": "usage_limit",
                     "utilization": 91,
+                    "overage_status": "disabled",
+                    "overage_resets_at": "2026-05-01T20:00",
+                    "overage_disabled_reason": "plan_cap",
                     "captured_at": "2000-01-01T17:30",
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
@@ -950,7 +967,13 @@ class TraceAndCliTests(unittest.TestCase):
             providers = {item["provider"]: item for item in payload["providers"]}
             self.assertEqual(providers["chatgpt"]["utilization"], 91.0)
             self.assertEqual(providers["chatgpt"]["blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(providers["chatgpt"]["resets_at"], "2026-05-01T18:30")
+            self.assertEqual(providers["chatgpt"]["overage_status"], "disabled")
+            self.assertEqual(providers["chatgpt"]["overage_resets_at"], "2026-05-01T20:00")
+            self.assertEqual(providers["chatgpt"]["overage_disabled_reason"], "plan_cap")
             self.assertTrue(providers["chatgpt"]["stale"])
+            self.assertEqual(providers["claude"]["blocked_accounts"][0]["resets_at"], "2026-05-01T19:00")
+            self.assertEqual(providers["claude"]["blocked_accounts"][0]["rate_limit_type"], "five_hour_sonnet")
             self.assertEqual(
                 providers["claude"]["blocked_accounts"][0]["snapshot"]["rate_limit_type"],
                 "five_hour_sonnet",
