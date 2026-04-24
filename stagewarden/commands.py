@@ -134,6 +134,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("roles baseline matrix", "prince2", "Show the approved role-tree baseline matrix including delegated nodes and route pools.", "roles baseline matrix [--json]", json=True, handler="roles"),
     CommandSpec("roles context", "prince2", "Show the AI context packet for one PRINCE2 runtime node.", "roles context <node_id> [--json]", json=True, handler="roles"),
     CommandSpec("roles runtime", "prince2", "Show the materialized PRINCE2 node runtime derived from the approved baseline.", "roles runtime [--json]", json=True, handler="roles"),
+    CommandSpec("roles active", "prince2", "Show only active PRINCE2 runtime nodes that are not yet completed.", "roles active [--json]", json=True, handler="roles"),
+    CommandSpec("roles queues", "prince2", "Show compact queue/inbox/outbox supervision for the PRINCE2 runtime.", "roles queues [--json]", json=True, handler="roles"),
     CommandSpec("roles tick", "prince2", "Advance the PRINCE2 runtime in batch across eligible nodes.", "roles tick [max_nodes] [--json]", json=True, handler="roles"),
     CommandSpec("roles messages", "prince2", "Show PRINCE2 node inbox/outbox messages, optionally for one node.", "roles messages [node_id] [--json]", json=True, handler="roles"),
     CommandSpec("roles check", "prince2", "Validate PRINCE2 role tree readiness, rate-limit state, and independence warnings.", "roles check [--json]", json=True, handler="roles"),

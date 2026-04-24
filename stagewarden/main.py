@@ -880,6 +880,34 @@ def _render_prince2_role_runtime(config: AgentConfig) -> str:
     return handoff.rendered_prince2_node_runtime()
 
 
+def _prince2_role_active_report(config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.prince2_node_active_report()
+
+
+def _render_prince2_role_active(config: AgentConfig) -> str:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.rendered_prince2_node_active()
+
+
+def _prince2_role_queue_report(config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.prince2_node_queue_report()
+
+
+def _render_prince2_role_queues(config: AgentConfig) -> str:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.rendered_prince2_node_queues()
+
+
 def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = None) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     _sync_prince2_roles_to_handoff(config, prefs)
@@ -1010,6 +1038,8 @@ def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str,
             "incoming_edges": incoming,
             "outgoing_edges": outgoing,
             "commands": [
+                "roles active [--json]",
+                "roles queues [--json]",
                 "roles messages [node_id]",
                 "role message <source_node> <target_node> <edge_id> payload=<scope1,scope2>",
                 "role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]",
@@ -2476,6 +2506,10 @@ def _handle_role_command(
             return _render_prince2_role_messages(config, node_id=parts[2] if len(parts) == 3 else None)
         if len(parts) == 2 and parts[1] == "runtime":
             return _render_prince2_role_runtime(config)
+        if len(parts) == 2 and parts[1] == "active":
+            return _render_prince2_role_active(config)
+        if len(parts) == 2 and parts[1] == "queues":
+            return _render_prince2_role_queues(config)
         if len(parts) in {2, 3} and parts[1] == "tick":
             max_nodes = None
             if len(parts) == 3:
@@ -2513,7 +2547,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) in {4, 5} and parts[1] == "add-child":
@@ -7572,6 +7606,18 @@ def main() -> int:
         else:
             print(_render_prince2_role_context(config, node_id))
         return 0
+    if task == "roles active":
+        if args.json:
+            print(dumps_ascii(_prince2_role_active_report(config), indent=2))
+        else:
+            print(_render_prince2_role_active(config))
+        return 0
+    if task == "roles queues":
+        if args.json:
+            print(dumps_ascii(_prince2_role_queue_report(config), indent=2))
+        else:
+            print(_render_prince2_role_queues(config))
+        return 0
     if task == "roles messages" or task.startswith("roles messages "):
         node_id = task.split(maxsplit=2)[2] if len(task.split(maxsplit=2)) == 3 else None
         if args.json:
@@ -7650,7 +7696,7 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text_with_underscores> | role wake <node_id> trigger=<name> | role tick <node_id> | project start [--ai]")
+            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text_with_underscores> | role wake <node_id> trigger=<name> | role tick <node_id> | project start [--ai]")
             return 1
         if args.json:
             if task.startswith("role message "):

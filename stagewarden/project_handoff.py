@@ -647,6 +647,126 @@ class ProjectHandoff:
             )
         return "\n".join(lines)
 
+    def prince2_node_active_report(self) -> dict[str, Any]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        if not runtime or not nodes:
+            return {
+                "command": "roles active",
+                "status": "missing",
+                "message": "No materialized PRINCE2 node runtime. Approve a role-tree baseline first.",
+                "nodes": [],
+            }
+        active_nodes = []
+        for node in nodes:
+            state = str(node.get("state", "idle")).strip().lower()
+            if state == "completed":
+                continue
+            active_nodes.append(
+                {
+                    "node_id": str(node.get("node_id", "")),
+                    "label": str(node.get("label", node.get("node_id", ""))),
+                    "state": state or "idle",
+                    "wait_status": str(node.get("wait_status", "none")),
+                    "inbox_count": int(node.get("inbox_count", 0) or 0),
+                    "outbox_count": int(node.get("outbox_count", 0) or 0),
+                    "provider": ((node.get("assignment") or {}).get("provider") if isinstance(node.get("assignment"), dict) else None) or "none",
+                    "provider_model": ((node.get("assignment") or {}).get("provider_model") if isinstance(node.get("assignment"), dict) else None) or "none",
+                    "last_transition_at": str(node.get("last_transition_at", "")),
+                }
+            )
+        return {
+            "command": "roles active",
+            "status": "ok",
+            "count": len(active_nodes),
+            "nodes": active_nodes,
+        }
+
+    def rendered_prince2_node_active(self) -> str:
+        report = self.prince2_node_active_report()
+        if report["status"] == "missing":
+            return "PRINCE2 active nodes: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
+        lines = ["PRINCE2 active nodes:"]
+        nodes = [node for node in report.get("nodes", []) if isinstance(node, dict)]
+        if not nodes:
+            lines.append("- none")
+            return "\n".join(lines)
+        for node in nodes:
+            lines.append(
+                f"- {node.get('label')} [{node.get('node_id')}]: state={node.get('state')} "
+                f"wait={node.get('wait_status')} inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
+                f"provider={node.get('provider')} provider_model={node.get('provider_model')}"
+            )
+        return "\n".join(lines)
+
+    def prince2_node_queue_report(self) -> dict[str, Any]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        if not runtime or not nodes:
+            return {
+                "command": "roles queues",
+                "status": "missing",
+                "message": "No materialized PRINCE2 node runtime. Approve a role-tree baseline first.",
+                "queues": [],
+                "summary": {"inbox_total": 0, "outbox_total": 0, "nodes_with_inbox": 0, "nodes_with_outbox": 0},
+            }
+        queues = []
+        inbox_total = 0
+        outbox_total = 0
+        nodes_with_inbox = 0
+        nodes_with_outbox = 0
+        for node in nodes:
+            inbox_count = int(node.get("inbox_count", 0) or 0)
+            outbox_count = int(node.get("outbox_count", 0) or 0)
+            inbox_total += inbox_count
+            outbox_total += outbox_count
+            if inbox_count:
+                nodes_with_inbox += 1
+            if outbox_count:
+                nodes_with_outbox += 1
+            queues.append(
+                {
+                    "node_id": str(node.get("node_id", "")),
+                    "label": str(node.get("label", node.get("node_id", ""))),
+                    "state": str(node.get("state", "unknown")),
+                    "inbox_count": inbox_count,
+                    "outbox_count": outbox_count,
+                    "wait_status": str(node.get("wait_status", "none")),
+                }
+            )
+        return {
+            "command": "roles queues",
+            "status": "ok",
+            "summary": {
+                "inbox_total": inbox_total,
+                "outbox_total": outbox_total,
+                "nodes_with_inbox": nodes_with_inbox,
+                "nodes_with_outbox": nodes_with_outbox,
+            },
+            "queues": queues,
+        }
+
+    def rendered_prince2_node_queues(self) -> str:
+        report = self.prince2_node_queue_report()
+        if report["status"] == "missing":
+            return "PRINCE2 node queues: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
+        summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
+        lines = [
+            "PRINCE2 node queues:",
+            f"- inbox_total: {summary.get('inbox_total', 0)} outbox_total={summary.get('outbox_total', 0)}",
+            f"- nodes_with_inbox: {summary.get('nodes_with_inbox', 0)} nodes_with_outbox={summary.get('nodes_with_outbox', 0)}",
+        ]
+        queues = [item for item in report.get("queues", []) if isinstance(item, dict)]
+        if not queues:
+            lines.append("- none")
+            return "\n".join(lines)
+        for item in queues:
+            lines.append(
+                f"- {item.get('label')} [{item.get('node_id')}]: state={item.get('state')} "
+                f"wait={item.get('wait_status')} inbox={item.get('inbox_count')} outbox={item.get('outbox_count')}"
+            )
+        return "\n".join(lines)
+
     def prince2_node_messages_report(self, node_id: str | None = None) -> dict[str, Any]:
         runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
         nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
