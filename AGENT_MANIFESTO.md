@@ -20,6 +20,7 @@ If governance feels heavier than the task, reduce ceremony, not principles.
 - Require wet-run evidence for closure.
 - Preserve full traceability across handoff, tests, tools, and git.
 - Keep roles explicit: requester, acting model, executing tool, validating evidence.
+- Treat approved PRINCE2 role-tree nodes as active runtime actors with their own scoped context, wait state, and controlled message flow.
 - For every agent capability, implement the broadest useful test and simulation coverage practical within the repository.
 - If complete validation requires support features that do not yet exist, implement those support features instead of accepting shallow test coverage.
 

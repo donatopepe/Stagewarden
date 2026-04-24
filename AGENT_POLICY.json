@@ -59,6 +59,11 @@
       "id": "simulation_and_test_completeness",
       "required": true,
       "rule": "Every agent capability must have the broadest practical simulation, targeted test, integration test, and wet-run coverage; if support features are missing, implement them instead of accepting shallow validation."
+    },
+    {
+      "id": "active_prince2_role_nodes",
+      "required": true,
+      "rule": "Approved PRINCE2 role-tree nodes must behave as active runtime actors with scoped context, wait state, and governed message flow; node communication may occur only through approved PRINCE2 flow edges without unauthorized context widening."
     }
   ],
   "artifacts": {

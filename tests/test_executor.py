@@ -196,6 +196,83 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn('"encoding": "utf-8"', outcome.observation)
             self.assertEqual(memory.tool_transcript[-1].action_type, "inspect_file")
 
+    def test_executor_supports_encoding_conversion_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "notes.txt").write_bytes(bytes([99, 97, 102, 233, 13, 10]))
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "convert encoding",
+                                "action": {
+                                    "type": "convert_encoding_file",
+                                    "path": "notes.txt",
+                                    "source_encoding": "latin-1",
+                                    "target_encoding": "utf-8",
+                                    "dry_run": False,
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Convert", instruction="convert encoding", validation="The target files or behavior exist and are internally consistent.")
+
+            outcome = executor.execute_step(task="convert encoding", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual((root / "notes.txt").read_text(encoding="utf-8"), "caf\xe9\n")
+            self.assertEqual(memory.tool_transcript[-1].action_type, "convert_encoding_file")
+
+    def test_executor_supports_line_ending_normalization_action(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "notes.txt").write_text("one\r\ntwo\r\n", encoding="utf-8", newline="")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "normalize line endings",
+                                "action": {
+                                    "type": "normalize_line_endings_file",
+                                    "path": "notes.txt",
+                                    "newline": "lf",
+                                    "dry_run": False,
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Normalize", instruction="normalize line endings", validation="The target files or behavior exist and are internally consistent.")
+
+            outcome = executor.execute_step(task="normalize line endings", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertEqual((root / "notes.txt").read_text(encoding="utf-8"), "one\ntwo\n")
+            self.assertEqual(memory.tool_transcript[-1].action_type, "normalize_line_endings_file")
+
     def test_executor_tracks_invalid_output_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
@@ -1304,6 +1381,7 @@ class ExecutorTests(unittest.TestCase):
 
             self.assertEqual(packet.sections[0].title, "Thread Start")
             self.assertTrue(any(section.title == "PRINCE2 registers" for section in packet.sections))
+            self.assertTrue(any(section.title == "PRINCE2 node AI context packet" for section in packet.sections))
             self.assertEqual([item.item_type for item in packet.transcript_items], ["handoff_log", "execution_log", "tool_transcript"])
             payload = packet.as_dict()
             self.assertEqual(payload["sections"][0]["title"], "Thread Start")
@@ -1312,6 +1390,86 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("protocol_style: structured_turn_packet", rendered)
             self.assertIn("transcript_style: typed_items", rendered)
             self.assertIn("Tool transcript:", rendered)
+            self.assertIn("PRINCE2 node AI context packet:", rendered)
+
+    def test_executor_includes_prince2_node_context_packet_in_prompt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            project_handoff = ProjectHandoff(task="build project")
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "parent_id": "board.executive",
+                                "level": "management",
+                                "accountability_boundary": "day-to-day management",
+                                "delegated_authority": "authorizes work packages",
+                                "responsibility_domain": "planning and control",
+                                "context_scope": "stage plan and registers",
+                                "context_rule": {
+                                    "include": ["stage_plan", "registers"],
+                                    "exclude": ["board_private_decision_context"],
+                                    "expansion_events": ["escalation", "stage_boundary_review"],
+                                },
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            }
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "authorize.project",
+                                "source_node": "board.executive",
+                                "target_node": "management.project_manager",
+                                "flow_type": "authorization",
+                                "payload_scope": ["business_justification", "approved_tolerances"],
+                                "validation_condition": "PM receives approved baseline context",
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_assignment(
+                "project_manager",
+                mode="manual",
+                provider="chatgpt",
+                provider_model="gpt-5.4",
+                params={"reasoning_effort": "high"},
+                source="unit_test",
+            )
+            prefs.set_prince2_role_tree_baseline(project_handoff.prince2_role_tree_baseline)
+            prefs.save(config.model_prefs_path)
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=FakeHandoff([]),
+                memory=memory,
+                project_handoff=project_handoff,
+            )
+            step = PlanStep(id="step-1", title="Plan", instruction="plan the work", validation="done")
+
+            prompt = executor._build_prompt(
+                task="management.project_manager should plan the work",
+                step=step,
+                plan=[step],
+                last_observation="none",
+            )
+
+            self.assertIn("PRINCE2 node AI context packet:", prompt)
+            self.assertIn("node_id: management.project_manager", prompt)
+            self.assertIn("responsibility_domain: planning and control", prompt)
+            self.assertIn("context_include: stage_plan, registers", prompt)
+            self.assertIn("communication_incoming_edges: authorize.project", prompt)
+            self.assertIn("model_actions:", prompt)
 
     def test_executor_records_safe_model_usage_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

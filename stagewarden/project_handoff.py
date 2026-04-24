@@ -64,6 +64,7 @@ class ProjectHandoff:
     implementation_backlog: list[dict[str, str]] = field(default_factory=list)
     prince2_roles: dict[str, dict[str, Any]] = field(default_factory=dict)
     prince2_role_tree_baseline: dict[str, Any] = field(default_factory=dict)
+    prince2_node_runtime: dict[str, Any] = field(default_factory=dict)
     updated_at: str = field(default_factory=_utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
 
@@ -190,9 +191,11 @@ class ProjectHandoff:
     def sync_prince2_role_tree_baseline(self, baseline: dict[str, Any]) -> None:
         if not isinstance(baseline, dict):
             self.prince2_role_tree_baseline = {}
+            self.prince2_node_runtime = {}
             self.updated_at = _utc_now()
             return
         self.prince2_role_tree_baseline = dict(baseline)
+        self.prince2_node_runtime = self._materialize_prince2_node_runtime(dict(baseline))
         self.updated_at = _utc_now()
 
     def begin_step(
@@ -331,6 +334,7 @@ class ProjectHandoff:
             f"backlog:{len(self.implementation_backlog)}",
             f"prince2_roles={len(self.prince2_roles)}",
             f"prince2_role_tree_baseline={'approved' if self.prince2_role_tree_baseline else 'missing'}",
+            f"prince2_node_runtime={self.prince2_node_runtime_summary().get('status', 'missing')}",
         ]
         for role, assignment in sorted(self.prince2_roles.items()):
             lines.append(
@@ -398,6 +402,7 @@ class ProjectHandoff:
             "recovery_state": recovery_state,
             "stage_health": stage_health,
             "next_action": next_action,
+            "node_runtime_summary": self.prince2_node_runtime_summary(),
         }
 
     def rendered_stage_view(self) -> str:
@@ -438,6 +443,13 @@ class ProjectHandoff:
         lines.append(f"- recovery_state: {recovery_state}")
         lines.append(f"- boundary_decision: {boundary_decision}")
         lines.append(f"- next_action: {next_action}")
+        node_runtime = view["node_runtime_summary"]
+        lines.append(
+            "- node_runtime: "
+            f"status={node_runtime['status']} nodes={node_runtime['nodes']} "
+            f"ready={node_runtime['ready']} waiting={node_runtime['waiting']} "
+            f"running={node_runtime['running']} blocked={node_runtime['blocked']}"
+        )
         lines.append(
             "- registers: "
             f"risks={len(self.risk_register)} issues={len(self.issue_register)} "
@@ -592,6 +604,291 @@ class ProjectHandoff:
             lines.append(f"- {key}: {self.project_brief[key]}")
         return "\n".join(lines)
 
+    def prince2_node_runtime_report(self) -> dict[str, Any]:
+        if not self.prince2_node_runtime:
+            return {
+                "command": "roles runtime",
+                "status": "missing",
+                "message": "No materialized PRINCE2 node runtime. Approve a role-tree baseline first.",
+                "summary": self.prince2_node_runtime_summary(),
+                "runtime": {},
+            }
+        return {
+            "command": "roles runtime",
+            "status": "materialized",
+            "summary": self.prince2_node_runtime_summary(),
+            "runtime": dict(self.prince2_node_runtime),
+        }
+
+    def rendered_prince2_node_runtime(self) -> str:
+        report = self.prince2_node_runtime_report()
+        if report["status"] == "missing":
+            return "PRINCE2 node runtime: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
+        summary = report["summary"] if isinstance(report["summary"], dict) else {}
+        runtime = report["runtime"] if isinstance(report["runtime"], dict) else {}
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        lines = [
+            "PRINCE2 node runtime:",
+            f"- status: {summary.get('status', 'unknown')}",
+            f"- nodes: {summary.get('nodes', 0)}",
+            f"- ready: {summary.get('ready', 0)} waiting={summary.get('waiting', 0)} running={summary.get('running', 0)} blocked={summary.get('blocked', 0)}",
+            f"- materialized_at: {runtime.get('materialized_at', 'unknown')}",
+            f"- baseline_source: {runtime.get('baseline_source', 'unknown')}",
+            f"- wait_triggers: {summary.get('wait_triggers', 0)} message_queues={summary.get('message_queues', 0)}",
+        ]
+        for node in nodes:
+            lines.append(
+                f"- {node.get('label', node.get('node_id', 'node'))} [{node.get('node_id', 'unknown')}]: "
+                f"state={node.get('state', 'unknown')} "
+                f"inbox={node.get('inbox_count', 0)} outbox={node.get('outbox_count', 0)} "
+                f"wait={node.get('wait_status', 'none')} "
+                f"provider={((node.get('assignment') or {}).get('provider') if isinstance(node.get('assignment'), dict) else None) or 'none'} "
+                f"provider_model={((node.get('assignment') or {}).get('provider_model') if isinstance(node.get('assignment'), dict) else None) or 'none'}"
+            )
+        return "\n".join(lines)
+
+    def prince2_node_messages_report(self, node_id: str | None = None) -> dict[str, Any]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        if not runtime or not nodes:
+            return {
+                "command": "roles messages",
+                "status": "missing",
+                "message": "No materialized PRINCE2 node runtime. Approve a role-tree baseline first.",
+                "nodes": [],
+            }
+        selected: list[dict[str, Any]] = []
+        for node in nodes:
+            if node_id and str(node.get("node_id", "")).strip() != node_id:
+                continue
+            selected.append(
+                {
+                    "node_id": str(node.get("node_id", "")),
+                    "label": str(node.get("label", node.get("node_id", ""))),
+                    "state": str(node.get("state", "unknown")),
+                    "wait_status": str(node.get("wait_status", "none")),
+                    "inbox": [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)],
+                    "outbox": [dict(item) for item in node.get("outbox", []) if isinstance(item, dict)],
+                }
+            )
+        return {
+            "command": "roles messages",
+            "status": "ok",
+            "node_filter": node_id,
+            "count": len(selected),
+            "nodes": selected,
+        }
+
+    def rendered_prince2_node_messages(self, node_id: str | None = None) -> str:
+        report = self.prince2_node_messages_report(node_id=node_id)
+        if report["status"] == "missing":
+            return "PRINCE2 node messages: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
+        lines = ["PRINCE2 node messages:"]
+        if report.get("node_filter"):
+            lines.append(f"- node_filter: {report['node_filter']}")
+        nodes = [node for node in report.get("nodes", []) if isinstance(node, dict)]
+        if not nodes:
+            lines.append("- none")
+            return "\n".join(lines)
+        for node in nodes:
+            lines.append(
+                f"- {node.get('label')} [{node.get('node_id')}]: state={node.get('state')} wait={node.get('wait_status')} "
+                f"inbox={len(node.get('inbox', []))} outbox={len(node.get('outbox', []))}"
+            )
+            for item in node.get("inbox", []):
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"  inbox {item.get('message_id')} {item.get('source_node')} -> {item.get('target_node')} "
+                    f"edge={item.get('edge_id')} payload={','.join(item.get('payload_scope', []))}"
+                )
+            for item in node.get("outbox", []):
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"  outbox {item.get('message_id')} {item.get('source_node')} -> {item.get('target_node')} "
+                    f"edge={item.get('edge_id')} payload={','.join(item.get('payload_scope', []))}"
+                )
+        return "\n".join(lines)
+
+    def send_prince2_node_message(
+        self,
+        *,
+        source_node: str,
+        target_node: str,
+        edge_id: str,
+        payload_scope: list[str],
+        evidence_refs: list[str] | None = None,
+        summary: str | None = None,
+    ) -> dict[str, Any]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        baseline = self.prince2_role_tree_baseline if isinstance(self.prince2_role_tree_baseline, dict) else {}
+        flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
+        edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
+        if not runtime:
+            raise ValueError("No materialized PRINCE2 node runtime. Approve a role-tree baseline first.")
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        source = next((node for node in nodes if str(node.get("node_id", "")).strip() == source_node), None)
+        target = next((node for node in nodes if str(node.get("node_id", "")).strip() == target_node), None)
+        if source is None:
+            raise ValueError(f"Source node '{source_node}' not found in PRINCE2 node runtime.")
+        if target is None:
+            raise ValueError(f"Target node '{target_node}' not found in PRINCE2 node runtime.")
+        edge = next(
+            (
+                item
+                for item in edges
+                if str(item.get("edge_id", "")).strip() == edge_id
+                and str(item.get("source_node", "")).strip() == source_node
+                and str(item.get("target_node", "")).strip() == target_node
+            ),
+            None,
+        )
+        if edge is None:
+            raise ValueError(
+                f"Unauthorized PRINCE2 flow edge '{edge_id}' for {source_node} -> {target_node}."
+            )
+        clean_payload = [str(item).strip() for item in payload_scope if str(item).strip()]
+        if not clean_payload:
+            raise ValueError("Message payload scope cannot be empty.")
+        allowed_payload = {str(item).strip() for item in edge.get("payload_scope", []) if str(item).strip()}
+        invalid_payload = [item for item in clean_payload if item not in allowed_payload]
+        if invalid_payload:
+            raise ValueError(
+                "Payload scope exceeds authorized PRINCE2 flow edge: " + ", ".join(invalid_payload)
+            )
+        evidence = [str(item).strip() for item in (evidence_refs or []) if str(item).strip()]
+        message_id = f"msg-{len(self.entries) + len(clean_payload) + len(evidence) + 1}-{_utc_now().replace(':', '').replace('-', '')}"
+        message = {
+            "message_id": message_id,
+            "timestamp": _utc_now(),
+            "source_node": source_node,
+            "target_node": target_node,
+            "edge_id": edge_id,
+            "flow_type": str(edge.get("flow_type", "")),
+            "payload_scope": clean_payload,
+            "expected_evidence": [str(item) for item in edge.get("expected_evidence", []) if str(item).strip()],
+            "evidence_refs": evidence,
+            "validation_condition": str(edge.get("validation_condition", "")),
+            "decision_authority": str(edge.get("decision_authority", "")),
+            "return_path": str(edge.get("return_path", "")),
+            "status": "queued",
+            "summary": (summary or f"{edge_id} message").strip()[:240],
+        }
+        source.setdefault("outbox", [])
+        target.setdefault("inbox", [])
+        if not isinstance(source["outbox"], list):
+            source["outbox"] = []
+        if not isinstance(target["inbox"], list):
+            target["inbox"] = []
+        source["outbox"].append(dict(message))
+        target["inbox"].append(dict(message))
+        source["outbox_count"] = len(source["outbox"])
+        target["inbox_count"] = len(target["inbox"])
+        source["last_transition_at"] = message["timestamp"]
+        target["last_transition_at"] = message["timestamp"]
+        if str(target.get("state", "idle")).strip().lower() in {"idle", "waiting"}:
+            target["state"] = "ready"
+        if str(target.get("wait_status", "none")).strip().lower() != "none":
+            target["wait_status"] = "message_received"
+        self.prince2_node_runtime["nodes"] = nodes
+        self.updated_at = _utc_now()
+        return message
+
+    def set_prince2_node_waiting(
+        self,
+        *,
+        node_id: str,
+        reason: str,
+        wake_triggers: list[str] | None = None,
+    ) -> dict[str, Any]:
+        node = self._prince2_runtime_node(node_id)
+        clean_reason = str(reason).strip()
+        if not clean_reason:
+            raise ValueError("Wait reason cannot be empty.")
+        node["state"] = "waiting"
+        node["wait_status"] = "waiting_for_trigger"
+        node["wait_reason"] = clean_reason[:240]
+        if wake_triggers is not None:
+            node["wake_triggers"] = [str(item).strip() for item in wake_triggers if str(item).strip()]
+        node["last_transition_at"] = _utc_now()
+        self.updated_at = _utc_now()
+        return dict(node)
+
+    def wake_prince2_node(
+        self,
+        *,
+        node_id: str,
+        trigger: str,
+    ) -> dict[str, Any]:
+        node = self._prince2_runtime_node(node_id)
+        clean_trigger = str(trigger).strip()
+        if not clean_trigger:
+            raise ValueError("Wake trigger cannot be empty.")
+        allowed = [str(item).strip() for item in node.get("wake_triggers", []) if str(item).strip()]
+        inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
+        trigger_allowed = clean_trigger in allowed
+        message_allowed = clean_trigger == "message_received" and bool(inbox)
+        if not trigger_allowed and not message_allowed:
+            raise ValueError(
+                f"Wake trigger '{clean_trigger}' is not authorized for node '{node_id}'."
+            )
+        node["state"] = "ready"
+        node["wait_status"] = "none"
+        node["wait_reason"] = None
+        node["last_transition_at"] = _utc_now()
+        self.updated_at = _utc_now()
+        return dict(node)
+
+    def tick_prince2_node(self, *, node_id: str) -> dict[str, Any]:
+        node = self._prince2_runtime_node(node_id)
+        state = str(node.get("state", "idle")).strip().lower()
+        if state == "waiting":
+            raise ValueError(f"Node '{node_id}' is waiting and cannot tick until woken.")
+        inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
+        now = _utc_now()
+        if inbox:
+            message = inbox.pop(0)
+            message["status"] = "consumed"
+            message["consumed_at"] = now
+            node["inbox"] = inbox
+            node["inbox_count"] = len(inbox)
+            node.setdefault("transcript_refs", [])
+            if not isinstance(node["transcript_refs"], list):
+                node["transcript_refs"] = []
+            node["transcript_refs"].append(f"message:{message.get('message_id', 'unknown')}")
+            node["state"] = "running"
+            node["wait_status"] = "none"
+            node["wait_reason"] = None
+            node["last_transition_at"] = now
+            self.updated_at = now
+            return {
+                "node_id": node_id,
+                "state": "running",
+                "consumed_message": dict(message),
+                "remaining_inbox": len(inbox),
+            }
+        if state in {"ready", "running"}:
+            node["state"] = "completed"
+            node["wait_status"] = "none"
+            node["wait_reason"] = None
+            node["last_transition_at"] = now
+            self.updated_at = now
+            return {
+                "node_id": node_id,
+                "state": "completed",
+                "consumed_message": None,
+                "remaining_inbox": 0,
+            }
+        if state == "completed":
+            return {
+                "node_id": node_id,
+                "state": "completed",
+                "consumed_message": None,
+                "remaining_inbox": len(inbox),
+            }
+        raise ValueError(f"Node '{node_id}' is not ready to tick from state '{state}'.")
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "_format": "stagewarden_project_handoff",
@@ -614,6 +911,7 @@ class ProjectHandoff:
             "implementation_backlog": list(self.implementation_backlog),
             "prince2_roles": {role: dict(assignment) for role, assignment in self.prince2_roles.items()},
             "prince2_role_tree_baseline": dict(self.prince2_role_tree_baseline),
+            "prince2_node_runtime": dict(self.prince2_node_runtime),
             "updated_at": self.updated_at,
             "entries": [entry.as_dict() for entry in self.entries],
         }
@@ -873,6 +1171,120 @@ class ProjectHandoff:
             return "blocked"
         return status or "planned"
 
+    def prince2_node_runtime_summary(self) -> dict[str, int | str]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        counts = {
+            "command": "roles runtime",
+            "status": "missing" if not runtime else str(runtime.get("status", "materialized")),
+            "nodes": len(nodes),
+            "ready": 0,
+            "waiting": 0,
+            "running": 0,
+            "blocked": 0,
+            "escalated": 0,
+            "idle": 0,
+            "completed": 0,
+            "message_queues": 0,
+            "wait_triggers": 0,
+        }
+        for node in nodes:
+            state = str(node.get("state", "idle")).strip().lower() or "idle"
+            if state in counts:
+                counts[state] += 1
+            wait_status = str(node.get("wait_status", "none")).strip().lower()
+            if wait_status not in {"", "none"}:
+                counts["waiting"] += 0 if state == "waiting" else 1
+            counts["message_queues"] += int(node.get("inbox_count", 0) or 0) + int(node.get("outbox_count", 0) or 0)
+            counts["wait_triggers"] += len(node.get("wake_triggers", [])) if isinstance(node.get("wake_triggers"), list) else 0
+        return counts
+
+    def _prince2_runtime_node(self, node_id: str) -> dict[str, Any]:
+        runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        if not runtime:
+            raise ValueError("No materialized PRINCE2 node runtime. Approve a role-tree baseline first.")
+        nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        node = next((item for item in nodes if str(item.get("node_id", "")).strip() == node_id), None)
+        if node is None:
+            raise ValueError(f"Node '{node_id}' not found in PRINCE2 node runtime.")
+        self.prince2_node_runtime["nodes"] = nodes
+        return node
+
+    def _materialize_prince2_node_runtime(self, baseline: dict[str, Any]) -> dict[str, Any]:
+        tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+        flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
+        nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
+        edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
+        existing_runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
+        existing_nodes = {
+            str(node.get("node_id")): node
+            for node in existing_runtime.get("nodes", [])
+            if isinstance(node, dict) and node.get("node_id")
+        }
+        materialized_nodes: list[dict[str, Any]] = []
+        materialized_at = _utc_now()
+        for node in nodes:
+            node_id = str(node.get("node_id", "")).strip()
+            if not node_id:
+                continue
+            previous = existing_nodes.get(node_id, {})
+            assignment = dict(node.get("assignment", {})) if isinstance(node.get("assignment"), dict) else {}
+            wake_triggers = previous.get("wake_triggers")
+            if not isinstance(wake_triggers, list) or not wake_triggers:
+                wake_triggers = list((node.get("context_rule") or {}).get("expansion_events", [])) if isinstance(node.get("context_rule"), dict) else []
+            context_rule = dict(node.get("context_rule", {})) if isinstance(node.get("context_rule"), dict) else {}
+            inbox = [dict(item) for item in previous.get("inbox", []) if isinstance(item, dict)] if isinstance(previous.get("inbox", []), list) else []
+            outbox = [dict(item) for item in previous.get("outbox", []) if isinstance(item, dict)] if isinstance(previous.get("outbox", []), list) else []
+            transcript_refs = [str(item) for item in previous.get("transcript_refs", [])] if isinstance(previous.get("transcript_refs", []), list) else []
+            default_state = "ready" if assignment else "idle"
+            wait_status = str(previous.get("wait_status", "none")).strip().lower() or "none"
+            wait_reason = str(previous.get("wait_reason", "")).strip() or None
+            materialized_nodes.append(
+                {
+                    "node_id": node_id,
+                    "role_type": str(node.get("role_type", "")),
+                    "label": str(node.get("label", node_id)),
+                    "parent_id": str(node.get("parent_id")) if node.get("parent_id") not in {None, ""} else None,
+                    "level": str(node.get("level", "")),
+                    "state": str(previous.get("state", default_state)).strip().lower() or default_state,
+                    "runtime_status": "active_actor",
+                    "wait_status": wait_status,
+                    "wait_reason": wait_reason,
+                    "wake_triggers": wake_triggers,
+                    "context_rule": context_rule,
+                    "accountability_boundary": str(node.get("accountability_boundary", "")),
+                    "delegated_authority": str(node.get("delegated_authority", "")),
+                    "context_scope": str(node.get("context_scope", "")),
+                    "responsibility_domain": str(node.get("responsibility_domain", "")),
+                    "assignment": assignment,
+                    "incoming_edges": [
+                        str(edge.get("edge_id", ""))
+                        for edge in edges
+                        if str(edge.get("target_node", "")).strip() == node_id and str(edge.get("edge_id", "")).strip()
+                    ],
+                    "outgoing_edges": [
+                        str(edge.get("edge_id", ""))
+                        for edge in edges
+                        if str(edge.get("source_node", "")).strip() == node_id and str(edge.get("edge_id", "")).strip()
+                    ],
+                    "inbox": inbox,
+                    "outbox": outbox,
+                    "inbox_count": len(inbox),
+                    "outbox_count": len(outbox),
+                    "transcript_refs": transcript_refs,
+                    "last_transition_at": str(previous.get("last_transition_at", materialized_at)),
+                }
+            )
+        return {
+            "command": "roles runtime",
+            "status": "materialized" if materialized_nodes else "missing",
+            "rule": "approved PRINCE2 role-tree nodes are materialized as active runtime actors with scoped context, local wait state, and governed message queues",
+            "materialized_at": materialized_at,
+            "baseline_source": str(baseline.get("source", "unknown")),
+            "baseline_status": str(baseline.get("status", "unknown")),
+            "nodes": materialized_nodes,
+        }
+
     @classmethod
     def load(cls, path: Path) -> "ProjectHandoff":
         if not path.exists():
@@ -908,6 +1320,9 @@ class ProjectHandoff:
             },
             prince2_role_tree_baseline=dict(payload.get("prince2_role_tree_baseline", {}))
             if isinstance(payload.get("prince2_role_tree_baseline", {}), dict)
+            else {},
+            prince2_node_runtime=dict(payload.get("prince2_node_runtime", {}))
+            if isinstance(payload.get("prince2_node_runtime", {}), dict)
             else {},
             updated_at=str(payload.get("updated_at", _utc_now())),
         )

@@ -215,6 +215,43 @@ class ToolTests(unittest.TestCase):
             self.assertIn("middle-a\n", final_text)
             self.assertIn("middle-b\n", final_text)
 
+    def test_file_tool_can_convert_encoding_and_normalize_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            sample = root / "sample.txt"
+            sample.write_bytes(bytes([99, 97, 102, 233, 13, 10, 115, 101, 99, 111, 110, 100, 13, 10]))
+            tool = FileTool(AgentConfig(workspace_root=root))
+
+            preview = tool.convert_encoding("sample.txt", "utf-8", source_encoding="latin-1", dry_run=True)
+            self.assertTrue(preview.ok, preview.error)
+            self.assertTrue(preview.report["dry_run"])
+            self.assertEqual(preview.report["source_encoding"], "latin-1")
+            self.assertEqual(preview.report["target_encoding"], "utf-8")
+
+            converted = tool.convert_encoding("sample.txt", "utf-8", source_encoding="latin-1", dry_run=False)
+            self.assertTrue(converted.ok, converted.error)
+            self.assertEqual(sample.read_text(encoding="utf-8"), "caf\xe9\nsecond\n")
+
+            normalized = tool.normalize_line_endings("sample.txt", "lf", dry_run=False)
+            self.assertTrue(normalized.ok, normalized.error)
+            self.assertEqual(sample.read_text(encoding="utf-8"), "caf\xe9\nsecond\n")
+
+    def test_preserve_content_operations_do_not_force_ascii_on_sensitive_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            sample = root / ".state.json"
+            sample.write_bytes('{"name":"caf\xe9"}\r\n'.encode("latin-1"))
+            tool = FileTool(AgentConfig(workspace_root=root, strict_ascii_output=False))
+
+            converted = tool.convert_encoding(".state.json", "utf-8", source_encoding="latin-1", dry_run=False)
+            self.assertTrue(converted.ok, converted.error)
+            self.assertEqual(sample.read_text(encoding="utf-8"), '{"name":"caf\xe9"}\n')
+            self.assertNotIn("sensitive_file_ascii_forced", converted.warnings or [])
+
+            normalized = tool.normalize_line_endings(".state.json", "lf", dry_run=False)
+            self.assertTrue(normalized.ok, normalized.error)
+            self.assertEqual(sample.read_text(encoding="utf-8"), '{"name":"caf\xe9"}\n')
+
     def test_shell_tool_returns_preview_and_duration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tool = ShellTool(AgentConfig(workspace_root=Path(tmp_dir)))

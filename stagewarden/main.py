@@ -22,6 +22,7 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
+from .executor import ALLOWED_MODEL_ACTIONS
 from .commands import (
     command_catalog,
     command_phrases,
@@ -130,6 +131,9 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
     "roles setup",
     "roles propose",
     "roles domains",
+    "roles context",
+    "roles messages",
+    "roles runtime",
     "project start",
     "auth status",
     "permissions",
@@ -859,6 +863,298 @@ def _prince2_role_tree_baseline_matrix_report(config: AgentConfig) -> dict[str, 
     payload["command"] = "roles baseline matrix"
     payload["baseline_status"] = report.get("status", "missing")
     return payload
+
+
+def _prince2_role_runtime_report(config: AgentConfig) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.prince2_node_runtime_report()
+
+
+def _render_prince2_role_runtime(config: AgentConfig) -> str:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.rendered_prince2_node_runtime()
+
+
+def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = None) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.prince2_node_messages_report(node_id=node_id)
+
+
+def _render_prince2_role_messages(config: AgentConfig, node_id: str | None = None) -> str:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return handoff.rendered_prince2_node_messages(node_id=node_id)
+
+
+def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
+    runtime = detect_runtime_capabilities(config.workspace_root)
+    shell_backend = _shell_backend_report(config)
+    permissions = _permissions_report(config)
+    return {
+        "workspace": str(config.workspace_root),
+        "os_family": str(runtime.get("os_family", "unknown")),
+        "recommended_shell": str(runtime.get("recommended_shell", "unknown")),
+        "default_shell": str(runtime.get("default_shell") or "none"),
+        "shell_backend": {
+            "configured": shell_backend["configured"],
+            "selected": shell_backend["selected"] or "none",
+            "executable": shell_backend["executable"] or "none",
+        },
+        "permission_mode": permissions["effective"]["mode"],
+        "core_tools": {
+            "shell": True,
+            "files": True,
+            "git": True,
+            "web_research": True,
+            "download": True,
+            "compression": True,
+            "wet_run_required": True,
+        },
+        "model_actions": sorted(ALLOWED_MODEL_ACTIONS),
+        "file_operations": [
+            "read_file",
+            "inspect_file",
+            "write_file",
+            "apply_patch",
+            "search_replace_file",
+            "insert_text_file",
+            "delete_range_file",
+            "delete_backward_file",
+            "replace_range_file",
+            "convert_encoding_file",
+            "normalize_line_endings_file",
+            "patch_file",
+            "patch_files",
+            "preview_patch_files",
+            "list_files",
+            "search_files",
+        ],
+        "git_operations": [
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_show",
+            "git_file_history",
+            "git_commit",
+        ],
+        "shell_operations": [
+            "shell",
+            "shell_session_create",
+            "shell_session_send",
+            "shell_session_close",
+        ],
+    }
+
+
+def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    runtime_report = handoff.prince2_node_runtime_report()
+    runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report.get("runtime"), dict) else {}
+    nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+    node = next((item for item in nodes if str(item.get("node_id", "")).strip() == node_id), None)
+    if node is None:
+        return {
+            "command": "roles context",
+            "status": "missing",
+            "node_id": node_id,
+            "message": f"Node '{node_id}' not found in PRINCE2 runtime.",
+        }
+    baseline = handoff.prince2_role_tree_baseline if isinstance(handoff.prince2_role_tree_baseline, dict) else {}
+    flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
+    edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
+    incoming = [edge for edge in edges if str(edge.get("target_node", "")).strip() == node_id]
+    outgoing = [edge for edge in edges if str(edge.get("source_node", "")).strip() == node_id]
+    assignment = dict(node.get("assignment", {})) if isinstance(node.get("assignment"), dict) else {}
+    role_type = str(node.get("role_type", "")).strip()
+    return {
+        "command": "roles context",
+        "status": "ok",
+        "node_id": node_id,
+        "node_label": str(node.get("label", node_id)),
+        "role_type": role_type,
+        "runtime_state": {
+            "state": str(node.get("state", "unknown")),
+            "wait_status": str(node.get("wait_status", "none")),
+            "wait_reason": node.get("wait_reason"),
+            "wake_triggers": list(node.get("wake_triggers", [])),
+            "inbox_count": int(node.get("inbox_count", 0) or 0),
+            "outbox_count": int(node.get("outbox_count", 0) or 0),
+            "transcript_refs": [str(item) for item in node.get("transcript_refs", [])] if isinstance(node.get("transcript_refs", []), list) else [],
+        },
+        "assignment": assignment,
+        "prince2_role_context": {
+            "responsibility_domain": str(node.get("responsibility_domain", PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, ""))),
+            "context_scope": str(node.get("context_scope", PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, ""))),
+            "accountability_boundary": str(node.get("accountability_boundary", "")),
+            "delegated_authority": str(node.get("delegated_authority", "")),
+            "context_include": list((node.get("context_rule") or {}).get("include", [])) if isinstance(node.get("context_rule"), dict) else [],
+            "context_exclude": list((node.get("context_rule") or {}).get("exclude", [])) if isinstance(node.get("context_rule"), dict) else [],
+        },
+        "communications": {
+            "incoming_edges": incoming,
+            "outgoing_edges": outgoing,
+            "commands": [
+                "roles messages [node_id]",
+                "role message <source_node> <target_node> <edge_id> payload=<scope1,scope2>",
+                "role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]",
+                "role wake <node_id> trigger=<name>",
+                "role tick <node_id>",
+            ],
+        },
+        "agent_capabilities": _agent_capability_surface_for_node(config),
+        "project_context": {
+            "task": handoff.task or "none",
+            "project_status": handoff.status or "idle",
+            "current_step": handoff.current_step_id or "none",
+            "current_step_status": handoff.current_step_status or "none",
+        },
+    }
+
+
+def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
+    report = _prince2_role_context_report(config, node_id)
+    if report.get("status") != "ok":
+        return str(report.get("message", "PRINCE2 role context unavailable."))
+    runtime_state = report["runtime_state"]
+    role_context = report["prince2_role_context"]
+    assignment = report["assignment"]
+    comms = report["communications"]
+    caps = report["agent_capabilities"]
+    lines = [
+        "PRINCE2 node AI context:",
+        f"- node: {report['node_label']} [{report['node_id']}]",
+        f"- role_type: {report['role_type']}",
+        f"- state: {runtime_state['state']} wait={runtime_state['wait_status']} inbox={runtime_state['inbox_count']} outbox={runtime_state['outbox_count']}",
+        f"- provider: {assignment.get('provider') or 'none'} provider_model={assignment.get('provider_model') or 'none'} account={assignment.get('account') or 'none'}",
+        f"- responsibility_domain: {role_context['responsibility_domain']}",
+        f"- context_scope: {role_context['context_scope']}",
+        f"- accountability_boundary: {role_context['accountability_boundary']}",
+        f"- delegated_authority: {role_context['delegated_authority']}",
+        f"- context_include: {', '.join(role_context['context_include']) or 'none'}",
+        f"- context_exclude: {', '.join(role_context['context_exclude']) or 'none'}",
+        f"- wake_triggers: {', '.join(runtime_state['wake_triggers']) or 'none'}",
+        f"- incoming_edges: {', '.join(str(edge.get('edge_id')) for edge in comms['incoming_edges']) or 'none'}",
+        f"- outgoing_edges: {', '.join(str(edge.get('edge_id')) for edge in comms['outgoing_edges']) or 'none'}",
+        f"- agent_tools: {', '.join(caps['shell_operations'] + caps['git_operations'][:2] + ['...'])}",
+        f"- file_ops: {', '.join(caps['file_operations'][:6])}, ...",
+        "- communication_commands:",
+    ]
+    for command in comms["commands"]:
+        lines.append(f"  {command}")
+    lines.append(f"- project_task: {report['project_context']['task']}")
+    lines.append(f"- project_status: {report['project_context']['project_status']}")
+    lines.append(f"- current_step: {report['project_context']['current_step']} [{report['project_context']['current_step_status']}]")
+    return "\n".join(lines)
+
+
+def _send_prince2_role_message(
+    config: AgentConfig,
+    *,
+    source_node: str,
+    target_node: str,
+    edge_id: str,
+    payload_scope: list[str],
+    evidence_refs: list[str] | None = None,
+    summary: str | None = None,
+) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    message = handoff.send_prince2_node_message(
+        source_node=source_node,
+        target_node=target_node,
+        edge_id=edge_id,
+        payload_scope=payload_scope,
+        evidence_refs=evidence_refs,
+        summary=summary,
+    )
+    handoff.save(config.handoff_path)
+    _record_handoff_action(
+        config,
+        phase="role_message",
+        task=f"role message {source_node} {target_node} {edge_id}",
+        summary=f"Queued governed PRINCE2 node message {message['message_id']}.",
+        details={
+            "source_node": source_node,
+            "target_node": target_node,
+            "edge_id": edge_id,
+            "payload_scope": list(payload_scope),
+            "evidence_refs": list(evidence_refs or []),
+        },
+    )
+    return message
+
+
+def _set_prince2_role_node_waiting(
+    config: AgentConfig,
+    *,
+    node_id: str,
+    reason: str,
+    wake_triggers: list[str] | None = None,
+) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    node = handoff.set_prince2_node_waiting(node_id=node_id, reason=reason, wake_triggers=wake_triggers)
+    handoff.save(config.handoff_path)
+    _record_handoff_action(
+        config,
+        phase="role_wait",
+        task=f"role wait {node_id}",
+        summary=f"Node {node_id} moved to waiting state.",
+        details={"node_id": node_id, "reason": reason, "wake_triggers": list(wake_triggers or [])},
+    )
+    return node
+
+
+def _wake_prince2_role_node(
+    config: AgentConfig,
+    *,
+    node_id: str,
+    trigger: str,
+) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    node = handoff.wake_prince2_node(node_id=node_id, trigger=trigger)
+    handoff.save(config.handoff_path)
+    _record_handoff_action(
+        config,
+        phase="role_wake",
+        task=f"role wake {node_id}",
+        summary=f"Node {node_id} woke with trigger {trigger}.",
+        details={"node_id": node_id, "trigger": trigger},
+    )
+    return node
+
+
+def _tick_prince2_role_node(
+    config: AgentConfig,
+    *,
+    node_id: str,
+) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    _sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    result = handoff.tick_prince2_node(node_id=node_id)
+    handoff.save(config.handoff_path)
+    _record_handoff_action(
+        config,
+        phase="role_tick",
+        task=f"role tick {node_id}",
+        summary=f"Node {node_id} advanced to {result.get('state', 'unknown')}.",
+        details=dict(result),
+    )
+    return result
 
 
 def _render_prince2_role_tree_baseline_matrix(config: AgentConfig) -> str:
@@ -2137,6 +2433,8 @@ def _handle_role_command(
             return _render_prince2_roles(config)
         if len(parts) == 2 and parts[1] == "domains":
             return _render_prince2_role_domains()
+        if len(parts) == 3 and parts[1] == "context":
+            return _render_prince2_role_context(config, parts[2])
         if len(parts) == 2 and parts[1] == "tree":
             return _render_prince2_role_tree(config)
         if len(parts) == 3 and parts[1] == "tree" and parts[2] == "approve":
@@ -2146,6 +2444,10 @@ def _handle_role_command(
             return _render_prince2_role_tree_baseline(config)
         if len(parts) == 3 and parts[1] == "baseline" and parts[2] == "matrix":
             return _render_prince2_role_tree_baseline_matrix(config)
+        if len(parts) in {2, 3} and parts[1] == "messages":
+            return _render_prince2_role_messages(config, node_id=parts[2] if len(parts) == 3 else None)
+        if len(parts) == 2 and parts[1] == "runtime":
+            return _render_prince2_role_runtime(config)
         if len(parts) == 2 and parts[1] == "check":
             return _render_prince2_role_check(config)
         if len(parts) == 2 and parts[1] == "flow":
@@ -2170,7 +2472,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles check | roles flow | roles matrix | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles check | roles flow | roles matrix | roles propose | roles setup"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) in {4, 5} and parts[1] == "add-child":
@@ -2242,6 +2544,108 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
+        if len(parts) >= 6 and parts[1] == "message":
+            payload_scope: list[str] = []
+            evidence_refs: list[str] = []
+            summary = None
+            for token in parts[5:]:
+                key, separator, value = token.partition("=")
+                if not separator:
+                    return "Usage: role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]"
+                if key == "payload":
+                    payload_scope = [item.strip() for item in value.split(",") if item.strip()]
+                elif key == "evidence":
+                    evidence_refs = [item.strip() for item in value.split(",") if item.strip()]
+                elif key == "summary":
+                    summary = value.replace("_", " ").strip()
+            if not payload_scope:
+                return "Usage: role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]"
+            try:
+                message = _send_prince2_role_message(
+                    config,
+                    source_node=parts[2],
+                    target_node=parts[3],
+                    edge_id=parts[4],
+                    payload_scope=payload_scope,
+                    evidence_refs=evidence_refs,
+                    summary=summary,
+                )
+            except ValueError as exc:
+                _record_handoff_action(
+                    config,
+                    phase="role_message_blocked",
+                    task=f"role message {parts[2]} {parts[3]} {parts[4]}",
+                    summary=str(exc),
+                    details={
+                        "source_node": parts[2],
+                        "target_node": parts[3],
+                        "edge_id": parts[4],
+                        "payload_scope": list(payload_scope),
+                    },
+                )
+                return str(exc)
+            return (
+                f"Queued PRINCE2 node message {message.get('message_id')} "
+                f"{parts[2]} -> {parts[3]} edge={parts[4]}.\n"
+                + _render_prince2_role_messages(config, node_id=parts[3])
+            )
+        if len(parts) >= 4 and parts[1] == "wait":
+            reason = None
+            wake_triggers = None
+            for token in parts[3:]:
+                key, separator, value = token.partition("=")
+                if not separator:
+                    return "Usage: role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]"
+                if key == "reason":
+                    reason = value.replace("_", " ").strip()
+                elif key == "wake":
+                    wake_triggers = [item.strip() for item in value.split(",") if item.strip()]
+            if not reason:
+                return "Usage: role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]"
+            try:
+                node = _set_prince2_role_node_waiting(
+                    config,
+                    node_id=parts[2],
+                    reason=reason,
+                    wake_triggers=wake_triggers,
+                )
+            except ValueError as exc:
+                return str(exc)
+            return (
+                f"Node {node.get('node_id')} is now waiting.\n"
+                + _render_prince2_role_runtime(config)
+            )
+        if len(parts) >= 4 and parts[1] == "wake":
+            trigger = None
+            for token in parts[3:]:
+                key, separator, value = token.partition("=")
+                if not separator:
+                    return "Usage: role wake <node_id> trigger=<name>"
+                if key == "trigger":
+                    trigger = value.strip()
+            if not trigger:
+                return "Usage: role wake <node_id> trigger=<name>"
+            try:
+                node = _wake_prince2_role_node(
+                    config,
+                    node_id=parts[2],
+                    trigger=trigger,
+                )
+            except ValueError as exc:
+                return str(exc)
+            return (
+                f"Node {node.get('node_id')} woke with trigger {trigger}.\n"
+                + _render_prince2_role_runtime(config)
+            )
+        if len(parts) == 3 and parts[1] == "tick":
+            try:
+                result = _tick_prince2_role_node(config, node_id=parts[2])
+            except ValueError as exc:
+                return str(exc)
+            return (
+                f"Node {result.get('node_id')} advanced to {result.get('state')}.\n"
+                + _render_prince2_role_messages(config, node_id=parts[2])
+            )
         if len(parts) >= 2 and parts[1] == "configure":
             if len(parts) > 3:
                 return "Usage: role configure [role]"
@@ -2261,7 +2665,7 @@ def _handle_role_command(
             _save_model_preferences(config, prefs)
             _sync_prince2_roles_to_handoff(config, prefs)
             return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
-        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]"
+        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id>"
     return None
 
 
@@ -3210,6 +3614,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "git_boundary": handoff["git_boundary"],
             "register_statuses": handoff["register_statuses"],
             "backlog_statuses": handoff["backlog_statuses"],
+            "node_runtime_summary": handoff["node_runtime_summary"],
         },
         "focus": focus,
         "usage": _model_usage_report(config)["report"],
@@ -3295,6 +3700,15 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
             f"- recovery_state: {report['handoff']['recovery_state']}",
             f"- boundary_decision: {report['handoff']['boundary_decision']}",
             f"- next_action: {report['handoff']['next_action']}",
+            (
+                "- node_runtime: "
+                f"status={report['handoff']['node_runtime_summary']['status']} "
+                f"nodes={report['handoff']['node_runtime_summary']['nodes']} "
+                f"ready={report['handoff']['node_runtime_summary']['ready']} "
+                f"waiting={report['handoff']['node_runtime_summary']['waiting']} "
+                f"running={report['handoff']['node_runtime_summary']['running']} "
+                f"blocked={report['handoff']['node_runtime_summary']['blocked']}"
+            ),
             "Usage:",
             f"- calls: {report['usage']['totals']['calls']}",
             f"- failures: {report['usage']['totals']['failures']}",
@@ -4340,6 +4754,7 @@ def _render_handoff(config: AgentConfig) -> str:
         handoff.summary(),
         handoff.rendered_operational_posture(),
         handoff.rendered_stage_view(),
+        handoff.rendered_prince2_node_runtime(),
         handoff.rendered_implementation_backlog(),
     ]
     if handoff.entries:
@@ -4359,6 +4774,7 @@ def _handoff_report(config: AgentConfig) -> dict[str, object]:
         "command": "handoff",
         "handoff": handoff.as_dict(),
         "stage_view": handoff.stage_view(),
+        "node_runtime": handoff.prince2_node_runtime_report(),
         "next_action": handoff.rendered_next_action(),
     }
 
@@ -7021,6 +7437,26 @@ def main() -> int:
         else:
             print(_render_prince2_role_tree_baseline_matrix(config))
         return 0
+    if task.startswith("roles context "):
+        node_id = task.split(maxsplit=2)[2]
+        if args.json:
+            print(dumps_ascii(_prince2_role_context_report(config, node_id), indent=2))
+        else:
+            print(_render_prince2_role_context(config, node_id))
+        return 0
+    if task == "roles messages" or task.startswith("roles messages "):
+        node_id = task.split(maxsplit=2)[2] if len(task.split(maxsplit=2)) == 3 else None
+        if args.json:
+            print(dumps_ascii(_prince2_role_messages_report(config, node_id=node_id), indent=2))
+        else:
+            print(_render_prince2_role_messages(config, node_id=node_id))
+        return 0
+    if task == "roles runtime":
+        if args.json:
+            print(dumps_ascii(_prince2_role_runtime_report(config), indent=2))
+        else:
+            print(_render_prince2_role_runtime(config))
+        return 0
     if task == "roles check":
         if args.json:
             print(dumps_ascii(_prince2_role_check_report(config), indent=2))
@@ -7053,10 +7489,38 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if response is None:
-            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | project start [--ai]")
+            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles messages [node_id] | roles runtime | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text_with_underscores> | role wake <node_id> trigger=<name> | role tick <node_id> | project start [--ai]")
             return 1
         if args.json:
-            print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
+            if task.startswith("role message "):
+                parts = task.split()
+                node_id = parts[3] if len(parts) >= 4 else None
+                print(
+                    dumps_ascii(
+                        {
+                            "command": task,
+                            "message": response,
+                            "messages": _prince2_role_messages_report(config, node_id=node_id),
+                        },
+                        indent=2,
+                    )
+                )
+            elif task.startswith("role wait ") or task.startswith("role wake ") or task.startswith("role tick "):
+                parts = task.split()
+                node_id = parts[2] if len(parts) >= 3 else None
+                print(
+                    dumps_ascii(
+                        {
+                            "command": task,
+                            "message": response,
+                            "runtime": _prince2_role_runtime_report(config),
+                            "messages": _prince2_role_messages_report(config, node_id=node_id),
+                        },
+                        indent=2,
+                    )
+                )
+            else:
+                print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
         else:
             print(response)
         return 1 if task.startswith("project start") and not _project_start_ready(config) else 0

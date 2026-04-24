@@ -2526,6 +2526,351 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(rows["delivery.matrix_team"]["reviewer_routes"][0]["provider"], "cheap")
             self.assertEqual(rows["delivery.matrix_team"]["fallback_routes"][0]["provider"], "chatgpt")
 
+    def test_roles_runtime_materializes_node_runtime_from_approved_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "parent_id": "board.executive",
+                                "level": "management",
+                                "accountability_boundary": "day-to-day management",
+                                "delegated_authority": "authorizes work packages",
+                                "responsibility_domain": "planning and control",
+                                "context_scope": "stage plan and registers",
+                                "context_rule": {"expansion_events": ["escalation", "stage_boundary_review"]},
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            }
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "authorize.project",
+                                "source_node": "board.executive",
+                                "target_node": "management.project_manager",
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles runtime")
+            json_completed = run_main_capture(root, "roles runtime", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 node runtime:", completed.stdout)
+            self.assertIn("Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("state=ready", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles runtime")
+            self.assertEqual(payload["status"], "materialized")
+            self.assertEqual(payload["summary"]["nodes"], 1)
+            self.assertEqual(payload["summary"]["ready"], 1)
+            self.assertEqual(payload["runtime"]["nodes"][0]["node_id"], "management.project_manager")
+            self.assertEqual(payload["runtime"]["nodes"][0]["wake_triggers"], ["escalation", "stage_boundary_review"])
+
+    def test_roles_context_exposes_node_ai_context_packet(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "parent_id": "board.executive",
+                                "level": "management",
+                                "accountability_boundary": "day-to-day management",
+                                "delegated_authority": "authorizes work packages",
+                                "responsibility_domain": "planning and control",
+                                "context_scope": "stage plan and registers",
+                                "context_rule": {
+                                    "include": ["stage_plan", "registers"],
+                                    "exclude": ["board_private_decision_context"],
+                                    "expansion_events": ["escalation", "stage_boundary_review"],
+                                },
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            }
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "authorize.project",
+                                "source_node": "board.executive",
+                                "target_node": "management.project_manager",
+                                "payload_scope": ["business_justification", "approved_tolerances"],
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles context management.project_manager")
+            json_completed = run_main_capture(root, "roles context management.project_manager", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("PRINCE2 node AI context:", completed.stdout)
+            self.assertIn("Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("responsibility_domain: planning and control", completed.stdout)
+            self.assertIn("communication_commands:", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles context")
+            self.assertEqual(payload["node_id"], "management.project_manager")
+            self.assertEqual(payload["role_type"], "project_manager")
+            self.assertTrue(payload["agent_capabilities"]["core_tools"]["files"])
+            self.assertIn("inspect_file", payload["agent_capabilities"]["model_actions"])
+            self.assertEqual(payload["prince2_role_context"]["context_include"], ["stage_plan", "registers"])
+            self.assertEqual(payload["communications"]["incoming_edges"][0]["edge_id"], "authorize.project")
+
+    def test_role_message_queues_governed_node_message_and_reports_inboxes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "parent_id": "board.executive",
+                                "level": "management",
+                                "accountability_boundary": "day-to-day management",
+                                "delegated_authority": "authorizes work packages",
+                                "responsibility_domain": "planning and control",
+                                "context_scope": "stage plan and registers",
+                                "context_rule": {"expansion_events": ["escalation", "stage_boundary_review"]},
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            },
+                            {
+                                "node_id": "delivery.team_manager",
+                                "role_type": "team_manager",
+                                "label": "Team Manager",
+                                "parent_id": "management.project_manager",
+                                "level": "delivery",
+                                "accountability_boundary": "delivery execution",
+                                "delegated_authority": "executes work packages",
+                                "responsibility_domain": "delivery",
+                                "context_scope": "assigned work package",
+                                "context_rule": {"expansion_events": ["delivery_checkpoint"]},
+                                "assignment": {"provider": "local", "provider_model": "provider-default"},
+                            },
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "issue.work_package",
+                                "source_node": "management.project_manager",
+                                "target_node": "delivery.team_manager",
+                                "flow_type": "delegation",
+                                "payload_scope": ["assigned_work_package", "quality_criteria"],
+                                "expected_evidence": ["work_package_description"],
+                                "validation_condition": "delivery scoped",
+                                "decision_authority": "Project Manager",
+                                "return_path": "checkpoint",
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(
+                root,
+                "role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package,quality_criteria evidence=wp-001 summary=issue_work_package",
+            )
+            json_completed = run_main_capture(
+                root,
+                "role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package,quality_criteria evidence=wp-001 summary=issue_work_package",
+                "--json",
+            )
+            inbox = run_main_capture(root, "roles messages delivery.team_manager", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Queued PRINCE2 node message", completed.stdout)
+            self.assertIn("delivery.team_manager", completed.stdout)
+            self.assertIn("payload=assigned_work_package,quality_criteria", completed.stdout)
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            message_payload = json.loads(json_completed.stdout)
+            self.assertEqual(message_payload["messages"]["command"], "roles messages")
+            self.assertEqual(message_payload["messages"]["nodes"][0]["node_id"], "delivery.team_manager")
+            self.assertEqual(message_payload["messages"]["nodes"][0]["inbox"][0]["edge_id"], "issue.work_package")
+
+            self.assertEqual(inbox.returncode, 0, inbox.stderr)
+            inbox_payload = json.loads(inbox.stdout)
+            self.assertEqual(inbox_payload["command"], "roles messages")
+            self.assertEqual(inbox_payload["count"], 1)
+            self.assertEqual(inbox_payload["nodes"][0]["inbox"][0]["payload_scope"], ["assigned_work_package", "quality_criteria"])
+
+    def test_role_message_rejects_payload_widening(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "context_rule": {"expansion_events": ["escalation"]},
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            },
+                            {
+                                "node_id": "delivery.team_manager",
+                                "role_type": "team_manager",
+                                "label": "Team Manager",
+                                "context_rule": {"expansion_events": ["delivery_checkpoint"]},
+                                "assignment": {"provider": "local", "provider_model": "provider-default"},
+                            },
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "issue.work_package",
+                                "source_node": "management.project_manager",
+                                "target_node": "delivery.team_manager",
+                                "flow_type": "delegation",
+                                "payload_scope": ["assigned_work_package"],
+                                "expected_evidence": ["work_package_description"],
+                                "validation_condition": "delivery scoped",
+                                "decision_authority": "Project Manager",
+                                "return_path": "checkpoint",
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(
+                root,
+                "role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package,business_case_detail",
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Payload scope exceeds authorized PRINCE2 flow edge", completed.stdout)
+
+    def test_role_wait_wake_and_tick_drive_prince2_node_lifecycle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "context_rule": {"expansion_events": ["escalation"]},
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            },
+                            {
+                                "node_id": "delivery.team_manager",
+                                "role_type": "team_manager",
+                                "label": "Team Manager",
+                                "context_rule": {"expansion_events": ["delivery_checkpoint"]},
+                                "assignment": {"provider": "local", "provider_model": "provider-default"},
+                            },
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "issue.work_package",
+                                "source_node": "management.project_manager",
+                                "target_node": "delivery.team_manager",
+                                "flow_type": "delegation",
+                                "payload_scope": ["assigned_work_package"],
+                                "expected_evidence": ["work_package_description"],
+                                "validation_condition": "delivery scoped",
+                                "decision_authority": "Project Manager",
+                                "return_path": "checkpoint",
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            wait_completed = run_main_capture(
+                root,
+                "role wait delivery.team_manager reason=await_delivery_checkpoint wake=delivery_checkpoint,message_received",
+                "--json",
+            )
+            message_completed = run_main_capture(
+                root,
+                "role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package",
+                "--json",
+            )
+            wake_completed = run_main_capture(
+                root,
+                "role wake delivery.team_manager trigger=message_received",
+                "--json",
+            )
+            tick_completed = run_main_capture(
+                root,
+                "role tick delivery.team_manager",
+                "--json",
+            )
+
+            self.assertEqual(wait_completed.returncode, 0, wait_completed.stderr)
+            wait_payload = json.loads(wait_completed.stdout)
+            self.assertEqual(wait_payload["runtime"]["summary"]["waiting"], 1)
+
+            self.assertEqual(message_completed.returncode, 0, message_completed.stderr)
+            message_payload = json.loads(message_completed.stdout)
+            self.assertEqual(message_payload["messages"]["nodes"][0]["inbox"][0]["edge_id"], "issue.work_package")
+
+            self.assertEqual(wake_completed.returncode, 0, wake_completed.stderr)
+            wake_payload = json.loads(wake_completed.stdout)
+            wake_rows = {
+                item["node_id"]: item
+                for item in wake_payload["runtime"]["runtime"]["nodes"]
+            }
+            self.assertEqual(wake_rows["delivery.team_manager"]["state"], "ready")
+
+            self.assertEqual(tick_completed.returncode, 0, tick_completed.stderr)
+            tick_payload = json.loads(tick_completed.stdout)
+            tick_rows = {
+                item["node_id"]: item
+                for item in tick_payload["runtime"]["runtime"]["nodes"]
+            }
+            self.assertEqual(tick_rows["delivery.team_manager"]["state"], "running")
+            self.assertEqual(tick_payload["messages"]["nodes"][0]["inbox"], [])
+
     def test_project_design_report_exposes_capability_spec_project_spec_and_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

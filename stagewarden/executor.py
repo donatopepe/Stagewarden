@@ -15,6 +15,7 @@ from .project_handoff import ProjectHandoff
 from .router import ModelRouter
 from .role_tree import build_prince2_role_flow
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
+from .runtime_env import detect_runtime_capabilities
 from .textcodec import dumps_ascii, loads_text
 from .tools.files import FileTool
 from .tools.git import GitTool
@@ -85,6 +86,8 @@ ALLOWED_MODEL_ACTIONS = {
     "delete_range_file",
     "delete_backward_file",
     "replace_range_file",
+    "convert_encoding_file",
+    "normalize_line_endings_file",
     "patch_file",
     "patch_files",
     "preview_patch_files",
@@ -660,6 +663,7 @@ class Executor:
         exception_plan = self._bounded_context("exception_plan", scoped["exception_plan"], 2000)
         model_context = self._model_context_files_section()
         role_context = self._bounded_context("prince2_role_automation", self._prince2_role_automation_section(task, step), 2500)
+        node_context_packet = self._bounded_context("prince2_node_context_packet", self._prince2_node_context_packet(task, step), 5000)
         scoped_handoff_log = self._bounded_context("handoff_log", handoff_log if scoped["handoff_log"] else "Omitted by PRINCE2 role scope.", 4000)
         scoped_execution_log = self._bounded_context("execution_log", execution_log if scoped["execution_log"] else "Omitted by PRINCE2 role scope.", 4000)
         selected_backend = self.shell._selected_shell_backend()
@@ -705,6 +709,7 @@ class Executor:
                 self._bounded_context("stage_view", self.project_handoff.rendered_stage_view(), 3500),
             ),
             PromptSection("PRINCE2 role automation", role_context),
+            PromptSection("PRINCE2 node AI context packet", node_context_packet),
             PromptSection(
                 "PRINCE2 registers",
                 "\n\n".join(
@@ -757,18 +762,20 @@ class Executor:
                         '11. delete_range_file -> {"type":"delete_range_file","path":"relative/path","start_line":4,"end_line":7,"dry_run":false}',
                         '12. delete_backward_file -> {"type":"delete_backward_file","path":"relative/path","count":2,"line_number":10,"pattern":"optional anchor","occurrence":1,"dry_run":false}',
                         '13. replace_range_file -> {"type":"replace_range_file","path":"relative/path","start_line":4,"end_line":7,"content":"replacement block","dry_run":false}',
-                        '14. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
-                        '15. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
-                        '16. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
-                        '17. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
-                        '18. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
-                        '19. git_status -> {"type":"git_status"}',
-                        '20. git_diff -> {"type":"git_diff"}',
-                        '21. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
-                        '22. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
-                        '23. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
-                        '24. git_commit -> {"type":"git_commit","message":"commit message"}',
-                        '25. complete -> {"type":"complete","message":"why the current step is done"}',
+                        '14. convert_encoding_file -> {"type":"convert_encoding_file","path":"relative/path","target_encoding":"utf-8","source_encoding":"optional-codec","dry_run":false}',
+                        '15. normalize_line_endings_file -> {"type":"normalize_line_endings_file","path":"relative/path","newline":"lf|crlf|cr","dry_run":false}',
+                        '16. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
+                        '17. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
+                        '18. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
+                        '19. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
+                        '20. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
+                        '21. git_status -> {"type":"git_status"}',
+                        '22. git_diff -> {"type":"git_diff"}',
+                        '23. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
+                        '24. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
+                        '25. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
+                        '26. git_commit -> {"type":"git_commit","message":"commit message"}',
+                        '27. complete -> {"type":"complete","message":"why the current step is done"}',
                     ]
                 ),
             ),
@@ -855,6 +862,62 @@ class Executor:
                         + (f":{route.get('account')}" if route.get("account") else "")
                     )
                 lines.append(f"- active_role_{pool_name}_pool: {', '.join(rendered) if rendered else 'none'}")
+        return "\n".join(lines)
+
+    def _prince2_node_context_packet(self, task: str, step: PlanStep) -> str:
+        active_role = self._role_for_step(task=task, step=step)
+        active_node = self._role_tree_node_for_step(task=task, step=step, role=active_role)
+        runtime = self.project_handoff.prince2_node_runtime if isinstance(self.project_handoff.prince2_node_runtime, dict) else {}
+        runtime_nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        runtime_node = None
+        if active_node:
+            node_id = str(active_node.get("node_id", "")).strip()
+            runtime_node = next((item for item in runtime_nodes if str(item.get("node_id", "")).strip() == node_id), None)
+        node = runtime_node or active_node or {}
+        context_rule = node.get("context_rule", {}) if isinstance(node.get("context_rule"), dict) else {}
+        assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+        flow = build_prince2_role_flow()
+        edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
+        node_id = str(node.get("node_id", "")).strip()
+        incoming = [edge for edge in edges if str(edge.get("target_node", "")).strip() == node_id]
+        outgoing = [edge for edge in edges if str(edge.get("source_node", "")).strip() == node_id]
+        runtime_capabilities = detect_runtime_capabilities(self.config.workspace_root)
+        selected_backend = self.shell._selected_shell_backend()
+        lines = [
+            f"- node_id: {node_id or 'unbaselined'}",
+            f"- node_label: {node.get('label', 'unbaselined')}",
+            f"- role_type: {node.get('role_type', active_role)}",
+            f"- runtime_state: {node.get('state', 'unknown')}",
+            f"- wait_status: {node.get('wait_status', 'none')}",
+            f"- wait_reason: {node.get('wait_reason') or 'none'}",
+            f"- wake_triggers: {', '.join(str(item) for item in node.get('wake_triggers', [])) if isinstance(node.get('wake_triggers', []), list) and node.get('wake_triggers', []) else 'none'}",
+            f"- inbox_count: {node.get('inbox_count', 0)} outbox_count: {node.get('outbox_count', 0)}",
+            f"- transcript_refs: {', '.join(str(item) for item in node.get('transcript_refs', [])) if isinstance(node.get('transcript_refs', []), list) and node.get('transcript_refs', []) else 'none'}",
+            f"- provider: {assignment.get('provider', 'unknown') if assignment else 'unassigned'}",
+            f"- provider_model: {assignment.get('provider_model', 'unknown') if assignment else 'unassigned'}",
+            f"- account: {assignment.get('account') or 'none' if assignment else 'none'}",
+            f"- responsibility_domain: {node.get('responsibility_domain', PRINCE2_ROLE_AUTOMATION_RULES.get(active_role, 'controlled project work'))}",
+            f"- context_scope: {node.get('context_scope', PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(active_role, 'controlled project work'))}",
+            f"- accountability_boundary: {node.get('accountability_boundary', 'static role fallback')}",
+            f"- delegated_authority: {node.get('delegated_authority', 'static role fallback')}",
+            f"- context_include: {', '.join(str(item) for item in context_rule.get('include', [])) if isinstance(context_rule.get('include', []), list) and context_rule.get('include', []) else 'none'}",
+            f"- context_exclude: {', '.join(str(item) for item in context_rule.get('exclude', [])) if isinstance(context_rule.get('exclude', []), list) and context_rule.get('exclude', []) else 'none'}",
+            f"- communication_incoming_edges: {', '.join(str(edge.get('edge_id')) for edge in incoming) if incoming else 'none'}",
+            f"- communication_outgoing_edges: {', '.join(str(edge.get('edge_id')) for edge in outgoing) if outgoing else 'none'}",
+            "- communication_commands: roles messages [node_id] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text> | role wake <node_id> trigger=<name> | role tick <node_id>",
+            f"- workspace: {self.config.workspace_root}",
+            f"- os_family: {runtime_capabilities.get('os_family', 'unknown')}",
+            f"- recommended_shell: {runtime_capabilities.get('recommended_shell', 'unknown')}",
+            f"- shell_backend_selected: {selected_backend.get('selected') or 'unknown'}",
+            f"- core_agent_capabilities: shell=true files=true git=true wet_run_required=true",
+            f"- model_actions: {', '.join(sorted(ALLOWED_MODEL_ACTIONS))}",
+            "- file_operations: read_file, inspect_file, write_file, apply_patch, search_replace_file, insert_text_file, delete_range_file, delete_backward_file, replace_range_file, convert_encoding_file, normalize_line_endings_file, patch_file, patch_files, preview_patch_files, list_files, search_files",
+            "- git_operations: git_status, git_diff, git_log, git_show, git_file_history, git_commit",
+            "- shell_operations: shell, shell_session_create, shell_session_send, shell_session_close",
+            f"- project_task: {self.project_handoff.task or 'none'}",
+            f"- project_status: {self.project_handoff.status or 'idle'}",
+            f"- current_step: {self.project_handoff.current_step_id or 'none'} [{self.project_handoff.current_step_status or 'none'}]",
+        ]
         return "\n".join(lines)
 
     def _active_flow_context(self, active_node: dict[str, Any]) -> str:
@@ -1229,6 +1292,27 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "convert_encoding_file":
+            result = self.files.convert_encoding(
+                action.get("path", ""),
+                action.get("target_encoding", ""),
+                source_encoding=action.get("source_encoding"),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("converted", result, dry_run=bool(action.get("dry_run", False)))
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+
+        if action_type == "normalize_line_endings_file":
+            result = self.files.normalize_line_endings(
+                action.get("path", ""),
+                action.get("newline", ""),
+                dry_run=bool(action.get("dry_run", False)),
+            )
+            message = self._file_edit_message("normalized", result, dry_run=bool(action.get("dry_run", False)))
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
