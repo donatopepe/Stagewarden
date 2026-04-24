@@ -1498,9 +1498,22 @@ def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPrefere
             "proposal_added_nodes": proposal.get("added_nodes", []),
             "ai_requested": proposal.get("ai_requested"),
             "ai_assistance": proposal.get("ai_assistance"),
+            "local_execution": proposal.get("local_execution", {}),
         },
     )
     sections.append(_render_project_tree_approval_report(approval, config))
+    local_execution = proposal.get("local_execution") if isinstance(proposal.get("local_execution"), dict) else {}
+    local_candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
+    if local_candidates:
+        lines = ["Project start local fallback preload:"]
+        lines.append(
+            "- candidates: "
+            + ", ".join(str(item.get("id", "")) for item in local_candidates if str(item.get("id", "")).strip())
+        )
+        if local_execution.get("message"):
+            lines.append(f"- recommendation: {local_execution.get('message')}")
+        lines.append("- status: approved baseline includes recommended local delivery fallback routes.")
+        sections.append("\n".join(lines))
     sections.extend(
         [
             _render_prince2_roles(config),
@@ -2136,6 +2149,7 @@ def _approve_project_tree_proposal(
         "flow": build_prince2_role_flow(),
         "check": {},
         "matrix": {},
+        "local_execution": dict(report.get("local_execution", {})) if isinstance(report.get("local_execution"), dict) else {},
         "proposal": {
             "source": report["source"],
             "assumptions": list(report.get("assumptions", [])) if isinstance(report.get("assumptions"), list) else [],
@@ -2144,7 +2158,6 @@ def _approve_project_tree_proposal(
             "project_brief": dict(report.get("project_brief", {})) if isinstance(report.get("project_brief"), dict) else {},
             "ai_requested": bool(report.get("ai_requested")),
             "ai_assistance": dict(report.get("ai_assistance", {})) if isinstance(report.get("ai_assistance"), dict) else {},
-            "local_execution": dict(report.get("local_execution", {})) if isinstance(report.get("local_execution"), dict) else {},
             "forced": force,
         },
     }
