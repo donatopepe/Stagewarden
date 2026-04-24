@@ -2685,6 +2685,33 @@ def _guided_roles_setup(
         )
         output_stream.flush()
         prefs = _load_model_preferences(config)
+    local_execution = _local_execution_candidates_report(config)
+    candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
+    if candidates:
+        output_stream.write(
+            "Recommended local fallback candidates discovered: "
+            + ", ".join(str(item.get("id", "")) for item in candidates if str(item.get("id", "")).strip())
+            + "\n"
+        )
+        preload = _prompt_menu_choice(
+            title="Approve baseline with recommended local delivery fallbacks now?",
+            options=[
+                ("yes", "Yes - approve baseline and preload recommended local fallback routes"),
+                ("no", "No - keep only role assignments for now"),
+            ],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if preload is None:
+            return "Role setup cancelled."
+        if preload == "yes":
+            _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_manual_local_fallbacks")
+            return (
+                "Role setup completed with approved baseline and recommended local delivery fallbacks.\n"
+                + _render_prince2_roles(config)
+                + "\n"
+                + _render_prince2_role_tree_baseline(config)
+            )
     return "Role setup completed.\n" + _render_prince2_roles(config)
 
 
