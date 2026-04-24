@@ -2632,6 +2632,64 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["runtime"]["nodes"][0]["node_id"], "management.project_manager")
             self.assertEqual(payload["runtime"]["nodes"][0]["wake_triggers"], ["escalation", "stage_boundary_review"])
 
+    def test_roles_active_and_queues_render_runtime_supervision_views(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "context_rule": {"expansion_events": ["escalation"]},
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            },
+                            {
+                                "node_id": "delivery.team_manager",
+                                "role_type": "team_manager",
+                                "label": "Team Manager",
+                                "context_rule": {"expansion_events": ["message_received"]},
+                                "assignment": {"provider": "local", "provider_model": "provider-default"},
+                            },
+                        ]
+                    },
+                    "flow": {
+                        "edges": [
+                            {
+                                "edge_id": "issue.work_package",
+                                "source_node": "management.project_manager",
+                                "target_node": "delivery.team_manager",
+                                "payload_scope": ["assigned_work_package"],
+                            }
+                        ]
+                    },
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            run_main_capture(
+                root,
+                "role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package",
+                "--json",
+            )
+            active_completed = run_main_capture(root, "roles active", "--json")
+            queues_completed = run_main_capture(root, "roles queues", "--json")
+
+            self.assertEqual(active_completed.returncode, 0, active_completed.stderr)
+            self.assertEqual(queues_completed.returncode, 0, queues_completed.stderr)
+            active_payload = json.loads(active_completed.stdout)
+            queues_payload = json.loads(queues_completed.stdout)
+            self.assertEqual(active_payload["command"], "roles active")
+            self.assertEqual(active_payload["count"], 2)
+            self.assertEqual(queues_payload["command"], "roles queues")
+            self.assertEqual(queues_payload["summary"]["inbox_total"], 1)
+            self.assertEqual(queues_payload["summary"]["nodes_with_outbox"], 1)
+
     def test_roles_context_exposes_node_ai_context_packet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
