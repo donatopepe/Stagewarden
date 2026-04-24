@@ -2640,6 +2640,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["role_type"], "project_manager")
             self.assertTrue(payload["agent_capabilities"]["core_tools"]["files"])
             self.assertIn("inspect_file", payload["agent_capabilities"]["model_actions"])
+            self.assertIn("inspect_metadata_file", payload["agent_capabilities"]["file_operations"])
+            self.assertIn("copy_path_file", payload["agent_capabilities"]["file_operations"])
+            self.assertIn("chmod_path_file", payload["agent_capabilities"]["file_operations"])
             self.assertEqual(payload["prince2_role_context"]["context_include"], ["stage_plan", "registers"])
             self.assertEqual(payload["communications"]["incoming_edges"][0]["edge_id"], "authorize.project")
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -187,6 +188,21 @@ class ToolTests(unittest.TestCase):
             self.assertEqual(result.report["line_count"], 2)
             self.assertEqual(result.report["newline"], "\n")
 
+    def test_file_tool_inspect_metadata_reports_stat(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            sample = root / "sample.txt"
+            sample.write_text("hello\n", encoding="utf-8")
+            tool = FileTool(AgentConfig(workspace_root=root))
+
+            result = tool.inspect_metadata("sample.txt")
+
+            self.assertTrue(result.ok, result.error)
+            self.assertEqual(result.report["command"], "file stat")
+            self.assertEqual(result.report["kind"], "file")
+            self.assertEqual(result.report["size"], len("hello\n".encode("utf-8")))
+            self.assertTrue(result.report["readable"])
+
     def test_file_tool_structured_edit_supports_dry_run_and_wet_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -251,6 +267,68 @@ class ToolTests(unittest.TestCase):
             normalized = tool.normalize_line_endings(".state.json", "lf", dry_run=False)
             self.assertTrue(normalized.ok, normalized.error)
             self.assertEqual(sample.read_text(encoding="utf-8"), '{"name":"caf\xe9"}\n')
+
+    def test_file_tool_copy_move_delete_and_chmod_operations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source = root / "source.txt"
+            source.write_text("alpha\n", encoding="utf-8")
+            nested = root / "dir"
+            nested.mkdir()
+            (nested / "child.txt").write_text("child\n", encoding="utf-8")
+            tool = FileTool(AgentConfig(workspace_root=root, strict_ascii_output=False))
+
+            preview_copy = tool.copy_path("source.txt", "copies/source.txt", dry_run=True)
+            self.assertTrue(preview_copy.ok, preview_copy.error)
+            self.assertFalse((root / "copies/source.txt").exists())
+
+            copied = tool.copy_path("source.txt", "copies/source.txt", dry_run=False)
+            self.assertTrue(copied.ok, copied.error)
+            self.assertEqual((root / "copies/source.txt").read_text(encoding="utf-8"), "alpha\n")
+
+            copied_dir = tool.copy_path("dir", "dir-copy", dry_run=False)
+            self.assertTrue(copied_dir.ok, copied_dir.error)
+            self.assertEqual((root / "dir-copy/child.txt").read_text(encoding="utf-8"), "child\n")
+
+            moved = tool.move_path("copies/source.txt", "moved/source.txt", dry_run=False)
+            self.assertTrue(moved.ok, moved.error)
+            self.assertFalse((root / "copies/source.txt").exists())
+            self.assertEqual((root / "moved/source.txt").read_text(encoding="utf-8"), "alpha\n")
+
+            chmod_result = tool.chmod_path("moved/source.txt", "0600", dry_run=False)
+            self.assertTrue(chmod_result.ok, chmod_result.error)
+            self.assertEqual((root / "moved/source.txt").stat().st_mode & 0o777, 0o600)
+
+            delete_file = tool.delete_path("moved/source.txt", dry_run=False)
+            self.assertTrue(delete_file.ok, delete_file.error)
+            self.assertFalse((root / "moved/source.txt").exists())
+
+            delete_dir_preview = tool.delete_path("dir-copy", recursive=True, dry_run=True)
+            self.assertTrue(delete_dir_preview.ok, delete_dir_preview.error)
+            self.assertTrue((root / "dir-copy").exists())
+
+            delete_dir = tool.delete_path("dir-copy", recursive=True, dry_run=False)
+            self.assertTrue(delete_dir.ok, delete_dir.error)
+            self.assertFalse((root / "dir-copy").exists())
+
+    def test_file_tool_chown_path_supports_current_owner_or_reports_platform_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            sample = root / "sample.txt"
+            sample.write_text("hello\n", encoding="utf-8")
+            tool = FileTool(AgentConfig(workspace_root=root))
+            if os.name == "nt" or not hasattr(os, "chown"):
+                result = tool.chown_path("sample.txt", user="0", group="0", dry_run=True)
+                self.assertFalse(result.ok)
+                return
+            preview = tool.chown_path("sample.txt", user=str(os.getuid()), group=str(os.getgid()), dry_run=True)
+            self.assertTrue(preview.ok, preview.error)
+
+            result = tool.chown_path("sample.txt", user=str(os.getuid()), group=str(os.getgid()), dry_run=False)
+            self.assertTrue(result.ok, result.error)
+            stat_result = sample.stat()
+            self.assertEqual(stat_result.st_uid, os.getuid())
+            self.assertEqual(stat_result.st_gid, os.getgid())
 
     def test_shell_tool_returns_preview_and_duration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
