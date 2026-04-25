@@ -1849,8 +1849,14 @@ Next implementation candidates:
   - Baseline checks implementation presence through command catalog and local prerequisites through Git executable + shell backend availability.
   - Follow-up group completed 2026-04-25:
     - baseline groups now carry explicit remediation text when a required command surface is missing
-    - `doctor` / `doctor --json` now includes baseline status, group count, missing count, and remediation entries
-    - `help baseline` / `help baseline --json` documents the minimum Codex/Claude contract and the covered groups
+  - `doctor` / `doctor --json` now includes baseline status, group count, missing count, and remediation entries
+  - `help baseline` / `help baseline --json` documents the minimum Codex/Claude contract and the covered groups
+  - Model-visible tool schema validation implemented on 2026-04-25:
+    - Added a single executable action schema for every model action exposed to the IA.
+    - The prompt now includes a `Model-visible tool schema validation` section with schema/executor consistency status before the model chooses an action.
+    - The `Available actions and required fields` prompt block is generated from the same schema instead of a manually duplicated list.
+    - Strict model-output validation now rejects missing or empty required action fields before tool execution.
+    - Targeted regressions passed for schema/executor parity, prompt visibility, and missing required field rejection.
 
 ## Status Research: Codex and Claude
 

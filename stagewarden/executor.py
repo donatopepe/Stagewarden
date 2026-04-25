@@ -108,6 +108,42 @@ ALLOWED_MODEL_ACTIONS = {
     "complete",
 }
 
+MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
+    "shell": {"tool": "shell", "required": ["command"], "optional": ["cwd"], "mutates": "depends_on_command"},
+    "shell_session_create": {"tool": "shell", "required": [], "optional": ["cwd"], "mutates": False},
+    "shell_session_send": {"tool": "shell", "required": ["session_id", "command"], "optional": [], "mutates": "depends_on_command"},
+    "shell_session_close": {"tool": "shell", "required": ["session_id"], "optional": [], "mutates": False},
+    "read_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
+    "inspect_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
+    "inspect_metadata_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
+    "write_file": {"tool": "files", "required": ["path", "content"], "optional": [], "mutates": True},
+    "apply_patch": {"tool": "files", "required": ["path", "search", "replace"], "optional": [], "mutates": True},
+    "search_replace_file": {"tool": "files", "required": ["path", "search", "replace"], "optional": ["count", "dry_run"], "mutates": "unless_dry_run"},
+    "insert_text_file": {"tool": "files", "required": ["path", "content"], "optional": ["line_number", "pattern", "position", "occurrence", "dry_run"], "mutates": "unless_dry_run"},
+    "delete_range_file": {"tool": "files", "required": ["path", "start_line", "end_line"], "optional": ["dry_run"], "mutates": "unless_dry_run"},
+    "delete_backward_file": {"tool": "files", "required": ["path", "count"], "optional": ["line_number", "pattern", "occurrence", "dry_run"], "mutates": "unless_dry_run"},
+    "replace_range_file": {"tool": "files", "required": ["path", "start_line", "end_line", "content"], "optional": ["dry_run"], "mutates": "unless_dry_run"},
+    "convert_encoding_file": {"tool": "files", "required": ["path", "target_encoding"], "optional": ["source_encoding", "dry_run"], "mutates": "unless_dry_run"},
+    "normalize_line_endings_file": {"tool": "files", "required": ["path", "newline"], "optional": ["dry_run"], "mutates": "unless_dry_run"},
+    "copy_path_file": {"tool": "files", "required": ["source", "destination"], "optional": ["overwrite", "dry_run"], "mutates": "unless_dry_run"},
+    "move_path_file": {"tool": "files", "required": ["source", "destination"], "optional": ["overwrite", "dry_run"], "mutates": "unless_dry_run"},
+    "delete_path_file": {"tool": "files", "required": ["path"], "optional": ["recursive", "dry_run"], "mutates": "unless_dry_run"},
+    "chmod_path_file": {"tool": "files", "required": ["path", "mode"], "optional": ["recursive", "dry_run"], "mutates": "unless_dry_run"},
+    "chown_path_file": {"tool": "files", "required": ["path"], "optional": ["user", "group", "recursive", "dry_run"], "mutates": "unless_dry_run"},
+    "patch_file": {"tool": "files", "required": ["path", "diff"], "optional": [], "mutates": True},
+    "patch_files": {"tool": "files", "required": ["diff"], "optional": [], "mutates": True},
+    "preview_patch_files": {"tool": "files", "required": ["diff"], "optional": [], "mutates": False},
+    "list_files": {"tool": "files", "required": [], "optional": ["base_path", "pattern", "limit"], "mutates": False},
+    "search_files": {"tool": "files", "required": ["pattern"], "optional": ["base_path", "glob", "limit"], "mutates": False},
+    "git_status": {"tool": "git", "required": [], "optional": [], "mutates": False},
+    "git_diff": {"tool": "git", "required": [], "optional": [], "mutates": False},
+    "git_log": {"tool": "git", "required": [], "optional": ["limit", "path"], "mutates": False},
+    "git_show": {"tool": "git", "required": [], "optional": ["revision", "stat"], "mutates": False},
+    "git_file_history": {"tool": "git", "required": ["path"], "optional": ["limit"], "mutates": False},
+    "git_commit": {"tool": "git", "required": ["message"], "optional": [], "mutates": True},
+    "complete": {"tool": "agent", "required": ["message"], "optional": [], "mutates": False},
+}
+
 DESTRUCTIVE_ACTION_TOKENS = ("delete", "remove", "destroy", "wipe", "reset", "drop", "format", "purge")
 
 
@@ -670,6 +706,7 @@ class Executor:
         model_context = self._model_context_files_section()
         role_context = self._bounded_context("prince2_role_automation", self._prince2_role_automation_section(task, step), 2500)
         node_context_packet = self._bounded_context("prince2_node_context_packet", self._prince2_node_context_packet(task, step), 5000)
+        tool_schema_report = self._bounded_context("model_visible_tool_schema", self._model_visible_tool_schema_section(), 6000)
         scoped_handoff_log = self._bounded_context("handoff_log", handoff_log if scoped["handoff_log"] else "Omitted by PRINCE2 role scope.", 4000)
         scoped_execution_log = self._bounded_context("execution_log", execution_log if scoped["execution_log"] else "Omitted by PRINCE2 role scope.", 4000)
         selected_backend = self.shell._selected_shell_backend()
@@ -716,6 +753,7 @@ class Executor:
             ),
             PromptSection("PRINCE2 role automation", role_context),
             PromptSection("PRINCE2 node AI context packet", node_context_packet),
+            PromptSection("Model-visible tool schema validation", tool_schema_report),
             PromptSection(
                 "PRINCE2 registers",
                 "\n\n".join(
@@ -753,43 +791,7 @@ class Executor:
             ),
             PromptSection(
                 "Available actions and required fields",
-                "\n".join(
-                    [
-                        '1. shell -> {"type":"shell","command":"...","cwd":"optional-relative-path"}',
-                        '2. shell_session_create -> {"type":"shell_session_create","cwd":"optional-relative-path"}',
-                        '3. shell_session_send -> {"type":"shell_session_send","session_id":"session id","command":"..."}',
-                        '4. shell_session_close -> {"type":"shell_session_close","session_id":"session id"}',
-                        '5. read_file -> {"type":"read_file","path":"relative/path"}',
-                        '6. inspect_file -> {"type":"inspect_file","path":"relative/path"}',
-                        '7. inspect_metadata_file -> {"type":"inspect_metadata_file","path":"relative/path"}',
-                        '8. write_file -> {"type":"write_file","path":"relative/path","content":"full file contents"}',
-                        '9. apply_patch -> {"type":"apply_patch","path":"relative/path","search":"old text","replace":"new text"}',
-                        '10. search_replace_file -> {"type":"search_replace_file","path":"relative/path","search":"old text","replace":"new text","count":1,"dry_run":false}',
-                        '11. insert_text_file -> {"type":"insert_text_file","path":"relative/path","content":"text to insert","line_number":12,"pattern":"optional anchor","position":"before|after","occurrence":1,"dry_run":false}',
-                        '12. delete_range_file -> {"type":"delete_range_file","path":"relative/path","start_line":4,"end_line":7,"dry_run":false}',
-                        '13. delete_backward_file -> {"type":"delete_backward_file","path":"relative/path","count":2,"line_number":10,"pattern":"optional anchor","occurrence":1,"dry_run":false}',
-                        '14. replace_range_file -> {"type":"replace_range_file","path":"relative/path","start_line":4,"end_line":7,"content":"replacement block","dry_run":false}',
-                        '15. convert_encoding_file -> {"type":"convert_encoding_file","path":"relative/path","target_encoding":"utf-8","source_encoding":"optional-codec","dry_run":false}',
-                        '16. normalize_line_endings_file -> {"type":"normalize_line_endings_file","path":"relative/path","newline":"lf|crlf|cr","dry_run":false}',
-                        '17. copy_path_file -> {"type":"copy_path_file","source":"relative/path","destination":"relative/path","overwrite":false,"dry_run":false}',
-                        '18. move_path_file -> {"type":"move_path_file","source":"relative/path","destination":"relative/path","overwrite":false,"dry_run":false}',
-                        '19. delete_path_file -> {"type":"delete_path_file","path":"relative/path","recursive":false,"dry_run":false}',
-                        '20. chmod_path_file -> {"type":"chmod_path_file","path":"relative/path","mode":"0644","recursive":false,"dry_run":false}',
-                        '21. chown_path_file -> {"type":"chown_path_file","path":"relative/path","user":"uid-or-name","group":"gid-or-name","recursive":false,"dry_run":false}',
-                        '22. patch_file -> {"type":"patch_file","path":"relative/path","diff":"unified diff for one file"}',
-                        '23. patch_files -> {"type":"patch_files","diff":"unified diff with one or more files"}',
-                        '24. preview_patch_files -> {"type":"preview_patch_files","diff":"unified diff with one or more files"}',
-                        '25. list_files -> {"type":"list_files","base_path":"optional-relative-path","pattern":"glob pattern","limit":100}',
-                        '26. search_files -> {"type":"search_files","pattern":"regex","base_path":"optional-relative-path","glob":"glob pattern","limit":50}',
-                        '27. git_status -> {"type":"git_status"}',
-                        '28. git_diff -> {"type":"git_diff"}',
-                        '29. git_log -> {"type":"git_log","limit":20,"path":"optional-relative-path"}',
-                        '30. git_show -> {"type":"git_show","revision":"HEAD","stat":true}',
-                        '31. git_file_history -> {"type":"git_file_history","path":"relative/path","limit":20}',
-                        '32. git_commit -> {"type":"git_commit","message":"commit message"}',
-                        '33. complete -> {"type":"complete","message":"why the current step is done"}',
-                    ]
-                ),
+                self._model_action_examples_section(),
             ),
             PromptSection(
                 "Respond with strict JSON",
@@ -825,6 +827,100 @@ class Executor:
         for section in packet.contract_sections:
             blocks.append(f"{section.title}:\n{section.body}")
         return "\n\n".join(blocks) + "\n"
+
+    def _model_visible_tool_schema_report(self) -> dict[str, Any]:
+        allowed = set(ALLOWED_MODEL_ACTIONS)
+        schema_actions = set(MODEL_ACTION_SCHEMAS)
+        executor_actions = self._executor_action_branches()
+        missing_schema = sorted(allowed - schema_actions)
+        extra_schema = sorted(schema_actions - allowed)
+        missing_executor = sorted(allowed - executor_actions)
+        extra_executor = sorted(executor_actions - allowed)
+        status = "ok" if not (missing_schema or extra_schema or missing_executor or extra_executor) else "invalid"
+        tools: dict[str, list[str]] = {}
+        for action_name, schema in sorted(MODEL_ACTION_SCHEMAS.items()):
+            tools.setdefault(str(schema.get("tool", "unknown")), []).append(action_name)
+        return {
+            "status": status,
+            "action_count": len(allowed),
+            "tools": tools,
+            "missing_schema": missing_schema,
+            "extra_schema": extra_schema,
+            "missing_executor": missing_executor,
+            "extra_executor": extra_executor,
+            "rule": "Only actions listed here may be emitted by the model; required fields must be present before execution.",
+        }
+
+    def _model_visible_tool_schema_section(self) -> str:
+        report = self._model_visible_tool_schema_report()
+        lines = [
+            f"- status: {report['status']}",
+            f"- action_count: {report['action_count']}",
+            f"- validation_rule: {report['rule']}",
+        ]
+        for issue_key in ("missing_schema", "extra_schema", "missing_executor", "extra_executor"):
+            values = report[issue_key]
+            lines.append(f"- {issue_key}: {', '.join(values) if values else 'none'}")
+        tools = report.get("tools", {})
+        if isinstance(tools, dict):
+            for tool_name, actions in sorted(tools.items()):
+                action_list = ", ".join(str(action) for action in actions)
+                lines.append(f"- tool {tool_name}: {action_list}")
+        return "\n".join(lines)
+
+    def _model_action_examples_section(self) -> str:
+        lines = []
+        for index, action_name in enumerate(sorted(MODEL_ACTION_SCHEMAS), start=1):
+            schema = MODEL_ACTION_SCHEMAS[action_name]
+            required = list(schema.get("required", []))
+            optional = list(schema.get("optional", []))
+            example: dict[str, Any] = {"type": action_name}
+            for field in required:
+                example[str(field)] = self._example_value_for_action_field(str(field))
+            for field in optional:
+                if field in {"dry_run", "overwrite", "recursive", "stat"}:
+                    example[str(field)] = False
+                elif field in {"limit", "count", "occurrence"}:
+                    example[str(field)] = 1
+                elif field in {"start_line", "end_line", "line_number"}:
+                    example[str(field)] = 1
+            lines.append(f"{index}. {action_name} -> {dumps_ascii(example)}")
+        return "\n".join(lines)
+
+    def _example_value_for_action_field(self, field: str) -> Any:
+        examples = {
+            "command": "git status --short",
+            "session_id": "session id",
+            "path": "relative/path",
+            "content": "text",
+            "search": "old text",
+            "replace": "new text",
+            "start_line": 1,
+            "end_line": 1,
+            "count": 1,
+            "target_encoding": "utf-8",
+            "newline": "lf",
+            "source": "relative/source",
+            "destination": "relative/destination",
+            "mode": "0644",
+            "diff": "unified diff",
+            "pattern": "regex",
+            "message": "why the current step is done",
+        }
+        return examples.get(field, f"{field} value")
+
+    def _executor_action_branches(self) -> set[str]:
+        source = ""
+        try:
+            source = self.__class__._run_action.__code__.co_consts.__repr__()
+        except (AttributeError, TypeError):
+            source = ""
+        discovered = {
+            item
+            for item in ALLOWED_MODEL_ACTIONS
+            if f"'{item}'" in source or f'"{item}"' in source
+        }
+        return discovered
 
     def _prince2_role_automation_section(self, task: str, step: PlanStep) -> str:
         active_role = self._role_for_step(task=task, step=step)
@@ -1120,6 +1216,15 @@ class Executor:
             if any(token in action_type.lower() for token in DESTRUCTIVE_ACTION_TOKENS):
                 return f"Unknown destructive action denied: {action_type}"
             return f"Unsupported action type: {action_type}"
+        schema = MODEL_ACTION_SCHEMAS.get(action_type, {})
+        for field in schema.get("required", []):
+            if field not in action:
+                return f"Model JSON action '{action_type}' is missing required field '{field}'."
+            value = action.get(field)
+            if isinstance(value, str) and not value.strip():
+                return f"Model JSON action '{action_type}' required field '{field}' must not be empty."
+            if value is None:
+                return f"Model JSON action '{action_type}' required field '{field}' must not be null."
         return ""
 
     def _json_candidates(self, text: str) -> list[str]:
