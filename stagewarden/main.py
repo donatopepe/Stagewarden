@@ -4104,6 +4104,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "backlog_statuses": handoff["backlog_statuses"],
             "node_runtime_summary": handoff["node_runtime_summary"],
         },
+        "goal": status["goal"],
         "local_fallback": status["local_fallback"],
         "focus": focus,
         "usage": _model_usage_report(config)["report"],
@@ -4184,8 +4185,14 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
             f"- ok: {str(report['git']['ok']).lower()}",
             f"- head: {report['git']['head'] or 'none'}",
             f"- status: {report['git']['status'] or 'clean'}",
-            "Handoff:",
-            f"- stage_health: {report['handoff']['stage_health']}",
+        "Handoff:",
+        (
+            "- goal: "
+            f"status={report['goal']['status']} "
+            f"objective={report['goal']['objective'] or 'none'} "
+            f"budget={report['goal']['token_budget'] if report['goal']['token_budget'] is not None else 'none'}"
+        ),
+        f"- stage_health: {report['handoff']['stage_health']}",
             f"- recovery_state: {report['handoff']['recovery_state']}",
             f"- boundary_decision: {report['handoff']['boundary_decision']}",
             f"- next_action: {report['handoff']['next_action']}",
@@ -4258,6 +4265,7 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
         "rate_limits_summary": _provider_limit_summary_report(status["provider_limits"]),
         "local_fallback": status["local_fallback"],
+        "goal": status["goal"],
         "handoff": status["handoff"]["stage_view"],
         "latest_handoff_action": status["focus"].get("latest_handoff_action"),
         "usage": usage["totals"],
@@ -4580,6 +4588,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_runtime_status(config),
         _render_shell_backend(config),
         _render_resume_context(config),
+        _render_goal_report(config),
         _render_permissions(config),
         "PRINCE2 roles:",
         _render_prince2_role_status_hint(config),
@@ -4745,6 +4754,68 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
     }
 
 
+def _goal_report(config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    return {
+        "command": "goal",
+        "goal": handoff.goal_view(),
+    }
+
+
+def _parse_goal_set_command(task: str) -> tuple[str, int | None]:
+    rest = task.removeprefix("goal set").strip()
+    token_budget = None
+    marker = " --tokens "
+    if marker in rest:
+        objective, raw_budget = rest.rsplit(marker, 1)
+        clean_budget = raw_budget.strip()
+        if not clean_budget.isdigit():
+            raise ValueError("Usage: goal set <objective> [--tokens N]")
+        token_budget = int(clean_budget)
+        rest = objective.strip()
+    if not rest:
+        raise ValueError("Usage: goal set <objective> [--tokens N]")
+    return rest, token_budget
+
+
+def _goal_command_report(task: str, config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    try:
+        if task == "goal":
+            return _goal_report(config)
+        if task.startswith("goal set "):
+            objective, token_budget = _parse_goal_set_command(task)
+            goal = handoff.set_goal(objective=objective, token_budget=token_budget)
+            handoff.save(config.handoff_path)
+            return {"command": "goal set", "ok": True, "goal": goal}
+        if task.startswith("goal status "):
+            status = task.split(maxsplit=2)[2]
+            goal = handoff.update_goal_status(status)
+            handoff.save(config.handoff_path)
+            return {"command": "goal status", "ok": True, "goal": goal}
+        if task == "goal clear":
+            previous = handoff.clear_goal()
+            handoff.save(config.handoff_path)
+            return {"command": "goal clear", "ok": True, "previous_goal": previous, "goal": handoff.goal_view()}
+    except ValueError as exc:
+        return {"command": task.split(maxsplit=2)[0], "ok": False, "error": str(exc)}
+    return {"command": task, "ok": False, "error": "Usage: goal | goal set <objective> [--tokens N] | goal status <active|paused|budget_limited|complete> | goal clear"}
+
+
+def _render_goal_report(config: AgentConfig) -> str:
+    goal = _goal_report(config)["goal"]
+    return "\n".join(
+        [
+            "Project goal:",
+            f"- status: {goal['status']}",
+            f"- objective: {goal['objective'] or 'none'}",
+            f"- token_budget: {goal['token_budget'] if goal['token_budget'] is not None else 'none'}",
+            f"- tokens_used: {goal['tokens_used']}",
+            f"- terminal: {str(goal['terminal']).lower()}",
+        ]
+    )
+
+
 def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     _apply_model_preferences(agent, config)
     caveman_state = agent.caveman.load_state(config)
@@ -4765,6 +4836,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "model_config": config.model_prefs_path.name,
         },
         "models": _model_status_report(agent, config),
+        "goal": handoff.goal_view(),
         "provider_limits": provider_limits,
         "limits_summary": _provider_limit_summary_report(provider_limits),
         "runtime": detect_runtime_capabilities(config.workspace_root),
@@ -5329,6 +5401,7 @@ def _handoff_report(config: AgentConfig) -> dict[str, object]:
     return {
         "command": "handoff",
         "handoff": handoff.as_dict(),
+        "goal": handoff.goal_view(),
         "stage_view": handoff.stage_view(),
         "node_runtime": handoff.prince2_node_runtime_report(),
         "next_action": handoff.rendered_next_action(),
@@ -8408,6 +8481,22 @@ def main() -> int:
         else:
             print(_render_prince2_role_active(config))
         return 0
+    if task == "goal" or task.startswith("goal "):
+        report = _goal_command_report(task, config)
+        if args.json:
+            print(dumps_ascii(report, indent=2))
+        else:
+            if report.get("ok") is False:
+                print(report.get("error", "Goal command failed."))
+            elif task == "goal":
+                print(_render_goal_report(config))
+            else:
+                goal = report.get("goal", {})
+                if isinstance(goal, dict):
+                    print(f"Goal {goal.get('status', 'updated')}: {goal.get('objective', '') or 'none'}")
+                else:
+                    print("Goal updated.")
+        return 0 if report.get("ok", True) else 1
     if task == "roles control":
         if args.json:
             print(dumps_ascii(_prince2_role_control_report(config), indent=2))

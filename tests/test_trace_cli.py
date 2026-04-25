@@ -665,6 +665,32 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["rate_limits_summary"]["stale_models"], ["chatgpt"])
             self.assertEqual(payload["rate_limits_summary"]["blocked_accounts"], ["claude:team"])
 
+    def test_goal_cli_persists_and_surfaces_in_statusline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            set_completed = run_main_capture(root, "goal set Stabilize provider telemetry --tokens 20000", "--json")
+            status_completed = run_main_capture(root, "goal status paused", "--json")
+            goal_completed = run_main_capture(root, "goal", "--json")
+            statusline_completed = run_main_capture(root, "statusline", "--json")
+
+            self.assertEqual(set_completed.returncode, 0, set_completed.stderr)
+            self.assertEqual(status_completed.returncode, 0, status_completed.stderr)
+            self.assertEqual(goal_completed.returncode, 0, goal_completed.stderr)
+            self.assertEqual(statusline_completed.returncode, 0, statusline_completed.stderr)
+            goal_payload = json.loads(goal_completed.stdout)
+            statusline_payload = json.loads(statusline_completed.stdout)
+            self.assertEqual(goal_payload["goal"]["status"], "paused")
+            self.assertEqual(goal_payload["goal"]["objective"], "Stabilize provider telemetry")
+            self.assertEqual(goal_payload["goal"]["token_budget"], 20000)
+            self.assertEqual(statusline_payload["goal"]["status"], "paused")
+            self.assertEqual(statusline_payload["goal"]["objective"], "Stabilize provider telemetry")
+
+            clear_completed = run_main_capture(root, "goal clear", "--json")
+            self.assertEqual(clear_completed.returncode, 0, clear_completed.stderr)
+            cleared_payload = json.loads(run_main_capture(root, "goal", "--json").stdout)
+            self.assertEqual(cleared_payload["goal"]["status"], "missing")
+
     def test_status_and_control_expose_local_fallback_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
