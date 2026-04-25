@@ -11,6 +11,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import textwrap
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, TextIO
@@ -319,6 +320,7 @@ def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, ob
                 "handler": spec.handler,
                 "examples": list(spec.examples),
                 "hint": hint,
+                "match": _slash_match_report(spec, lowered),
             }
         )
     return {
@@ -329,9 +331,103 @@ def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, ob
             "active_accounts": active_accounts,
             "blocked_providers": blocked,
         },
+        "no_match": not entries,
+        "message": "" if entries else "No slash commands match the query. Use /slash to browse all commands.",
         "count": len(entries),
         "entries": entries,
     }
+
+
+def _slash_match_report(spec: object, query: str) -> dict[str, object]:
+    phrases = [
+        str(getattr(spec, "name", "")),
+        str(getattr(spec, "usage", "")),
+        str(getattr(spec, "description", "")),
+        *[str(item) for item in getattr(spec, "aliases", ())],
+        *[str(item) for item in getattr(spec, "examples", ())],
+    ]
+    if not query:
+        phrase = str(getattr(spec, "name", ""))
+        return {"query": "", "phrase": phrase, "highlight": phrase, "score": 0}
+    scored = [
+        (score, phrase)
+        for phrase in phrases
+        if phrase and (score := _slash_fuzzy_score(query, phrase)) is not None
+    ]
+    if not scored:
+        return {"query": query, "phrase": "", "highlight": "", "score": None}
+    score, phrase = min(scored, key=lambda item: (item[0], len(item[1])))
+    return {
+        "query": query,
+        "phrase": phrase,
+        "highlight": _highlight_fuzzy_match(query, phrase),
+        "score": score,
+    }
+
+
+def _slash_fuzzy_score(query: str, candidate: str) -> int | None:
+    lowered_query = query.strip().lower()
+    lowered_candidate = candidate.strip().lower()
+    if not lowered_query:
+        return 0
+    if lowered_candidate.startswith(lowered_query):
+        return 0
+    if lowered_query in lowered_candidate:
+        return 10 + lowered_candidate.index(lowered_query)
+    position = 0
+    gaps = 0
+    for char in lowered_query:
+        found = lowered_candidate.find(char, position)
+        if found < 0:
+            return None
+        gaps += max(0, found - position)
+        position = found + 1
+    return 100 + gaps + len(lowered_candidate)
+
+
+def _highlight_fuzzy_match(query: str, candidate: str) -> str:
+    clean_query = query.strip().lower()
+    if not clean_query:
+        return candidate
+    lowered_candidate = candidate.lower()
+    substring_index = lowered_candidate.find(clean_query)
+    if substring_index >= 0:
+        end = substring_index + len(clean_query)
+        return f"{candidate[:substring_index]}[{candidate[substring_index:end]}]{candidate[end:]}"
+    positions: list[int] = []
+    search_from = 0
+    for char in clean_query:
+        found = lowered_candidate.find(char, search_from)
+        if found < 0:
+            return candidate
+        positions.append(found)
+        search_from = found + 1
+    highlighted: list[str] = []
+    position_set = set(positions)
+    in_match = False
+    for index, char in enumerate(candidate):
+        if index in position_set and not in_match:
+            highlighted.append("[")
+            in_match = True
+        if index not in position_set and in_match:
+            highlighted.append("]")
+            in_match = False
+        highlighted.append(char)
+    if in_match:
+        highlighted.append("]")
+    return "".join(highlighted)
+
+
+def _wrap_description(text: str, *, width: int = 88, initial_indent: str = "  ", subsequent_indent: str = "  ") -> list[str]:
+    wrapped = textwrap.wrap(
+        text,
+        width=width,
+        initial_indent=initial_indent,
+        subsequent_indent=subsequent_indent,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    return wrapped or [initial_indent.rstrip()]
 
 
 def _render_slash_palette(config: AgentConfig, prefix: str = "") -> str:
@@ -348,12 +444,18 @@ def _render_slash_palette(config: AgentConfig, prefix: str = "") -> str:
     lines.append(f"- blocked_providers: {blocked}")
     if not entries:
         lines.append("- no matches")
+        lines.append(f"- message: {report['message']}")
         return "\n".join(lines)
     for item in entries[:20]:
         aliases = f" aliases={','.join(item['aliases'])}" if item["aliases"] else ""
         json_hint = " json" if item["json"] else ""
         hint = f" hint={item['hint']}" if item["hint"] else ""
-        lines.append(f"- /{item['name']}: {item['description']}{aliases}{json_hint}{hint}")
+        lines.append(f"- /{item['usage']}{aliases}{json_hint}{hint}")
+        for line in _wrap_description(str(item["description"])):
+            lines.append(line)
+        match = item.get("match", {})
+        if isinstance(match, dict) and match.get("query"):
+            lines.append(f"  match: {match.get('highlight', '')}")
         if item.get("examples"):
             lines.append(f"  example: /{item['examples'][0]}")
     if len(entries) > 20:
@@ -372,7 +474,7 @@ def _guided_slash_choice(
         return "Slash chooser unavailable without an interactive input/output stream."
     entries = list(_slash_palette_report(config, query)["entries"])[:20]
     if not entries:
-        return "No slash commands match the query."
+        return "No slash commands match the query.\nUse /slash to browse all commands or try a broader query."
     options = [
         (str(item["usage"]), f"/{item['usage']} - {item['description']}")
         for item in entries
@@ -395,11 +497,17 @@ def _render_slash_choice_candidates(config: AgentConfig, query: str = "") -> str
     lines.append(f"- query: {query or '(none)'}")
     if not entries:
         lines.append("- no matches")
+        lines.append("- message: Use /slash to browse all commands or try a broader query.")
         return "\n".join(lines)
     for index, item in enumerate(entries, start=1):
         if not isinstance(item, dict):
             continue
-        lines.append(f"{index}. /{item['usage']} - {item['description']}")
+        lines.append(f"{index}. /{item['usage']}")
+        for line in _wrap_description(str(item["description"]), initial_indent="   ", subsequent_indent="   "):
+            lines.append(line)
+        match = item.get("match", {})
+        if isinstance(match, dict) and match.get("query"):
+            lines.append(f"   match: {match.get('highlight', '')}")
     lines.append("- note: use interactive /slash choose to select one item.")
     return "\n".join(lines)
 
@@ -8426,7 +8534,19 @@ def main() -> int:
     if task == "slash choose" or task.startswith("slash choose "):
         query = "" if task == "slash choose" else task.split(maxsplit=2)[2]
         if args.json:
-            print(dumps_ascii({"command": "slash choose", "query": query, "entries": _slash_palette_report(config, query)["entries"][:10]}, indent=2))
+            report = _slash_palette_report(config, query)
+            print(
+                dumps_ascii(
+                    {
+                        "command": "slash choose",
+                        "query": query,
+                        "no_match": report["no_match"],
+                        "message": report["message"],
+                        "entries": report["entries"][:10],
+                    },
+                    indent=2,
+                )
+            )
         else:
             print(_render_slash_choice_candidates(config, query))
         return 0

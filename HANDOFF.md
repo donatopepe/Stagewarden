@@ -1863,6 +1863,12 @@ Next implementation candidates:
     - Reaching or exceeding `token_budget` automatically marks the goal `budget_limited`.
     - Goal views now expose remaining budget, usage percentage, terminal state, and controlled next action.
     - Targeted regressions passed for handoff roundtrip, budget-limit transition, and executor token accounting.
+  - Slash UX parity improvement implemented on 2026-04-25:
+    - Slash palette JSON entries now expose match metadata: query, matched phrase, highlighted phrase, and score.
+    - Slash chooser JSON now exposes `no_match` and a recovery message instead of returning only an empty entry list.
+    - Human slash palette and chooser output now wrap long descriptions and render match highlights.
+    - Guided chooser remains non-executing: selection returns the command text only.
+    - Targeted slash regressions passed for palette context, fuzzy examples, no-match state, wrapping, and highlighting.
 
 ## Status Research: Codex and Claude
 

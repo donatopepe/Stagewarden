@@ -1444,10 +1444,13 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["context"]["enabled_providers"], ["chatgpt", "openai"])
             self.assertEqual(payload["context"]["active_accounts"], ["openai=work"])
             self.assertEqual(payload["context"]["blocked_providers"], ["chatgpt:2026-05-01T18:30"])
+            self.assertFalse(payload["no_match"])
+            self.assertEqual(payload["message"], "")
             entries = {item["name"]: item for item in payload["entries"]}
             self.assertIn("model variant", entries)
             self.assertIn("provider_models[chatgpt=", entries["model variant"]["hint"])
             self.assertEqual(entries["model param set"]["hint"], "params[reasoning_effort]")
+            self.assertIn("match", entries["model variant"])
 
     def test_slash_palette_uses_fuzzy_examples_and_returns_examples(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1459,9 +1462,27 @@ class TraceAndCliTests(unittest.TestCase):
             entries = {item["name"]: item for item in payload["entries"]}
             self.assertIn("download", entries)
             self.assertIn("scarica file", entries["download"]["examples"])
+            self.assertEqual(entries["download"]["match"]["phrase"], "scarica file")
+            self.assertEqual(entries["download"]["match"]["highlight"], "[scarica] file")
 
             completion_matches = _interactive_completion_candidates("/upg stg", AgentConfig(workspace_root=root))
             self.assertIn("/update apply", completion_matches)
+
+    def test_slash_palette_exposes_no_match_and_wrapped_highlighted_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            no_match = run_main_capture(root, "slash choose zzz-no-match", "--json")
+            self.assertEqual(no_match.returncode, 0, no_match.stderr)
+            no_match_payload = json.loads(no_match.stdout)
+            self.assertTrue(no_match_payload["no_match"])
+            self.assertEqual(no_match_payload["entries"], [])
+            self.assertIn("Use /slash", no_match_payload["message"])
+
+            rendered = run_main_capture(root, "slash choose upgrade")
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            self.assertIn("1. /update apply --yes", rendered.stdout)
+            self.assertIn("   Apply a fast-forward self-update after explicit confirmation.", rendered.stdout)
+            self.assertIn("   match: [upgrade] stagewarden", rendered.stdout)
 
     def test_extension_scaffold_and_discovery_are_read_only_safe(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
