@@ -61,6 +61,15 @@ class PersistenceTests(unittest.TestCase):
             handoff = ProjectHandoff()
             handoff.start_run(task="fix tests", plan_status="step-1:pending", git_head="abc123")
             handoff.set_goal(objective="Fix tests with wet-run validation", token_budget=12000)
+            goal = handoff.record_goal_token_usage(
+                model="chatgpt",
+                step_id="step-1",
+                input_tokens=250,
+                output_tokens=50,
+            )
+            self.assertEqual(goal["tokens_used"], 300)
+            self.assertEqual(goal["token_budget_remaining"], 11700)
+            self.assertEqual(goal["budget_used_percentage"], 2.5)
             handoff.begin_step(
                 iteration=1,
                 task="fix tests",
@@ -102,12 +111,32 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(loaded.goal_view()["status"], "active")
             self.assertEqual(loaded.goal_view()["objective"], "Fix tests with wet-run validation")
             self.assertEqual(loaded.goal_view()["token_budget"], 12000)
+            self.assertEqual(loaded.goal_view()["tokens_used"], 300)
+            self.assertEqual(loaded.goal_view()["token_budget_remaining"], 11700)
             self.assertEqual(loaded.git_head, "def456")
-            self.assertEqual(len(loaded.entries), 4)
+            self.assertEqual(len(loaded.entries), 5)
             self.assertEqual(len(loaded.issue_register), 1)
             self.assertEqual(len(loaded.quality_register), 1)
             self.assertEqual(len(loaded.lessons_log), 1)
             self.assertEqual(loaded.prince2_roles["project_manager"]["provider_model"], "gpt-5.4")
+
+    def test_project_goal_marks_budget_limited_when_token_budget_is_reached(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.set_goal(objective="Keep model usage controlled", token_budget=100)
+
+        goal = handoff.record_goal_token_usage(
+            model="openai",
+            step_id="step-1",
+            input_tokens=80,
+            output_tokens=25,
+        )
+
+        self.assertEqual(goal["status"], "budget_limited")
+        self.assertTrue(goal["terminal"])
+        self.assertEqual(goal["tokens_used"], 105)
+        self.assertEqual(goal["token_budget_remaining"], 0)
+        self.assertEqual(goal["budget_used_percentage"], 105.0)
+        self.assertIn("raise budget", goal["next_action"])
 
     def test_project_handoff_materializes_prince2_node_runtime_from_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
