@@ -673,17 +673,24 @@ class TraceAndCliTests(unittest.TestCase):
             status = run_main_capture(root, "status", "--json")
             statusline = run_main_capture(root, "statusline", "--json")
             preflight = run_main_capture(root, "preflight", "--json")
+            doctor = run_main_capture(root, "doctor", "--json")
+            help_baseline = run_main_capture(root, "help baseline", "--json")
 
             self.assertEqual(baseline.returncode, 0, baseline.stderr)
             self.assertEqual(status.returncode, 0, status.stderr)
             self.assertEqual(statusline.returncode, 0, statusline.stderr)
             self.assertEqual(preflight.returncode, 0, preflight.stderr)
+            self.assertEqual(doctor.returncode, 0, doctor.stderr)
+            self.assertEqual(help_baseline.returncode, 0, help_baseline.stderr)
             baseline_payload = json.loads(baseline.stdout)
             status_payload = json.loads(status.stdout)
             statusline_payload = json.loads(statusline.stdout)
             preflight_payload = json.loads(preflight.stdout)
+            doctor_payload = json.loads(doctor.stdout)
+            help_payload = json.loads(help_baseline.stdout)
             self.assertEqual(baseline_payload["baseline"], "codex_cli+claude_code_minimum")
             self.assertTrue(baseline_payload["ok"])
+            self.assertIn("remediations", baseline_payload)
             group_ids = {item["id"] for item in baseline_payload["groups"]}
             self.assertIn("interactive_shell", group_ids)
             self.assertIn("model_provider_control", group_ids)
@@ -692,6 +699,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(status_payload["baseline"]["status"], "ok")
             self.assertEqual(statusline_payload["baseline"]["status"], "ok")
             self.assertEqual(preflight_payload["baseline"]["status"], "ok")
+            self.assertEqual(doctor_payload["baseline"]["status"], "ok")
+            self.assertEqual(help_payload["topic"], "baseline")
+            self.assertTrue(any("baseline --json" in line for line in help_payload["extra_lines"]))
 
     def test_goal_cli_persists_and_surfaces_in_statusline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

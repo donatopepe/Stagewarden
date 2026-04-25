@@ -228,7 +228,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
 HELP_TOPICS: tuple[HelpTopic, ...] = (
     HelpTopic(
         key="core",
-        title="Core commands",
+        title="Core and baseline commands",
         summary="exit, reset, overview, health, report, status, preflight, stream, sessions, transcript",
         extra_lines=(
             "- help [topic]",
@@ -280,6 +280,34 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
             "transcript",
         ),
         aliases=("sessions", "session"),
+    ),
+    HelpTopic(
+        key="baseline",
+        title="Codex/Claude baseline",
+        summary="minimum Codex CLI and Claude Code capability contract",
+        extra_lines=(
+            "- baseline",
+            "- baseline --json",
+            "- status --json",
+            "- statusline --json",
+            "- preflight --json",
+            "- doctor --json",
+            "",
+            "Baseline groups:",
+            "- interactive shell and slash discovery",
+            "- model/provider/account control",
+            "- permission safety",
+            "- handoff, resume, transcript",
+            "- file, shell, git tools",
+            "- PRINCE2 goal/runtime governance",
+            "- source refresh, external IO, extensions, Caveman",
+        ),
+        examples=(
+            "baseline",
+            "baseline --json",
+            "doctor --json",
+        ),
+        aliases=("parity", "codex", "claude"),
     ),
     HelpTopic(
         key="models",
