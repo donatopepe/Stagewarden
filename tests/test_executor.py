@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
-from stagewarden.executor import Executor
+from stagewarden.executor import ALLOWED_MODEL_ACTIONS, MODEL_ACTION_SCHEMAS, Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until
 from stagewarden.planner import PlanStep
@@ -455,6 +455,38 @@ class ExecutorTests(unittest.TestCase):
             self.assertFalse(outcome.ok)
             self.assertEqual(outcome.action_type, "invalid_output")
             self.assertIn("confidence", outcome.observation)
+            self.assertEqual(memory.failure_count("step-1"), 1)
+
+    def test_executor_rejects_missing_required_action_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "bad shell action",
+                                "action": {"type": "shell"},
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Validate", instruction="validate", validation="done")
+
+            outcome = executor.execute_step(task="validate", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.action_type, "invalid_output")
+            self.assertIn("missing required field 'command'", outcome.observation)
             self.assertEqual(memory.failure_count("step-1"), 1)
 
     def test_executor_denies_unknown_destructive_model_action(self) -> None:
@@ -1466,11 +1498,38 @@ class ExecutorTests(unittest.TestCase):
             payload = packet.as_dict()
             self.assertEqual(payload["sections"][0]["title"], "Thread Start")
             self.assertEqual(payload["transcript_items"][0]["item_type"], "handoff_log")
+            self.assertTrue(any(section["title"] == "Model-visible tool schema validation" for section in payload["sections"]))
             rendered = executor._render_model_communication_packet(packet)
             self.assertIn("protocol_style: structured_turn_packet", rendered)
             self.assertIn("transcript_style: typed_items", rendered)
             self.assertIn("Tool transcript:", rendered)
             self.assertIn("PRINCE2 node AI context packet:", rendered)
+            self.assertIn("Model-visible tool schema validation:", rendered)
+            self.assertIn("status: ok", rendered)
+            self.assertIn("Available actions and required fields:", rendered)
+            self.assertIn('"type": "shell"', rendered)
+            self.assertIn('"command": "git status --short"', rendered)
+
+    def test_model_visible_tool_schema_matches_executor_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=FakeHandoff([]),
+                memory=MemoryStore(),
+            )
+
+            report = executor._model_visible_tool_schema_report()
+
+            self.assertEqual(set(MODEL_ACTION_SCHEMAS), ALLOWED_MODEL_ACTIONS)
+            self.assertEqual(report["status"], "ok")
+            self.assertEqual(report["missing_schema"], [])
+            self.assertEqual(report["missing_executor"], [])
+            self.assertIn("shell", report["tools"])
+            self.assertIn("files", report["tools"])
+            self.assertIn("git", report["tools"])
+            self.assertIn("complete", report["tools"]["agent"])
 
     def test_executor_includes_prince2_node_context_packet_in_prompt(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
