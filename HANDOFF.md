@@ -1847,6 +1847,10 @@ Next implementation candidates:
   - Baseline groups: interactive shell, provider/model control, account/auth control, workspace tools, permission safety, handoff/resume/trace, PRINCE2/goal governance, external sources/extensions.
   - `status`, `status --json`, `status --full --json`, `statusline --json`, and `preflight --json` now expose baseline state.
   - Baseline checks implementation presence through command catalog and local prerequisites through Git executable + shell backend availability.
+  - Follow-up group completed 2026-04-25:
+    - baseline groups now carry explicit remediation text when a required command surface is missing
+    - `doctor` / `doctor --json` now includes baseline status, group count, missing count, and remediation entries
+    - `help baseline` / `help baseline --json` documents the minimum Codex/Claude contract and the covered groups
 
 ## Status Research: Codex and Claude
 

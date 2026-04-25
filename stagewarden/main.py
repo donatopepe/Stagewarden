@@ -4780,6 +4780,18 @@ BASELINE_CAPABILITY_GROUPS: tuple[dict[str, object], ...] = (
 )
 
 
+BASELINE_REMEDIATION_BY_GROUP: dict[str, str] = {
+    "interactive_shell": "Run `/help`, `/slash`, `/status`, and `/preflight`; restore missing command catalog entries before changing shell UX.",
+    "model_provider_control": "Run `/models`, `/model list`, `/model choose`, and `/model limits`; restore provider routing surfaces before model work.",
+    "account_auth": "Run `/accounts` and `/auth status <provider>`; restore account login/use/logout surfaces before auth changes.",
+    "workspace_tools": "Run `/shell backend`, `/file stat <path>`, and `/git status`; restore file, shell, and git tools before delivery work.",
+    "permission_safety": "Run `/permissions`; restore permission mode and allow/ask/deny controls before executing risky tools.",
+    "handoff_resume_trace": "Run `/handoff`, `/handoff actions`, `/resume --show`, and `/transcript`; restore traceability before autonomous work.",
+    "agent_governance": "Run `/goal`, `/roles runtime`, and `/roles control`; restore PRINCE2 goal/runtime governance before role-routed work.",
+    "external_sources_extensions": "Run `/sources status --strict`, `/extensions`, and `/caveman help`; restore source and extension surfaces before source-derived changes.",
+}
+
+
 def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
     catalog = command_catalog()
     available: set[str] = set()
@@ -4802,6 +4814,7 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
                 "required_commands": required,
                 "missing_commands": missing,
                 "status": "ok" if not missing else "missing",
+                "remediation": "none" if not missing else BASELINE_REMEDIATION_BY_GROUP.get(str(group["id"]), "Restore missing command surfaces."),
             }
         )
     runtime = detect_runtime_capabilities(config.workspace_root)
@@ -4821,6 +4834,34 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
         if not ok
     ]
     status = "ok" if not missing_total and not env_missing else "warn"
+    remediations = [
+        {
+            "severity": "error",
+            "code": f"baseline_{group['id']}",
+            "action": group["remediation"],
+            "missing_commands": group["missing_commands"],
+        }
+        for group in groups
+        if group["status"] != "ok"
+    ]
+    if "git_available" in env_missing:
+        remediations.append(
+            {
+                "severity": "error",
+                "code": "baseline_git_available",
+                "action": "Install Git and ensure `git` is on PATH before running Stagewarden.",
+                "missing_commands": [],
+            }
+        )
+    if "shell_available" in env_missing:
+        remediations.append(
+            {
+                "severity": "error",
+                "code": "baseline_shell_available",
+                "action": "Configure an available shell backend with `/shell backend use <auto|bash|zsh|powershell|cmd>`.",
+                "missing_commands": [],
+            }
+        )
     return {
         "command": "baseline",
         "baseline": "codex_cli+claude_code_minimum",
@@ -4829,6 +4870,7 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
         "groups": groups,
         "environment": environment,
         "missing": missing_total + env_missing,
+        "remediations": remediations,
         "remediation": "Implement missing command surfaces or fix local prerequisites before claiming Codex/Claude baseline parity." if status != "ok" else "Baseline satisfied.",
     }
 
@@ -5377,6 +5419,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "path_launcher": {},
         "repository": {},
         "runtime": detect_runtime_capabilities(config.workspace_root),
+        "baseline": _agent_baseline_report(config),
         "providers": [],
         "policy": {
             "silent_install": False,
@@ -5471,6 +5514,7 @@ def _render_doctor(config: AgentConfig) -> str:
     shell_backend = _shell_backend_report(config)
     providers = report["providers"]
     policy_info = report["policy"]
+    baseline_info = report["baseline"]
     lines = ["Stagewarden doctor:"]
     lines.append(
         f"- Python: {python_info['status']} {python_info['version']} "
@@ -5493,6 +5537,14 @@ def _render_doctor(config: AgentConfig) -> str:
         f"- Shell backend: configured={shell_backend['configured']} selected={shell_backend['selected'] or 'none'} "
         f"available={str(shell_backend['available']).lower()}"
     )
+    lines.append(
+        f"- Baseline: {baseline_info['status']} "
+        f"missing={len(baseline_info['missing'])} groups={len(baseline_info['groups'])}"
+    )
+    if baseline_info["remediations"]:
+        lines.append("Baseline remediations:")
+        for item in baseline_info["remediations"]:
+            lines.append(f"- {item['code']}: {item['action']}")
     lines.append("Provider capabilities:")
     for provider in providers:
         lines.append(
