@@ -80,6 +80,13 @@ The agent must execute work under adaptive PRINCE2-style control:
 - Node-to-node communication must follow approved PRINCE2 flow edges only; context may move only through governed messages, escalation, delegation, assurance review, or boundary events.
 - A node may collaborate with peer, parent, or child nodes, but it must never widen another node's context beyond that node's authorized responsibility domain.
 
+### 13. Codex CLI and Claude Code Minimum Baseline
+
+- Stagewarden must maintain a minimum practical capability baseline comparable to Codex CLI and Claude Code.
+- The baseline includes interactive shell UX, slash discovery, compact status/statusline, provider/model/account control, permission governance, handoff/resume, transcript visibility, file tools, shell tools, git history, extension/source management, and rate-limit visibility.
+- Baseline parity must be inspectable through the agent itself, not only documented.
+- New work that affects the user experience, routing, status, auth, shell, permissions, or tool capabilities must preserve or improve this baseline.
+
 ## Repository Artifacts
 
 The policy is reflected in:

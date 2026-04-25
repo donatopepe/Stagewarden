@@ -1841,6 +1841,13 @@ Next implementation candidates:
   - `R4` config precedence: show effective value source for model, permission, theme/output style, and provider account settings.
   - `R5` dynamic tool verification: add a read-only capability/schema validator for model-visible tools before execution.
 
+- Minimum Codex CLI / Claude Code baseline made executable on 2026-04-25:
+  - Policy updated: Stagewarden must preserve a minimum practical Codex CLI and Claude Code baseline, not only borrow isolated ideas.
+  - Added `baseline` / `baseline --json` as an inspectable contract for required capability groups.
+  - Baseline groups: interactive shell, provider/model control, account/auth control, workspace tools, permission safety, handoff/resume/trace, PRINCE2/goal governance, external sources/extensions.
+  - `status`, `status --json`, `status --full --json`, `statusline --json`, and `preflight --json` now expose baseline state.
+  - Baseline checks implementation presence through command catalog and local prerequisites through Git executable + shell backend availability.
+
 ## Status Research: Codex and Claude
 
 Status: completed initial study

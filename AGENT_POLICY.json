@@ -64,6 +64,11 @@
       "id": "active_prince2_role_nodes",
       "required": true,
       "rule": "Approved PRINCE2 role-tree nodes must behave as active runtime actors with scoped context, wait state, and governed message flow; node communication may occur only through approved PRINCE2 flow edges without unauthorized context widening."
+    },
+    {
+      "id": "codex_claude_minimum_baseline",
+      "required": true,
+      "rule": "Stagewarden must preserve a minimum practical Codex CLI and Claude Code baseline for interactive shell UX, slash discovery, status/statusline, provider and account control, permissions, handoff/resume, transcript visibility, file and shell tools, git history, source/extension management, and rate-limit visibility."
     }
   ],
   "artifacts": {

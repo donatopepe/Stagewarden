@@ -665,6 +665,34 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["rate_limits_summary"]["stale_models"], ["chatgpt"])
             self.assertEqual(payload["rate_limits_summary"]["blocked_accounts"], ["claude:team"])
 
+    def test_baseline_cli_exposes_codex_claude_minimum_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            baseline = run_main_capture(root, "baseline", "--json")
+            status = run_main_capture(root, "status", "--json")
+            statusline = run_main_capture(root, "statusline", "--json")
+            preflight = run_main_capture(root, "preflight", "--json")
+
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            self.assertEqual(status.returncode, 0, status.stderr)
+            self.assertEqual(statusline.returncode, 0, statusline.stderr)
+            self.assertEqual(preflight.returncode, 0, preflight.stderr)
+            baseline_payload = json.loads(baseline.stdout)
+            status_payload = json.loads(status.stdout)
+            statusline_payload = json.loads(statusline.stdout)
+            preflight_payload = json.loads(preflight.stdout)
+            self.assertEqual(baseline_payload["baseline"], "codex_cli+claude_code_minimum")
+            self.assertTrue(baseline_payload["ok"])
+            group_ids = {item["id"] for item in baseline_payload["groups"]}
+            self.assertIn("interactive_shell", group_ids)
+            self.assertIn("model_provider_control", group_ids)
+            self.assertIn("handoff_resume_trace", group_ids)
+            self.assertIn("agent_governance", group_ids)
+            self.assertEqual(status_payload["baseline"]["status"], "ok")
+            self.assertEqual(statusline_payload["baseline"]["status"], "ok")
+            self.assertEqual(preflight_payload["baseline"]["status"], "ok")
+
     def test_goal_cli_persists_and_surfaces_in_statusline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

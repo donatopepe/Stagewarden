@@ -4104,6 +4104,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "backlog_statuses": handoff["backlog_statuses"],
             "node_runtime_summary": handoff["node_runtime_summary"],
         },
+        "baseline": status["baseline"],
         "goal": status["goal"],
         "local_fallback": status["local_fallback"],
         "focus": focus,
@@ -4186,6 +4187,7 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
             f"- head: {report['git']['head'] or 'none'}",
             f"- status: {report['git']['status'] or 'clean'}",
         "Handoff:",
+        f"- baseline: {report['baseline']['status']} missing={len(report['baseline']['missing'])}",
         (
             "- goal: "
             f"status={report['goal']['status']} "
@@ -4264,6 +4266,11 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "context_window": memory.context_window_stats(),
         "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
         "rate_limits_summary": _provider_limit_summary_report(status["provider_limits"]),
+        "baseline": {
+            "status": status["baseline"]["status"],
+            "ok": status["baseline"]["ok"],
+            "missing": status["baseline"]["missing"],
+        },
         "local_fallback": status["local_fallback"],
         "goal": status["goal"],
         "handoff": status["handoff"]["stage_view"],
@@ -4582,6 +4589,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- trace: {config.trace_path.name}",
         f"- handoff: {config.handoff_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
+        _render_agent_baseline(config),
         _render_focus_snapshot(_focus_snapshot(agent, config)),
         _render_model_status(agent, config),
         _render_provider_limit_status(agent, config),
@@ -4720,6 +4728,128 @@ def _render_shell_backend(config: AgentConfig) -> str:
     )
 
 
+BASELINE_CAPABILITY_GROUPS: tuple[dict[str, object], ...] = (
+    {
+        "id": "interactive_shell",
+        "source": "codex_cli+claude_code",
+        "required_commands": ("help", "slash", "slash choose", "status", "statusline", "preflight", "doctor"),
+        "description": "Interactive shell, slash discovery, compact status, and readiness checks.",
+    },
+    {
+        "id": "model_provider_control",
+        "source": "codex_cli+claude_code",
+        "required_commands": ("models", "model list", "model choose", "model params", "model limits", "model use"),
+        "description": "Provider/model selection, parameter visibility, usage limits, and routing control.",
+    },
+    {
+        "id": "account_auth",
+        "source": "codex_cli+claude_code",
+        "required_commands": ("accounts", "auth status", "account login", "account use", "account logout"),
+        "description": "Provider account profiles, browser login where supported, status, selection, and logout.",
+    },
+    {
+        "id": "workspace_tools",
+        "source": "codex_cli+claude_code",
+        "required_commands": ("shell backend", "sessions", "file inspect", "file stat", "file copy", "file move", "file delete", "git status", "git log", "git history"),
+        "description": "Cross-platform shell execution, persistent sessions, file operations, and git history.",
+    },
+    {
+        "id": "permission_safety",
+        "source": "codex_cli+claude_code",
+        "required_commands": ("permissions", "permission mode", "permission allow", "permission ask", "permission deny"),
+        "description": "Explicit permission modes and allow/ask/deny governance.",
+    },
+    {
+        "id": "handoff_resume_trace",
+        "source": "codex_cli+claude_code",
+        "required_commands": ("handoff", "handoff actions", "resume", "transcript", "report", "board"),
+        "description": "Resume context, transcript visibility, action history, and board/report surfaces.",
+    },
+    {
+        "id": "agent_governance",
+        "source": "stagewarden_prince2+codex_goals",
+        "required_commands": ("goal", "goal set", "goal status", "roles runtime", "roles control", "roles messages", "role message", "roles tick"),
+        "description": "Persisted goal, PRINCE2 runtime nodes, governed node messaging, and orchestration.",
+    },
+    {
+        "id": "external_sources_extensions",
+        "source": "codex_cli+claude_code+caveman",
+        "required_commands": ("sources", "sources update", "web search", "download", "extensions", "extension scaffold", "caveman help"),
+        "description": "Source-study refresh, governed external IO, extension discovery, and Caveman mode.",
+    },
+)
+
+
+def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
+    catalog = command_catalog()
+    available: set[str] = set()
+    for item in catalog:
+        for value in (item.get("name"), item.get("usage"), *(item.get("aliases", []) if isinstance(item.get("aliases"), list) else [])):
+            if value:
+                available.add(str(value).split("[", 1)[0].split("<", 1)[0].strip())
+                available.add(str(value).strip())
+    groups: list[dict[str, object]] = []
+    missing_total: list[str] = []
+    for group in BASELINE_CAPABILITY_GROUPS:
+        required = [str(item) for item in group["required_commands"]]
+        missing = [item for item in required if item not in available]
+        missing_total.extend(f"{group['id']}:{item}" for item in missing)
+        groups.append(
+            {
+                "id": group["id"],
+                "source": group["source"],
+                "description": group["description"],
+                "required_commands": required,
+                "missing_commands": missing,
+                "status": "ok" if not missing else "missing",
+            }
+        )
+    runtime = detect_runtime_capabilities(config.workspace_root)
+    shell = _shell_backend_report(config)
+    environment = {
+        "git_available": shutil.which("git") is not None,
+        "shell_available": bool(shell["available"]),
+        "recommended_shell": runtime["recommended_shell"],
+        "os_family": runtime["os_family"],
+    }
+    env_missing = [
+        key
+        for key, ok in {
+            "git_available": environment["git_available"],
+            "shell_available": environment["shell_available"],
+        }.items()
+        if not ok
+    ]
+    status = "ok" if not missing_total and not env_missing else "warn"
+    return {
+        "command": "baseline",
+        "baseline": "codex_cli+claude_code_minimum",
+        "ok": status == "ok",
+        "status": status,
+        "groups": groups,
+        "environment": environment,
+        "missing": missing_total + env_missing,
+        "remediation": "Implement missing command surfaces or fix local prerequisites before claiming Codex/Claude baseline parity." if status != "ok" else "Baseline satisfied.",
+    }
+
+
+def _render_agent_baseline(config: AgentConfig) -> str:
+    report = _agent_baseline_report(config)
+    lines = [
+        "Stagewarden Codex/Claude baseline:",
+        f"- status: {report['status']}",
+        f"- ok: {str(report['ok']).lower()}",
+        f"- os: {report['environment']['os_family']} shell={report['environment']['recommended_shell']}",
+        f"- git_available: {str(report['environment']['git_available']).lower()}",
+        "Capability groups:",
+    ]
+    for group in report["groups"]:
+        missing = ",".join(group["missing_commands"]) if group["missing_commands"] else "none"
+        lines.append(f"- {group['id']}: {group['status']} missing={missing}")
+    lines.append(f"Remediation: {report['remediation']}")
+    return "\n".join(lines)
+
+
 def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     status = agent.router.status()
@@ -4836,6 +4966,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "model_config": config.model_prefs_path.name,
         },
         "models": _model_status_report(agent, config),
+        "baseline": _agent_baseline_report(config),
         "goal": handoff.goal_view(),
         "provider_limits": provider_limits,
         "limits_summary": _provider_limit_summary_report(provider_limits),
@@ -4933,6 +5064,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "roles_check": role_check,
         "provider_limits": provider_limits,
+        "baseline": _agent_baseline_report(config),
         "sources": sources,
         "permissions": _permissions_report(config),
         "handoff": {
@@ -5088,6 +5220,7 @@ def _render_preflight(agent: Agent, config: AgentConfig) -> str:
         f"- git: ok={str(git['ok']).lower()} dirty={str(git['dirty']).lower()} head={git['head'] or 'none'}",
         f"- roles_check: {role_check['status']} errors={role_check['summary']['errors']} warnings={role_check['summary']['warnings']}",
         f"- providers: {len(report['provider_limits']['providers'])}",
+        f"- baseline: {report['baseline']['status']} missing={len(report['baseline']['missing'])}",
         f"- sources: {'ok' if report['sources']['ok'] else 'warn'} count={report['sources']['count']}",
         f"- stage_health: {report['handoff']['stage_view']['stage_health']}",
         "Remediations:",
@@ -8276,6 +8409,12 @@ def main() -> int:
     if task == "statusline":
         agent = _configure_readonly_agent_for_workspace(config)
         print(dumps_ascii(_statusline_report(agent, config), indent=2))
+        return 0
+    if task == "baseline":
+        if args.json:
+            print(dumps_ascii(_agent_baseline_report(config), indent=2))
+        else:
+            print(_render_agent_baseline(config))
         return 0
     if task == "preflight":
         agent = _configure_readonly_agent_for_workspace(config)
