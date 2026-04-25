@@ -1646,6 +1646,7 @@ class ExecutorTests(unittest.TestCase):
                 memory=memory,
                 project_handoff=ProjectHandoff(task="usage test"),
             )
+            executor.project_handoff.set_goal(objective="usage test", token_budget=150)
             step = PlanStep(id="step-1", title="Validate", instruction="validate", validation="exit_code=0")
 
             outcome = executor.execute_step(
@@ -1664,6 +1665,10 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual(stats["context_window_size"], 1000)
             context = memory.context_window_stats()
             self.assertEqual(context["used_percentage"], 15.0)
+            goal = executor.project_handoff.goal_view()
+            self.assertEqual(goal["tokens_used"], 150)
+            self.assertEqual(goal["status"], "budget_limited")
+            self.assertEqual(goal["token_budget_remaining"], 0)
 
 
 if __name__ == "__main__":

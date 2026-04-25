@@ -4983,7 +4983,10 @@ def _render_goal_report(config: AgentConfig) -> str:
             f"- objective: {goal['objective'] or 'none'}",
             f"- token_budget: {goal['token_budget'] if goal['token_budget'] is not None else 'none'}",
             f"- tokens_used: {goal['tokens_used']}",
+            f"- token_budget_remaining: {goal['token_budget_remaining'] if goal['token_budget_remaining'] is not None else 'none'}",
+            f"- budget_used_percentage: {goal['budget_used_percentage'] if goal['budget_used_percentage'] is not None else 'none'}",
             f"- terminal: {str(goal['terminal']).lower()}",
+            f"- next_action: {goal['next_action']}",
         ]
     )
 

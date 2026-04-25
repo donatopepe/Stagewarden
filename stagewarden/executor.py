@@ -351,6 +351,7 @@ class Executor:
             context_window_size=usage_metadata.get("context_window_size"),
             current_usage=usage_metadata.get("current_usage"),
         )
+        self._record_goal_usage(model=model, step_id=step.id, usage_metadata=usage_metadata)
 
         if ok and not step_completed:
             validator = self._check_validation(step, observation["message"], action_type=action_type)
@@ -443,6 +444,17 @@ class Executor:
             total = input_tokens + output_tokens
             extracted["current_usage"] = total if total else None
         return extracted
+
+    def _record_goal_usage(self, *, model: str, step_id: str, usage_metadata: dict[str, int | None]) -> None:
+        if not any(usage_metadata.get(key) for key in ("input_tokens", "output_tokens", "current_usage")):
+            return
+        self.project_handoff.record_goal_token_usage(
+            model=model,
+            step_id=step_id,
+            input_tokens=usage_metadata.get("input_tokens"),
+            output_tokens=usage_metadata.get("output_tokens"),
+            current_usage=usage_metadata.get("current_usage"),
+        )
 
     def _safe_positive_int(self, value: object) -> int | None:
         if isinstance(value, bool):

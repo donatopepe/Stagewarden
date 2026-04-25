@@ -207,22 +207,42 @@ class ProjectHandoff:
                 "objective": "",
                 "token_budget": None,
                 "tokens_used": 0,
+                "token_budget_remaining": None,
+                "budget_used_percentage": None,
                 "time_used_seconds": 0,
                 "created_at": None,
                 "updated_at": None,
                 "terminal": False,
+                "next_action": "Set a project goal with `goal set <objective> [--tokens N]`.",
             }
         status = str(self.goal.get("status", "active")).strip().lower() or "active"
+        token_budget = self.goal.get("token_budget")
+        tokens_used = int(self.goal.get("tokens_used", 0) or 0)
+        remaining = None
+        used_percentage = None
+        if isinstance(token_budget, int) and token_budget > 0:
+            remaining = max(token_budget - tokens_used, 0)
+            used_percentage = round((tokens_used / token_budget) * 100, 2)
+        next_action = "Continue controlled execution."
+        if status == "paused":
+            next_action = "Resume with `goal status active` or clear with `goal clear`."
+        elif status == "budget_limited":
+            next_action = "Review scope, raise budget with `goal set <objective> --tokens N`, pause, or mark complete."
+        elif status == "complete":
+            next_action = "Goal complete; start a new goal if more work is needed."
         return {
             "status": status,
             "goal_id": self.goal.get("goal_id"),
             "objective": str(self.goal.get("objective", "")),
-            "token_budget": self.goal.get("token_budget"),
-            "tokens_used": int(self.goal.get("tokens_used", 0) or 0),
+            "token_budget": token_budget,
+            "tokens_used": tokens_used,
+            "token_budget_remaining": remaining,
+            "budget_used_percentage": used_percentage,
             "time_used_seconds": int(self.goal.get("time_used_seconds", 0) or 0),
             "created_at": self.goal.get("created_at"),
             "updated_at": self.goal.get("updated_at"),
             "terminal": status in {"budget_limited", "complete"},
+            "next_action": next_action,
         }
 
     def set_goal(self, *, objective: str, token_budget: int | None = None) -> dict[str, Any]:
@@ -267,6 +287,47 @@ class ProjectHandoff:
             summary=f"Goal status changed to {clean_status}.",
             task=self.task,
             details={"goal": self.goal_view()},
+        )
+        return self.goal_view()
+
+    def record_goal_token_usage(
+        self,
+        *,
+        model: str,
+        step_id: str,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        current_usage: int | None = None,
+    ) -> dict[str, Any]:
+        if not self.goal:
+            return self.goal_view()
+        input_count = int(input_tokens or 0)
+        output_count = int(output_tokens or 0)
+        total = input_count + output_count
+        if total <= 0:
+            total = int(current_usage or 0)
+        if total <= 0:
+            return self.goal_view()
+        previous = self.goal_view()
+        self.goal["tokens_used"] = int(previous.get("tokens_used", 0) or 0) + total
+        self.goal["updated_at"] = _utc_now()
+        budget = self.goal.get("token_budget")
+        if isinstance(budget, int) and budget > 0 and int(self.goal["tokens_used"]) >= budget:
+            self.goal["status"] = "budget_limited"
+        self.updated_at = str(self.goal["updated_at"])
+        self.record_action(
+            phase="goal_usage",
+            summary=f"Goal token usage recorded: +{total} tokens via {model}.",
+            task=self.task,
+            details={
+                "model": model,
+                "step_id": step_id,
+                "input_tokens": input_count or None,
+                "output_tokens": output_count or None,
+                "current_usage": current_usage,
+                "tokens_added": total,
+                "goal": self.goal_view(),
+            },
         )
         return self.goal_view()
 

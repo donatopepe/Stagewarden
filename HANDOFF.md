@@ -1857,6 +1857,12 @@ Next implementation candidates:
     - The `Available actions and required fields` prompt block is generated from the same schema instead of a manually duplicated list.
     - Strict model-output validation now rejects missing or empty required action fields before tool execution.
     - Targeted regressions passed for schema/executor parity, prompt visibility, and missing required field rejection.
+  - Goal token budget accounting implemented on 2026-04-25:
+    - Safe provider token metadata now increments the active project goal budget in handoff.
+    - Goal accounting uses `input_tokens + output_tokens` when available, otherwise falls back to provider-reported `current_usage`.
+    - Reaching or exceeding `token_budget` automatically marks the goal `budget_limited`.
+    - Goal views now expose remaining budget, usage percentage, terminal state, and controlled next action.
+    - Targeted regressions passed for handoff roundtrip, budget-limit transition, and executor token accounting.
 
 ## Status Research: Codex and Claude
 
