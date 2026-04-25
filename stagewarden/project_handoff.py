@@ -47,6 +47,7 @@ class HandoffEntry:
 @dataclass(slots=True)
 class ProjectHandoff:
     task: str = ""
+    goal: dict[str, Any] = field(default_factory=dict)
     project_brief: dict[str, str] = field(default_factory=dict)
     status: str = "idle"
     current_step_id: str | None = None
@@ -198,6 +199,89 @@ class ProjectHandoff:
         self.prince2_node_runtime = self._materialize_prince2_node_runtime(dict(baseline))
         self.updated_at = _utc_now()
 
+    def goal_view(self) -> dict[str, Any]:
+        if not isinstance(self.goal, dict) or not self.goal:
+            return {
+                "status": "missing",
+                "goal_id": None,
+                "objective": "",
+                "token_budget": None,
+                "tokens_used": 0,
+                "time_used_seconds": 0,
+                "created_at": None,
+                "updated_at": None,
+                "terminal": False,
+            }
+        status = str(self.goal.get("status", "active")).strip().lower() or "active"
+        return {
+            "status": status,
+            "goal_id": self.goal.get("goal_id"),
+            "objective": str(self.goal.get("objective", "")),
+            "token_budget": self.goal.get("token_budget"),
+            "tokens_used": int(self.goal.get("tokens_used", 0) or 0),
+            "time_used_seconds": int(self.goal.get("time_used_seconds", 0) or 0),
+            "created_at": self.goal.get("created_at"),
+            "updated_at": self.goal.get("updated_at"),
+            "terminal": status in {"budget_limited", "complete"},
+        }
+
+    def set_goal(self, *, objective: str, token_budget: int | None = None) -> dict[str, Any]:
+        clean_objective = " ".join(str(objective).split()).strip()
+        if not clean_objective:
+            raise ValueError("Goal objective cannot be empty.")
+        if token_budget is not None and token_budget <= 0:
+            raise ValueError("Goal token budget must be a positive integer.")
+        now = _utc_now()
+        previous = self.goal_view()
+        goal_id = str(previous.get("goal_id") or f"goal-{now.replace(':', '').replace('+', 'Z')}")
+        self.goal = {
+            "goal_id": goal_id,
+            "objective": clean_objective[:1000],
+            "status": "active",
+            "token_budget": token_budget,
+            "tokens_used": int(previous.get("tokens_used", 0) or 0),
+            "time_used_seconds": int(previous.get("time_used_seconds", 0) or 0),
+            "created_at": previous.get("created_at") or now,
+            "updated_at": now,
+        }
+        self.updated_at = now
+        self.record_action(
+            phase="goal_set",
+            summary=f"Goal set: {clean_objective[:160]}",
+            task=self.task,
+            details={"goal": self.goal_view()},
+        )
+        return self.goal_view()
+
+    def update_goal_status(self, status: str) -> dict[str, Any]:
+        clean_status = str(status).strip().lower()
+        if clean_status not in {"active", "paused", "budget_limited", "complete"}:
+            raise ValueError("Goal status must be one of: active, paused, budget_limited, complete.")
+        if not self.goal:
+            raise ValueError("No goal is set.")
+        self.goal["status"] = clean_status
+        self.goal["updated_at"] = _utc_now()
+        self.updated_at = str(self.goal["updated_at"])
+        self.record_action(
+            phase="goal_status",
+            summary=f"Goal status changed to {clean_status}.",
+            task=self.task,
+            details={"goal": self.goal_view()},
+        )
+        return self.goal_view()
+
+    def clear_goal(self) -> dict[str, Any]:
+        previous = self.goal_view()
+        self.goal = {}
+        self.updated_at = _utc_now()
+        self.record_action(
+            phase="goal_clear",
+            summary="Goal cleared.",
+            task=self.task,
+            details={"previous_goal": previous},
+        )
+        return previous
+
     def begin_step(
         self,
         *,
@@ -323,6 +407,7 @@ class ProjectHandoff:
             return "No active handoff context."
         lines = [
             f"task={self.task or 'unknown'}",
+            f"goal={self.goal_view()['status']}:{self.goal_view()['objective'] or 'none'}",
             f"status={self.status}",
             f"plan_status={self.plan_status or 'unknown'}",
             f"current_step={self.current_step_id or 'none'}",
@@ -1247,6 +1332,7 @@ class ProjectHandoff:
             "_format": "stagewarden_project_handoff",
             "_version": 1,
             "task": self.task,
+            "goal": dict(self.goal),
             "project_brief": dict(self.project_brief),
             "status": self.status,
             "current_step_id": self.current_step_id,
@@ -1645,6 +1731,7 @@ class ProjectHandoff:
         payload = loads_text(read_text_utf8(path))
         context = cls(
             task=str(payload.get("task", "")),
+            goal=dict(payload.get("goal", {})) if isinstance(payload.get("goal", {}), dict) else {},
             project_brief={
                 str(key).strip().lower(): str(value).strip()
                 for key, value in payload.get("project_brief", {}).items()

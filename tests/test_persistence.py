@@ -60,6 +60,7 @@ class PersistenceTests(unittest.TestCase):
             path = Path(tmp_dir) / ".stagewarden_handoff.json"
             handoff = ProjectHandoff()
             handoff.start_run(task="fix tests", plan_status="step-1:pending", git_head="abc123")
+            handoff.set_goal(objective="Fix tests with wet-run validation", token_budget=12000)
             handoff.begin_step(
                 iteration=1,
                 task="fix tests",
@@ -98,8 +99,11 @@ class PersistenceTests(unittest.TestCase):
             handoff.save(path)
             loaded = ProjectHandoff.load(path)
             self.assertEqual(loaded.task, "fix tests")
+            self.assertEqual(loaded.goal_view()["status"], "active")
+            self.assertEqual(loaded.goal_view()["objective"], "Fix tests with wet-run validation")
+            self.assertEqual(loaded.goal_view()["token_budget"], 12000)
             self.assertEqual(loaded.git_head, "def456")
-            self.assertEqual(len(loaded.entries), 3)
+            self.assertEqual(len(loaded.entries), 4)
             self.assertEqual(len(loaded.issue_register), 1)
             self.assertEqual(len(loaded.quality_register), 1)
             self.assertEqual(len(loaded.lessons_log), 1)

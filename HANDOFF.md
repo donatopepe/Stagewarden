@@ -1809,6 +1809,38 @@ Next implementation candidates:
     - targeted regressions passed for `status --full --json`, `statusline --json`, and `model limits --json`
     - full suite passed: `python3 -m unittest discover -s tests` -> `330 tests`, `OK`, `3 skip`
 
+- Source refresh and learning pass completed on 2026-04-25:
+  - Updated Codex source clone to `f5497f4`.
+  - Updated Claude Code source clone to `7e93645`.
+  - Caveman source clone was already current at `84cc3c1`.
+  - Codex changes worth adapting:
+    - persisted thread goals with lifecycle states (`active`, `paused`, `budget_limited`, `complete`)
+    - goal-aware status surfaces and continuation steering
+    - richer context fragments and permission/status traces
+    - dynamic tool validation and model verification notifications
+  - Claude Code changes worth adapting:
+    - persistent config precedence and startup header clarity
+    - slash picker match highlighting and wrapped descriptions
+    - `/usage` style reset/progress presentation
+    - hook duration telemetry and clearer failed-tool hook signals
+    - safer permission handling for PowerShell/Bash and rate-limit hints
+  - Caveman changes worth tracking:
+    - ecosystem cross-linking only; no new runtime behavior to port in this pass
+
+- Group implemented from refreshed sources: persisted PRINCE2 project goal.
+  - Added `goal`, `goal set <objective> [--tokens N]`, `goal status <active|paused|budget_limited|complete>`, and `goal clear`.
+  - Persisted goal in `.stagewarden_handoff.json` with objective, status, budget, accounting placeholders, created/updated timestamps, and terminal-state detection.
+  - Exposed goal in `status`, `status --full --json`, `statusline --json`, `handoff`, and the command registry/help catalog.
+  - Validation 2026-04-25:
+    - targeted regressions passed for handoff persistence and goal CLI/statusline visibility
+
+- Replanned grouped improvements from refreshed Codex/Claude/Caveman sources:
+  - `R1` goal continuation and budget accounting: account model token usage into the active goal, mark `budget_limited` automatically, and propose controlled continuation actions.
+  - `R2` slash UX parity: highlight matched characters, wrap long command descriptions, and expose no-match state in guided chooser.
+  - `R3` hook telemetry: record duration and failure phase for tool-like actions and expose it in transcript/status.
+  - `R4` config precedence: show effective value source for model, permission, theme/output style, and provider account settings.
+  - `R5` dynamic tool verification: add a read-only capability/schema validator for model-visible tools before execution.
+
 ## Status Research: Codex and Claude
 
 Status: completed initial study
