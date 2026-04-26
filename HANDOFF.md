@@ -1933,41 +1933,104 @@ Remaining:
 - Add first-class Claude overage fields to `.stagewarden_models.json` instead of only dashboard placeholders.
 - Add token/context-window accounting from actual model calls.
 
+
+## OpenRouter Model Intelligence (verified 2026-04-26)
+
+Scope: learn model characteristics directly from OpenRouter docs/API references and capture operational usage for Stagewarden.
+
+Primary sources (official OpenRouter):
+- Quickstart: https://openrouter.ai/docs/quickstart
+- Models overview + schema: https://openrouter.ai/docs/guides/overview/models
+- Models API (`GET /api/v1/models`): https://openrouter.ai/docs/api/api-reference/models/get-models
+- Chat Completions API (`POST /api/v1/chat/completions`): https://openrouter.ai/docs/api-reference/chat-completion
+- Auto Router (`openrouter/auto`): https://openrouter.ai/docs/guides/routing/routers/auto-router
+- Provider routing controls: https://openrouter.ai/docs/guides/routing/provider-selection
+
+What OpenRouter exposes per model (for reliable routing decisions):
+- Stable model id / slug (`id`, `canonical_slug`).
+- Context capacity (`context_length`).
+- Pricing fields (`pricing.prompt`, `pricing.completion`, request/image where available).
+- Capability hints (`supported_parameters`) to detect tool-call/structured-output compatibility.
+- Architecture hints (`architecture.input_modalities`, `output_modalities`, tokenizer/instruct type).
+- Endpoint detail link (`links.details`) for provider endpoint metadata.
+
+How to use OpenRouter correctly (verified against docs):
+- Base endpoint: `https://openrouter.ai/api/v1/chat/completions`.
+- Auth header: `Authorization: Bearer <OPENROUTER_API_KEY>`.
+- Optional attribution headers: `HTTP-Referer` and `X-OpenRouter-Title`.
+- OpenAI SDK compatibility mode: set `baseURL` to `https://openrouter.ai/api/v1`.
+- Dynamic model choice: use `model: "openrouter/auto"` (response reports the actual model used).
+- Fallback model list: use `models: [...]` to allow model fallback on errors/rate limits.
+- Provider-level controls: use `provider` object (`order`, `allow_fallbacks`, `require_parameters`, `data_collection`, `zdr`) when routing constraints are required.
+- Capability filtering from catalog: query `/api/v1/models?supported_parameters=tools` (or other params) before pinning models.
+
+Stagewarden usage mapping (cheap => OpenRouter):
+- Inspect available OpenRouter models: `stagewarden "model list cheap"`.
+- Pin a specific OpenRouter model id: `stagewarden "model variant cheap <openrouter_model_id>"`.
+- Prefer OpenRouter routing for runs: `stagewarden "model use cheap"`.
+- Ensure token env is configured (`OPENROUTER_API_KEY`, or configured env key from Codex `config.toml`).
+
+Operational rule added:
+- For model selection updates under `cheap`, treat OpenRouter Models API as the authoritative runtime catalog; avoid hardcoding stale model lists in handoff notes.
+
 <!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->
 ## Runtime Handoff Export
 
-Generated: 2026-04-19T11:06:05
+Generated: 2026-04-26T22:33:47
 
 ### Current State
 
-- task: unknown
-- project_status: idle
-- plan_status: unknown
-- recovery_state: none
-- stage_health: stable
-- next_action: review current handoff and confirm next stage
-- current_step: none
-- git_boundary: baseline=unknown current=unknown
-- pid_boundary: project_status=idle updated_at=2026-04-19T09:06:05+00:00
+- task: create file named docs/external_io_help_audit.md with verified /help external_io commands and examples
+- project_status: exception
+- plan_status: step-1:failed,step-2:planned,step-3:planned,recovery-step-1:planned,recovery-step-2:planned,recovery-step-3:planned
+- recovery_state: recovery_active
+- stage_health: exception
+- next_action: execute recovery lane and confirm wet-run before re-baseline
+- current_step: step-1
+- git_boundary: baseline=d9f494531db89d058103a45d3beb50a49ae46393 current=d9f494531db89d058103a45d3beb50a49ae46393
+- pid_boundary: project_status=exception updated_at=2026-04-26T20:27:28+00:00
 
 ### Registers
 
-governance=clean risks_open=0 risks_closed=0 issues_open=0 issues_closed=0 quality_open=0 quality_accepted=0 exception_plan_items=0
+governance=residual risks_open=3 risks_closed=0 issues_open=6 issues_closed=0 quality_open=0 quality_accepted=0 exception_plan_items=3
+
+### Execution Resume Context
+
+- latest_model_attempt: step=step-1 action=model_error status=failed:api_failure
+- latest_route: provider=chatgpt account=personale provider_model=gpt-5.1-codex-mini
+- latest_observation: Primary model error: run_model executable not found in PATH. Fallback model error: run_model executable not found in PATH.
+- latest_tool_evidence: tool=external_io action=checksum status=ok duration_ms=1
+- latest_git_snapshot: none
 
 ### Implementation Backlog
 
 Implementation backlog:
-- none
+- [blocked] step-1 :: 1. Analyze the requirements for: create file | validation=The target files or behavior exist and a real wet-run verifies the change.
+- [planned] step-2 :: 2. Implement: create file named docs/external_io_help_audit.md with | validation=The target files or behavior exist and a real wet-run verifies the change.
+- [planned] step-3 :: 3. Validate that the implementation satisfies the | validation=A real wet-run command or observable result confirms the step passed; dry-run alone is not valid.
+- [planned] recovery-step-1 :: Recovery 1. Review boundary for unknown-step | validation=A real wet-run confirms the blocking condition is resolved and controlled execution can resume.
+- [planned] recovery-step-2 :: Recovery 2. Inspect latest issue register and failed | validation=A real wet-run confirms the blocking condition is resolved and controlled execution can resume.
+- [planned] recovery-step-3 :: Recovery 3. Prepare controlled corrective action with wet-run | validation=A real wet-run confirms the blocking condition is resolved and controlled execution can resume.
 
 ### Risks
 
 Risk register:
-- none
+- [open] Requirement misunderstanding.
+- [open] Regression from file, command, or patch execution.
+- [open] Continuing after business justification has weakened.
 
 ### Issues
 
 Issue register:
-- none
+- [medium] step-1 :: Primary model error: run_model executable not found in PATH.
+Fallback model error: run_model executable not found in PATH.
+- [medium] step-1 :: Primary model error: run_model executable not found in PATH.
+Fallback model error: run_model executable not found in PATH.
+- [medium] step-1 :: Primary model error: run_model executable not found in PATH.
+Fallback model error: run_model executable not found in PATH.
+- [high] step-1 :: Repeated loop exceeded acceptable control tolerance.
+- [high] step-1 :: Repeated loop exceeded acceptable control tolerance.
+- [high] step-1 :: Repeated loop exceeded acceptable control tolerance.
 
 ### Quality
 
@@ -1977,10 +2040,25 @@ Quality register:
 ### Lessons
 
 Lessons log:
-- none
+- [failure] step-1 :: Primary model error: run_model executable not found in PATH.
+Fallback model error: run_model executable not found in PATH.
+- [failure] step-1 :: Primary model error: run_model executable not found in PATH.
+Fallback model error: run_model executable not found in PATH.
+- [failure] step-1 :: Primary model error: run_model executable not found in PATH.
+Fallback model error: run_model executable not found in PATH.
+- [failure] step-1 :: Repeated loop indicates the current stage needs a revised control approach or exception plan.
+- [failure] step-1 :: Repeated loop indicates the current stage needs a revised control approach or exception plan.
+- [failure] step-1 :: Repeated loop indicates the current stage needs a revised control approach or exception plan.
 
 ### Recent Entries
 
-- none
+- [start] iter=0 step=- status=- model=- head=d9f494531db89d058103a45d3beb50a49ae46393
+- [plan] iter=0 step=- status=- model=- head=d9f494531db89d058103a45d3beb50a49ae46393
+- [finish] iter=4 step=- status=exception model=- head=d9f494531db89d058103a45d3beb50a49ae46393
+- [start] iter=0 step=- status=- model=- head=d9f494531db89d058103a45d3beb50a49ae46393
+- [plan] iter=0 step=- status=- model=- head=d9f494531db89d058103a45d3beb50a49ae46393
+- [step_start] iter=1 step=step-1 status=failed model=- head=d9f494531db89d058103a45d3beb50a49ae46393
+- [step_result] iter=1 step=step-1 status=failed model=none head=d9f494531db89d058103a45d3beb50a49ae46393
+- [finish] iter=4 step=- status=exception model=- head=d9f494531db89d058103a45d3beb50a49ae46393
 
 <!-- STAGEWARDEN_RUNTIME_HANDOFF_END -->

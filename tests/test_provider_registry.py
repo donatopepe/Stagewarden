@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from stagewarden.provider_registry import (
@@ -10,6 +12,7 @@ from stagewarden.provider_registry import (
     available_model_variants,
     canonicalize_model_variant,
     model_backends,
+    model_token_env,
     provider_capability,
     provider_model_preset,
     provider_model_specs,
@@ -88,6 +91,44 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertEqual(fast_params["reasoning_effort"], "low")
             self.assertEqual(plan_model, "deepseek-r1:14b")
             self.assertEqual(plan_params["reasoning_effort"], "high")
+
+    def test_cheap_provider_reads_openrouter_models_and_env_key_from_codex_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "config.toml"
+            config_path.write_text(
+                """
+[model_providers.openrouter]
+env_key = "OPENROUTER_STAGEWARDEN"
+
+[profiles.or-gpt54]
+model_provider = "openrouter"
+model = "openai/gpt-5.4"
+model_reasoning_effort = "medium"
+
+[profiles.or-sonnet]
+model_provider = "openrouter"
+model = "anthropic/claude-sonnet-4.6"
+model_reasoning_effort = "high"
+
+[profiles.local]
+model_provider = "ollama"
+model = "qwen2.5-coder:7b"
+""".strip(),
+                encoding="utf-8",
+            )
+            original = os.environ.get("STAGEWARDEN_CODEX_CONFIG")
+            os.environ["STAGEWARDEN_CODEX_CONFIG"] = str(config_path)
+            self.addCleanup(lambda: os.environ.pop("STAGEWARDEN_CODEX_CONFIG", None) if original is None else os.environ.__setitem__("STAGEWARDEN_CODEX_CONFIG", original))
+
+            specs = {spec.id: spec for spec in provider_model_specs("cheap")}
+            env_map = model_token_env()
+
+            self.assertIn("provider-default", specs)
+            self.assertIn("openai/gpt-5.4", specs)
+            self.assertIn("anthropic/claude-sonnet-4.6", specs)
+            self.assertEqual(specs["anthropic/claude-sonnet-4.6"].reasoning_default, "high")
+            self.assertEqual(specs["openai/gpt-5.4"].context_window_hint, "codex_profile=or-gpt54")
+            self.assertEqual(env_map["cheap"], "OPENROUTER_STAGEWARDEN")
 
 
 if __name__ == "__main__":
