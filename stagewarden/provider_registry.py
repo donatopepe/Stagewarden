@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import tomllib
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -279,6 +281,77 @@ def _dynamic_local_label(name: str) -> str:
     return " ".join(part.upper() if part.isupper() else part.capitalize() for part in base.split())
 
 
+def _codex_config_path() -> Path:
+    override = os.environ.get("STAGEWARDEN_CODEX_CONFIG", "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".codex" / "config.toml"
+
+
+def _load_codex_config() -> dict[str, object]:
+    path = _codex_config_path()
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _openrouter_env_key_from_codex_config() -> str | None:
+    data = _load_codex_config()
+    providers = data.get("model_providers") if isinstance(data, dict) else None
+    if not isinstance(providers, dict):
+        return None
+    openrouter = providers.get("openrouter")
+    if not isinstance(openrouter, dict):
+        return None
+    candidate = str(openrouter.get("env_key", "") or "").strip()
+    if not candidate or not re.fullmatch(r"[A-Z][A-Z0-9_]*", candidate):
+        return None
+    return candidate
+
+
+def _discover_openrouter_provider_model_specs() -> tuple[ProviderModelSpec, ...]:
+    base = PROVIDER_MODEL_SPECS["cheap"][0]
+    discovered: list[ProviderModelSpec] = [base]
+    data = _load_codex_config()
+    profiles = data.get("profiles") if isinstance(data, dict) else None
+    if not isinstance(profiles, dict):
+        return tuple(discovered)
+    for profile_name, profile_value in profiles.items():
+        if not isinstance(profile_value, dict):
+            continue
+        provider = str(profile_value.get("model_provider", "") or "").strip().lower()
+        if provider != "openrouter":
+            continue
+        model_id = str(profile_value.get("model", "") or "").strip()
+        if not model_id:
+            continue
+        effort = str(profile_value.get("model_reasoning_effort", "") or "").strip().lower()
+        allowed_efforts = ("low", "medium", "high")
+        if effort not in allowed_efforts:
+            reasoning_efforts = allowed_efforts
+            reasoning_default = "medium"
+        else:
+            reasoning_efforts = (effort,)
+            reasoning_default = effort
+        discovered.append(
+            ProviderModelSpec(
+                id=model_id,
+                label=_dynamic_local_label(model_id),
+                reasoning_efforts=reasoning_efforts,
+                reasoning_default=reasoning_default,
+                context_window_hint=f"codex_profile={profile_name}",
+                availability="codex-profile",
+                source=f"{_codex_config_path()}:profiles.{profile_name}",
+            )
+        )
+    unique: dict[str, ProviderModelSpec] = {}
+    for spec in discovered:
+        unique[spec.id] = spec
+    return tuple(unique.values())
+
+
 def _discover_local_provider_model_specs() -> tuple[ProviderModelSpec, ...]:
     try:
         inline_payload = os.environ.get("STAGEWARDEN_OLLAMA_TAGS_JSON", "").strip()
@@ -400,7 +473,11 @@ def model_variant_catalog() -> dict[str, dict[str, object]]:
 
 
 def model_token_env() -> dict[str, str]:
-    return {name: capability.token_env for name, capability in PROVIDER_CAPABILITIES.items() if capability.token_env}
+    env_map = {name: capability.token_env for name, capability in PROVIDER_CAPABILITIES.items() if capability.token_env}
+    openrouter_env = _openrouter_env_key_from_codex_config()
+    if openrouter_env:
+        env_map["cheap"] = openrouter_env
+    return env_map
 
 
 def model_name_env() -> dict[str, str]:
@@ -415,6 +492,8 @@ def provider_model_specs(model: str) -> tuple[ProviderModelSpec, ...]:
     try:
         if model == "local":
             return _discover_local_provider_model_specs()
+        if model == "cheap":
+            return _discover_openrouter_provider_model_specs()
         return PROVIDER_MODEL_SPECS[model]
     except KeyError as exc:
         raise ValueError(f"Unsupported model '{model}'.") from exc
