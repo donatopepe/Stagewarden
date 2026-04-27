@@ -6367,9 +6367,11 @@ def _model_usage_report(config: AgentConfig) -> dict[str, object]:
         }
 
 
+    provider_limits = _provider_limit_status_report(agent, config)
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     agent = Agent(config)
     _apply_model_preferences(agent, config)
+    provider_limits = _provider_limit_status_report(agent, config)
     return agent
 
 
@@ -6393,6 +6395,11 @@ def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
 
 
 def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
+    # Allow tests to force OpenRouter auto-selection
+    import os
+    if os.environ.get("TEST_USE_OPENROUTER_AUTO", "").lower() in {"1", "true", "yes"}:
+        # Use the cheap OpenRouter path with automatic model resolution
+        return "cheap"
     active = set(agent.router.status().get("active_models", []))
     for candidate in ("chatgpt", "openai", "claude", "cheap", "local"):
         if candidate in active:
@@ -8256,6 +8263,7 @@ def run_interactive_shell(
 ) -> int:
     source = input_stream or sys.stdin
     sink = output_stream or sys.stdout
+    provider_limits = _provider_limit_status_report(agent, config)
     agent = _configure_agent_for_workspace(config)
     stream_enabled = True
 

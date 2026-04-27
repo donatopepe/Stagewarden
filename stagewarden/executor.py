@@ -62,6 +62,7 @@ class ModelCommunicationPacket:
     sections: list[PromptSection]
     transcript_items: list[PromptTranscriptItem]
     contract_sections: list[PromptSection]
+    telemetry: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -69,6 +70,7 @@ class ModelCommunicationPacket:
             "sections": [section.as_dict() for section in self.sections],
             "transcript_items": [item.as_dict() for item in self.transcript_items],
             "contract_sections": [section.as_dict() for section in self.contract_sections],
+            "telemetry": self.telemetry,
         }
 
 
@@ -700,6 +702,7 @@ class Executor:
         step: PlanStep,
         plan: list[PlanStep],
         last_observation: str,
+        provider_limits: dict[str, object] | None = None,
     ) -> ModelCommunicationPacket:
         plan_lines = "\n".join(
             f"- {item.id}: {item.title} [{item.status}] validation={item.validation} wet_run_required={item.wet_run_required}"
@@ -827,6 +830,7 @@ class Executor:
             sections=sections,
             transcript_items=transcript_items,
             contract_sections=contract_sections,
+            telemetry=provider_limits,
         )
 
     def _render_model_communication_packet(self, packet: ModelCommunicationPacket) -> str:
