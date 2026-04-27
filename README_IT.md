@@ -72,7 +72,7 @@ Comandi principali:
 - `/model limits` mostra blocchi, reset time e limiti conosciuti.
 - `catalog refresh` rigenera lo snapshot condiviso del catalogo modelli.
 - `catalog search <query> [provider=<provider>] [feature=<feature>]` cerca nello snapshot per nome, alias, provider o capacita.
-- Il catalogo viene anche rigenerato in modo schedulato dal workflow GitHub Actions `Refresh AI Model Catalog`.
+- Il catalogo viene anche rigenerato in modo schedulato dal workflow GitHub Actions `Refresh AI Model Catalog`, che prova a fare commit e push dello snapshot aggiornato quando cambia.
 
 I menu guidati mostrano il contesto corrente prima della scelta: provider abilitati, provider preferito, account attivi, provider bloccati, provider-model corrente, reasoning effort corrente e account configurati.
 
