@@ -2058,3 +2058,18 @@ Lessons log:
 - **Quality register**: accepted
 - **Lessons logged**: 2 entries (recovered exception, successful manual wet-run)
 - **Handoff JSON**: status updated to `completed`, registers closed
+## P4: Advanced palette interaction pack
+- **Status**: Completed locally, awaiting final push.
+- **Summary**: Refined non-TTY fallback and cursor selection for slash palette.
+
+## P5: Advanced file-operations pack
+- **Status**: Completed locally, awaiting final push.
+- **Summary**: Implemented advanced file tooling including encoding, conversion, and metadata operations.
+
+## Next Steps:
+- Implement G1: Model communication and provider telemetry.
+
+## Finalizing P4 and P5
+- Local tests for non-TTY slash palette and cursor selection passed.
+- Local tests for advanced file operations include encoding, conversion, and metadata.
+## P4: Advanced palette interaction pack\n\n- **Status**: Completed locally, awaiting final push.\n- **Summary**: Refined non-TTY fallback and cursor selection for slash palette.\n\n## P5: Advanced file-operations pack\n\n- **Status**: Completed locally, awaiting final push.\n- **Summary**: Implemented advanced file tooling including encoding, conversion, and metadata operations.\n\n## G1 Next\n\n- Implement G1: Model communication and provider telemetry flows.\n
