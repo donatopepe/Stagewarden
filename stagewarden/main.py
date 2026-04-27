@@ -48,6 +48,7 @@ from .modelprefs import (
     extract_blocked_until,
     limit_snapshot_from_message,
 )
+from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, load_ai_models_catalog
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .provider_registry import (
     SUPPORTED_MODELS as REGISTRY_MODELS,
@@ -598,6 +599,50 @@ def _render_model_status(agent: Agent, config: AgentConfig) -> str:
     else:
         lines.append(f"- preferred_provider: {status['preferred_model']}")
     return "\n".join(lines)
+
+
+def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None = None) -> dict[str, object]:
+    if isinstance(entry, dict) and entry:
+        return {
+            "model_name": entry.get("model_name"),
+            "context_window": entry.get("context_window"),
+            "cost_per_input_token_usd": entry.get("cost_per_input_token_usd"),
+            "cost_per_output_token_usd": entry.get("cost_per_output_token_usd"),
+            "blended_price_usd_per_1m_tokens": entry.get("blended_price_usd_per_1m_tokens"),
+            "intelligence_rank": entry.get("intelligence_rank"),
+            "speed_rank": entry.get("speed_rank"),
+            "latency_rank": entry.get("latency_rank"),
+            "openness": entry.get("openness"),
+            "features": list(entry.get("features", [])) if isinstance(entry.get("features"), list) else [],
+            "catalog_source": entry.get("source"),
+        }
+    return {
+        "model_name": getattr(spec, "label", None) if spec is not None else None,
+        "context_window": getattr(spec, "context_window_hint", None) if spec is not None else None,
+        "cost_per_input_token_usd": None,
+        "cost_per_output_token_usd": None,
+        "blended_price_usd_per_1m_tokens": None,
+        "intelligence_rank": None,
+        "speed_rank": None,
+        "latency_rank": None,
+        "openness": None,
+        "features": [],
+        "catalog_source": None,
+    }
+
+
+def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
+    if not isinstance(entry, dict) or not entry:
+        return ""
+    parts: list[str] = []
+    if entry.get("intelligence_rank") is not None:
+        parts.append(f"I#{entry.get('intelligence_rank')}")
+    if entry.get("speed_rank") is not None:
+        parts.append(f"S#{entry.get('speed_rank')}")
+    price = entry.get("blended_price_usd_per_1m_tokens")
+    if isinstance(price, (int, float)):
+        parts.append(f"${price}/1M")
+    return f" [{' | '.join(parts)}]" if parts else ""
 
 
 def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
@@ -2511,6 +2556,7 @@ def _guided_provider_model_options_for_node(
 ) -> list[tuple[str, str]]:
     node = _role_tree_node_record(config, node_id)
     local_routes = _node_local_fallback_candidates(node) if node else []
+    catalog = load_ai_models_catalog()
     if provider == "local" and pool == "fallback" and local_routes:
         return [
             (
@@ -2521,7 +2567,10 @@ def _guided_provider_model_options_for_node(
             if str(item.get("provider_model", "")).strip()
         ]
     specs = list(provider_model_specs(provider))
-    return [(spec.id, f"{spec.id} | {spec.label}") for spec in specs]
+    return [
+        (spec.id, f"{spec.id} | {spec.label}{_catalog_option_suffix(catalog_entry_for_provider_model(provider, spec.id, catalog))}")
+        for spec in specs
+    ]
 
 
 def _guided_provider_context(prefs: ModelPreferences, provider: str | None = None) -> str:
@@ -5003,11 +5052,15 @@ def _render_agent_baseline(config: AgentConfig) -> str:
 def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     status = agent.router.status()
+    catalog = load_ai_models_catalog()
     models: list[dict[str, object]] = []
     for model in SUPPORTED_MODELS:
         capability = provider_capability(model)
+        provider_catalog = catalog_entries_for_provider(model, catalog)
+        provider_default_entry = next((item for item in provider_catalog if str(item.get("model_id")) == "provider-default"), None)
         provider_model, selection_mode, default_model = _provider_model_display(prefs, model)
         params = _provider_model_params_display(prefs, model)
+        catalog_entry = catalog_entry_for_provider_model(model, provider_model, catalog)
         models.append(
             {
                 "model": model,
@@ -5024,6 +5077,9 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
                 "auth": capability.auth_type,
                 "profiles": capability.supports_account_profiles,
                 "backend": MODEL_BACKENDS[model]["label"],
+                "catalog": _catalog_entry_display(catalog_entry, None),
+                "catalog_source": (catalog_entry or provider_default_entry or {}).get("source") if (catalog_entry or provider_default_entry) else None,
+                "catalog_size": len(provider_catalog),
             }
         )
     return {
@@ -6808,10 +6864,14 @@ def _guided_model_choice(
     if model not in prefs.enabled_models:
         prefs.enabled_models.append(model)
     output_stream.write(_guided_provider_context(prefs, model) + "\n")
+    catalog = load_ai_models_catalog()
     specs = list(provider_model_specs(model))
     provider_model = _prompt_menu_choice(
         title=f"Choose provider-model for {model}:",
-        options=[(spec.id, f"{spec.id} | {spec.label}") for spec in specs],
+        options=[
+            (spec.id, f"{spec.id} | {spec.label}{_catalog_option_suffix(catalog_entry_for_provider_model(model, spec.id, catalog))}")
+            for spec in specs
+        ],
         input_stream=input_stream,
         output_stream=output_stream,
     )
@@ -6921,6 +6981,7 @@ def _handle_model_command(
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
             capability = provider_capability(model)
             specs = provider_model_specs(model)
+            catalog = load_ai_models_catalog()
             source = (
                 next((spec.source for spec in specs if spec.id != "provider-default" and spec.source), capability.source)
                 if model == "local"
@@ -6943,9 +7004,23 @@ def _handle_model_command(
             for spec in specs:
                 efforts = ",".join(spec.reasoning_efforts) if spec.reasoning_efforts else "none"
                 default_effort = spec.reasoning_default or "none"
+                entry = catalog_entry_for_provider_model(model, spec.id, catalog)
+                catalog_bits: list[str] = []
+                if entry is not None:
+                    if entry.get("context_window") is not None:
+                        catalog_bits.append(f"context_window={entry.get('context_window')}")
+                    if entry.get("blended_price_usd_per_1m_tokens") is not None:
+                        catalog_bits.append(f"blended_price={entry.get('blended_price_usd_per_1m_tokens')}")
+                    if entry.get("intelligence_rank") is not None:
+                        catalog_bits.append(f"intelligence_rank={entry.get('intelligence_rank')}")
+                    if entry.get("speed_rank") is not None:
+                        catalog_bits.append(f"speed_rank={entry.get('speed_rank')}")
+                    if entry.get("latency_rank") is not None:
+                        catalog_bits.append(f"latency_rank={entry.get('latency_rank')}")
                 lines.append(
-                    f"- {spec.id}: label={spec.label} reasoning_effort=[{efforts}] "
+                    f"- {spec.id}: label={spec.label}{_catalog_option_suffix(entry)} reasoning_effort=[{efforts}] "
                     f"default_reasoning={default_effort} availability={spec.availability}"
+                    + (f" catalog={' '.join(catalog_bits)}" if catalog_bits else "")
                 )
             return "\n".join(lines)
         if action == "inspect":
@@ -8263,8 +8338,8 @@ def run_interactive_shell(
 ) -> int:
     source = input_stream or sys.stdin
     sink = output_stream or sys.stdout
-    provider_limits = _provider_limit_status_report(agent, config)
     agent = _configure_agent_for_workspace(config)
+    provider_limits = _provider_limit_status_report(agent, config)
     stream_enabled = True
 
     def apply_stream_callback(current_agent: Agent) -> None:
