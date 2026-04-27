@@ -22,13 +22,18 @@
 - **Business Case:** Token pricing is central to the decision-making process and economic justification for model selection.
 - **Product Focus:** The AI model catalog is treated as a key deliverable product.
 
+## Formal Close
+
+- The AI model catalog work is complete, including snapshot generation, catalog search, refresh automation, provider/feature query facets, and commit/push workflow for refreshed snapshots.
+- Validation completed with the full unittest suite passing.
+
 # Operational Notes
 
 - `~/.codex/config.toml` is used for study purposes only and is not directly leveraged by Stagewarden for model selection.
 
 ## Runtime Handoff State (.stagewarden_handoff.json) (To be updated after commit)
 
-- **Git Head Baseline:** (will be updated after commit)
-- **Plan Status:** Current task (AI Model Catalog Population) is in progress.
-- **Current Step:** Automation is complete for refreshed snapshots, including commit/push. Query/facet filters are widened with provider and feature support.
-- **Updated At:** 2026-04-27T17:02:39Z
+- **Git Head Baseline:** `b2994c4056d5076209ac6d73c05437478bf97df9`
+- **Plan Status:** Completed.
+- **Current Step:** Formal close completed AI model catalog work.
+- **Updated At:** 2026-04-27T17:05:30Z
