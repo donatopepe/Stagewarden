@@ -8243,6 +8243,7 @@ def _is_known_interactive_command(command: str) -> bool:
     prefixes = (
         "help ",
         "commands ",
+        "catalog ",
         "auth status ",
         "model ",
         "account ",
@@ -8791,6 +8792,15 @@ def main() -> int:
             print(dumps_ascii(payload, indent=2))
         else:
             print(response or "No limit message recorded.")
+        return 0 if response else 1
+    if task == "catalog" or task.startswith("catalog "):
+        agent = _configure_readonly_agent_for_workspace(config)
+        response = _handle_model_command(task, agent, config)
+        payload = {"command": "catalog", "message": response}
+        if args.json:
+            print(dumps_ascii(payload, indent=2))
+        else:
+            print(response or _catalog_usage())
         return 0 if response else 1
     if task == "model inspect" or task.startswith("model inspect "):
         agent = _configure_readonly_agent_for_workspace(config)
