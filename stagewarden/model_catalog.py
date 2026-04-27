@@ -102,6 +102,27 @@ def _catalog_features_from_local(spec: Any) -> list[str]:
     return sorted(features)
 
 
+def _catalog_aliases(provider: str, provider_model_id: str, model_name: str, source_model_id: str | None) -> list[str]:
+    aliases = {
+        provider_model_id,
+        model_name,
+        model_name.lower(),
+        provider_model_id.lower(),
+    }
+    if source_model_id:
+        aliases.add(source_model_id)
+        aliases.add(source_model_id.lower())
+    if provider in {"openai", "chatgpt", "claude"}:
+        aliases.add(f"{provider}:{provider_model_id}")
+        aliases.add(f"{provider}/{provider_model_id}")
+    if provider == "cheap" and source_model_id:
+        aliases.add(source_model_id.replace("/", ":"))
+    if provider == "local":
+        aliases.add(provider_model_id.split(":", 1)[0])
+    aliases.discard("")
+    return sorted(aliases)
+
+
 def _openrouter_model_index(urlopen_fn=urlopen) -> dict[str, dict[str, Any]]:
     try:
         with urlopen_fn(OPENROUTER_MODELS_URL, timeout=10) as response:
@@ -184,6 +205,7 @@ def _entry_from_spec(provider: str, spec: Any, openrouter_models: dict[str, dict
         "openness": _openness(provider, source_model),
         "features": _catalog_features_from_local(spec) if provider == "local" else _catalog_features_from_openrouter(source_model) if source_model else [],
         "source": source_model_id or f"{provider}:{getattr(spec, 'id', '')}",
+        "aliases": _catalog_aliases(provider, str(getattr(spec, "id", "")), _model_name(provider, str(getattr(spec, "id", "")), source_model), source_model_id),
     }
     if provider == "local":
         entry["blended_price_usd_per_1m_tokens"] = "local"
@@ -251,3 +273,50 @@ def catalog_entry_for_provider_model(
         if str(item.get("model_id", "")).strip() == provider_model:
             return item
     return None
+
+
+def search_ai_models_catalog(
+    query: str,
+    *,
+    provider: str | None = None,
+    catalog: dict[str, Any] | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    needle = str(query or "").strip().lower()
+    if not needle:
+        return []
+    data = catalog if catalog is not None else load_ai_models_catalog()
+    models = data.get("models", []) if isinstance(data, dict) else []
+    if not isinstance(models, list):
+        return []
+    matches: list[tuple[int, dict[str, Any]]] = []
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        if provider and str(item.get("provider", "")).strip() != provider:
+            continue
+        haystack = " ".join(
+            str(value).lower()
+            for value in (
+                item.get("provider", ""),
+                item.get("model_id", ""),
+                item.get("model_name", ""),
+                " ".join(item.get("features", [])) if isinstance(item.get("features"), list) else "",
+                " ".join(item.get("aliases", [])) if isinstance(item.get("aliases"), list) else "",
+            )
+        )
+        if needle not in haystack:
+            continue
+        score = 0
+        if str(item.get("model_id", "")).lower() == needle:
+            score -= 100
+        if str(item.get("model_name", "")).lower() == needle:
+            score -= 75
+        aliases = item.get("aliases", [])
+        if isinstance(aliases, list) and needle in {str(alias).lower() for alias in aliases}:
+            score -= 50
+        if needle in str(item.get("provider", "")).lower():
+            score -= 10
+        score += len(str(item.get("model_id", "")))
+        matches.append((score, item))
+    return [item for _, item in sorted(matches, key=lambda pair: (pair[0], str(pair[1].get("provider", "")), str(pair[1].get("model_id", ""))))[: max(1, limit)]]

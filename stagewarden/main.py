@@ -48,7 +48,7 @@ from .modelprefs import (
     extract_blocked_until,
     limit_snapshot_from_message,
 )
-from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, write_ai_models_catalog
+from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .provider_registry import (
     SUPPORTED_MODELS as REGISTRY_MODELS,
@@ -6933,6 +6933,27 @@ def _handle_model_command(
                 f"model_count={len(catalog.get('models', [])) if isinstance(catalog.get('models', []), list) else 0} "
                 f"generated_at={catalog.get('generated_at', 'unknown')}"
             )
+        if parts[1] == "search":
+            if len(parts) not in {3, 4}:
+                return _catalog_usage()
+            query = parts[2]
+            provider = parts[3] if len(parts) == 4 else None
+            report = _catalog_search_report(query, provider)
+            if not report["results"]:
+                return f"No catalog matches for '{query}'."
+            lines = [
+                f"Catalog search for '{query}':",
+                f"Path: {report['path']}",
+                f"Matches: {len(report['results'])}",
+            ]
+            for entry in report["results"]:
+                aliases = ", ".join(entry.get("aliases", [])) if isinstance(entry.get("aliases"), list) else ""
+                features = ", ".join(entry.get("features", [])) if isinstance(entry.get("features"), list) else ""
+                lines.append(
+                    f"- {entry.get('provider')}:{entry.get('model_id')} name={entry.get('model_name')} "
+                    f"openness={entry.get('openness')} aliases={aliases or 'none'} features={features or 'none'}"
+                )
+            return "\n".join(lines)
         return _catalog_usage()
     if parts[0] == "cost":
         return _render_model_usage(config)
@@ -7223,12 +7244,12 @@ def _model_usage() -> str:
         "model param set <name> <key> <value> | model param clear <name> <key> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
         "model unblock <name> | model limits | model limit-record <name> <message> | "
-        "model limit-clear <name> | model clear | catalog status | catalog refresh"
+        "model limit-clear <name> | model clear | catalog status | catalog refresh | catalog search <query> [provider]"
     )
 
 
 def _catalog_usage() -> str:
-    return "Usage: catalog status | catalog refresh"
+    return "Usage: catalog status | catalog refresh | catalog search <query> [provider]"
 
 
 def _catalog_status_report() -> dict[str, object]:
@@ -7242,6 +7263,19 @@ def _catalog_status_report() -> dict[str, object]:
         "generated_at": catalog.get("generated_at") if isinstance(catalog, dict) else None,
         "model_count": model_count,
         "source_urls": catalog.get("source_urls", {}) if isinstance(catalog, dict) else {},
+    }
+
+
+def _catalog_search_report(query: str, provider: str | None = None, *, limit: int = 10) -> dict[str, object]:
+    catalog = load_ai_models_catalog()
+    results = search_ai_models_catalog(query, provider=provider, catalog=catalog, limit=limit)
+    return {
+        "command": "catalog",
+        "query": query,
+        "provider": provider,
+        "path": str(catalog_path()),
+        "model_count": len(catalog.get("models", [])) if isinstance(catalog, dict) and isinstance(catalog.get("models", []), list) else 0,
+        "results": results,
     }
 
 
