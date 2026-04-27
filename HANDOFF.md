@@ -31,9 +31,9 @@
 
 - `~/.codex/config.toml` is used for study purposes only and is not directly leveraged by Stagewarden for model selection.
 
-## Runtime Handoff State (.stagewarden_handoff.json) (To be updated after commit)
+## Runtime Handoff State (.stagewarden_handoff.json)
 
 - **Git Head Baseline:** `b2994c4056d5076209ac6d73c05437478bf97df9`
 - **Plan Status:** Completed.
 - **Current Step:** Formal close completed AI model catalog work.
-- **Updated At:** 2026-04-27T17:05:30Z
+- **Updated At:** 2026-04-27T17:12:00Z
