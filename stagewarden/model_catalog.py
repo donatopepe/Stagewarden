@@ -279,11 +279,14 @@ def search_ai_models_catalog(
     query: str,
     *,
     provider: str | None = None,
+    feature: str | None = None,
     catalog: dict[str, Any] | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
     needle = str(query or "").strip().lower()
-    if not needle:
+    provider_filter = str(provider or "").strip().lower() or None
+    feature_filter = str(feature or "").strip().lower() or None
+    if not needle and not provider_filter and not feature_filter:
         return []
     data = catalog if catalog is not None else load_ai_models_catalog()
     models = data.get("models", []) if isinstance(data, dict) else []
@@ -293,29 +296,34 @@ def search_ai_models_catalog(
     for item in models:
         if not isinstance(item, dict):
             continue
-        if provider and str(item.get("provider", "")).strip() != provider:
+        if provider_filter and str(item.get("provider", "")).strip().lower() != provider_filter:
             continue
-        haystack = " ".join(
-            str(value).lower()
-            for value in (
-                item.get("provider", ""),
-                item.get("model_id", ""),
-                item.get("model_name", ""),
-                " ".join(item.get("features", [])) if isinstance(item.get("features"), list) else "",
-                " ".join(item.get("aliases", [])) if isinstance(item.get("aliases"), list) else "",
+        if feature_filter:
+            features = item.get("features", [])
+            if not isinstance(features, list) or not any(feature_filter in str(value).lower() for value in features):
+                continue
+        if needle:
+            haystack = " ".join(
+                str(value).lower()
+                for value in (
+                    item.get("provider", ""),
+                    item.get("model_id", ""),
+                    item.get("model_name", ""),
+                    " ".join(item.get("features", [])) if isinstance(item.get("features"), list) else "",
+                    " ".join(item.get("aliases", [])) if isinstance(item.get("aliases"), list) else "",
+                )
             )
-        )
-        if needle not in haystack:
-            continue
+            if needle not in haystack:
+                continue
         score = 0
-        if str(item.get("model_id", "")).lower() == needle:
+        if needle and str(item.get("model_id", "")).lower() == needle:
             score -= 100
-        if str(item.get("model_name", "")).lower() == needle:
+        if needle and str(item.get("model_name", "")).lower() == needle:
             score -= 75
         aliases = item.get("aliases", [])
-        if isinstance(aliases, list) and needle in {str(alias).lower() for alias in aliases}:
+        if needle and isinstance(aliases, list) and needle in {str(alias).lower() for alias in aliases}:
             score -= 50
-        if needle in str(item.get("provider", "")).lower():
+        if needle and needle in str(item.get("provider", "")).lower():
             score -= 10
         score += len(str(item.get("model_id", "")))
         matches.append((score, item))
