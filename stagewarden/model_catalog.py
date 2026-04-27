@@ -11,7 +11,7 @@ from urllib.request import urlopen
 from .provider_registry import provider_model_specs
 
 
-CATALOG_OUTPUT_PATH = Path("data/ai_models_catalog.json")
+CATALOG_OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "ai_models_catalog.json"
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 
 
@@ -204,3 +204,35 @@ def write_ai_models_catalog(path: str | Path = CATALOG_OUTPUT_PATH) -> dict[str,
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(catalog, indent=2, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
     return catalog
+
+
+def load_ai_models_catalog(path: str | Path = CATALOG_OUTPUT_PATH) -> dict[str, Any]:
+    catalog_path = Path(path)
+    try:
+        payload = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def catalog_entries_for_provider(provider: str, catalog: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    data = catalog if catalog is not None else load_ai_models_catalog()
+    models = data.get("models", []) if isinstance(data, dict) else []
+    if not isinstance(models, list):
+        return []
+    entries: list[dict[str, Any]] = []
+    for item in models:
+        if isinstance(item, dict) and str(item.get("provider", "")).strip() == provider:
+            entries.append(item)
+    return entries
+
+
+def catalog_entry_for_provider_model(
+    provider: str,
+    provider_model: str,
+    catalog: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    for item in catalog_entries_for_provider(provider, catalog):
+        if str(item.get("model_id", "")).strip() == provider_model:
+            return item
+    return None

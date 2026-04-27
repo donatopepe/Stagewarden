@@ -2159,6 +2159,18 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Provider-model catalog for chatgpt:", completed.stdout)
             self.assertIn("gpt-5.3-codex", completed.stdout)
             self.assertIn("reasoning_effort=[low,medium,high]", completed.stdout)
+            self.assertIn("catalog=", completed.stdout)
+
+    def test_models_json_includes_catalog_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "models", "--json")
+            payload = json.loads(completed.stdout)
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(payload["command"], "models")
+            self.assertTrue(any(item.get("catalog_source") for item in payload["models"]))
+            self.assertTrue(any(item.get("catalog") for item in payload["models"]))
 
     def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
