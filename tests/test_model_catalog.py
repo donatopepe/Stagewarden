@@ -130,6 +130,14 @@ class ModelCatalogTests(unittest.TestCase):
         self.assertEqual(coding_results[0]["model_id"], "qwen2.5-coder:7b")
         self.assertEqual(feature_results[0]["model_id"], "gpt-5.4")
 
+    def test_refresh_catalog_workflow_pushes_changes(self) -> None:
+        workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "refresh-ai-model-catalog.yml"
+        content = workflow.read_text(encoding="utf-8")
+
+        self.assertIn("contents: write", content)
+        self.assertIn("git commit -m \"stagewarden: refresh AI model catalog\"", content)
+        self.assertIn("git push origin HEAD:${{ github.ref_name }}", content)
+
 
 if __name__ == "__main__":
     unittest.main()

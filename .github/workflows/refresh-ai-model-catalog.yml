@@ -6,7 +6,7 @@ on:
     - cron: "17 3 * * 1"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-catalog:
@@ -26,6 +26,18 @@ jobs:
 
       - name: Run catalog tests
         run: python3 -m unittest tests.test_model_catalog tests.test_provider_registry
+
+      - name: Commit refreshed catalog
+        run: |
+          if git diff --quiet -- data/ai_models_catalog.json; then
+            echo "No catalog changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ai_models_catalog.json
+          git commit -m "stagewarden: refresh AI model catalog"
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Upload catalog snapshot
         uses: actions/upload-artifact@v4
