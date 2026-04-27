@@ -10,12 +10,12 @@
 - **AI Model Catalog Enrichment:** Added catalog aliases and `catalog search` so the snapshot can be queried by model id, name, aliases, providers, or features instead of only by direct provider-model lookup. `catalog search` now accepts `provider=` and `feature=` filters.
 - **AI Model Catalog Automation:** Added a scheduled GitHub Actions workflow that rebuilds the catalog, commits refreshed snapshots back to the branch when they change, and uploads the refreshed snapshot as an artifact.
 
-## Ongoing Work: AI Model Catalog
+## Completed Work: AI Model Catalog
 
 - **Objective:** To create and maintain a comprehensive catalog of available AI models for Stagewarden, including their characteristics and token costs, to serve as the PRINCE2 business case.
 - **Data Sources:** Information is being gathered from Ollama (local models), OpenRouter API, and Artificial Analysis.
 - **Data Structure:** A detailed JSON structure has been defined for the catalog. Key fields include `provider`, `model_name`, `model_id`, `context_window`, `cost_per_input_token_usd`, `cost_per_output_token_usd`, `blended_price_usd_per_1m_tokens` (with 'local' or 'N/A' for local models), `intelligence_rank`, `speed_rank`, `latency_rank`, `openness`, and `features`.
-- **Next Steps (Implementation):** The builder, selection integration, refresh workflow, search enrichment, and scheduled automation now exist. Next, consider whether the repository should be tagged or otherwise formally closed out.
+- **Status:** No open implementation items remain for the AI model catalog scope. The builder, selection integration, refresh workflow, search enrichment, scheduled automation, and commit/push workflow are all complete.
 
 ## PRINCE2 Alignment
 
