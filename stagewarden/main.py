@@ -6934,15 +6934,31 @@ def _handle_model_command(
                 f"generated_at={catalog.get('generated_at', 'unknown')}"
             )
         if parts[1] == "search":
-            if len(parts) not in {3, 4}:
+            if len(parts) < 3:
                 return _catalog_usage()
-            query = parts[2]
-            provider = parts[3] if len(parts) == 4 else None
-            report = _catalog_search_report(query, provider)
+            query_parts: list[str] = []
+            provider = None
+            feature = None
+            for token in parts[2:]:
+                if token.startswith("provider=") and len(token) > len("provider="):
+                    provider = token.split("=", 1)[1]
+                    continue
+                if token.startswith("feature=") and len(token) > len("feature="):
+                    feature = token.split("=", 1)[1]
+                    continue
+                query_parts.append(token)
+            query = " ".join(query_parts).strip()
+            if not query and not provider and not feature:
+                return _catalog_usage()
+            report = _catalog_search_report(query, provider, feature=feature)
+            filter_bits = [bit for bit in (f"provider={provider}" if provider else None, f"feature={feature}" if feature else None) if bit]
+            search_label = f"'{query}'" if query else "all models"
+            if filter_bits:
+                search_label = f"{search_label} {' '.join(filter_bits)}"
             if not report["results"]:
-                return f"No catalog matches for '{query}'."
+                return f"No catalog matches for {search_label}."
             lines = [
-                f"Catalog search for '{query}':",
+                f"Catalog search for {search_label}:",
                 f"Path: {report['path']}",
                 f"Matches: {len(report['results'])}",
             ]
@@ -7244,12 +7260,12 @@ def _model_usage() -> str:
         "model param set <name> <key> <value> | model param clear <name> <key> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
         "model unblock <name> | model limits | model limit-record <name> <message> | "
-        "model limit-clear <name> | model clear | catalog status | catalog refresh | catalog search <query> [provider]"
+        "model limit-clear <name> | model clear | catalog status | catalog refresh | catalog search <query> [provider=<provider>] [feature=<feature>]"
     )
 
 
 def _catalog_usage() -> str:
-    return "Usage: catalog status | catalog refresh | catalog search <query> [provider]"
+    return "Usage: catalog status | catalog refresh | catalog search <query> [provider=<provider>] [feature=<feature>]"
 
 
 def _catalog_status_report() -> dict[str, object]:
@@ -7266,13 +7282,20 @@ def _catalog_status_report() -> dict[str, object]:
     }
 
 
-def _catalog_search_report(query: str, provider: str | None = None, *, limit: int = 10) -> dict[str, object]:
+def _catalog_search_report(
+    query: str,
+    provider: str | None = None,
+    *,
+    feature: str | None = None,
+    limit: int = 10,
+) -> dict[str, object]:
     catalog = load_ai_models_catalog()
-    results = search_ai_models_catalog(query, provider=provider, catalog=catalog, limit=limit)
+    results = search_ai_models_catalog(query, provider=provider, feature=feature, catalog=catalog, limit=limit)
     return {
         "command": "catalog",
         "query": query,
         "provider": provider,
+        "feature": feature,
         "path": str(catalog_path()),
         "model_count": len(catalog.get("models", [])) if isinstance(catalog, dict) and isinstance(catalog.get("models", []), list) else 0,
         "results": results,

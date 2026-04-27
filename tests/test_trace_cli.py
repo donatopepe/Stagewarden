@@ -2222,6 +2222,43 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Matches: 1", response or "")
             self.assertIn("openai:gpt-5.4", response or "")
 
+    def test_catalog_search_supports_feature_filters(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            catalog = {
+                "generated_at": "2026-04-27T15:35:07Z",
+                "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+                "models": [
+                    {
+                        "provider": "openai",
+                        "model_id": "gpt-5.4",
+                        "model_name": "GPT-5.4",
+                        "aliases": ["openai/gpt-5.4", "GPT-5.4"],
+                        "features": ["text", "tool_use"],
+                        "openness": "proprietary",
+                    },
+                    {
+                        "provider": "local",
+                        "model_id": "qwen2.5-coder:7b",
+                        "model_name": "Qwen2.5 Coder",
+                        "aliases": ["qwen2.5-coder", "Qwen2.5 Coder"],
+                        "features": ["coding", "text"],
+                        "openness": "self_hosted",
+                    },
+                ],
+            }
+            completed = run_main_capture(root, "catalog search feature=tool_use")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Catalog search for all models feature=tool_use:", completed.stdout)
+
+            with patch("stagewarden.main.load_ai_models_catalog", return_value=catalog):
+                agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+                config = AgentConfig(workspace_root=root, max_steps=1)
+                response = _handle_model_command("catalog search feature=tool_use", agent, config)
+
+            self.assertIn("Matches: 1", response or "")
+            self.assertIn("openai:gpt-5.4", response or "")
+
     def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

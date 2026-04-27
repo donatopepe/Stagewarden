@@ -124,9 +124,11 @@ class ModelCatalogTests(unittest.TestCase):
 
             openai_results = search_ai_models_catalog("openai/gpt-5.4")
             coding_results = search_ai_models_catalog("coding", provider="local")
+            feature_results = search_ai_models_catalog("", feature="tool_use")
 
         self.assertEqual(openai_results[0]["model_id"], "gpt-5.4")
         self.assertEqual(coding_results[0]["model_id"], "qwen2.5-coder:7b")
+        self.assertEqual(feature_results[0]["model_id"], "gpt-5.4")
 
 
 if __name__ == "__main__":
