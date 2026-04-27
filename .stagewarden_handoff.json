@@ -1,9 +1,9 @@
 {
   "plan_status": "in_progress",
-  "current_step_id": "Integrate model catalog into model selection logic",
+  "current_step_id": "Persist catalog refresh workflow",
   "current_step_status": "pending",
-  "git_head": "a419e72515726f1a6d46d4c7a48fc931639738a6",
+  "git_head": "e89bed449545918ded294acd77e7292ee2d5fb7c",
   "git_head_baseline": "b2994c4056d5076209ac6d73c05437478bf97df9",
-  "latest_observation": "Built the AI model catalog generator, snapshot, and tests; full unittest discovery still reports a pre-existing interactive-shell UnboundLocalError in stagewarden/main.py.",
-  "updated_at": "2026-04-27T15:30:00Z"
+  "latest_observation": "Built the AI model catalog generator, snapshot, and tests; integrated catalog metadata into model selection and status surfaces; full unittest discovery now passes.",
+  "updated_at": "2026-04-27T15:15:22Z"
 }

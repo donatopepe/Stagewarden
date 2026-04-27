@@ -9,12 +9,13 @@ import threading
 import unittest
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
-from stagewarden.main import _interactive_completion_candidates, _render_boundary, _render_handoff, run_interactive_shell
+from stagewarden.main import _catalog_status_report, _handle_model_command, _interactive_completion_candidates, _render_boundary, _render_handoff, run_interactive_shell
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.secrets import SecretStore
@@ -2171,6 +2172,26 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "models")
             self.assertTrue(any(item.get("catalog_source") for item in payload["models"]))
             self.assertTrue(any(item.get("catalog") for item in payload["models"]))
+
+    def test_catalog_refresh_and_status_use_shared_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            snapshot = {
+                "generated_at": "2026-04-27T15:15:22Z",
+                "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+                "models": [{"provider": "local", "model_id": "provider-default"}],
+            }
+            with patch("stagewarden.main.write_ai_models_catalog", return_value=snapshot):
+                refreshed = _handle_model_command("catalog refresh", agent, config)
+            with patch("stagewarden.main.load_ai_models_catalog", return_value=snapshot):
+                report = _catalog_status_report()
+
+            self.assertIn("Catalog refreshed:", refreshed or "")
+            self.assertIn("model_count=1", refreshed or "")
+            self.assertEqual(report["model_count"], 1)
+            self.assertEqual(report["generated_at"], snapshot["generated_at"])
 
     def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
