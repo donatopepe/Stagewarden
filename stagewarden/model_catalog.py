@@ -1,0 +1,206 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
+from pathlib import Path
+from typing import Any
+from urllib.error import URLError
+from urllib.request import urlopen
+
+from .provider_registry import provider_model_specs
+
+
+CATALOG_OUTPUT_PATH = Path("data/ai_models_catalog.json")
+OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+
+
+AA_METRICS: dict[str, dict[str, int | None]] = {
+    "openai/gpt-5.4": {"intelligence_rank": 2, "speed_rank": 45, "latency_rank": None},
+    "openai/gpt-5.4-mini": {"intelligence_rank": 32, "speed_rank": 4, "latency_rank": None},
+    "openai/gpt-5.4-nano": {"intelligence_rank": 13, "speed_rank": 3, "latency_rank": None},
+    "openai/gpt-5.3-codex": {"intelligence_rank": 3, "speed_rank": 54, "latency_rank": None},
+    "openai/gpt-5.2-codex": {"intelligence_rank": 13, "speed_rank": 27, "latency_rank": None},
+    "openai/gpt-5.1-codex": {"intelligence_rank": 27, "speed_rank": 4, "latency_rank": None},
+    "openai/gpt-5.1-codex-mini": {"intelligence_rank": 13, "speed_rank": 10, "latency_rank": None},
+    "anthropic/claude-sonnet-4.6": {"intelligence_rank": 2, "speed_rank": 38, "latency_rank": None},
+    "anthropic/claude-opus-4.1": {"intelligence_rank": 11, "speed_rank": 50, "latency_rank": None},
+    "anthropic/claude-haiku-4.5": {"intelligence_rank": 19, "speed_rank": 15, "latency_rank": None},
+}
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _safe_float(value: object) -> float | None:
+    try:
+        number = float(str(value))
+    except (TypeError, ValueError):
+        return None
+    return None if number < 0 else number
+
+
+def _blended_price_usd_per_1m_tokens(input_price: float | None, output_price: float | None) -> float | None:
+    if input_price is None or output_price is None:
+        return None
+    blended = ((Decimal(str(input_price)) * 3) + Decimal(str(output_price))) / Decimal("4") * Decimal("1000000")
+    return float(blended.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def _catalog_features_from_openrouter(model: dict[str, Any]) -> list[str]:
+    features: set[str] = set()
+    architecture = model.get("architecture")
+    if isinstance(architecture, dict):
+        for modality in architecture.get("input_modalities", []) or []:
+            features.add(str(modality))
+        for modality in architecture.get("output_modalities", []) or []:
+            features.add(f"output:{modality}")
+    for parameter in model.get("supported_parameters", []) or []:
+        param = str(parameter)
+        if param in {"tools", "tool_choice"}:
+            features.add("tool_use")
+        elif param in {"structured_outputs", "response_format"}:
+            features.add("structured_output")
+        elif param == "reasoning":
+            features.add("reasoning")
+        elif param == "seed":
+            features.add("seed")
+        elif param == "max_tokens" or param == "max_completion_tokens":
+            continue
+        else:
+            features.add(param)
+    return sorted(features)
+
+
+def _catalog_features_from_local(spec: Any) -> list[str]:
+    features: set[str] = {"text"}
+    hint = str(getattr(spec, "context_window_hint", "") or "")
+    if "tool" in hint.lower():
+        features.add("tool_use")
+    if "vision" in hint.lower():
+        features.add("image")
+    if "sql" in hint.lower():
+        features.add("sql")
+    if "coder" in str(getattr(spec, "id", "")).lower():
+        features.add("coding")
+    return sorted(features)
+
+
+def _openrouter_model_index(urlopen_fn=urlopen) -> dict[str, dict[str, Any]]:
+    try:
+        with urlopen_fn(OPENROUTER_MODELS_URL, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, URLError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    models = payload.get("data", [])
+    if not isinstance(models, list):
+        return {}
+    index: dict[str, dict[str, Any]] = {}
+    for item in models:
+        if isinstance(item, dict) and str(item.get("id", "")).strip():
+            index[str(item["id"])] = item
+    return index
+
+
+def _provider_source_model_id(provider: str, provider_model_id: str) -> str | None:
+    if provider in {"openai", "chatgpt"}:
+        return f"openai/{provider_model_id}"
+    if provider == "claude":
+        if provider_model_id == "provider-default":
+            return None
+        return f"anthropic/{provider_model_id}"
+    if provider == "cheap":
+        return provider_model_id if "/" in provider_model_id else None
+    return None
+
+
+def _model_name(provider: str, provider_model_id: str, source_model: dict[str, Any] | None) -> str:
+    if source_model and isinstance(source_model.get("name"), str):
+        return str(source_model["name"]).replace("OpenAI: ", "").replace("Anthropic: ", "")
+    if provider == "local":
+        return provider_model_id
+    if provider_model_id == "provider-default":
+        return "Provider default"
+    return provider_model_id
+
+
+def _context_window(provider: str, provider_model_id: str, source_model: dict[str, Any] | None, spec: Any) -> int | None:
+    if source_model and isinstance(source_model.get("context_length"), int):
+        return int(source_model["context_length"])
+    if provider_model_id == "provider-default":
+        return None
+    if provider == "local":
+        return None
+    context_hint = getattr(spec, "context_window_hint", "")
+    if context_hint == "medium":
+        return 400_000
+    return None
+
+
+def _openness(provider: str, source_model: dict[str, Any] | None) -> str:
+    if provider == "local":
+        return "self_hosted"
+    if provider in {"cheap", "chatgpt", "openai", "claude"}:
+        return "proprietary"
+    return "unknown"
+
+
+def _entry_from_spec(provider: str, spec: Any, openrouter_models: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    source_model_id = _provider_source_model_id(provider, str(getattr(spec, "id", "")))
+    source_model = openrouter_models.get(source_model_id) if source_model_id else None
+    input_price = _safe_float((source_model or {}).get("pricing", {}).get("prompt")) if source_model else None
+    output_price = _safe_float((source_model or {}).get("pricing", {}).get("completion")) if source_model else None
+    metrics = AA_METRICS.get(source_model_id or "", {})
+    if provider == "local":
+        input_price = None
+        output_price = None
+    entry = {
+        "provider": provider,
+        "model_name": _model_name(provider, str(getattr(spec, "id", "")), source_model),
+        "model_id": str(getattr(spec, "id", "")),
+        "context_window": _context_window(provider, str(getattr(spec, "id", "")), source_model, spec),
+        "cost_per_input_token_usd": input_price,
+        "cost_per_output_token_usd": output_price,
+        "blended_price_usd_per_1m_tokens": _blended_price_usd_per_1m_tokens(input_price, output_price),
+        "intelligence_rank": metrics.get("intelligence_rank"),
+        "speed_rank": metrics.get("speed_rank"),
+        "latency_rank": metrics.get("latency_rank"),
+        "openness": _openness(provider, source_model),
+        "features": _catalog_features_from_local(spec) if provider == "local" else _catalog_features_from_openrouter(source_model) if source_model else [],
+        "source": source_model_id or f"{provider}:{getattr(spec, 'id', '')}",
+    }
+    if provider == "local":
+        entry["blended_price_usd_per_1m_tokens"] = "local"
+    if provider == "cheap" and source_model is None:
+        entry["openness"] = "proprietary"
+    if str(getattr(spec, "id", "")) == "provider-default":
+        entry["features"] = []
+    return entry
+
+
+def build_ai_models_catalog(
+    *,
+    openrouter_models: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    index = openrouter_models if openrouter_models is not None else _openrouter_model_index()
+    models: list[dict[str, Any]] = []
+    for provider in ("local", "cheap", "chatgpt", "openai", "claude"):
+        for spec in provider_model_specs(provider):
+            models.append(_entry_from_spec(provider, spec, index))
+    return {
+        "generated_at": _utc_now(),
+        "source_urls": {
+            "openrouter_models": OPENROUTER_MODELS_URL,
+            "artificial_analysis": "https://artificialanalysis.ai/leaderboards/models",
+        },
+        "models": models,
+    }
+
+
+def write_ai_models_catalog(path: str | Path = CATALOG_OUTPUT_PATH) -> dict[str, Any]:
+    catalog = build_ai_models_catalog()
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(catalog, indent=2, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
+    return catalog
