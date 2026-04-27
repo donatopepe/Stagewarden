@@ -1,7 +1,10 @@
 {
-  "generated_at": "2026-04-27T15:35:00+00:00",
+  "generated_at": "2026-04-27T16:03:05+00:00",
   "models": [
     {
+      "aliases": [
+        "provider-default"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -17,6 +20,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "qwen2.5-coder",
+        "qwen2.5-coder:7b"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -36,6 +43,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "minimax-m2.7",
+        "minimax-m2.7:cloud"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -53,6 +64,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "qwen3.5",
+        "qwen3.5:9b"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -70,6 +85,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "gpt-oss",
+        "gpt-oss:20b"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -87,6 +106,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "sqlcoder",
+        "sqlcoder:15b"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -106,6 +129,11 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Qwen3-Coder",
+        "Qwen3-Coder:latest",
+        "qwen3-coder:latest"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -125,6 +153,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "mistral-nemo",
+        "mistral-nemo:latest"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -142,6 +174,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "llava",
+        "llava:latest"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -159,6 +195,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "deepseek-r1",
+        "deepseek-r1:14b"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -176,6 +216,10 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "codestral",
+        "codestral:latest"
+      ],
       "blended_price_usd_per_1m_tokens": "local",
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -194,6 +238,11 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Provider default",
+        "provider default",
+        "provider-default"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -209,6 +258,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Auto Router",
+        "auto router",
+        "openrouter/auto",
+        "openrouter:auto"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": 2000000,
       "cost_per_input_token_usd": null,
@@ -249,6 +304,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "GPT-5.3-Codex",
+        "gpt-5.3-codex",
+        "openai/gpt-5.3-codex",
+        "openai:gpt-5.3-codex"
+      ],
       "blended_price_usd_per_1m_tokens": 4.81,
       "context_window": 400000,
       "cost_per_input_token_usd": 1.75e-06,
@@ -274,6 +335,12 @@
       "speed_rank": 54
     },
     {
+      "aliases": [
+        "GPT-5.4",
+        "gpt-5.4",
+        "openai/gpt-5.4",
+        "openai:gpt-5.4"
+      ],
       "blended_price_usd_per_1m_tokens": 5.63,
       "context_window": 1050000,
       "cost_per_input_token_usd": 2.5e-06,
@@ -299,6 +366,12 @@
       "speed_rank": 45
     },
     {
+      "aliases": [
+        "GPT-5.5",
+        "gpt-5.5",
+        "openai/gpt-5.5",
+        "openai:gpt-5.5"
+      ],
       "blended_price_usd_per_1m_tokens": 11.25,
       "context_window": 1050000,
       "cost_per_input_token_usd": 5e-06,
@@ -324,6 +397,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "GPT-5.4 Mini",
+        "gpt-5.4 mini",
+        "openai/gpt-5.4-mini",
+        "openai:gpt-5.4-mini"
+      ],
       "blended_price_usd_per_1m_tokens": 1.69,
       "context_window": 400000,
       "cost_per_input_token_usd": 7.5e-07,
@@ -349,6 +428,12 @@
       "speed_rank": 4
     },
     {
+      "aliases": [
+        "GPT-5.4 Pro",
+        "gpt-5.4 pro",
+        "openai/gpt-5.4-pro",
+        "openai:gpt-5.4-pro"
+      ],
       "blended_price_usd_per_1m_tokens": 67.5,
       "context_window": 1050000,
       "cost_per_input_token_usd": 3e-05,
@@ -374,6 +459,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Claude Sonnet 4.6",
+        "anthropic/claude-sonnet-4.6",
+        "anthropic:claude-sonnet-4.6",
+        "claude sonnet 4.6"
+      ],
       "blended_price_usd_per_1m_tokens": 6.0,
       "context_window": 1000000,
       "cost_per_input_token_usd": 3e-06,
@@ -402,6 +493,12 @@
       "speed_rank": 38
     },
     {
+      "aliases": [
+        "Claude Opus 4.7",
+        "anthropic/claude-opus-4.7",
+        "anthropic:claude-opus-4.7",
+        "claude opus 4.7"
+      ],
       "blended_price_usd_per_1m_tokens": 10.0,
       "context_window": 1000000,
       "cost_per_input_token_usd": 5e-06,
@@ -427,6 +524,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Claude Haiku 4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic:claude-haiku-4.5",
+        "claude haiku 4.5"
+      ],
       "blended_price_usd_per_1m_tokens": 2.0,
       "context_window": 200000,
       "cost_per_input_token_usd": 1e-06,
@@ -454,6 +557,12 @@
       "speed_rank": 15
     },
     {
+      "aliases": [
+        "DeepSeek: DeepSeek V4 Flash",
+        "deepseek/deepseek-v4-flash",
+        "deepseek: deepseek v4 flash",
+        "deepseek:deepseek-v4-flash"
+      ],
       "blended_price_usd_per_1m_tokens": 0.18,
       "context_window": 1048576,
       "cost_per_input_token_usd": 1.4e-07,
@@ -488,6 +597,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "DeepSeek: DeepSeek V4 Pro",
+        "deepseek/deepseek-v4-pro",
+        "deepseek: deepseek v4 pro",
+        "deepseek:deepseek-v4-pro"
+      ],
       "blended_price_usd_per_1m_tokens": 0.54,
       "context_window": 1048576,
       "cost_per_input_token_usd": 4.35e-07,
@@ -522,6 +637,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Qwen: Qwen3 Coder Next",
+        "qwen/qwen3-coder-next",
+        "qwen: qwen3 coder next",
+        "qwen:qwen3-coder-next"
+      ],
       "blended_price_usd_per_1m_tokens": 0.31,
       "context_window": 262144,
       "cost_per_input_token_usd": 1.4e-07,
@@ -552,6 +673,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Qwen: Qwen3 Coder 480B A35B",
+        "qwen/qwen3-coder",
+        "qwen: qwen3 coder 480b a35b",
+        "qwen:qwen3-coder"
+      ],
       "blended_price_usd_per_1m_tokens": 0.62,
       "context_window": 262144,
       "cost_per_input_token_usd": 2.2e-07,
@@ -582,6 +709,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Qwen: Qwen3 Coder Plus",
+        "qwen/qwen3-coder-plus",
+        "qwen: qwen3 coder plus",
+        "qwen:qwen3-coder-plus"
+      ],
       "blended_price_usd_per_1m_tokens": 1.3,
       "context_window": 1000000,
       "cost_per_input_token_usd": 6.5e-07,
@@ -606,6 +739,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Qwen: Qwen3 Coder 30B A3B Instruct",
+        "qwen/qwen3-coder-30b-a3b-instruct",
+        "qwen: qwen3 coder 30b a3b instruct",
+        "qwen:qwen3-coder-30b-a3b-instruct"
+      ],
       "blended_price_usd_per_1m_tokens": 0.12,
       "context_window": 160000,
       "cost_per_input_token_usd": 7e-08,
@@ -634,6 +773,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Google: Gemini 3.1 Pro Preview",
+        "google/gemini-3.1-pro-preview",
+        "google: gemini 3.1 pro preview",
+        "google:gemini-3.1-pro-preview"
+      ],
       "blended_price_usd_per_1m_tokens": 4.5,
       "context_window": 1048576,
       "cost_per_input_token_usd": 2e-06,
@@ -664,6 +809,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "MoonshotAI: Kimi K2.6",
+        "moonshotai/kimi-k2.6",
+        "moonshotai: kimi k2.6",
+        "moonshotai:kimi-k2.6"
+      ],
       "blended_price_usd_per_1m_tokens": 1.72,
       "context_window": 256000,
       "cost_per_input_token_usd": 7.448e-07,
@@ -701,6 +852,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Z.ai: GLM 5",
+        "z-ai/glm-5",
+        "z-ai:glm-5",
+        "z.ai: glm 5"
+      ],
       "blended_price_usd_per_1m_tokens": 0.97,
       "context_window": 202752,
       "cost_per_input_token_usd": 6e-07,
@@ -735,6 +892,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Z.ai: GLM 5 Turbo",
+        "z-ai/glm-5-turbo",
+        "z-ai:glm-5-turbo",
+        "z.ai: glm 5 turbo"
+      ],
       "blended_price_usd_per_1m_tokens": 1.9,
       "context_window": 202752,
       "cost_per_input_token_usd": 1.2e-06,
@@ -767,6 +930,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "x-ai/grok-code-fast-1",
+        "x-ai:grok-code-fast-1",
+        "xAI: Grok Code Fast 1",
+        "xai: grok code fast 1"
+      ],
       "blended_price_usd_per_1m_tokens": 0.53,
       "context_window": 256000,
       "cost_per_input_token_usd": 2e-07,
@@ -795,6 +964,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "x-ai/grok-4.1-fast",
+        "x-ai:grok-4.1-fast",
+        "xAI: Grok 4.1 Fast",
+        "xai: grok 4.1 fast"
+      ],
       "blended_price_usd_per_1m_tokens": 0.28,
       "context_window": 2000000,
       "cost_per_input_token_usd": 2e-07,
@@ -824,6 +999,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Mistral: Devstral 2 2512",
+        "mistral: devstral 2 2512",
+        "mistralai/devstral-2512",
+        "mistralai:devstral-2512"
+      ],
       "blended_price_usd_per_1m_tokens": 0.8,
       "context_window": 262144,
       "cost_per_input_token_usd": 4e-07,
@@ -850,6 +1031,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Mistral: Codestral 2508",
+        "mistral: codestral 2508",
+        "mistralai/codestral-2508",
+        "mistralai:codestral-2508"
+      ],
       "blended_price_usd_per_1m_tokens": 0.45,
       "context_window": 256000,
       "cost_per_input_token_usd": 3e-07,
@@ -876,6 +1063,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "MiniMax: MiniMax M2.7",
+        "minimax/minimax-m2.7",
+        "minimax: minimax m2.7",
+        "minimax:minimax-m2.7"
+      ],
       "blended_price_usd_per_1m_tokens": 0.53,
       "context_window": 196608,
       "cost_per_input_token_usd": 3e-07,
@@ -909,6 +1102,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "MiniMax: MiniMax M2.5",
+        "minimax/minimax-m2.5",
+        "minimax: minimax m2.5",
+        "minimax:minimax-m2.5"
+      ],
       "blended_price_usd_per_1m_tokens": 0.4,
       "context_window": 196608,
       "cost_per_input_token_usd": 1.5e-07,
@@ -945,6 +1144,14 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "Provider default",
+        "chatgpt/provider-default",
+        "chatgpt:provider-default",
+        "openai/provider-default",
+        "provider default",
+        "provider-default"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -960,6 +1167,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "chatgpt/codex-mini-latest",
+        "chatgpt:codex-mini-latest",
+        "codex-mini-latest",
+        "openai/codex-mini-latest"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -975,6 +1188,13 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "GPT-5.1-Codex",
+        "chatgpt/gpt-5.1-codex",
+        "chatgpt:gpt-5.1-codex",
+        "gpt-5.1-codex",
+        "openai/gpt-5.1-codex"
+      ],
       "blended_price_usd_per_1m_tokens": 3.44,
       "context_window": 400000,
       "cost_per_input_token_usd": 1.25e-06,
@@ -999,6 +1219,13 @@
       "speed_rank": 4
     },
     {
+      "aliases": [
+        "GPT-5.1-Codex-Mini",
+        "chatgpt/gpt-5.1-codex-mini",
+        "chatgpt:gpt-5.1-codex-mini",
+        "gpt-5.1-codex-mini",
+        "openai/gpt-5.1-codex-mini"
+      ],
       "blended_price_usd_per_1m_tokens": 0.69,
       "context_window": 400000,
       "cost_per_input_token_usd": 2.5e-07,
@@ -1023,6 +1250,13 @@
       "speed_rank": 10
     },
     {
+      "aliases": [
+        "GPT-5.2-Codex",
+        "chatgpt/gpt-5.2-codex",
+        "chatgpt:gpt-5.2-codex",
+        "gpt-5.2-codex",
+        "openai/gpt-5.2-codex"
+      ],
       "blended_price_usd_per_1m_tokens": 4.81,
       "context_window": 400000,
       "cost_per_input_token_usd": 1.75e-06,
@@ -1047,6 +1281,13 @@
       "speed_rank": 27
     },
     {
+      "aliases": [
+        "GPT-5.3-Codex",
+        "chatgpt/gpt-5.3-codex",
+        "chatgpt:gpt-5.3-codex",
+        "gpt-5.3-codex",
+        "openai/gpt-5.3-codex"
+      ],
       "blended_price_usd_per_1m_tokens": 4.81,
       "context_window": 400000,
       "cost_per_input_token_usd": 1.75e-06,
@@ -1072,6 +1313,13 @@
       "speed_rank": 54
     },
     {
+      "aliases": [
+        "GPT-5.4",
+        "chatgpt/gpt-5.4",
+        "chatgpt:gpt-5.4",
+        "gpt-5.4",
+        "openai/gpt-5.4"
+      ],
       "blended_price_usd_per_1m_tokens": 5.63,
       "context_window": 1050000,
       "cost_per_input_token_usd": 2.5e-06,
@@ -1097,6 +1345,14 @@
       "speed_rank": 45
     },
     {
+      "aliases": [
+        "GPT-5.4 Mini",
+        "chatgpt/gpt-5.4-mini",
+        "chatgpt:gpt-5.4-mini",
+        "gpt-5.4 mini",
+        "gpt-5.4-mini",
+        "openai/gpt-5.4-mini"
+      ],
       "blended_price_usd_per_1m_tokens": 1.69,
       "context_window": 400000,
       "cost_per_input_token_usd": 7.5e-07,
@@ -1122,6 +1378,14 @@
       "speed_rank": 4
     },
     {
+      "aliases": [
+        "GPT-5.4 Nano",
+        "chatgpt/gpt-5.4-nano",
+        "chatgpt:gpt-5.4-nano",
+        "gpt-5.4 nano",
+        "gpt-5.4-nano",
+        "openai/gpt-5.4-nano"
+      ],
       "blended_price_usd_per_1m_tokens": 0.46,
       "context_window": 400000,
       "cost_per_input_token_usd": 2e-07,
@@ -1147,6 +1411,13 @@
       "speed_rank": 3
     },
     {
+      "aliases": [
+        "Provider default",
+        "openai/provider-default",
+        "openai:provider-default",
+        "provider default",
+        "provider-default"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -1162,6 +1433,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "GPT-5.4",
+        "gpt-5.4",
+        "openai/gpt-5.4",
+        "openai:gpt-5.4"
+      ],
       "blended_price_usd_per_1m_tokens": 5.63,
       "context_window": 1050000,
       "cost_per_input_token_usd": 2.5e-06,
@@ -1187,6 +1464,13 @@
       "speed_rank": 45
     },
     {
+      "aliases": [
+        "GPT-5.4 Mini",
+        "gpt-5.4 mini",
+        "gpt-5.4-mini",
+        "openai/gpt-5.4-mini",
+        "openai:gpt-5.4-mini"
+      ],
       "blended_price_usd_per_1m_tokens": 1.69,
       "context_window": 400000,
       "cost_per_input_token_usd": 7.5e-07,
@@ -1212,6 +1496,13 @@
       "speed_rank": 4
     },
     {
+      "aliases": [
+        "GPT-5.4 Nano",
+        "gpt-5.4 nano",
+        "gpt-5.4-nano",
+        "openai/gpt-5.4-nano",
+        "openai:gpt-5.4-nano"
+      ],
       "blended_price_usd_per_1m_tokens": 0.46,
       "context_window": 400000,
       "cost_per_input_token_usd": 2e-07,
@@ -1237,6 +1528,12 @@
       "speed_rank": 3
     },
     {
+      "aliases": [
+        "GPT-5.3-Codex",
+        "gpt-5.3-codex",
+        "openai/gpt-5.3-codex",
+        "openai:gpt-5.3-codex"
+      ],
       "blended_price_usd_per_1m_tokens": 4.81,
       "context_window": 400000,
       "cost_per_input_token_usd": 1.75e-06,
@@ -1262,6 +1559,12 @@
       "speed_rank": 54
     },
     {
+      "aliases": [
+        "GPT-5.2-Codex",
+        "gpt-5.2-codex",
+        "openai/gpt-5.2-codex",
+        "openai:gpt-5.2-codex"
+      ],
       "blended_price_usd_per_1m_tokens": 4.81,
       "context_window": 400000,
       "cost_per_input_token_usd": 1.75e-06,
@@ -1286,6 +1589,12 @@
       "speed_rank": 27
     },
     {
+      "aliases": [
+        "GPT-5.1-Codex",
+        "gpt-5.1-codex",
+        "openai/gpt-5.1-codex",
+        "openai:gpt-5.1-codex"
+      ],
       "blended_price_usd_per_1m_tokens": 3.44,
       "context_window": 400000,
       "cost_per_input_token_usd": 1.25e-06,
@@ -1310,6 +1619,12 @@
       "speed_rank": 4
     },
     {
+      "aliases": [
+        "GPT-5.1-Codex-Mini",
+        "gpt-5.1-codex-mini",
+        "openai/gpt-5.1-codex-mini",
+        "openai:gpt-5.1-codex-mini"
+      ],
       "blended_price_usd_per_1m_tokens": 0.69,
       "context_window": 400000,
       "cost_per_input_token_usd": 2.5e-07,
@@ -1334,6 +1649,11 @@
       "speed_rank": 10
     },
     {
+      "aliases": [
+        "codex-mini-latest",
+        "openai/codex-mini-latest",
+        "openai:codex-mini-latest"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -1349,6 +1669,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "anthropic/default",
+        "claude/default",
+        "claude:default",
+        "default"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -1364,6 +1690,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "anthropic/sonnet",
+        "claude/sonnet",
+        "claude:sonnet",
+        "sonnet"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -1379,6 +1711,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "anthropic/opus",
+        "claude/opus",
+        "claude:opus",
+        "opus"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -1394,6 +1732,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "anthropic/haiku",
+        "claude/haiku",
+        "claude:haiku",
+        "haiku"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -1409,6 +1753,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "anthropic/sonnet[1m]",
+        "claude/sonnet[1m]",
+        "claude:sonnet[1m]",
+        "sonnet[1m]"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
@@ -1424,6 +1774,12 @@
       "speed_rank": null
     },
     {
+      "aliases": [
+        "anthropic/opusplan",
+        "claude/opusplan",
+        "claude:opusplan",
+        "opusplan"
+      ],
       "blended_price_usd_per_1m_tokens": null,
       "context_window": null,
       "cost_per_input_token_usd": null,
