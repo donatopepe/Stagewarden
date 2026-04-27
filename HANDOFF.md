@@ -5,13 +5,14 @@
 - **Test Suite Stability:** The `TypeError: dataclass() got an unexpected keyword argument 'slots'` preventing `unittest` execution has been resolved. The test suite now runs successfully.
 - **Test Environment Improvements:** Enhanced `tests/conftest.py` and `bootstrap_tests.sh` for robust test setup, including correct `PYTHONPATH` export, verbose output, and disabling output capturing during test runs.
 - **AI Model Catalog Bootstrap:** Added `stagewarden/model_catalog.py`, `scripts/build_ai_models_catalog.py`, and `data/ai_models_catalog.json` to normalize provider data into a shared catalog snapshot using live OpenRouter/Ollama inputs and Artificial Analysis rank metadata.
+- **AI Model Catalog Integration:** `model list`, guided model selection, and `models --json` now read from the shared catalog snapshot so selection surfaces show price/rank metadata from the same source of truth.
 
 ## Ongoing Work: AI Model Catalog
 
 - **Objective:** To create and maintain a comprehensive catalog of available AI models for Stagewarden, including their characteristics and token costs, to serve as the PRINCE2 business case.
 - **Data Sources:** Information is being gathered from Ollama (local models), OpenRouter API, and Artificial Analysis.
 - **Data Structure:** A detailed JSON structure has been defined for the catalog. Key fields include `provider`, `model_name`, `model_id`, `context_window`, `cost_per_input_token_usd`, `cost_per_output_token_usd`, `blended_price_usd_per_1m_tokens` (with 'local' or 'N/A' for local models), `intelligence_rank`, `speed_rank`, `latency_rank`, `openness`, and `features`.
-- **Next Steps (Implementation):** The catalog builder now exists. Next, wire the catalog into Stagewarden's model selection logic and decide whether the live snapshot should be enriched with more provider-specific aliases or persisted as a periodic refresh artifact.
+- **Next Steps (Implementation):** The catalog builder and selection integration now exist. Next, decide whether to persist a periodic refresh job or enrich the snapshot with more provider-specific aliases and filters.
 
 ## PRINCE2 Alignment
 
@@ -26,5 +27,5 @@
 
 - **Git Head Baseline:** (will be updated after commit)
 - **Plan Status:** Current task (AI Model Catalog Population) is in progress.
-- **Current Step:** Parsing and structuring model data. This step is now complete.
-- **Updated At:** (will be updated after commit)
+- **Current Step:** Persisting and refreshing the catalog snapshot. The parse/selection work is now complete.
+- **Updated At:** 2026-04-27T15:15:22Z

@@ -48,7 +48,7 @@ from .modelprefs import (
     extract_blocked_until,
     limit_snapshot_from_message,
 )
-from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, load_ai_models_catalog
+from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, write_ai_models_catalog
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .provider_registry import (
     SUPPORTED_MODELS as REGISTRY_MODELS,
@@ -6913,6 +6913,27 @@ def _handle_model_command(
     parts = command.split()
     if not parts:
         return None
+    if parts[0] == "catalog":
+        if len(parts) == 1:
+            return _catalog_usage()
+        if parts[1] == "status":
+            if len(parts) != 2:
+                return _catalog_usage()
+            report = _catalog_status_report()
+            return (
+                f"Catalog snapshot: path={report['path']} model_count={report['model_count']} "
+                f"generated_at={report['generated_at'] or 'missing'}"
+            )
+        if parts[1] == "refresh":
+            if len(parts) != 2:
+                return _catalog_usage()
+            catalog = write_ai_models_catalog()
+            return (
+                f"Catalog refreshed: path={catalog_path()} "
+                f"model_count={len(catalog.get('models', [])) if isinstance(catalog.get('models', []), list) else 0} "
+                f"generated_at={catalog.get('generated_at', 'unknown')}"
+            )
+        return _catalog_usage()
     if parts[0] == "cost":
         return _render_model_usage(config)
     if parts[0] == "models":
@@ -7202,8 +7223,26 @@ def _model_usage() -> str:
         "model param set <name> <key> <value> | model param clear <name> <key> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
         "model unblock <name> | model limits | model limit-record <name> <message> | "
-        "model limit-clear <name> | model clear"
+        "model limit-clear <name> | model clear | catalog status | catalog refresh"
     )
+
+
+def _catalog_usage() -> str:
+    return "Usage: catalog status | catalog refresh"
+
+
+def _catalog_status_report() -> dict[str, object]:
+    catalog = load_ai_models_catalog()
+    models = catalog.get("models", []) if isinstance(catalog, dict) else []
+    model_count = len(models) if isinstance(models, list) else 0
+    return {
+        "command": "catalog",
+        "ok": bool(catalog),
+        "path": str(catalog_path()),
+        "generated_at": catalog.get("generated_at") if isinstance(catalog, dict) else None,
+        "model_count": model_count,
+        "source_urls": catalog.get("source_urls", {}) if isinstance(catalog, dict) else {},
+    }
 
 
 def _handle_account_command(

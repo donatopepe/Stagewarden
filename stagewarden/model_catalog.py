@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -13,6 +14,7 @@ from .provider_registry import provider_model_specs
 
 CATALOG_OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "ai_models_catalog.json"
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+CATALOG_PATH_ENV = "STAGEWARDEN_AI_MODELS_CATALOG_PATH"
 
 
 AA_METRICS: dict[str, dict[str, int | None]] = {
@@ -31,6 +33,19 @@ AA_METRICS: dict[str, dict[str, int | None]] = {
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _catalog_path(path: str | Path | None = None) -> Path:
+    if path is not None:
+        return Path(path)
+    override = os.environ.get(CATALOG_PATH_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return CATALOG_OUTPUT_PATH
+
+
+def catalog_path(path: str | Path | None = None) -> Path:
+    return _catalog_path(path)
 
 
 def _safe_float(value: object) -> float | None:
@@ -200,14 +215,14 @@ def build_ai_models_catalog(
 
 def write_ai_models_catalog(path: str | Path = CATALOG_OUTPUT_PATH) -> dict[str, Any]:
     catalog = build_ai_models_catalog()
-    output_path = Path(path)
+    output_path = _catalog_path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(catalog, indent=2, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
     return catalog
 
 
 def load_ai_models_catalog(path: str | Path = CATALOG_OUTPUT_PATH) -> dict[str, Any]:
-    catalog_path = Path(path)
+    catalog_path = _catalog_path(path)
     try:
         payload = json.loads(catalog_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
