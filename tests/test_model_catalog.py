@@ -82,6 +82,9 @@ class ModelCatalogTests(unittest.TestCase):
         self.assertIn("coding", local["features"])
 
         self.assertEqual(catalog["source_urls"]["openrouter_models"], "https://openrouter.ai/api/v1/models")
+        self.assertIn("openai/gpt-5.4", gpt54["aliases"])
+        self.assertIn("GPT-5.4", gpt54["aliases"])
+        self.assertIn("qwen2.5-coder", local["aliases"])
 
     def test_write_ai_models_catalog_emits_json_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -93,6 +96,37 @@ class ModelCatalogTests(unittest.TestCase):
             self.assertEqual(catalog, payload)
             written = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(written["models"][0]["provider"], "local")
+
+    def test_search_ai_models_catalog_matches_aliases_and_features(self) -> None:
+        catalog = {
+            "models": [
+                {
+                    "provider": "openai",
+                    "model_id": "gpt-5.4",
+                    "model_name": "GPT-5.4",
+                    "aliases": ["openai/gpt-5.4", "GPT-5.4"],
+                    "features": ["text", "tool_use"],
+                    "openness": "proprietary",
+                },
+                {
+                    "provider": "local",
+                    "model_id": "qwen2.5-coder:7b",
+                    "model_name": "Qwen2.5 Coder",
+                    "aliases": ["qwen2.5-coder", "Qwen2.5 Coder"],
+                    "features": ["coding", "text"],
+                    "openness": "self_hosted",
+                },
+            ]
+        }
+
+        with patch("stagewarden.model_catalog.load_ai_models_catalog", return_value=catalog):
+            from stagewarden.model_catalog import search_ai_models_catalog
+
+            openai_results = search_ai_models_catalog("openai/gpt-5.4")
+            coding_results = search_ai_models_catalog("coding", provider="local")
+
+        self.assertEqual(openai_results[0]["model_id"], "gpt-5.4")
+        self.assertEqual(coding_results[0]["model_id"], "qwen2.5-coder:7b")
 
 
 if __name__ == "__main__":
