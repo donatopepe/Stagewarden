@@ -1,0 +1,386 @@
+test_agent_integration (unittest.loader._FailedTest) ... ERROR
+test_auth (unittest.loader._FailedTest) ... ERROR
+test_caveman (unittest.loader._FailedTest) ... ERROR
+test_executor (unittest.loader._FailedTest) ... ERROR
+test_handoff (unittest.loader._FailedTest) ... ERROR
+test_ljson (unittest.loader._FailedTest) ... ERROR
+test_memory (unittest.loader._FailedTest) ... ERROR
+test_parser (unittest.loader._FailedTest) ... ERROR
+test_persistence (unittest.loader._FailedTest) ... ERROR
+test_planner (unittest.loader._FailedTest) ... ERROR
+test_machine_readable_policy_has_required_fields (test_policy_docs.PolicyDocsTests) ... ok
+test_policy_artifacts_exist (test_policy_docs.PolicyDocsTests) ... ok
+test_prince2 (unittest.loader._FailedTest) ... ERROR
+test_provider_registry (unittest.loader._FailedTest) ... ERROR
+test_router (unittest.loader._FailedTest) ... ERROR
+test_unix_setup_falls_back_to_source_launcher_when_editable_install_fails (test_setup_scripts.SetupScriptTests) ... ok
+test_unix_setup_script_exists_and_installs_editable (test_setup_scripts.SetupScriptTests) ... ok
+test_windows_setup_script_exists_and_updates_path (test_setup_scripts.SetupScriptTests) ... ok
+test_placeholder (test_slash_palette_non_tty.SlashPaletteNonTTYTests) ... ok
+test_tools (unittest.loader._FailedTest) ... ERROR
+test_trace_cli (unittest.loader._FailedTest) ... ERROR
+
+======================================================================
+ERROR: test_agent_integration (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_agent_integration
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_agent_integration.py", line 11, in <module>
+    from stagewarden.agent import Agent
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_auth (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_auth
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_auth.py", line 8, in <module>
+    from stagewarden.auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_caveman (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_caveman
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_caveman.py", line 8, in <module>
+    from stagewarden.agent import Agent
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_executor (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_executor
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_executor.py", line 10, in <module>
+    from stagewarden.config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_handoff (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_handoff
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_handoff.py", line 9, in <module>
+    from stagewarden.handoff import HandoffManager, format_run_model, parse_run_model_command
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_ljson (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_ljson
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_ljson.py", line 8, in <module>
+    from stagewarden.ljson import LJSONOptions, benchmark_sizes, decode, decode_json_bytes, encode, encode_json_bytes, stream_decode, stream_encode
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_memory (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_memory
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_memory.py", line 7, in <module>
+    from stagewarden.memory import MemoryStore
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_parser (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_parser
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_parser.py", line 7, in <module>
+    from stagewarden.config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_persistence (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_persistence
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_persistence.py", line 8, in <module>
+    from stagewarden.agent import Agent
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_planner (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_planner
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_planner.py", line 5, in <module>
+    from stagewarden.planner import Planner
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_prince2 (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_prince2
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_prince2.py", line 8, in <module>
+    from stagewarden.agent import Agent
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_provider_registry (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_provider_registry
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_provider_registry.py", line 10, in <module>
+    from stagewarden.provider_registry import (
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_router (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_router
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_router.py", line 5, in <module>
+    from stagewarden.router import ModelRouter
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_tools (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_tools
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_tools.py", line 11, in <module>
+    from stagewarden.config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+======================================================================
+ERROR: test_trace_cli (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_trace_cli
+Traceback (most recent call last):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/Users/donato/Stagewarden/tests/test_trace_cli.py", line 13, in <module>
+    from stagewarden.agent import Agent
+  File "/Users/donato/Stagewarden/stagewarden/__init__.py", line 1, in <module>
+    from .agent import Agent, AgentResult
+  File "/Users/donato/Stagewarden/stagewarden/agent.py", line 5, in <module>
+    from .caveman import CavemanDirective, CavemanManager, CavemanState
+  File "/Users/donato/Stagewarden/stagewarden/caveman.py", line 8, in <module>
+    from .config import AgentConfig
+  File "/Users/donato/Stagewarden/stagewarden/config.py", line 7, in <module>
+    from .permissions import PermissionDecision, PermissionSettings
+  File "/Users/donato/Stagewarden/stagewarden/permissions.py", line 12, in <module>
+    @dataclass(slots=True)
+TypeError: dataclass() got an unexpected keyword argument 'slots'
+
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.674s
+
+FAILED (errors=15)
