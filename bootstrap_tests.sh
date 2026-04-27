@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-export PYTHONPATH="$ROOT:$PYTHONPATH"
-echo "Bootstrapping tests with PYTHONPATH=$PYTHONPATH"
-python3 -m unittest discover -s tests -v
+#!/bin/bash
+
+export PYTHONPATH="./tests:/usr/local/lib/python3.14/site-packages"
+
+exec python3 -m unittest discover -s /Users/donato/Stagewarden/tests

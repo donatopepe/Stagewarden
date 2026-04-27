@@ -381,6 +381,6 @@ TypeError: dataclass() got an unexpected keyword argument 'slots'
 
 
 ----------------------------------------------------------------------
-Ran 21 tests in 0.674s
+Ran 21 tests in 0.663s
 
 FAILED (errors=15)
