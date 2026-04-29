@@ -2498,8 +2498,11 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(propose.returncode, 0, propose.stderr)
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("PRINCE2 role tree:", completed.stdout)
+            self.assertIn("- status legend:", completed.stdout)
             self.assertIn("Project Executive [board.executive]", completed.stdout)
-            self.assertIn("  - Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("description=", completed.stdout)
+            self.assertIn("shell=role shell board.executive", completed.stdout)
             self.assertIn("context=current work package, product delivery, quality criteria, and implementation lessons only", completed.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
