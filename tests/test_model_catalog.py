@@ -56,7 +56,10 @@ class ModelCatalogTests(unittest.TestCase):
                 )
             return ()
 
-        with patch("stagewarden.model_catalog.provider_model_specs", side_effect=provider_specs):
+        with patch("stagewarden.model_catalog.provider_model_specs", side_effect=provider_specs), patch(
+            "stagewarden.model_catalog._artificial_analysis_model_index",
+            return_value={},
+        ):
             catalog = build_ai_models_catalog(openrouter_models=openrouter_models)
 
         models = {(entry["provider"], entry["model_id"]): entry for entry in catalog["models"]}
@@ -82,9 +85,50 @@ class ModelCatalogTests(unittest.TestCase):
         self.assertIn("coding", local["features"])
 
         self.assertEqual(catalog["source_urls"]["openrouter_models"], "https://openrouter.ai/api/v1/models")
+        self.assertEqual(catalog["source_urls"]["artificial_analysis_models"], "https://artificialanalysis.ai/api/v2/data/llms/models")
         self.assertIn("openai/gpt-5.4", gpt54["aliases"])
         self.assertIn("GPT-5.4", gpt54["aliases"])
         self.assertIn("qwen2.5-coder", local["aliases"])
+
+    def test_build_ai_models_catalog_prefers_artificial_analysis_pricing_when_available(self) -> None:
+        openrouter_models = {
+            "openai/gpt-5.4": {
+                "id": "openai/gpt-5.4",
+                "name": "OpenAI: GPT-5.4",
+                "context_length": 1_050_000,
+                "pricing": {"prompt": "0.0000025", "completion": "0.000015"},
+                "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+                "supported_parameters": ["tools"],
+            }
+        }
+
+        def provider_specs(provider: str) -> tuple[ProviderModelSpec, ...]:
+            if provider == "openai":
+                return (ProviderModelSpec("gpt-5.4", "GPT-5.4", ("low", "medium", "high"), "medium", source="OpenAI models docs"),)
+            return ()
+
+        aa_models = {
+            "openai/gpt-5.4": {
+                "pricing": {
+                    "price_1m_input_tokens": 4.0,
+                    "price_1m_output_tokens": 16.0,
+                    "price_1m_blended_3_to_1": 7.0,
+                },
+                "evaluations": {"artificial_analysis_intelligence_index": 99.0},
+            }
+        }
+
+        with patch("stagewarden.model_catalog.provider_model_specs", side_effect=provider_specs), patch(
+            "stagewarden.model_catalog._artificial_analysis_model_index",
+            return_value=aa_models,
+        ):
+            catalog = build_ai_models_catalog(openrouter_models=openrouter_models)
+
+        models = {(entry["provider"], entry["model_id"]): entry for entry in catalog["models"]}
+        gpt54 = models[("openai", "gpt-5.4")]
+        self.assertEqual(gpt54["cost_per_input_token_usd"], 0.000004)
+        self.assertEqual(gpt54["cost_per_output_token_usd"], 0.000016)
+        self.assertEqual(gpt54["blended_price_usd_per_1m_tokens"], 7.0)
 
     def test_write_ai_models_catalog_emits_json_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

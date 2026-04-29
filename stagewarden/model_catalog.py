@@ -7,7 +7,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from .kilocode_source import (
     kilocode_provider_ids,
@@ -21,7 +21,9 @@ from .provider_registry import provider_model_specs
 
 CATALOG_OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "ai_models_catalog.json"
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+ARTIFICIAL_ANALYSIS_LLM_MODELS_URL = "https://artificialanalysis.ai/api/v2/data/llms/models"
 CATALOG_PATH_ENV = "STAGEWARDEN_AI_MODELS_CATALOG_PATH"
+ARTIFICIAL_ANALYSIS_API_KEY_ENV = "STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY"
 
 
 AA_METRICS: dict[str, dict[str, int | None]] = {
@@ -61,6 +63,12 @@ def _safe_float(value: object) -> float | None:
     except (TypeError, ValueError):
         return None
     return None if number < 0 else number
+
+
+def _price_per_token_from_per_million(price_per_million: float | None) -> float | None:
+    if price_per_million is None:
+        return None
+    return float(Decimal(str(price_per_million)) / Decimal("1000000"))
 
 
 def _blended_price_usd_per_1m_tokens(input_price: float | None, output_price: float | None) -> float | None:
@@ -251,6 +259,37 @@ def _openrouter_model_index(urlopen_fn=urlopen) -> dict[str, dict[str, Any]]:
     return index
 
 
+def _artificial_analysis_model_index(
+    urlopen_fn=urlopen,
+    api_key: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    token = (api_key if api_key is not None else os.environ.get(ARTIFICIAL_ANALYSIS_API_KEY_ENV, "")).strip()
+    if not token:
+        return {}
+    request = Request(
+        ARTIFICIAL_ANALYSIS_LLM_MODELS_URL,
+        headers={"x-api-key": token},
+    )
+    try:
+        with urlopen_fn(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, URLError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    models = payload.get("data", [])
+    if not isinstance(models, list):
+        return {}
+    index: dict[str, dict[str, Any]] = {}
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        creator = item.get("model_creator")
+        creator_slug = str(creator.get("slug", "")).strip() if isinstance(creator, dict) else ""
+        slug = str(item.get("slug", "")).strip()
+        if creator_slug and slug:
+            index[f"{creator_slug}/{slug}"] = item
+    return index
+
+
 def _provider_source_model_id(provider: str, provider_model_id: str) -> str | None:
     if provider in {"openai", "chatgpt"}:
         return f"openai/{provider_model_id}"
@@ -294,11 +333,31 @@ def _openness(provider: str, source_model: dict[str, Any] | None) -> str:
     return "unknown"
 
 
-def _entry_from_spec(provider: str, spec: Any, openrouter_models: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _entry_from_spec(
+    provider: str,
+    spec: Any,
+    openrouter_models: dict[str, dict[str, Any]],
+    artificial_analysis_models: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     source_model_id = _provider_source_model_id(provider, str(getattr(spec, "id", "")))
     source_model = openrouter_models.get(source_model_id) if source_model_id else None
-    input_price = _safe_float((source_model or {}).get("pricing", {}).get("prompt")) if source_model else None
-    output_price = _safe_float((source_model or {}).get("pricing", {}).get("completion")) if source_model else None
+    aa_model = artificial_analysis_models.get(source_model_id or "") if source_model_id else None
+    aa_pricing = aa_model.get("pricing", {}) if isinstance(aa_model, dict) else {}
+    if isinstance(aa_pricing, dict):
+        aa_input_price = _safe_float(aa_pricing.get("price_1m_input_tokens"))
+        aa_output_price = _safe_float(aa_pricing.get("price_1m_output_tokens"))
+    else:
+        aa_input_price = None
+        aa_output_price = None
+    if aa_input_price is not None:
+        input_price = _price_per_token_from_per_million(aa_input_price)
+    else:
+        input_price = _safe_float((source_model or {}).get("pricing", {}).get("prompt")) if source_model else None
+    if aa_output_price is not None:
+        output_price = _price_per_token_from_per_million(aa_output_price)
+    else:
+        output_price = _safe_float((source_model or {}).get("pricing", {}).get("completion")) if source_model else None
+    aa_blended = _safe_float(aa_pricing.get("price_1m_blended_3_to_1")) if isinstance(aa_pricing, dict) else None
     metrics = AA_METRICS.get(source_model_id or "", {})
     if provider == "local":
         input_price = None
@@ -310,7 +369,11 @@ def _entry_from_spec(provider: str, spec: Any, openrouter_models: dict[str, dict
         "context_window": _context_window(provider, str(getattr(spec, "id", "")), source_model, spec),
         "cost_per_input_token_usd": input_price,
         "cost_per_output_token_usd": output_price,
-        "blended_price_usd_per_1m_tokens": _blended_price_usd_per_1m_tokens(input_price, output_price),
+        "blended_price_usd_per_1m_tokens": (
+            aa_blended
+            if aa_blended is not None
+            else _blended_price_usd_per_1m_tokens(input_price, output_price)
+        ),
         "intelligence_rank": metrics.get("intelligence_rank"),
         "speed_rank": metrics.get("speed_rank"),
         "latency_rank": metrics.get("latency_rank"),
@@ -331,17 +394,20 @@ def _entry_from_spec(provider: str, spec: Any, openrouter_models: dict[str, dict
 def build_ai_models_catalog(
     *,
     openrouter_models: dict[str, dict[str, Any]] | None = None,
+    artificial_analysis_models: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     index = openrouter_models if openrouter_models is not None else _openrouter_model_index()
+    aa_index = artificial_analysis_models if artificial_analysis_models is not None else _artificial_analysis_model_index()
     models: list[dict[str, Any]] = []
     for provider in ("local", "cheap", "chatgpt", "openai", "claude"):
         for spec in provider_model_specs(provider):
-            models.append(_entry_from_spec(provider, spec, index))
+            models.append(_entry_from_spec(provider, spec, index, aa_index))
     return {
         "generated_at": _utc_now(),
         "source_urls": {
             "openrouter_models": OPENROUTER_MODELS_URL,
-            "artificial_analysis": "https://artificialanalysis.ai/leaderboards/models",
+            "artificial_analysis_models": ARTIFICIAL_ANALYSIS_LLM_MODELS_URL,
+            "artificial_analysis": "https://artificialanalysis.ai/",
         },
         "models": models,
     }
