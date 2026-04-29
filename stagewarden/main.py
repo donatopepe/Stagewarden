@@ -535,6 +535,20 @@ def _help_json_report(topic: str | None = None) -> dict[str, object]:
     return help_topic_report(topic)
 
 
+def _with_json_schema(command: str, payload: dict[str, object]) -> dict[str, object]:
+    if "schema" in payload:
+        return payload
+    try:
+        result = dict(payload)
+    except TypeError:
+        return payload
+    try:
+        result["schema"] = json_schema(command)
+    except KeyError:
+        return payload
+    return result
+
+
 def _interactive_help_topic(topic: str) -> str:
     lines = help_topic_lines(topic)
     if lines is None:
@@ -11315,13 +11329,13 @@ def main() -> int:
         return 0
     if task == "baseline":
         if args.json:
-            print(dumps_ascii(_agent_baseline_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("baseline", _agent_baseline_report(config)), indent=2))
         else:
             print(_render_agent_baseline(config))
         return 0
     if task == "battery":
         if args.json:
-            print(dumps_ascii(_battery_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("battery", _battery_report(config)), indent=2))
         else:
             print(_render_battery(config))
         return 0
@@ -11334,7 +11348,7 @@ def main() -> int:
         return 0
     if task == "shell backend":
         if args.json:
-            print(dumps_ascii(_shell_backend_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("shell backend", _shell_backend_report(config)), indent=2))
         else:
             print(_render_shell_backend(config))
         return 0
@@ -11349,7 +11363,7 @@ def main() -> int:
     if task.startswith("auth status "):
         provider = task.split(maxsplit=2)[2]
         if args.json:
-            print(dumps_ascii(_auth_status_report(provider), indent=2))
+            print(dumps_ascii(_with_json_schema("auth status", _auth_status_report(provider)), indent=2))
         else:
             print(_render_auth_status(provider))
         return 0
@@ -11507,14 +11521,14 @@ def main() -> int:
         return 0
     if task == "project brief":
         if args.json:
-            print(dumps_ascii(_project_brief_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("project brief", _project_brief_report(config)), indent=2))
         else:
             print(_render_project_brief(config))
         return 0
     if task == "project design":
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_project_design_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("project design", _project_design_report(agent, config)), indent=2))
         else:
             print(_render_project_design(agent, config))
         return 0
@@ -11740,15 +11754,15 @@ def main() -> int:
     if task in {"sources", "sources status"} or task.startswith("sources "):
         if args.json:
             if task == "sources update":
-                report = _sources_update_report(config)
+                report = _with_json_schema("sources update", _sources_update_report(config))
                 print(dumps_ascii(report, indent=2))
                 return 0 if report.get("ok") else 1
             if task in {"sources", "sources status", "sources status --strict"}:
                 strict = task == "sources status --strict"
-                report = _sources_status_report(config, strict=strict)
+                report = _with_json_schema("sources status", _sources_status_report(config, strict=strict))
                 print(dumps_ascii(report, indent=2))
                 return 0 if not strict or report.get("ok") else 1
-            print(dumps_ascii({"command": task, "ok": False, "error": "Usage: sources | sources status [--strict] | sources update"}, indent=2))
+            print(dumps_ascii(_with_json_schema("sources status", {"command": task, "ok": False, "error": "Usage: sources | sources status [--strict] | sources update"}), indent=2))
             return 1
         response = _handle_sources_command(task, config)
         if response is None or response.startswith("Usage:"):
@@ -11759,13 +11773,13 @@ def main() -> int:
     if task in {"update status", "update check", "update check --json", "update apply", "update apply --yes"} or task.startswith("update "):
         if args.json or task == "update check --json":
             if task in {"update status"}:
-                report = _update_status_report(config)
+                report = _with_json_schema("update status", _update_status_report(config))
             elif task in {"update check", "update check --json"}:
-                report = _update_status_report(config, fetch=True)
+                report = _with_json_schema("update check", _update_status_report(config, fetch=True))
             elif task in {"update apply", "update apply --yes"}:
-                report = _update_apply_report(config, confirmed=task.endswith(" --yes"))
+                report = _with_json_schema("update apply", _update_apply_report(config, confirmed=task.endswith(" --yes")))
             else:
-                report = {"command": task, "ok": False, "error": "Usage: update status | update check [--json] | update apply --yes"}
+                report = _with_json_schema("update status", {"command": task, "ok": False, "error": "Usage: update status | update check [--json] | update apply --yes"})
             print(dumps_ascii(report, indent=2))
             return 0 if report.get("ok") else 1
         response = _handle_update_command(task, config)
@@ -11777,10 +11791,10 @@ def main() -> int:
     if task == "extensions" or task.startswith("extension ") or task.startswith("extensions "):
         if args.json:
             if task == "extensions":
-                report = discover_extensions(config.workspace_root)
+                report = _with_json_schema("extensions", discover_extensions(config.workspace_root))
             elif task.startswith("extension scaffold "):
                 try:
-                    report = scaffold_extension(config.workspace_root, task.split(maxsplit=2)[2])
+                    report = _with_json_schema("extensions", scaffold_extension(config.workspace_root, task.split(maxsplit=2)[2]))
                     _record_handoff_action(
                         config,
                         phase="extension_scaffold",
@@ -11805,7 +11819,7 @@ def main() -> int:
     if task.startswith("file "):
         report = _file_command_report(task, config)
         if args.json:
-            print(dumps_ascii(report or {"command": task, "ok": False, "error": "Unsupported file command"}, indent=2))
+            print(dumps_ascii(_with_json_schema((report or {}).get("command", "file inspect"), report or {"command": task, "ok": False, "error": "Unsupported file command"}), indent=2))
             return 0 if report and report.get("ok") else 1
         response = _handle_file_command(task, config)
         print(response or "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]")
@@ -11820,7 +11834,7 @@ def main() -> int:
     ):
         if args.json:
             report = _external_io_report(task, config)
-            print(dumps_ascii(report or {"command": task, "ok": False, "error": "Unsupported external IO command"}, indent=2))
+            print(dumps_ascii(_with_json_schema((report or {}).get("command", task), report or {"command": task, "ok": False, "error": "Unsupported external IO command"}), indent=2))
             return 0 if report and report.get("ok") else 1
         response = _handle_external_io_command(task, config)
         print(response or "Usage: web search <query> | download <url> [path] [--max-bytes N] | checksum <path> | compress <path> [target.gz] | archive verify <path.gz>")
