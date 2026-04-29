@@ -21,6 +21,7 @@ from stagewarden.main import (
     _guided_role_node_shell,
     _guided_role_tree_menu,
     _handle_model_command,
+    _handle_role_command,
     _interactive_completion_candidates,
     _render_boundary,
     _render_handoff,
@@ -3109,6 +3110,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("description=", rendered)
             self.assertIn("status_color=", rendered)
             self.assertIn("parent=", rendered)
+            self.assertIn("Switch agent/model for this node", rendered)
 
     def test_interactive_shell_role_menu_can_switch_model_by_menu(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3116,9 +3118,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
             input_stream = StringIO(
-                "model\n"
-                "chatgpt:gpt-5.4\n"
-                "medium\n"
+                "switch-agent\n"
+                "2\n"
                 "1\n"
                 "back\n"
             )
@@ -3142,11 +3143,48 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Closed node menu for delivery.team_manager.", result)
             self.assertIn("PRINCE2 node detail:", rendered)
             self.assertIn("Node menu for delivery.team_manager:", rendered)
+            self.assertIn("Switch agent/model for this node", rendered)
             self.assertIn("model_recommendation:", rendered)
-            self.assertIn("Assigned role node delivery.team_manager: provider=chatgpt provider_model=gpt-5.4 account=none reasoning_effort=medium", rendered)
-            self.assertEqual(team_node["assignment"]["provider"], "chatgpt")
-            self.assertEqual(team_node["assignment"]["provider_model"], "gpt-5.4")
-            self.assertEqual(team_node["assignment"]["params"]["reasoning_effort"], "medium")
+            self.assertIn("KiloCode-style switch agent:", rendered)
+            self.assertIn("Assigned role node delivery.team_manager: provider=302ai provider_model=MiniMax-M1 account=none", rendered)
+            self.assertEqual(team_node["assignment"]["provider"], "302ai")
+            self.assertEqual(team_node["assignment"]["provider_model"], "MiniMax-M1")
+            self.assertFalse(team_node["assignment"].get("params"))
+
+    def test_interactive_shell_role_switch_agent_command_switches_model(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            input_stream = StringIO(
+                "2\n"
+                "1\n"
+            )
+            output_stream = StringIO()
+            result = _handle_role_command(
+                "role switch delivery.team_manager",
+                agent,
+                agent.config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            team_node = next(
+                item
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict) and item.get("node_id") == "delivery.team_manager"
+            )
+
+            self.assertIsInstance(result, str)
+            self.assertIn("KiloCode-style switch agent:", rendered)
+            self.assertIn("switch_summary:", rendered)
+            self.assertIn("Assigned role node delivery.team_manager: provider=302ai provider_model=MiniMax-M1 account=none", result)
+            self.assertEqual(team_node["assignment"]["provider"], "302ai")
+            self.assertEqual(team_node["assignment"]["provider_model"], "MiniMax-M1")
+            self.assertFalse(team_node["assignment"].get("params"))
 
     def test_interactive_shell_role_assign_prioritizes_local_fallback_candidates_for_delivery_node(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

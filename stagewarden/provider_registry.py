@@ -4,10 +4,18 @@ import json
 import os
 import re
 import tomllib
+from functools import lru_cache
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
+
+from .kilocode_source import (
+    kilocode_provider_ids,
+    kilocode_provider_info,
+    kilocode_provider_model_ids,
+    kilocode_provider_models,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -426,7 +434,184 @@ def _choose_dynamic_local_preset(discovered: tuple[ProviderModelSpec, ...], pres
     return "provider-default", {}
 
 
+@lru_cache(maxsize=1)
+def _snapshot_provider_ids() -> tuple[str, ...]:
+    return kilocode_provider_ids()
+
+
+def _snapshot_model_features(model: dict[str, object]) -> tuple[str, ...]:
+    features: set[str] = set()
+    for modality in model.get("modalities", {}).get("input", []) if isinstance(model.get("modalities"), dict) else []:
+        features.add(str(modality))
+    for modality in model.get("modalities", {}).get("output", []) if isinstance(model.get("modalities"), dict) else []:
+        features.add(f"output:{modality}")
+    if model.get("reasoning"):
+        features.add("reasoning")
+    if model.get("tool_call"):
+        features.add("tool_use")
+    if model.get("attachment"):
+        features.add("attachment")
+    if model.get("temperature"):
+        features.add("temperature")
+    if model.get("structured_output"):
+        features.add("structured_output")
+    if model.get("open_weights"):
+        features.add("open_weights")
+    interleaved = model.get("interleaved")
+    if isinstance(interleaved, dict):
+        field = str(interleaved.get("field", "")).strip()
+        if field:
+            features.add(f"interleaved:{field}")
+    return tuple(sorted(features))
+
+
+def _snapshot_model_reasoning_efforts(model: dict[str, object]) -> tuple[tuple[str, ...], str | None]:
+    if not model.get("reasoning"):
+        return (), None
+    name = str(model.get("name", model.get("id", ""))).lower()
+    model_id = str(model.get("id", "")).lower()
+    if any(token in name or token in model_id for token in ("thinking", "reasoning", "plan", "pro", "max")):
+        return ("medium", "high"), "high"
+    return ("low", "medium", "high"), "medium"
+
+
+def _snapshot_model_context_hint(model: dict[str, object]) -> str:
+    parts: list[str] = []
+    limit = model.get("limit", {})
+    if isinstance(limit, dict) and isinstance(limit.get("context"), (int, float)):
+        parts.append(f"context={int(limit['context'])}")
+    modalities = model.get("modalities", {})
+    if isinstance(modalities, dict):
+        input_modalities = ", ".join(str(item) for item in modalities.get("input", []) if str(item).strip())
+        output_modalities = ", ".join(str(item) for item in modalities.get("output", []) if str(item).strip())
+        if input_modalities:
+            parts.append(f"input={input_modalities}")
+        if output_modalities:
+            parts.append(f"output={output_modalities}")
+    if model.get("open_weights"):
+        parts.append("open_weights")
+    if model.get("tool_call"):
+        parts.append("tool_use")
+    if model.get("reasoning"):
+        parts.append("reasoning")
+    return "; ".join(parts)
+
+
+def _snapshot_provider_default_model(provider: str, models: dict[str, dict[str, object]]) -> str:
+    if not models:
+        return "provider-default"
+    preferred = sorted(
+        models.items(),
+        key=lambda item: (
+            999_999 if item[1].get("preferredIndex") is None else int(item[1].get("preferredIndex", 999_999)),
+            str(item[0]),
+        ),
+    )
+    return str(preferred[0][0]) if preferred else "provider-default"
+
+
+def _snapshot_provider_capability(provider: str) -> ProviderCapability | None:
+    info = kilocode_provider_info(provider)
+    if not info:
+        return None
+    model_ids = kilocode_provider_model_ids(provider)
+    envs = tuple(str(item) for item in info.get("env", []) if str(item).strip())
+    npm = str(info.get("npm", "") or "").strip()
+    api = str(info.get("api", "") or "").strip()
+    name = str(info.get("name", provider) or provider).strip() or provider
+    default_model = _snapshot_provider_default_model(provider, kilocode_provider_models(provider))
+    auth_type = "api_key" if envs else "none"
+    if provider == "kilo":
+        auth_type = "kilo_api_key"
+    elif "copilot" in provider:
+        auth_type = "oauth_or_token"
+    elif provider == "azure":
+        auth_type = "azure_api_key"
+    elif provider == "google":
+        auth_type = "google_api_key"
+    elif provider == "openai":
+        auth_type = "openai_api_key"
+    elif provider == "openrouter":
+        auth_type = "openrouter_api_key"
+    elif provider == "anthropic":
+        auth_type = "anthropic_api_key"
+    elif provider == "opencode":
+        auth_type = "opencode_api_key"
+    elif provider == "ollama-cloud":
+        auth_type = "ollama_api_key"
+    model_aliases = model_ids or ("provider-default",)
+    return ProviderCapability(
+        name=provider,
+        provider_label=name,
+        backend_label=npm or api or provider,
+        auth_type=auth_type,
+        model_aliases=model_aliases,
+        default_model=default_model,
+        context_assumption=f"Snapshot-backed provider {name}.",
+        supports_account_profiles=bool(envs),
+        supports_browser_login=provider in {"kilo", "github-copilot", "github-models"},
+        supports_api_key=bool(envs) or provider in {"kilo", "openrouter", "openai", "azure", "google", "github-copilot", "github-models"},
+        token_env=envs[0] if envs else "",
+        model_env=f"{provider.upper().replace('-', '_')}_MODEL",
+        login_url=str(info.get("doc", "")) if isinstance(info.get("doc"), str) else "",
+        login_hint=f"Configured from the KiloCode snapshot entry for {name}.",
+        source=f"KiloCode snapshot: {provider}",
+    )
+
+
+def _snapshot_provider_model_specs(provider: str) -> tuple[ProviderModelSpec, ...]:
+    models = kilocode_provider_models(provider)
+    if not models:
+        return ()
+    specs: list[ProviderModelSpec] = []
+    for model_id in kilocode_provider_model_ids(provider):
+        model = models.get(model_id)
+        if not model:
+            continue
+        reasoning_efforts, reasoning_default = _snapshot_model_reasoning_efforts(model)
+        specs.append(
+            ProviderModelSpec(
+                id=model_id,
+                label=str(model.get("name", model_id)),
+                reasoning_efforts=reasoning_efforts,
+                reasoning_default=reasoning_default,
+                context_window_hint=_snapshot_model_context_hint(model),
+                availability="general" if model.get("tool_call", True) else "limited",
+                source=f"KiloCode snapshot: {provider}",
+            )
+        )
+    return tuple(specs)
+
+
 def provider_capability(model: str) -> ProviderCapability:
+    if model == "cheap":
+        snapshot = _snapshot_provider_capability("openrouter")
+        if snapshot is not None:
+            return ProviderCapability(
+                name="cheap",
+                provider_label="OpenRouter",
+                backend_label="cheap/openrouter",
+                auth_type="api_key",
+                model_aliases=("provider-default", *snapshot.model_aliases),
+                default_model="provider-default",
+                context_assumption="OpenRouter-backed cheap provider alias.",
+                supports_account_profiles=True,
+                supports_browser_login=False,
+                supports_api_key=True,
+                token_env="OPENROUTER_API_KEY",
+                model_env="OPENROUTER_MODEL",
+                login_url="https://openrouter.ai/settings/keys",
+                login_hint="Use OPENROUTER_API_KEY or account add cheap <name> ENV_VAR.",
+                source="KiloCode snapshot: openrouter alias",
+            )
+    if model in {"local", "chatgpt", "claude"}:
+        try:
+            return PROVIDER_CAPABILITIES[model]
+        except KeyError as exc:
+            raise ValueError(f"Unsupported model '{model}'.") from exc
+    snapshot_capability = _snapshot_provider_capability(model)
+    if snapshot_capability is not None:
+        return snapshot_capability
     try:
         return PROVIDER_CAPABILITIES[model]
     except KeyError as exc:
@@ -460,20 +645,20 @@ def canonicalize_model_variant(model: str, variant: str) -> str:
 
 def model_backends() -> dict[str, dict[str, str]]:
     return {
-        name: {"provider": capability.provider_label, "label": capability.backend_label}
-        for name, capability in PROVIDER_CAPABILITIES.items()
+        name: {"provider": provider_capability(name).provider_label, "label": provider_capability(name).backend_label}
+        for name in SUPPORTED_MODELS
     }
 
 
 def model_variant_catalog() -> dict[str, dict[str, object]]:
     return {
-        name: {"variants": capability.model_aliases, "source": capability.source}
-        for name, capability in PROVIDER_CAPABILITIES.items()
+        name: {"variants": provider_capability(name).model_aliases, "source": provider_capability(name).source}
+        for name in SUPPORTED_MODELS
     }
 
 
 def model_token_env() -> dict[str, str]:
-    env_map = {name: capability.token_env for name, capability in PROVIDER_CAPABILITIES.items() if capability.token_env}
+    env_map = {name: provider_capability(name).token_env for name in SUPPORTED_MODELS if provider_capability(name).token_env}
     openrouter_env = _openrouter_env_key_from_codex_config()
     if openrouter_env:
         env_map["cheap"] = openrouter_env
@@ -481,14 +666,30 @@ def model_token_env() -> dict[str, str]:
 
 
 def model_name_env() -> dict[str, str]:
-    return {name: capability.model_env for name, capability in PROVIDER_CAPABILITIES.items() if capability.model_env}
+    return {name: provider_capability(name).model_env for name in SUPPORTED_MODELS if provider_capability(name).model_env}
 
 
 def login_urls() -> dict[str, str]:
-    return {name: capability.login_url for name, capability in PROVIDER_CAPABILITIES.items() if capability.login_url}
+    return {name: provider_capability(name).login_url for name in SUPPORTED_MODELS if provider_capability(name).login_url}
 
 
 def provider_model_specs(model: str) -> tuple[ProviderModelSpec, ...]:
+    if model == "cheap":
+        snapshot_specs = _snapshot_provider_model_specs("openrouter")
+        return (
+            ProviderModelSpec(
+                id="provider-default",
+                label="Provider default",
+                reasoning_efforts=("low", "medium"),
+                reasoning_default="medium",
+                availability="provider-default",
+                source="OpenRouter provider alias",
+            ),
+            *snapshot_specs,
+        )
+    snapshot_specs = _snapshot_provider_model_specs(model)
+    if snapshot_specs:
+        return snapshot_specs
     try:
         if model == "local":
             return _discover_local_provider_model_specs()
@@ -508,6 +709,31 @@ def provider_model_spec(model: str, provider_model: str) -> ProviderModelSpec | 
 
 def provider_model_preset(model: str, preset: str) -> tuple[str, dict[str, str]]:
     normalized = str(preset).strip().lower()
+    if model in _snapshot_provider_ids():
+        specs = list(provider_model_specs(model))
+        usable = [spec for spec in specs if spec.id != "provider-default"]
+        if not usable:
+            return "provider-default", {}
+        ranked = sorted(
+            usable,
+            key=lambda spec: (
+                999_999 if spec.reasoning_default is None else 0,
+                len(spec.reasoning_efforts) if spec.reasoning_efforts else 999,
+                spec.id,
+            ),
+        )
+        if normalized == "fast":
+            return ranked[0].id, {"reasoning_effort": ranked[0].reasoning_efforts[0]} if ranked[0].reasoning_efforts else {}
+        if normalized == "balanced":
+            middle = ranked[min(len(ranked) // 2, len(ranked) - 1)]
+            return middle.id, {"reasoning_effort": middle.reasoning_default or (middle.reasoning_efforts[0] if middle.reasoning_efforts else "medium")}
+        if normalized in {"deep", "plan"}:
+            deep_candidates = [spec for spec in ranked if "high" in spec.reasoning_efforts or "high" == spec.reasoning_default]
+            pick = deep_candidates[-1] if deep_candidates else ranked[-1]
+            return pick.id, {"reasoning_effort": pick.reasoning_default or (pick.reasoning_efforts[-1] if pick.reasoning_efforts else "high")}
+        raise ValueError(
+            f"Unsupported preset '{preset}' for {model}. Allowed: fast, balanced, deep, plan"
+        )
     presets: dict[str, dict[str, tuple[str, dict[str, str]]]] = {
         "chatgpt": {
             "fast": ("codex-mini-latest", {"reasoning_effort": "low"}),
@@ -544,3 +770,11 @@ def provider_model_preset(model: str, preset: str) -> tuple[str, dict[str, str]]
             f"Unsupported preset '{preset}' for {model}. Allowed: {', '.join(provider_presets) or 'none'}"
         )
     return provider_presets[normalized]
+
+
+def _build_supported_models() -> tuple[str, ...]:
+    ordered = ["local", "cheap", "chatgpt", "claude", *list(_snapshot_provider_ids())]
+    return tuple(dict.fromkeys(ordered))
+
+
+SUPPORTED_MODELS = _build_supported_models()

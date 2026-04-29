@@ -2863,6 +2863,7 @@ def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
         f"- autonomy_rule: {node.get('autonomy_rule', 'none')}",
         f"- escalation_target: {node.get('escalation_target', 'board.executive')}",
         f"- shell_hint: role shell {node.get('node_id', node_id)}",
+        f"- switch_hint: role switch {node.get('node_id', node_id)}",
         f"- assignment: provider={assignment.get('provider') or 'none'} provider_model={assignment.get('provider_model') or 'none'} account={assignment.get('account') or 'none'}",
         f"- children: {', '.join(str(item.get('node_id')) for item in children) or 'none'}",
         f"- navigation: parent={navigation.get('parent_id') or 'none'} prev={navigation.get('previous_sibling') or 'none'} next={navigation.get('next_sibling') or 'none'}",
@@ -2903,6 +2904,7 @@ def _render_prince2_role_node_shell(config: AgentConfig, node_id: str) -> str:
         f"- shell_hint: role shell {node.get('node_id', node_id)}",
         f"- menu_hint: role menu {node.get('node_id', node_id)}",
         f"- tree_hint: roles tree",
+        f"- switch_hint: role switch {node.get('node_id', node_id)}",
     ]
     return "\n".join(lines)
 
@@ -3503,6 +3505,41 @@ def _guided_role_node_model_choice(
     ).strip()
 
 
+def _guided_role_node_switch_agent(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    node_id: str,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided PRINCE2 node agent switching is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu`, `role shell`, or `role switch`."
+    node = _role_tree_node_record(config, node_id)
+    if not node:
+        return f"PRINCE2 node '{node_id}' not found."
+    recommendation = _node_model_recommendation(config, node)
+    current = recommendation.get("current", {}) if isinstance(recommendation.get("current"), dict) else {}
+    suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
+    output_stream.write("KiloCode-style switch agent:\n")
+    output_stream.write(_render_prince2_role_node_detail(config, node_id) + "\n")
+    output_stream.write(
+        "- switch_summary: "
+        f"current={current.get('provider') or 'none'}:{current.get('provider_model') or 'none'} "
+        f"direction={recommendation.get('direction', 'hold')} "
+        f"suggested={suggested.get('provider') or 'none'}:{suggested.get('provider_model') or 'none'}\n"
+    )
+    output_stream.write(_guided_role_node_assignment_context(config, node_id, "primary") + "\n")
+    output_stream.write("Switching agent means choosing a new provider-model for this node.\n")
+    return _guided_role_node_model_choice(
+        prefs=prefs,
+        config=config,
+        node_id=node_id,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+
+
 def _guided_role_node_menu(
     *,
     prefs: ModelPreferences,
@@ -3524,6 +3561,7 @@ def _guided_role_node_menu(
             options=[
                 ("view", "View node detail again"),
                 ("shell", "Open node shell and navigate between nodes"),
+                ("switch-agent", "Switch agent/model for this node"),
                 ("model", "Change model assignment"),
                 ("auto-model", "Auto-pick a stronger or lighter model from the menu"),
                 ("tolerance", "Adjust tolerance margin"),
@@ -3542,6 +3580,10 @@ def _guided_role_node_menu(
             continue
         if action == "shell":
             output_stream.write(_guided_role_node_shell(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "switch-agent":
+            output_stream.write(_guided_role_node_switch_agent(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
             prefs = _load_model_preferences(config)
             continue
         if action == "model":
@@ -3687,6 +3729,7 @@ def _guided_role_node_shell(
                 ("child", "Choose one child node"),
                 ("jump", "Jump to another node"),
                 ("menu", "Open the node menu"),
+                ("switch", "Switch agent/model for this node"),
                 ("tree", "Show the full role tree"),
                 ("back", "Close node shell"),
             ],
@@ -3700,6 +3743,10 @@ def _guided_role_node_shell(
             continue
         if action == "menu":
             output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "switch":
+            output_stream.write(_guided_role_node_switch_agent(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
             prefs = _load_model_preferences(config)
             continue
         if action == "jump":
@@ -4023,7 +4070,7 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree menu | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | roles menu | roles shell [node_id]"
+        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree menu | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | roles menu | roles shell [node_id] | roles switch [node_id]"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) == 2 and parts[1] == "menu":
@@ -4048,8 +4095,24 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
+        if len(parts) == 3 and parts[1] == "switch":
+            return _guided_role_node_switch_agent(
+                prefs=prefs,
+                config=config,
+                node_id=parts[2],
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
         if len(parts) == 3 and parts[1] == "menu":
             return _guided_role_node_menu(
+                prefs=prefs,
+                config=config,
+                node_id=parts[2],
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        if len(parts) == 3 and parts[1] == "switch":
+            return _guided_role_node_switch_agent(
                 prefs=prefs,
                 config=config,
                 node_id=parts[2],
