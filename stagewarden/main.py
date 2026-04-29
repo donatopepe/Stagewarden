@@ -11801,8 +11801,8 @@ def main() -> int:
             elif task in {"update apply", "update apply --yes"}:
                 report = _with_json_schema("update apply", _update_apply_report(config, confirmed=task.endswith(" --yes")))
             else:
-                report = _with_json_schema("update status", {"command": task, "ok": False, "error": "Usage: update status | update check [--json] | update apply --yes"})
-            print(dumps_ascii(_with_json_schema((report or {}).get("command", "update status"), report), indent=2))
+                report = _with_json_schema("update", {"command": task, "ok": False, "error": "Usage: update status | update check [--json] | update apply --yes"})
+            print(dumps_ascii(_with_json_schema((report or {}).get("command", "update"), report), indent=2))
             return 0 if report.get("ok") else 1
         response = _handle_update_command(task, config)
         if response is None or response.startswith("Usage:"):
