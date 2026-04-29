@@ -11473,7 +11473,7 @@ def main() -> int:
                 print(dumps_ascii(_with_json_schema("catalog refresh", _catalog_refresh_report(catalog)), indent=2))
                 return 0
         response = _handle_model_command(task, agent, config)
-        payload = _with_json_schema("catalog", {"command": "catalog", "message": response})
+        payload = _with_json_schema("catalog", {"command": task, "message": response})
         if args.json:
             print(dumps_ascii(payload, indent=2))
         else:

@@ -2564,6 +2564,18 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Matches: 1", response or "")
             self.assertIn("openai:gpt-5.4", response or "")
 
+    def test_catalog_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "catalog unexpected", "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(payload["command"], "catalog unexpected")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.catalog")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("Usage: catalog status", payload["message"])
+
     def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
