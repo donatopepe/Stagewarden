@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .role_tree import prince2_node_description, prince2_status_color
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
 
@@ -783,9 +784,11 @@ class ProjectHandoff:
             f"- wait_triggers: {summary.get('wait_triggers', 0)} message_queues={summary.get('message_queues', 0)}",
         ]
         for node in nodes:
+            status_color = prince2_status_color(node, runtime_state=str(node.get("state", "")))
             lines.append(
                 f"- {node.get('label', node.get('node_id', 'node'))} [{node.get('node_id', 'unknown')}]: "
                 f"state={node.get('state', 'unknown')} "
+                f"color={status_color} "
                 f"owner={node.get('accountable_owner', 'user')} "
                 f"margin={node.get('tolerance_margin_percent', 'unknown')} "
                 f"pressure={node.get('tolerance_pressure_percent', 'unknown')} "
@@ -794,6 +797,7 @@ class ProjectHandoff:
                 f"provider={((node.get('assignment') or {}).get('provider') if isinstance(node.get('assignment'), dict) else None) or 'none'} "
                 f"provider_model={((node.get('assignment') or {}).get('provider_model') if isinstance(node.get('assignment'), dict) else None) or 'none'}"
             )
+            lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
         return "\n".join(lines)
 
     def prince2_node_active_report(self) -> dict[str, Any]:
@@ -842,8 +846,10 @@ class ProjectHandoff:
             lines.append("- none")
             return "\n".join(lines)
         for node in nodes:
+            status_color = prince2_status_color(node, runtime_state=str(node.get("state", "")))
             lines.append(
                 f"- {node.get('label')} [{node.get('node_id')}]: state={node.get('state')} "
+                f"color={status_color} "
                 f"owner={node.get('accountable_owner', 'user')} "
                 f"margin={node.get('tolerance_margin_percent', 'unknown')} "
                 f"pressure={node.get('tolerance_pressure_percent', 'unknown')} "
@@ -851,6 +857,7 @@ class ProjectHandoff:
                 f"wait={node.get('wait_status')} inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
                 f"provider={node.get('provider')} provider_model={node.get('provider_model')}"
             )
+            lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
         return "\n".join(lines)
 
     def prince2_node_queue_report(self) -> dict[str, Any]:
@@ -1820,6 +1827,7 @@ class ProjectHandoff:
                     "node_id": node_id,
                     "role_type": str(node.get("role_type", "")),
                     "label": str(node.get("label", node_id)),
+                    "description": str(node.get("description", prince2_node_description(node))),
                     "parent_id": str(node.get("parent_id")) if node.get("parent_id") not in {None, ""} else None,
                     "level": str(node.get("level", "")),
                     "state": str(previous.get("state", default_state)).strip().lower() or default_state,
