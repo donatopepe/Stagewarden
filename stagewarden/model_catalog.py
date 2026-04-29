@@ -9,6 +9,13 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from .kilocode_source import (
+    kilocode_provider_ids,
+    kilocode_provider_info,
+    kilocode_provider_model_ids,
+    kilocode_provider_models,
+    load_kilocode_provider_snapshot,
+)
 from .provider_registry import provider_model_specs
 
 
@@ -121,6 +128,111 @@ def _catalog_aliases(provider: str, provider_model_id: str, model_name: str, sou
         aliases.add(provider_model_id.split(":", 1)[0])
     aliases.discard("")
     return sorted(aliases)
+
+
+def _catalog_features_from_kilocode_model(model: dict[str, Any]) -> list[str]:
+    features: set[str] = set()
+    modalities = model.get("modalities", {})
+    if isinstance(modalities, dict):
+        for modality in modalities.get("input", []) or []:
+            features.add(str(modality))
+        for modality in modalities.get("output", []) or []:
+            features.add(f"output:{modality}")
+    if model.get("reasoning"):
+        features.add("reasoning")
+    if model.get("tool_call"):
+        features.add("tool_use")
+    if model.get("attachment"):
+        features.add("attachment")
+    if model.get("temperature"):
+        features.add("temperature")
+    if model.get("open_weights"):
+        features.add("open_weights")
+    if model.get("structured_output"):
+        features.add("structured_output")
+    interleaved = model.get("interleaved")
+    if isinstance(interleaved, dict):
+        field = str(interleaved.get("field", "")).strip()
+        if field:
+            features.add(f"interleaved:{field}")
+    return sorted(features)
+
+
+def _snapshot_entry_from_provider_model(provider: str, model_id: str, model: dict[str, Any]) -> dict[str, Any]:
+    model_name = str(model.get("name", model_id))
+    limit = model.get("limit", {}) if isinstance(model.get("limit"), dict) else {}
+    cost = model.get("cost", {}) if isinstance(model.get("cost"), dict) else {}
+    input_price = _safe_float(cost.get("input"))
+    output_price = _safe_float(cost.get("output"))
+    blended: float | str | None
+    if provider == "local":
+        blended = "local"
+        input_price = None
+        output_price = None
+    elif input_price is not None and output_price is not None:
+        blended = _blended_price_usd_per_1m_tokens(input_price, output_price)
+    else:
+        blended = None
+    context_window = None
+    if isinstance(limit.get("context"), (int, float)):
+        context_window = int(limit["context"])
+    aliases = _catalog_aliases(provider, model_id, model_name, f"{provider}:{model_id}")
+    if model_id not in aliases:
+        aliases.append(model_id)
+    return {
+        "provider": provider,
+        "model_name": model_name,
+        "model_id": model_id,
+        "context_window": context_window,
+        "cost_per_input_token_usd": input_price,
+        "cost_per_output_token_usd": output_price,
+        "blended_price_usd_per_1m_tokens": blended,
+        "intelligence_rank": model.get("preferredIndex"),
+        "speed_rank": None,
+        "latency_rank": None,
+        "openness": "open_weights" if model.get("open_weights") else "proprietary",
+        "features": _catalog_features_from_kilocode_model(model),
+        "source": f"{provider}:{model_id}",
+        "aliases": aliases,
+    }
+
+
+def _snapshot_catalog_entries() -> list[dict[str, Any]]:
+    snapshot = load_kilocode_provider_snapshot()
+    entries: list[dict[str, Any]] = []
+    for provider in kilocode_provider_ids():
+        models = kilocode_provider_models(provider)
+        for model_id in kilocode_provider_model_ids(provider):
+            model = models.get(model_id)
+            if not model:
+                continue
+            entries.append(_snapshot_entry_from_provider_model(provider, model_id, model))
+    return entries
+
+
+def _catalog_source_provider(provider: str) -> str | None:
+    if provider in kilocode_provider_ids():
+        return provider
+    if provider == "cheap":
+        return "openrouter"
+    if provider == "chatgpt":
+        return "openai"
+    return None
+
+
+def _catalog_entry_for_provider_spec(
+    provider: str,
+    spec: Any,
+    openrouter_models: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    if str(getattr(spec, "id", "")).strip() == "provider-default":
+        return _entry_from_spec(provider, spec, openrouter_models)
+    source_provider = _catalog_source_provider(provider)
+    if source_provider:
+        model = kilocode_provider_models(source_provider).get(str(getattr(spec, "id", "")))
+        if model is not None:
+            return _snapshot_entry_from_provider_model(provider, str(getattr(spec, "id", "")), model)
+    return _entry_from_spec(provider, spec, openrouter_models)
 
 
 def _openrouter_model_index(urlopen_fn=urlopen) -> dict[str, dict[str, Any]]:

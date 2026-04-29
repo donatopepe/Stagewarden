@@ -89,8 +89,9 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/role configure [role]` mostra responsabilita PRINCE2 e scope del ruolo prima di assegnare provider/modello/account.
 - `/roles menu` apre il menu guidato del tree PRINCE2 per aggiungere o rimuovere nodi, aprire la shell di un nodo e approvare la baseline.
 - `/roles shell [node_id]` apre la shell navigabile di un nodo PRINCE2 con parent, sibling e child hop.
-- `/role menu [node_id]` apre il menu guidato di un nodo, con cambio modello in stile KiloCode, update tolleranza, shell del nodo e rimozione.
+- `/role menu [node_id]` apre il menu guidato di un nodo, con cambio agente/modello in stile KiloCode, update tolleranza, shell del nodo e rimozione.
 - `/role shell [node_id]` apre direttamente la shell navigabile di un nodo PRINCE2.
+- `/role switch [node_id]` apre direttamente il flusso guidato di switch agente/modello per un nodo.
 - `/role model <node_id> ...` cambia il modello del nodo; il chooser mostra prima le alternative piu forti, piu deboli e poi il resto del catalogo.
 - `/role tolerance set <node_id> <percent>` e `/role tolerance reset <node_id>` aggiornano o ricalcolano il margine di tolleranza del nodo.
 - `/role remove <node_id> [reparent_children=<yes|no>]` rimuove un nodo dalla baseline dinamica.

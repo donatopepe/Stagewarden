@@ -157,6 +157,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("role add-child", "prince2", "Add a delegated PRINCE2 child node to the approved role-tree baseline.", "role add-child [parent_node role_type [node_id]]", handler="roles"),
     CommandSpec("role menu", "prince2", "Open a guided menu for one PRINCE2 node or the whole tree.", "role menu [node_id]", handler="roles"),
     CommandSpec("role shell", "prince2", "Open a guided shell navigator for one PRINCE2 node.", "role shell [node_id]", handler="roles"),
+    CommandSpec("role switch", "prince2", "Switch the agent/model assignment for one PRINCE2 node using the guided recommendation menu.", "role switch <node_id>", aliases=("roles switch",), handler="roles"),
     CommandSpec("role model", "prince2", "Change or guided-select the model assignment for one PRINCE2 node.", "role model <node_id> [provider provider_model] [reasoning_effort=<value>] [account=<name>]", handler="roles"),
     CommandSpec("role tolerance", "prince2", "Adjust or reset one PRINCE2 node tolerance margin.", "role tolerance <set|reset> <node_id> [percent]", handler="roles"),
     CommandSpec("role remove", "prince2", "Remove one PRINCE2 node from the approved baseline.", "role remove <node_id> [reparent_children=<yes|no>]", handler="roles"),
