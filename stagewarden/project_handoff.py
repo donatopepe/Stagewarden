@@ -1743,6 +1743,8 @@ class ProjectHandoff:
         register_statuses: dict[str, int],
         backlog_statuses: dict[str, int],
     ) -> str:
+        if self.status == "waiting":
+            return "waiting"
         if self.status == "exception" or boundary_decision.startswith("review_boundary:exception"):
             return "exception"
         if backlog_statuses["blocked"] > 0:
@@ -1763,6 +1765,8 @@ class ProjectHandoff:
         backlog_statuses: dict[str, int],
         recovery_state: str,
     ) -> str:
+        if self.status == "waiting":
+            return "resume suspended session when connectivity returns"
         if recovery_state == "recovery_active":
             return "execute recovery lane and confirm wet-run before re-baseline"
         if recovery_state == "recovery_cleared":
@@ -1821,6 +1825,8 @@ class ProjectHandoff:
         return "review_boundary:manual_check"
 
     def _recovery_state(self, status_by_step: dict[str, str], backlog_statuses: dict[str, int]) -> str:
+        if self.status == "waiting":
+            return "network_wait"
         recovery_statuses = {
             step_id: status
             for step_id, status in status_by_step.items()

@@ -5679,7 +5679,7 @@ def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "stale": bool(latest_limit.get("stale", False)),
         },
         "latest_handoff_action": _latest_handoff_action(config),
-        "resume_ready": bool(handoff.task),
+        "resume_ready": bool(handoff.task) and handoff.status in {"initiating", "planned", "executing", "waiting", "exception"},
     }
 
 
