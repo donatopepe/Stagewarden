@@ -23,6 +23,7 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "model limit-clear": "stagewarden.model_limit_clear",
     "account limit-record": "stagewarden.account_limit_record",
     "account limit-clear": "stagewarden.account_limit_clear",
+    "file": "stagewarden.file",
     "catalog status": "stagewarden.catalog_status",
     "catalog search": "stagewarden.catalog_search",
     "catalog": "stagewarden.catalog",

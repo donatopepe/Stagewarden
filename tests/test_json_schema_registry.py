@@ -39,6 +39,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "model limit-clear",
             "account limit-record",
             "account limit-clear",
+            "file",
             "catalog status",
             "catalog search",
             "catalog",
