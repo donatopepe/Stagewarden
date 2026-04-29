@@ -9,6 +9,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
+- `statusline --json` now includes a versioned `schema` block so other agents can validate the payload contract explicitly.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
@@ -17,6 +18,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - `AGENT_HANDOFF.md`: added the compatibility handoff structure.
 - `tests/test_trace_cli.py`: battery now covers provider limits, permission denial, PRINCE2 runtime failure modes, escalation child spawn/token accounting, and antagonist KPI controls.
 - `stagewarden/main.py`, `stagewarden/executor.py`, and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes, tracks per-node thread tokens, runs a devil's-advocate review pass on model responses, and surfaces per-node antagonists.
+- `stagewarden/main.py`: `statusline --json` now emits a versioned schema block for cross-agent compatibility.
 - `stagewarden/commands.py`: added `/help agent` and a dedicated agent-compatibility help topic.
 - `README.md` and `README_IT.md`: documented the multi-agent protocol and the new help entry.
 
