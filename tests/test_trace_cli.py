@@ -17,6 +17,7 @@ from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
 from stagewarden.main import (
     _catalog_status_report,
+    _catalog_refresh_report,
     _guided_role_node_menu,
     _guided_role_node_shell,
     _guided_role_tree_menu,
@@ -2473,8 +2474,23 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("model_count=1", refreshed or "")
             self.assertEqual(report["model_count"], 1)
             self.assertEqual(report["generated_at"], snapshot["generated_at"])
+            self.assertEqual(report["command"], "catalog status")
             self.assertEqual(report["schema"]["name"], "stagewarden.catalog_status")
             self.assertEqual(report["schema"]["version"], "1")
+
+    def test_catalog_refresh_report_uses_specific_command_name(self) -> None:
+        catalog = {
+            "generated_at": "2026-04-27T15:15:22Z",
+            "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+            "models": [{"provider": "local", "model_id": "provider-default"}],
+        }
+
+        report = _catalog_refresh_report(catalog)
+
+        self.assertEqual(report["command"], "catalog refresh")
+        self.assertEqual(report["schema"]["name"], "stagewarden.catalog_refresh")
+        self.assertEqual(report["schema"]["version"], "1")
+        self.assertEqual(report["model_count"], 1)
 
     def test_catalog_search_reports_matches(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2496,7 +2512,7 @@ class TraceAndCliTests(unittest.TestCase):
             completed = run_main_capture(root, "catalog search gpt-5.4", "--json")
             self.assertEqual(completed.returncode, 0, completed.stderr)
             search_payload = json.loads(completed.stdout)
-            self.assertEqual(search_payload["command"], "catalog")
+            self.assertEqual(search_payload["command"], "catalog search")
             self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
             self.assertEqual(search_payload["schema"]["version"], "1")
 
@@ -2536,7 +2552,7 @@ class TraceAndCliTests(unittest.TestCase):
             completed = run_main_capture(root, "catalog search feature=tool_use", "--json")
             self.assertEqual(completed.returncode, 0, completed.stderr)
             search_payload = json.loads(completed.stdout)
-            self.assertEqual(search_payload["command"], "catalog")
+            self.assertEqual(search_payload["command"], "catalog search")
             self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
             self.assertEqual(search_payload["schema"]["version"], "1")
 
