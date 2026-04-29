@@ -30,6 +30,7 @@ from stagewarden.main import (
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.secrets import SecretStore
+from tests.test_agent_integration import write_resume_network_stub
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -3451,6 +3452,7 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("PRINCE2 node runtime:", completed.stdout)
+            self.assertIn("- session_state:", completed.stdout)
             self.assertIn("Project Manager [management.project_manager]", completed.stdout)
             self.assertIn("state=ready", completed.stdout)
             self.assertIn("switch_hint=role switch management.project_manager", completed.stdout)
@@ -3523,7 +3525,47 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(queues_payload["summary"]["inbox_total"], 1)
             self.assertEqual(queues_payload["summary"]["nodes_with_outbox"], 1)
             self.assertEqual(active_text.returncode, 0, active_text.stderr)
+            self.assertIn("- session_state:", active_text.stdout)
             self.assertIn("switch_hint=role switch management.project_manager", active_text.stdout)
+
+    def test_interactive_shell_auto_resumes_waiting_session_on_startup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_resume_network_stub(root)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                first = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                    )
+                )
+                suspended = first.run("create a file named hello.txt")
+                self.assertFalse(suspended.ok)
+                self.assertEqual(ProjectHandoff.load(root / ".stagewarden_handoff.json").status, "waiting")
+
+                (root / ".resume_ready").write_text("yes\n", encoding="utf-8")
+                config = AgentConfig(workspace_root=root, max_steps=10)
+                input_stream = StringIO("exit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Auto-resuming suspended task: create a file named hello.txt", rendered)
+            self.assertIn("Running task: create a file named hello.txt", rendered)
+            self.assertIn("- session_state: suspended", rendered)
+            self.assertIn("- session_recoverable: true", rendered)
+            self.assertIn("Agent result:", rendered)
+            self.assertTrue((root / "hello.txt").exists())
+            self.assertEqual(ProjectHandoff.load(root / ".stagewarden_handoff.json").status, "closed")
 
     def test_roles_control_renders_board_facing_runtime_decision(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

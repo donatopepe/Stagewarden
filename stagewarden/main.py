@@ -8841,6 +8841,8 @@ def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = No
             f"Shell progress ({phase}):",
             f"- active_step: {active_label}",
             f"- stage_health: {view['stage_health']}",
+            f"- session_state: {view['session_state']}",
+            f"- session_recoverable: {str(bool(view['session_recoverable'])).lower()}",
             f"- boundary_decision: {view['boundary_decision']}",
             f"- recovery_state: {view['recovery_state']}",
             f"- git_head: {git_boundary['current']}",
@@ -10830,6 +10832,23 @@ def run_interactive_shell(
         sink.write(f"History file: {config.history_path.name}\n")
     sink.flush()
 
+    def _run_task(task: str) -> None:
+        sink.write(f"Running task: {task}\n")
+        sink.write(f"{_render_shell_progress(agent, phase='before', command=task)}\n")
+        sink.flush()
+        result = agent.run(task)
+        sink.write("Agent result:\n")
+        sink.write(f"{result.message}\n")
+        sink.write(f"{_render_last_step_outcome(agent)}\n")
+        sink.write(f"{_render_shell_progress(agent, phase='after')}\n")
+        sink.flush()
+
+    suspended_task = str(agent.project_handoff.task or "").strip()
+    if agent.project_handoff.status == "waiting" and suspended_task:
+        sink.write(f"Auto-resuming suspended task: {suspended_task}\n")
+        sink.flush()
+        _run_task(suspended_task)
+
     while True:
         sink.write("stagewarden> ")
         sink.flush()
@@ -10848,15 +10867,7 @@ def run_interactive_shell(
             and _is_known_interactive_command(command)
         )
         if not command.startswith(INTERACTIVE_COMMAND_PREFIX) and not legacy_shell_command:
-            sink.write(f"Running task: {command}\n")
-            sink.write(f"{_render_shell_progress(agent, phase='before', command=command)}\n")
-            sink.flush()
-            result = agent.run(command)
-            sink.write("Agent result:\n")
-            sink.write(f"{result.message}\n")
-            sink.write(f"{_render_last_step_outcome(agent)}\n")
-            sink.write(f"{_render_shell_progress(agent, phase='after')}\n")
-            sink.flush()
+            _run_task(command)
             continue
         shell_command = command[len(INTERACTIVE_COMMAND_PREFIX) :].strip() if command.startswith(INTERACTIVE_COMMAND_PREFIX) else command
         if not shell_command:

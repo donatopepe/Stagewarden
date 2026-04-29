@@ -675,6 +675,8 @@ class ProjectHandoff:
                 "Operational posture:",
                 f"- governance: {self.rendered_register_status_summary()}",
                 f"- stage_health: {view['stage_health']}",
+                f"- session_state: {view['session_state']}",
+                f"- session_recoverable: {str(bool(view['session_recoverable'])).lower()}",
                 f"- recovery_state: {view['recovery_state']}",
                 f"- next_action: {view['next_action']}",
                 f"- active_stage: {active_stage}",
@@ -781,6 +783,7 @@ class ProjectHandoff:
         summary = report["summary"] if isinstance(report["summary"], dict) else {}
         runtime = report["runtime"] if isinstance(report["runtime"], dict) else {}
         nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+        stage_view = self.stage_view()
         lines = [
             "PRINCE2 node runtime:",
             f"- status: {summary.get('status', 'unknown')}",
@@ -789,6 +792,8 @@ class ProjectHandoff:
             f"- materialized_at: {runtime.get('materialized_at', 'unknown')}",
             f"- baseline_source: {runtime.get('baseline_source', 'unknown')}",
             f"- wait_triggers: {summary.get('wait_triggers', 0)} message_queues={summary.get('message_queues', 0)}",
+            f"- session_state: {stage_view['session_state']}",
+            f"- session_recoverable: {str(bool(stage_view['session_recoverable'])).lower()}",
         ]
         for node in nodes:
             status_color = prince2_status_color(node, runtime_state=str(node.get("state", "")))
@@ -882,7 +887,10 @@ class ProjectHandoff:
         report = self.prince2_node_active_report()
         if report["status"] == "missing":
             return "PRINCE2 active nodes: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
+        stage_view = self.stage_view()
         lines = ["PRINCE2 active nodes:"]
+        lines.append(f"- session_state: {stage_view['session_state']}")
+        lines.append(f"- session_recoverable: {str(bool(stage_view['session_recoverable'])).lower()}")
         nodes = [node for node in report.get("nodes", []) if isinstance(node, dict)]
         if not nodes:
             lines.append("- none")
