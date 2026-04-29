@@ -90,6 +90,10 @@ from .tools.git import GitTool
 from .tools.external_io import ExternalIOResult, ExternalIOTool
 
 
+STATUSLINE_SCHEMA_NAME = "stagewarden.statusline"
+STATUSLINE_SCHEMA_VERSION = "1"
+
+
 INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
     *command_phrases(),
     "help",
@@ -5573,6 +5577,10 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         active_model = next((item for item in status["models"]["models"] if item["active"]), None)
     return {
         "command": "statusline",
+        "schema": {
+            "name": STATUSLINE_SCHEMA_NAME,
+            "version": STATUSLINE_SCHEMA_VERSION,
+        },
         "workspace": {
             "current_dir": status["workspace"],
             "project_dir": status["workspace"],
