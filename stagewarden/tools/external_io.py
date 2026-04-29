@@ -26,6 +26,8 @@ class ExternalIOResult:
     content_type: str | None = None
     duration_ms: int = 0
     items: list[dict[str, str]] | None = None
+    retryable: bool = False
+    error_type: str | None = None
     error: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -40,6 +42,8 @@ class ExternalIOResult:
             "content_type": self.content_type,
             "duration_ms": self.duration_ms,
             "items": list(self.items or []),
+            "retryable": self.retryable,
+            "error_type": self.error_type,
             "error": self.error,
         }
 
@@ -270,12 +274,49 @@ class ExternalIOTool:
         return int((time.monotonic() - started) * 1000)
 
     def _error(self, command: str, message: str, started: float, *, url: str | None = None, path: str | None = None) -> ExternalIOResult:
+        retryable = self._is_transient_network_error(message)
         return ExternalIOResult(
             ok=False,
             command=command,
-            message=message,
+            message=message if not retryable else f"{message} The run is safe to resume when connectivity returns.",
             path=path,
             url=url,
             duration_ms=self._elapsed_ms(started),
+            retryable=retryable,
+            error_type="network_wait" if retryable else "external_io_error",
             error=message,
         )
+
+    def _is_transient_network_error(self, message: str | None) -> bool:
+        if not message:
+            return False
+        lowered = message.lower()
+        patterns = (
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "network is unreachable",
+            "temporary failure in name resolution",
+            "name or service not known",
+            "no route to host",
+            "host unreachable",
+            "timed out",
+            "timeout",
+            "request timed out",
+            "read timed out",
+            "write timed out",
+            "ssl",
+            "tls",
+            "certificate verify failed",
+            "proxy error",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
+            "network error",
+            "network unavailable",
+            "fetch failed",
+            "failed to connect",
+            "dns",
+            "name resolution",
+        )
+        return any(pattern in lowered for pattern in patterns)

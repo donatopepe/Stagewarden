@@ -4838,6 +4838,8 @@ def _handle_extension_command(command: str, config: AgentConfig) -> str | None:
 
 def _external_io_result_to_text(result: ExternalIOResult) -> str:
     lines = [f"{result.command}: {'OK' if result.ok else 'FAIL'} {result.message}"]
+    if not result.ok and getattr(result, "retryable", False):
+        lines.append("- retry: safe to resume when connectivity returns")
     if result.url:
         lines.append(f"- url: {result.url}")
     if result.path:
@@ -4873,7 +4875,7 @@ def _record_external_io_evidence(config: AgentConfig, result: ExternalIOResult, 
         summary=result.message,
         detail=dumps_ascii(result.as_dict()),
         duration_ms=result.duration_ms,
-        error_type=None if result.ok else "external_io_error",
+        error_type=None if result.ok else (result.error_type or "external_io_error"),
     )
     memory.save(config.memory_path)
     phase_names = {
