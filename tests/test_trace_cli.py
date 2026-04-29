@@ -291,6 +291,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "handoff")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.handoff")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["handoff"]["task"], "fix failing tests")
             self.assertEqual(payload["stage_view"]["boundary_decision"], "continue_current_stage")
             self.assertEqual(payload["next_action"], "continue step-3")
@@ -1255,6 +1257,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "overview")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.overview")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["board"]["recommended_authorization"], "review")
             self.assertIn("provider_limits", payload)
             providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
@@ -1305,6 +1309,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "health")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.health")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertFalse(payload["ready"])
             self.assertEqual(payload["recommended_authorization"], "review")
             self.assertEqual(payload["open_issues"], 1)
@@ -1334,6 +1340,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "preflight")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.preflight")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertIn("ready", payload)
             self.assertIn("doctor", payload)
             self.assertIn("runtime", payload)
@@ -1475,6 +1483,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "report")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.report")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["task"], "fix failing tests")
             self.assertEqual(payload["recommended_authorization"], "review")
             self.assertEqual(payload["open_issues"], 1)
@@ -1973,6 +1983,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "boundary")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.boundary")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["stage_view"]["boundary_decision"], "review_boundary:exception_plan")
             self.assertEqual(payload["stage_view"]["recovery_state"], "exception_active")
 
@@ -6085,6 +6097,8 @@ class TraceAndCliTests(unittest.TestCase):
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             completed = run_main_capture(root, "board", "--json")
             payload = json.loads(completed.stdout)
+            self.assertEqual(payload["schema"]["name"], "stagewarden.board")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["recommended_authorization"], "close")
 
     def test_board_review_recommends_review_when_open_issues_remain(self) -> None:
@@ -6104,6 +6118,8 @@ class TraceAndCliTests(unittest.TestCase):
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             completed = run_main_capture(root, "stage review", "--json")
             payload = json.loads(completed.stdout)
+            self.assertEqual(payload["schema"]["name"], "stagewarden.board")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["recommended_authorization"], "review")
 
     def test_board_review_recommends_recover_when_recovery_is_active(self) -> None:
@@ -6123,6 +6139,8 @@ class TraceAndCliTests(unittest.TestCase):
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             completed = run_main_capture(root, "board", "--json")
             payload = json.loads(completed.stdout)
+            self.assertEqual(payload["schema"]["name"], "stagewarden.board")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["recommended_authorization"], "recover")
 
     def test_interactive_shell_can_query_git_history(self) -> None:

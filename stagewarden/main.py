@@ -94,6 +94,14 @@ STATUSLINE_SCHEMA_NAME = "stagewarden.statusline"
 STATUSLINE_SCHEMA_VERSION = "1"
 STATUS_DASHBOARD_SCHEMA_NAME = "stagewarden.status"
 STATUS_DASHBOARD_SCHEMA_VERSION = "1"
+OVERVIEW_SCHEMA_NAME = "stagewarden.overview"
+HEALTH_SCHEMA_NAME = "stagewarden.health"
+PREFLIGHT_SCHEMA_NAME = "stagewarden.preflight"
+REPORT_SCHEMA_NAME = "stagewarden.report"
+HANDOFF_SCHEMA_NAME = "stagewarden.handoff"
+BOUNDARY_SCHEMA_NAME = "stagewarden.boundary"
+BOARD_SCHEMA_NAME = "stagewarden.board"
+COMMON_JSON_SCHEMA_VERSION = "1"
 
 
 INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
@@ -6388,6 +6396,10 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     return {
         "command": "overview",
+        "schema": {
+            "name": OVERVIEW_SCHEMA_NAME,
+            "version": COMMON_JSON_SCHEMA_VERSION,
+        },
         "status": _status_report(agent, config),
         "board": _board_report(config),
         "model_usage": _model_usage_report(config),
@@ -6411,6 +6423,10 @@ def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     )
     return {
         "command": "health",
+        "schema": {
+            "name": HEALTH_SCHEMA_NAME,
+            "version": COMMON_JSON_SCHEMA_VERSION,
+        },
         "workspace": status["workspace"],
         "mode": status["mode"],
         "ready": ready,
@@ -6455,6 +6471,10 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     ready = not any(item["severity"] == "blocker" for item in remediations) and log_errors["count"] == 0
     return {
         "command": "preflight",
+        "schema": {
+            "name": PREFLIGHT_SCHEMA_NAME,
+            "version": COMMON_JSON_SCHEMA_VERSION,
+        },
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "ready": ready,
         "doctor": doctor,
@@ -6688,6 +6708,10 @@ def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     ]
     return {
         "command": "report",
+        "schema": {
+            "name": REPORT_SCHEMA_NAME,
+            "version": COMMON_JSON_SCHEMA_VERSION,
+        },
         "task": handoff.task or "unknown",
         "project_status": handoff.status,
         "current_step": handoff.current_step_id or "none",
@@ -6999,6 +7023,10 @@ def _handoff_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "handoff",
+        "schema": {
+            "name": HANDOFF_SCHEMA_NAME,
+            "version": COMMON_JSON_SCHEMA_VERSION,
+        },
         "handoff": handoff.as_dict(),
         "goal": handoff.goal_view(),
         "stage_view": handoff.stage_view(),
@@ -7473,6 +7501,10 @@ def _boundary_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "boundary",
+        "schema": {
+            "name": BOUNDARY_SCHEMA_NAME,
+            "version": COMMON_JSON_SCHEMA_VERSION,
+        },
         "stage_view": handoff.stage_view(),
     }
 
@@ -7496,6 +7528,10 @@ def _board_report(config: AgentConfig) -> dict[str, object]:
         recommendation = "continue"
     return {
         "command": "board",
+        "schema": {
+            "name": BOARD_SCHEMA_NAME,
+            "version": COMMON_JSON_SCHEMA_VERSION,
+        },
         "task": handoff.task or "none",
         "business_justification": business_justification,
         "boundary_decision": stage_view["boundary_decision"],
