@@ -114,6 +114,7 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/handoff actions` mostra le azioni operative tracciate nell'handoff; `/handoff actions 50 --json` espone la stessa cronologia in formato macchina.
 - `/status`, `/status --json` e `/statusline --json` mostrano anche l'ultima azione handoff tracciata, cosi l'utente vede subito l'ultima operazione eseguita o bloccata.
 - `/status --json`, `/statusline --json`, `/overview --json`, `/health --json`, `/preflight --json`, `/report --json`, `/handoff --json`, `/boundary --json` e `/board --json` includono un blocco `schema` versionato, cosi gli altri agenti possono validare i contratti dei payload in modo esplicito.
+- Questi blocchi `schema` sono centralizzati in `stagewarden/json_schema_registry.py`.
 
 Il contesto passato ai modelli e limitato al dominio del ruolo PRINCE2 assegnato.
 
