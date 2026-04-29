@@ -9,6 +9,7 @@ Keep the `catalog status`, `catalog search`, and `catalog refresh` JSON payloads
 Preserve the exact input command string in the `catalog` JSON fallback path so even unsupported subcommands remain distinguishable in machine-readable output.
 Treat the generic `file` fallback as a shared JSON surface too, and preserve the exact input command string there so unsupported file subcommands remain distinguishable.
 Treat the generic `update` fallback as a shared JSON surface too, and preserve the exact input command string there so unsupported update subcommands remain distinguishable.
+Treat the generic `git` fallback as a shared JSON surface too, and preserve the exact input command string there so unsupported git subcommands remain distinguishable.
 
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
@@ -26,6 +27,7 @@ Treat the generic `update` fallback as a shared JSON surface too, and preserve t
 - The `catalog` JSON fallback now preserves the exact user-entered command string in the payload instead of collapsing to a generic label.
 - The `file` JSON fallback now preserves the exact user-entered command string in the payload and uses a shared `file` schema contract.
 - The `update` JSON fallback now preserves the exact user-entered command string in the payload and uses a shared `update` schema contract.
+- The `git` JSON fallback now preserves the exact user-entered command string in the payload and uses a shared `git` schema contract.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
 ## Recent changes
@@ -43,6 +45,7 @@ Treat the generic `update` fallback as a shared JSON surface too, and preserve t
 - `stagewarden/main.py`: made the `catalog` JSON fallback preserve the exact input command string in JSON.
 - `stagewarden/main.py`: made the `file` JSON fallback preserve the exact input command string in JSON and assigned it a shared `file` schema.
 - `stagewarden/main.py`: made the `update` JSON fallback preserve the exact input command string in JSON and assigned it a shared `update` schema.
+- `stagewarden/main.py`: made the `git` JSON fallback preserve the exact input command string in JSON and assigned it a shared `git` schema.
 
 ## Important files
 - `AGENTS.md`: startup and handoff rules for agents.
