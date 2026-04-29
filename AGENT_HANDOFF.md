@@ -9,6 +9,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers by
 - Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
 - The current runtime work is focused on wet-run battery coverage, PRINCE2 governance, and multi-agent compatibility.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
+- The current compatibility slice is complete and validated with wet-run tests.
 
 ## Recent changes
 - `AGENTS.md`: added mandatory startup and handoff protocol.
