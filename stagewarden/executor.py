@@ -8,7 +8,7 @@ from typing import Any
 from .config import AgentConfig
 from .handoff import HandoffManager, format_run_model
 from .memory import MemoryStore
-from .modelprefs import ModelPreferences, extract_blocked_until, limit_snapshot_from_message
+from .modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until, limit_snapshot_from_message
 from .planner import PlanStep
 from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
@@ -216,10 +216,12 @@ class Executor:
             account = self._select_account(model)
         result, account = self._execute_with_account_failover(model=model, prompt=prompt, account=account)
         if not result.ok:
-            network_issue = self._is_transient_network_failure(result.error or result.output)
-            rate_limit_until = extract_blocked_until(result.error or result.output)
+            response_text = result.error or result.output
+            network_issue = self._is_transient_network_failure(response_text)
+            rate_limit_until = extract_blocked_until(response_text)
+            limit_reason = classify_limit_reason(response_text)
             fallback_model = self._fallback_model_after_failure(model)
-            if rate_limit_until:
+            if rate_limit_until or limit_reason in {"usage_limit", "credits_exhausted"}:
                 alternatives = self._available_alternative_models(model)
                 if alternatives:
                     fallback_model = alternatives[0]
@@ -235,7 +237,9 @@ class Executor:
                         action_signature=f"rate-limit:{model}",
                         success=False,
                         observation=(
-                            f"Provider {model} is rate-limited until {rate_limit_until}. "
+                            f"Provider {model} is rate-limited"
+                            + (f" until {rate_limit_until}" if rate_limit_until else "")
+                            + ". "
                             f"User decision: {decision or 'stop'}."
                         ),
                         error_type="rate_limit",
@@ -246,7 +250,9 @@ class Executor:
                         model=model,
                         action_type="model_rate_limit",
                         observation=(
-                            f"Provider {model} is rate-limited until {rate_limit_until}. "
+                            f"Provider {model} is rate-limited"
+                            + (f" until {rate_limit_until}" if rate_limit_until else "")
+                            + ". "
                             "No alternative provider is currently available."
                         ),
                         account=account,
@@ -270,7 +276,9 @@ class Executor:
                 prompt=prompt,
                 account=fallback_account,
             )
-            fallback_network_issue = self._is_transient_network_failure(fallback.error or fallback.output)
+            fallback_response_text = fallback.error or fallback.output
+            fallback_network_issue = self._is_transient_network_failure(fallback_response_text)
+            fallback_limit_reason = classify_limit_reason(fallback_response_text)
             if not fallback.ok:
                 if network_issue or fallback_network_issue:
                     observation = (
@@ -302,6 +310,40 @@ class Executor:
                         git_head_before=git_head_before,
                         git_head_after=self._git_head(),
                         error_type="network_wait",
+                        prince2_assessment=None,
+                        prince2_role=prince2_role,
+                    )
+                if limit_reason in {"usage_limit", "credits_exhausted"} or fallback_limit_reason in {"usage_limit", "credits_exhausted"}:
+                    observation = (
+                        f"Provider {model} reached a usage limit"
+                        + (f" until {rate_limit_until}" if rate_limit_until else "")
+                        + ". "
+                        f"Fallback provider {fallback_model} also reported a usage limit. "
+                        "The run is safe to resume once limits reset."
+                    )
+                    self.memory.record_attempt(
+                        iteration=iteration,
+                        step_id=step.id,
+                        model=fallback_model,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        action_type="model_rate_limit",
+                        action_signature=f"rate-limit:{model}->{fallback_model}",
+                        success=False,
+                        observation=observation,
+                        error_type="rate_limit_wait",
+                    )
+                    return StepOutcome(
+                        ok=False,
+                        step_completed=False,
+                        model=fallback_model,
+                        action_type="model_rate_limit",
+                        observation=observation,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        git_head_before=git_head_before,
+                        git_head_after=self._git_head(),
+                        error_type="rate_limit_wait",
                         prince2_assessment=None,
                         prince2_role=prince2_role,
                     )

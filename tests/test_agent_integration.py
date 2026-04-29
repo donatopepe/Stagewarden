@@ -110,6 +110,55 @@ def write_resume_network_stub(root: Path) -> Path:
     return path
 
 
+def write_resume_rate_limit_stub(root: Path) -> Path:
+    path = root / "run_model_rate_limit_resume_stub.py"
+    path.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "from __future__ import annotations",
+                "import json",
+                "import re",
+                "import sys",
+                "from pathlib import Path",
+                "",
+                "def extract(prompt: str, field: str) -> str:",
+                '    match = re.search(rf"^{re.escape(field)}=(.+)$", prompt, re.MULTILINE)',
+                "    return match.group(1).strip() if match else ''",
+                "",
+                "def workspace_root(prompt: str) -> Path:",
+                '    match = re.search(r"^- workspace_root: (.+)$", prompt, re.MULTILINE)',
+                "    return Path(match.group(1).strip()) if match else Path.cwd()",
+                "",
+                "def main() -> int:",
+                "    if len(sys.argv) < 3:",
+                "        print(json.dumps({'error': 'usage: stub <model> <prompt>'}))",
+                "        return 1",
+                "    prompt = sys.argv[2]",
+                "    instruction = extract(prompt, 'instruction').lower()",
+                "    marker = workspace_root(prompt) / '.resume_ready'",
+                "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
+                "        print(json.dumps({'summary': 'analysis ok', 'action': {'type': 'complete', 'message': 'analysis validated exit_code=0'}}))",
+                "        return 0",
+                "    if 'implement' in instruction or 'create' in instruction or 'build' in instruction:",
+                "        if not marker.exists():",
+                "            print(\"You've hit your usage limit. Try again at 8:05 PM.\", file=sys.stderr)",
+                "            return 1",
+                "        print(json.dumps({'summary': 'resume patch', 'action': {'type': 'write_file', 'path': 'hello.txt', 'content': 'created after token reset\\n'}}))",
+                "        return 0",
+                "    print(json.dumps({'summary': 'validation ok', 'action': {'type': 'complete', 'message': 'validation completed exit_code=0'}}))",
+                "    return 0",
+                "",
+                "if __name__ == '__main__':",
+                "    raise SystemExit(main())",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
 class AgentIntegrationTests(unittest.TestCase):
     def test_agent_completes_task_with_stub_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -330,6 +379,50 @@ class AgentIntegrationTests(unittest.TestCase):
                         workspace_root=root,
                         max_steps=10,
                         verbose=False,
+                    )
+                )
+                resumed = second.run("create a file named hello.txt")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertTrue(resumed.ok)
+            self.assertTrue((root / "hello.txt").exists())
+            saved_after_resume = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(saved_after_resume.status, "closed")
+            self.assertIn("step-3:completed", saved_after_resume.plan_status)
+
+    def test_agent_resumes_after_token_reset_from_persisted_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_resume_rate_limit_stub(root)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                first = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                        rate_limit_decider=lambda provider, until, alternatives: "wait",
+                    )
+                )
+                suspended = first.run("create a file named hello.txt")
+                saved_after_suspend = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+                self.assertFalse(suspended.ok)
+                self.assertIn("Session suspended", suspended.message)
+                self.assertEqual(saved_after_suspend.status, "waiting")
+                self.assertIn("usage limit", saved_after_suspend.latest_observation.lower())
+
+                (root / ".resume_ready").write_text("yes\n", encoding="utf-8")
+                second = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                        rate_limit_decider=lambda provider, until, alternatives: "wait",
                     )
                 )
                 resumed = second.run("create a file named hello.txt")
