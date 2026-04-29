@@ -19,6 +19,10 @@ class Prince2Tests(unittest.TestCase):
         self.assertIn("Adapt governance", checklist.adaptation_policy)
         self.assertIn("responsibility explicit", checklist.role_policy)
         self.assertTrue(any("Irreversible" in item for item in checklist.risks))
+        self.assertIn("tolerance_profile", checklist.as_dict())
+        self.assertEqual(checklist.tolerance_profile["accountable_owner"], "user")
+        self.assertEqual(len(checklist.tolerance_profile["theme_scores"]), 7)
+        self.assertEqual(checklist.tolerance_profile["base_margin_percent"], 25.0)
 
     def test_policy_requires_adaptive_governance_not_overengineering(self) -> None:
         checklist = Prince2AgentPolicy().build_checklist("change a lamp")
@@ -26,6 +30,20 @@ class Prince2Tests(unittest.TestCase):
         self.assertIn("If the method feels heavier than the task", rendered)
         self.assertTrue(any("no overengineering" in item.lower() for item in checklist.stage_plan))
         self.assertTrue(any("proportionate" in item.lower() for item in checklist.quality_criteria))
+
+    def test_policy_escalates_when_tolerance_pressure_exceeds_margin(self) -> None:
+        policy = Prince2AgentPolicy()
+        checklist = policy.build_checklist("implement feature")
+        checklist.tolerance_profile = {
+            **checklist.tolerance_profile,
+            "margin_percent": 10.0,
+            "pressure_percent": 40.0,
+        }
+        assessment = policy.assess_task("implement feature", checklist)
+        self.assertTrue(assessment.allowed)
+        self.assertTrue(assessment.escalation_required)
+        self.assertTrue(assessment.escalation_notes)
+        self.assertIn("exceeds margin", assessment.escalation_notes[0])
 
     def test_policy_rejects_vague_task(self) -> None:
         policy = Prince2AgentPolicy()

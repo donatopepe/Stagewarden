@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 from .modelprefs import PRINCE2_ROLE_LABELS, ModelPreferences, account_key
+from .prince2 import Prince2AgentPolicy, Prince2ToleranceProfile
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 
 
@@ -32,6 +33,12 @@ class RoleTreeNode:
     responsibility_domain: str
     context_scope: str
     context_rule: RoleContextRule
+    accountable_owner: str
+    tolerance_margin_percent: float
+    tolerance_pressure_percent: float
+    autonomy_rule: str
+    escalation_target: str
+    tolerance_profile: dict[str, object]
     assignment: dict[str, object] = field(default_factory=dict)
     fallback_pool: tuple[str, ...] = ()
     readiness: str = "unassigned"
@@ -272,12 +279,27 @@ ROLE_FLOW_EDGES: tuple[RoleFlowEdge, ...] = (
 
 
 def build_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
+    return build_prince2_role_tree_with_tolerance(prefs)
+
+
+def build_prince2_role_tree_with_tolerance(
+    prefs: ModelPreferences,
+    *,
+    tolerance_profile: Prince2ToleranceProfile | None = None,
+    accountable_owner: str = "user",
+) -> dict[str, object]:
     active_models = tuple(prefs.active_models() or prefs.enabled_models)
     assignments = prefs.prince2_roles or {}
+    profile = tolerance_profile or Prince2AgentPolicy().build_tolerance_profile(
+        "PRINCE2 role tree",
+        Prince2AgentPolicy().build_checklist("PRINCE2 role tree"),
+        accountable_owner=accountable_owner,
+    )
     nodes: list[dict[str, object]] = []
     for raw in ROLE_TREE_LAYOUT:
         role_type = str(raw["role_type"])
         assignment = dict(assignments.get(role_type, {}))
+        node_tolerance = profile.node_profile(role_type)
         nodes.append(
             RoleTreeNode(
                 node_id=str(raw["node_id"]),
@@ -290,6 +312,12 @@ def build_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
                 responsibility_domain=PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
                 context_scope=PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
                 context_rule=ROLE_CONTEXT_RULES[role_type],
+                accountable_owner=str(node_tolerance.get("accountable_owner", accountable_owner)),
+                tolerance_margin_percent=float(node_tolerance.get("margin_percent", profile.project_margin_percent)),
+                tolerance_pressure_percent=float(node_tolerance.get("pressure_percent", profile.project_pressure_percent)),
+                autonomy_rule=str(node_tolerance.get("autonomy_rule", "")),
+                escalation_target=str(node_tolerance.get("escalation_target", "board.executive")),
+                tolerance_profile=dict(node_tolerance),
                 assignment=assignment,
                 fallback_pool=tuple(model for model in active_models if model != assignment.get("provider")),
                 readiness="assigned" if assignment else "unassigned",
@@ -357,6 +385,14 @@ def check_prince2_role_tree_payload(tree: dict[str, object], prefs: ModelPrefere
             )
         if provider in {"chatgpt", "openai", "claude", "cheap"} and account is None and provider in (prefs.accounts_by_model or {}):
             add("warning", "account_not_selected", node_id, f"{role_type} provider {provider} has profiles but no active account on this node.")
+        margin = node.get("tolerance_margin_percent")
+        pressure = node.get("tolerance_pressure_percent")
+        if not isinstance(margin, (int, float)) or not (0 < float(margin) <= 100):
+            add("error", "missing_tolerance_margin", node_id, f"{role_type} node is missing a valid tolerance margin.")
+        if not isinstance(pressure, (int, float)) or not (0 <= float(pressure) <= 100):
+            add("warning", "missing_tolerance_pressure", node_id, f"{role_type} node is missing a valid tolerance pressure estimate.")
+        if not str(node.get("accountable_owner", "")).strip():
+            add("warning", "missing_accountable_owner", node_id, f"{role_type} node is missing an accountable owner.")
 
     by_role = {str(node.get("role_type")): node for node in nodes}
     flow = build_prince2_role_flow()
@@ -447,7 +483,12 @@ def build_prince2_role_matrix_payload(tree: dict[str, object], prefs: ModelPrefe
                 "label": node.get("label"),
                 "parent_id": node.get("parent_id"),
                 "level": node.get("level"),
+                "accountable_owner": node.get("accountable_owner"),
                 "readiness": node.get("readiness"),
+                "tolerance_margin_percent": node.get("tolerance_margin_percent"),
+                "tolerance_pressure_percent": node.get("tolerance_pressure_percent"),
+                "autonomy_rule": node.get("autonomy_rule"),
+                "escalation_target": node.get("escalation_target"),
                 "provider": provider or None,
                 "provider_model": assignment.get("provider_model") if assignment else None,
                 "params": dict(assignment.get("params", {})) if isinstance(assignment.get("params"), dict) else {},
@@ -491,6 +532,8 @@ def render_prince2_role_matrix(matrix: dict[str, object]) -> str:
         account_block = f" account_blocked_until={row.get('account_blocked_until')}" if row.get("account_blocked_until") else ""
         lines.append(
             f"- {row.get('label')} [{row.get('node_id')}]: readiness={row.get('readiness')} "
+            f"owner={row.get('accountable_owner') or 'user'} "
+            f"margin={row.get('tolerance_margin_percent')} pressure={row.get('tolerance_pressure_percent')} "
             f"provider={row.get('provider') or 'none'} provider_model={row.get('provider_model') or 'none'} "
             f"account={row.get('account') or 'none'} "
             f"reviewers={len(row.get('reviewer_routes', []))} fallbacks={len(row.get('fallback_routes', []))} "
@@ -537,10 +580,13 @@ def render_prince2_role_tree(tree: dict[str, object]) -> str:
         lines.append(
             f"{indent}- {node.get('label')} [{node.get('node_id')}] "
             f"level={node.get('level')} readiness={node.get('readiness')} "
+            f"owner={node.get('accountable_owner') or 'user'} "
+            f"margin={node.get('tolerance_margin_percent')} pressure={node.get('tolerance_pressure_percent')} "
             f"provider={provider} provider_model={provider_model}"
         )
         lines.append(f"{indent}  context={node.get('context_scope')}")
         lines.append(f"{indent}  authority={node.get('delegated_authority')}")
+        lines.append(f"{indent}  tolerance={node.get('autonomy_rule')}")
         for child in children.get(str(node.get("node_id")), []):
             append_node(child, depth + 1)
 

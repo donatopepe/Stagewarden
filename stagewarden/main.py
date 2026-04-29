@@ -63,6 +63,7 @@ from .role_tree import (
     build_prince2_role_matrix,
     build_prince2_role_matrix_payload,
     build_prince2_role_tree,
+    build_prince2_role_tree_with_tolerance,
     check_prince2_role_tree,
     check_prince2_role_tree_payload,
     render_prince2_role_check,
@@ -70,6 +71,7 @@ from .role_tree import (
     render_prince2_role_matrix,
     render_prince2_role_tree,
 )
+from .prince2 import Prince2AgentPolicy, Prince2ToleranceProfile
 from .project_handoff import HandoffEntry, ProjectHandoff
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
@@ -737,7 +739,13 @@ def _prince2_role_domains_report() -> dict[str, object]:
 
 
 def _prince2_role_tree_report(config: AgentConfig) -> dict[str, object]:
-    return build_prince2_role_tree(_load_model_preferences(config))
+    handoff = ProjectHandoff.load(config.handoff_path)
+    tolerance_profile = _project_tolerance_profile(handoff)
+    return build_prince2_role_tree_with_tolerance(
+        _load_model_preferences(config),
+        tolerance_profile=tolerance_profile,
+        accountable_owner=tolerance_profile.accountable_owner,
+    )
 
 
 def _render_prince2_role_tree(config: AgentConfig) -> str:
@@ -761,7 +769,15 @@ def _render_prince2_role_flow() -> str:
 
 
 def _prince2_role_matrix_report(config: AgentConfig) -> dict[str, object]:
-    return build_prince2_role_matrix(_load_model_preferences(config))
+    prefs = _load_model_preferences(config)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    tolerance_profile = _project_tolerance_profile(handoff)
+    tree = build_prince2_role_tree_with_tolerance(
+        prefs,
+        tolerance_profile=tolerance_profile,
+        accountable_owner=tolerance_profile.accountable_owner,
+    )
+    return build_prince2_role_matrix_payload(tree, prefs)
 
 
 def _render_prince2_role_matrix(config: AgentConfig) -> str:
@@ -792,10 +808,66 @@ def _record_handoff_action(
     handoff.save(config.handoff_path)
 
 
+def _parse_project_tolerance_margin_percent(value: object, default: float = 25.0) -> float:
+    if value is None:
+        return default
+    text = str(value).strip()
+    if not text:
+        return default
+    if text.endswith("%"):
+        text = text[:-1].strip()
+    try:
+        parsed = float(text)
+    except ValueError:
+        return default
+    if parsed <= 0:
+        return default
+    return min(100.0, parsed)
+
+
+def _project_accountable_owner(handoff: ProjectHandoff) -> str:
+    value = handoff.project_brief.get("accountable_project_executive", "user")
+    owner = str(value).strip() if value is not None else "user"
+    return owner or "user"
+
+
+def _project_tolerance_margin_percent(handoff: ProjectHandoff, default: float = 25.0) -> float:
+    return _parse_project_tolerance_margin_percent(handoff.project_brief.get("tolerance_margin_percent"), default=default)
+
+
+def _project_tolerance_profile(handoff: ProjectHandoff, *, task: str | None = None) -> Prince2ToleranceProfile:
+    policy = Prince2AgentPolicy()
+    effective_task = task or handoff.task or str(handoff.project_brief.get("objective", "")).strip() or "PRINCE2 role tree"
+    margin = _project_tolerance_margin_percent(handoff)
+    owner = _project_accountable_owner(handoff)
+    checklist = policy.build_checklist(
+        effective_task,
+        project_brief=handoff.project_brief,
+        base_margin_percent=margin,
+        accountable_owner=owner,
+    )
+    return policy.build_tolerance_profile(
+        effective_task,
+        checklist,
+        project_brief=handoff.project_brief,
+        base_margin_percent=margin,
+        accountable_owner=owner,
+    )
+
+
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
     prefs = _load_model_preferences(config)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    tolerance_profile = _project_tolerance_profile(handoff)
     local_execution = _local_execution_candidates_report(config)
-    tree = _enrich_tree_with_local_execution_candidates(build_prince2_role_tree(prefs), local_execution)
+    tree = _enrich_tree_with_local_execution_candidates(
+        build_prince2_role_tree_with_tolerance(
+            prefs,
+            tolerance_profile=tolerance_profile,
+            accountable_owner=tolerance_profile.accountable_owner,
+        ),
+        local_execution,
+    )
     return {
         "version": "1",
         "approved_at": datetime.now().isoformat(timespec="seconds"),
@@ -1781,6 +1853,8 @@ PROJECT_BRIEF_FIELDS: dict[str, str] = {
     "stakeholders": "Key stakeholders, sponsors, users, suppliers, or reviewers.",
     "uncertainty": "Known uncertainty, ambiguity, or discovery level.",
     "risk_tolerance": "Declared tolerance or escalation posture for risk.",
+    "tolerance_margin_percent": "Default per-node tolerance margin, usually 25, before escalation is required.",
+    "accountable_project_executive": "Human accountable owner for the Project Executive decision line; defaults to user.",
 }
 
 
@@ -1864,8 +1938,12 @@ def _role_node_from_template(
     delegated_authority: str,
     assignment: dict[str, object],
     active_models: list[str],
+    tolerance_profile: Prince2ToleranceProfile | None = None,
+    accountable_owner: str = "user",
 ) -> dict[str, object]:
     provider = str(assignment.get("provider", "")) if assignment else ""
+    profile = tolerance_profile or _project_tolerance_profile(ProjectHandoff(), task=f"PRINCE2 {role_type} node")
+    node_tolerance = profile.node_profile(role_type)
     return {
         "node_id": node_id,
         "role_type": role_type,
@@ -1877,6 +1955,12 @@ def _role_node_from_template(
         "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
         "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
         "context_rule": ROLE_CONTEXT_RULES[role_type].as_dict(),
+        "accountable_owner": str(node_tolerance.get("accountable_owner", accountable_owner)),
+        "tolerance_margin_percent": float(node_tolerance.get("margin_percent", profile.project_margin_percent)),
+        "tolerance_pressure_percent": float(node_tolerance.get("pressure_percent", profile.project_pressure_percent)),
+        "autonomy_rule": str(node_tolerance.get("autonomy_rule", "")),
+        "escalation_target": str(node_tolerance.get("escalation_target", "board.executive")),
+        "tolerance_profile": dict(node_tolerance),
         "assignment": assignment,
         "fallback_pool": [item for item in active_models if item != provider],
         "readiness": "assigned" if assignment else "unassigned",
@@ -1959,7 +2043,12 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     proposal_prefs = replace(prefs, prince2_roles=merged_roles)
     active_models = list(proposal_prefs.active_models() or proposal_prefs.enabled_models)
     local_execution = _local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
-    base_tree = build_prince2_role_tree(proposal_prefs)
+    tolerance_profile = _project_tolerance_profile(handoff, task=handoff.task or None)
+    base_tree = build_prince2_role_tree_with_tolerance(
+        proposal_prefs,
+        tolerance_profile=tolerance_profile,
+        accountable_owner=tolerance_profile.accountable_owner,
+    )
     nodes = [dict(node) for node in base_tree.get("nodes", []) if isinstance(node, dict)]
     brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
     joined = " ".join(brief.values()).lower()
@@ -1981,6 +2070,8 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
                 delegated_authority="executes implementation work packages and escalates forecast tolerance breaches",
                 assignment=_assignment_for_role(proposal_prefs, "team_manager"),
                 active_models=active_models,
+                tolerance_profile=tolerance_profile,
+                accountable_owner=tolerance_profile.accountable_owner,
             )
         )
         added_nodes.append(node_id)
@@ -1999,6 +2090,8 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
                 delegated_authority="reviews evidence independently; does not execute delivery work",
                 assignment=_assignment_for_role(proposal_prefs, "project_assurance"),
                 active_models=active_models,
+                tolerance_profile=tolerance_profile,
+                accountable_owner=tolerance_profile.accountable_owner,
             )
         )
         added_nodes.append(node_id)
@@ -2017,6 +2110,8 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
                 delegated_authority="reviews user-facing acceptance evidence and escalates adoption issues",
                 assignment=_assignment_for_role(proposal_prefs, "senior_user"),
                 active_models=active_models,
+                tolerance_profile=tolerance_profile,
+                accountable_owner=tolerance_profile.accountable_owner,
             )
         )
         added_nodes.append(node_id)
@@ -2035,6 +2130,8 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
                 delegated_authority="approves provider/model fallback and re-baseline decisions within delegated limits",
                 assignment=_assignment_for_role(proposal_prefs, "change_authority"),
                 active_models=active_models,
+                tolerance_profile=tolerance_profile,
+                accountable_owner=tolerance_profile.accountable_owner,
             )
         )
         added_nodes.append(node_id)
@@ -2128,6 +2225,8 @@ def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_rep
     design = _project_design_report(agent, config)
     prompt = _project_tree_ai_prompt(design, local_report)
     _apply_model_preferences(agent, config)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    tolerance_profile = _project_tolerance_profile(handoff, task=handoff.task or None)
     prefs = _load_model_preferences(config)
     model = _choose_cloud_priority_model(agent, prefs)
     account = prefs.account_for_model(model)
@@ -2199,6 +2298,8 @@ def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_rep
             delegated_authority=str(raw_patch.get("delegated_authority") or "executes delegated work and escalates tolerance breaches").strip(),
             assignment=_assignment_for_role(proposal_prefs, role_type),
             active_models=active_models,
+            tolerance_profile=tolerance_profile,
+            accountable_owner=tolerance_profile.accountable_owner,
         )
         context_include = raw_patch.get("context_include")
         context_exclude = raw_patch.get("context_exclude")

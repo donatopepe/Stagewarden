@@ -3704,6 +3704,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(run_main_capture(root, "project brief set scope CLI, shell, git, and model routing").returncode, 0)
             self.assertEqual(run_main_capture(root, "project brief set expected_outputs Production-ready CLI plus tests").returncode, 0)
             self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set tolerance_margin_percent 30").returncode, 0)
 
             brief = run_main_capture(root, "project brief")
             json_brief = run_main_capture(root, "project brief", "--json")
@@ -3717,6 +3718,7 @@ class TraceAndCliTests(unittest.TestCase):
             brief_payload = json.loads(json_brief.stdout)
             self.assertEqual(brief_payload["command"], "project brief")
             self.assertEqual(brief_payload["fields"]["delivery_mode"], "hybrid")
+            self.assertEqual(brief_payload["fields"]["tolerance_margin_percent"], "30")
 
             self.assertEqual(design_json.returncode, 0, design_json.stderr)
             design_payload = json.loads(design_json.stdout)
