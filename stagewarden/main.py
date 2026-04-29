@@ -343,6 +343,7 @@ def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, ob
         )
     return {
         "command": "slash",
+        "schema": json_schema("slash"),
         "prefix": f"/{lowered}" if lowered else "/",
         "context": {
             "enabled_providers": list(prefs.enabled_models or []),
@@ -5132,6 +5133,7 @@ def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]
     report = _provider_limit_status_report(agent, config)
     return {
         "command": "model limits",
+        "schema": json_schema("model limits"),
         "summary": _provider_limit_summary_report(report),
         "providers": [_provider_limit_entry_view(item, include_accounts=True) for item in report["providers"]],
     }
@@ -5791,6 +5793,7 @@ def _accounts_report(config: AgentConfig) -> dict[str, object]:
             models.append({"model": model, "accounts": accounts})
     return {
         "command": "accounts",
+        "schema": json_schema("accounts"),
         "models": models,
     }
 
@@ -5985,6 +5988,8 @@ def _permissions_report(config: AgentConfig) -> dict[str, object]:
     session_settings = config.session_permission_settings
     effective_settings = workspace_settings.merged(session_settings)
     return {
+        "command": "permissions",
+        "schema": json_schema("permissions"),
         "workspace": {
             "mode": workspace_settings.default_mode,
             "allow": list(workspace_settings.allow),
@@ -6260,6 +6265,7 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
         )
     return {
         "command": "models",
+        "schema": json_schema("models"),
         "models": models,
         "preferred_model": status["preferred_model"],
         "preferred_provider": status["preferred_model"],
@@ -6270,6 +6276,7 @@ def _goal_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "goal",
+        "schema": json_schema("goal"),
         "goal": handoff.goal_view(),
     }
 
@@ -6299,19 +6306,32 @@ def _goal_command_report(task: str, config: AgentConfig) -> dict[str, object]:
             objective, token_budget = _parse_goal_set_command(task)
             goal = handoff.set_goal(objective=objective, token_budget=token_budget)
             handoff.save(config.handoff_path)
-            return {"command": "goal set", "ok": True, "goal": goal}
+            return {"command": "goal set", "schema": json_schema("goal set"), "ok": True, "goal": goal}
         if task.startswith("goal status "):
             status = task.split(maxsplit=2)[2]
             goal = handoff.update_goal_status(status)
             handoff.save(config.handoff_path)
-            return {"command": "goal status", "ok": True, "goal": goal}
+            return {"command": "goal status", "schema": json_schema("goal status"), "ok": True, "goal": goal}
         if task == "goal clear":
             previous = handoff.clear_goal()
             handoff.save(config.handoff_path)
-            return {"command": "goal clear", "ok": True, "previous_goal": previous, "goal": handoff.goal_view()}
+            return {
+                "command": "goal clear",
+                "schema": json_schema("goal clear"),
+                "ok": True,
+                "previous_goal": previous,
+                "goal": handoff.goal_view(),
+            }
     except ValueError as exc:
-        return {"command": task.split(maxsplit=2)[0], "ok": False, "error": str(exc)}
-    return {"command": task, "ok": False, "error": "Usage: goal | goal set <objective> [--tokens N] | goal status <active|paused|budget_limited|complete> | goal clear"}
+        command_name = task.split(maxsplit=2)[0]
+        schema_command = command_name if command_name in {"goal", "goal set", "goal status", "goal clear"} else "goal"
+        return {"command": command_name, "schema": json_schema(schema_command), "ok": False, "error": str(exc)}
+    return {
+        "command": task,
+        "schema": json_schema("goal"),
+        "ok": False,
+        "error": "Usage: goal | goal set <objective> [--tokens N] | goal status <active|paused|budget_limited|complete> | goal clear",
+    }
 
 
 def _render_goal_report(config: AgentConfig) -> str:
@@ -6811,6 +6831,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
     python_ok = sys.version_info >= (3, 11)
     report: dict[str, object] = {
         "command": "doctor",
+        "schema": json_schema("doctor"),
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "python": {
             "ok": python_ok,
@@ -7149,6 +7170,7 @@ def _resume_context_payload(config: AgentConfig) -> dict[str, object]:
         }
     return {
         "command": "resume context",
+        "schema": json_schema("resume context"),
         "task": handoff.task or "none",
         "current_step": handoff.current_step_id or "none",
         "current_step_status": handoff.current_step_status or "none",
@@ -7231,6 +7253,7 @@ def _resume_show_report(config: AgentConfig) -> dict[str, object]:
     agent = _configure_readonly_agent_for_workspace(config)
     return {
         "command": "resume --show",
+        "schema": json_schema("resume --show"),
         "task": handoff.task or "none",
         "current_step": handoff.current_step_id or "none",
         "current_step_status": handoff.current_step_status or "none",
@@ -7555,6 +7578,7 @@ def _risks_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "risks",
+        "schema": json_schema("risks"),
         "count": len(handoff.risk_register),
         "items": list(handoff.risk_register),
     }
@@ -7602,6 +7626,7 @@ def _issues_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "issues",
+        "schema": json_schema("issues"),
         "count": len(handoff.issue_register),
         "items": list(handoff.issue_register),
     }
@@ -7651,6 +7676,7 @@ def _quality_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "quality",
+        "schema": json_schema("quality"),
         "count": len(handoff.quality_register),
         "items": list(handoff.quality_register),
     }
@@ -7704,6 +7730,7 @@ def _exception_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "exception",
+        "schema": json_schema("exception"),
         "count": len(handoff.exception_plan),
         "items": list(handoff.exception_plan),
     }
@@ -7717,6 +7744,7 @@ def _lessons_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "lessons",
+        "schema": json_schema("lessons"),
         "count": len(handoff.lessons_log),
         "items": list(handoff.lessons_log),
     }
@@ -7730,6 +7758,7 @@ def _todo_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "todo",
+        "schema": json_schema("todo"),
         "count": len(handoff.implementation_backlog),
         "items": list(handoff.implementation_backlog),
     }
@@ -7746,11 +7775,13 @@ def _transcript_report(config: AgentConfig) -> dict[str, object]:
     try:
         return {
             "command": "transcript",
+            "schema": json_schema("transcript"),
             "report": MemoryStore.load(config.memory_path).transcript_report(),
         }
     except (OSError, ValueError, TypeError):
         return {
             "command": "transcript",
+            "schema": json_schema("transcript"),
             "report": MemoryStore().transcript_report(),
         }
 
@@ -8877,6 +8908,7 @@ def _model_usage_report(config: AgentConfig) -> dict[str, object]:
     try:
         return {
             "command": "models usage",
+            "schema": json_schema("models usage"),
             "report": MemoryStore.load(config.memory_path).model_usage_stats(),
             "policy": {
                 "routing_budget": "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
@@ -8885,6 +8917,7 @@ def _model_usage_report(config: AgentConfig) -> dict[str, object]:
     except (OSError, ValueError, TypeError):
         return {
             "command": "models usage",
+            "schema": json_schema("models usage"),
             "report": MemoryStore().model_usage_stats(),
             "policy": {
                 "routing_budget": "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
@@ -9761,6 +9794,7 @@ def _catalog_status_report() -> dict[str, object]:
     model_count = len(models) if isinstance(models, list) else 0
     return {
         "command": "catalog",
+        "schema": json_schema("catalog status"),
         "ok": bool(catalog),
         "path": str(catalog_path()),
         "generated_at": catalog.get("generated_at") if isinstance(catalog, dict) else None,
@@ -9780,6 +9814,7 @@ def _catalog_search_report(
     results = search_ai_models_catalog(query, provider=provider, feature=feature, catalog=catalog, limit=limit)
     return {
         "command": "catalog",
+        "schema": json_schema("catalog search"),
         "query": query,
         "provider": provider,
         "feature": feature,
@@ -10261,6 +10296,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
         result = tool.status()
         return {
             "command": "git status",
+            "schema": json_schema("git status"),
             "ok": result.ok,
             "stdout": result.stdout,
             "stderr": result.stderr,
@@ -10272,6 +10308,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
         result = tool.log(limit=limit)
         return {
             "command": "git log",
+            "schema": json_schema("git log"),
             "limit": limit,
             "ok": result.ok,
             "stdout": result.stdout,
@@ -10283,6 +10320,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
         if len(parts) not in {3, 4}:
             return {
                 "command": "git history",
+                "schema": json_schema("git history"),
                 "ok": False,
                 "error": "Usage: git history <path> [limit]",
             }
@@ -10290,6 +10328,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
         result = tool.file_history(parts[2], limit=limit)
         return {
             "command": "git history",
+            "schema": json_schema("git history"),
             "path": parts[2],
             "limit": limit,
             "ok": result.ok,
@@ -10305,6 +10344,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
         result = tool.show(revision=revision, stat=stat)
         return {
             "command": "git show",
+            "schema": json_schema("git show"),
             "revision": revision,
             "stat": stat,
             "ok": result.ok,
@@ -10315,6 +10355,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
         }
     return {
         "command": "git",
+        "schema": json_schema("git status"),
         "ok": False,
         "error": "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]",
     }
@@ -10468,6 +10509,7 @@ def _shell_sessions_report(agent: Agent) -> dict[str, object]:
         )
     return {
         "command": "sessions",
+        "schema": json_schema("sessions"),
         "count": len(items),
         "items": items,
     }
@@ -11212,7 +11254,7 @@ def main() -> int:
         return 0
     if task in {"commands", "commands --json"}:
         if args.json or task == "commands --json":
-            print(dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2))
+            print(dumps_ascii({"command": "commands", "schema": json_schema("commands"), "commands": command_catalog()}, indent=2))
         else:
             print(render_command_catalog())
         return 0
@@ -11224,6 +11266,7 @@ def main() -> int:
                 dumps_ascii(
                     {
                         "command": "slash choose",
+                        "schema": json_schema("slash choose"),
                         "query": query,
                         "no_match": report["no_match"],
                         "message": report["message"],
@@ -11363,6 +11406,49 @@ def main() -> int:
         return 0 if response else 1
     if task == "catalog" or task.startswith("catalog "):
         agent = _configure_readonly_agent_for_workspace(config)
+        if args.json:
+            parts = task.split()
+            if len(parts) == 1 or parts[1] == "status":
+                print(dumps_ascii(_catalog_status_report(), indent=2))
+                return 0
+            if parts[1] == "search":
+                if len(parts) < 3:
+                    print(dumps_ascii({"command": "catalog", "schema": json_schema("catalog search"), "ok": False, "error": _catalog_usage()}, indent=2))
+                    return 1
+                query_parts: list[str] = []
+                provider = None
+                feature = None
+                for token in parts[2:]:
+                    if token.startswith("provider=") and len(token) > len("provider="):
+                        provider = token.split("=", 1)[1]
+                        continue
+                    if token.startswith("feature=") and len(token) > len("feature="):
+                        feature = token.split("=", 1)[1]
+                        continue
+                    query_parts.append(token)
+                query = " ".join(query_parts).strip()
+                if not query and not provider and not feature:
+                    print(dumps_ascii({"command": "catalog", "schema": json_schema("catalog search"), "ok": False, "error": _catalog_usage()}, indent=2))
+                    return 1
+                print(dumps_ascii(_catalog_search_report(query, provider, feature=feature), indent=2))
+                return 0
+            if parts[1] == "refresh":
+                catalog = write_ai_models_catalog()
+                print(
+                    dumps_ascii(
+                        {
+                            "command": "catalog",
+                            "schema": json_schema("catalog status"),
+                            "ok": True,
+                            "path": str(catalog_path()),
+                            "generated_at": catalog.get("generated_at"),
+                            "model_count": len(catalog.get("models", [])) if isinstance(catalog.get("models", []), list) else 0,
+                            "source_urls": catalog.get("source_urls", {}),
+                        },
+                        indent=2,
+                    )
+                )
+                return 0
         response = _handle_model_command(task, agent, config)
         payload = {"command": "catalog", "message": response}
         if args.json:
@@ -11741,7 +11827,12 @@ def main() -> int:
         return 0 if response and ": OK " in response else 1
     if task == "permissions":
         if args.json:
-            print(dumps_ascii({"command": "permissions", "report": _permissions_report(config)}, indent=2))
+            print(
+                dumps_ascii(
+                    {"command": "permissions", "schema": json_schema("permissions"), "report": _permissions_report(config)},
+                    indent=2,
+                )
+            )
         else:
             print(_render_permissions(config))
         return 0

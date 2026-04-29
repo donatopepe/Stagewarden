@@ -196,6 +196,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "doctor")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.doctor")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["python"]["status"], "OK")
             self.assertTrue(payload["git"]["ok"])
             self.assertIn("runtime", payload)
@@ -239,6 +241,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "models usage")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.models_usage")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["report"]["totals"]["calls"], 2)
             self.assertEqual(payload["report"]["totals"]["failures"], 1)
             self.assertEqual(payload["report"]["totals"]["escalation_path"], "local -> cheap")
@@ -264,6 +268,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "transcript")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.transcript")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["report"]["count"], 1)
             self.assertEqual(payload["report"]["entries"][0]["tool"], "shell")
             self.assertEqual(payload["report"]["entries"][0]["summary"], "pwd")
@@ -774,6 +780,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(goal_payload["goal"]["status"], "paused")
             self.assertEqual(goal_payload["goal"]["objective"], "Stabilize provider telemetry")
             self.assertEqual(goal_payload["goal"]["token_budget"], 20000)
+            self.assertEqual(goal_payload["schema"]["name"], "stagewarden.goal")
+            self.assertEqual(goal_payload["schema"]["version"], "1")
+            self.assertEqual(statusline_payload["schema"]["name"], "stagewarden.statusline")
+            self.assertEqual(statusline_payload["schema"]["version"], "1")
             self.assertEqual(statusline_payload["goal"]["status"], "paused")
             self.assertEqual(statusline_payload["goal"]["objective"], "Stabilize provider telemetry")
 
@@ -1028,6 +1038,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "models")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.models")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["preferred_model"], "cheap")
             models = {item["model"]: item for item in payload["models"]}
             self.assertTrue(models["cheap"]["enabled"])
@@ -1079,6 +1091,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "model limits")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.model_limits")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["summary"]["blocked_models"], ["chatgpt"])
             self.assertEqual(payload["summary"]["blocked_accounts"], ["claude:team"])
             providers = {item["provider"]: item for item in payload["providers"]}
@@ -1177,6 +1191,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "accounts")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.accounts")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["models"][0]["model"], "openai")
             self.assertEqual(payload["models"][0]["accounts"][0]["name"], "lavoro")
             self.assertTrue(payload["models"][0]["accounts"][0]["active"])
@@ -1199,6 +1215,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "permissions")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.permissions")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["report"]["workspace"]["mode"], "plan")
             self.assertEqual(payload["report"]["workspace"]["allow"], ["shell:git status"])
             self.assertEqual(payload["report"]["workspace"]["ask"], ["file:secret.txt"])
@@ -1579,6 +1597,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "slash")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.slash")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["prefix"], "/mo")
             self.assertEqual(payload["context"]["enabled_providers"], ["chatgpt", "openai"])
             self.assertEqual(payload["context"]["active_accounts"], ["openai=work"])
@@ -1614,6 +1634,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(no_match.returncode, 0, no_match.stderr)
             no_match_payload = json.loads(no_match.stdout)
             self.assertTrue(no_match_payload["no_match"])
+            self.assertEqual(no_match_payload["schema"]["name"], "stagewarden.slash_choose")
+            self.assertEqual(no_match_payload["schema"]["version"], "1")
             self.assertEqual(no_match_payload["entries"], [])
             self.assertIn("Use /slash", no_match_payload["message"])
 
@@ -1730,6 +1752,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(json_rendered.returncode, 0, json_rendered.stderr)
             payload = json.loads(json_rendered.stdout)
             self.assertEqual(payload["command"], "slash choose")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.slash_choose")
+            self.assertEqual(payload["schema"]["version"], "1")
             names = [item["name"] for item in payload["entries"]]
             self.assertIn("update apply", names)
 
@@ -1760,6 +1784,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "commands")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.commands")
+            self.assertEqual(payload["schema"]["version"], "1")
             by_name = {item["name"]: item for item in payload["commands"]}
             self.assertIn("commands", by_name)
             self.assertIn("preflight", by_name)
@@ -1840,6 +1866,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             overview_payload = json.loads(completed.stdout)
             self.assertEqual(overview_payload["command"], "help")
+            self.assertEqual(overview_payload["schema"]["name"], "stagewarden.help")
+            self.assertEqual(overview_payload["schema"]["version"], "1")
             topics = {item["key"]: item for item in overview_payload["topics"]}
             self.assertIn("models", topics)
             self.assertIn("external_io", topics)
@@ -1852,6 +1880,8 @@ class TraceAndCliTests(unittest.TestCase):
             topic_payload = json.loads(completed.stdout)
             self.assertTrue(topic_payload["ok"])
             self.assertEqual(topic_payload["topic"], "models")
+            self.assertEqual(topic_payload["schema"]["name"], "stagewarden.help")
+            self.assertEqual(topic_payload["schema"]["version"], "1")
             self.assertIn("model choose [local|cheap|chatgpt|openai|claude]", topic_payload["commands"])
             self.assertIn("model choose chatgpt", topic_payload["examples"])
 
@@ -1935,16 +1965,24 @@ class TraceAndCliTests(unittest.TestCase):
             show = json.loads(run_main_capture(root, "git show --stat HEAD", "--json").stdout)
 
             self.assertEqual(status["command"], "git status")
+            self.assertEqual(status["schema"]["name"], "stagewarden.git_status")
+            self.assertEqual(status["schema"]["version"], "1")
             self.assertTrue(status["ok"])
             self.assertIsInstance(status["lines"], list)
             self.assertEqual(log_payload["command"], "git log")
+            self.assertEqual(log_payload["schema"]["name"], "stagewarden.git_log")
+            self.assertEqual(log_payload["schema"]["version"], "1")
             self.assertTrue(log_payload["ok"])
             self.assertEqual(log_payload["limit"], 5)
             self.assertEqual(log_payload["commits"][0]["subject"], "add tracked")
             self.assertEqual(history["command"], "git history")
+            self.assertEqual(history["schema"]["name"], "stagewarden.git_history")
+            self.assertEqual(history["schema"]["version"], "1")
             self.assertEqual(history["path"], "tracked.txt")
             self.assertEqual(history["commits"][0]["subject"], "add tracked")
             self.assertEqual(show["command"], "git show")
+            self.assertEqual(show["schema"]["name"], "stagewarden.git_show")
+            self.assertEqual(show["schema"]["version"], "1")
             self.assertTrue(show["stat"])
             self.assertEqual(show["revision"], "HEAD")
 
@@ -1956,6 +1994,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "sessions")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.sessions")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["count"], 0)
             self.assertEqual(payload["items"], [])
 
@@ -2017,6 +2057,8 @@ class TraceAndCliTests(unittest.TestCase):
             todo = json.loads(run_main_capture(root, "todo", "--json").stdout)
 
             self.assertEqual(risks["command"], "risks")
+            self.assertEqual(risks["schema"]["name"], "stagewarden.risks")
+            self.assertEqual(risks["schema"]["version"], "1")
             self.assertEqual(risks["count"], 1)
             self.assertEqual(risks["items"][0]["risk"], "Regression from patch execution")
 
@@ -2046,14 +2088,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(str(quality_closed["items"][0]["status"]).lower(), "accepted")
             self.assertEqual(quality_after["items"][0]["status"], "accepted")
             self.assertEqual(issues["command"], "issues")
+            self.assertEqual(issues["schema"]["name"], "stagewarden.issues")
+            self.assertEqual(issues["schema"]["version"], "1")
             self.assertEqual(issues["items"][0]["summary"], "validation pending")
             self.assertEqual(quality["command"], "quality")
+            self.assertEqual(quality["schema"]["name"], "stagewarden.quality")
+            self.assertEqual(quality["schema"]["version"], "1")
             self.assertEqual(quality["items"][0]["evidence"], "file updated")
             self.assertEqual(exception["command"], "exception")
+            self.assertEqual(exception["schema"]["name"], "stagewarden.exception")
+            self.assertEqual(exception["schema"]["version"], "1")
             self.assertEqual(exception["items"][0], "review boundary for step-3")
             self.assertEqual(lessons["command"], "lessons")
+            self.assertEqual(lessons["schema"]["name"], "stagewarden.lessons")
+            self.assertEqual(lessons["schema"]["version"], "1")
             self.assertEqual(lessons["items"][0]["lesson"], "file update pattern is reusable")
             self.assertEqual(todo["command"], "todo")
+            self.assertEqual(todo["schema"]["name"], "stagewarden.todo")
+            self.assertEqual(todo["schema"]["version"], "1")
             self.assertEqual(todo["items"][0]["title"], "Inspect tests")
 
     def test_interactive_shell_doctor_command(self) -> None:
@@ -2375,6 +2427,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("model_count=1", refreshed or "")
             self.assertEqual(report["model_count"], 1)
             self.assertEqual(report["generated_at"], snapshot["generated_at"])
+            self.assertEqual(report["schema"]["name"], "stagewarden.catalog_status")
+            self.assertEqual(report["schema"]["version"], "1")
 
     def test_catalog_search_reports_matches(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2393,9 +2447,12 @@ class TraceAndCliTests(unittest.TestCase):
                     }
                 ],
             }
-            completed = run_main_capture(root, "catalog search gpt-5.4")
+            completed = run_main_capture(root, "catalog search gpt-5.4", "--json")
             self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertIn("Catalog search for 'gpt-5.4':", completed.stdout)
+            search_payload = json.loads(completed.stdout)
+            self.assertEqual(search_payload["command"], "catalog")
+            self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
+            self.assertEqual(search_payload["schema"]["version"], "1")
 
             with patch("stagewarden.main.load_ai_models_catalog", return_value=catalog):
                 agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
@@ -2430,9 +2487,12 @@ class TraceAndCliTests(unittest.TestCase):
                     },
                 ],
             }
-            completed = run_main_capture(root, "catalog search feature=tool_use")
+            completed = run_main_capture(root, "catalog search feature=tool_use", "--json")
             self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertIn("Catalog search for all models feature=tool_use:", completed.stdout)
+            search_payload = json.loads(completed.stdout)
+            self.assertEqual(search_payload["command"], "catalog")
+            self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
+            self.assertEqual(search_payload["schema"]["version"], "1")
 
             with patch("stagewarden.main.load_ai_models_catalog", return_value=catalog):
                 agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
