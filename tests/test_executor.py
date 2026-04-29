@@ -895,6 +895,46 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("openai", updated.blocked_until_by_model or {})
             self.assertEqual(len(handoff.calls), 1)
 
+    def test_executor_waits_on_transient_network_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["openai", "local"], preferred_model="openai")
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": False,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": "",
+                        "error": "Temporary failure in name resolution.",
+                    },
+                    {
+                        "ok": False,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": "",
+                        "error": "Connection refused.",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.action_type, "model_network_unavailable")
+            self.assertEqual(outcome.error_type, "network_wait")
+            self.assertIn("safe to resume", outcome.observation)
+            self.assertEqual(len(handoff.calls), 2)
+            self.assertEqual(memory.latest_attempt().action_type, "model_network_unavailable")
+            self.assertEqual(memory.latest_attempt().error_type, "network_wait")
+
     def test_executor_retries_all_available_accounts_on_same_model_until_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
