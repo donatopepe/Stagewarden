@@ -28,7 +28,70 @@ class FakeHandoff:
 
     def execute(self, command: str):  # noqa: ANN001
         self.calls.append(command)
-        payload = self.outputs.pop(0)
+        wants_review = "devil advocate" in command.lower()
+        if self.outputs:
+            next_payload = self.outputs[0]
+            next_output = str(next_payload.get("output", "")) if isinstance(next_payload, dict) else ""
+            next_prompt = str(next_payload.get("prompt", "")) if isinstance(next_payload, dict) else ""
+            if wants_review and "\"verdict\"" not in next_output and "critic" not in next_prompt.lower():
+                payload = {
+                    "ok": True,
+                    "model": "critic",
+                    "backend": "critic/mock",
+                    "prompt": command,
+                    "command": "RUN_MODEL: critic mock",
+                    "output": json.dumps(
+                        {
+                            "verdict": "accept",
+                            "contradictions": [],
+                            "missing_evidence": [],
+                            "counter_argument": "No contradiction found.",
+                            "must_escalate": False,
+                            "confidence": 0.9,
+                        }
+                    ),
+                    "error": "",
+                }
+            else:
+                payload = self.outputs.pop(0)
+        elif wants_review:
+            payload = {
+                "ok": True,
+                "model": "critic",
+                "backend": "critic/mock",
+                "prompt": command,
+                "command": "RUN_MODEL: critic mock",
+                "output": json.dumps(
+                    {
+                        "verdict": "accept",
+                        "contradictions": [],
+                        "missing_evidence": [],
+                        "counter_argument": "No contradiction found.",
+                        "must_escalate": False,
+                        "confidence": 0.9,
+                    }
+                ),
+                "error": "",
+            }
+        else:
+            payload = {
+                "ok": True,
+                "model": "local",
+                "backend": "local/mock",
+                "prompt": command,
+                "command": "RUN_MODEL: local mock",
+                "output": json.dumps(
+                    {
+                        "verdict": "accept",
+                        "contradictions": [],
+                        "missing_evidence": [],
+                        "counter_argument": "Default accept.",
+                        "must_escalate": False,
+                        "confidence": 0.5,
+                    }
+                ),
+                "error": "",
+            }
         return type("ModelResult", (), payload)()
 
 
@@ -347,11 +410,12 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(delete_outcome.ok)
             self.assertFalse((root / "copy.txt").exists())
             self.assertFalse((root / "moved.txt").exists())
-            self.assertEqual(memory.tool_transcript[-5].action_type, "copy_path_file")
-            self.assertEqual(memory.tool_transcript[-4].action_type, "move_path_file")
-            self.assertEqual(memory.tool_transcript[-3].action_type, "chmod_path_file")
-            self.assertEqual(memory.tool_transcript[-2].action_type, "chown_path_file")
-            self.assertEqual(memory.tool_transcript[-1].action_type, "delete_path_file")
+            action_types = [item.action_type for item in memory.tool_transcript if item.action_type != "devil_advocate_review"]
+            self.assertEqual(action_types[-5], "copy_path_file")
+            self.assertEqual(action_types[-4], "move_path_file")
+            self.assertEqual(action_types[-3], "chmod_path_file")
+            self.assertEqual(action_types[-2], "chown_path_file")
+            self.assertEqual(action_types[-1], "delete_path_file")
 
     def test_executor_tracks_invalid_output_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1010,6 +1074,93 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("active_flow_outgoing: escalate.work_package_exception", prompt)
             self.assertIn("flow_edge issue.work_package: trigger=work_package_authorization", prompt)
             self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
+
+    def test_executor_runs_devil_advocate_review_before_accepting_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff = ProjectHandoff(task="validate wet-run evidence")
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "version": "1",
+                    "approved_at": "2026-04-29T08:30:00",
+                    "source": "unit_test",
+                    "status": "approved",
+                    "tree": build_prince2_role_tree(prefs),
+                    "flow": build_prince2_role_flow(),
+                    "check": check_prince2_role_tree(prefs),
+                    "matrix": build_prince2_role_matrix(prefs),
+                }
+            )
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"])
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete the task",
+                                "validation": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "critic",
+                        "command": "run_model openai critic",
+                        "output": json.dumps(
+                            {
+                                "verdict": "block",
+                                "contradictions": ["No wet-run evidence for the completion claim."],
+                                "missing_evidence": ["Real command output"],
+                                "counter_argument": "The response assumes success without proof.",
+                                "must_escalate": True,
+                                "confidence": 0.97,
+                            }
+                        ),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-validate",
+                title="Validate evidence",
+                instruction="validate the wet-run evidence",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+
+            outcome = executor.execute_step(task="validate evidence", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.error_type, "critic_rejection")
+            self.assertIn("Devil advocate verdict=block", outcome.observation)
+            self.assertTrue(any(item.action_type == "devil_advocate_review" for item in memory.tool_transcript))
+            self.assertGreaterEqual(len(handoff.calls), 2)
 
     def test_executor_selects_delegated_node_when_step_mentions_node_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -330,6 +330,56 @@ class Executor:
             )
 
         action = parsed["action"]
+        devil_advocate = self._run_devil_advocate_review(
+            iteration=iteration,
+            task=task,
+            step=step,
+            plan=plan,
+            model=model,
+            account=account,
+            primary_payload=parsed.get("payload", {}) if isinstance(parsed.get("payload", {}), dict) else {},
+            primary_action=action,
+            primary_output=result.output,
+            primary_observation=last_observation,
+        )
+        review_payload = devil_advocate.get("review", {}) if isinstance(devil_advocate.get("review", {}), dict) else {}
+        review_verdict = str(review_payload.get("verdict", "accept")).strip().lower() if review_payload else "accept"
+        review_contradictions = [str(item).strip() for item in review_payload.get("contradictions", []) if str(item).strip()] if isinstance(review_payload.get("contradictions", []), list) else []
+        review_missing = [str(item).strip() for item in review_payload.get("missing_evidence", []) if str(item).strip()] if isinstance(review_payload.get("missing_evidence", []), list) else []
+        review_counter_argument = str(review_payload.get("counter_argument", "")).strip() if review_payload else ""
+        review_header = (
+            f"Devil advocate verdict={review_verdict}"
+            + (f" contradictions={'; '.join(review_contradictions)}" if review_contradictions else "")
+            + (f" missing_evidence={'; '.join(review_missing)}" if review_missing else "")
+            + (f" counter_argument={review_counter_argument}" if review_counter_argument else "")
+        )
+        if devil_advocate.get("ok") and (review_verdict == "block" or bool(review_payload.get("must_escalate"))):
+            self.memory.record_attempt(
+                iteration=iteration,
+                step_id=step.id,
+                model=str(devil_advocate.get("model", model)),
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                action_type="devil_advocate_rejection",
+                action_signature=dumps_ascii(review_payload, sort_keys=True),
+                success=False,
+                observation=review_header,
+                error_type="critic_rejection",
+            )
+            return StepOutcome(
+                ok=False,
+                step_completed=False,
+                model=str(devil_advocate.get("model", model)),
+                action_type="devil_advocate_rejection",
+                observation=review_header,
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                git_head_before=git_head_before,
+                git_head_after=self._git_head(),
+                error_type="critic_rejection",
+                prince2_assessment=None,
+                prince2_role=prince2_role,
+            )
         usage_metadata = self._extract_usage_metadata(parsed.get("payload", {}))
         action_type = action.get("type", "").strip()
         observation = self._run_action(action, iteration=iteration, step_id=step.id)
@@ -353,6 +403,8 @@ class Executor:
             context_window_size=usage_metadata.get("context_window_size"),
             current_usage=usage_metadata.get("current_usage"),
         )
+        if devil_advocate.get("ok"):
+            observation["message"] = f"{observation['message']}\n{review_header}"
         self._record_goal_usage(model=model, step_id=step.id, usage_metadata=usage_metadata)
 
         if ok and not step_completed:
@@ -614,6 +666,77 @@ class Executor:
             result = self.handoff.execute(format_run_model(model, prompt, account=current_account))
         return result, current_account
 
+    def _run_devil_advocate_review(
+        self,
+        *,
+        iteration: int,
+        task: str,
+        step: PlanStep,
+        plan: list[PlanStep],
+        model: str,
+        account: str | None,
+        primary_payload: dict[str, Any],
+        primary_action: dict[str, Any],
+        primary_output: str,
+        primary_observation: str,
+    ) -> dict[str, Any]:
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+        except (OSError, ValueError, TypeError):
+            prefs = ModelPreferences.default()
+        self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
+        critic_role = "project_assurance"
+        critic_assignment = self._role_assignment_for_step(prefs, critic_role, task=task, step=step)
+        critic_model = model
+        critic_account = account
+        if critic_assignment:
+            candidate_model = str(critic_assignment.get("provider", "")).strip()
+            if candidate_model:
+                critic_model = candidate_model
+            critic_account = str(critic_assignment.get("account", "")).strip() or self._select_account(critic_model)
+            self._configure_handoff_variant(
+                prefs=prefs,
+                model=critic_model,
+                task=task,
+                step_text=step.instruction,
+                failure_count=self.memory.failure_count(step.id),
+                role_assignment=critic_assignment,
+            )
+        else:
+            alternatives = self._available_alternative_models(model)
+            if alternatives:
+                critic_model = alternatives[0]
+                critic_account = self._select_account(critic_model)
+        prompt = self._build_devil_advocate_prompt(
+            task=task,
+            step=step,
+            plan=plan,
+            primary_payload=primary_payload,
+            primary_action=primary_action,
+            primary_output=primary_output,
+            primary_observation=primary_observation,
+        )
+        result, critic_account = self._execute_with_account_failover(model=critic_model, prompt=prompt, account=critic_account)
+        review = self._parse_devil_advocate_json(result.output)
+        summary = review.get("error") if not review.get("ok") else str(review["payload"].get("verdict", "accept"))
+        self._record_tool_transcript(
+            iteration=iteration,
+            step_id=step.id,
+            tool="model",
+            action_type="devil_advocate_review",
+            success=bool(review.get("ok")),
+            summary=summary or "devil advocate review",
+            detail=result.output[:2000],
+            error_type=None if review.get("ok") else "critic_invalid_output",
+        )
+        return {
+            "ok": bool(review.get("ok")),
+            "model": critic_model,
+            "account": critic_account,
+            "result": result,
+            "review": review.get("payload", {}),
+        }
+
     def _accounts_configured(self, model: str) -> bool:
         try:
             prefs = ModelPreferences.load(self.config.model_prefs_path)
@@ -693,6 +816,63 @@ class Executor:
             plan=plan,
             last_observation=last_observation,
         )
+        return self._render_model_communication_packet(packet)
+
+    def _build_devil_advocate_prompt(
+        self,
+        *,
+        task: str,
+        step: PlanStep,
+        plan: list[PlanStep],
+        primary_payload: dict[str, Any],
+        primary_action: dict[str, Any],
+        primary_output: str,
+        primary_observation: str,
+    ) -> str:
+        packet = self._build_model_communication_packet(
+            task=task,
+            step=step,
+            plan=plan,
+            last_observation=primary_observation,
+        )
+        critic_sections = [
+            PromptSection(
+                "Devil advocate mission",
+                "\n".join(
+                    [
+                        "You are the devil's advocate / Project Assurance critic.",
+                        "Challenge the primary model response instead of agreeing with it.",
+                        "Return strict JSON only.",
+                        "Required keys: verdict, contradictions, missing_evidence, counter_argument, must_escalate, confidence.",
+                        "Allowed verdict values: accept, revise, block.",
+                    ]
+                ),
+            ),
+            PromptSection(
+                "Primary model response",
+                "\n".join(
+                    [
+                        f"summary={primary_payload.get('summary', '')}",
+                        f"validation={primary_payload.get('validation', '')}",
+                        f"confidence={primary_payload.get('confidence', '')}",
+                        f"action={dumps_ascii(primary_action, sort_keys=True)}",
+                        "raw_output:",
+                        primary_output,
+                    ]
+                ),
+            ),
+            PromptSection(
+                "Critic focus",
+                "\n".join(
+                    [
+                        "Find unsupported assumptions, missing wet-run evidence, unsafe shortcuts, hidden scope creep, and contradictions with the plan.",
+                        "If the response depends on unproven claims, set verdict=revise or block.",
+                        "If the response is sound but still risky, list the risk and keep verdict=accept with counter_argument.",
+                    ]
+                ),
+            ),
+        ]
+        packet.sections = list(packet.sections) + critic_sections
         return self._render_model_communication_packet(packet)
 
     def _build_model_communication_packet(
@@ -1218,6 +1398,53 @@ class Executor:
         if schema_error:
             return {"ok": False, "error": schema_error}
         return {"ok": True, "action": action, "payload": payload}
+
+    def _parse_devil_advocate_json(self, raw: str) -> dict[str, Any]:
+        text = raw.strip()
+        candidates = self._json_candidates(text)
+        payload = None
+        last_error: Exception | None = None
+        for candidate in candidates:
+            try:
+                payload = loads_text(candidate)
+                break
+            except ValueError as exc:
+                last_error = exc
+
+        if payload is None:
+            error = f"Devil advocate review did not return valid JSON: {last_error}" if last_error else "No JSON object found."
+            return {"ok": False, "error": error}
+
+        verdict = str(payload.get("verdict", "")).strip().lower()
+        if verdict not in {"accept", "revise", "block"}:
+            return {"ok": False, "error": "Devil advocate review is missing a valid verdict."}
+
+        contradictions = payload.get("contradictions")
+        if contradictions is not None and not (isinstance(contradictions, list) and all(isinstance(item, str) for item in contradictions)):
+            return {"ok": False, "error": "Devil advocate review field 'contradictions' must be a list of strings."}
+
+        missing_evidence = payload.get("missing_evidence")
+        if missing_evidence is not None and not (
+            isinstance(missing_evidence, list) and all(isinstance(item, str) for item in missing_evidence)
+        ):
+            return {"ok": False, "error": "Devil advocate review field 'missing_evidence' must be a list of strings."}
+
+        counter_argument = payload.get("counter_argument")
+        if counter_argument is not None and not isinstance(counter_argument, str):
+            return {"ok": False, "error": "Devil advocate review field 'counter_argument' must be a string."}
+
+        must_escalate = payload.get("must_escalate")
+        if must_escalate is not None and not isinstance(must_escalate, bool):
+            return {"ok": False, "error": "Devil advocate review field 'must_escalate' must be boolean."}
+
+        confidence = payload.get("confidence")
+        if confidence is not None:
+            if not isinstance(confidence, int | float) or isinstance(confidence, bool):
+                return {"ok": False, "error": "Devil advocate review field 'confidence' must be a number from 0.0 to 1.0."}
+            if confidence < 0 or confidence > 1:
+                return {"ok": False, "error": "Devil advocate review field 'confidence' must be a number from 0.0 to 1.0."}
+
+        return {"ok": True, "payload": payload}
 
     def _validate_model_result_schema(self, payload: dict[str, Any], action: dict[str, Any]) -> str:
         summary = payload.get("summary")

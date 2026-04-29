@@ -1351,6 +1351,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(any(item["name"] == "role_wait_wake_guard" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "role_escalation_guard" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "role_antagonist_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_devil_advocate_review" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "role_unauthorized_edge" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "action_validation_guard" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "health_guard" for item in payload["simulations"]))
@@ -1371,6 +1372,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("role_wait_wake_guard", text_completed.stdout)
             self.assertIn("role_escalation_guard", text_completed.stdout)
             self.assertIn("role_antagonist_guard", text_completed.stdout)
+            self.assertIn("role_devil_advocate_review", text_completed.stdout)
             self.assertIn("role_unauthorized_edge", text_completed.stdout)
             self.assertIn("health_guard", text_completed.stdout)
             self.assertIn("preflight_guard", text_completed.stdout)
@@ -3629,10 +3631,13 @@ class TraceAndCliTests(unittest.TestCase):
             )
             self.assertIn("antagonist_name", critical)
             self.assertGreater(int(critical["decision_kpis"]["threat_count"]), 0)
+            self.assertIn("devil_advocate", critical)
+            self.assertIn("evidence_signals", critical)
             self.assertIn("Escalation Child", runtime_text.stdout)
             self.assertIn("thread_tokens total=", runtime_text.stdout)
             self.assertIn("business_case=", runtime_text.stdout)
             self.assertIn("antagonist_name", control_json.stdout)
+            self.assertIn("devil_advocate", control_json.stdout)
 
     def test_roles_context_exposes_node_ai_context_packet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

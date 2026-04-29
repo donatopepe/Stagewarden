@@ -15,6 +15,7 @@
 - **Compatibility Close:** The multi-agent protocol slice is validated with wet-run tests and the handoff mirror is now in a completed state.
 - **PRINCE2 Node Shell Navigation:** Added a human-visible ASCII role-tree renderer with status legend, node descriptions, and shell hints. Added `roles shell` / `role shell` navigators so each node can be viewed as a shell thread and traversed through parent, sibling, and child hops.
 - **PRINCE2 Escalation Child Spawn:** Escalated nodes can now materialize recovery child threads automatically, and each node carries per-thread token accounting for business-case and KPI visibility.
+- **PRINCE2 Antagonist KPI:** Each node now surfaces an antagonist profile derived from risks and anti-benefits, and the control log uses it as part of the node decision KPI view.
 
 ## Completed Work: AI Model Catalog
 
@@ -22,7 +23,7 @@
 - **Data Sources:** Information is being gathered from Ollama (local models), OpenRouter API, and Artificial Analysis.
 - **Data Structure:** A detailed JSON structure has been defined for the catalog. Key fields include `provider`, `model_name`, `model_id`, `context_window`, `cost_per_input_token_usd`, `cost_per_output_token_usd`, `blended_price_usd_per_1m_tokens` (with 'local' or 'N/A' for local models), `intelligence_rank`, `speed_rank`, `latency_rank`, `openness`, and `features`.
 - **Status:** No open implementation items remain for the AI model catalog scope. The builder, selection integration, refresh workflow, search enrichment, scheduled automation, and commit/push workflow are all complete.
-- **Status:** The PRINCE2 node tree is now human-readable, escalations can spawn child recovery threads, and node shells can be opened and navigated directly from the tree or node menus.
+- **Status:** The PRINCE2 node tree is now human-readable, escalations can spawn child recovery threads, antagonist KPIs are visible in runtime/control logs, and node shells can be opened and navigated directly from the tree or node menus.
 
 ## PRINCE2 Alignment
 
@@ -34,7 +35,7 @@
 - The AI model catalog work is complete, including snapshot generation, catalog search, refresh automation, provider/feature query facets, and commit/push workflow for refreshed snapshots.
 - Validation completed with the full unittest suite passing.
 - The KiloCode study corpus and baseline documentation are now updated and tracked alongside the existing Codex CLI and Claude Code references.
-- The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, and escalations can spawn child recovery threads with thread-token accounting.
+- The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, escalations can spawn child recovery threads with thread-token accounting, and each node exposes an antagonist KPI profile derived from risks and anti-benefits.
 
 # Operational Notes
 
@@ -45,4 +46,4 @@
 - **Git Head Baseline:** `044c7301497f04bb8f967e8ec6048c965f072ff2`
 - **Plan Status:** `step-1:completed,step-2:completed,step-3:completed`
 - **Current Step:** PRINCE2 escalation child spawn completed.
-- **Updated At:** 2026-04-29T09:00:00Z
+- **Updated At:** 2026-04-29T09:15:00Z
