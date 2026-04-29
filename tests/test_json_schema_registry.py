@@ -101,6 +101,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "resume context",
             "resume --clear",
             "models usage",
+            "ljson benchmark",
         }
         self.assertEqual(set(json_schema_commands()), expected)
         self.assertEqual(set(JSON_SCHEMA_REGISTRY), expected)

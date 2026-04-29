@@ -152,6 +152,30 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(decoded_code, 0)
             self.assertEqual(json.loads(decoded.read_text(encoding="utf-8")), [{"id": 1, "name": "Mario"}])
 
+    def test_ljson_benchmark_reports_shared_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source = root / "records.json"
+            source.write_text(
+                json.dumps(
+                    [
+                        {"id": 1, "name": "Mario", "role": "member"},
+                        {"id": 2, "name": "Luigi", "role": "member"},
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            completed = run_main_capture(root, "--ljson-benchmark", str(source))
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "ljson benchmark")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.ljson_benchmark")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertEqual(payload["record_count"], 2)
+            self.assertIn("standard", payload)
+            self.assertIn("numeric", payload)
+
     def test_interactive_shell_handles_help_and_exit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=1)

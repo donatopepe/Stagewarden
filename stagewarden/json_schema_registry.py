@@ -98,6 +98,7 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "resume context": "stagewarden.resume_context",
     "resume --clear": "stagewarden.resume_clear",
     "models usage": "stagewarden.models_usage",
+    "ljson benchmark": "stagewarden.ljson_benchmark",
 }
 
 
