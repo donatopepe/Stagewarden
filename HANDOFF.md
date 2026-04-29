@@ -44,6 +44,7 @@
 - The operational and supporting JSON views now carry versioned schema blocks for cross-agent compatibility and explicit payload validation.
 - The JSON schema names and versions are centralized in `stagewarden/json_schema_registry.py`.
 - The shared JSON schema registry now also covers the remaining command/report surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register-style outputs.
+- The interactive shell mode now routes `statusline --json` through the same shared schema wrapper so the shell and top-level command paths stay aligned.
 
 # Operational Notes
 
