@@ -11278,14 +11278,16 @@ def main() -> int:
             report = _slash_palette_report(config, query)
             print(
                 dumps_ascii(
-                    {
-                        "command": "slash choose",
-                        "schema": json_schema("slash choose"),
-                        "query": query,
-                        "no_match": report["no_match"],
-                        "message": report["message"],
-                        "entries": report["entries"][:10],
-                    },
+                    _with_json_schema(
+                        "slash choose",
+                        {
+                            "command": "slash choose",
+                            "query": query,
+                            "no_match": report["no_match"],
+                            "message": report["message"],
+                            "entries": report["entries"][:10],
+                        },
+                    ),
                     indent=2,
                 )
             )
