@@ -11356,7 +11356,7 @@ def main() -> int:
         response = _handle_shell_command(task.split(), config)
         payload = _with_json_schema("shell backend use", {"command": "shell backend use", "message": response, "report": _shell_backend_report(config)})
         if args.json:
-            print(dumps_ascii(payload, indent=2))
+            print(dumps_ascii(_with_json_schema("shell backend use", payload), indent=2))
         else:
             print(response)
         return 0
@@ -11477,9 +11477,9 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         parts = task.split()
         if len(parts) not in {3, 4}:
-            payload = {"command": "model inspect", "ok": False, "error": "Usage: model inspect <provider> [provider_model]"}
+            payload = _with_json_schema("model inspect", {"command": "model inspect", "ok": False, "error": "Usage: model inspect <provider> [provider_model]"})
             if args.json:
-                print(dumps_ascii(payload, indent=2))
+                print(dumps_ascii(_with_json_schema("model inspect", payload), indent=2))
             else:
                 print(payload["error"])
             return 1
@@ -11490,7 +11490,7 @@ def main() -> int:
         except ValueError as exc:
             payload = _with_json_schema("model inspect", {"command": "model inspect", "ok": False, "error": str(exc)})
             if args.json:
-                print(dumps_ascii(payload, indent=2))
+                print(dumps_ascii(_with_json_schema("model inspect", payload), indent=2))
             else:
                 print(payload["error"])
             return 1
@@ -11601,7 +11601,7 @@ def main() -> int:
     if task == "goal" or task.startswith("goal "):
         report = _goal_command_report(task, config)
         if args.json:
-            print(dumps_ascii(report, indent=2))
+            print(dumps_ascii(_with_json_schema("goal", report), indent=2))
         else:
             if report.get("ok") is False:
                 print(report.get("error", "Goal command failed."))
@@ -11645,9 +11645,9 @@ def main() -> int:
             try:
                 max_nodes = int(task.split(maxsplit=2)[2])
             except (ValueError, IndexError):
-                error_payload = {"command": "roles tick", "ok": False, "error": "Usage: roles tick [max_nodes]"}
+                error_payload = _with_json_schema("roles tick", {"command": "roles tick", "ok": False, "error": "Usage: roles tick [max_nodes]"})
                 if args.json:
-                    print(dumps_ascii(error_payload, indent=2))
+                    print(dumps_ascii(_with_json_schema("roles tick", error_payload), indent=2))
                 else:
                     print(error_payload["error"])
                 return 1
@@ -11771,12 +11771,12 @@ def main() -> int:
         if args.json:
             if task == "sources update":
                 report = _with_json_schema("sources update", _sources_update_report(config))
-                print(dumps_ascii(report, indent=2))
+                print(dumps_ascii(_with_json_schema("sources update", report), indent=2))
                 return 0 if report.get("ok") else 1
             if task in {"sources", "sources status", "sources status --strict"}:
                 strict = task == "sources status --strict"
                 report = _with_json_schema("sources status", _sources_status_report(config, strict=strict))
-                print(dumps_ascii(report, indent=2))
+                print(dumps_ascii(_with_json_schema("sources status", report), indent=2))
                 return 0 if not strict or report.get("ok") else 1
             print(dumps_ascii(_with_json_schema("sources status", {"command": task, "ok": False, "error": "Usage: sources | sources status [--strict] | sources update"}), indent=2))
             return 1
@@ -11796,7 +11796,7 @@ def main() -> int:
                 report = _with_json_schema("update apply", _update_apply_report(config, confirmed=task.endswith(" --yes")))
             else:
                 report = _with_json_schema("update status", {"command": task, "ok": False, "error": "Usage: update status | update check [--json] | update apply --yes"})
-            print(dumps_ascii(report, indent=2))
+            print(dumps_ascii(_with_json_schema((report or {}).get("command", "update status"), report), indent=2))
             return 0 if report.get("ok") else 1
         response = _handle_update_command(task, config)
         if response is None or response.startswith("Usage:"):
@@ -11822,7 +11822,7 @@ def main() -> int:
                     report = {"command": "extension scaffold", "ok": False, "error": str(exc)}
             else:
                 report = {"command": task, "ok": False, "error": "Usage: extensions | extension scaffold <name>"}
-            print(dumps_ascii(report, indent=2))
+            print(dumps_ascii(_with_json_schema("extensions", report), indent=2))
             if task == "extensions":
                 return 0
             return 0 if report.get("ok") else 1
