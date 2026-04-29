@@ -383,6 +383,8 @@ class Executor:
         usage_metadata = self._extract_usage_metadata(parsed.get("payload", {}))
         action_type = action.get("type", "").strip()
         observation = self._run_action(action, iteration=iteration, step_id=step.id)
+        if devil_advocate.get("ok"):
+            observation["message"] = f"{observation['message']}\n{review_header}"
         ok = observation["ok"]
         step_completed = bool(action_type == "complete" and ok)
         error_type = None if ok else observation.get("error_type", "execution_error")
@@ -403,8 +405,6 @@ class Executor:
             context_window_size=usage_metadata.get("context_window_size"),
             current_usage=usage_metadata.get("current_usage"),
         )
-        if devil_advocate.get("ok"):
-            observation["message"] = f"{observation['message']}\n{review_header}"
         self._record_goal_usage(model=model, step_id=step.id, usage_metadata=usage_metadata)
 
         if ok and not step_completed:

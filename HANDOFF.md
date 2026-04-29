@@ -16,6 +16,7 @@
 - **PRINCE2 Node Shell Navigation:** Added a human-visible ASCII role-tree renderer with status legend, node descriptions, and shell hints. Added `roles shell` / `role shell` navigators so each node can be viewed as a shell thread and traversed through parent, sibling, and child hops.
 - **PRINCE2 Escalation Child Spawn:** Escalated nodes can now materialize recovery child threads automatically, and each node carries per-thread token accounting for business-case and KPI visibility.
 - **PRINCE2 Antagonist KPI:** Each node now surfaces an antagonist profile derived from risks and anti-benefits, and the control log uses it as part of the node decision KPI view.
+- **PRINCE2 Devil-Advocate Review:** Primary AI responses now run through a second AI review pass that acts as the devil's advocate, flags contradictions or missing wet-run evidence, and can block unsafe completions.
 
 ## Completed Work: AI Model Catalog
 
@@ -24,6 +25,7 @@
 - **Data Structure:** A detailed JSON structure has been defined for the catalog. Key fields include `provider`, `model_name`, `model_id`, `context_window`, `cost_per_input_token_usd`, `cost_per_output_token_usd`, `blended_price_usd_per_1m_tokens` (with 'local' or 'N/A' for local models), `intelligence_rank`, `speed_rank`, `latency_rank`, `openness`, and `features`.
 - **Status:** No open implementation items remain for the AI model catalog scope. The builder, selection integration, refresh workflow, search enrichment, scheduled automation, and commit/push workflow are all complete.
 - **Status:** The PRINCE2 node tree is now human-readable, escalations can spawn child recovery threads, antagonist KPIs are visible in runtime/control logs, and node shells can be opened and navigated directly from the tree or node menus.
+- **Status:** The AI execution path now includes a devil's-advocate review pass so model outputs are challenged before acceptance, with the review surfacing in logs and battery coverage.
 
 ## PRINCE2 Alignment
 
@@ -36,6 +38,7 @@
 - Validation completed with the full unittest suite passing.
 - The KiloCode study corpus and baseline documentation are now updated and tracked alongside the existing Codex CLI and Claude Code references.
 - The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, escalations can spawn child recovery threads with thread-token accounting, and each node exposes an antagonist KPI profile derived from risks and anti-benefits.
+- The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted.
 
 # Operational Notes
 

@@ -1,13 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 escalation so nodes can spawn child recovery threads and track per-node token accounting.
+Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 so every AI response is reviewed by a devil's-advocate critic, nodes can spawn child recovery threads, and per-node token accounting stays visible.
 
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
 - `AGENT_HANDOFF.md` is now the agent-facing handoff mirror.
 - Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
+- The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
@@ -15,7 +16,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - `AGENTS.md`: added mandatory startup and handoff protocol.
 - `AGENT_HANDOFF.md`: added the compatibility handoff structure.
 - `tests/test_trace_cli.py`: battery now covers provider limits, permission denial, PRINCE2 runtime failure modes, escalation child spawn/token accounting, and antagonist KPI controls.
-- `stagewarden/main.py` and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes, tracks per-node thread tokens, and surfaces per-node antagonists.
+- `stagewarden/main.py`, `stagewarden/executor.py`, and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes, tracks per-node thread tokens, runs a devil's-advocate review pass on model responses, and surfaces per-node antagonists.
 - `stagewarden/commands.py`: added `/help agent` and a dedicated agent-compatibility help topic.
 - `README.md` and `README_IT.md`: documented the multi-agent protocol and the new help entry.
 
@@ -33,6 +34,9 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - Decision: wet-run remains the default validation standard for simulations.
   - Reason: the agent must prove actual behavior, not just parseable output.
   - Trade-offs: slower validation, but stronger evidence.
+- Decision: primary model outputs should pass through a devil's-advocate review before acceptance.
+  - Reason: the model can be superficial or assume too much; a second pass catches unsupported claims and missing wet-run evidence.
+  - Trade-offs: extra model calls and slightly higher latency, but stronger control over false confidence.
 
 ## Open issues
 - Bugs: none known from the compatibility protocol itself.
