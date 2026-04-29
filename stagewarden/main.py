@@ -7549,6 +7549,40 @@ def _risks_report(config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _render_risks_close(config: AgentConfig, resolution: str) -> str:
+    report = _risks_close_report(config, resolution)
+    lines = [
+        "Risk closure:",
+        f"- ok: {str(report['ok']).lower()}",
+        f"- open_before: {report['open_before']}",
+        f"- open_after: {report['open_after']}",
+        f"- resolution: {report['resolution']}",
+        "Risk register:",
+    ]
+    items = [item for item in report.get("items", []) if isinstance(item, dict)]
+    if not items:
+        lines.append("- none")
+    else:
+        for item in items:
+            lines.append(f"- [{item.get('status', 'unknown')}] {item.get('risk', '')}")
+    return "\n".join(lines)
+
+
+def _risks_close_report(config: AgentConfig, resolution: str) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    open_before = sum(1 for item in handoff.risk_register if str(item.get("status", "open")).strip().lower() != "closed")
+    handoff.close_all_open_risks(resolution=resolution)
+    handoff.save(config.handoff_path)
+    return {
+        "command": "risks close",
+        "ok": True,
+        "open_before": open_before,
+        "open_after": sum(1 for item in handoff.risk_register if str(item.get("status", "open")).strip().lower() != "closed"),
+        "resolution": resolution,
+        "items": list(handoff.risk_register),
+    }
+
+
 def _render_issues(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_issues()
 
@@ -9954,6 +9988,9 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     if parts[0] == "boundary":
         return _render_boundary(config)
     if parts[0] == "risks":
+        if len(parts) >= 3 and parts[1] == "close":
+            resolution = command.partition("close")[2].strip() or "Resolved by explicit mitigation and wet-run validation."
+            return _render_risks_close(config, resolution)
         return _render_risks(config)
     if parts[0] == "issues":
         return _render_issues(config)
@@ -11652,7 +11689,14 @@ def main() -> int:
         else:
             print(_render_boundary(config))
         return 0
-    if task == "risks":
+    if task == "risks" or task.startswith("risks close"):
+        if task.startswith("risks close"):
+            resolution = task.partition("close")[2].strip() or "Resolved by explicit mitigation and wet-run validation."
+            if args.json:
+                print(dumps_ascii(_risks_close_report(config, resolution), indent=2))
+            else:
+                print(_render_risks_close(config, resolution))
+            return 0
         if args.json:
             print(dumps_ascii(_risks_report(config), indent=2))
         else:
