@@ -28,7 +28,8 @@ class FakeHandoff:
 
     def execute(self, command: str):  # noqa: ANN001
         self.calls.append(command)
-        wants_review = "devil advocate" in command.lower()
+        command_lower = command.lower()
+        wants_review = "devil advocate mission" in command_lower or "project assurance critic" in command_lower
         if self.outputs:
             next_payload = self.outputs[0]
             next_output = str(next_payload.get("output", "")) if isinstance(next_payload, dict) else ""
