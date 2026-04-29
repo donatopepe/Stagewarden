@@ -69,6 +69,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "roles matrix",
             "sources status",
             "sources update",
+            "update",
             "update status",
             "update check",
             "update apply",

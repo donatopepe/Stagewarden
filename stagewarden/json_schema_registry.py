@@ -66,6 +66,7 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "roles matrix": "stagewarden.roles_matrix",
     "sources status": "stagewarden.sources_status",
     "sources update": "stagewarden.sources_update",
+    "update": "stagewarden.update",
     "update status": "stagewarden.update_status",
     "update check": "stagewarden.update_check",
     "update apply": "stagewarden.update_apply",
