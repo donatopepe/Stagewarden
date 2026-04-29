@@ -92,6 +92,8 @@ from .tools.external_io import ExternalIOResult, ExternalIOTool
 
 STATUSLINE_SCHEMA_NAME = "stagewarden.statusline"
 STATUSLINE_SCHEMA_VERSION = "1"
+STATUS_DASHBOARD_SCHEMA_NAME = "stagewarden.status"
+STATUS_DASHBOARD_SCHEMA_VERSION = "1"
 
 
 INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
@@ -5380,6 +5382,10 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
     return {
         "command": "status",
         "view": "full",
+        "schema": {
+            "name": STATUS_DASHBOARD_SCHEMA_NAME,
+            "version": STATUS_DASHBOARD_SCHEMA_VERSION,
+        },
         "identity": {
             "name": "Stagewarden",
             "workspace": status["workspace"],
@@ -6347,6 +6353,10 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     local_fallback = _delivery_local_fallback_report(config)
     return {
         "command": "status",
+        "schema": {
+            "name": STATUS_DASHBOARD_SCHEMA_NAME,
+            "version": STATUS_DASHBOARD_SCHEMA_VERSION,
+        },
         "workspace": str(config.workspace_root),
         "mode": mode,
         "files": {
