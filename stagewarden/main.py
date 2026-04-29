@@ -11215,15 +11215,22 @@ def main() -> int:
         records = loads_text(read_text_utf8(Path(args.ljson_benchmark)))
         if not isinstance(records, list):
             raise SystemExit("Input for --ljson-benchmark must be a JSON array.")
-        print(dumps_ascii(
-            {
-                "standard": benchmark_sizes(records),
-                "numeric": benchmark_sizes(records, numeric_keys=True),
-                "standard_gzip": benchmark_sizes(records, gzip_enabled=True),
-                "numeric_gzip": benchmark_sizes(records, numeric_keys=True, gzip_enabled=True),
-            },
-            indent=2,
-        ))
+        print(
+            dumps_ascii(
+                _with_json_schema(
+                    "ljson benchmark",
+                    {
+                        "command": "ljson benchmark",
+                        "record_count": len(records),
+                        "standard": benchmark_sizes(records),
+                        "numeric": benchmark_sizes(records, numeric_keys=True),
+                        "standard_gzip": benchmark_sizes(records, gzip_enabled=True),
+                        "numeric_gzip": benchmark_sizes(records, numeric_keys=True, gzip_enabled=True),
+                    },
+                ),
+                indent=2,
+            )
+        )
         return 0
 
     task = " ".join(args.task).strip()
