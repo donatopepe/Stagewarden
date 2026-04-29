@@ -2,6 +2,7 @@
 
 ## Current objective
 Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 so every AI response is reviewed by a devil's-advocate critic, nodes can spawn child recovery threads, and per-node token accounting stays visible.
+Split node token accounting into input/output buckets, attach model pricing to the business case, and source those prices from Artificial Analysis when refresh credentials are available.
 Centralize the versioned JSON schemas used by the machine-readable status/report commands so other agents can validate one shared contract source instead of per-command ad hoc literals.
 Extend the same shared schema registry to the remaining stable JSON CLI surfaces, including help, commands, slash, catalog, goal, model usage, git, sessions, role views, project brief/design, system reports, and other register-style outputs.
 Treat `--ljson-benchmark` as a stable machine-readable report and give it the same shared schema contract.
@@ -18,6 +19,7 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
+- The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting split into input/output buckets, per-node pricing sourced from the shared model catalog, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
 - Those schema names and versions are now centralized in `stagewarden/json_schema_registry.py`.
 - The shared registry now also covers stable JSON surfaces for `help`, `commands`, `slash`, `slash choose`, `catalog`, `catalog status`, `catalog search`, `catalog refresh`, `goal`, `goal set`, `goal status`, `goal clear`, `doctor`, `models`, `model`, `model inspect`, `model limits`, `model limit-record`, `model limit-clear`, `account limit-record`, `account limit-clear`, `project brief`, `project brief set`, `project brief clear`, `project design`, `project tree propose`, `project tree approve`, `roles`, `roles domains`, `roles tree`, `roles tree approve`, `roles baseline`, `roles baseline matrix`, `roles context`, `roles active`, `roles control`, `roles queues`, `roles messages`, `roles runtime`, `roles tick`, `roles check`, `roles flow`, `roles matrix`, `shell backend use`, `web search`, `download`, `checksum`, `compress`, `archive verify`, `models usage`, `accounts`, `permissions`, `git status`, `git log`, `git history`, `git show`, `sessions`, `risks`, `issues`, `quality`, `exception`, `lessons`, `todo`, `transcript`, `resume --show`, `resume context`, and `resume --clear`.
@@ -49,6 +51,9 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - `stagewarden/main.py`: made the `update` JSON fallback preserve the exact input command string in JSON and assigned it a shared `update` schema.
 - `stagewarden/main.py`: made the `git` JSON fallback preserve the exact input command string in JSON and assigned it a shared `git` schema.
 - `stagewarden/main.py`: made the `external_io` JSON fallback preserve the exact input command string in JSON and assigned it a shared `external_io` schema.
+- `stagewarden/model_catalog.py`: added optional Artificial Analysis pricing ingestion so the catalog can refresh input/output token prices from the network when an API key is available.
+- `stagewarden/project_handoff.py`: split node business-case token accounting into input/output buckets, attached node pricing/cost fields, and propagated them through runtime, active, and control views.
+- `tests/test_model_catalog.py`, `tests/test_persistence.py`, and `tests/test_trace_cli.py`: covered the Artificial Analysis pricing ingestion and the split node token accounting views.
 
 ## Important files
 - `AGENTS.md`: startup and handoff rules for agents.
@@ -77,6 +82,7 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 1. Keep the handoff files synchronized after the next meaningful code change.
 2. Extend wet-run battery coverage to any remaining denied or escalation edge cases.
 3. Extend the PRINCE2 runtime controls if more escalation branches need wet-run coverage.
+4. Keep the node pricing source in sync with Artificial Analysis when the catalog refresh workflow is re-run.
 
 ## Commands
 ```bash

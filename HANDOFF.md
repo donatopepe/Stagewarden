@@ -15,6 +15,7 @@
 - **Compatibility Close:** The multi-agent protocol slice is validated with wet-run tests and the handoff mirror is now in a completed state.
 - **PRINCE2 Node Shell Navigation:** Added a human-visible ASCII role-tree renderer with status legend, node descriptions, and shell hints. Added `roles shell` / `role shell` navigators so each node can be viewed as a shell thread and traversed through parent, sibling, and child hops.
 - **PRINCE2 Escalation Child Spawn:** Escalated nodes can now materialize recovery child threads automatically, and each node carries per-thread token accounting for business-case and KPI visibility.
+- **PRINCE2 Token Cost Split:** Node business-case accounting now tracks separate input and output token buckets, attaches model pricing to the business case, and uses model-catalog prices refreshed from Artificial Analysis when available.
 - **PRINCE2 Antagonist KPI:** Each node now surfaces an antagonist profile derived from risks and anti-benefits, and the control log uses it as part of the node decision KPI view.
 - **PRINCE2 Devil-Advocate Review:** Primary AI responses now run through a second AI review pass that acts as the devil's advocate, flags contradictions or missing wet-run evidence, and can block unsafe completions.
 - **JSON Contracts:** `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, `board --json`, `help --json`, `commands --json`, `slash --json`, `slash choose --json`, `catalog --json`, `goal --json`, `doctor --json`, `models --json`, `model limits --json`, `models usage --json`, `accounts --json`, `permissions --json`, `git status --json`, `git log --json`, `git history --json`, `git show --json`, `sessions --json`, `risks --json`, `issues --json`, `quality --json`, `exception --json`, `lessons --json`, `todo --json`, `transcript --json`, `resume --show --json`, and `resume context --json` now expose versioned schema blocks so other agents can validate the payloads explicitly.
@@ -46,6 +47,7 @@
 - Validation completed with the full unittest suite passing.
 - The KiloCode study corpus and baseline documentation are now updated and tracked alongside the existing Codex CLI and Claude Code references.
 - The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, escalations can spawn child recovery threads with thread-token accounting, and each node exposes an antagonist KPI profile derived from risks and anti-benefits.
+- The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, escalations can spawn child recovery threads with thread-token accounting, each node now separates business-case input/output token counts with pricing attached, and each node exposes an antagonist KPI profile derived from risks and anti-benefits.
 - The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted.
 - The operational and supporting JSON views now carry versioned schema blocks for cross-agent compatibility and explicit payload validation.
 - The JSON schema names and versions are centralized in `stagewarden/json_schema_registry.py`.
@@ -58,6 +60,7 @@
 - The update JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
 - The git JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
 - The external IO JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
+- The model catalog can now ingest Artificial Analysis pricing data when `STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY` is available, so node business-case costs can be refreshed from the network instead of relying only on static snapshot values.
 
 # Operational Notes
 
