@@ -19,6 +19,7 @@
 - **PRINCE2 Devil-Advocate Review:** Primary AI responses now run through a second AI review pass that acts as the devil's advocate, flags contradictions or missing wet-run evidence, and can block unsafe completions.
 - **JSON Contracts:** `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, `board --json`, `help --json`, `commands --json`, `slash --json`, `slash choose --json`, `catalog --json`, `goal --json`, `doctor --json`, `models --json`, `model limits --json`, `models usage --json`, `accounts --json`, `permissions --json`, `git status --json`, `git log --json`, `git history --json`, `git show --json`, `sessions --json`, `risks --json`, `issues --json`, `quality --json`, `exception --json`, `lessons --json`, `todo --json`, `transcript --json`, `resume --show --json`, and `resume context --json` now expose versioned schema blocks so other agents can validate the payloads explicitly.
 - **JSON Schema Registry:** Those schema names and versions now live in `stagewarden/json_schema_registry.py` as the single source of truth for the stable JSON CLI surfaces.
+- **Catalog JSON Command Names:** `catalog status`, `catalog search`, and `catalog refresh` now declare their specific command names in the JSON payloads instead of using a generic `catalog` label.
 
 ## Completed Work: AI Model Catalog
 
@@ -46,6 +47,7 @@
 - The shared JSON schema registry now also covers the remaining command/report surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register-style outputs.
 - The interactive shell mode now routes `statusline --json` through the same shared schema wrapper so the shell and top-level command paths stay aligned.
 - The `--ljson-benchmark` report now also uses the shared JSON schema wrapper and is tracked as a stable machine-readable surface.
+- The catalog JSON helper reports now keep specific command names for status/search/refresh so downstream consumers can distinguish the subcommands cleanly.
 
 # Operational Notes
 

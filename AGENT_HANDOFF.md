@@ -5,6 +5,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 Centralize the versioned JSON schemas used by the machine-readable status/report commands so other agents can validate one shared contract source instead of per-command ad hoc literals.
 Extend the same shared schema registry to the remaining stable JSON CLI surfaces, including help, commands, slash, catalog, goal, model usage, git, sessions, role views, project brief/design, system reports, and other register-style outputs.
 Treat `--ljson-benchmark` as a stable machine-readable report and give it the same shared schema contract.
+Keep the `catalog status`, `catalog search`, and `catalog refresh` JSON payloads aligned with their specific command names so the machine-readable contract stays precise for downstream consumers.
 
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
@@ -18,6 +19,7 @@ Treat `--ljson-benchmark` as a stable machine-readable report and give it the sa
 - The shared registry also covers `ljson benchmark` so the benchmark report is machine-readable and cross-agent compatible.
 - The `statusline` path inside the interactive mode command handler now also uses the shared schema wrapper, keeping the JSON contract consistent between shell rewrite and top-level dispatch.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
+- The `catalog` JSON helper reports now use the specific command names `catalog status`, `catalog search`, and `catalog refresh` instead of a generic `catalog` label.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
 ## Recent changes
@@ -31,6 +33,7 @@ Treat `--ljson-benchmark` as a stable machine-readable report and give it the sa
 - `stagewarden/commands.py`: added `/help agent` and a dedicated agent-compatibility help topic.
 - `README.md` and `README_IT.md`: documented the multi-agent protocol and the new help entry.
 - `stagewarden/main.py`: expanded the shared JSON schema wrapper to the remaining CLI surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register reports.
+- `stagewarden/main.py`: aligned the `catalog` JSON helper reports with specific command names for status/search/refresh.
 
 ## Important files
 - `AGENTS.md`: startup and handoff rules for agents.

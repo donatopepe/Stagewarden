@@ -5,13 +5,13 @@
   "goal": {},
   "project_brief": {},
   "status": "completed",
-  "current_step_id": "ljson-benchmark-schema",
-  "current_step_title": "Give the LJSON benchmark report a shared JSON schema contract",
+  "current_step_id": "catalog-command-contract",
+  "current_step_title": "Align catalog JSON command names with their specific subcommands",
   "current_step_status": "completed",
-  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and the shared JSON schema registry now also covers the remaining CLI surfaces plus the new LJSON benchmark report.",
+  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, the shared JSON schema registry covers the remaining CLI surfaces, and catalog JSON reports now use specific status/search/refresh command names.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "90ff3d3",
-  "git_head_baseline": "90ff3d3",
+  "git_head": "da61a4e",
+  "git_head_baseline": "da61a4e",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -62,6 +62,22 @@
   "prince2_node_runtime": {},
   "updated_at": "2026-04-29T18:39:13Z",
   "entries": [
+    {
+      "timestamp": "2026-04-29T18:55:00+00:00",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "catalog-command-contract",
+      "summary": "Catalog JSON payloads now use specific command names for status/search/refresh.",
+      "step_id": "catalog-command-contract",
+      "step_title": "Align catalog JSON command names with their specific subcommands",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "da61a4e",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-04-29T07:19:12+00:00",
       "phase": "start",
