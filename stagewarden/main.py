@@ -10489,7 +10489,7 @@ def _file_command_report(command: str, config: AgentConfig) -> dict[str, object]
         group = args[2] if len(args) == 3 else None
         result = tool.chown_path(args[0], user=args[1], group=group, recursive=recursive, dry_run=dry_run)
         return {"command": "file chown", "path": args[0], "user": args[1], "group": group, "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
-    return {"command": "file", "ok": False, "error": "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]"}
+    return {"command": command, "ok": False, "error": "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]"}
 
 
 def _render_file_command(report: dict[str, object]) -> str:
@@ -11841,7 +11841,10 @@ def main() -> int:
     if task.startswith("file "):
         report = _file_command_report(task, config)
         if args.json:
-            print(dumps_ascii(_with_json_schema((report or {}).get("command", "file inspect"), report or {"command": task, "ok": False, "error": "Unsupported file command"}), indent=2))
+            schema_command = (report or {}).get("command", "file")
+            if schema_command not in {"file inspect", "file stat", "file copy", "file move", "file delete", "file chmod", "file chown"}:
+                schema_command = "file"
+            print(dumps_ascii(_with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported file command"}), indent=2))
             return 0 if report and report.get("ok") else 1
         response = _handle_file_command(task, config)
         print(response or "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]")
