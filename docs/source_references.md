@@ -12,6 +12,7 @@ project does not vendor or republish upstream code.
 | OpenAI Codex CLI | `external_sources/codex` | `https://github.com/openai/codex` | Study CLI agent loop, status card, login flow, approvals, sandbox, model metadata, token usage, and rate-limit handling. | Apache-2.0 according to npm metadata for `@openai/codex`. |
 | Claude Code | `external_sources/claude-code` | `https://github.com/anthropics/claude-code` | Study official Claude Code CLI behavior if public source is available. | NPM metadata points to this homepage; if unavailable, use only official npm package/bundle metadata, not leaked mirrors. |
 | KiloCode | `external_sources/kilocode` | `https://github.com/Kilo-Org/kilocode` | Study CLI runtime layering, gateway auth/provider routing, model filtering, extension/provider sync, and fork merge hygiene. | MIT license in upstream repo. Keep the clone local and use source links/docs rather than vendoring code. |
+| KiloCode provider coverage | `docs/kilocode_provider_coverage.md` and `data/kilocode_provider_coverage.json` | Generated from the local KiloCode snapshot and Stagewarden registry | Runtime coverage map for all supported KiloCode-backed providers and their model lists. | Generated artifact; keep it in sync with `scripts/build_kilocode_provider_coverage.py`. |
 
 ## Update Commands
 
