@@ -10,6 +10,8 @@
 - **AI Model Catalog Enrichment:** Added catalog aliases and `catalog search` so the snapshot can be queried by model id, name, aliases, providers, or features instead of only by direct provider-model lookup. `catalog search` now accepts `provider=` and `feature=` filters.
 - **AI Model Catalog Automation:** Added a scheduled GitHub Actions workflow that rebuilds the catalog, commits refreshed snapshots back to the branch when they change, and uploads the refreshed snapshot as an artifact.
 - **KiloCode Study Material:** Added `external_sources/kilocode` as a local research clone and expanded the study docs/policy baseline to include KiloCode alongside Codex CLI and Claude Code.
+- **Multi-Agent Compatibility Protocol:** Added `AGENTS.md` and `AGENT_HANDOFF.md` so Codex CLI, Kilo CLI, and human maintainers share the same startup and handoff contract.
+- **Help Surface Update:** Added `help agent` plus README references so the multi-agent protocol is visible from the interactive help system and the main docs.
 - **PRINCE2 Node Shell Navigation:** Added a human-visible ASCII role-tree renderer with status legend, node descriptions, and shell hints. Added `roles shell` / `role shell` navigators so each node can be viewed as a shell thread and traversed through parent, sibling, and child hops.
 
 ## Completed Work: AI Model Catalog
@@ -38,7 +40,7 @@
 
 ## Runtime Handoff State (.stagewarden_handoff.json)
 
-- **Git Head Baseline:** `b2994c4056d5076209ac6d73c05437478bf97df9`
-- **Plan Status:** Completed.
-- **Current Step:** PRINCE2 node shell and navigation UX completed.
-- **Updated At:** 2026-04-29T00:00:00Z
+- **Git Head Baseline:** `e73bdd58f91def4fe43a60b0461a6e8585e316df`
+- **Plan Status:** `step-1:completed,step-2:in_progress,step-3:planned`
+- **Current Step:** Add `AGENTS.md` and `AGENT_HANDOFF.md` compatibility protocol.
+- **Updated At:** 2026-04-29T08:42:11Z

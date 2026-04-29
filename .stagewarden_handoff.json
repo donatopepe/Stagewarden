@@ -1,9 +1,122 @@
 {
-  "plan_status": "completed",
-  "current_step_id": "PRINCE2 node shell and navigation UX added",
-  "current_step_status": "completed",
-  "git_head": "fa57d86d979f16dd47c5c4c4bf0f9af6f0f7f2d6",
-  "git_head_baseline": "b2994c4056d5076209ac6d73c05437478bf97df9",
-  "latest_observation": "Built the AI model catalog generator, snapshot, selection integration, refresh workflow, alias enrichment, catalog search, scheduled automation, provider/feature search facets, and commit/push automation; added KiloCode as a local study source and expanded the research baseline; added a human-visible PRINCE2 tree renderer plus navigable node shells with status colors and descriptions; full unittest discovery passes and the work is formally closed.",
-  "updated_at": "2026-04-29T00:00:00Z"
+  "_format": "stagewarden_project_handoff",
+  "_version": 1,
+  "task": "battery",
+  "goal": {},
+  "project_brief": {},
+  "status": "executing",
+  "current_step_id": "multi-agent-compatibility",
+  "current_step_title": "Add AGENTS.md and AGENT_HANDOFF.md compatibility protocol",
+  "current_step_status": "in_progress",
+  "latest_observation": "AGENTS.md, AGENT_HANDOFF.md, and help-agent docs added; compatibility tests passed.",
+  "plan_status": "step-1:completed,step-2:completed,step-3:in_progress",
+  "git_head": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
+  "git_head_baseline": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
+  "risk_register": [
+    {
+      "risk": "Requirement misunderstanding.",
+      "status": "open",
+      "recorded_at": "2026-04-29T07:19:12+00:00"
+    },
+    {
+      "risk": "Regression from file, command, or patch execution.",
+      "status": "open",
+      "recorded_at": "2026-04-29T07:19:12+00:00"
+    },
+    {
+      "risk": "Continuing after business justification has weakened.",
+      "status": "open",
+      "recorded_at": "2026-04-29T07:19:12+00:00"
+    }
+  ],
+  "issue_register": [],
+  "quality_register": [],
+  "lessons_log": [],
+  "exception_plan": [
+    "review boundary for unknown-step",
+    "inspect latest issue register and failed observations",
+    "prepare controlled corrective action with wet-run validation"
+  ],
+  "implementation_backlog": [
+    {
+      "step_id": "step-1",
+      "title": "1. Inspect the codebase or workspace relevant",
+      "status": "planned",
+      "validation": "The agent can state concrete findings and, where possible, verify them with a real command."
+    },
+    {
+      "step_id": "step-2",
+      "title": "2. Implement the requested changes",
+      "status": "planned",
+      "validation": "The target files or behavior exist and a real wet-run verifies the change."
+    },
+    {
+      "step_id": "step-3",
+      "title": "3. Validate the result with a direct",
+      "status": "planned",
+      "validation": "A real wet-run command or observable result confirms the step passed; dry-run alone is not valid."
+    }
+  ],
+  "prince2_roles": {},
+  "prince2_role_tree_baseline": {},
+  "prince2_node_runtime": {},
+  "updated_at": "2026-04-29T08:42:11Z",
+  "entries": [
+    {
+      "timestamp": "2026-04-29T07:19:12+00:00",
+      "phase": "start",
+      "iteration": 0,
+      "task": "battery",
+      "summary": "Project context initialized.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
+      "details": {
+        "plan_status": "step-1:ready,step-2:planned,step-3:planned"
+      }
+    },
+    {
+      "timestamp": "2026-04-29T07:19:12+00:00",
+      "phase": "plan",
+      "iteration": 0,
+      "task": "battery",
+      "summary": "Plan approved for controlled execution.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
+      "details": {
+        "plan_status": "step-1:ready,step-2:planned,step-3:planned",
+        "controls": [
+          "Work stage-by-stage.",
+          "Use management by exception.",
+          "For small tasks, keep documentation and controls minimal but explicit.",
+          "For complex or risky tasks, increase formal controls, evidence, and boundary checks.",
+          "Keep trace, memory, and validation evidence."
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-04-29T07:19:12+00:00",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "battery",
+      "summary": "Task rejected by PRINCE2 governance gate before execution.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": "exception",
+      "model": null,
+      "action_type": null,
+      "git_head": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
+      "details": {
+        "plan_status": "step-1:ready,step-2:planned,step-3:planned",
+        "success": false
+      }
+    }
+  ]
 }

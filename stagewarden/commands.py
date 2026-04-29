@@ -243,6 +243,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
         summary="exit, reset, overview, health, report, status, preflight, stream, sessions, transcript",
         extra_lines=(
             "- help [topic]",
+            "- help agent",
             "- exit | quit",
             "- reset",
             "- overview",
@@ -276,6 +277,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
             "status",
             "status full",
             "statusline",
+            "help agent",
             "baseline",
             "goal set Close provider telemetry pack --tokens 20000",
             "goal status complete",
@@ -291,6 +293,24 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
             "transcript",
         ),
         aliases=("sessions", "session"),
+    ),
+    HelpTopic(
+        key="agent",
+        title="Agent compatibility protocol",
+        summary="startup, handoff, wet-run validation, and cross-agent continuity",
+        extra_lines=(
+            "- Read AGENTS.md before starting or resuming work.",
+            "- Read AGENT_HANDOFF.md and the runtime handoff file before editing.",
+            "- Keep AGENTS.md, AGENT_HANDOFF.md, HANDOFF.md, and .stagewarden_handoff.json aligned.",
+            "- Prefer wet-run validation for simulations and logs on every node.",
+            "- Dry-run alone is not a valid completion checkpoint.",
+        ),
+        examples=(
+            "help agent",
+            "help handoff",
+            "help core",
+        ),
+        aliases=("agents", "protocol"),
     ),
     HelpTopic(
         key="baseline",

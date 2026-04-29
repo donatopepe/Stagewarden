@@ -15,6 +15,8 @@ Agent policy artifacts:
 - `AGENT_MANIFESTO.md`: short operating manifesto
 - `AGENT_POLICY.md`: formal human-readable policy
 - `AGENT_POLICY.json`: machine-readable policy baseline
+- `AGENTS.md`: multi-agent startup and handoff protocol
+- `AGENT_HANDOFF.md`: compatibility handoff for Codex CLI, Kilo CLI, and human maintainers
 
 Caratteristiche principali:
 
@@ -129,6 +131,7 @@ PRINCE2 handoff behavior:
 - The interactive views now also show a compact `stage health` indicator such as `active`, `at_risk`, `exception`, or `ready_to_close`.
 - The interactive views now also show a compact `next action` recommendation derived from the boundary decision and current stage state.
 - The final summary, `status`, and `handoff` now reuse the same compact `operational posture` block so the high-level reading stays consistent across views.
+- `help agent` documents the multi-agent startup/handoff protocol, including wet-run validation and synchronized handoff files.
 
 Validation behavior:
 
