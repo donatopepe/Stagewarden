@@ -10098,7 +10098,7 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
             return _render_status_full(agent, config)
         return _render_status(agent, config)
     if parts[0] == "statusline":
-        return dumps_ascii(_statusline_report(agent, config), indent=2)
+        return dumps_ascii(_with_json_schema("statusline", _statusline_report(agent, config)), indent=2)
     if parts[0] == "preflight":
         return _render_preflight(agent, config)
     if parts[0] == "battery":
@@ -10787,7 +10787,7 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     if lowered == "help":
         return None, interactive_help_text()
     if lowered in {"help topics", "help topics --json", "help --json"}:
-        return None, dumps_ascii(_help_json_report(), indent=2) if lowered.endswith("--json") else interactive_help_text()
+        return None, dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2) if lowered.endswith("--json") else interactive_help_text()
     if lowered == "slash choose":
         return None, _render_slash_choice_candidates(agent.config)
     if lowered.startswith("slash choose "):
@@ -10796,21 +10796,21 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
     if lowered == "slash":
         return None, _render_slash_palette(agent.config)
     if lowered == "slash --json":
-        return None, dumps_ascii(_slash_palette_report(agent.config), indent=2)
+        return None, dumps_ascii(_with_json_schema("slash", _slash_palette_report(agent.config)), indent=2)
     if lowered.startswith("slash "):
         prefix = command.split(maxsplit=1)[1]
         if prefix.endswith(" --json"):
             prefix = prefix[: -len(" --json")].strip()
-            return None, dumps_ascii(_slash_palette_report(agent.config, prefix), indent=2)
+            return None, dumps_ascii(_with_json_schema("slash", _slash_palette_report(agent.config, prefix)), indent=2)
         return None, _render_slash_palette(agent.config, prefix)
     if lowered == "commands":
         return None, render_command_catalog()
     if lowered == "commands --json":
-        return None, dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2)
+        return None, dumps_ascii(_with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2)
     if lowered.startswith("help "):
         topic = command.split(maxsplit=1)[1]
         if topic.lower().strip() == "--json":
-            return None, dumps_ascii(_help_json_report(), indent=2)
+            return None, dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2)
         if topic.lower().strip() == "caveman":
             return None, agent.caveman.help_text()
         if topic.lower().strip() == "topics":
@@ -10818,13 +10818,13 @@ def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str 
         if topic.lower().strip().endswith(" --json"):
             raw_topic = topic[: -len(" --json")].strip()
             if raw_topic.lower() == "caveman":
-                return None, dumps_ascii({"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}, indent=2)
-            return None, dumps_ascii(_help_json_report(raw_topic), indent=2)
+                return None, dumps_ascii(_with_json_schema("help", {"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}), indent=2)
+            return None, dumps_ascii(_with_json_schema("help", _help_json_report(raw_topic)), indent=2)
         return None, interactive_help_text(topic)
     if lowered.startswith("commands "):
         topic = command.split(maxsplit=1)[1]
         if topic.lower().strip() == "--json":
-            return None, dumps_ascii({"command": "commands", "commands": command_catalog()}, indent=2)
+            return None, dumps_ascii(_with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2)
         return None, interactive_help_text(topic)
     if lowered in {"caveman help", "help caveman"}:
         return None, agent.caveman.help_text()
@@ -11241,24 +11241,24 @@ def main() -> int:
         return run_interactive_shell(config)
     if task in {"help", "help topics", "help --json", "help topics --json"}:
         if args.json or task.endswith("--json"):
-            print(dumps_ascii(_help_json_report(), indent=2))
+            print(dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2))
         else:
             print(interactive_help_text())
         return 0
     if task.startswith("help "):
         topic = task.split(maxsplit=1)[1]
         if topic == "--json":
-            print(dumps_ascii(_help_json_report(), indent=2))
+            print(dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2))
             return 0
         if topic.endswith(" --json"):
             raw_topic = topic[: -len(" --json")].strip()
             if raw_topic.lower() == "caveman":
-                print(dumps_ascii({"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}, indent=2))
+                print(dumps_ascii(_with_json_schema("help", {"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}), indent=2))
             else:
-                print(dumps_ascii(_help_json_report(raw_topic), indent=2))
+                print(dumps_ascii(_with_json_schema("help", _help_json_report(raw_topic)), indent=2))
             return 0
         if args.json:
-            print(dumps_ascii(_help_json_report(topic), indent=2))
+            print(dumps_ascii(_with_json_schema("help", _help_json_report(topic)), indent=2))
         elif topic.lower() == "caveman":
             print(Agent(config=config).caveman.help_text())
         elif topic.lower() == "topics":
@@ -11268,7 +11268,7 @@ def main() -> int:
         return 0
     if task in {"commands", "commands --json"}:
         if args.json or task == "commands --json":
-            print(dumps_ascii({"command": "commands", "schema": json_schema("commands"), "commands": command_catalog()}, indent=2))
+            print(dumps_ascii(_with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2))
         else:
             print(render_command_catalog())
         return 0
@@ -11297,7 +11297,7 @@ def main() -> int:
         if prefix.endswith(" --json"):
             prefix = prefix[: -len(" --json")].strip()
         if args.json or task.endswith(" --json"):
-            print(dumps_ascii(_slash_palette_report(config, prefix), indent=2))
+            print(dumps_ascii(_with_json_schema("slash", _slash_palette_report(config, prefix)), indent=2))
         else:
             print(_render_slash_palette(config, prefix))
         return 0
@@ -11305,27 +11305,27 @@ def main() -> int:
         report = _doctor_report(config)
         rendered = _render_doctor(config)
         if args.json:
-            print(dumps_ascii(report, indent=2))
+            print(dumps_ascii(_with_json_schema("doctor", report), indent=2))
         else:
             print(rendered)
         return 0 if _doctor_ok(rendered) else 1
     if task == "status":
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_status_dashboard_report(agent, config) if args.full else _status_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("status", _status_dashboard_report(agent, config) if args.full else _status_report(agent, config)), indent=2))
         else:
             print(_render_status_full(agent, config) if args.full else _render_status(agent, config))
         return 0
     if task in {"status full", "status --full"}:
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_status_dashboard_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("status", _status_dashboard_report(agent, config)), indent=2))
         else:
             print(_render_status_full(agent, config))
         return 0
     if task == "statusline":
         agent = _configure_readonly_agent_for_workspace(config)
-        print(dumps_ascii(_statusline_report(agent, config), indent=2))
+        print(dumps_ascii(_with_json_schema("statusline", _statusline_report(agent, config)), indent=2))
         return 0
     if task == "baseline":
         if args.json:
@@ -11342,7 +11342,7 @@ def main() -> int:
     if task == "preflight":
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_preflight_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("preflight", _preflight_report(agent, config)), indent=2))
         else:
             print(_render_preflight(agent, config))
         return 0
@@ -11354,7 +11354,7 @@ def main() -> int:
         return 0
     if task.startswith("shell backend use "):
         response = _handle_shell_command(task.split(), config)
-        payload = {"command": "shell backend use", "message": response, "report": _shell_backend_report(config)}
+        payload = _with_json_schema("shell backend use", {"command": "shell backend use", "message": response, "report": _shell_backend_report(config)})
         if args.json:
             print(dumps_ascii(payload, indent=2))
         else:
@@ -11370,35 +11370,35 @@ def main() -> int:
     if task == "overview":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_overview_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("overview", _overview_report(agent, config)), indent=2))
         else:
             print(_render_overview(agent, config))
         return 0
     if task == "health":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_health_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("health", _health_report(agent, config)), indent=2))
         else:
             print(_render_health(agent, config))
         return 0
     if task == "report":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_report_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("report", _report_report(agent, config)), indent=2))
         else:
             print(_render_report(agent, config))
         return 0
     if task == "models":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_model_status_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("models", _model_status_report(agent, config)), indent=2))
         else:
             print(_render_model_status(agent, config))
         return 0
     if task in {"model limits", "models limits"}:
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_model_limits_report(agent, config), indent=2))
+            print(dumps_ascii(_with_json_schema("model limits", _model_limits_report(agent, config)), indent=2))
         else:
             print(_render_model_limits(agent, config))
         return 0
@@ -11412,7 +11412,8 @@ def main() -> int:
         response = _handle_model_command(task, agent, config)
         if response is None:
             response = _handle_account_command(task, agent, config)
-        payload = {"command": " ".join(task.split()[:2]), "message": response}
+        schema_command = " ".join(task.split()[:2])
+        payload = _with_json_schema(schema_command, {"command": schema_command, "message": response})
         if args.json:
             print(dumps_ascii(payload, indent=2))
         else:
@@ -11423,11 +11424,11 @@ def main() -> int:
         if args.json:
             parts = task.split()
             if len(parts) == 1 or parts[1] == "status":
-                print(dumps_ascii(_catalog_status_report(), indent=2))
+                print(dumps_ascii(_with_json_schema("catalog status", _catalog_status_report()), indent=2))
                 return 0
             if parts[1] == "search":
                 if len(parts) < 3:
-                    print(dumps_ascii({"command": "catalog", "schema": json_schema("catalog search"), "ok": False, "error": _catalog_usage()}, indent=2))
+                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog", "ok": False, "error": _catalog_usage()}), indent=2))
                     return 1
                 query_parts: list[str] = []
                 provider = None
@@ -11442,29 +11443,31 @@ def main() -> int:
                     query_parts.append(token)
                 query = " ".join(query_parts).strip()
                 if not query and not provider and not feature:
-                    print(dumps_ascii({"command": "catalog", "schema": json_schema("catalog search"), "ok": False, "error": _catalog_usage()}, indent=2))
+                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog", "ok": False, "error": _catalog_usage()}), indent=2))
                     return 1
-                print(dumps_ascii(_catalog_search_report(query, provider, feature=feature), indent=2))
+                print(dumps_ascii(_with_json_schema("catalog search", _catalog_search_report(query, provider, feature=feature)), indent=2))
                 return 0
             if parts[1] == "refresh":
                 catalog = write_ai_models_catalog()
                 print(
                     dumps_ascii(
+                        _with_json_schema(
+                            "catalog refresh",
                         {
                             "command": "catalog",
-                            "schema": json_schema("catalog status"),
                             "ok": True,
                             "path": str(catalog_path()),
                             "generated_at": catalog.get("generated_at"),
                             "model_count": len(catalog.get("models", [])) if isinstance(catalog.get("models", []), list) else 0,
                             "source_urls": catalog.get("source_urls", {}),
                         },
+                        ),
                         indent=2,
                     )
                 )
                 return 0
         response = _handle_model_command(task, agent, config)
-        payload = {"command": "catalog", "message": response}
+        payload = _with_json_schema("catalog", {"command": "catalog", "message": response})
         if args.json:
             print(dumps_ascii(payload, indent=2))
         else:
@@ -11485,14 +11488,14 @@ def main() -> int:
         try:
             report = _inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
         except ValueError as exc:
-            payload = {"command": "model inspect", "ok": False, "error": str(exc)}
+            payload = _with_json_schema("model inspect", {"command": "model inspect", "ok": False, "error": str(exc)})
             if args.json:
                 print(dumps_ascii(payload, indent=2))
             else:
                 print(payload["error"])
             return 1
         if args.json:
-            print(dumps_ascii(report, indent=2))
+            print(dumps_ascii(_with_json_schema("model inspect", report), indent=2))
         else:
             print(_render_provider_model_inspection(report))
         return 0
@@ -11503,19 +11506,19 @@ def main() -> int:
             print(_model_usage())
             return 1
         if args.json:
-            print(dumps_ascii({"command": task, "message": response, "models": _model_status_report(agent, config)}, indent=2))
+            print(dumps_ascii(_with_json_schema("model", {"command": task, "message": response, "models": _model_status_report(agent, config)}), indent=2))
         else:
             print(response)
         return 0
     if task == "accounts":
         if args.json:
-            print(dumps_ascii(_accounts_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("accounts", _accounts_report(config)), indent=2))
         else:
             print(_render_accounts(config))
         return 0
     if task == "roles":
         if args.json:
-            print(dumps_ascii(_prince2_roles_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles", _prince2_roles_report(config)), indent=2))
         else:
             print(_render_prince2_roles(config))
         return 0
@@ -11538,7 +11541,7 @@ def main() -> int:
         report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
         _record_project_tree_proposal_action(config, report, task=task)
         if args.json:
-            print(dumps_ascii(report, indent=2))
+            print(dumps_ascii(_with_json_schema("project tree propose", report), indent=2))
         else:
             print(_render_project_tree_proposal_report(report))
         return 0
@@ -11546,19 +11549,19 @@ def main() -> int:
         force = task.endswith(" --force")
         report = _approve_project_tree_proposal(config, force=force)
         if args.json:
-            print(dumps_ascii(report, indent=2))
+            print(dumps_ascii(_with_json_schema("project tree approve", report), indent=2))
         else:
             print(_render_project_tree_approval_report(report, config))
         return 0 if report["status"] == "approved" else 1
     if task == "roles domains":
         if args.json:
-            print(dumps_ascii(_prince2_role_domains_report(), indent=2))
+            print(dumps_ascii(_with_json_schema("roles domains", _prince2_role_domains_report()), indent=2))
         else:
             print(_render_prince2_role_domains())
         return 0
     if task == "roles tree":
         if args.json:
-            print(dumps_ascii(_prince2_role_tree_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles tree", _prince2_role_tree_report(config)), indent=2))
         else:
             print(_render_prince2_role_tree(config))
         return 0
@@ -11566,32 +11569,32 @@ def main() -> int:
         agent = _configure_readonly_agent_for_workspace(config)
         response = _handle_role_command(task, agent, config)
         if args.json:
-            print(dumps_ascii(_prince2_role_tree_baseline_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles tree approve", _prince2_role_tree_baseline_report(config)), indent=2))
         else:
             print(response)
         return 0
     if task == "roles baseline":
         if args.json:
-            print(dumps_ascii(_prince2_role_tree_baseline_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles baseline", _prince2_role_tree_baseline_report(config)), indent=2))
         else:
             print(_render_prince2_role_tree_baseline(config))
         return 0
     if task == "roles baseline matrix":
         if args.json:
-            print(dumps_ascii(_prince2_role_tree_baseline_matrix_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles baseline matrix", _prince2_role_tree_baseline_matrix_report(config)), indent=2))
         else:
             print(_render_prince2_role_tree_baseline_matrix(config))
         return 0
     if task.startswith("roles context "):
         node_id = task.split(maxsplit=2)[2]
         if args.json:
-            print(dumps_ascii(_prince2_role_context_report(config, node_id), indent=2))
+            print(dumps_ascii(_with_json_schema("roles context", _prince2_role_context_report(config, node_id)), indent=2))
         else:
             print(_render_prince2_role_context(config, node_id))
         return 0
     if task == "roles active":
         if args.json:
-            print(dumps_ascii(_prince2_role_active_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles active", _prince2_role_active_report(config)), indent=2))
         else:
             print(_render_prince2_role_active(config))
         return 0
@@ -11613,26 +11616,26 @@ def main() -> int:
         return 0 if report.get("ok", True) else 1
     if task == "roles control":
         if args.json:
-            print(dumps_ascii(_prince2_role_control_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles control", _prince2_role_control_report(config)), indent=2))
         else:
             print(_render_prince2_role_control(config))
         return 0
     if task == "roles queues":
         if args.json:
-            print(dumps_ascii(_prince2_role_queue_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles queues", _prince2_role_queue_report(config)), indent=2))
         else:
             print(_render_prince2_role_queues(config))
         return 0
     if task == "roles messages" or task.startswith("roles messages "):
         node_id = task.split(maxsplit=2)[2] if len(task.split(maxsplit=2)) == 3 else None
         if args.json:
-            print(dumps_ascii(_prince2_role_messages_report(config, node_id=node_id), indent=2))
+            print(dumps_ascii(_with_json_schema("roles messages", _prince2_role_messages_report(config, node_id=node_id)), indent=2))
         else:
             print(_render_prince2_role_messages(config, node_id=node_id))
         return 0
     if task == "roles runtime":
         if args.json:
-            print(dumps_ascii(_prince2_role_runtime_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles runtime", _prince2_role_runtime_report(config)), indent=2))
         else:
             print(_render_prince2_role_runtime(config))
         return 0
@@ -11652,6 +11655,8 @@ def main() -> int:
         if args.json:
             print(
                 dumps_ascii(
+                    _with_json_schema(
+                        "roles tick",
                     {
                         "command": "roles tick",
                         "ok": True,
@@ -11659,6 +11664,7 @@ def main() -> int:
                         "runtime": _prince2_role_runtime_report(config),
                         "messages": _prince2_role_messages_report(config),
                     },
+                    ),
                     indent=2,
                 )
             )
@@ -11671,19 +11677,19 @@ def main() -> int:
         return 0
     if task == "roles check":
         if args.json:
-            print(dumps_ascii(_prince2_role_check_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles check", _prince2_role_check_report(config)), indent=2))
         else:
             print(_render_prince2_role_check(config))
         return 0
     if task == "roles flow":
         if args.json:
-            print(dumps_ascii(_prince2_role_flow_report(), indent=2))
+            print(dumps_ascii(_with_json_schema("roles flow", _prince2_role_flow_report()), indent=2))
         else:
             print(_render_prince2_role_flow())
         return 0
     if task == "roles matrix":
         if args.json:
-            print(dumps_ascii(_prince2_role_matrix_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("roles matrix", _prince2_role_matrix_report(config)), indent=2))
         else:
             print(_render_prince2_role_matrix(config))
         return 0
@@ -11693,7 +11699,8 @@ def main() -> int:
             print("Usage: project brief | project brief set <field> <value> | project brief clear [field]")
             return 1
         if args.json:
-            print(dumps_ascii({"command": task, "message": response, "project_brief": _project_brief_report(config)}, indent=2))
+            schema_command = "project brief set" if task.startswith("project brief set") else "project brief clear" if task.startswith("project brief clear") else "project brief"
+            print(dumps_ascii(_with_json_schema(schema_command, {"command": task, "message": response, "project_brief": _project_brief_report(config)}), indent=2))
         else:
             print(response)
         return 0
@@ -11709,11 +11716,14 @@ def main() -> int:
                 node_id = parts[3] if len(parts) >= 4 else None
                 print(
                     dumps_ascii(
+                        _with_json_schema(
+                            "roles messages",
                         {
                             "command": task,
                             "message": response,
                             "messages": _prince2_role_messages_report(config, node_id=node_id),
                         },
+                        ),
                         indent=2,
                     )
                 )
@@ -11722,18 +11732,23 @@ def main() -> int:
                 node_id = parts[2] if len(parts) >= 3 else None
                 print(
                     dumps_ascii(
+                        _with_json_schema(
+                            "roles runtime",
                         {
                             "command": task,
                             "message": response,
                             "runtime": _prince2_role_runtime_report(config),
                             "messages": _prince2_role_messages_report(config, node_id=node_id),
                         },
+                        ),
                         indent=2,
                     )
                 )
             elif task.startswith("roles tick"):
                 print(
                     dumps_ascii(
+                        _with_json_schema(
+                            "roles tick",
                         {
                             "command": task,
                             "result": _tick_prince2_role_runtime(
@@ -11743,11 +11758,12 @@ def main() -> int:
                             "runtime": _prince2_role_runtime_report(config),
                             "messages": _prince2_role_messages_report(config),
                         },
+                        ),
                         indent=2,
                     )
                 )
             else:
-                print(dumps_ascii({"command": task, "message": response, "roles": _prince2_roles_report(config)}, indent=2))
+                print(dumps_ascii(_with_json_schema("roles", {"command": task, "message": response, "roles": _prince2_roles_report(config)}), indent=2))
         else:
             print(response)
         return 1 if task.startswith("project start") and not _project_start_ready(config) else 0
@@ -11843,7 +11859,7 @@ def main() -> int:
         if args.json:
             print(
                 dumps_ascii(
-                    {"command": "permissions", "schema": json_schema("permissions"), "report": _permissions_report(config)},
+                    _with_json_schema("permissions", {"command": "permissions", "report": _permissions_report(config)}),
                     indent=2,
                 )
             )
@@ -11852,14 +11868,14 @@ def main() -> int:
         return 0
     if task in {"board", "stage review"}:
         if args.json:
-            print(dumps_ascii(_board_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("board", _board_report(config)), indent=2))
         else:
             print(_render_board(config))
         return 0
     if task in {"sessions", "session list"}:
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_shell_sessions_report(agent), indent=2))
+            print(dumps_ascii(_with_json_schema("sessions", _shell_sessions_report(agent)), indent=2))
         else:
             shell_session_message = _handle_shell_session_command(task, agent)
             print(shell_session_message or "No active shell sessions.")
@@ -11867,7 +11883,7 @@ def main() -> int:
     if task.startswith("git "):
         if args.json:
             report = _git_command_report(task, config)
-            print(dumps_ascii(report or {"command": "git", "ok": False, "error": "Unsupported git command"}, indent=2))
+            print(dumps_ascii(_with_json_schema((report or {}).get("command", "git status"), report or {"command": "git", "ok": False, "error": "Unsupported git command"}), indent=2))
         else:
             git_message = _handle_git_command(task, config)
             if git_message is not None:
@@ -11877,7 +11893,7 @@ def main() -> int:
         return 0
     if task == "boundary":
         if args.json:
-            print(dumps_ascii(_boundary_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("boundary", _boundary_report(config)), indent=2))
         else:
             print(_render_boundary(config))
         return 0
@@ -11885,12 +11901,12 @@ def main() -> int:
         if task.startswith("risks close"):
             resolution = task.partition("close")[2].strip() or "Resolved by explicit mitigation and wet-run validation."
             if args.json:
-                print(dumps_ascii(_risks_close_report(config, resolution), indent=2))
+                print(dumps_ascii(_with_json_schema("risks", _risks_close_report(config, resolution)), indent=2))
             else:
                 print(_render_risks_close(config, resolution))
             return 0
         if args.json:
-            print(dumps_ascii(_risks_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("risks", _risks_report(config)), indent=2))
         else:
             print(_render_risks(config))
         return 0
@@ -11898,12 +11914,12 @@ def main() -> int:
         if task.startswith("issues close"):
             resolution = task.partition("close")[2].strip() or "Resolved by explicit corrective action and wet-run validation."
             if args.json:
-                print(dumps_ascii(_issues_close_report(config, resolution), indent=2))
+                print(dumps_ascii(_with_json_schema("issues", _issues_close_report(config, resolution)), indent=2))
             else:
                 print(_render_issues_close(config, resolution))
             return 0
         if args.json:
-            print(dumps_ascii(_issues_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("issues", _issues_report(config)), indent=2))
         else:
             print(_render_issues(config))
         return 0
@@ -11911,42 +11927,42 @@ def main() -> int:
         if task.startswith("quality close"):
             resolution = task.partition("close")[2].strip() or "Accepted by explicit validation and wet-run evidence."
             if args.json:
-                print(dumps_ascii(_quality_close_report(config, resolution), indent=2))
+                print(dumps_ascii(_with_json_schema("quality", _quality_close_report(config, resolution)), indent=2))
             else:
                 print(_render_quality_close(config, resolution))
             return 0
         if args.json:
-            print(dumps_ascii(_quality_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("quality", _quality_report(config)), indent=2))
         else:
             print(_render_quality(config))
         return 0
     if task == "exception":
         if args.json:
-            print(dumps_ascii(_exception_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("exception", _exception_report(config)), indent=2))
         else:
             print(_render_exception(config))
         return 0
     if task == "lessons":
         if args.json:
-            print(dumps_ascii(_lessons_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("lessons", _lessons_report(config)), indent=2))
         else:
             print(_render_lessons(config))
         return 0
     if task == "todo":
         if args.json:
-            print(dumps_ascii(_todo_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("todo", _todo_report(config)), indent=2))
         else:
             print(_render_todo(config))
         return 0
     if task in {"transcript", "trace"}:
         if args.json:
-            print(dumps_ascii(_transcript_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("transcript", _transcript_report(config)), indent=2))
         else:
             print(_render_transcript(config))
         return 0
     if task == "handoff":
         if args.json:
-            print(dumps_ascii(_handoff_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("handoff", _handoff_report(config)), indent=2))
         else:
             print(_render_handoff(config))
         return 0
@@ -11954,37 +11970,37 @@ def main() -> int:
         parts = task.split()
         limit = _parse_optional_limit(parts)
         if args.json:
-            print(dumps_ascii(_handoff_actions_report(config, limit=limit), indent=2))
+            print(dumps_ascii(_with_json_schema("handoff", _handoff_actions_report(config, limit=limit)), indent=2))
         else:
             print(_render_handoff_actions(config, limit=limit))
         return 0
     if task in {"handoff export", "handoff md"}:
         if args.json:
-            print(dumps_ascii(_export_handoff_markdown_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("handoff", _export_handoff_markdown_report(config)), indent=2))
         else:
             print(_export_handoff_markdown(config))
         return 0
     if task == "resume --show":
         if args.json:
-            print(dumps_ascii(_resume_show_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("resume --show", _resume_show_report(config)), indent=2))
         else:
             print(_render_resume_show(config))
         return 0
     if task == "resume context":
         if args.json:
-            print(dumps_ascii(_resume_context_payload(config), indent=2))
+            print(dumps_ascii(_with_json_schema("resume context", _resume_context_payload(config)), indent=2))
         else:
             print(_render_resume_context(config))
         return 0
     if task == "resume --clear":
         if args.json:
-            print(dumps_ascii(_archive_and_clear_handoff_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("resume --clear", _archive_and_clear_handoff_report(config)), indent=2))
         else:
             print(_archive_and_clear_handoff(config))
         return 0
     if task in {"models usage", "cost"}:
         if args.json:
-            print(dumps_ascii(_model_usage_report(config), indent=2))
+            print(dumps_ascii(_with_json_schema("models usage", _model_usage_report(config)), indent=2))
         else:
             print(_render_model_usage(config))
         return 0
