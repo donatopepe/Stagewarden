@@ -684,6 +684,18 @@ def _sync_prince2_roles_to_handoff(config: AgentConfig, prefs: ModelPreferences)
     handoff.save(config.handoff_path)
 
 
+def _sync_prince2_role_tree_baseline_back_to_preferences(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    handoff: ProjectHandoff,
+) -> None:
+    baseline = handoff.prince2_role_tree_baseline if isinstance(handoff.prince2_role_tree_baseline, dict) else {}
+    if not baseline:
+        return
+    prefs.set_prince2_role_tree_baseline(dict(baseline))
+    prefs.save(config.model_prefs_path)
+
+
 def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
     prefs = _load_model_preferences(config)
     return {
@@ -1551,6 +1563,7 @@ def _tick_prince2_role_node(
     handoff = ProjectHandoff.load(config.handoff_path)
     result = handoff.tick_prince2_node(node_id=node_id)
     handoff.save(config.handoff_path)
+    _sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
     _record_handoff_action(
         config,
         phase="role_tick",
@@ -1571,6 +1584,7 @@ def _tick_prince2_role_runtime(
     handoff = ProjectHandoff.load(config.handoff_path)
     result = handoff.tick_prince2_runtime(max_nodes=max_nodes)
     handoff.save(config.handoff_path)
+    _sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
     _record_handoff_action(
         config,
         phase="roles_tick",
@@ -8296,16 +8310,21 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
             prefs.save(config.model_prefs_path)
             handoff = ProjectHandoff.load(config.handoff_path)
             handoff.sync_prince2_role_tree_baseline(baseline)
-            error = ""
-            try:
-                handoff.tick_prince2_node(node_id="management.project_manager")
-            except ValueError as exc:
-                error = str(exc)
-            ok = "exceeds its tolerance margin" in error
+            tick = handoff.tick_prince2_node(node_id="management.project_manager")
+            runtime = handoff.prince2_node_runtime if isinstance(handoff.prince2_node_runtime, dict) else {}
+            nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+            child = next((node for node in nodes if node.get("parent_id") == "management.project_manager"), {})
+            ok = (
+                tick.get("state") == "escalated"
+                and tick.get("spawned_child")
+                and child.get("spawn_source") == "escalation"
+                and int(child.get("thread_token_count", 0) or 0) > 0
+            )
             return {
                 "ok": ok,
                 "message": "role escalation guard simulation passed" if ok else "role escalation guard simulation failed",
-                "error": error,
+                "tick": tick,
+                "spawned_child": child,
             }
 
     def role_unauthorized_edge_simulation() -> dict[str, object]:

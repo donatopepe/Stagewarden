@@ -3557,6 +3557,71 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("next_action=process_queued_work", text_completed.stdout)
             self.assertIn("switch_hint: role switch delivery.team_manager", text_completed.stdout)
 
+    def test_roles_tick_spawns_escalation_child_and_tracks_thread_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "parent_id": "board.executive",
+                                "level": "management",
+                                "tolerance_margin_percent": 25.0,
+                                "tolerance_pressure_percent": 42.0,
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            }
+                        ]
+                    },
+                    "flow": {"edges": []},
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            json_completed = run_main_capture(root, "roles tick 1", "--json")
+            runtime_text = run_main_capture(root, "roles runtime")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            prefs_after = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles tick")
+            self.assertEqual(payload["result"]["escalated"], 1)
+            self.assertEqual(payload["result"]["spawned_children"], 1)
+            self.assertEqual(payload["result"]["results"][0]["action"], "escalate")
+            self.assertIsNotNone(payload["result"]["results"][0]["spawned_child"])
+
+            baseline_nodes = {
+                item["node_id"]: item
+                for item in (prefs_after.prince2_role_tree_baseline or {}).get("tree", {}).get("nodes", [])
+                if isinstance(item, dict)
+            }
+            runtime_nodes = {
+                item["node_id"]: item
+                for item in (handoff.prince2_node_runtime or {}).get("nodes", [])
+                if isinstance(item, dict)
+            }
+            child = next(
+                item
+                for item in runtime_nodes.values()
+                if item.get("parent_id") == "management.project_manager"
+                and item.get("spawn_source") == "escalation"
+            )
+
+            self.assertIn("management.project_manager.escalation", baseline_nodes)
+            self.assertEqual(baseline_nodes["management.project_manager.escalation"]["spawn_source"], "escalation")
+            self.assertGreater(int(child.get("thread_token_count", 0) or 0), 0)
+            self.assertGreater(int(child.get("business_case_token_count", 0) or 0), 0)
+            self.assertIn("Escalation Child", runtime_text.stdout)
+            self.assertIn("thread_tokens total=", runtime_text.stdout)
+            self.assertIn("business_case=", runtime_text.stdout)
+
     def test_roles_context_exposes_node_ai_context_packet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
