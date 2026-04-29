@@ -25,6 +25,15 @@ class PolicyDocsTests(unittest.TestCase):
         self.assertIn("wet_run_required", principle_ids)
         self.assertIn("traceability", principle_ids)
 
+    def test_study_material_mentions_kilocode(self) -> None:
+        source_refs = (ROOT / "docs" / "source_references.md").read_text(encoding="utf-8")
+        status_research = (ROOT / "docs" / "status_research.md").read_text(encoding="utf-8")
+        policy = (ROOT / "AGENT_POLICY.json").read_text(encoding="utf-8")
+
+        self.assertIn("external_sources/kilocode", source_refs)
+        self.assertIn("KiloCode", status_research)
+        self.assertIn("codex_claude_kilocode_minimum_baseline", policy)
+
 
 if __name__ == "__main__":
     unittest.main()
