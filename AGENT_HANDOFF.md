@@ -4,6 +4,7 @@
 Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 so every AI response is reviewed by a devil's-advocate critic, nodes can spawn child recovery threads, and per-node token accounting stays visible.
 Centralize the versioned JSON schemas used by the machine-readable status/report commands so other agents can validate one shared contract source instead of per-command ad hoc literals.
 Extend the same shared schema registry to the remaining stable JSON CLI surfaces, including help, commands, slash, catalog, goal, model usage, git, sessions, role views, project brief/design, system reports, and other register-style outputs.
+Treat `--ljson-benchmark` as a stable machine-readable report and give it the same shared schema contract.
 
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
@@ -14,6 +15,7 @@ Extend the same shared schema registry to the remaining stable JSON CLI surfaces
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
 - Those schema names and versions are now centralized in `stagewarden/json_schema_registry.py`.
 - The shared registry now also covers stable JSON surfaces for `help`, `commands`, `slash`, `slash choose`, `catalog`, `catalog status`, `catalog search`, `catalog refresh`, `goal`, `goal set`, `goal status`, `goal clear`, `doctor`, `models`, `model`, `model inspect`, `model limits`, `model limit-record`, `model limit-clear`, `account limit-record`, `account limit-clear`, `project brief`, `project brief set`, `project brief clear`, `project design`, `project tree propose`, `project tree approve`, `roles`, `roles domains`, `roles tree`, `roles tree approve`, `roles baseline`, `roles baseline matrix`, `roles context`, `roles active`, `roles control`, `roles queues`, `roles messages`, `roles runtime`, `roles tick`, `roles check`, `roles flow`, `roles matrix`, `shell backend use`, `web search`, `download`, `checksum`, `compress`, `archive verify`, `models usage`, `accounts`, `permissions`, `git status`, `git log`, `git history`, `git show`, `sessions`, `risks`, `issues`, `quality`, `exception`, `lessons`, `todo`, `transcript`, `resume --show`, `resume context`, and `resume --clear`.
+- The shared registry also covers `ljson benchmark` so the benchmark report is machine-readable and cross-agent compatible.
 - The `statusline` path inside the interactive mode command handler now also uses the shared schema wrapper, keeping the JSON contract consistent between shell rewrite and top-level dispatch.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
 - The current compatibility slice remains complete and validated with wet-run tests.

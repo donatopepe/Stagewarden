@@ -45,6 +45,7 @@
 - The JSON schema names and versions are centralized in `stagewarden/json_schema_registry.py`.
 - The shared JSON schema registry now also covers the remaining command/report surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register-style outputs.
 - The interactive shell mode now routes `statusline --json` through the same shared schema wrapper so the shell and top-level command paths stay aligned.
+- The `--ljson-benchmark` report now also uses the shared JSON schema wrapper and is tracked as a stable machine-readable surface.
 
 # Operational Notes
 

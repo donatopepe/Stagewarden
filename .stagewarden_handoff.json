@@ -5,13 +5,13 @@
   "goal": {},
   "project_brief": {},
   "status": "completed",
-  "current_step_id": "json-schema-registry-expansion",
-  "current_step_title": "Expand the shared JSON schema registry to the remaining CLI surfaces",
+  "current_step_id": "ljson-benchmark-schema",
+  "current_step_title": "Give the LJSON benchmark report a shared JSON schema contract",
   "current_step_status": "completed",
-  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and the shared JSON schema registry now also covers the remaining CLI surfaces such as role views, project brief/design, model inspection, catalog refresh, shell backend use, register-style outputs, and the interactive statusline path.",
+  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and the shared JSON schema registry now also covers the remaining CLI surfaces plus the new LJSON benchmark report.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "30d3d52",
-  "git_head_baseline": "30d3d52",
+  "git_head": "90ff3d3",
+  "git_head_baseline": "90ff3d3",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-04-29T16:10:00Z",
+  "updated_at": "2026-04-29T18:39:13Z",
   "entries": [
     {
       "timestamp": "2026-04-29T07:19:12+00:00",
