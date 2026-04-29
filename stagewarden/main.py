@@ -26,7 +26,7 @@ except ImportError:  # pragma: no cover - platform dependent
 
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
-from .executor import ALLOWED_MODEL_ACTIONS
+from .executor import ALLOWED_MODEL_ACTIONS, Executor
 from .commands import (
     command_catalog,
     command_phrases,
@@ -61,6 +61,7 @@ from .provider_registry import (
     provider_model_spec,
     provider_model_specs,
 )
+from .router import ModelRouter
 from .role_tree import (
     ROLE_CONTEXT_RULES,
     STATUS_COLOR_LEGEND,
@@ -8382,6 +8383,136 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                 "rendered": rendered,
             }
 
+    def role_devil_advocate_review_simulation() -> dict[str, object]:
+        class _BatteryHandoff:
+            def __init__(self, outputs: list[dict[str, object]]) -> None:
+                self.outputs = list(outputs)
+                self.calls: list[str] = []
+                self.model_variant_by_model: dict[str, str] = {}
+                self.account_env_by_target: dict[str, str] = {}
+                self.model_params_by_model: dict[str, dict[str, str]] = {}
+
+            def execute(self, command: str):  # noqa: ANN001
+                self.calls.append(command)
+                if self.outputs:
+                    payload = self.outputs.pop(0)
+                else:
+                    payload = {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/mock",
+                        "prompt": command,
+                        "command": "RUN_MODEL: openai mock",
+                        "output": dumps_ascii(
+                            {
+                                "verdict": "accept",
+                                "contradictions": [],
+                                "missing_evidence": [],
+                                "counter_argument": "No contradiction found.",
+                                "must_escalate": False,
+                                "confidence": 0.9,
+                            }
+                        ),
+                        "error": "",
+                    }
+                return type("ModelResult", (), payload)()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["openai"]
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="battery_simulation",
+            )
+            prefs.save(config.model_prefs_path)
+            baseline = {
+                "version": "1",
+                "approved_at": "2026-04-29T08:30:00",
+                "source": "battery_simulation",
+                "status": "approved",
+                "tree": build_prince2_role_tree(prefs),
+                "flow": build_prince2_role_flow(),
+                "check": check_prince2_role_tree(prefs),
+                "matrix": build_prince2_role_matrix(prefs),
+            }
+            project_handoff = ProjectHandoff(task="validate wet-run evidence")
+            project_handoff.sync_prince2_role_tree_baseline(baseline)
+            router = ModelRouter()
+            router.configure(enabled_models=["openai"])
+            handoff = _BatteryHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": dumps_ascii(
+                            {
+                                "summary": "complete the task",
+                                "validation": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "critic",
+                        "command": "run_model openai critic",
+                        "output": dumps_ascii(
+                            {
+                                "verdict": "accept",
+                                "contradictions": [],
+                                "missing_evidence": [],
+                                "counter_argument": "The response has a valid wet-run trace.",
+                                "must_escalate": False,
+                                "confidence": 0.94,
+                            }
+                        ),
+                        "error": "",
+                    },
+                ]
+            )
+            memory = MemoryStore()
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-validate",
+                title="Validate wet-run evidence",
+                instruction="validate the wet-run evidence",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+            outcome = executor.execute_step(task="validate evidence", step=step, plan=[step], iteration=1, last_observation="none")
+            review_entries = [item for item in memory.tool_transcript if item.action_type == "devil_advocate_review"]
+            ok = (
+                outcome.ok
+                and outcome.step_completed
+                and len(handoff.calls) >= 2
+                and review_entries
+                and "Devil advocate verdict=accept" in outcome.observation
+            )
+            return {
+                "ok": ok,
+                "message": "role devil advocate review simulation passed" if ok else "role devil advocate review simulation failed",
+                "outcome": {
+                    "ok": outcome.ok,
+                    "step_completed": outcome.step_completed,
+                    "observation": outcome.observation,
+                },
+                "review_calls": len(handoff.calls),
+            }
+
     def role_unauthorized_edge_simulation() -> dict[str, object]:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -8582,6 +8713,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
     simulations.append(_run_simulation("role_wait_wake_guard", role_wait_wake_guard_simulation))
     simulations.append(_run_simulation("role_escalation_guard", role_escalation_guard_simulation))
     simulations.append(_run_simulation("role_antagonist_guard", role_antagonist_guard_simulation))
+    simulations.append(_run_simulation("role_devil_advocate_review", role_devil_advocate_review_simulation))
     simulations.append(_run_simulation("role_unauthorized_edge", role_unauthorized_edge_simulation))
     simulations.append(_run_simulation("action_validation_guard", action_validation_guard_simulation))
     simulations.append(_run_simulation("health_guard", health_guard_simulation))

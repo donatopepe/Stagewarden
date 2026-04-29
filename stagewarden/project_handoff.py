@@ -804,6 +804,11 @@ class ProjectHandoff:
                 f"  antagonist={node.get('antagonist_name', 'unknown')} "
                 f"pressure={node.get('antagonist_pressure_percent', 0)}"
             )
+            if node.get("devil_advocate"):
+                lines.append(f"  devil_advocate={node.get('devil_advocate')}")
+            evidence_signals = [str(item) for item in node.get("evidence_signals", []) if str(item).strip()]
+            if evidence_signals:
+                lines.append(f"  evidence_signals={', '.join(evidence_signals)}")
             decision_kpis = node.get("decision_kpis", {}) if isinstance(node.get("decision_kpis", {}), dict) else {}
             if isinstance(decision_kpis, dict) and decision_kpis:
                 lines.append(
@@ -1062,6 +1067,9 @@ class ProjectHandoff:
                         "kpi_token_counts": dict(node.get("kpi_token_counts", {})) if isinstance(node.get("kpi_token_counts", {}), dict) else {},
                         "antagonist_name": str(node.get("antagonist_name", "")),
                         "antagonist_pressure_percent": float(node.get("antagonist_pressure_percent", 0.0) or 0.0),
+                        "devil_advocate": str(node.get("devil_advocate", "")),
+                        "evidence_signals": list(node.get("evidence_signals", [])) if isinstance(node.get("evidence_signals", []), list) else [],
+                        "evidence_refs": list(node.get("evidence_refs", [])) if isinstance(node.get("evidence_refs", []), list) else [],
                         "decision_kpis": decision_kpis,
                     }
                 )
@@ -1153,6 +1161,11 @@ class ProjectHandoff:
                 f"pressure={node.get('antagonist_pressure_percent', 0)} "
                 f"decision_kpis={node.get('decision_kpis', {})}"
             )
+            if node.get("devil_advocate"):
+                lines.append(f"    devil_advocate={node.get('devil_advocate')}")
+            evidence_signals = [str(item) for item in node.get("evidence_signals", []) if str(item).strip()]
+            if evidence_signals:
+                lines.append(f"    evidence_signals={', '.join(evidence_signals)}")
             child_ids = [str(item) for item in node.get("child_ids", []) if str(item).strip()]
             if child_ids:
                 lines.append(f"    child_ids={', '.join(child_ids)}")
@@ -1378,6 +1391,13 @@ class ProjectHandoff:
                 "antagonist_pressure_percent": antagonist_profile.get("decision_kpis", {}).get("antagonist_pressure_percent", 0.0)
                 if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
                 else 0.0,
+                "devil_advocate": antagonist_profile.get("devil_advocate", ""),
+                "evidence_signals": list(antagonist_profile.get("evidence_signals", []))
+                if isinstance(antagonist_profile.get("evidence_signals", []), list)
+                else [],
+                "evidence_refs": list(antagonist_profile.get("evidence_refs", []))
+                if isinstance(antagonist_profile.get("evidence_refs", []), list)
+                else [],
                 "decision_kpis": dict(antagonist_profile.get("decision_kpis", {}))
                 if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
                 else {},
@@ -1946,12 +1966,107 @@ class ProjectHandoff:
             "token_budget": token_budget_value,
         }
 
+    def _node_antagonist_evidence(self, node: dict[str, Any]) -> dict[str, Any]:
+        context_rule = node.get("context_rule", {}) if isinstance(node.get("context_rule"), dict) else {}
+        include = [str(item).strip() for item in context_rule.get("include", []) if str(item).strip()]
+        exclude = [str(item).strip() for item in context_rule.get("exclude", []) if str(item).strip()]
+        inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)] if isinstance(node.get("inbox", []), list) else []
+        outbox = [dict(item) for item in node.get("outbox", []) if isinstance(item, dict)] if isinstance(node.get("outbox", []), list) else []
+        transcript_refs = [str(item).strip() for item in node.get("transcript_refs", []) if str(item).strip()] if isinstance(node.get("transcript_refs", []), list) else []
+        text_fragments = [
+            str(node.get("label", "")),
+            str(node.get("description", "")),
+            str(node.get("accountability_boundary", "")),
+            str(node.get("delegated_authority", "")),
+            str(node.get("responsibility_domain", "")),
+            str(node.get("context_scope", "")),
+            str(node.get("autonomy_rule", "")),
+            str(node.get("wait_reason", "")),
+            str(node.get("spawn_reason", "")),
+            str(node.get("spawn_source", "")),
+        ]
+        text_fragments.extend(include)
+        text_fragments.extend(exclude)
+        text_fragments.extend(transcript_refs)
+        for message in inbox + outbox:
+            text_fragments.extend(
+                [
+                    str(message.get("summary", "")),
+                    str(message.get("validation_condition", "")),
+                    str(message.get("decision_authority", "")),
+                    str(message.get("return_path", "")),
+                    " ".join(str(scope) for scope in message.get("payload_scope", []) if str(scope).strip())
+                    if isinstance(message.get("payload_scope", []), list)
+                    else "",
+                    " ".join(str(scope) for scope in message.get("expected_evidence", []) if str(scope).strip())
+                    if isinstance(message.get("expected_evidence", []), list)
+                    else "",
+                    " ".join(str(scope) for scope in message.get("evidence_refs", []) if str(scope).strip())
+                    if isinstance(message.get("evidence_refs", []), list)
+                    else "",
+                ]
+            )
+        joined = " ".join(fragment for fragment in text_fragments if fragment).lower()
+        signal_patterns = {
+            "failure": ("error", "failed", "failure", "traceback", "exception", "crash", "broken"),
+            "control": ("denied", "unauthorized", "blocked", "reject", "forbidden", "permission"),
+            "drift": ("drift", "slip", "creep", "mismatch", "regression", "stale", "missing"),
+            "capacity": ("overrun", "budget", "limit", "token", "pressure", "backlog", "queue", "timeout", "stalled", "deadlock", "overload"),
+            "risk": ("risk", "threat", "anti-benefit", "objection", "adversary", "attack", "hacker"),
+            "coordination": ("handoff", "dependency", "upstream", "downstream", "blocked", "waiting"),
+        }
+        evidence_signals: list[str] = []
+        for label, needles in signal_patterns.items():
+            if any(needle in joined for needle in needles):
+                evidence_signals.append(label)
+        for message in inbox + outbox:
+            combined = " ".join(
+                str(part)
+                for part in (
+                    message.get("summary", ""),
+                    message.get("detail", ""),
+                    message.get("validation_condition", ""),
+                    message.get("decision_authority", ""),
+                    message.get("return_path", ""),
+                )
+                if str(part).strip()
+            ).lower()
+            for label, needles in signal_patterns.items():
+                if any(needle in combined for needle in needles) and label not in evidence_signals:
+                    evidence_signals.append(label)
+        if not evidence_signals:
+            if str(node.get("wait_status", "")).strip().lower() != "none":
+                evidence_signals.append("waiting")
+            elif inbox or outbox:
+                evidence_signals.append("queue_pressure")
+        evidence_refs: list[str] = []
+        for ref in transcript_refs:
+            if ref and ref not in evidence_refs:
+                evidence_refs.append(ref)
+        for message in inbox + outbox:
+            refs = message.get("evidence_refs", [])
+            if isinstance(refs, list):
+                for ref in refs:
+                    ref_text = str(ref).strip()
+                    if ref_text and ref_text not in evidence_refs:
+                        evidence_refs.append(ref_text)
+        if not evidence_refs:
+            evidence_refs.extend([f"context:{item}" for item in exclude[:2]])
+        return {
+            "evidence_signals": evidence_signals,
+            "evidence_refs": evidence_refs,
+            "log_signal_count": len(evidence_signals),
+            "evidence_ref_count": len(evidence_refs),
+            "signal_summary": ", ".join(evidence_signals) if evidence_signals else "none",
+        }
+
     def _node_antagonist_profile(self, node: dict[str, Any]) -> dict[str, Any]:
         role_type = str(node.get("role_type", "")).strip() or "project_manager"
         label = str(node.get("label", node.get("node_id", "node"))).strip() or "Node"
         context_rule = node.get("context_rule", {}) if isinstance(node.get("context_rule"), dict) else {}
         include = [str(item).strip() for item in context_rule.get("include", []) if str(item).strip()]
         exclude = [str(item).strip() for item in context_rule.get("exclude", []) if str(item).strip()]
+        evidence = self._node_antagonist_evidence(node)
         role_shadows = {
             "project_executive": ("benefit erosion", "business case drift", "sponsor fatigue"),
             "senior_user": ("adoption resistance", "unmet acceptance criteria", "benefit leakage"),
@@ -1964,35 +2079,58 @@ class ProjectHandoff:
         }
         risk_sources = [f"role-risk:{item}" for item in role_shadows.get(role_type, ("risk drift", "anti-benefit drift"))]
         risk_sources.extend(f"context-exclude:{item}" for item in exclude[:2])
+        risk_sources.extend(f"log-signal:{item}" for item in evidence.get("evidence_signals", [])[:4])
+        risk_sources.extend(f"log-ref:{item}" for item in evidence.get("evidence_refs", [])[:2])
         anti_benefits = [f"anti-benefit:{item}" for item in include[:2]]
         if not anti_benefits:
             anti_benefits = [f"anti-benefit:{label.lower()} drift"]
         risk_count = len(risk_sources)
         anti_benefit_count = len(anti_benefits)
-        antagonist_pressure_percent = min(100.0, round((risk_count * 12.5) + (anti_benefit_count * 8.0), 2))
+        evidence_pressure_percent = min(
+            40.0,
+            round((int(evidence.get("log_signal_count", 0) or 0) * 7.5) + (int(evidence.get("evidence_ref_count", 0) or 0) * 2.5), 2),
+        )
+        antagonist_pressure_percent = min(100.0, round((risk_count * 12.5) + (anti_benefit_count * 8.0) + evidence_pressure_percent, 2))
         spawn_source = str(node.get("spawn_source", "")).strip().lower()
         if spawn_source == "escalation" and antagonist_pressure_percent > 0:
             antagonist_pressure_percent = min(18.0, round(antagonist_pressure_percent * 0.5, 2))
         decision_kpis = {
             "risk_count": risk_count,
             "anti_benefit_count": anti_benefit_count,
-            "threat_count": risk_count + anti_benefit_count,
+            "threat_count": risk_count + anti_benefit_count + int(evidence.get("log_signal_count", 0) or 0),
+            "log_signal_count": int(evidence.get("log_signal_count", 0) or 0),
+            "evidence_ref_count": int(evidence.get("evidence_ref_count", 0) or 0),
             "antagonist_pressure_percent": antagonist_pressure_percent,
             "tolerance_margin_percent": self._node_tolerance_margin(node),
             "tolerance_pressure_percent": self._node_tolerance_pressure(node),
+            "evidence_pressure_percent": evidence_pressure_percent,
         }
+        devil_advocate = (
+            f"Challenge the plan with {evidence.get('signal_summary', 'no log signals')} "
+            f"against {', '.join(risk_sources[:3]) if risk_sources else 'role risk'}."
+        )
         return {
             "antagonist_name": f"{label} Antagonist",
             "role_type": role_type,
             "risk_sources": risk_sources,
             "anti_benefits": anti_benefits,
+            "evidence_signals": list(evidence.get("evidence_signals", [])),
+            "evidence_refs": list(evidence.get("evidence_refs", [])),
             "countermeasures": [
                 f"mitigate {item.split(':', 1)[-1]}" if ":" in item else f"mitigate {item}"
                 for item in risk_sources[:3]
             ] or [f"mitigate {label.lower()} threats"],
             "decision_kpis": decision_kpis,
+            "devil_advocate": devil_advocate,
+            "decision_questions": [
+                f"What log evidence contradicts the optimistic reading of {label}?",
+                "Which queued messages or transcript refs still lack closure?",
+                "What is the cheapest failure path if this node keeps assuming success?",
+            ],
             "decision_process": (
-                "Treat risks and anti-benefits as first-class inputs. "
+                "Treat risks, anti-benefits, and wet-run log evidence as first-class inputs. "
+                "Always play devil's advocate against the current plan using runtime signals, "
+                "queued messages, transcript refs, and role-specific failure modes. "
                 "Spawned recovery children start with attenuated antagonist pressure; "
                 "if pressure exceeds tolerance, escalate and spawn recovery work."
             ),
@@ -2202,6 +2340,13 @@ class ProjectHandoff:
                     "antagonist_pressure_percent": float(antagonist_profile.get("decision_kpis", {}).get("antagonist_pressure_percent", 0.0) or 0.0)
                     if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
                     else 0.0,
+                    "devil_advocate": str(antagonist_profile.get("devil_advocate", "")),
+                    "evidence_signals": list(antagonist_profile.get("evidence_signals", []))
+                    if isinstance(antagonist_profile.get("evidence_signals", []), list)
+                    else [],
+                    "evidence_refs": list(antagonist_profile.get("evidence_refs", []))
+                    if isinstance(antagonist_profile.get("evidence_refs", []), list)
+                    else [],
                     "decision_kpis": dict(antagonist_profile.get("decision_kpis", {}))
                     if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
                     else {},

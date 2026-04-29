@@ -7,15 +7,15 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
 - `AGENT_HANDOFF.md` is now the agent-facing handoff mirror.
 - Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
-- The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, and wet-run battery coverage.
+- The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
 ## Recent changes
 - `AGENTS.md`: added mandatory startup and handoff protocol.
 - `AGENT_HANDOFF.md`: added the compatibility handoff structure.
-- `tests/test_trace_cli.py`: battery now covers provider limits, permission denial, PRINCE2 runtime failure modes, and escalation child spawn/token accounting.
-- `stagewarden/main.py` and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes and tracks per-node thread tokens.
+- `tests/test_trace_cli.py`: battery now covers provider limits, permission denial, PRINCE2 runtime failure modes, escalation child spawn/token accounting, and antagonist KPI controls.
+- `stagewarden/main.py` and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes, tracks per-node thread tokens, and surfaces per-node antagonists.
 - `stagewarden/commands.py`: added `/help agent` and a dedicated agent-compatibility help topic.
 - `README.md` and `README_IT.md`: documented the multi-agent protocol and the new help entry.
 
