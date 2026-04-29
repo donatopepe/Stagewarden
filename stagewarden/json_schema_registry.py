@@ -78,6 +78,7 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "file delete": "stagewarden.file_delete",
     "file chmod": "stagewarden.file_chmod",
     "file chown": "stagewarden.file_chown",
+    "git": "stagewarden.git",
     "shell backend use": "stagewarden.shell_backend_use",
     "web search": "stagewarden.web_search",
     "download": "stagewarden.download",

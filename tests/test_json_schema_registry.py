@@ -87,6 +87,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "checksum",
             "compress",
             "archive verify",
+            "git",
             "git status",
             "git log",
             "git history",

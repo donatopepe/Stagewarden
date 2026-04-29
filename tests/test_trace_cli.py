@@ -2600,6 +2600,18 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["schema"]["version"], "1")
             self.assertIn("Usage: update status", payload["error"])
 
+    def test_git_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "git unexpected", "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertEqual(payload["command"], "git unexpected")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.git")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("Usage: git status", payload["error"])
+
     def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
