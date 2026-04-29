@@ -10380,8 +10380,8 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
             "lines": result.stdout.splitlines() if result.stdout else [],
         }
     return {
-        "command": "git",
-        "schema": json_schema("git status"),
+        "command": command,
+        "schema": json_schema("git"),
         "ok": False,
         "error": "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]",
     }
@@ -11892,7 +11892,11 @@ def main() -> int:
     if task.startswith("git "):
         if args.json:
             report = _git_command_report(task, config)
-            print(dumps_ascii(_with_json_schema((report or {}).get("command", "git status"), report or {"command": "git", "ok": False, "error": "Unsupported git command"}), indent=2))
+            schema_command = (report or {}).get("command", "git")
+            if schema_command not in {"git status", "git log", "git history", "git show"}:
+                schema_command = "git"
+            print(dumps_ascii(_with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported git command"}), indent=2))
+            return 0 if report and report.get("ok") else 1
         else:
             git_message = _handle_git_command(task, config)
             if git_message is not None:
