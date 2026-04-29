@@ -111,6 +111,27 @@ class ModelRouter:
 
     def choose_variant(self, model: str, task: str, step_text: str, failure_count: int = 0) -> str | None:
         profile = self._task_profile(task, step_text)
+        if model == "claude":
+            if profile["planning"]:
+                return "opusplan"
+            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
+                return "opus"
+            if profile["complexity"] <= 1 and not profile["risky"]:
+                return "haiku"
+            return "sonnet"
+        if model == "openai":
+            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
+                return "gpt-5.4"
+            if profile["complexity"] <= 1 and not profile["risky"]:
+                return "gpt-5.4-mini"
+            return "gpt-5.2-codex"
+        if model == "chatgpt":
+            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
+                return "gpt-5.3-codex"
+            if profile["complexity"] <= 1 and not profile["risky"]:
+                return "codex-mini-latest"
+            return "gpt-5.1-codex-mini"
+
         specs = [spec for spec in provider_model_specs(model) if spec.id != "provider-default"]
         if not specs:
             specs = list(provider_model_specs(model))
