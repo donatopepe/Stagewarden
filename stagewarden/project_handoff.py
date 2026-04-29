@@ -517,7 +517,7 @@ class ProjectHandoff:
         status_by_step = self._parse_plan_status(self.plan_status)
         closed_steps = [step_id for step_id, status in status_by_step.items() if status == "completed"]
         active_step = None
-        if self.current_step_id and self.current_step_status in {"pending", "in_progress", "failed", "exception"}:
+        if self.current_step_id and self.current_step_status in {"pending", "in_progress", "failed", "exception", "waiting"}:
             active_step = {
                 "id": self.current_step_id,
                 "title": self.current_step_title,
@@ -550,6 +550,8 @@ class ProjectHandoff:
             "recovery_state": recovery_state,
             "stage_health": stage_health,
             "next_action": next_action,
+            "session_state": "suspended" if self.status == "waiting" else self.status,
+            "session_recoverable": self.status == "waiting",
             "node_runtime_summary": self.prince2_node_runtime_summary(),
         }
 
@@ -565,6 +567,8 @@ class ProjectHandoff:
         recovery_state = view["recovery_state"]
         stage_health = view["stage_health"]
         next_action = view["next_action"]
+        session_state = view["session_state"]
+        session_recoverable = bool(view["session_recoverable"])
         lines = ["Stage view:"]
         if closed_steps:
             lines.append(f"- closed_stages: {', '.join(closed_steps)}")
@@ -588,6 +592,8 @@ class ProjectHandoff:
             f"plan_status={pid_boundary['plan_status']} updated_at={pid_boundary['updated_at']}"
         )
         lines.append(f"- stage_health: {stage_health}")
+        lines.append(f"- session_state: {session_state}")
+        lines.append(f"- session_recoverable: {str(session_recoverable).lower()}")
         lines.append(f"- recovery_state: {recovery_state}")
         lines.append(f"- boundary_decision: {boundary_decision}")
         lines.append(f"- next_action: {next_action}")

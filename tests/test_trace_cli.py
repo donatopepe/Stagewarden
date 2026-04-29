@@ -324,6 +324,34 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("focus", payload)
             self.assertEqual(payload["focus"]["task"], "fix failing tests")
 
+    def test_resume_show_cli_marks_waiting_session_recoverable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "waiting",
+                "current_step_id": "step-7",
+                "current_step_title": "Validate",
+                "current_step_status": "waiting",
+                "latest_observation": "Network unavailable while contacting model providers.",
+                "plan_status": "step-7:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "resume --show", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "resume --show")
+            self.assertEqual(payload["session_state"], "waiting")
+            self.assertTrue(payload["session_recoverable"])
+            self.assertIn("resume suspended session", payload["next_action"])
+            self.assertEqual(payload["current_step_status"], "waiting")
+
     def test_resume_context_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
