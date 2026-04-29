@@ -216,6 +216,7 @@ class Executor:
             account = self._select_account(model)
         result, account = self._execute_with_account_failover(model=model, prompt=prompt, account=account)
         if not result.ok:
+            network_issue = self._is_transient_network_failure(result.error or result.output)
             rate_limit_until = extract_blocked_until(result.error or result.output)
             fallback_model = self._fallback_model_after_failure(model)
             if rate_limit_until:
@@ -269,7 +270,41 @@ class Executor:
                 prompt=prompt,
                 account=fallback_account,
             )
+            fallback_network_issue = self._is_transient_network_failure(fallback.error or fallback.output)
             if not fallback.ok:
+                if network_issue or fallback_network_issue:
+                    observation = (
+                        "Network unavailable while contacting model providers.\n"
+                        f"Primary error: {result.error or result.output or 'unknown'}\n"
+                        f"Fallback error: {fallback.error or fallback.output or 'unknown'}\n"
+                        "The run is safe to resume once connectivity returns."
+                    )
+                    self.memory.record_attempt(
+                        iteration=iteration,
+                        step_id=step.id,
+                        model=fallback_model,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        action_type="model_network_unavailable",
+                        action_signature=f"network-unavailable:{model}->{fallback_model}",
+                        success=False,
+                        observation=observation,
+                        error_type="network_wait",
+                    )
+                    return StepOutcome(
+                        ok=False,
+                        step_completed=False,
+                        model=fallback_model,
+                        action_type="model_network_unavailable",
+                        observation=observation,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        git_head_before=git_head_before,
+                        git_head_after=self._git_head(),
+                        error_type="network_wait",
+                        prince2_assessment=None,
+                        prince2_role=prince2_role,
+                    )
                 self.memory.record_attempt(
                     iteration=iteration,
                     step_id=step.id,
@@ -771,6 +806,38 @@ class Executor:
             return "stop"
         decision = self.config.rate_limit_decider(model, until, alternatives)
         return str(decision or "stop").strip().lower()
+
+    def _is_transient_network_failure(self, message: str | None) -> bool:
+        if not message:
+            return False
+        lowered = message.lower()
+        patterns = (
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "network is unreachable",
+            "temporary failure in name resolution",
+            "name or service not known",
+            "no route to host",
+            "host unreachable",
+            "timed out",
+            "timeout",
+            "request timed out",
+            "read timed out",
+            "write timed out",
+            "ssl",
+            "tls",
+            "certificate verify failed",
+            "proxy error",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
+            "network error",
+            "network unavailable",
+            "fetch failed",
+            "failed to connect",
+        )
+        return any(pattern in lowered for pattern in patterns)
 
     def _record_model_block_if_present(self, model: str, message: str, *, account: str | None = None) -> None:
         until = extract_blocked_until(message)
