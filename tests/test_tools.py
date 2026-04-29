@@ -75,6 +75,16 @@ class ToolTests(unittest.TestCase):
             self.assertFalse(blocked_path.ok)
             self.assertIn("inside the workspace", blocked_path.error or "")
 
+    def test_external_io_marks_transient_network_failures_retryable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = ExternalIOTool(Path(tmp_dir))
+            result = tool.download("http://127.0.0.1:1/artifact.txt", "artifact.txt")
+
+            self.assertFalse(result.ok)
+            self.assertTrue(result.retryable)
+            self.assertEqual(result.error_type, "network_wait")
+            self.assertIn("safe to resume", result.message)
+
     def test_external_io_web_search_parses_json_results(self) -> None:
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:  # noqa: N802
