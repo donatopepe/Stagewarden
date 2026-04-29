@@ -21,6 +21,7 @@
 - **JSON Schema Registry:** Those schema names and versions now live in `stagewarden/json_schema_registry.py` as the single source of truth for the stable JSON CLI surfaces.
 - **Catalog JSON Command Names:** `catalog status`, `catalog search`, and `catalog refresh` now declare their specific command names in the JSON payloads instead of using a generic `catalog` label.
 - **Catalog Fallback Preservation:** The JSON fallback for `catalog` now keeps the exact input command string in the payload so unsupported subcommands remain distinguishable.
+- **File Fallback Preservation:** The JSON fallback for `file` now keeps the exact input command string in the payload and uses a dedicated shared schema.
 
 ## Completed Work: AI Model Catalog
 
@@ -50,6 +51,7 @@
 - The `--ljson-benchmark` report now also uses the shared JSON schema wrapper and is tracked as a stable machine-readable surface.
 - The catalog JSON helper reports now keep specific command names for status/search/refresh so downstream consumers can distinguish the subcommands cleanly.
 - The catalog JSON fallback now preserves the exact input command string instead of collapsing to a generic label.
+- The file JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
 
 # Operational Notes
 
