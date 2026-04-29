@@ -34,6 +34,8 @@ KiloCode:
 - `external_sources/kilocode/packages/kilo-vscode/src/KiloProvider.ts`
 - `external_sources/kilocode/packages/kilo-vscode/src/kilo-provider/model-state.ts`
 - `external_sources/kilocode/packages/kilo-vscode/src/kilo-provider/handlers/auth.ts`
+- `docs/kilocode_provider_coverage.md`
+- `data/kilocode_provider_coverage.json`
 
 ## Codex Status Model
 
@@ -241,6 +243,8 @@ The repository makes `AGENTS.md` operational, not decorative:
 - it tells contributors to use `.kilo/command/*.md`, `.kilo/agent/*.md`, `kilo.json`, and `AGENTS.md`
 - it defines the supported dev commands and source-link regeneration workflow
 - it encodes `kilocode_change` markers for shared-file divergence control during upstream syncs
+
+The generated coverage report in `docs/kilocode_provider_coverage.md` maps every local KiloCode snapshot provider into the Stagewarden registry and records the full model lists in `data/kilocode_provider_coverage.json`. That artifact is the quickest way to confirm that Stagewarden now treats the entire local KiloCode provider set as runtime-supported.
 
 That matters for Stagewarden because it shows a fork can stay mergeable by isolating product-specific behavior while keeping shared files annotated and mechanically checked.
 
