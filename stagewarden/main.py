@@ -8327,6 +8327,61 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                 "spawned_child": child,
             }
 
+    def role_antagonist_guard_simulation() -> dict[str, object]:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            prefs = ModelPreferences.default()
+            baseline = {
+                "status": "approved",
+                "source": "battery_simulation",
+                "tree": {
+                    "nodes": [
+                        {
+                            "node_id": "management.project_manager",
+                            "role_type": "project_manager",
+                            "label": "Project Manager",
+                            "parent_id": "board.executive",
+                            "level": "management",
+                            "tolerance_margin_percent": 25.0,
+                            "tolerance_pressure_percent": 42.0,
+                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                        }
+                    ]
+                },
+                "flow": {"edges": []},
+            }
+            prefs.set_prince2_role_tree_baseline(baseline)
+            prefs.save(config.model_prefs_path)
+            handoff = ProjectHandoff.load(config.handoff_path)
+            handoff.sync_prince2_role_tree_baseline(baseline)
+            tick = handoff.tick_prince2_node(node_id="management.project_manager")
+            control_report = handoff.prince2_node_control_report()
+            rendered = handoff.rendered_prince2_node_control()
+            critical = next(
+                (
+                    node
+                    for node in control_report.get("critical_nodes", [])
+                    if isinstance(node, dict) and node.get("node_id") == "management.project_manager"
+                ),
+                {},
+            )
+            kpis = critical.get("decision_kpis", {}) if isinstance(critical.get("decision_kpis", {}), dict) else {}
+            ok = (
+                tick.get("state") == "escalated"
+                and critical.get("antagonist_name")
+                and int(kpis.get("threat_count", 0) or 0) > 0
+                and "antagonist=" in rendered
+                and "decision_kpis=" in rendered
+            )
+            return {
+                "ok": ok,
+                "message": "role antagonist guard simulation passed" if ok else "role antagonist guard simulation failed",
+                "tick": tick,
+                "control": control_report,
+                "rendered": rendered,
+            }
+
     def role_unauthorized_edge_simulation() -> dict[str, object]:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -8526,6 +8581,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
     simulations.append(_run_simulation("role_message_cycle", role_message_cycle_simulation))
     simulations.append(_run_simulation("role_wait_wake_guard", role_wait_wake_guard_simulation))
     simulations.append(_run_simulation("role_escalation_guard", role_escalation_guard_simulation))
+    simulations.append(_run_simulation("role_antagonist_guard", role_antagonist_guard_simulation))
     simulations.append(_run_simulation("role_unauthorized_edge", role_unauthorized_edge_simulation))
     simulations.append(_run_simulation("action_validation_guard", action_validation_guard_simulation))
     simulations.append(_run_simulation("health_guard", health_guard_simulation))

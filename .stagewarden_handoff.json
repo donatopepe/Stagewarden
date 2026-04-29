@@ -1,14 +1,14 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "battery",
+  "task": "prince2 escalation child spawn",
   "goal": {},
   "project_brief": {},
   "status": "completed",
-  "current_step_id": "multi-agent-compatibility",
-  "current_step_title": "Add AGENTS.md and AGENT_HANDOFF.md compatibility protocol",
+  "current_step_id": "prince2-escalation-child-spawn",
+  "current_step_title": "Spawn recovery child threads on escalation and track node tokens",
   "current_step_status": "completed",
-  "latest_observation": "AGENTS.md, AGENT_HANDOFF.md, and help-agent docs added; compatibility tests passed.",
+  "latest_observation": "PRINCE2 escalation now spawns child recovery threads and tracks per-node token accounting; wet-run tests passed.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "044c7301497f04bb8f967e8ec6048c965f072ff2",
   "git_head_baseline": "044c7301497f04bb8f967e8ec6048c965f072ff2",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-04-29T08:42:11Z",
+  "updated_at": "2026-04-29T09:00:00Z",
   "entries": [
     {
       "timestamp": "2026-04-29T07:19:12+00:00",

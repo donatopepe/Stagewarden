@@ -1350,6 +1350,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertTrue(any(item["name"] == "role_message_cycle" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "role_wait_wake_guard" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "role_escalation_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_antagonist_guard" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "role_unauthorized_edge" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "action_validation_guard" for item in payload["simulations"]))
             self.assertTrue(any(item["name"] == "health_guard" for item in payload["simulations"]))
@@ -1369,6 +1370,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("role_switch_agent", text_completed.stdout)
             self.assertIn("role_wait_wake_guard", text_completed.stdout)
             self.assertIn("role_escalation_guard", text_completed.stdout)
+            self.assertIn("role_antagonist_guard", text_completed.stdout)
             self.assertIn("role_unauthorized_edge", text_completed.stdout)
             self.assertIn("health_guard", text_completed.stdout)
             self.assertIn("preflight_guard", text_completed.stdout)
@@ -3586,6 +3588,7 @@ class TraceAndCliTests(unittest.TestCase):
 
             json_completed = run_main_capture(root, "roles tick 1", "--json")
             runtime_text = run_main_capture(root, "roles runtime")
+            control_json = run_main_capture(root, "roles control", "--json")
             handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
             prefs_after = ModelPreferences.load(root / ".stagewarden_models.json")
 
@@ -3607,6 +3610,7 @@ class TraceAndCliTests(unittest.TestCase):
                 for item in (handoff.prince2_node_runtime or {}).get("nodes", [])
                 if isinstance(item, dict)
             }
+            control_payload = json.loads(control_json.stdout)
             child = next(
                 item
                 for item in runtime_nodes.values()
@@ -3618,9 +3622,17 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(baseline_nodes["management.project_manager.escalation"]["spawn_source"], "escalation")
             self.assertGreater(int(child.get("thread_token_count", 0) or 0), 0)
             self.assertGreater(int(child.get("business_case_token_count", 0) or 0), 0)
+            critical = next(
+                item
+                for item in control_payload["critical_nodes"]
+                if item["node_id"] == "management.project_manager"
+            )
+            self.assertIn("antagonist_name", critical)
+            self.assertGreater(int(critical["decision_kpis"]["threat_count"]), 0)
             self.assertIn("Escalation Child", runtime_text.stdout)
             self.assertIn("thread_tokens total=", runtime_text.stdout)
             self.assertIn("business_case=", runtime_text.stdout)
+            self.assertIn("antagonist_name", control_json.stdout)
 
     def test_roles_context_exposes_node_ai_context_packet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
