@@ -1,4 +1,4 @@
-# Status Research: Codex CLI and Claude Code
+# Status Research: Codex CLI, Claude Code, and KiloCode
 
 This document records implementation lessons from the local official references
 in `external_sources/` and from installed official CLI packages. It is a
@@ -23,6 +23,17 @@ Claude Code:
 - official installed package bundle at
   `/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/cli.js`
 - runtime command `claude auth status --json`
+
+KiloCode:
+
+- `external_sources/kilocode/AGENTS.md`
+- `external_sources/kilocode/packages/opencode/src/provider/models.ts`
+- `external_sources/kilocode/packages/opencode/src/session/system.ts`
+- `external_sources/kilocode/packages/opencode/src/acp/agent.ts`
+- `external_sources/kilocode/packages/kilo-gateway/src/api/models.ts`
+- `external_sources/kilocode/packages/kilo-vscode/src/KiloProvider.ts`
+- `external_sources/kilocode/packages/kilo-vscode/src/kilo-provider/model-state.ts`
+- `external_sources/kilocode/packages/kilo-vscode/src/kilo-provider/handlers/auth.ts`
 
 ## Codex Status Model
 
@@ -215,6 +226,43 @@ Important behavior from changelog/bundle:
 - Long `Retry-After`/reset waits must surface immediately instead of leaving
   agents appearing stuck.
 - Extra usage and overage have separate status/reset fields.
+
+## KiloCode Architecture
+
+KiloCode is structurally closer to a product platform than a single CLI:
+
+- `packages/opencode/` is the shared CLI/runtime core.
+- `packages/kilo-gateway/` wraps OpenRouter-compatible access with Kilo-specific auth and model fetching.
+- `packages/kilo-vscode/` owns the VS Code extension, provider refresh orchestration, model picker sync, and auth UI behavior.
+- `packages/kilo-docs/` and the repo-level `AGENTS.md` act as first-class contributor guidance and source-link maintenance.
+
+The repository makes `AGENTS.md` operational, not decorative:
+
+- it tells contributors to use `.kilo/command/*.md`, `.kilo/agent/*.md`, `kilo.json`, and `AGENTS.md`
+- it defines the supported dev commands and source-link regeneration workflow
+- it encodes `kilocode_change` markers for shared-file divergence control during upstream syncs
+
+That matters for Stagewarden because it shows a fork can stay mergeable by isolating product-specific behavior while keeping shared files annotated and mechanically checked.
+
+## KiloCode Model and Auth Flow
+
+The most useful implementation pattern is the model/provider stack:
+
+- `packages/kilo-gateway/src/api/models.ts` fetches Kilo/OpenRouter-compatible model metadata, validates it, and drops models that are image-only or do not support tools.
+- The transformed model object includes capabilities, context size, pricing, modalities, and flags that the UI can consume directly.
+- `packages/opencode/src/provider/models.ts` injects the `kilo` provider dynamically, but only when `enabled_providers` and `disabled_providers` allow it.
+- The default model resolution path prefers an explicit config model first, then the best available provider model, then Kilo-specific fallbacks when the `kilo` provider is available, and finally fails loudly if no model is usable.
+- `packages/kilo-vscode/src/KiloProvider.ts` coalesces provider refreshes, keeps session status maps in sync, and refreshes providers/agents after auth or organization changes.
+- `packages/kilo-vscode/src/kilo-provider/model-state.ts` persists per-mode model choices in a shared state file so the CLI and extension can stay aligned.
+- `packages/kilo-vscode/src/kilo-provider/handlers/auth.ts` keeps login/logout, org switching, profile refresh, and provider refresh separate so auth changes do not leak into unrelated UI state.
+- `packages/opencode/src/session/system.ts` injects environment context and prompt selection rules that explicitly reference the Kilo project layout.
+
+## Stagewarden Implications
+
+- KiloCode reinforces the value of a shared runtime with product-specific layers on top, which matches Stagewarden's own separation between core agent logic and surrounding UX/governance features.
+- Its provider filtering rules are a concrete example of model governance: only surface models that support the required tool flow and modalities.
+- Its per-mode model persistence and post-auth refresh behavior are good references for keeping CLI and UI model state coherent.
+- Its fork hygiene rules are a useful example of how to keep an upstream-derived codebase maintainable, even though Stagewarden should continue to prefer its own abstractions and not copy KiloCode implementation details.
 
 ## Stagewarden Implementation Implications
 

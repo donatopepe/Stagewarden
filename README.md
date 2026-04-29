@@ -490,5 +490,6 @@ Acknowledgements:
 - Thanks to Julius Brussee for [caveman](https://github.com/JuliusBrussee/caveman), which influenced the Caveman mode and parts of the command ergonomics.
 - Thanks to the public OpenAI Codex CLI sources and documentation for clarifying authentication and provider-model selection patterns.
 - Thanks to the public Claude Code sources and Anthropic documentation for the provider-specific model aliasing and credential-handling references.
-- Stagewarden is an independent project and does not include source code from Caveman, Codex CLI, or Claude Code.
+- Thanks to the public KiloCode sources and documentation for clarifying gateway-based provider routing, model filtering, and CLI/extension synchronization patterns.
+- Stagewarden is an independent project and does not include source code from Caveman, Codex CLI, Claude Code, or KiloCode.
 - Stagewarden implementation, package structure, routing, handoff system, persistence, tests, and project integration are original work for this repository.

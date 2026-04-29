@@ -35,7 +35,7 @@ Nella shell interattiva i comandi iniziano con `/`. Tutto cio che non inizia con
 
 ## UX Stile Codex/Claude
 
-Stagewarden usa Codex CLI e Claude Code come baseline di esperienza utente:
+Stagewarden usa Codex CLI, Claude Code e KiloCode come baseline di esperienza utente:
 
 - `/help` mostra le categorie principali.
 - `/slash [prefisso]` mostra una palette comandi con descrizioni.
@@ -159,4 +159,4 @@ I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` re
 
 ## Crediti
 
-Stagewarden studia e riproduce, dove compatibile, pattern UX e architetturali ispirati a Codex CLI, Claude Code e Caveman. Le fonti locali servono come riferimento tecnico; non vengono vendorizzati contenuti protetti nel progetto.
+Stagewarden studia e riproduce, dove compatibile, pattern UX e architetturali ispirati a Codex CLI, Claude Code, KiloCode e Caveman. Le fonti locali servono come riferimento tecnico; non vengono vendorizzati contenuti protetti nel progetto.

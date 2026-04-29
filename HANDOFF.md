@@ -9,6 +9,7 @@
 - **AI Model Catalog Refresh Workflow:** Added `catalog status` and `catalog refresh` so the snapshot can be inspected and regenerated on demand, with an env override for the catalog path in tests or alternate environments.
 - **AI Model Catalog Enrichment:** Added catalog aliases and `catalog search` so the snapshot can be queried by model id, name, aliases, providers, or features instead of only by direct provider-model lookup. `catalog search` now accepts `provider=` and `feature=` filters.
 - **AI Model Catalog Automation:** Added a scheduled GitHub Actions workflow that rebuilds the catalog, commits refreshed snapshots back to the branch when they change, and uploads the refreshed snapshot as an artifact.
+- **KiloCode Study Material:** Added `external_sources/kilocode` as a local research clone and expanded the study docs/policy baseline to include KiloCode alongside Codex CLI and Claude Code.
 
 ## Completed Work: AI Model Catalog
 
@@ -26,6 +27,7 @@
 
 - The AI model catalog work is complete, including snapshot generation, catalog search, refresh automation, provider/feature query facets, and commit/push workflow for refreshed snapshots.
 - Validation completed with the full unittest suite passing.
+- The KiloCode study corpus and baseline documentation are now updated and tracked alongside the existing Codex CLI and Claude Code references.
 
 # Operational Notes
 
