@@ -70,17 +70,20 @@ class ModelCatalogTests(unittest.TestCase):
         self.assertEqual(gpt54["cost_per_input_token_usd"], 0.0000025)
         self.assertEqual(gpt54["cost_per_output_token_usd"], 0.000015)
         self.assertEqual(gpt54["blended_price_usd_per_1m_tokens"], 5.63)
+        self.assertEqual(gpt54["pricing_source"], "openrouter")
         self.assertEqual(gpt54["intelligence_rank"], 2)
         self.assertIn("text", gpt54["features"])
         self.assertIn("tool_use", gpt54["features"])
 
         claude = models[("claude", "claude-sonnet-4.6")]
         self.assertEqual(claude["blended_price_usd_per_1m_tokens"], 6.0)
+        self.assertEqual(claude["pricing_source"], "openrouter")
         self.assertEqual(claude["intelligence_rank"], 2)
         self.assertEqual(claude["speed_rank"], 38)
 
         local = models[("local", "qwen2.5-coder:7b")]
         self.assertEqual(local["blended_price_usd_per_1m_tokens"], "local")
+        self.assertEqual(local["pricing_source"], "local")
         self.assertEqual(local["openness"], "self_hosted")
         self.assertIn("coding", local["features"])
 
@@ -122,13 +125,14 @@ class ModelCatalogTests(unittest.TestCase):
             "stagewarden.model_catalog._artificial_analysis_model_index",
             return_value=aa_models,
         ):
-            catalog = build_ai_models_catalog(openrouter_models=openrouter_models)
+            catalog = build_ai_models_catalog(openrouter_models=openrouter_models, include_artificial_analysis=True)
 
         models = {(entry["provider"], entry["model_id"]): entry for entry in catalog["models"]}
         gpt54 = models[("openai", "gpt-5.4")]
         self.assertEqual(gpt54["cost_per_input_token_usd"], 0.000004)
         self.assertEqual(gpt54["cost_per_output_token_usd"], 0.000016)
         self.assertEqual(gpt54["blended_price_usd_per_1m_tokens"], 7.0)
+        self.assertEqual(gpt54["pricing_source"], "artificial_analysis")
 
     def test_write_ai_models_catalog_emits_json_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

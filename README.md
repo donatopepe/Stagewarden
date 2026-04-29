@@ -111,6 +111,7 @@ PRINCE2 handoff behavior:
 - `status`, `status --json`, and `statusline --json` surface the latest durable handoff action so the user can immediately see the most recent tracked operation.
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
 - Those schema blocks are centralized in `stagewarden/json_schema_registry.py`, which now covers the stable JSON CLI surfaces for status, help, commands, catalog, goal, models, git, sessions, and the register views.
+- `status` and `status --json` expose the active pricing source for the current routed model, so you can see whether pricing came from `openrouter`, `artificial_analysis`, or the local fallback path.
 - `statusline --json` also exposes token/context-window usage when a provider returns safe usage metadata.
 - `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, classified provider lockout reason, last known provider message, and latest routed success/failure context.
 - `stagewarden board --json` or `stagewarden "stage review" --json` exposes the PRINCE2 board-level authorization recommendation.
@@ -342,6 +343,10 @@ Model control:
 - `model limit-clear <model>` clears the stored limit snapshot, message, and temporary block.
 - `model unblock <model>` removes a temporary block.
 - `model clear` restores automatic routing.
+- `catalog refresh` regenerates the shared model catalog snapshot from OpenRouter-backed discovery.
+- `catalog refresh --aa` explicitly includes Artificial Analysis pricing refresh when `STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY` is available.
+- The GitHub Actions workflow `Refresh AI Model Catalog` runs the same refresh path and can pick up the Artificial Analysis API key from repository secrets.
+- A documented example workspace settings file lives in [`examples/stagewarden_settings.example.json`](examples/stagewarden_settings.example.json).
 - `account login chatgpt <profile>` follows the Codex-style browser flow and opens the browser automatically.
 - `account login openai <profile>` keeps the Stagewarden device-code/API-oriented flow.
 - `account login-device <chatgpt|openai> <profile>` forces the explicit device-code flow.

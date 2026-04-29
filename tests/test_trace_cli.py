@@ -26,6 +26,7 @@ from stagewarden.main import (
     _interactive_completion_candidates,
     _render_boundary,
     _render_handoff,
+    _status_pricing_report,
     run_interactive_shell,
 )
 from stagewarden.modelprefs import ModelPreferences
@@ -565,6 +566,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("git", payload)
             self.assertIn("runtime", payload)
             self.assertIn("shell_backend", payload)
+            self.assertIn("pricing", payload)
             self.assertIn("focus", payload)
             self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("quality_gates", payload)
@@ -620,7 +622,41 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertIn("shell_backend", payload)
+            self.assertIn("pricing", payload)
             self.assertEqual(payload["shell_backend"]["configured"], "zsh")
+
+    def test_status_pricing_report_exposes_pricing_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            model_report = {
+                "models": [
+                    {
+                        "preferred": True,
+                        "active": True,
+                        "provider": "openai",
+                        "provider_model": "gpt-5.4",
+                        "catalog_source": "openrouter",
+                        "pricing_source": "artificial_analysis",
+                        "catalog": {
+                            "pricing_source": "artificial_analysis",
+                            "catalog_source": "openrouter",
+                            "cost_per_input_token_usd": 0.000004,
+                            "cost_per_output_token_usd": 0.000016,
+                            "blended_price_usd_per_1m_tokens": 7.0,
+                        },
+                    }
+                ]
+            }
+
+            with patch("stagewarden.main._model_status_report", return_value=model_report):
+                report = _status_pricing_report(agent, config)
+
+            self.assertEqual(report["source"], "artificial_analysis")
+            self.assertEqual(report["catalog_source"], "openrouter")
+            self.assertEqual(report["cost_per_input_token_usd"], 0.000004)
+            self.assertEqual(report["cost_per_output_token_usd"], 0.000016)
 
     def test_status_surfaces_latest_handoff_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2477,6 +2513,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(report["command"], "catalog status")
             self.assertEqual(report["schema"]["name"], "stagewarden.catalog_status")
             self.assertEqual(report["schema"]["version"], "1")
+            self.assertEqual(_catalog_refresh_report(snapshot)["pricing_source"], "openrouter")
+
+    def test_catalog_refresh_aa_flag_requests_artificial_analysis_pricing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            snapshot = {
+                "generated_at": "2026-04-27T15:15:22Z",
+                "include_artificial_analysis": True,
+                "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+                "models": [{"provider": "local", "model_id": "provider-default"}],
+            }
+            with patch("stagewarden.main.write_ai_models_catalog", return_value=snapshot) as mocked:
+                refreshed = _handle_model_command("catalog refresh --aa", agent, config)
+
+            self.assertIn("pricing_source=artificial_analysis", refreshed or "")
+            mocked.assert_called_once_with(include_artificial_analysis=True)
 
     def test_catalog_refresh_report_uses_specific_command_name(self) -> None:
         catalog = {
@@ -2490,6 +2544,8 @@ class TraceAndCliTests(unittest.TestCase):
         self.assertEqual(report["command"], "catalog refresh")
         self.assertEqual(report["schema"]["name"], "stagewarden.catalog_refresh")
         self.assertEqual(report["schema"]["version"], "1")
+        self.assertEqual(report["include_artificial_analysis"], False)
+        self.assertEqual(report["pricing_source"], "openrouter")
         self.assertEqual(report["model_count"], 1)
 
     def test_catalog_search_reports_matches(self) -> None:

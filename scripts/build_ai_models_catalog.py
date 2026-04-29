@@ -26,14 +26,19 @@ def main() -> int:
         action="store_true",
         help="Print the generated catalog to stdout instead of writing a file.",
     )
+    parser.add_argument(
+        "--aa",
+        action="store_true",
+        help="Include Artificial Analysis pricing refresh when building the catalog.",
+    )
     args = parser.parse_args()
 
     if args.stdout:
-        catalog = build_ai_models_catalog()
+        catalog = build_ai_models_catalog(include_artificial_analysis=args.aa)
         print(json.dumps(catalog, indent=2, sort_keys=True, ensure_ascii=True))
         return 0
 
-    write_ai_models_catalog(args.output)
+    write_ai_models_catalog(args.output, include_artificial_analysis=args.aa)
     return 0
 
 

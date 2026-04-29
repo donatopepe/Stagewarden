@@ -33,6 +33,7 @@ class PolicyDocsTests(unittest.TestCase):
         policy = (ROOT / "AGENT_POLICY.json").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         handoff = (ROOT / "AGENT_HANDOFF.md").read_text(encoding="utf-8")
+        example_settings = (ROOT / "examples" / "stagewarden_settings.example.json").read_text(encoding="utf-8")
 
         self.assertIn("external_sources/kilocode", source_refs)
         self.assertIn("kilocode_provider_coverage.md", source_refs)
@@ -43,6 +44,8 @@ class PolicyDocsTests(unittest.TestCase):
         self.assertIn("Mandatory handoff protocol", agents)
         self.assertIn("Current objective", handoff)
         self.assertIn("Current state", handoff)
+        self.assertIn("STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY", example_settings)
+        self.assertIn("catalog refresh --aa", example_settings)
 
     def test_kilocode_provider_coverage_artifacts_exist_and_match_snapshot(self) -> None:
         coverage_json = ROOT / "data" / "kilocode_provider_coverage.json"

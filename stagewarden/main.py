@@ -641,6 +641,7 @@ def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None 
             "cost_per_input_token_usd": entry.get("cost_per_input_token_usd"),
             "cost_per_output_token_usd": entry.get("cost_per_output_token_usd"),
             "blended_price_usd_per_1m_tokens": entry.get("blended_price_usd_per_1m_tokens"),
+            "pricing_source": entry.get("pricing_source"),
             "intelligence_rank": entry.get("intelligence_rank"),
             "speed_rank": entry.get("speed_rank"),
             "latency_rank": entry.get("latency_rank"),
@@ -654,6 +655,7 @@ def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None 
         "cost_per_input_token_usd": None,
         "cost_per_output_token_usd": None,
         "blended_price_usd_per_1m_tokens": None,
+        "pricing_source": None,
         "intelligence_rank": None,
         "speed_rank": None,
         "latency_rank": None,
@@ -5380,6 +5382,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
     status = _status_report(agent, config)
     provider_limits = status["provider_limits"]
     model_report = status["models"]
+    pricing = _status_pricing_report(agent, config)
     handoff = status["handoff"]["stage_view"]
     git = GitTool(config)
     git_status = git.status()
@@ -5435,6 +5438,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
             "ask": workspace_settings["ask"],
             "deny": workspace_settings["deny"],
         },
+        "pricing": pricing,
         "git": {
             "ok": git_status.ok,
             "head": git_head.stdout.strip() if git_head.ok else None,
@@ -5486,6 +5490,11 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
         f"- preferred_provider: {report['model']['preferred_provider']}",
         f"- active_provider: {report['model']['active_provider'] or 'none'}",
         f"- active_provider_model: {report['model']['active_provider_model'] or 'none'}",
+        (
+            f"- pricing_source: {report['pricing']['source']} "
+            f"provider={report['pricing']['active_model']['provider'] if report['pricing']['active_model'] else 'none'} "
+            f"provider_model={report['pricing']['active_model']['provider_model'] if report['pricing']['active_model'] else 'none'}"
+        ),
         (
             "- active_provider_model_params: "
             + ",".join(f"{key}={value}" for key, value in sorted(report["model"]["active_provider_model_params"].items()))
@@ -5931,6 +5940,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
     status = _status_report(agent, config)
+    pricing = _status_pricing_report(agent, config)
     lines = [
         "Stagewarden status:",
         f"- workspace: {config.workspace_root}",
@@ -5942,6 +5952,13 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_agent_baseline(config),
         _render_focus_snapshot(_focus_snapshot(agent, config)),
         _render_model_status(agent, config),
+        (
+            f"- pricing_source: {pricing['source']} "
+            f"provider={pricing['active_model']['provider'] if pricing['active_model'] else 'none'} "
+            f"provider_model={pricing['active_model']['provider_model'] if pricing['active_model'] else 'none'} "
+            f"input={pricing['cost_per_input_token_usd'] if pricing['cost_per_input_token_usd'] is not None else 'none'} "
+            f"output={pricing['cost_per_output_token_usd'] if pricing['cost_per_output_token_usd'] is not None else 'none'}"
+        ),
         _render_provider_limit_status(agent, config),
         _render_runtime_status(config),
         _render_shell_backend(config),
@@ -6274,6 +6291,9 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
                 "backend": MODEL_BACKENDS[model]["label"],
                 "catalog": _catalog_entry_display(catalog_entry, None),
                 "catalog_source": (catalog_entry or provider_default_entry or {}).get("source") if (catalog_entry or provider_default_entry) else None,
+                "pricing_source": (catalog_entry or provider_default_entry or {}).get("pricing_source")
+                if (catalog_entry or provider_default_entry)
+                else None,
                 "catalog_size": len(provider_catalog),
             }
         )
@@ -6283,6 +6303,43 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
         "models": models,
         "preferred_model": status["preferred_model"],
         "preferred_provider": status["preferred_model"],
+    }
+
+
+def _selected_model_report(model_report: dict[str, object]) -> dict[str, object] | None:
+    models = model_report.get("models", []) if isinstance(model_report, dict) else []
+    if not isinstance(models, list):
+        return None
+    selected = next((item for item in models if isinstance(item, dict) and item.get("preferred")), None)
+    if selected is None:
+        selected = next((item for item in models if isinstance(item, dict) and item.get("active")), None)
+    return selected if isinstance(selected, dict) else None
+
+
+def _status_pricing_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    model_report = _model_status_report(agent, config)
+    selected = _selected_model_report(model_report)
+    catalog = selected.get("catalog", {}) if isinstance(selected, dict) else {}
+    pricing_source = None
+    if isinstance(catalog, dict):
+        pricing_source = catalog.get("pricing_source")
+    if pricing_source is None and isinstance(selected, dict):
+        pricing_source = selected.get("pricing_source")
+    if pricing_source is None and isinstance(selected, dict):
+        pricing_source = "local" if selected.get("model") == "local" else "openrouter"
+    return {
+        "active_model": None
+        if selected is None
+        else {
+            "provider": selected.get("provider"),
+            "provider_model": selected.get("provider_model"),
+            "catalog_source": selected.get("catalog_source"),
+        },
+        "source": pricing_source or "unknown",
+        "catalog_source": None if not isinstance(catalog, dict) else catalog.get("catalog_source"),
+        "cost_per_input_token_usd": None if not isinstance(catalog, dict) else catalog.get("cost_per_input_token_usd"),
+        "cost_per_output_token_usd": None if not isinstance(catalog, dict) else catalog.get("cost_per_output_token_usd"),
+        "blended_price_usd_per_1m_tokens": None if not isinstance(catalog, dict) else catalog.get("blended_price_usd_per_1m_tokens"),
     }
 
 
@@ -6374,6 +6431,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     permissions = _permissions_report(config)
     stage_view = handoff.stage_view()
     local_fallback = _delivery_local_fallback_report(config)
+    pricing = _status_pricing_report(agent, config)
     return {
         "command": "status",
         "schema": json_schema("status"),
@@ -6395,6 +6453,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "focus": _focus_snapshot(agent, config),
         "roles": _prince2_roles_report(config),
         "permissions": permissions,
+        "pricing": pricing,
         "handoff": {
             "summary": handoff.summary(),
             "operational_posture": handoff.rendered_operational_posture(),
@@ -9459,11 +9518,15 @@ def _handle_model_command(
                 f"generated_at={report['generated_at'] or 'missing'}"
             )
         if parts[1] == "refresh":
-            if len(parts) != 2:
+            try:
+                include_artificial_analysis = _parse_catalog_refresh_flags(parts[2:])
+            except ValueError:
                 return _catalog_usage()
-            catalog = write_ai_models_catalog()
+            catalog = write_ai_models_catalog(include_artificial_analysis=include_artificial_analysis)
+            catalog["include_artificial_analysis"] = include_artificial_analysis
             return (
                 f"Catalog refreshed: path={catalog_path()} "
+                f"pricing_source={'artificial_analysis' if include_artificial_analysis else 'openrouter'} "
                 f"model_count={len(catalog.get('models', [])) if isinstance(catalog.get('models', []), list) else 0} "
                 f"generated_at={catalog.get('generated_at', 'unknown')}"
             )
@@ -9794,12 +9857,22 @@ def _model_usage() -> str:
         "model param set <name> <key> <value> | model param clear <name> <key> | "
         "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
         "model unblock <name> | model limits | model limit-record <name> <message> | "
-        "model limit-clear <name> | model clear | catalog status | catalog refresh | catalog search <query> [provider=<provider>] [feature=<feature>]"
+        "model limit-clear <name> | model clear | catalog status | catalog refresh [--aa] | catalog search <query> [provider=<provider>] [feature=<feature>]"
     )
 
 
 def _catalog_usage() -> str:
-    return "Usage: catalog status | catalog refresh | catalog search <query> [provider=<provider>] [feature=<feature>]"
+    return "Usage: catalog status | catalog refresh [--aa] | catalog search <query> [provider=<provider>] [feature=<feature>]"
+
+
+def _parse_catalog_refresh_flags(parts: list[str]) -> bool:
+    include_artificial_analysis = False
+    for token in parts:
+        if token == "--aa":
+            include_artificial_analysis = True
+            continue
+        raise ValueError(_catalog_usage())
+    return include_artificial_analysis
 
 
 def _catalog_status_report() -> dict[str, object]:
@@ -9843,6 +9916,8 @@ def _catalog_refresh_report(catalog: dict[str, object]) -> dict[str, object]:
         "command": "catalog refresh",
         "schema": json_schema("catalog refresh"),
         "ok": True,
+        "include_artificial_analysis": bool(catalog.get("include_artificial_analysis", False)),
+        "pricing_source": "artificial_analysis" if bool(catalog.get("include_artificial_analysis", False)) else "openrouter",
         "path": str(catalog_path()),
         "generated_at": catalog.get("generated_at"),
         "model_count": len(catalog.get("models", [])) if isinstance(catalog.get("models", []), list) else 0,
@@ -11469,7 +11544,13 @@ def main() -> int:
                 print(dumps_ascii(_with_json_schema("catalog search", _catalog_search_report(query, provider, feature=feature)), indent=2))
                 return 0
             if parts[1] == "refresh":
-                catalog = write_ai_models_catalog()
+                try:
+                    include_artificial_analysis = _parse_catalog_refresh_flags(parts[2:])
+                except ValueError:
+                    print(dumps_ascii(_with_json_schema("catalog refresh", {"command": "catalog refresh", "ok": False, "error": _catalog_usage()}), indent=2))
+                    return 1
+                catalog = write_ai_models_catalog(include_artificial_analysis=include_artificial_analysis)
+                catalog["include_artificial_analysis"] = include_artificial_analysis
                 print(dumps_ascii(_with_json_schema("catalog refresh", _catalog_refresh_report(catalog)), indent=2))
                 return 0
         response = _handle_model_command(task, agent, config)
