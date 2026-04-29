@@ -7596,6 +7596,42 @@ def _issues_report(config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _render_issues_close(config: AgentConfig, resolution: str) -> str:
+    report = _issues_close_report(config, resolution)
+    lines = [
+        "Issue closure:",
+        f"- ok: {str(report['ok']).lower()}",
+        f"- open_before: {report['open_before']}",
+        f"- open_after: {report['open_after']}",
+        f"- resolution: {report['resolution']}",
+        "Issue register:",
+    ]
+    items = [item for item in report.get("items", []) if isinstance(item, dict)]
+    if not items:
+        lines.append("- none")
+    else:
+        for item in items:
+            lines.append(
+                f"- [{item.get('severity', 'unknown')}] {item.get('step_id', '-')} :: {item.get('summary', '')} [{item.get('status', 'unknown')}]"
+            )
+    return "\n".join(lines)
+
+
+def _issues_close_report(config: AgentConfig, resolution: str) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    open_before = sum(1 for item in handoff.issue_register if str(item.get("status", "open")).strip().lower() != "closed")
+    handoff.close_all_open_issues(resolution=resolution)
+    handoff.save(config.handoff_path)
+    return {
+        "command": "issues close",
+        "ok": True,
+        "open_before": open_before,
+        "open_after": sum(1 for item in handoff.issue_register if str(item.get("status", "open")).strip().lower() != "closed"),
+        "resolution": resolution,
+        "items": list(handoff.issue_register),
+    }
+
+
 def _render_quality(config: AgentConfig) -> str:
     return ProjectHandoff.load(config.handoff_path).rendered_quality()
 
@@ -7605,6 +7641,46 @@ def _quality_report(config: AgentConfig) -> dict[str, object]:
     return {
         "command": "quality",
         "count": len(handoff.quality_register),
+        "items": list(handoff.quality_register),
+    }
+
+
+def _render_quality_close(config: AgentConfig, resolution: str) -> str:
+    report = _quality_close_report(config, resolution)
+    lines = [
+        "Quality closure:",
+        f"- ok: {str(report['ok']).lower()}",
+        f"- open_before: {report['open_before']}",
+        f"- open_after: {report['open_after']}",
+        f"- resolution: {report['resolution']}",
+        "Quality register:",
+    ]
+    items = [item for item in report.get("items", []) if isinstance(item, dict)]
+    if not items:
+        lines.append("- none")
+    else:
+        for item in items:
+            lines.append(
+                f"- [{item.get('status', 'unknown')}] {item.get('step_id', '-')} :: {item.get('evidence', '')}"
+            )
+    return "\n".join(lines)
+
+
+def _quality_close_report(config: AgentConfig, resolution: str) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    open_before = sum(
+        1 for item in handoff.quality_register if str(item.get("status", "")).strip().lower() not in {"accepted", "closed"}
+    )
+    handoff.finalize_quality_register(resolution=resolution)
+    handoff.save(config.handoff_path)
+    return {
+        "command": "quality close",
+        "ok": True,
+        "open_before": open_before,
+        "open_after": sum(
+            1 for item in handoff.quality_register if str(item.get("status", "")).strip().lower() not in {"accepted", "closed"}
+        ),
+        "resolution": resolution,
         "items": list(handoff.quality_register),
     }
 
@@ -11702,13 +11778,27 @@ def main() -> int:
         else:
             print(_render_risks(config))
         return 0
-    if task == "issues":
+    if task == "issues" or task.startswith("issues close"):
+        if task.startswith("issues close"):
+            resolution = task.partition("close")[2].strip() or "Resolved by explicit corrective action and wet-run validation."
+            if args.json:
+                print(dumps_ascii(_issues_close_report(config, resolution), indent=2))
+            else:
+                print(_render_issues_close(config, resolution))
+            return 0
         if args.json:
             print(dumps_ascii(_issues_report(config), indent=2))
         else:
             print(_render_issues(config))
         return 0
-    if task == "quality":
+    if task == "quality" or task.startswith("quality close"):
+        if task.startswith("quality close"):
+            resolution = task.partition("close")[2].strip() or "Accepted by explicit validation and wet-run evidence."
+            if args.json:
+                print(dumps_ascii(_quality_close_report(config, resolution), indent=2))
+            else:
+                print(_render_quality_close(config, resolution))
+            return 0
         if args.json:
             print(dumps_ascii(_quality_report(config), indent=2))
         else:
