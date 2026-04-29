@@ -2612,6 +2612,18 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["schema"]["version"], "1")
             self.assertIn("Usage: git status", payload["error"])
 
+    def test_external_io_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, 'web search "foo', "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertEqual(payload["command"], 'web search "foo')
+            self.assertEqual(payload["schema"]["name"], "stagewarden.external_io")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("No closing quotation", payload["error"])
+
     def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

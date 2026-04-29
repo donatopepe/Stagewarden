@@ -4940,7 +4940,7 @@ def _external_io_execute(command: str, config: AgentConfig) -> ExternalIOResult 
     try:
         parts = shlex.split(command)
     except ValueError as exc:
-        return ExternalIOResult(ok=False, command="external io", message=str(exc), error=str(exc))
+        return ExternalIOResult(ok=False, command=command, message=str(exc), error=str(exc))
     if not parts:
         return None
     tool = ExternalIOTool(config.workspace_root)
@@ -11859,7 +11859,10 @@ def main() -> int:
     ):
         if args.json:
             report = _external_io_report(task, config)
-            print(dumps_ascii(_with_json_schema((report or {}).get("command", task), report or {"command": task, "ok": False, "error": "Unsupported external IO command"}), indent=2))
+            schema_command = (report or {}).get("command", "external_io")
+            if schema_command not in {"web search", "download", "checksum", "compress", "archive verify"}:
+                schema_command = "external_io"
+            print(dumps_ascii(_with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported external IO command"}), indent=2))
             return 0 if report and report.get("ok") else 1
         response = _handle_external_io_command(task, config)
         print(response or "Usage: web search <query> | download <url> [path] [--max-bytes N] | checksum <path> | compress <path> [target.gz] | archive verify <path.gz>")
