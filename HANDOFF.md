@@ -17,8 +17,7 @@
 - **PRINCE2 Escalation Child Spawn:** Escalated nodes can now materialize recovery child threads automatically, and each node carries per-thread token accounting for business-case and KPI visibility.
 - **PRINCE2 Antagonist KPI:** Each node now surfaces an antagonist profile derived from risks and anti-benefits, and the control log uses it as part of the node decision KPI view.
 - **PRINCE2 Devil-Advocate Review:** Primary AI responses now run through a second AI review pass that acts as the devil's advocate, flags contradictions or missing wet-run evidence, and can block unsafe completions.
-- **Statusline Contract:** `statusline --json` now exposes a versioned schema block so other agents can validate the payload explicitly.
-- **Status Contract:** `status --json` now exposes a versioned schema block so other agents can validate the full status payload explicitly.
+- **JSON Contracts:** `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now expose versioned schema blocks so other agents can validate the payloads explicitly.
 
 ## Completed Work: AI Model Catalog
 
@@ -41,8 +40,7 @@
 - The KiloCode study corpus and baseline documentation are now updated and tracked alongside the existing Codex CLI and Claude Code references.
 - The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, escalations can spawn child recovery threads with thread-token accounting, and each node exposes an antagonist KPI profile derived from risks and anti-benefits.
 - The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted.
-- `statusline --json` now carries a versioned schema block for cross-agent compatibility and explicit payload validation.
-- `status --json` now carries a versioned schema block for cross-agent compatibility and explicit payload validation.
+- The operational JSON views now carry versioned schema blocks for cross-agent compatibility and explicit payload validation.
 
 # Operational Notes
 
