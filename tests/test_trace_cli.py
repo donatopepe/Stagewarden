@@ -18,6 +18,7 @@ from stagewarden.memory import MemoryStore
 from stagewarden.main import (
     _catalog_status_report,
     _guided_role_node_menu,
+    _guided_role_node_shell,
     _guided_role_tree_menu,
     _handle_model_command,
     _interactive_completion_candidates,
@@ -3062,6 +3063,49 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Added delegated PRINCE2 role node delivery.menu_team under management.project_manager.", rendered)
             self.assertIn("Removed PRINCE2 role node delivery.menu_team.", rendered)
             self.assertNotIn("delivery.menu_team", node_ids)
+
+    def test_interactive_shell_role_tree_renders_color_legend_and_shell_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            completed = run_main_capture(root, "roles tree")
+
+            self.assertEqual(completed.returncode, 0)
+            self.assertIn("PRINCE2 role tree:", completed.stdout)
+            self.assertIn("- status legend:", completed.stdout)
+            self.assertIn("color=", completed.stdout)
+            self.assertIn("description=", completed.stdout)
+            self.assertIn("shell=role shell", completed.stdout)
+            self.assertIn("|--", completed.stdout)
+
+    def test_interactive_shell_role_shell_navigates_between_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            input_stream = StringIO(
+                "child\n"
+                "board.senior_user\n"
+                "parent\n"
+                "back\n"
+            )
+            output_stream = StringIO()
+            result = _guided_role_node_shell(
+                prefs=prefs,
+                config=AgentConfig(workspace_root=root, max_steps=1),
+                node_id="board.executive",
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+
+            self.assertIn("Closed node shell for board.executive.", result)
+            self.assertIn("PRINCE2 node shell:", rendered)
+            self.assertIn("board.executive", rendered)
+            self.assertIn("board.senior_user", rendered)
+            self.assertIn("description=", rendered)
+            self.assertIn("status_color=", rendered)
+            self.assertIn("parent=", rendered)
 
     def test_interactive_shell_role_menu_can_switch_model_by_menu(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

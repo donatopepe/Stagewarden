@@ -59,6 +59,7 @@ from .provider_registry import (
 )
 from .role_tree import (
     ROLE_CONTEXT_RULES,
+    STATUS_COLOR_LEGEND,
     build_prince2_role_flow,
     build_prince2_role_matrix,
     build_prince2_role_matrix_payload,
@@ -66,6 +67,8 @@ from .role_tree import (
     build_prince2_role_tree_with_tolerance,
     check_prince2_role_tree,
     check_prince2_role_tree_payload,
+    prince2_node_description,
+    prince2_status_color,
     render_prince2_role_check,
     render_prince2_role_flow,
     render_prince2_role_matrix,
@@ -2593,10 +2596,11 @@ def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
         assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
         provider = assignment.get("provider", "unassigned") if isinstance(assignment, dict) and assignment else "unassigned"
         provider_model = assignment.get("provider_model", "none") if isinstance(assignment, dict) and assignment else "none"
+        status_color = prince2_status_color(node)
         label = (
             f"{node.get('label', node_id)} [{node_id}] "
             f"role={node.get('role_type', 'unknown')} "
-            f"state={node.get('tolerance_state', node.get('state', 'unknown'))} "
+            f"state={node.get('tolerance_state', node.get('state', 'unknown'))} color={status_color} "
             f"margin={node.get('tolerance_margin_percent', 'unknown')} pressure={node.get('tolerance_pressure_percent', 'unknown')} "
             f"provider={provider} provider_model={provider_model}"
         )
@@ -2615,12 +2619,19 @@ def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, objec
     return None
 
 
-def _role_tree_node_children(config: AgentConfig, node_id: str) -> list[dict[str, object]]:
+def _role_tree_nodes_by_parent(config: AgentConfig, parent_id: str | None) -> list[dict[str, object]]:
     prefs = _load_model_preferences(config)
-    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_node_children")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_nodes_by_parent")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
-    return [dict(node) for node in nodes if isinstance(node, dict) and str(node.get("parent_id", "")).strip() == node_id]
+    if parent_id is None:
+        return [dict(node) for node in nodes if isinstance(node, dict) and node.get("parent_id") in {None, ""}]
+    clean_parent = str(parent_id).strip()
+    return [dict(node) for node in nodes if isinstance(node, dict) and str(node.get("parent_id", "")).strip() == clean_parent]
+
+
+def _role_tree_node_children(config: AgentConfig, node_id: str) -> list[dict[str, object]]:
+    return _role_tree_nodes_by_parent(config, node_id)
 
 
 def _with_prince2_role_tree_baseline_mutation(
@@ -2802,6 +2813,29 @@ def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool
     return "\n".join(lines)
 
 
+def _role_tree_node_navigation(config: AgentConfig, node_id: str) -> dict[str, object]:
+    node = _role_tree_node_record(config, node_id)
+    if not node:
+        return {}
+    parent_id = node.get("parent_id")
+    siblings = _role_tree_nodes_by_parent(config, str(parent_id) if parent_id not in {None, ""} else None)
+    sibling_ids = [str(item.get("node_id", "")).strip() for item in siblings if str(item.get("node_id", "")).strip()]
+    try:
+        index = sibling_ids.index(node_id)
+    except ValueError:
+        index = -1
+    children = _role_tree_node_children(config, node_id)
+    child_ids = [str(item.get("node_id", "")).strip() for item in children if str(item.get("node_id", "")).strip()]
+    return {
+        "node_id": node_id,
+        "parent_id": str(parent_id).strip() if parent_id not in {None, ""} else None,
+        "siblings": sibling_ids,
+        "children": child_ids,
+        "previous_sibling": sibling_ids[index - 1] if index > 0 else None,
+        "next_sibling": sibling_ids[index + 1] if index >= 0 and index + 1 < len(sibling_ids) else None,
+    }
+
+
 def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
     node = _role_tree_node_record(config, node_id)
     if not node:
@@ -2810,10 +2844,14 @@ def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
     recommendation = _node_model_recommendation(config, node)
     suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
     children = _role_tree_node_children(config, node_id)
+    navigation = _role_tree_node_navigation(config, node_id)
+    status_color = prince2_status_color(node)
+    description = prince2_node_description(node)
     lines = [
         "PRINCE2 node detail:",
         f"- node_id: {node.get('node_id', node_id)}",
         f"- label: {node.get('label', node_id)}",
+        f"- description: {description}",
         f"- role_type: {node.get('role_type', 'unknown')}",
         f"- parent_id: {node.get('parent_id') or 'none'}",
         f"- level: {node.get('level', 'unknown')}",
@@ -2821,10 +2859,13 @@ def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
         f"- tolerance_margin_percent: {node.get('tolerance_margin_percent', 'unknown')}",
         f"- tolerance_pressure_percent: {node.get('tolerance_pressure_percent', 'unknown')}",
         f"- tolerance_state: {node.get('tolerance_state', node.get('state', 'unknown'))}",
+        f"- status_color: {status_color}",
         f"- autonomy_rule: {node.get('autonomy_rule', 'none')}",
         f"- escalation_target: {node.get('escalation_target', 'board.executive')}",
+        f"- shell_hint: role shell {node.get('node_id', node_id)}",
         f"- assignment: provider={assignment.get('provider') or 'none'} provider_model={assignment.get('provider_model') or 'none'} account={assignment.get('account') or 'none'}",
         f"- children: {', '.join(str(item.get('node_id')) for item in children) or 'none'}",
+        f"- navigation: parent={navigation.get('parent_id') or 'none'} prev={navigation.get('previous_sibling') or 'none'} next={navigation.get('next_sibling') or 'none'}",
         f"- model_direction: {recommendation.get('direction', 'hold')}",
         (
             "- model_suggestion: "
@@ -2838,6 +2879,30 @@ def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
             f"stronger={len([item for item in recommendation.get('stronger', []) if isinstance(item, dict)])} "
             f"lighter={len([item for item in recommendation.get('lighter', []) if isinstance(item, dict)])}"
         ),
+    ]
+    return "\n".join(lines)
+
+
+def _render_prince2_role_node_shell(config: AgentConfig, node_id: str) -> str:
+    node = _role_tree_node_record(config, node_id)
+    if not node:
+        return f"PRINCE2 node shell '{node_id}' not found."
+    navigation = _role_tree_node_navigation(config, node_id)
+    children = _role_tree_node_children(config, node_id)
+    status_color = prince2_status_color(node)
+    lines = [
+        "PRINCE2 node shell:",
+        f"- node: {node.get('label', node_id)} [{node.get('node_id', node_id)}]",
+        f"- description={prince2_node_description(node)}",
+        f"- status_color={status_color}",
+        f"- status_legend: {', '.join(f'{color}={meaning}' for color, meaning in STATUS_COLOR_LEGEND.items())}",
+        f"- parent={navigation.get('parent_id') or 'none'}",
+        f"- previous={navigation.get('previous_sibling') or 'none'}",
+        f"- next={navigation.get('next_sibling') or 'none'}",
+        f"- children={', '.join(str(item.get('node_id')) for item in children) or 'none'}",
+        f"- shell_hint: role shell {node.get('node_id', node_id)}",
+        f"- menu_hint: role menu {node.get('node_id', node_id)}",
+        f"- tree_hint: roles tree",
     ]
     return "\n".join(lines)
 
@@ -3458,6 +3523,7 @@ def _guided_role_node_menu(
             title=f"Node menu for {current}:",
             options=[
                 ("view", "View node detail again"),
+                ("shell", "Open node shell and navigate between nodes"),
                 ("model", "Change model assignment"),
                 ("auto-model", "Auto-pick a stronger or lighter model from the menu"),
                 ("tolerance", "Adjust tolerance margin"),
@@ -3473,6 +3539,10 @@ def _guided_role_node_menu(
             return f"Closed node menu for {current}."
         if action == "view":
             output_stream.write(_render_prince2_role_node_detail(config, current) + "\n")
+            continue
+        if action == "shell":
+            output_stream.write(_guided_role_node_shell(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
             continue
         if action == "model":
             output_stream.write(_guided_role_node_model_choice(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
@@ -3562,7 +3632,124 @@ def _guided_role_node_menu(
             )
             prefs = _load_model_preferences(config)
             return f"Removed PRINCE2 role node {current}."
-    return f"Closed node menu for {current}."
+
+
+def _guided_role_shell(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided PRINCE2 role shell navigation is available in the interactive shell. Run `python3 -m stagewarden.main` and use `roles shell`."
+    output_stream.write("PRINCE2 node shell navigator:\n")
+    output_stream.write("- rule: choose a node and move with parent, sibling, or child hops.\n")
+    node_id = _prompt_menu_choice(
+        title="Choose starting node:",
+        options=_role_tree_node_options(config),
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if node_id is None:
+        return "Role shell navigation cancelled."
+    return _guided_role_node_shell(
+        prefs=prefs,
+        config=config,
+        node_id=node_id,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+
+
+def _guided_role_node_shell(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    node_id: str,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided PRINCE2 node shell is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role shell`."
+    current = node_id
+    while True:
+        node = _role_tree_node_record(config, current)
+        if not node:
+            return f"PRINCE2 node '{current}' not found."
+        output_stream.write(_render_prince2_role_node_shell(config, current) + "\n")
+        action = _prompt_menu_choice(
+            title=f"Node shell for {current}:",
+            options=[
+                ("parent", "Go to parent node"),
+                ("prev", "Go to previous sibling"),
+                ("next", "Go to next sibling"),
+                ("child", "Choose one child node"),
+                ("jump", "Jump to another node"),
+                ("menu", "Open the node menu"),
+                ("tree", "Show the full role tree"),
+                ("back", "Close node shell"),
+            ],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if action is None or action == "back":
+            return f"Closed node shell for {current}."
+        if action == "tree":
+            output_stream.write(_render_prince2_role_tree(config) + "\n")
+            continue
+        if action == "menu":
+            output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "jump":
+            next_node = _prompt_menu_choice(
+                title="Jump to node:",
+                options=_role_tree_node_options(config),
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            if next_node is None:
+                continue
+            current = next_node
+            continue
+        navigation = _role_tree_node_navigation(config, current)
+        if action == "parent":
+            parent_id = navigation.get("parent_id")
+            if not parent_id:
+                output_stream.write("Current node has no parent.\n")
+                continue
+            current = str(parent_id)
+            continue
+        if action == "prev":
+            previous = navigation.get("previous_sibling")
+            if not previous:
+                output_stream.write("No previous sibling is available.\n")
+                continue
+            current = str(previous)
+            continue
+        if action == "next":
+            next_sibling = navigation.get("next_sibling")
+            if not next_sibling:
+                output_stream.write("No next sibling is available.\n")
+                continue
+            current = str(next_sibling)
+            continue
+        if action == "child":
+            children = _role_tree_node_children(config, current)
+            if not children:
+                output_stream.write("Current node has no children.\n")
+                continue
+            child_choice = _prompt_menu_choice(
+                title=f"Choose child of {current}:",
+                options=[(str(item.get("node_id")), f"{item.get('label')} [{item.get('node_id')}]") for item in children if str(item.get("node_id", "")).strip()],
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            if child_choice is None:
+                continue
+            current = child_choice
+            continue
 
 
 def _guided_role_tree_menu(
@@ -3580,6 +3767,7 @@ def _guided_role_tree_menu(
             title="PRINCE2 tree menu:",
             options=[
                 ("node", "Open a node menu"),
+                ("shell", "Open a node shell"),
                 ("add-child", "Add delegated node"),
                 ("remove", "Remove a node"),
                 ("approve", "Approve the current baseline"),
@@ -3601,6 +3789,18 @@ def _guided_role_tree_menu(
             if node_id is None:
                 continue
             output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=node_id, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "shell":
+            node_id = _prompt_menu_choice(
+                title="Choose role-tree node:",
+                options=_role_tree_node_options(config),
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            if node_id is None:
+                continue
+            output_stream.write(_guided_role_node_shell(prefs=prefs, config=config, node_id=node_id, input_stream=input_stream, output_stream=output_stream) + "\n")
             prefs = _load_model_preferences(config)
             continue
         if action == "add-child":
@@ -3808,13 +4008,43 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree menu | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | roles menu"
+        if len(parts) == 2 and parts[1] == "shell":
+            return _guided_role_shell(
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        if len(parts) == 3 and parts[1] == "shell":
+            return _guided_role_node_shell(
+                prefs=prefs,
+                config=config,
+                node_id=parts[2],
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree menu | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | roles menu | roles shell [node_id]"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
         if len(parts) == 2 and parts[1] == "menu":
             return _guided_role_tree_menu(
                 prefs=prefs,
                 config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        if len(parts) == 2 and parts[1] == "shell":
+            return _guided_role_shell(
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        if len(parts) == 3 and parts[1] == "shell":
+            return _guided_role_node_shell(
+                prefs=prefs,
+                config=config,
+                node_id=parts[2],
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
@@ -4100,7 +4330,7 @@ def _handle_role_command(
             _save_model_preferences(config, prefs)
             _sync_prince2_roles_to_handoff(config, prefs)
             return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
-        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role menu [node_id] | role model <node_id> [provider provider_model] [reasoning_effort=<value>] [account=<name>] | role tolerance set <node_id> <percent> | role tolerance reset <node_id> | role remove <node_id> [reparent_children=<yes|no>] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]"
+        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role menu [node_id] | role shell [node_id] | role model <node_id> [provider provider_model] [reasoning_effort=<value>] [account=<name>] | role tolerance set <node_id> <percent> | role tolerance reset <node_id> | role remove <node_id> [reparent_children=<yes|no>] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]"
     return None
 
 

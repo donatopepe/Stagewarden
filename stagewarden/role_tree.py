@@ -7,6 +7,15 @@ from .prince2 import Prince2AgentPolicy, Prince2ToleranceProfile
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 
 
+STATUS_COLOR_LEGEND = {
+    "green": "ready or completed",
+    "blue": "running or active",
+    "amber": "waiting or attention",
+    "red": "blocked or escalated",
+    "grey": "idle or unassigned",
+}
+
+
 @dataclass(frozen=True)
 class RoleContextRule:
     include: tuple[str, ...]
@@ -21,11 +30,48 @@ class RoleContextRule:
         }
 
 
+def prince2_node_description(node: dict[str, object]) -> str:
+    description = str(node.get("description", "")).strip()
+    if description:
+        return description
+    label = str(node.get("label", node.get("node_id", "node"))).strip() or "Node"
+    role_type = str(node.get("role_type", "unknown")).strip()
+    responsibility_domain = str(node.get("responsibility_domain", "")).strip()
+    context_scope = str(node.get("context_scope", "")).strip()
+    accountability_boundary = str(node.get("accountability_boundary", "")).strip()
+    pieces = [
+        f"{label} is a {role_type.replace('_', ' ')} node",
+    ]
+    if responsibility_domain:
+        pieces.append(f"for {responsibility_domain}")
+    if context_scope:
+        pieces.append(f"context: {context_scope}")
+    if accountability_boundary:
+        pieces.append(f"boundary: {accountability_boundary}")
+    return ". ".join(pieces).replace(". boundary:", "; boundary:")
+
+
+def prince2_status_color(node: dict[str, object], *, runtime_state: str | None = None) -> str:
+    state = str(runtime_state or node.get("tolerance_state") or node.get("readiness") or node.get("state") or "").strip().lower()
+    if state in {"completed", "done"}:
+        return "green"
+    if state in {"running", "active"}:
+        return "blue"
+    if state in {"waiting", "wait", "pending"}:
+        return "amber"
+    if state in {"blocked", "escalated", "exception"}:
+        return "red"
+    if state in {"ready", "assigned"}:
+        return "green"
+    return "grey"
+
+
 @dataclass(frozen=True)
 class RoleTreeNode:
     node_id: str
     role_type: str
     label: str
+    description: str
     parent_id: str | None
     level: str
     accountability_boundary: str
@@ -305,6 +351,16 @@ def build_prince2_role_tree_with_tolerance(
                 node_id=str(raw["node_id"]),
                 role_type=role_type,
                 label=PRINCE2_ROLE_LABELS[role_type],
+                description=prince2_node_description(
+                    {
+                        "node_id": raw["node_id"],
+                        "label": PRINCE2_ROLE_LABELS[role_type],
+                        "role_type": role_type,
+                        "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
+                        "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
+                        "accountability_boundary": raw["accountability_boundary"],
+                    }
+                ),
                 parent_id=str(raw["parent_id"]) if raw["parent_id"] is not None else None,
                 level=str(raw["level"]),
                 accountability_boundary=str(raw["accountability_boundary"]),
@@ -569,29 +625,41 @@ def render_prince2_role_tree(tree: dict[str, object]) -> str:
     for node in nodes:
         parent_id = node.get("parent_id")
         children.setdefault(str(parent_id) if parent_id else None, []).append(node)
+    for child_nodes in children.values():
+        child_nodes.sort(key=lambda item: (str(item.get("label", item.get("node_id", ""))).lower(), str(item.get("node_id", ""))))
 
     lines = ["PRINCE2 role tree:", f"- rule: {tree.get('rule')}"]
+    lines.append("- status legend:")
+    for color, meaning in STATUS_COLOR_LEGEND.items():
+        lines.append(f"  - {color}: {meaning}")
+    lines.append("- navigation: use `role shell <node_id>` to step through a node shell or `role menu <node_id>` for actions.")
 
-    def append_node(node: dict[str, object], depth: int) -> None:
-        indent = "  " * depth
+    def append_node(node: dict[str, object], prefix: str, is_last: bool) -> None:
         assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
         provider = assignment.get("provider", "unassigned") if isinstance(assignment, dict) else "unassigned"
         provider_model = assignment.get("provider_model", "none") if isinstance(assignment, dict) else "none"
+        status_color = prince2_status_color(node)
+        description = str(node.get("description") or prince2_node_description(node))
+        connector = "`--" if is_last else "|--"
+        next_prefix = f"{prefix}   " if is_last else f"{prefix}|  "
         lines.append(
-            f"{indent}- {node.get('label')} [{node.get('node_id')}] "
+            f"{prefix}{connector} {node.get('label')} [{node.get('node_id')}] "
             f"level={node.get('level')} readiness={node.get('readiness')} "
-            f"owner={node.get('accountable_owner') or 'user'} "
+            f"color={status_color} owner={node.get('accountable_owner') or 'user'} "
             f"margin={node.get('tolerance_margin_percent')} pressure={node.get('tolerance_pressure_percent')} "
-            f"provider={provider} provider_model={provider_model}"
+            f"provider={provider} provider_model={provider_model} shell=role shell {node.get('node_id')}"
         )
-        lines.append(f"{indent}  context={node.get('context_scope')}")
-        lines.append(f"{indent}  authority={node.get('delegated_authority')}")
-        lines.append(f"{indent}  tolerance={node.get('autonomy_rule')}")
-        for child in children.get(str(node.get("node_id")), []):
-            append_node(child, depth + 1)
+        lines.append(f"{prefix}   description={description}")
+        lines.append(f"{prefix}   context={node.get('context_scope')}")
+        lines.append(f"{prefix}   authority={node.get('delegated_authority')}")
+        lines.append(f"{prefix}   tolerance={node.get('autonomy_rule')}")
+        child_nodes = children.get(str(node.get("node_id")), [])
+        for index, child in enumerate(child_nodes):
+            append_node(child, next_prefix, index == len(child_nodes) - 1)
 
-    for root in children.get(None, []):
-        append_node(root, 0)
+    root_nodes = children.get(None, [])
+    for index, root in enumerate(root_nodes):
+        append_node(root, "", index == len(root_nodes) - 1)
     lines.append(f"- expansion_rule: {tree.get('expansion_rule')}")
     return "\n".join(lines)
 
