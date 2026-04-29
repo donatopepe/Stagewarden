@@ -10,6 +10,8 @@ import re
 import shlex
 import shutil
 import subprocess
+import tempfile
+import time
 import sys
 import textwrap
 from datetime import datetime
@@ -50,6 +52,7 @@ from .modelprefs import (
 )
 from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
+from .planner import PlanStep
 from .provider_registry import (
     SUPPORTED_MODELS as REGISTRY_MODELS,
     provider_capability,
@@ -1255,6 +1258,7 @@ def _render_prince2_role_control(config: AgentConfig) -> str:
                     f"provider={suggested.get('provider') or 'none'} provider_model={suggested.get('provider_model') or 'none'} "
                     f"bucket={suggested.get('bucket', 'none')}"
                 )
+                lines.append(f"    switch_hint: role switch {node_record.get('node_id', node.get('node_id', 'unknown'))}")
     else:
         lines.append("- critical_nodes: none")
     return "\n".join(lines)
@@ -4070,6 +4074,14 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
+        if len(parts) == 3 and parts[1] == "switch":
+            return _guided_role_node_switch_agent(
+                prefs=prefs,
+                config=config,
+                node_id=parts[2],
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
         return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree menu | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | roles menu | roles shell [node_id] | roles switch [node_id]"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
@@ -4105,14 +4117,6 @@ def _handle_role_command(
             )
         if len(parts) == 3 and parts[1] == "menu":
             return _guided_role_node_menu(
-                prefs=prefs,
-                config=config,
-                node_id=parts[2],
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 3 and parts[1] == "switch":
-            return _guided_role_node_switch_agent(
                 prefs=prefs,
                 config=config,
                 node_id=parts[2],
@@ -6360,10 +6364,12 @@ def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     status = _status_report(agent, config)
     usage = _model_usage_report(config)["report"]
     transcript = _transcript_report(config)["report"]
+    log_errors = _log_error_report(config)
     ready = (
         board["recommended_authorization"] in {"continue", "close"}
         and board["open_issues"] == 0
         and board["recovery_state"] == "none"
+        and log_errors["count"] == 0
     )
     return {
         "command": "health",
@@ -6380,6 +6386,7 @@ def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "model_failures": usage["totals"]["failures"],
         "model_calls": usage["totals"]["calls"],
         "transcript_entries": transcript["count"],
+        "log_errors": log_errors,
     }
 
 
@@ -6393,6 +6400,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     provider_limits = _provider_limit_status_report(agent, config)
     sources = _sources_status_report(config)
     handoff = ProjectHandoff.load(config.handoff_path)
+    log_errors = _log_error_report(config)
     stage_view = handoff.stage_view()
     remediations = _preflight_remediations(
         doctor=doctor,
@@ -6404,8 +6412,9 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         provider_limits=provider_limits,
         sources=sources,
         stage_view=stage_view,
+        log_errors=log_errors,
     )
-    ready = not any(item["severity"] == "blocker" for item in remediations)
+    ready = not any(item["severity"] == "blocker" for item in remediations) and log_errors["count"] == 0
     return {
         "command": "preflight",
         "timestamp": datetime.now().isoformat(timespec="seconds"),
@@ -6429,6 +6438,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "summary": handoff.summary(),
             "stage_view": stage_view,
         },
+        "log_errors": log_errors,
         "remediations": remediations,
     }
 
@@ -6452,6 +6462,7 @@ def _status_remediation_report(
         provider_limits=provider_limits,
         sources=_sources_status_report(config),
         stage_view=stage_view,
+        log_errors=_log_error_report(config),
     )
     local_fallback = _delivery_local_fallback_report(config)
     if local_fallback["status"] == "available":
@@ -6490,6 +6501,7 @@ def _preflight_remediations(
     provider_limits: dict[str, object],
     sources: dict[str, object],
     stage_view: dict[str, object],
+    log_errors: dict[str, object],
 ) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
     if not doctor.get("python", {}).get("ok"):  # type: ignore[union-attr]
@@ -6554,6 +6566,27 @@ def _preflight_remediations(
         )
     if not sources.get("ok"):
         items.append({"severity": "warning", "code": "sources", "action": "Run `/sources status` before source-derived implementation work."})
+    if int(log_errors.get("count", 0) or 0) > 0:
+        examples = [item for item in log_errors.get("items", []) if isinstance(item, dict)]
+        sample = examples[0] if examples else {}
+        details = []
+        if sample.get("step_id"):
+            details.append(f"step {sample['step_id']}")
+        if sample.get("action_type"):
+            details.append(f"action {sample['action_type']}")
+        if sample.get("error_type"):
+            details.append(f"error {sample['error_type']}")
+        suffix = f" ({'; '.join(details)})" if details else ""
+        items.append(
+            {
+                "severity": "blocker",
+                "code": "log_errors",
+                "action": (
+                    f"Recent logs contain {int(log_errors.get('count', 0) or 0)} error entry(s){suffix}. "
+                    "Inspect `/transcript` and the memory log, then rerun the battery/preflight check."
+                ),
+            }
+        )
     if stage_view.get("recovery_state") != "none":
         items.append(
             {
@@ -6570,6 +6603,7 @@ def _render_preflight(agent: Agent, config: AgentConfig) -> str:
     runtime = report["runtime"]
     git = report["git"]
     role_check = report["roles_check"]
+    log_errors = report.get("log_errors", {}) if isinstance(report.get("log_errors"), dict) else {}
     lines = [
         "Stagewarden preflight:",
         f"- ready: {str(report['ready']).lower()}",
@@ -6580,6 +6614,7 @@ def _render_preflight(agent: Agent, config: AgentConfig) -> str:
         f"- providers: {len(report['provider_limits']['providers'])}",
         f"- baseline: {report['baseline']['status']} missing={len(report['baseline']['missing'])}",
         f"- sources: {'ok' if report['sources']['ok'] else 'warn'} count={report['sources']['count']}",
+        f"- log_errors: {log_errors.get('status', 'unknown')} count={log_errors.get('count', 0)}",
         f"- stage_health: {report['handoff']['stage_view']['stage_health']}",
         "Remediations:",
     ]
@@ -6663,6 +6698,7 @@ def _render_overview(agent: Agent, config: AgentConfig) -> str:
 
 def _render_health(agent: Agent, config: AgentConfig) -> str:
     report = _health_report(agent, config)
+    log_errors = report.get("log_errors", {}) if isinstance(report.get("log_errors"), dict) else {}
     lines = [
         "Health check:",
         f"- workspace: {report['workspace']}",
@@ -6678,7 +6714,31 @@ def _render_health(agent: Agent, config: AgentConfig) -> str:
         f"- model_failures: {report['model_failures']}",
         f"- model_calls: {report['model_calls']}",
         f"- transcript_entries: {report['transcript_entries']}",
+        f"- log_errors: {log_errors.get('status', 'unknown')} count={log_errors.get('count', 0)}",
     ]
+    return "\n".join(lines)
+
+
+def _render_battery(config: AgentConfig) -> str:
+    report = _battery_report(config)
+    lines = [
+        "Agent battery:",
+        f"- ready: {str(report['ready']).lower()}",
+        f"- passed: {report['passed']}/{report['total']}",
+    ]
+    for item in report["simulations"]:
+        if not isinstance(item, dict):
+            continue
+        lines.append(
+            f"- {item.get('name')}: {str(item.get('ok')).lower()} "
+            f"duration_ms={item.get('duration_ms', 0)} message={item.get('message', '')}"
+        )
+    if report["failures"]:
+        lines.append("Failures:")
+        for item in report["failures"]:
+            if not isinstance(item, dict):
+                continue
+            lines.append(f"- {item.get('name')}: {item.get('message', '')}")
     return "\n".join(lines)
 
 
@@ -7544,6 +7604,261 @@ def _transcript_report(config: AgentConfig) -> dict[str, object]:
             "command": "transcript",
             "report": MemoryStore().transcript_report(),
         }
+
+
+def _log_error_report(config: AgentConfig, *, limit: int = 20) -> dict[str, object]:
+    memory = MemoryStore.load(config.memory_path)
+    items: list[dict[str, object]] = []
+    tokens = ("error", "failed", "traceback", "exception", "denied")
+
+    for attempt in memory.attempts[-limit:]:
+        observation = str(attempt.observation or "").strip()
+        combined = " ".join(part for part in (attempt.action_type, observation, attempt.error_type or "") if part).lower()
+        if attempt.success and not any(token in combined for token in tokens):
+            continue
+        if not attempt.success or any(token in combined for token in tokens):
+            items.append(
+                {
+                    "kind": "attempt",
+                    "step_id": attempt.step_id,
+                    "iteration": attempt.iteration,
+                    "model": attempt.model,
+                    "action_type": attempt.action_type,
+                    "error_type": attempt.error_type or ("attempt_failed" if not attempt.success else None),
+                    "observation": observation[:240],
+                }
+            )
+
+    for record in memory.tool_transcript[-limit:]:
+        summary = str(record.summary or "").strip()
+        detail = str(record.detail or "").strip()
+        combined = " ".join(part for part in (record.tool, record.action_type, summary, detail, record.error_type or "") if part).lower()
+        if record.success and not any(token in combined for token in tokens):
+            continue
+        if not record.success or any(token in combined for token in tokens):
+            items.append(
+                {
+                    "kind": "tool_transcript",
+                    "step_id": record.step_id,
+                    "iteration": record.iteration,
+                    "tool": record.tool,
+                    "action_type": record.action_type,
+                    "error_type": record.error_type or ("tool_failed" if not record.success else None),
+                    "summary": summary[:240],
+                    "detail": detail[:240],
+                }
+            )
+
+    return {
+        "command": "log_errors",
+        "status": "ok" if not items else "warning",
+        "count": len(items),
+        "items": items,
+    }
+
+
+def _battery_report(config: AgentConfig) -> dict[str, object]:
+    class _BatteryHandoffStub:
+        def __init__(self, outputs: list[dict[str, object]]) -> None:
+            self.outputs = list(outputs)
+            self.calls: list[str] = []
+            self.model_variant_by_model: dict[str, str] = {}
+            self.account_env_by_target: dict[str, str] = {}
+            self.model_params_by_model: dict[str, dict[str, str]] = {}
+
+        def execute(self, command: str):  # noqa: ANN001
+            self.calls.append(command)
+            payload = self.outputs.pop(0) if self.outputs else {
+                "ok": True,
+                "model": "local",
+                "backend": "local/ollama",
+                "prompt": "",
+                "command": command,
+                "output": dumps_ascii({"summary": "battery fallback", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                "error": "",
+            }
+            return type("ModelResult", (), payload)()
+
+    def _run_simulation(name: str, runner) -> dict[str, object]:
+        started = time.monotonic()
+        try:
+            payload = runner()
+            ok = bool(payload.get("ok", False)) if isinstance(payload, dict) else bool(payload)
+            message = str(payload.get("message", "ok")) if isinstance(payload, dict) else "ok"
+            details = payload if isinstance(payload, dict) else {"value": payload}
+        except Exception as exc:  # pragma: no cover - defensive
+            ok = False
+            message = str(exc)
+            details = {"error": str(exc)}
+        return {
+            "name": name,
+            "ok": ok,
+            "message": message,
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "details": details,
+        }
+
+    simulations: list[dict[str, object]] = []
+
+    def bootstrap_simulation() -> dict[str, object]:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            agent = Agent(AgentConfig(workspace_root=Path(tmp_dir), max_steps=1))
+            git_head = agent.git.head()
+            return {
+                "ok": True,
+                "message": "agent bootstrapped",
+                "workspace": str(agent.config.workspace_root),
+                "git_head": git_head.stdout.strip() if git_head.ok else None,
+            }
+
+    def executor_write_file_simulation() -> dict[str, object]:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            agent.executor.handoff = _BatteryHandoffStub(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "battery",
+                        "command": "run_model local battery",
+                        "output": dumps_ascii(
+                            {
+                                "summary": "battery file write",
+                                "action": {
+                                    "type": "write_file",
+                                    "path": "battery.txt",
+                                    "content": "battery ok\n",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            step = PlanStep(
+                id="battery.write",
+                title="Write battery file",
+                instruction="create a file named battery.txt",
+                validation="battery file exists",
+            )
+            outcome = agent.executor.execute_step(
+                task="create a file",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+            created = (root / "battery.txt").exists()
+            return {
+                "ok": bool(outcome.ok and outcome.step_completed and created),
+                "message": "file write simulation passed" if outcome.ok and created else "file write simulation failed",
+                "file_created": created,
+                "step_completed": outcome.step_completed,
+                "observation": outcome.observation,
+            }
+
+    def role_runtime_simulation() -> dict[str, object]:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            prefs = ModelPreferences.default()
+            baseline = {
+                "status": "approved",
+                "source": "battery_simulation",
+                "tree": {
+                    "nodes": [
+                        {
+                            "node_id": "management.project_manager",
+                            "role_type": "project_manager",
+                            "label": "Project Manager",
+                            "parent_id": "board.executive",
+                            "level": "management",
+                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                        }
+                    ]
+                },
+                "flow": {"edges": []},
+            }
+            prefs.set_prince2_role_tree_baseline(baseline)
+            prefs.save(config.model_prefs_path)
+            handoff = ProjectHandoff.load(config.handoff_path)
+            handoff.sync_prince2_role_tree_baseline(baseline)
+            rendered = handoff.rendered_prince2_node_runtime()
+            ok = "switch_hint=role switch management.project_manager" in rendered and "description=" in rendered
+            return {
+                "ok": ok,
+                "message": "role runtime simulation passed" if ok else "role runtime simulation failed",
+                "rendered": rendered,
+            }
+
+    def log_detection_simulation() -> dict[str, object]:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            memory = MemoryStore()
+            memory.record_attempt(
+                iteration=1,
+                step_id="battery.log",
+                model="local",
+                action_type="complete",
+                action_signature="battery",
+                success=False,
+                observation="Traceback: simulated failure",
+                error_type="runtime_error",
+            )
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="battery.log",
+                tool="shell",
+                action_type="shell",
+                success=False,
+                summary="run battery",
+                detail="traceback observed in log",
+                duration_ms=1,
+                error_type="runtime_error",
+            )
+            memory.save(config.memory_path)
+            report = _log_error_report(config)
+            ok = int(report.get("count", 0) or 0) >= 2
+            return {
+                "ok": ok,
+                "message": "log detection simulation passed" if ok else "log detection simulation failed",
+                "log_errors": report,
+            }
+
+    def git_roundtrip_simulation() -> dict[str, object]:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            (root / "battery_git.txt").write_text("battery\n", encoding="utf-8")
+            committed = agent.git.commit_if_changed("battery: git roundtrip")
+            status = agent.git.status()
+            log = agent.git.log(limit=3)
+            ok = committed.ok and status.ok and log.ok
+            return {
+                "ok": ok,
+                "message": "git roundtrip simulation passed" if ok else "git roundtrip simulation failed",
+                "commit": committed.stdout.strip() if committed.ok else committed.error,
+            }
+
+    simulations.append(_run_simulation("agent_bootstrap", bootstrap_simulation))
+    simulations.append(_run_simulation("executor_write_file", executor_write_file_simulation))
+    simulations.append(_run_simulation("role_runtime", role_runtime_simulation))
+    simulations.append(_run_simulation("log_detection", log_detection_simulation))
+    simulations.append(_run_simulation("git_roundtrip", git_roundtrip_simulation))
+
+    failures = [item for item in simulations if not item["ok"]]
+    return {
+        "command": "battery",
+        "ready": not failures,
+        "total": len(simulations),
+        "passed": len(simulations) - len(failures),
+        "failed": len(failures),
+        "simulations": simulations,
+        "failures": failures,
+    }
 
 
 def _render_model_usage(config: AgentConfig) -> str:
@@ -8710,6 +9025,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return dumps_ascii(_statusline_report(agent, config), indent=2)
     if parts[0] == "preflight":
         return _render_preflight(agent, config)
+    if parts[0] == "battery":
+        return _render_battery(config)
     if len(parts) == 3 and parts[0] == "auth" and parts[1] == "status":
         return _render_auth_status(parts[2])
     if parts[0] == "overview":

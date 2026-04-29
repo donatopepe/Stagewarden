@@ -75,6 +75,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("status", "core", "Show workspace, model, permission, handoff, and provider status.", "status [--full|--json]", json=True, handler="status"),
     CommandSpec("statusline", "core", "Emit compact statusline JSON.", "statusline", json=True, handler="status"),
     CommandSpec("baseline", "core", "Verify the minimum Codex CLI and Claude Code capability baseline.", "baseline [--json]", json=True, handler="status"),
+    CommandSpec("battery", "core", "Run simulated end-to-end agent battery scenarios.", "battery [--json]", json=True, handler="status"),
     CommandSpec("goal", "core", "Show the persisted project goal.", "goal [--json]", json=True, handler="status"),
     CommandSpec("goal set", "core", "Set the active project goal with optional token budget.", "goal set <objective> [--tokens N]", json=True, handler="status"),
     CommandSpec("goal status", "core", "Update the project goal lifecycle status.", "goal status <active|paused|budget_limited|complete>", json=True, handler="status"),
