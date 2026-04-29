@@ -24,6 +24,7 @@
 - **File Fallback Preservation:** The JSON fallback for `file` now keeps the exact input command string in the payload and uses a dedicated shared schema.
 - **Update Fallback Preservation:** The JSON fallback for `update` now keeps the exact input command string in the payload and uses a dedicated shared schema.
 - **Git Fallback Preservation:** The JSON fallback for `git` now keeps the exact input command string in the payload and uses a dedicated shared schema.
+- **External IO Fallback Preservation:** The JSON fallback for `external_io` now keeps the exact input command string in the payload and uses a dedicated shared schema.
 
 ## Completed Work: AI Model Catalog
 
@@ -56,6 +57,7 @@
 - The file JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
 - The update JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
 - The git JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
+- The external IO JSON fallback now preserves the exact input command string instead of collapsing to a generic label, and it now has a shared JSON schema entry.
 
 # Operational Notes
 
