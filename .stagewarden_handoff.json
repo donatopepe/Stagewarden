@@ -8,7 +8,7 @@
   "current_step_id": "json-schema-registry-expansion",
   "current_step_title": "Expand the shared JSON schema registry to the remaining CLI surfaces",
   "current_step_status": "completed",
-  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and the shared JSON schema registry now also covers the remaining CLI surfaces such as role views, project brief/design, model inspection, catalog refresh, shell backend use, and register-style outputs.",
+  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and the shared JSON schema registry now also covers the remaining CLI surfaces such as role views, project brief/design, model inspection, catalog refresh, shell backend use, register-style outputs, and the interactive statusline path.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "30d3d52",
   "git_head_baseline": "30d3d52",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-04-29T16:03:28Z",
+  "updated_at": "2026-04-29T16:10:00Z",
   "entries": [
     {
       "timestamp": "2026-04-29T07:19:12+00:00",
