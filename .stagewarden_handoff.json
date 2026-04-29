@@ -5,10 +5,10 @@
   "goal": {},
   "project_brief": {},
   "status": "completed",
-  "current_step_id": "file-fallback-command-contract",
-  "current_step_title": "Preserve the exact input command in the file JSON fallback",
+  "current_step_id": "update-fallback-command-contract",
+  "current_step_title": "Preserve the exact input command in the update JSON fallback",
   "current_step_status": "completed",
-  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, the shared JSON schema registry covers the remaining CLI surfaces, catalog JSON reports now use specific status/search/refresh command names, the catalog fallback preserves the exact input command string, and the file fallback now has a shared schema while preserving the exact input command string.",
+  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, the shared JSON schema registry covers the remaining CLI surfaces, catalog JSON reports now use specific status/search/refresh command names, the catalog fallback preserves the exact input command string, the file fallback now has a shared schema while preserving the exact input command string, and the update fallback now does the same.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "da61a4e",
   "git_head_baseline": "da61a4e",
@@ -62,6 +62,22 @@
   "prince2_node_runtime": {},
   "updated_at": "2026-04-29T18:39:13Z",
   "entries": [
+    {
+      "timestamp": "2026-04-29T16:59:01Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "update-fallback-command-contract",
+      "summary": "Update JSON fallback now preserves the exact input command string and uses a shared schema.",
+      "step_id": "update-fallback-command-contract",
+      "step_title": "Preserve the exact input command in the update JSON fallback",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "365594d",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-04-29T16:55:38Z",
       "phase": "finish",
