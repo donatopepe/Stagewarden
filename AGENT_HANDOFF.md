@@ -7,6 +7,7 @@ Extend the same shared schema registry to the remaining stable JSON CLI surfaces
 Treat `--ljson-benchmark` as a stable machine-readable report and give it the same shared schema contract.
 Keep the `catalog status`, `catalog search`, and `catalog refresh` JSON payloads aligned with their specific command names so the machine-readable contract stays precise for downstream consumers.
 Preserve the exact input command string in the `catalog` JSON fallback path so even unsupported subcommands remain distinguishable in machine-readable output.
+Treat the generic `file` fallback as a shared JSON surface too, and preserve the exact input command string there so unsupported file subcommands remain distinguishable.
 
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
@@ -22,6 +23,7 @@ Preserve the exact input command string in the `catalog` JSON fallback path so e
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
 - The `catalog` JSON helper reports now use the specific command names `catalog status`, `catalog search`, and `catalog refresh` instead of a generic `catalog` label.
 - The `catalog` JSON fallback now preserves the exact user-entered command string in the payload instead of collapsing to a generic label.
+- The `file` JSON fallback now preserves the exact user-entered command string in the payload and uses a shared `file` schema contract.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
 ## Recent changes
@@ -37,6 +39,7 @@ Preserve the exact input command string in the `catalog` JSON fallback path so e
 - `stagewarden/main.py`: expanded the shared JSON schema wrapper to the remaining CLI surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register reports.
 - `stagewarden/main.py`: aligned the `catalog` JSON helper reports with specific command names for status/search/refresh.
 - `stagewarden/main.py`: made the `catalog` JSON fallback preserve the exact input command string in JSON.
+- `stagewarden/main.py`: made the `file` JSON fallback preserve the exact input command string in JSON and assigned it a shared `file` schema.
 
 ## Important files
 - `AGENTS.md`: startup and handoff rules for agents.
