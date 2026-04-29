@@ -368,9 +368,10 @@ class Agent:
                     git_head=self._git_head(),
                 )
             self._save_handoff()
-            if outcome.error_type == "network_wait":
+            if self._is_session_suspendable_error(outcome.error_type):
+                suspend_message = self._session_suspend_message(outcome.error_type)
                 pid.status = "waiting"
-                pid.outcome = "Run suspended because network is unavailable."
+                pid.outcome = suspend_message
                 self._save_pid(pid)
                 self.project_handoff.status = "waiting"
                 self.project_handoff.current_step_status = current.status
@@ -378,7 +379,7 @@ class Agent:
                 self._save_handoff()
                 self._save_trace()
                 message = self._format_summary(plan, success=False)
-                message += "\nSession suspended because network is unavailable. Re-run `resume` to continue from the saved checkpoint."
+                message += f"\n{suspend_message} Re-run `resume` to continue from the saved checkpoint."
                 if directive.active:
                     message = self.caveman.format_text(message, directive.level)
                 return AgentResult(False, iterations, message)
@@ -673,6 +674,15 @@ class Agent:
         if self.project_handoff.status not in {"initiating", "planned", "executing", "waiting", "exception"}:
             return False
         return bool(self.project_handoff.current_step_id or self.project_handoff.latest_observation)
+
+    def _is_session_suspendable_error(self, error_type: str | None) -> bool:
+        return str(error_type or "").strip().lower() in {"network_wait", "rate_limit_wait"}
+
+    def _session_suspend_message(self, error_type: str | None) -> str:
+        kind = str(error_type or "").strip().lower()
+        if kind == "rate_limit_wait":
+            return "Session suspended because a token or usage limit is active."
+        return "Session suspended because network is unavailable."
 
     def _plan_status(self, plan: list[PlanStep]) -> str:
         return ",".join(f"{step.id}:{step.status}" for step in plan)
