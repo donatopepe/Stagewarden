@@ -5,13 +5,13 @@
   "goal": {},
   "project_brief": {},
   "status": "completed",
-  "current_step_id": "prince2-devil-advocate-review",
-  "current_step_title": "Evaluate every primary AI response with a devil's-advocate review pass",
+  "current_step_id": "json-schema-registry-expansion",
+  "current_step_title": "Expand the shared JSON schema registry to the remaining CLI surfaces",
   "current_step_status": "completed",
-  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and the JSON schema registry now also covers baseline, battery, shell backend, auth status, project brief/design, sources, update, extensions, and file command surfaces.",
+  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and the shared JSON schema registry now also covers the remaining CLI surfaces such as role views, project brief/design, model inspection, catalog refresh, shell backend use, and register-style outputs.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "757b165",
-  "git_head_baseline": "757b165",
+  "git_head": "30d3d52",
+  "git_head_baseline": "30d3d52",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-04-29T15:59:00Z",
+  "updated_at": "2026-04-29T16:03:28Z",
   "entries": [
     {
       "timestamp": "2026-04-29T07:19:12+00:00",
