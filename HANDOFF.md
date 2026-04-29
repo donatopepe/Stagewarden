@@ -18,6 +18,7 @@
 - **PRINCE2 Antagonist KPI:** Each node now surfaces an antagonist profile derived from risks and anti-benefits, and the control log uses it as part of the node decision KPI view.
 - **PRINCE2 Devil-Advocate Review:** Primary AI responses now run through a second AI review pass that acts as the devil's advocate, flags contradictions or missing wet-run evidence, and can block unsafe completions.
 - **JSON Contracts:** `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now expose versioned schema blocks so other agents can validate the payloads explicitly.
+- **JSON Schema Registry:** Those schema names and versions now live in `stagewarden/json_schema_registry.py` as the single source of truth.
 
 ## Completed Work: AI Model Catalog
 
@@ -41,6 +42,7 @@
 - The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, escalations can spawn child recovery threads with thread-token accounting, and each node exposes an antagonist KPI profile derived from risks and anti-benefits.
 - The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted.
 - The operational JSON views now carry versioned schema blocks for cross-agent compatibility and explicit payload validation.
+- The operational JSON schema names and versions are centralized in `stagewarden/json_schema_registry.py`.
 
 # Operational Notes
 

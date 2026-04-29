@@ -110,6 +110,7 @@ PRINCE2 handoff behavior:
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
 - `status`, `status --json`, and `statusline --json` surface the latest durable handoff action so the user can immediately see the most recent tracked operation.
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
+- Those schema blocks are centralized in `stagewarden/json_schema_registry.py`.
 - `statusline --json` also exposes token/context-window usage when a provider returns safe usage metadata.
 - `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, classified provider lockout reason, last known provider message, and latest routed success/failure context.
 - `stagewarden board --json` or `stagewarden "stage review" --json` exposes the PRINCE2 board-level authorization recommendation.

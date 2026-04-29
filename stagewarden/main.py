@@ -52,6 +52,7 @@ from .modelprefs import (
     limit_snapshot_from_message,
 )
 from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
+from .json_schema_registry import json_schema
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .planner import PlanStep
 from .provider_registry import (
@@ -88,20 +89,6 @@ from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.files import FileTool
 from .tools.git import GitTool
 from .tools.external_io import ExternalIOResult, ExternalIOTool
-
-
-STATUSLINE_SCHEMA_NAME = "stagewarden.statusline"
-STATUSLINE_SCHEMA_VERSION = "1"
-STATUS_DASHBOARD_SCHEMA_NAME = "stagewarden.status"
-STATUS_DASHBOARD_SCHEMA_VERSION = "1"
-OVERVIEW_SCHEMA_NAME = "stagewarden.overview"
-HEALTH_SCHEMA_NAME = "stagewarden.health"
-PREFLIGHT_SCHEMA_NAME = "stagewarden.preflight"
-REPORT_SCHEMA_NAME = "stagewarden.report"
-HANDOFF_SCHEMA_NAME = "stagewarden.handoff"
-BOUNDARY_SCHEMA_NAME = "stagewarden.boundary"
-BOARD_SCHEMA_NAME = "stagewarden.board"
-COMMON_JSON_SCHEMA_VERSION = "1"
 
 
 INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
@@ -5390,10 +5377,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
     return {
         "command": "status",
         "view": "full",
-        "schema": {
-            "name": STATUS_DASHBOARD_SCHEMA_NAME,
-            "version": STATUS_DASHBOARD_SCHEMA_VERSION,
-        },
+        "schema": json_schema("status"),
         "identity": {
             "name": "Stagewarden",
             "workspace": status["workspace"],
@@ -5591,10 +5575,7 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         active_model = next((item for item in status["models"]["models"] if item["active"]), None)
     return {
         "command": "statusline",
-        "schema": {
-            "name": STATUSLINE_SCHEMA_NAME,
-            "version": STATUSLINE_SCHEMA_VERSION,
-        },
+        "schema": json_schema("statusline"),
         "workspace": {
             "current_dir": status["workspace"],
             "project_dir": status["workspace"],
@@ -6361,10 +6342,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     local_fallback = _delivery_local_fallback_report(config)
     return {
         "command": "status",
-        "schema": {
-            "name": STATUS_DASHBOARD_SCHEMA_NAME,
-            "version": STATUS_DASHBOARD_SCHEMA_VERSION,
-        },
+        "schema": json_schema("status"),
         "workspace": str(config.workspace_root),
         "mode": mode,
         "files": {
@@ -6396,10 +6374,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     return {
         "command": "overview",
-        "schema": {
-            "name": OVERVIEW_SCHEMA_NAME,
-            "version": COMMON_JSON_SCHEMA_VERSION,
-        },
+        "schema": json_schema("overview"),
         "status": _status_report(agent, config),
         "board": _board_report(config),
         "model_usage": _model_usage_report(config),
@@ -6423,10 +6398,7 @@ def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     )
     return {
         "command": "health",
-        "schema": {
-            "name": HEALTH_SCHEMA_NAME,
-            "version": COMMON_JSON_SCHEMA_VERSION,
-        },
+        "schema": json_schema("health"),
         "workspace": status["workspace"],
         "mode": status["mode"],
         "ready": ready,
@@ -6471,10 +6443,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     ready = not any(item["severity"] == "blocker" for item in remediations) and log_errors["count"] == 0
     return {
         "command": "preflight",
-        "schema": {
-            "name": PREFLIGHT_SCHEMA_NAME,
-            "version": COMMON_JSON_SCHEMA_VERSION,
-        },
+        "schema": json_schema("preflight"),
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "ready": ready,
         "doctor": doctor,
@@ -6708,10 +6677,7 @@ def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     ]
     return {
         "command": "report",
-        "schema": {
-            "name": REPORT_SCHEMA_NAME,
-            "version": COMMON_JSON_SCHEMA_VERSION,
-        },
+        "schema": json_schema("report"),
         "task": handoff.task or "unknown",
         "project_status": handoff.status,
         "current_step": handoff.current_step_id or "none",
@@ -7023,10 +6989,7 @@ def _handoff_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "handoff",
-        "schema": {
-            "name": HANDOFF_SCHEMA_NAME,
-            "version": COMMON_JSON_SCHEMA_VERSION,
-        },
+        "schema": json_schema("handoff"),
         "handoff": handoff.as_dict(),
         "goal": handoff.goal_view(),
         "stage_view": handoff.stage_view(),
@@ -7501,10 +7464,7 @@ def _boundary_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     return {
         "command": "boundary",
-        "schema": {
-            "name": BOUNDARY_SCHEMA_NAME,
-            "version": COMMON_JSON_SCHEMA_VERSION,
-        },
+        "schema": json_schema("boundary"),
         "stage_view": handoff.stage_view(),
     }
 
@@ -7528,10 +7488,7 @@ def _board_report(config: AgentConfig) -> dict[str, object]:
         recommendation = "continue"
     return {
         "command": "board",
-        "schema": {
-            "name": BOARD_SCHEMA_NAME,
-            "version": COMMON_JSON_SCHEMA_VERSION,
-        },
+        "schema": json_schema("board"),
         "task": handoff.task or "none",
         "business_justification": business_justification,
         "boundary_decision": stage_view["boundary_decision"],

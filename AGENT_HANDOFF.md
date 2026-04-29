@@ -2,6 +2,7 @@
 
 ## Current objective
 Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 so every AI response is reviewed by a devil's-advocate critic, nodes can spawn child recovery threads, and per-node token accounting stays visible.
+Centralize the versioned JSON schemas used by the machine-readable status/report commands so other agents can validate one shared contract source instead of per-command ad hoc literals.
 
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
@@ -10,6 +11,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
+- Those schema names and versions are now centralized in `stagewarden/json_schema_registry.py`.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
@@ -20,6 +22,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - `stagewarden/main.py`, `stagewarden/executor.py`, and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes, tracks per-node thread tokens, runs a devil's-advocate review pass on model responses, and surfaces per-node antagonists.
 - `stagewarden/main.py`: `status --json` and `statusline --json` now emit versioned schema blocks for cross-agent compatibility.
 - `stagewarden/main.py`: the operational JSON views now emit versioned schema blocks for cross-agent compatibility.
+- `stagewarden/json_schema_registry.py`: shared source of truth for operational JSON schema names and versions.
 - `stagewarden/commands.py`: added `/help agent` and a dedicated agent-compatibility help topic.
 - `README.md` and `README_IT.md`: documented the multi-agent protocol and the new help entry.
 
