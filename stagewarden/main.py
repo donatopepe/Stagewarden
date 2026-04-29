@@ -8845,6 +8845,17 @@ def _render_last_step_outcome(agent: Agent) -> str:
     latest_tool = agent.memory.latest_tool_event()
     status = "ok" if latest.success else f"failed:{latest.error_type or 'unknown'}"
     observation = latest.observation.strip().replace("\n", " ")
+    devil_advocate_status = None
+    if latest_tool is not None and latest_tool.action_type == "devil_advocate_review":
+        review_text = f"{latest_tool.summary}\n{latest_tool.detail}\n{latest.observation}".lower()
+        if latest.error_type == "critic_rejection" or "verdict=block" in review_text or '"verdict":"block"' in review_text or '"verdict": "block"' in review_text:
+            devil_advocate_status = "rejected"
+        elif "verdict=revise" in review_text or '"verdict":"revise"' in review_text or '"verdict": "revise"' in review_text:
+            devil_advocate_status = "needs_revision"
+        elif "devil_advocate_review" in latest_tool.action_type:
+            devil_advocate_status = "approved"
+    elif latest.error_type == "critic_rejection":
+        devil_advocate_status = "rejected"
     lines = [
         "Last step outcome:",
         f"- step: {latest.step_id}",
@@ -8859,6 +8870,11 @@ def _render_last_step_outcome(agent: Agent) -> str:
             f"duration_ms={latest_tool.duration_ms or 0}"
             if latest_tool is not None
             else "- evidence: none"
+        ),
+        (
+            f"- devil_advocate: {devil_advocate_status}"
+            if devil_advocate_status is not None
+            else "- devil_advocate: none"
         ),
         f"- observation: {observation[:200] or 'none'}",
     ]

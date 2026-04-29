@@ -2086,6 +2086,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Agent result:", rendered)
             self.assertIn("Last step outcome:", rendered)
             self.assertIn("evidence: tool=model action=devil_advocate_review", rendered)
+            self.assertIn("devil_advocate: approved", rendered)
             self.assertIn("Shell progress (after):", rendered)
             self.assertIn("[model-stream cheap]", rendered)
             self.assertIn('"summary":"ok"', rendered)
