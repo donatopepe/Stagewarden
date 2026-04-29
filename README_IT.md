@@ -45,6 +45,7 @@ Stagewarden usa Codex CLI, Claude Code e KiloCode come baseline di esperienza ut
 - La ricerca slash usa anche fuzzy matching ed esempi: `slash scarica` trova `download`, `slash upgrade stagewarden` trova `update apply`.
 - Il completamento slash suggerisce provider, ruoli PRINCE2, backend shell, account configurati, provider-model e valori `reasoning_effort`.
 - La palette mostra anche contesto operativo: provider abilitati, account attivi, provider bloccati e hint sui parametri.
+- `/help agent` mostra il protocollo di compatibilita multi-agente, con AGENTS.md, AGENT_HANDOFF.md, handoff runtime e validazione wet-run.
 
 Esempi:
 
@@ -82,6 +83,8 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 
 - `.stagewarden_handoff.json` contiene lo stato operativo.
 - `HANDOFF.md` contiene roadmap e decisioni umane.
+- `AGENTS.md` contiene il protocollo di startup e handoff condiviso tra agenti.
+- `AGENT_HANDOFF.md` contiene il handoff compatibile tra agenti.
 - `/handoff` mostra il contesto persistente.
 - `/resume --show` mostra il target di resume.
 - `/resume context` mostra ultimo tentativo modello, route, evidenza tool e snapshot git.
