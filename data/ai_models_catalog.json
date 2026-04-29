@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-29T16:43:41+00:00",
+  "generated_at": "2026-04-29T17:31:16+00:00",
   "models": [
     {
       "aliases": [
@@ -15,6 +15,7 @@
       "model_id": "provider-default",
       "model_name": "provider-default",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:provider-default",
       "speed_rank": null
@@ -38,6 +39,7 @@
       "model_id": "qwen2.5-coder:7b",
       "model_name": "qwen2.5-coder:7b",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:qwen2.5-coder:7b",
       "speed_rank": null
@@ -59,6 +61,7 @@
       "model_id": "minimax-m2.7:cloud",
       "model_name": "minimax-m2.7:cloud",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:minimax-m2.7:cloud",
       "speed_rank": null
@@ -80,6 +83,7 @@
       "model_id": "qwen3.5:9b",
       "model_name": "qwen3.5:9b",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:qwen3.5:9b",
       "speed_rank": null
@@ -101,6 +105,7 @@
       "model_id": "gpt-oss:20b",
       "model_name": "gpt-oss:20b",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:gpt-oss:20b",
       "speed_rank": null
@@ -124,6 +129,7 @@
       "model_id": "sqlcoder:15b",
       "model_name": "sqlcoder:15b",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:sqlcoder:15b",
       "speed_rank": null
@@ -148,6 +154,7 @@
       "model_id": "Qwen3-Coder:latest",
       "model_name": "Qwen3-Coder:latest",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:Qwen3-Coder:latest",
       "speed_rank": null
@@ -169,6 +176,7 @@
       "model_id": "mistral-nemo:latest",
       "model_name": "mistral-nemo:latest",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:mistral-nemo:latest",
       "speed_rank": null
@@ -190,6 +198,7 @@
       "model_id": "llava:latest",
       "model_name": "llava:latest",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:llava:latest",
       "speed_rank": null
@@ -211,6 +220,7 @@
       "model_id": "deepseek-r1:14b",
       "model_name": "deepseek-r1:14b",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:deepseek-r1:14b",
       "speed_rank": null
@@ -233,6 +243,7 @@
       "model_id": "codestral:latest",
       "model_name": "codestral:latest",
       "openness": "self_hosted",
+      "pricing_source": "local",
       "provider": "local",
       "source": "local:codestral:latest",
       "speed_rank": null
@@ -253,6 +264,7 @@
       "model_id": "provider-default",
       "model_name": "Provider default",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "cheap:provider-default",
       "speed_rank": null
@@ -283,6 +295,7 @@
       "model_id": "anthropic/claude-3.5-haiku",
       "model_name": "Claude 3.5 Haiku",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-3.5-haiku",
       "speed_rank": null
@@ -316,6 +329,7 @@
       "model_id": "anthropic/claude-3.7-sonnet",
       "model_name": "Claude 3.7 Sonnet",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-3.7-sonnet",
       "speed_rank": null
@@ -349,6 +363,7 @@
       "model_id": "anthropic/claude-haiku-4.5",
       "model_name": "Claude Haiku 4.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-haiku-4.5",
       "speed_rank": 15
@@ -382,6 +397,7 @@
       "model_id": "anthropic/claude-opus-4",
       "model_name": "Claude Opus 4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-opus-4",
       "speed_rank": null
@@ -416,6 +432,7 @@
       "model_id": "anthropic/claude-opus-4.1",
       "model_name": "Claude Opus 4.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-opus-4.1",
       "speed_rank": 50
@@ -450,6 +467,7 @@
       "model_id": "anthropic/claude-opus-4.5",
       "model_name": "Claude Opus 4.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-opus-4.5",
       "speed_rank": null
@@ -484,6 +502,7 @@
       "model_id": "anthropic/claude-opus-4.6",
       "model_name": "Claude Opus 4.6",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-opus-4.6",
       "speed_rank": null
@@ -515,6 +534,7 @@
       "model_id": "anthropic/claude-opus-4.7",
       "model_name": "Claude Opus 4.7",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-opus-4.7",
       "speed_rank": null
@@ -548,6 +568,7 @@
       "model_id": "anthropic/claude-sonnet-4",
       "model_name": "Claude Sonnet 4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-sonnet-4",
       "speed_rank": null
@@ -582,6 +603,7 @@
       "model_id": "anthropic/claude-sonnet-4.5",
       "model_name": "Claude Sonnet 4.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-sonnet-4.5",
       "speed_rank": null
@@ -616,6 +638,7 @@
       "model_id": "anthropic/claude-sonnet-4.6",
       "model_name": "Claude Sonnet 4.6",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "anthropic/claude-sonnet-4.6",
       "speed_rank": 38
@@ -635,6 +658,7 @@
       "model_id": "arcee-ai/trinity-large-preview:free",
       "model_name": "arcee-ai/trinity-large-preview:free",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "arcee-ai/trinity-large-preview:free",
       "speed_rank": null
@@ -672,6 +696,7 @@
       "model_id": "arcee-ai/trinity-large-thinking",
       "model_name": "Arcee AI: Trinity Large Thinking",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "arcee-ai/trinity-large-thinking",
       "speed_rank": null
@@ -691,6 +716,7 @@
       "model_id": "black-forest-labs/flux.2-flex",
       "model_name": "black-forest-labs/flux.2-flex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "black-forest-labs/flux.2-flex",
       "speed_rank": null
@@ -710,6 +736,7 @@
       "model_id": "black-forest-labs/flux.2-klein-4b",
       "model_name": "black-forest-labs/flux.2-klein-4b",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "black-forest-labs/flux.2-klein-4b",
       "speed_rank": null
@@ -729,6 +756,7 @@
       "model_id": "black-forest-labs/flux.2-max",
       "model_name": "black-forest-labs/flux.2-max",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "black-forest-labs/flux.2-max",
       "speed_rank": null
@@ -748,6 +776,7 @@
       "model_id": "black-forest-labs/flux.2-pro",
       "model_name": "black-forest-labs/flux.2-pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "black-forest-labs/flux.2-pro",
       "speed_rank": null
@@ -767,6 +796,7 @@
       "model_id": "bytedance-seed/seedream-4.5",
       "model_name": "bytedance-seed/seedream-4.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "bytedance-seed/seedream-4.5",
       "speed_rank": null
@@ -798,6 +828,7 @@
       "model_id": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
       "model_name": "Venice: Uncensored (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
       "speed_rank": null
@@ -834,6 +865,7 @@
       "model_id": "deepseek/deepseek-chat-v3-0324",
       "model_name": "DeepSeek: DeepSeek V3 0324",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-chat-v3-0324",
       "speed_rank": null
@@ -874,6 +906,7 @@
       "model_id": "deepseek/deepseek-chat-v3.1",
       "model_name": "DeepSeek: DeepSeek V3.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-chat-v3.1",
       "speed_rank": null
@@ -909,6 +942,7 @@
       "model_id": "deepseek/deepseek-r1",
       "model_name": "DeepSeek: R1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-r1",
       "speed_rank": null
@@ -946,6 +980,7 @@
       "model_id": "deepseek/deepseek-r1-distill-llama-70b",
       "model_name": "DeepSeek: R1 Distill Llama 70B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-r1-distill-llama-70b",
       "speed_rank": null
@@ -984,6 +1019,7 @@
       "model_id": "deepseek/deepseek-v3.1-terminus",
       "model_name": "DeepSeek: DeepSeek V3.1 Terminus",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-v3.1-terminus",
       "speed_rank": null
@@ -1003,6 +1039,7 @@
       "model_id": "deepseek/deepseek-v3.1-terminus:exacto",
       "model_name": "deepseek/deepseek-v3.1-terminus:exacto",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-v3.1-terminus:exacto",
       "speed_rank": null
@@ -1041,6 +1078,7 @@
       "model_id": "deepseek/deepseek-v3.2",
       "model_name": "DeepSeek: DeepSeek V3.2",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-v3.2",
       "speed_rank": null
@@ -1078,6 +1116,7 @@
       "model_id": "deepseek/deepseek-v3.2-speciale",
       "model_name": "DeepSeek: DeepSeek V3.2 Speciale",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "deepseek/deepseek-v3.2-speciale",
       "speed_rank": null
@@ -1112,6 +1151,7 @@
       "model_id": "google/gemini-2.0-flash-001",
       "model_name": "Google: Gemini 2.0 Flash",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.0-flash-001",
       "speed_rank": null
@@ -1148,6 +1188,7 @@
       "model_id": "google/gemini-2.5-flash",
       "model_name": "Google: Gemini 2.5 Flash",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.5-flash",
       "speed_rank": null
@@ -1184,6 +1225,7 @@
       "model_id": "google/gemini-2.5-flash-lite",
       "model_name": "Google: Gemini 2.5 Flash Lite",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.5-flash-lite",
       "speed_rank": null
@@ -1220,6 +1262,7 @@
       "model_id": "google/gemini-2.5-flash-lite-preview-09-2025",
       "model_name": "Google: Gemini 2.5 Flash Lite Preview 09-2025",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.5-flash-lite-preview-09-2025",
       "speed_rank": null
@@ -1239,6 +1282,7 @@
       "model_id": "google/gemini-2.5-flash-preview-09-2025",
       "model_name": "google/gemini-2.5-flash-preview-09-2025",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.5-flash-preview-09-2025",
       "speed_rank": null
@@ -1275,6 +1319,7 @@
       "model_id": "google/gemini-2.5-pro",
       "model_name": "Google: Gemini 2.5 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.5-pro",
       "speed_rank": null
@@ -1311,6 +1356,7 @@
       "model_id": "google/gemini-2.5-pro-preview-05-06",
       "model_name": "Google: Gemini 2.5 Pro Preview 05-06",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.5-pro-preview-05-06",
       "speed_rank": null
@@ -1330,6 +1376,7 @@
       "model_id": "google/gemini-2.5-pro-preview-06-05",
       "model_name": "google/gemini-2.5-pro-preview-06-05",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-2.5-pro-preview-06-05",
       "speed_rank": null
@@ -1366,6 +1413,7 @@
       "model_id": "google/gemini-3-flash-preview",
       "model_name": "Google: Gemini 3 Flash Preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-3-flash-preview",
       "speed_rank": null
@@ -1385,6 +1433,7 @@
       "model_id": "google/gemini-3-pro-preview",
       "model_name": "google/gemini-3-pro-preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-3-pro-preview",
       "speed_rank": null
@@ -1421,6 +1470,7 @@
       "model_id": "google/gemini-3.1-flash-lite-preview",
       "model_name": "Google: Gemini 3.1 Flash Lite Preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-3.1-flash-lite-preview",
       "speed_rank": null
@@ -1457,6 +1507,7 @@
       "model_id": "google/gemini-3.1-pro-preview",
       "model_name": "Google: Gemini 3.1 Pro Preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-3.1-pro-preview",
       "speed_rank": null
@@ -1493,6 +1544,7 @@
       "model_id": "google/gemini-3.1-pro-preview-customtools",
       "model_name": "Google: Gemini 3.1 Pro Preview Custom Tools",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemini-3.1-pro-preview-customtools",
       "speed_rank": null
@@ -1512,6 +1564,7 @@
       "model_id": "google/gemma-2-9b-it",
       "model_name": "google/gemma-2-9b-it",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-2-9b-it",
       "speed_rank": null
@@ -1549,6 +1602,7 @@
       "model_id": "google/gemma-3-12b-it",
       "model_name": "Google: Gemma 3 12B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3-12b-it",
       "speed_rank": null
@@ -1578,6 +1632,7 @@
       "model_id": "google/gemma-3-12b-it:free",
       "model_name": "Google: Gemma 3 12B (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3-12b-it:free",
       "speed_rank": null
@@ -1615,6 +1670,7 @@
       "model_id": "google/gemma-3-27b-it",
       "model_name": "Google: Gemma 3 27B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3-27b-it",
       "speed_rank": null
@@ -1645,6 +1701,7 @@
       "model_id": "google/gemma-3-27b-it:free",
       "model_name": "Google: Gemma 3 27B (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3-27b-it:free",
       "speed_rank": null
@@ -1681,6 +1738,7 @@
       "model_id": "google/gemma-3-4b-it",
       "model_name": "Google: Gemma 3 4B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3-4b-it",
       "speed_rank": null
@@ -1711,6 +1769,7 @@
       "model_id": "google/gemma-3-4b-it:free",
       "model_name": "Google: Gemma 3 4B (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3-4b-it:free",
       "speed_rank": null
@@ -1739,6 +1798,7 @@
       "model_id": "google/gemma-3n-e2b-it:free",
       "model_name": "Google: Gemma 3n 2B (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3n-e2b-it:free",
       "speed_rank": null
@@ -1772,6 +1832,7 @@
       "model_id": "google/gemma-3n-e4b-it",
       "model_name": "Google: Gemma 3n 4B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3n-e4b-it",
       "speed_rank": null
@@ -1800,6 +1861,7 @@
       "model_id": "google/gemma-3n-e4b-it:free",
       "model_name": "Google: Gemma 3n 4B (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-3n-e4b-it:free",
       "speed_rank": null
@@ -1842,6 +1904,7 @@
       "model_id": "google/gemma-4-26b-a4b-it",
       "model_name": "Google: Gemma 4 26B A4B ",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-4-26b-a4b-it",
       "speed_rank": null
@@ -1875,6 +1938,7 @@
       "model_id": "google/gemma-4-26b-a4b-it:free",
       "model_name": "Google: Gemma 4 26B A4B  (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-4-26b-a4b-it:free",
       "speed_rank": null
@@ -1917,6 +1981,7 @@
       "model_id": "google/gemma-4-31b-it",
       "model_name": "Google: Gemma 4 31B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-4-31b-it",
       "speed_rank": null
@@ -1950,6 +2015,7 @@
       "model_id": "google/gemma-4-31b-it:free",
       "model_name": "Google: Gemma 4 31B (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "google/gemma-4-31b-it:free",
       "speed_rank": null
@@ -1980,6 +2046,7 @@
       "model_id": "inception/mercury-2",
       "model_name": "Inception: Mercury 2",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "inception/mercury-2",
       "speed_rank": null
@@ -1999,6 +2066,7 @@
       "model_id": "inception/mercury-edit-2",
       "model_name": "inception/mercury-edit-2",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "inception/mercury-edit-2",
       "speed_rank": null
@@ -2032,6 +2100,7 @@
       "model_id": "liquid/lfm-2.5-1.2b-instruct:free",
       "model_name": "LiquidAI: LFM2.5-1.2B-Instruct (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "liquid/lfm-2.5-1.2b-instruct:free",
       "speed_rank": null
@@ -2067,6 +2136,7 @@
       "model_id": "liquid/lfm-2.5-1.2b-thinking:free",
       "model_name": "LiquidAI: LFM2.5-1.2B-Thinking (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "liquid/lfm-2.5-1.2b-thinking:free",
       "speed_rank": null
@@ -2103,6 +2173,7 @@
       "model_id": "meta-llama/llama-3.2-11b-vision-instruct",
       "model_name": "Meta: Llama 3.2 11B Vision Instruct",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "meta-llama/llama-3.2-11b-vision-instruct",
       "speed_rank": null
@@ -2133,6 +2204,7 @@
       "model_id": "meta-llama/llama-3.2-3b-instruct:free",
       "model_name": "Meta: Llama 3.2 3B Instruct (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "meta-llama/llama-3.2-3b-instruct:free",
       "speed_rank": null
@@ -2164,6 +2236,7 @@
       "model_id": "meta-llama/llama-3.3-70b-instruct:free",
       "model_name": "Meta: Llama 3.3 70B Instruct (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "meta-llama/llama-3.3-70b-instruct:free",
       "speed_rank": null
@@ -2191,6 +2264,7 @@
       "model_id": "minimax/minimax-01",
       "model_name": "MiniMax: MiniMax-01",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "minimax/minimax-01",
       "speed_rank": null
@@ -2226,6 +2300,7 @@
       "model_id": "minimax/minimax-m1",
       "model_name": "MiniMax: MiniMax M1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "minimax/minimax-m1",
       "speed_rank": null
@@ -2264,6 +2339,7 @@
       "model_id": "minimax/minimax-m2",
       "model_name": "MiniMax: MiniMax M2",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "minimax/minimax-m2",
       "speed_rank": null
@@ -2302,6 +2378,7 @@
       "model_id": "minimax/minimax-m2.1",
       "model_name": "MiniMax: MiniMax M2.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "minimax/minimax-m2.1",
       "speed_rank": null
@@ -2344,6 +2421,7 @@
       "model_id": "minimax/minimax-m2.5",
       "model_name": "MiniMax: MiniMax M2.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "minimax/minimax-m2.5",
       "speed_rank": null
@@ -2375,6 +2453,7 @@
       "model_id": "minimax/minimax-m2.5:free",
       "model_name": "MiniMax: MiniMax M2.5 (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "minimax/minimax-m2.5:free",
       "speed_rank": null
@@ -2414,6 +2493,7 @@
       "model_id": "minimax/minimax-m2.7",
       "model_name": "MiniMax: MiniMax M2.7",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "minimax/minimax-m2.7",
       "speed_rank": null
@@ -2446,6 +2526,7 @@
       "model_id": "mistralai/codestral-2508",
       "model_name": "Mistral: Codestral 2508",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/codestral-2508",
       "speed_rank": null
@@ -2478,6 +2559,7 @@
       "model_id": "mistralai/devstral-2512",
       "model_name": "Mistral: Devstral 2 2512",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/devstral-2512",
       "speed_rank": null
@@ -2497,6 +2579,7 @@
       "model_id": "mistralai/devstral-medium-2507",
       "model_name": "mistralai/devstral-medium-2507",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/devstral-medium-2507",
       "speed_rank": null
@@ -2516,6 +2599,7 @@
       "model_id": "mistralai/devstral-small-2505",
       "model_name": "mistralai/devstral-small-2505",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/devstral-small-2505",
       "speed_rank": null
@@ -2535,6 +2619,7 @@
       "model_id": "mistralai/devstral-small-2507",
       "model_name": "mistralai/devstral-small-2507",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/devstral-small-2507",
       "speed_rank": null
@@ -2568,6 +2653,7 @@
       "model_id": "mistralai/mistral-medium-3",
       "model_name": "Mistral: Mistral Medium 3",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/mistral-medium-3",
       "speed_rank": null
@@ -2601,6 +2687,7 @@
       "model_id": "mistralai/mistral-medium-3.1",
       "model_name": "Mistral: Mistral Medium 3.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/mistral-medium-3.1",
       "speed_rank": null
@@ -2637,6 +2724,7 @@
       "model_id": "mistralai/mistral-small-2603",
       "model_name": "Mistral: Mistral Small 4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/mistral-small-2603",
       "speed_rank": null
@@ -2669,6 +2757,7 @@
       "model_id": "mistralai/mistral-small-3.1-24b-instruct",
       "model_name": "Mistral: Mistral Small 3.1 24B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/mistral-small-3.1-24b-instruct",
       "speed_rank": null
@@ -2706,6 +2795,7 @@
       "model_id": "mistralai/mistral-small-3.2-24b-instruct",
       "model_name": "Mistral: Mistral Small 3.2 24B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "mistralai/mistral-small-3.2-24b-instruct",
       "speed_rank": null
@@ -2739,6 +2829,7 @@
       "model_id": "moonshotai/kimi-k2",
       "model_name": "MoonshotAI: Kimi K2 0711",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "moonshotai/kimi-k2",
       "speed_rank": null
@@ -2775,6 +2866,7 @@
       "model_id": "moonshotai/kimi-k2-0905",
       "model_name": "MoonshotAI: Kimi K2 0905",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "moonshotai/kimi-k2-0905",
       "speed_rank": null
@@ -2794,6 +2886,7 @@
       "model_id": "moonshotai/kimi-k2-0905:exacto",
       "model_name": "moonshotai/kimi-k2-0905:exacto",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "moonshotai/kimi-k2-0905:exacto",
       "speed_rank": null
@@ -2832,6 +2925,7 @@
       "model_id": "moonshotai/kimi-k2-thinking",
       "model_name": "MoonshotAI: Kimi K2 Thinking",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "moonshotai/kimi-k2-thinking",
       "speed_rank": null
@@ -2874,6 +2968,7 @@
       "model_id": "moonshotai/kimi-k2.5",
       "model_name": "MoonshotAI: Kimi K2.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "moonshotai/kimi-k2.5",
       "speed_rank": null
@@ -2904,6 +2999,7 @@
       "model_id": "nousresearch/hermes-3-llama-3.1-405b:free",
       "model_name": "Nous: Hermes 3 405B Instruct (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nousresearch/hermes-3-llama-3.1-405b:free",
       "speed_rank": null
@@ -2937,6 +3033,7 @@
       "model_id": "nousresearch/hermes-4-405b",
       "model_name": "Nous: Hermes 4 405B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nousresearch/hermes-4-405b",
       "speed_rank": null
@@ -2970,6 +3067,7 @@
       "model_id": "nousresearch/hermes-4-70b",
       "model_name": "Nous: Hermes 4 70B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nousresearch/hermes-4-70b",
       "speed_rank": null
@@ -3000,6 +3098,7 @@
       "model_id": "nvidia/nemotron-3-nano-30b-a3b:free",
       "model_name": "NVIDIA: Nemotron 3 Nano 30B A3B (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nvidia/nemotron-3-nano-30b-a3b:free",
       "speed_rank": null
@@ -3038,6 +3137,7 @@
       "model_id": "nvidia/nemotron-3-super-120b-a12b",
       "model_name": "NVIDIA: Nemotron 3 Super",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nvidia/nemotron-3-super-120b-a12b",
       "speed_rank": null
@@ -3069,6 +3169,7 @@
       "model_id": "nvidia/nemotron-3-super-120b-a12b:free",
       "model_name": "NVIDIA: Nemotron 3 Super (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nvidia/nemotron-3-super-120b-a12b:free",
       "speed_rank": null
@@ -3101,6 +3202,7 @@
       "model_id": "nvidia/nemotron-nano-12b-v2-vl:free",
       "model_name": "NVIDIA: Nemotron Nano 12B 2 VL (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nvidia/nemotron-nano-12b-v2-vl:free",
       "speed_rank": null
@@ -3139,6 +3241,7 @@
       "model_id": "nvidia/nemotron-nano-9b-v2",
       "model_name": "NVIDIA: Nemotron Nano 9B V2",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nvidia/nemotron-nano-9b-v2",
       "speed_rank": null
@@ -3170,6 +3273,7 @@
       "model_id": "nvidia/nemotron-nano-9b-v2:free",
       "model_name": "NVIDIA: Nemotron Nano 9B V2 (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "nvidia/nemotron-nano-9b-v2:free",
       "speed_rank": null
@@ -3201,6 +3305,7 @@
       "model_id": "openai/gpt-4.1",
       "model_name": "GPT-4.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-4.1",
       "speed_rank": null
@@ -3232,6 +3337,7 @@
       "model_id": "openai/gpt-4.1-mini",
       "model_name": "GPT-4.1 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-4.1-mini",
       "speed_rank": null
@@ -3270,6 +3376,7 @@
       "model_id": "openai/gpt-4o-mini",
       "model_name": "GPT-4o-mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-4o-mini",
       "speed_rank": null
@@ -3301,6 +3408,7 @@
       "model_id": "openai/gpt-5",
       "model_name": "GPT-5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5",
       "speed_rank": null
@@ -3329,6 +3437,7 @@
       "model_id": "openai/gpt-5-chat",
       "model_name": "GPT-5 Chat",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5-chat",
       "speed_rank": null
@@ -3359,6 +3468,7 @@
       "model_id": "openai/gpt-5-codex",
       "model_name": "GPT-5 Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5-codex",
       "speed_rank": null
@@ -3398,6 +3508,7 @@
       "model_id": "openai/gpt-5-image",
       "model_name": "GPT-5 Image",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5-image",
       "speed_rank": null
@@ -3429,6 +3540,7 @@
       "model_id": "openai/gpt-5-mini",
       "model_name": "GPT-5 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5-mini",
       "speed_rank": null
@@ -3460,6 +3572,7 @@
       "model_id": "openai/gpt-5-nano",
       "model_name": "GPT-5 Nano",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5-nano",
       "speed_rank": null
@@ -3491,6 +3604,7 @@
       "model_id": "openai/gpt-5-pro",
       "model_name": "GPT-5 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5-pro",
       "speed_rank": null
@@ -3522,6 +3636,7 @@
       "model_id": "openai/gpt-5.1",
       "model_name": "GPT-5.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.1",
       "speed_rank": null
@@ -3551,6 +3666,7 @@
       "model_id": "openai/gpt-5.1-chat",
       "model_name": "GPT-5.1 Chat",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.1-chat",
       "speed_rank": null
@@ -3581,6 +3697,7 @@
       "model_id": "openai/gpt-5.1-codex",
       "model_name": "GPT-5.1-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.1-codex",
       "speed_rank": 4
@@ -3611,6 +3728,7 @@
       "model_id": "openai/gpt-5.1-codex-max",
       "model_name": "GPT-5.1-Codex-Max",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.1-codex-max",
       "speed_rank": null
@@ -3641,6 +3759,7 @@
       "model_id": "openai/gpt-5.1-codex-mini",
       "model_name": "GPT-5.1-Codex-Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.1-codex-mini",
       "speed_rank": 10
@@ -3672,6 +3791,7 @@
       "model_id": "openai/gpt-5.2",
       "model_name": "GPT-5.2",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.2",
       "speed_rank": null
@@ -3701,6 +3821,7 @@
       "model_id": "openai/gpt-5.2-chat",
       "model_name": "GPT-5.2 Chat",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.2-chat",
       "speed_rank": null
@@ -3731,6 +3852,7 @@
       "model_id": "openai/gpt-5.2-codex",
       "model_name": "GPT-5.2-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.2-codex",
       "speed_rank": 27
@@ -3762,6 +3884,7 @@
       "model_id": "openai/gpt-5.2-pro",
       "model_name": "GPT-5.2 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.2-pro",
       "speed_rank": null
@@ -3793,6 +3916,7 @@
       "model_id": "openai/gpt-5.3-codex",
       "model_name": "GPT-5.3-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.3-codex",
       "speed_rank": 54
@@ -3824,6 +3948,7 @@
       "model_id": "openai/gpt-5.4",
       "model_name": "GPT-5.4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.4",
       "speed_rank": 45
@@ -3855,6 +3980,7 @@
       "model_id": "openai/gpt-5.4-mini",
       "model_name": "GPT-5.4 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.4-mini",
       "speed_rank": 4
@@ -3886,6 +4012,7 @@
       "model_id": "openai/gpt-5.4-nano",
       "model_name": "GPT-5.4 Nano",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.4-nano",
       "speed_rank": 3
@@ -3917,6 +4044,7 @@
       "model_id": "openai/gpt-5.4-pro",
       "model_name": "GPT-5.4 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-5.4-pro",
       "speed_rank": null
@@ -3956,6 +4084,7 @@
       "model_id": "openai/gpt-oss-120b",
       "model_name": "gpt-oss-120b",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-oss-120b",
       "speed_rank": null
@@ -3975,6 +4104,7 @@
       "model_id": "openai/gpt-oss-120b:exacto",
       "model_name": "openai/gpt-oss-120b:exacto",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-oss-120b:exacto",
       "speed_rank": null
@@ -4004,6 +4134,7 @@
       "model_id": "openai/gpt-oss-120b:free",
       "model_name": "gpt-oss-120b (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-oss-120b:free",
       "speed_rank": null
@@ -4044,6 +4175,7 @@
       "model_id": "openai/gpt-oss-20b",
       "model_name": "gpt-oss-20b",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-oss-20b",
       "speed_rank": null
@@ -4073,6 +4205,7 @@
       "model_id": "openai/gpt-oss-20b:free",
       "model_name": "gpt-oss-20b (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-oss-20b:free",
       "speed_rank": null
@@ -4104,6 +4237,7 @@
       "model_id": "openai/gpt-oss-safeguard-20b",
       "model_name": "gpt-oss-safeguard-20b",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/gpt-oss-safeguard-20b",
       "speed_rank": null
@@ -4135,6 +4269,7 @@
       "model_id": "openai/o4-mini",
       "model_name": "o4 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openai/o4-mini",
       "speed_rank": null
@@ -4154,6 +4289,7 @@
       "model_id": "openrouter/elephant-alpha",
       "model_name": "openrouter/elephant-alpha",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openrouter/elephant-alpha",
       "speed_rank": null
@@ -4192,6 +4328,7 @@
       "model_id": "openrouter/free",
       "model_name": "Free Models Router",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "openrouter/free",
       "speed_rank": null
@@ -4226,6 +4363,7 @@
       "model_id": "prime-intellect/intellect-3",
       "model_name": "Prime Intellect: INTELLECT-3",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "prime-intellect/intellect-3",
       "speed_rank": null
@@ -4257,6 +4395,7 @@
       "model_id": "qwen/qwen-2.5-coder-32b-instruct",
       "model_name": "Qwen2.5 Coder 32B Instruct",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen-2.5-coder-32b-instruct",
       "speed_rank": null
@@ -4292,6 +4431,7 @@
       "model_id": "qwen/qwen2.5-vl-72b-instruct",
       "model_name": "Qwen: Qwen2.5 VL 72B Instruct",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen2.5-vl-72b-instruct",
       "speed_rank": null
@@ -4311,6 +4451,7 @@
       "model_id": "qwen/qwen3-235b-a22b-07-25",
       "model_name": "qwen/qwen3-235b-a22b-07-25",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-235b-a22b-07-25",
       "speed_rank": null
@@ -4349,6 +4490,7 @@
       "model_id": "qwen/qwen3-235b-a22b-thinking-2507",
       "model_name": "Qwen: Qwen3 235B A22B Thinking 2507",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-235b-a22b-thinking-2507",
       "speed_rank": null
@@ -4385,6 +4527,7 @@
       "model_id": "qwen/qwen3-30b-a3b-instruct-2507",
       "model_name": "Qwen: Qwen3 30B A3B Instruct 2507",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-30b-a3b-instruct-2507",
       "speed_rank": null
@@ -4423,6 +4566,7 @@
       "model_id": "qwen/qwen3-30b-a3b-thinking-2507",
       "model_name": "Qwen: Qwen3 30B A3B Thinking 2507",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-30b-a3b-thinking-2507",
       "speed_rank": null
@@ -4459,6 +4603,7 @@
       "model_id": "qwen/qwen3-coder",
       "model_name": "Qwen: Qwen3 Coder 480B A35B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-coder",
       "speed_rank": null
@@ -4493,6 +4638,7 @@
       "model_id": "qwen/qwen3-coder-30b-a3b-instruct",
       "model_name": "Qwen: Qwen3 Coder 30B A3B Instruct",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-coder-30b-a3b-instruct",
       "speed_rank": null
@@ -4523,6 +4669,7 @@
       "model_id": "qwen/qwen3-coder-flash",
       "model_name": "Qwen: Qwen3 Coder Flash",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-coder-flash",
       "speed_rank": null
@@ -4542,6 +4689,7 @@
       "model_id": "qwen/qwen3-coder:exacto",
       "model_name": "qwen/qwen3-coder:exacto",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-coder:exacto",
       "speed_rank": null
@@ -4572,6 +4720,7 @@
       "model_id": "qwen/qwen3-max",
       "model_name": "Qwen: Qwen3 Max",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-max",
       "speed_rank": null
@@ -4608,6 +4757,7 @@
       "model_id": "qwen/qwen3-next-80b-a3b-instruct",
       "model_name": "Qwen: Qwen3 Next 80B A3B Instruct",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-next-80b-a3b-instruct",
       "speed_rank": null
@@ -4646,6 +4796,7 @@
       "model_id": "qwen/qwen3-next-80b-a3b-thinking",
       "model_name": "Qwen: Qwen3 Next 80B A3B Thinking",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3-next-80b-a3b-thinking",
       "speed_rank": null
@@ -4688,6 +4839,7 @@
       "model_id": "qwen/qwen3.5-397b-a17b",
       "model_name": "Qwen: Qwen3.5 397B A17B",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3.5-397b-a17b",
       "speed_rank": null
@@ -4722,6 +4874,7 @@
       "model_id": "qwen/qwen3.5-flash-02-23",
       "model_name": "Qwen: Qwen3.5-Flash",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3.5-flash-02-23",
       "speed_rank": null
@@ -4756,6 +4909,7 @@
       "model_id": "qwen/qwen3.5-plus-02-15",
       "model_name": "Qwen: Qwen3.5 Plus 2026-02-15",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3.5-plus-02-15",
       "speed_rank": null
@@ -4790,6 +4944,7 @@
       "model_id": "qwen/qwen3.6-plus",
       "model_name": "Qwen: Qwen3.6 Plus",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "qwen/qwen3.6-plus",
       "speed_rank": null
@@ -4809,6 +4964,7 @@
       "model_id": "sourceful/riverflow-v2-fast-preview",
       "model_name": "sourceful/riverflow-v2-fast-preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "sourceful/riverflow-v2-fast-preview",
       "speed_rank": null
@@ -4828,6 +4984,7 @@
       "model_id": "sourceful/riverflow-v2-max-preview",
       "model_name": "sourceful/riverflow-v2-max-preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "sourceful/riverflow-v2-max-preview",
       "speed_rank": null
@@ -4847,6 +5004,7 @@
       "model_id": "sourceful/riverflow-v2-standard-preview",
       "model_name": "sourceful/riverflow-v2-standard-preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "sourceful/riverflow-v2-standard-preview",
       "speed_rank": null
@@ -4885,6 +5043,7 @@
       "model_id": "stepfun/step-3.5-flash",
       "model_name": "StepFun: Step 3.5 Flash",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "stepfun/step-3.5-flash",
       "speed_rank": null
@@ -4919,6 +5078,7 @@
       "model_id": "x-ai/grok-3",
       "model_name": "xAI: Grok 3",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-3",
       "speed_rank": null
@@ -4953,6 +5113,7 @@
       "model_id": "x-ai/grok-3-beta",
       "model_name": "xAI: Grok 3 Beta",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-3-beta",
       "speed_rank": null
@@ -4987,6 +5148,7 @@
       "model_id": "x-ai/grok-3-mini",
       "model_name": "xAI: Grok 3 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-3-mini",
       "speed_rank": null
@@ -5021,6 +5183,7 @@
       "model_id": "x-ai/grok-3-mini-beta",
       "model_name": "xAI: Grok 3 Mini Beta",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-3-mini-beta",
       "speed_rank": null
@@ -5056,6 +5219,7 @@
       "model_id": "x-ai/grok-4",
       "model_name": "xAI: Grok 4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-4",
       "speed_rank": null
@@ -5091,6 +5255,7 @@
       "model_id": "x-ai/grok-4-fast",
       "model_name": "xAI: Grok 4 Fast",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-4-fast",
       "speed_rank": null
@@ -5126,6 +5291,7 @@
       "model_id": "x-ai/grok-4.1-fast",
       "model_name": "xAI: Grok 4.1 Fast",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-4.1-fast",
       "speed_rank": null
@@ -5145,6 +5311,7 @@
       "model_id": "x-ai/grok-4.20-beta",
       "model_name": "x-ai/grok-4.20-beta",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-4.20-beta",
       "speed_rank": null
@@ -5164,6 +5331,7 @@
       "model_id": "x-ai/grok-4.20-multi-agent-beta",
       "model_name": "x-ai/grok-4.20-multi-agent-beta",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-4.20-multi-agent-beta",
       "speed_rank": null
@@ -5198,6 +5366,7 @@
       "model_id": "x-ai/grok-code-fast-1",
       "model_name": "xAI: Grok Code Fast 1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "x-ai/grok-code-fast-1",
       "speed_rank": null
@@ -5234,6 +5403,7 @@
       "model_id": "xiaomi/mimo-v2-flash",
       "model_name": "Xiaomi: MiMo-V2-Flash",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "xiaomi/mimo-v2-flash",
       "speed_rank": null
@@ -5270,6 +5440,7 @@
       "model_id": "xiaomi/mimo-v2-omni",
       "model_name": "Xiaomi: MiMo-V2-Omni",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "xiaomi/mimo-v2-omni",
       "speed_rank": null
@@ -5303,6 +5474,7 @@
       "model_id": "xiaomi/mimo-v2-pro",
       "model_name": "Xiaomi: MiMo-V2-Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "xiaomi/mimo-v2-pro",
       "speed_rank": null
@@ -5339,6 +5511,7 @@
       "model_id": "z-ai/glm-4.5",
       "model_name": "Z.ai: GLM 4.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.5",
       "speed_rank": null
@@ -5374,6 +5547,7 @@
       "model_id": "z-ai/glm-4.5-air",
       "model_name": "Z.ai: GLM 4.5 Air",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.5-air",
       "speed_rank": null
@@ -5403,6 +5577,7 @@
       "model_id": "z-ai/glm-4.5-air:free",
       "model_name": "Z.ai: GLM 4.5 Air (free)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.5-air:free",
       "speed_rank": null
@@ -5439,6 +5614,7 @@
       "model_id": "z-ai/glm-4.5v",
       "model_name": "Z.ai: GLM 4.5V",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.5v",
       "speed_rank": null
@@ -5477,6 +5653,7 @@
       "model_id": "z-ai/glm-4.6",
       "model_name": "Z.ai: GLM 4.6",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.6",
       "speed_rank": null
@@ -5496,6 +5673,7 @@
       "model_id": "z-ai/glm-4.6:exacto",
       "model_name": "z-ai/glm-4.6:exacto",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.6:exacto",
       "speed_rank": null
@@ -5536,6 +5714,7 @@
       "model_id": "z-ai/glm-4.7",
       "model_name": "Z.ai: GLM 4.7",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.7",
       "speed_rank": null
@@ -5574,6 +5753,7 @@
       "model_id": "z-ai/glm-4.7-flash",
       "model_name": "Z.ai: GLM 4.7 Flash",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-4.7-flash",
       "speed_rank": null
@@ -5614,6 +5794,7 @@
       "model_id": "z-ai/glm-5",
       "model_name": "Z.ai: GLM 5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-5",
       "speed_rank": null
@@ -5652,6 +5833,7 @@
       "model_id": "z-ai/glm-5-turbo",
       "model_name": "Z.ai: GLM 5 Turbo",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-5-turbo",
       "speed_rank": null
@@ -5694,6 +5876,7 @@
       "model_id": "z-ai/glm-5.1",
       "model_name": "Z.ai: GLM 5.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "cheap",
       "source": "z-ai/glm-5.1",
       "speed_rank": null
@@ -5717,6 +5900,7 @@
       "model_id": "provider-default",
       "model_name": "Provider default",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/provider-default",
       "speed_rank": null
@@ -5738,6 +5922,7 @@
       "model_id": "codex-mini-latest",
       "model_name": "codex-mini-latest",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/codex-mini-latest",
       "speed_rank": null
@@ -5769,6 +5954,7 @@
       "model_id": "gpt-5.1-codex",
       "model_name": "GPT-5.1-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/gpt-5.1-codex",
       "speed_rank": 4
@@ -5800,6 +5986,7 @@
       "model_id": "gpt-5.1-codex-mini",
       "model_name": "GPT-5.1-Codex-Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/gpt-5.1-codex-mini",
       "speed_rank": 10
@@ -5831,6 +6018,7 @@
       "model_id": "gpt-5.2-codex",
       "model_name": "GPT-5.2-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/gpt-5.2-codex",
       "speed_rank": 27
@@ -5863,6 +6051,7 @@
       "model_id": "gpt-5.3-codex",
       "model_name": "GPT-5.3-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/gpt-5.3-codex",
       "speed_rank": 54
@@ -5895,6 +6084,7 @@
       "model_id": "gpt-5.4",
       "model_name": "GPT-5.4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/gpt-5.4",
       "speed_rank": 45
@@ -5928,6 +6118,7 @@
       "model_id": "gpt-5.4-mini",
       "model_name": "GPT-5.4 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/gpt-5.4-mini",
       "speed_rank": 4
@@ -5961,6 +6152,7 @@
       "model_id": "gpt-5.4-nano",
       "model_name": "GPT-5.4 Nano",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "chatgpt",
       "source": "openai/gpt-5.4-nano",
       "speed_rank": 3
@@ -5981,6 +6173,7 @@
       "model_id": "chatgpt-image-latest",
       "model_name": "chatgpt-image-latest",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/chatgpt-image-latest",
       "speed_rank": null
@@ -6017,6 +6210,7 @@
       "model_id": "gpt-3.5-turbo",
       "model_name": "GPT-3.5 Turbo",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-3.5-turbo",
       "speed_rank": null
@@ -6052,6 +6246,7 @@
       "model_id": "gpt-4",
       "model_name": "GPT-4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4",
       "speed_rank": null
@@ -6089,6 +6284,7 @@
       "model_id": "gpt-4-turbo",
       "model_name": "GPT-4 Turbo",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4-turbo",
       "speed_rank": null
@@ -6120,6 +6316,7 @@
       "model_id": "gpt-4.1",
       "model_name": "GPT-4.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4.1",
       "speed_rank": null
@@ -6152,6 +6349,7 @@
       "model_id": "gpt-4.1-mini",
       "model_name": "GPT-4.1 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4.1-mini",
       "speed_rank": null
@@ -6184,6 +6382,7 @@
       "model_id": "gpt-4.1-nano",
       "model_name": "GPT-4.1 Nano",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4.1-nano",
       "speed_rank": null
@@ -6222,6 +6421,7 @@
       "model_id": "gpt-4o",
       "model_name": "GPT-4o",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4o",
       "speed_rank": null
@@ -6261,6 +6461,7 @@
       "model_id": "gpt-4o-2024-05-13",
       "model_name": "GPT-4o (2024-05-13)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4o-2024-05-13",
       "speed_rank": null
@@ -6300,6 +6501,7 @@
       "model_id": "gpt-4o-2024-08-06",
       "model_name": "GPT-4o (2024-08-06)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4o-2024-08-06",
       "speed_rank": null
@@ -6339,6 +6541,7 @@
       "model_id": "gpt-4o-2024-11-20",
       "model_name": "GPT-4o (2024-11-20)",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4o-2024-11-20",
       "speed_rank": null
@@ -6377,6 +6580,7 @@
       "model_id": "gpt-4o-mini",
       "model_name": "GPT-4o-mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-4o-mini",
       "speed_rank": null
@@ -6408,6 +6612,7 @@
       "model_id": "gpt-5",
       "model_name": "GPT-5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5",
       "speed_rank": null
@@ -6428,6 +6633,7 @@
       "model_id": "gpt-5-chat-latest",
       "model_name": "gpt-5-chat-latest",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5-chat-latest",
       "speed_rank": null
@@ -6459,6 +6665,7 @@
       "model_id": "gpt-5-codex",
       "model_name": "GPT-5 Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5-codex",
       "speed_rank": null
@@ -6491,6 +6698,7 @@
       "model_id": "gpt-5-mini",
       "model_name": "GPT-5 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5-mini",
       "speed_rank": null
@@ -6523,6 +6731,7 @@
       "model_id": "gpt-5-nano",
       "model_name": "GPT-5 Nano",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5-nano",
       "speed_rank": null
@@ -6555,6 +6764,7 @@
       "model_id": "gpt-5-pro",
       "model_name": "GPT-5 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5-pro",
       "speed_rank": null
@@ -6586,6 +6796,7 @@
       "model_id": "gpt-5.1",
       "model_name": "GPT-5.1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.1",
       "speed_rank": null
@@ -6606,6 +6817,7 @@
       "model_id": "gpt-5.1-chat-latest",
       "model_name": "gpt-5.1-chat-latest",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.1-chat-latest",
       "speed_rank": null
@@ -6636,6 +6848,7 @@
       "model_id": "gpt-5.1-codex",
       "model_name": "GPT-5.1-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.1-codex",
       "speed_rank": 4
@@ -6666,6 +6879,7 @@
       "model_id": "gpt-5.1-codex-max",
       "model_name": "GPT-5.1-Codex-Max",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.1-codex-max",
       "speed_rank": null
@@ -6696,6 +6910,7 @@
       "model_id": "gpt-5.1-codex-mini",
       "model_name": "GPT-5.1-Codex-Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.1-codex-mini",
       "speed_rank": 10
@@ -6727,6 +6942,7 @@
       "model_id": "gpt-5.2",
       "model_name": "GPT-5.2",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.2",
       "speed_rank": null
@@ -6747,6 +6963,7 @@
       "model_id": "gpt-5.2-chat-latest",
       "model_name": "gpt-5.2-chat-latest",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.2-chat-latest",
       "speed_rank": null
@@ -6777,6 +6994,7 @@
       "model_id": "gpt-5.2-codex",
       "model_name": "GPT-5.2-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.2-codex",
       "speed_rank": 27
@@ -6809,6 +7027,7 @@
       "model_id": "gpt-5.2-pro",
       "model_name": "GPT-5.2 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.2-pro",
       "speed_rank": null
@@ -6829,6 +7048,7 @@
       "model_id": "gpt-5.3-chat-latest",
       "model_name": "gpt-5.3-chat-latest",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.3-chat-latest",
       "speed_rank": null
@@ -6860,6 +7080,7 @@
       "model_id": "gpt-5.3-codex",
       "model_name": "GPT-5.3-Codex",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.3-codex",
       "speed_rank": 54
@@ -6880,6 +7101,7 @@
       "model_id": "gpt-5.3-codex-spark",
       "model_name": "gpt-5.3-codex-spark",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.3-codex-spark",
       "speed_rank": null
@@ -6911,6 +7133,7 @@
       "model_id": "gpt-5.4",
       "model_name": "GPT-5.4",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.4",
       "speed_rank": 45
@@ -6943,6 +7166,7 @@
       "model_id": "gpt-5.4-mini",
       "model_name": "GPT-5.4 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.4-mini",
       "speed_rank": 4
@@ -6975,6 +7199,7 @@
       "model_id": "gpt-5.4-nano",
       "model_name": "GPT-5.4 Nano",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.4-nano",
       "speed_rank": 3
@@ -7007,6 +7232,7 @@
       "model_id": "gpt-5.4-pro",
       "model_name": "GPT-5.4 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-5.4-pro",
       "speed_rank": null
@@ -7027,6 +7253,7 @@
       "model_id": "gpt-image-1",
       "model_name": "gpt-image-1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-image-1",
       "speed_rank": null
@@ -7047,6 +7274,7 @@
       "model_id": "gpt-image-1-mini",
       "model_name": "gpt-image-1-mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-image-1-mini",
       "speed_rank": null
@@ -7067,6 +7295,7 @@
       "model_id": "gpt-image-1.5",
       "model_name": "gpt-image-1.5",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/gpt-image-1.5",
       "speed_rank": null
@@ -7097,6 +7326,7 @@
       "model_id": "o1",
       "model_name": "o1",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o1",
       "speed_rank": null
@@ -7117,6 +7347,7 @@
       "model_id": "o1-mini",
       "model_name": "o1-mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o1-mini",
       "speed_rank": null
@@ -7137,6 +7368,7 @@
       "model_id": "o1-preview",
       "model_name": "o1-preview",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o1-preview",
       "speed_rank": null
@@ -7166,6 +7398,7 @@
       "model_id": "o1-pro",
       "model_name": "o1-pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o1-pro",
       "speed_rank": null
@@ -7196,6 +7429,7 @@
       "model_id": "o3",
       "model_name": "o3",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o3",
       "speed_rank": null
@@ -7236,6 +7470,7 @@
       "model_id": "o3-deep-research",
       "model_name": "o3 Deep Research",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o3-deep-research",
       "speed_rank": null
@@ -7267,6 +7502,7 @@
       "model_id": "o3-mini",
       "model_name": "o3 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o3-mini",
       "speed_rank": null
@@ -7299,6 +7535,7 @@
       "model_id": "o3-pro",
       "model_name": "o3 Pro",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o3-pro",
       "speed_rank": null
@@ -7331,6 +7568,7 @@
       "model_id": "o4-mini",
       "model_name": "o4 Mini",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o4-mini",
       "speed_rank": null
@@ -7371,6 +7609,7 @@
       "model_id": "o4-mini-deep-research",
       "model_name": "o4 Mini Deep Research",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/o4-mini-deep-research",
       "speed_rank": null
@@ -7391,6 +7630,7 @@
       "model_id": "text-embedding-3-large",
       "model_name": "text-embedding-3-large",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/text-embedding-3-large",
       "speed_rank": null
@@ -7411,6 +7651,7 @@
       "model_id": "text-embedding-3-small",
       "model_name": "text-embedding-3-small",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/text-embedding-3-small",
       "speed_rank": null
@@ -7431,6 +7672,7 @@
       "model_id": "text-embedding-ada-002",
       "model_name": "text-embedding-ada-002",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "openai",
       "source": "openai/text-embedding-ada-002",
       "speed_rank": null
@@ -7452,6 +7694,7 @@
       "model_id": "default",
       "model_name": "default",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "claude",
       "source": "anthropic/default",
       "speed_rank": null
@@ -7473,6 +7716,7 @@
       "model_id": "sonnet",
       "model_name": "sonnet",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "claude",
       "source": "anthropic/sonnet",
       "speed_rank": null
@@ -7494,6 +7738,7 @@
       "model_id": "opus",
       "model_name": "opus",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "claude",
       "source": "anthropic/opus",
       "speed_rank": null
@@ -7515,6 +7760,7 @@
       "model_id": "haiku",
       "model_name": "haiku",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "claude",
       "source": "anthropic/haiku",
       "speed_rank": null
@@ -7536,6 +7782,7 @@
       "model_id": "sonnet[1m]",
       "model_name": "sonnet[1m]",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "claude",
       "source": "anthropic/sonnet[1m]",
       "speed_rank": null
@@ -7557,13 +7804,15 @@
       "model_id": "opusplan",
       "model_name": "opusplan",
       "openness": "proprietary",
+      "pricing_source": "openrouter",
       "provider": "claude",
       "source": "anthropic/opusplan",
       "speed_rank": null
     }
   ],
   "source_urls": {
-    "artificial_analysis": "https://artificialanalysis.ai/leaderboards/models",
+    "artificial_analysis": "https://artificialanalysis.ai/",
+    "artificial_analysis_models": "https://artificialanalysis.ai/api/v2/data/llms/models",
     "openrouter_models": "https://openrouter.ai/api/v1/models"
   }
 }

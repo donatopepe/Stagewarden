@@ -362,6 +362,11 @@ def _entry_from_spec(
     if provider == "local":
         input_price = None
         output_price = None
+        pricing_source = "local"
+    elif aa_input_price is not None or aa_output_price is not None:
+        pricing_source = "artificial_analysis"
+    else:
+        pricing_source = "openrouter"
     entry = {
         "provider": provider,
         "model_name": _model_name(provider, str(getattr(spec, "id", "")), source_model),
@@ -381,6 +386,7 @@ def _entry_from_spec(
         "features": _catalog_features_from_local(spec) if provider == "local" else _catalog_features_from_openrouter(source_model) if source_model else [],
         "source": source_model_id or f"{provider}:{getattr(spec, 'id', '')}",
         "aliases": _catalog_aliases(provider, str(getattr(spec, "id", "")), _model_name(provider, str(getattr(spec, "id", "")), source_model), source_model_id),
+        "pricing_source": pricing_source,
     }
     if provider == "local":
         entry["blended_price_usd_per_1m_tokens"] = "local"
@@ -395,9 +401,15 @@ def build_ai_models_catalog(
     *,
     openrouter_models: dict[str, dict[str, Any]] | None = None,
     artificial_analysis_models: dict[str, dict[str, Any]] | None = None,
+    include_artificial_analysis: bool = False,
 ) -> dict[str, Any]:
     index = openrouter_models if openrouter_models is not None else _openrouter_model_index()
-    aa_index = artificial_analysis_models if artificial_analysis_models is not None else _artificial_analysis_model_index()
+    if artificial_analysis_models is not None:
+        aa_index = artificial_analysis_models
+    elif include_artificial_analysis:
+        aa_index = _artificial_analysis_model_index()
+    else:
+        aa_index = {}
     models: list[dict[str, Any]] = []
     for provider in ("local", "cheap", "chatgpt", "openai", "claude"):
         for spec in provider_model_specs(provider):
@@ -413,8 +425,12 @@ def build_ai_models_catalog(
     }
 
 
-def write_ai_models_catalog(path: str | Path = CATALOG_OUTPUT_PATH) -> dict[str, Any]:
-    catalog = build_ai_models_catalog()
+def write_ai_models_catalog(
+    path: str | Path = CATALOG_OUTPUT_PATH,
+    *,
+    include_artificial_analysis: bool = False,
+) -> dict[str, Any]:
+    catalog = build_ai_models_catalog(include_artificial_analysis=include_artificial_analysis)
     output_path = _catalog_path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(catalog, indent=2, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")

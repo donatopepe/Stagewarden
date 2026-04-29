@@ -72,9 +72,11 @@ Comandi principali:
 - `/model variant <provider> <provider_model>` fissa un modello del provider.
 - `/model param set <provider> reasoning_effort <low|medium|high>` salva il livello di ragionamento quando supportato.
 - `/model limits` mostra blocchi, reset time e limiti conosciuti.
-- `catalog refresh` rigenera lo snapshot condiviso del catalogo modelli.
+- `catalog refresh` rigenera lo snapshot condiviso del catalogo modelli partendo dal discovery OpenRouter.
+- `catalog refresh --aa` include esplicitamente il refresh dei prezzi da Artificial Analysis quando `STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY` è disponibile.
 - `catalog search <query> [provider=<provider>] [feature=<feature>]` cerca nello snapshot per nome, alias, provider o capacita.
 - Il catalogo viene anche rigenerato in modo schedulato dal workflow GitHub Actions `Refresh AI Model Catalog`, che prova a fare commit e push dello snapshot aggiornato quando cambia.
+- Un file di esempio della workspace settings si trova in [`examples/stagewarden_settings.example.json`](examples/stagewarden_settings.example.json).
 
 I menu guidati mostrano il contesto corrente prima della scelta: provider abilitati, provider preferito, account attivi, provider bloccati, provider-model corrente, reasoning effort corrente e account configurati.
 
@@ -115,6 +117,7 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/status`, `/status --json` e `/statusline --json` mostrano anche l'ultima azione handoff tracciata, cosi l'utente vede subito l'ultima operazione eseguita o bloccata.
 - `/status --json`, `/statusline --json`, `/overview --json`, `/health --json`, `/preflight --json`, `/report --json`, `/handoff --json`, `/boundary --json` e `/board --json` includono un blocco `schema` versionato, cosi gli altri agenti possono validare i contratti dei payload in modo esplicito.
 - Questi blocchi `schema` sono centralizzati in `stagewarden/json_schema_registry.py`, che copre ora le superfici JSON stabili di status, help, commands, catalog, goal, models, git, sessions e dei registri.
+- `/status` e `/status --json` espongono anche la pricing source attiva del modello instradato corrente, cosi puoi vedere se il pricing arriva da `openrouter`, `artificial_analysis` o dal fallback locale.
 
 Il contesto passato ai modelli e limitato al dominio del ruolo PRINCE2 assegnato.
 

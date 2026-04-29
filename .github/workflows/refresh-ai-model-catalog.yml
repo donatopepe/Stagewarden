@@ -22,7 +22,9 @@ jobs:
           python-version: "3.11"
 
       - name: Build catalog snapshot
-        run: python3 scripts/build_ai_models_catalog.py
+        env:
+          STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY: ${{ secrets.STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY }}
+        run: python3 scripts/build_ai_models_catalog.py --aa
 
       - name: Run catalog tests
         run: python3 -m unittest tests.test_model_catalog tests.test_provider_registry

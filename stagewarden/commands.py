@@ -92,7 +92,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("models", "models", "Show configured providers and provider-model selections.", "models", json=True, handler="models"),
     CommandSpec("models usage", "models", "Show recent model usage.", "models usage", json=True, handler="models"),
     CommandSpec("models limits", "models", "Show provider/account limit status.", "models limits", aliases=("model limits",), json=True, handler="models"),
-    CommandSpec("catalog", "models", "Refresh, inspect, or search the AI model catalog snapshot.", "catalog <status|refresh|search <query> [provider=<provider>] [feature=<feature>]>", json=True, handler="models"),
+    CommandSpec("catalog", "models", "Refresh, inspect, or search the AI model catalog snapshot.", "catalog <status|refresh [--aa]|search <query> [provider=<provider>] [feature=<feature>]", json=True, handler="models"),
     CommandSpec("model use", "models", "Set preferred provider.", "model use <local|cheap|chatgpt|openai|claude>", handler="models"),
     CommandSpec("model choose", "models", "Open guided provider/model/parameter menu.", "model choose [local|cheap|chatgpt|openai|claude]", handler="models", examples=("model choose chatgpt", "choose model", "provider picker")),
     CommandSpec("model preset", "models", "Apply or choose a provider preset.", "model preset <provider> [preset]", handler="models"),
