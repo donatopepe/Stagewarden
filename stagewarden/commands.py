@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from stagewarden.json_schema_registry import json_schema
+
 
 @dataclass(frozen=True)
 class CommandSpec:
@@ -547,11 +549,12 @@ def help_topic_catalog() -> list[dict[str, object]]:
 
 def help_topic_report(topic: str | None = None) -> dict[str, object]:
     if topic is None:
-        return {"command": "help", "topics": help_topic_catalog()}
+        return {"command": "help", "schema": json_schema("help"), "topics": help_topic_catalog()}
     item = help_topic_entry(topic)
     if item is None:
         return {
             "command": "help",
+            "schema": json_schema("help"),
             "ok": False,
             "topic": topic,
             "message": f"Unknown help topic: {topic}",
@@ -559,6 +562,7 @@ def help_topic_report(topic: str | None = None) -> dict[str, object]:
         }
     payload = item.to_dict()
     payload["command"] = "help"
+    payload["schema"] = json_schema("help")
     payload["ok"] = True
     payload["topic"] = item.key
     return payload
