@@ -798,6 +798,7 @@ class ProjectHandoff:
                 f"provider_model={((node.get('assignment') or {}).get('provider_model') if isinstance(node.get('assignment'), dict) else None) or 'none'}"
             )
             lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
+            lines.append(f"  switch_hint=role switch {node.get('node_id', 'unknown')}")
         return "\n".join(lines)
 
     def prince2_node_active_report(self) -> dict[str, Any]:
@@ -858,6 +859,7 @@ class ProjectHandoff:
                 f"provider={node.get('provider')} provider_model={node.get('provider_model')}"
             )
             lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
+            lines.append(f"  switch_hint=role switch {node.get('node_id', 'unknown')}")
         return "\n".join(lines)
 
     def prince2_node_queue_report(self) -> dict[str, Any]:
@@ -1088,6 +1090,7 @@ class ProjectHandoff:
                 f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
                 f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
             )
+            lines.append(f"    switch_hint=role switch {node.get('node_id', 'unknown')}")
         return "\n".join(lines)
 
     def prince2_node_messages_report(self, node_id: str | None = None) -> dict[str, Any]:

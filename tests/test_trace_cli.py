@@ -1271,10 +1271,25 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["open_issues"], 1)
             self.assertEqual(payload["model_failures"], 1)
             self.assertEqual(payload["transcript_entries"], 1)
+            self.assertEqual(payload["log_errors"]["count"], 1)
+            self.assertEqual(payload["log_errors"]["status"], "warning")
 
     def test_preflight_cli_json_output_is_machine_readable_and_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="shell",
+                action_type="shell",
+                success=False,
+                summary="run tests",
+                detail="Traceback: simulated failure",
+                duration_ms=10,
+                error_type="runtime_error",
+            )
+            memory.save(root / ".stagewarden_memory.json")
             completed = run_main_capture(root, "preflight", "--json")
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
@@ -1288,6 +1303,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_limits", payload)
             self.assertIn("sources", payload)
             self.assertIn("remediations", payload)
+            self.assertEqual(payload["log_errors"]["count"], 1)
+            self.assertTrue(any(item["code"] == "log_errors" for item in payload["remediations"]))
             self.assertFalse((root / ".git").exists())
 
     def test_preflight_cli_renders_remediations(self) -> None:
@@ -1298,8 +1315,30 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("Stagewarden preflight:", completed.stdout)
             self.assertIn("- ready:", completed.stdout)
+            self.assertIn("- log_errors:", completed.stdout)
             self.assertIn("Remediations:", completed.stdout)
             self.assertIn("roles", completed.stdout)
+
+    def test_battery_cli_runs_simulated_agent_scenarios(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            json_completed = run_main_capture(root, "battery", "--json")
+            text_completed = run_main_capture(root, "battery")
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "battery")
+            self.assertTrue(payload["ready"])
+            self.assertGreaterEqual(payload["passed"], 5)
+            self.assertEqual(payload["failed"], 0)
+            self.assertTrue(any(item["name"] == "executor_write_file" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "log_detection" for item in payload["simulations"]))
+
+            self.assertEqual(text_completed.returncode, 0, text_completed.stderr)
+            self.assertIn("Agent battery:", text_completed.stdout)
+            self.assertIn("executor_write_file", text_completed.stdout)
+            self.assertIn("role_runtime", text_completed.stdout)
+            self.assertIn("log_detection", text_completed.stdout)
 
     def test_report_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3341,6 +3380,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 node runtime:", completed.stdout)
             self.assertIn("Project Manager [management.project_manager]", completed.stdout)
             self.assertIn("state=ready", completed.stdout)
+            self.assertIn("switch_hint=role switch management.project_manager", completed.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             payload = json.loads(json_completed.stdout)
@@ -3397,6 +3437,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "--json",
             )
             active_completed = run_main_capture(root, "roles active", "--json")
+            active_text = run_main_capture(root, "roles active")
             queues_completed = run_main_capture(root, "roles queues", "--json")
 
             self.assertEqual(active_completed.returncode, 0, active_completed.stderr)
@@ -3408,6 +3449,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(queues_payload["command"], "roles queues")
             self.assertEqual(queues_payload["summary"]["inbox_total"], 1)
             self.assertEqual(queues_payload["summary"]["nodes_with_outbox"], 1)
+            self.assertEqual(active_text.returncode, 0, active_text.stderr)
+            self.assertIn("switch_hint=role switch management.project_manager", active_text.stdout)
 
     def test_roles_control_renders_board_facing_runtime_decision(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3472,6 +3515,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("delivery.team_manager", {item["node_id"] for item in payload["critical_nodes"]})
             self.assertIn("PRINCE2 control view:", text_completed.stdout)
             self.assertIn("next_action=process_queued_work", text_completed.stdout)
+            self.assertIn("switch_hint: role switch delivery.team_manager", text_completed.stdout)
 
     def test_roles_context_exposes_node_ai_context_packet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

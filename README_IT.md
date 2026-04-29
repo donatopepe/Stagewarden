@@ -125,6 +125,7 @@ Regole operative:
 ```text
 stagewarden> /doctor
 stagewarden> /preflight
+stagewarden> /battery
 stagewarden> /health
 stagewarden> /report
 stagewarden> /transcript
