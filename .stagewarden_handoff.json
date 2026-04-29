@@ -8,10 +8,10 @@
   "current_step_id": "prince2-devil-advocate-review",
   "current_step_title": "Evaluate every primary AI response with a devil's-advocate review pass",
   "current_step_status": "completed",
-  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and wet-run tests passed.",
+  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, and statusline now exposes a versioned schema contract.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "777838cc4190e39f2e412763acbc03033b9d38d7",
-  "git_head_baseline": "777838cc4190e39f2e412763acbc03033b9d38d7",
+  "git_head": "d7126d2a6c39e3fa9db7ab71b61c9abf8c5c2df2",
+  "git_head_baseline": "d7126d2a6c39e3fa9db7ab71b61c9abf8c5c2df2",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-04-29T10:45:00Z",
+  "updated_at": "2026-04-29T11:10:00Z",
   "entries": [
     {
       "timestamp": "2026-04-29T07:19:12+00:00",
