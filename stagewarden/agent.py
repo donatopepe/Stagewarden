@@ -13,6 +13,7 @@ from .planner import Planner, PlanStep
 from .prince2 import Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
 from .router import ModelRouter
+from .ljson import load_file as load_ljson_file
 from .tools.git import GitTool
 
 
@@ -59,6 +60,7 @@ class Agent:
         directive = self._merge_caveman_state(directive, task)
 
         effective_task = directive.stripped_task or task
+        resumable_run = self._should_resume_existing_run(effective_task)
         checklist = self.prince2.build_checklist(effective_task, project_brief=self.project_handoff.project_brief)
         assessment = self.prince2.assess_task(effective_task, checklist)
         pid = self.prince2.build_pid(effective_task, checklist)
@@ -74,21 +76,34 @@ class Agent:
         self._sync_prince2_roles_from_preferences()
         plan = self.planner.create_plan(effective_task, project_handoff=self.project_handoff)
         self._sync_implementation_backlog(plan)
-        last_observation = "Task received."
+        last_observation = self.project_handoff.latest_observation or "Task received."
         iterations = 0
-        self.trace_records = []
+        self.trace_records = self._load_trace_records() if resumable_run else []
         start_head = self._git_head()
-        self.project_handoff.start_run(
-            task=effective_task,
-            plan_status=self._plan_status(plan),
-            git_head=start_head,
-        )
-        self.project_handoff.record_plan(
-            task=effective_task,
-            plan_status=self._plan_status(plan),
-            checklist=checklist.as_dict(),
-            git_head=start_head,
-        )
+        if not resumable_run:
+            self.project_handoff.start_run(
+                task=effective_task,
+                plan_status=self._plan_status(plan),
+                git_head=start_head,
+            )
+            self.project_handoff.record_plan(
+                task=effective_task,
+                plan_status=self._plan_status(plan),
+                checklist=checklist.as_dict(),
+                git_head=start_head,
+            )
+        else:
+            self.project_handoff.record_action(
+                phase="resume",
+                summary="Resuming suspended run from persisted handoff state.",
+                task=effective_task,
+                git_head=start_head,
+                details={
+                    "current_step_id": self.project_handoff.current_step_id,
+                    "current_step_status": self.project_handoff.current_step_status,
+                    "latest_observation": self.project_handoff.latest_observation,
+                },
+            )
         self._save_handoff()
         self._trace(
             phase="start",
@@ -353,6 +368,20 @@ class Agent:
                     git_head=self._git_head(),
                 )
             self._save_handoff()
+            if outcome.error_type == "network_wait":
+                pid.status = "waiting"
+                pid.outcome = "Run suspended because network is unavailable."
+                self._save_pid(pid)
+                self.project_handoff.status = "waiting"
+                self.project_handoff.current_step_status = current.status
+                self.project_handoff.latest_observation = outcome.observation
+                self._save_handoff()
+                self._save_trace()
+                message = self._format_summary(plan, success=False)
+                message += "\nSession suspended because network is unavailable. Re-run `resume` to continue from the saved checkpoint."
+                if directive.active:
+                    message = self.caveman.format_text(message, directive.level)
+                return AgentResult(False, iterations, message)
 
         success = all(step.status == "completed" for step in plan)
         pid.status = "closed" if success else "exception"
@@ -586,6 +615,15 @@ class Agent:
 
         return encode(self.trace_records)
 
+    def _load_trace_records(self) -> list[dict[str, object]]:
+        try:
+            if not self.config.trace_path.exists():
+                return []
+            payload = load_ljson_file(self.config.trace_path)
+            return [dict(item) for item in payload if isinstance(item, dict)]
+        except (OSError, ValueError, TypeError):
+            return []
+
     def _save_trace(self) -> None:
         try:
             dump_file(self.config.trace_path, self.trace_records)
@@ -627,6 +665,14 @@ class Agent:
 
     def _trace(self, **record: object) -> None:
         self.trace_records.append(record)
+
+    def _should_resume_existing_run(self, task: str) -> bool:
+        current_task = str(self.project_handoff.task or "").strip()
+        if not current_task or current_task != task.strip():
+            return False
+        if self.project_handoff.status not in {"initiating", "planned", "executing", "waiting", "exception"}:
+            return False
+        return bool(self.project_handoff.current_step_id or self.project_handoff.latest_observation)
 
     def _plan_status(self, plan: list[PlanStep]) -> str:
         return ",".join(f"{step.id}:{step.status}" for step in plan)

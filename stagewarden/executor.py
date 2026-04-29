@@ -834,8 +834,14 @@ class Executor:
             "gateway timeout",
             "network error",
             "network unavailable",
+            "network outage",
+            "outage",
+            "blackout",
             "fetch failed",
             "failed to connect",
+            "provider unavailable",
+            "service outage",
+            "maintenance",
         )
         return any(pattern in lowered for pattern in patterns)
 
