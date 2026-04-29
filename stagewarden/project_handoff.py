@@ -801,6 +801,16 @@ class ProjectHandoff:
             )
             lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
             lines.append(
+                f"  antagonist={node.get('antagonist_name', 'unknown')} "
+                f"pressure={node.get('antagonist_pressure_percent', 0)}"
+            )
+            decision_kpis = node.get("decision_kpis", {}) if isinstance(node.get("decision_kpis", {}), dict) else {}
+            if isinstance(decision_kpis, dict) and decision_kpis:
+                lines.append(
+                    "  decision_kpis="
+                    + ", ".join(f"{key}={decision_kpis.get(key, 0)}" for key in sorted(decision_kpis))
+                )
+            lines.append(
                 f"  thread_tokens total={node.get('thread_token_count', 0)} "
                 f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
             )
@@ -845,6 +855,9 @@ class ProjectHandoff:
                     "child_count": int(node.get("child_count", 0) or 0),
                     "spawn_source": str(node.get("spawn_source", "")),
                     "spawn_reason": str(node.get("spawn_reason", "")),
+                    "antagonist_name": str(node.get("antagonist_name", "")),
+                    "antagonist_pressure_percent": float(node.get("antagonist_pressure_percent", 0.0) or 0.0),
+                    "decision_kpis": dict(node.get("decision_kpis", {})) if isinstance(node.get("decision_kpis", {}), dict) else {},
                 }
             )
         return {
@@ -877,6 +890,10 @@ class ProjectHandoff:
                 f"spawn_source={node.get('spawn_source', 'none') or 'none'}"
             )
             lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
+            lines.append(
+                f"  antagonist={node.get('antagonist_name', 'unknown')} "
+                f"pressure={node.get('antagonist_pressure_percent', 0)}"
+            )
             lines.append(
                 f"  thread_tokens total={node.get('thread_token_count', 0)} "
                 f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
@@ -994,9 +1011,14 @@ class ProjectHandoff:
                 severity = "exception"
                 margin = self._node_tolerance_margin(node)
                 pressure = self._node_tolerance_pressure(node)
+                antagonist_pressure = self._node_antagonist_pressure(node)
                 reasons.append(
                     f"tolerance pressure {pressure:.2f}% exceeds margin {margin:.2f}%"
                 )
+                if antagonist_pressure > 0:
+                    reasons.append(
+                        f"antagonist pressure {antagonist_pressure:.2f}% drives risks and anti-benefits above control limits"
+                    )
             if state == "blocked":
                 blocked_nodes += 1
                 severity = "exception"
@@ -1015,6 +1037,7 @@ class ProjectHandoff:
             if reasons:
                 queue_row = queue_rows.get(node_id, {})
                 child_ids = [str(item.get("node_id", "")) for item in nodes if str(item.get("parent_id", "")).strip() == node_id and str(item.get("node_id", "")).strip()]
+                decision_kpis = dict(node.get("decision_kpis", {})) if isinstance(node.get("decision_kpis", {}), dict) else {}
                 critical_nodes.append(
                     {
                         "node_id": node_id,
@@ -1037,6 +1060,9 @@ class ProjectHandoff:
                         "business_case_token_count": int(node.get("business_case_token_count", 0) or 0),
                         "thread_token_count": int(node.get("thread_token_count", 0) or 0),
                         "kpi_token_counts": dict(node.get("kpi_token_counts", {})) if isinstance(node.get("kpi_token_counts", {}), dict) else {},
+                        "antagonist_name": str(node.get("antagonist_name", "")),
+                        "antagonist_pressure_percent": float(node.get("antagonist_pressure_percent", 0.0) or 0.0),
+                        "decision_kpis": decision_kpis,
                     }
                 )
         summary = self.prince2_node_runtime_summary()
@@ -1121,6 +1147,11 @@ class ProjectHandoff:
             lines.append(
                 f"    thread_tokens total={node.get('thread_token_count', 0)} "
                 f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
+            )
+            lines.append(
+                f"    antagonist={node.get('antagonist_name', 'unknown')} "
+                f"pressure={node.get('antagonist_pressure_percent', 0)} "
+                f"decision_kpis={node.get('decision_kpis', {})}"
             )
             child_ids = [str(item) for item in node.get("child_ids", []) if str(item).strip()]
             if child_ids:
@@ -1332,6 +1363,7 @@ class ProjectHandoff:
                 node_id=node_id,
                 reason="tolerance_margin_exceeded",
             )
+            antagonist_profile = self._node_antagonist_profile(node)
             node["state"] = "escalated"
             node["wait_status"] = "none"
             node["wait_reason"] = None
@@ -1342,6 +1374,13 @@ class ProjectHandoff:
                 "state": "escalated",
                 "reason": "tolerance_margin_exceeded",
                 "escalation_target": str(node.get("escalation_target", "board.executive")),
+                "antagonist_name": antagonist_profile.get("antagonist_name", "unknown"),
+                "antagonist_pressure_percent": antagonist_profile.get("decision_kpis", {}).get("antagonist_pressure_percent", 0.0)
+                if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
+                else 0.0,
+                "decision_kpis": dict(antagonist_profile.get("decision_kpis", {}))
+                if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
+                else {},
                 "spawned_child": spawned_child,
                 "consumed_message": None,
                 "remaining_inbox": len([dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]),
@@ -1867,7 +1906,8 @@ class ProjectHandoff:
         if state in {"escalated", "blocked"}:
             return state
         margin = self._node_tolerance_margin(node)
-        pressure = self._node_tolerance_pressure(node)
+        antagonist_pressure = self._node_antagonist_pressure(node) * 0.25
+        pressure = max(self._node_tolerance_pressure(node), antagonist_pressure)
         if pressure > margin:
             return "escalated"
         return state
@@ -1905,6 +1945,72 @@ class ProjectHandoff:
             "thread_token_count": business_case_tokens + sum(kpi_token_counts.values()),
             "token_budget": token_budget_value,
         }
+
+    def _node_antagonist_profile(self, node: dict[str, Any]) -> dict[str, Any]:
+        role_type = str(node.get("role_type", "")).strip() or "project_manager"
+        label = str(node.get("label", node.get("node_id", "node"))).strip() or "Node"
+        context_rule = node.get("context_rule", {}) if isinstance(node.get("context_rule"), dict) else {}
+        include = [str(item).strip() for item in context_rule.get("include", []) if str(item).strip()]
+        exclude = [str(item).strip() for item in context_rule.get("exclude", []) if str(item).strip()]
+        role_shadows = {
+            "project_executive": ("benefit erosion", "business case drift", "sponsor fatigue"),
+            "senior_user": ("adoption resistance", "unmet acceptance criteria", "benefit leakage"),
+            "senior_supplier": ("technical debt", "integration failure", "supplier slippage"),
+            "project_manager": ("scope creep", "dependency slip", "exception overload"),
+            "project_assurance": ("false assurance", "evidence gaps", "conflict of interest"),
+            "change_authority": ("change saturation", "unbounded change", "impact underestimation"),
+            "project_support": ("traceability loss", "record corruption", "missing evidence"),
+            "team_manager": ("delivery defects", "schedule slip", "resource contention"),
+        }
+        risk_sources = [f"role-risk:{item}" for item in role_shadows.get(role_type, ("risk drift", "anti-benefit drift"))]
+        risk_sources.extend(f"context-exclude:{item}" for item in exclude[:2])
+        anti_benefits = [f"anti-benefit:{item}" for item in include[:2]]
+        if not anti_benefits:
+            anti_benefits = [f"anti-benefit:{label.lower()} drift"]
+        risk_count = len(risk_sources)
+        anti_benefit_count = len(anti_benefits)
+        antagonist_pressure_percent = min(100.0, round((risk_count * 12.5) + (anti_benefit_count * 8.0), 2))
+        spawn_source = str(node.get("spawn_source", "")).strip().lower()
+        if spawn_source == "escalation" and antagonist_pressure_percent > 0:
+            antagonist_pressure_percent = min(18.0, round(antagonist_pressure_percent * 0.5, 2))
+        decision_kpis = {
+            "risk_count": risk_count,
+            "anti_benefit_count": anti_benefit_count,
+            "threat_count": risk_count + anti_benefit_count,
+            "antagonist_pressure_percent": antagonist_pressure_percent,
+            "tolerance_margin_percent": self._node_tolerance_margin(node),
+            "tolerance_pressure_percent": self._node_tolerance_pressure(node),
+        }
+        return {
+            "antagonist_name": f"{label} Antagonist",
+            "role_type": role_type,
+            "risk_sources": risk_sources,
+            "anti_benefits": anti_benefits,
+            "countermeasures": [
+                f"mitigate {item.split(':', 1)[-1]}" if ":" in item else f"mitigate {item}"
+                for item in risk_sources[:3]
+            ] or [f"mitigate {label.lower()} threats"],
+            "decision_kpis": decision_kpis,
+            "decision_process": (
+                "Treat risks and anti-benefits as first-class inputs. "
+                "Spawned recovery children start with attenuated antagonist pressure; "
+                "if pressure exceeds tolerance, escalate and spawn recovery work."
+            ),
+        }
+
+    def _node_antagonist_pressure(self, node: dict[str, Any]) -> float:
+        profile = node.get("antagonist_profile", {})
+        if isinstance(profile, dict):
+            decision_kpis = profile.get("decision_kpis", {})
+            if isinstance(decision_kpis, dict):
+                try:
+                    pressure = float(decision_kpis.get("antagonist_pressure_percent", 0.0) or 0.0)
+                except (TypeError, ValueError):
+                    pressure = 0.0
+                if pressure < 0:
+                    return 0.0
+                return min(pressure, 100.0)
+        return 0.0
 
     def _node_flow_bucket(self, flow_type: str) -> str:
         clean = str(flow_type).strip().lower()
@@ -2050,6 +2156,7 @@ class ProjectHandoff:
             wait_status = str(previous.get("wait_status", "none")).strip().lower() or "none"
             wait_reason = str(previous.get("wait_reason", "")).strip() or None
             thread_tokens = self._node_thread_token_profile(node)
+            antagonist_profile = self._node_antagonist_profile(node)
             child_ids = list(child_ids_by_parent.get(node_id, []))
             materialized_nodes.append(
                 {
@@ -2090,6 +2197,14 @@ class ProjectHandoff:
                     else dict(thread_tokens["kpi_token_counts"]),
                     "thread_token_count": int(previous.get("thread_token_count", thread_tokens["thread_token_count"]) or thread_tokens["thread_token_count"]),
                     "token_budget": thread_tokens["token_budget"],
+                    "antagonist_profile": dict(antagonist_profile),
+                    "antagonist_name": str(antagonist_profile.get("antagonist_name", f"{node.get('label', node_id)} Antagonist")),
+                    "antagonist_pressure_percent": float(antagonist_profile.get("decision_kpis", {}).get("antagonist_pressure_percent", 0.0) or 0.0)
+                    if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
+                    else 0.0,
+                    "decision_kpis": dict(antagonist_profile.get("decision_kpis", {}))
+                    if isinstance(antagonist_profile.get("decision_kpis", {}), dict)
+                    else {},
                     "incoming_edges": [
                         str(edge.get("edge_id", ""))
                         for edge in edges
