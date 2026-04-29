@@ -46,6 +46,7 @@ Stagewarden usa Codex CLI, Claude Code e KiloCode come baseline di esperienza ut
 - Il completamento slash suggerisce provider, ruoli PRINCE2, backend shell, account configurati, provider-model e valori `reasoning_effort`.
 - La palette mostra anche contesto operativo: provider abilitati, account attivi, provider bloccati e hint sui parametri.
 - `/help agent` mostra il protocollo di compatibilita multi-agente, con AGENTS.md, AGENT_HANDOFF.md, handoff runtime e validazione wet-run.
+- `/risks close <risoluzione>`, `/issues close <risoluzione>` e `/quality close <risoluzione>` chiudono i registri di governance aperti dopo una mitigazione o accettazione esplicita.
 
 Esempi:
 
@@ -87,6 +88,7 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `AGENT_HANDOFF.md` contiene il handoff compatibile tra agenti.
 - `/handoff` mostra il contesto persistente.
 - `/resume --show` mostra il target di resume.
+- Se la shell parte con una sessione `waiting`, il task salvato viene ripreso automaticamente prima di accettare nuovo input.
 - `/resume context` mostra ultimo tentativo modello, route, evidenza tool e snapshot git.
 - `/roles domains` mostra responsabilita e perimetro dei ruoli.
 - `/role configure [role]` mostra responsabilita PRINCE2 e scope del ruolo prima di assegnare provider/modello/account.

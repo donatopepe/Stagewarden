@@ -116,6 +116,7 @@ PRINCE2 handoff behavior:
 - `stagewarden health --json` exposes a compact readiness snapshot for automation: authorization, boundary decision, open controls, recovery state, and minimal model/transcript signals.
 - `stagewarden report --json` exposes a compact closure/shareable summary with governance state, next action, recent lessons, backlog preview, model activity, and provider-limit posture.
 - `stagewarden risks|issues|quality|exception|lessons|todo --json` exposes PRINCE2 registers and backlog in machine-readable form.
+- `risks close <resolution>`, `issues close <resolution>`, and `quality close <resolution>` close open governance records after explicit mitigation or acceptance.
 - The executor prompt includes only the PRINCE2 registers allowed by the active role domain, preventing a role-specific model from seeing unrelated governance context by default.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
 - `handoff` shows the full persisted project context, while `boundary` shows only the current PRINCE2 stage-boundary recommendation.
@@ -365,6 +366,7 @@ Project handoff:
 - `stagewarden "handoff export" --json` and `stagewarden "resume --clear" --json` expose structured operational results for export/reset workflows.
 - Every model prompt includes bounded references to `.stagewarden_handoff.json`, `.stagewarden_memory.json`, and `.stagewarden_trace.ljson`, plus recovery state, backlog status, git boundary, and dirty state.
 - `resume --show` previews the current handoff target, `resume --clear` archives and resets handoff, and `resume` reruns the task stored in handoff after reloading the context.
+- When the shell starts with a suspended `waiting` session, it auto-resumes the saved task before accepting new input.
 - `resume context` shows the latest implicit execution context: last model attempt, routed account/variant, tool evidence, and latest git snapshot.
 
 Tool transcript:
