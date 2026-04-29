@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from stagewarden.router import ModelRouter
+from stagewarden.provider_registry import available_model_variants
 
 
 class RouterTests(unittest.TestCase):
@@ -38,6 +39,15 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(router.choose_variant("openai", "debug a complex traceback in production", "implement fix"), "gpt-5.4")
         self.assertEqual(router.choose_variant("chatgpt", "list files", "inspect workspace"), "codex-mini-latest")
         self.assertEqual(router.choose_variant("chatgpt", "debug a complex traceback in production", "implement fix"), "gpt-5.3-codex")
+
+    def test_router_accepts_kilocode_snapshot_providers(self) -> None:
+        router = ModelRouter()
+        router.configure(enabled_models=["kilo", "openai", "cheap"], preferred_model="kilo")
+        self.assertIn("kilo", router.status()["active_models"])
+        self.assertEqual(router.choose_model("inspect workspace", "list files"), "kilo")
+        variant = router.choose_variant("kilo", "design architecture roadmap", "planner stage")
+        self.assertIn(variant, available_model_variants("kilo"))
+        self.assertNotEqual(variant, "provider-default")
 
 
 if __name__ == "__main__":

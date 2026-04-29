@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .provider_registry import SUPPORTED_MODELS
+from .provider_registry import SUPPORTED_MODELS, provider_model_specs
 
 
 class ModelRouter:
-    ORDER = ("cheap", "chatgpt", "openai", "claude", "local")
+    CORE_ORDER = ("cheap", "chatgpt", "openai", "claude", "local")
+    ORDER = tuple(dict.fromkeys((*CORE_ORDER, *SUPPORTED_MODELS)))
 
     def __init__(self) -> None:
         self.enabled_models = set(self.ORDER)
@@ -95,14 +96,7 @@ class ModelRouter:
             return self._best_available("openai")
         if current == "openai":
             return self._best_available("claude")
-        try:
-            index = self.ORDER.index(current)
-        except ValueError:
-            return self._best_available("cheap")
-        for candidate in self.ORDER[index + 1 :]:
-            if candidate in self.enabled_models:
-                return candidate
-        return self._best_available(current)
+        return self._next_available_after(current, fallback="cheap")
 
     def fallback_for_api_failure(self, current: str) -> str:
         if current == "chatgpt":
@@ -113,31 +107,33 @@ class ModelRouter:
             return self._best_available("local")
         if current == "cheap":
             return self._best_available("chatgpt")
-        return self._best_available("local")
+        return self._next_available_after(current, fallback="local")
 
     def choose_variant(self, model: str, task: str, step_text: str, failure_count: int = 0) -> str | None:
         profile = self._task_profile(task, step_text)
-        if model == "claude":
+        specs = [spec for spec in provider_model_specs(model) if spec.id != "provider-default"]
+        if not specs:
+            specs = list(provider_model_specs(model))
+        if not specs:
+            return None
+
+        def spec_weight(spec) -> tuple[int, int, str]:
+            efforts = set(spec.reasoning_efforts)
+            high = "high" in efforts or spec.reasoning_default == "high"
+            medium = "medium" in efforts or spec.reasoning_default == "medium"
+            low = "low" in efforts or spec.reasoning_default == "low"
             if profile["planning"]:
-                return "opusplan"
-            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
-                return "opus"
-            if profile["complexity"] <= 1 and not profile["risky"]:
-                return "haiku"
-            return "sonnet"
-        if model == "openai":
-            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
-                return "gpt-5.4"
-            if profile["complexity"] <= 1 and not profile["risky"]:
-                return "gpt-5.4-mini"
-            return "gpt-5.2-codex"
-        if model == "chatgpt":
-            if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
-                return "gpt-5.3-codex"
-            if profile["complexity"] <= 1 and not profile["risky"]:
-                return "codex-mini-latest"
-            return "gpt-5.1-codex-mini"
-        return None
+                priority = 3 if high else 2 if medium else 1 if low else 0
+            elif failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
+                priority = 3 if high else 2 if medium else 1 if low else 0
+            elif profile["complexity"] <= 1 and not profile["risky"]:
+                priority = 3 if low else 2 if medium else 1 if high else 0
+            else:
+                priority = 3 if medium else 2 if low else 1 if high else 0
+            return (priority, len(spec.reasoning_efforts), spec.id)
+
+        ranked = sorted(specs, key=spec_weight, reverse=True)
+        return ranked[0].id if ranked else None
 
     def _best_available(self, preferred: str) -> str:
         active_models = self._active_models()
@@ -155,6 +151,15 @@ class ModelRouter:
             if candidate in active_models:
                 return candidate
         return next(iter(active_models), self.ORDER[0])
+
+    def _next_available_after(self, current: str, *, fallback: str) -> str:
+        active_models = self._active_models()
+        if current in self.ORDER:
+            start = self.ORDER.index(current) + 1
+            for candidate in self.ORDER[start:]:
+                if candidate in active_models:
+                    return candidate
+        return self._best_available(fallback)
 
     def _task_profile(self, task: str, step_text: str) -> dict[str, object]:
         text = f"{task} {step_text}".lower()
