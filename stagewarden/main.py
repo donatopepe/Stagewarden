@@ -9807,7 +9807,7 @@ def _catalog_status_report() -> dict[str, object]:
     models = catalog.get("models", []) if isinstance(catalog, dict) else []
     model_count = len(models) if isinstance(models, list) else 0
     return {
-        "command": "catalog",
+        "command": "catalog status",
         "schema": json_schema("catalog status"),
         "ok": bool(catalog),
         "path": str(catalog_path()),
@@ -9827,7 +9827,7 @@ def _catalog_search_report(
     catalog = load_ai_models_catalog()
     results = search_ai_models_catalog(query, provider=provider, feature=feature, catalog=catalog, limit=limit)
     return {
-        "command": "catalog",
+        "command": "catalog search",
         "schema": json_schema("catalog search"),
         "query": query,
         "provider": provider,
@@ -9835,6 +9835,18 @@ def _catalog_search_report(
         "path": str(catalog_path()),
         "model_count": len(catalog.get("models", [])) if isinstance(catalog, dict) and isinstance(catalog.get("models", []), list) else 0,
         "results": results,
+    }
+
+
+def _catalog_refresh_report(catalog: dict[str, object]) -> dict[str, object]:
+    return {
+        "command": "catalog refresh",
+        "schema": json_schema("catalog refresh"),
+        "ok": True,
+        "path": str(catalog_path()),
+        "generated_at": catalog.get("generated_at"),
+        "model_count": len(catalog.get("models", [])) if isinstance(catalog.get("models", []), list) else 0,
+        "source_urls": catalog.get("source_urls", {}),
     }
 
 
@@ -11437,7 +11449,7 @@ def main() -> int:
                 return 0
             if parts[1] == "search":
                 if len(parts) < 3:
-                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog", "ok": False, "error": _catalog_usage()}), indent=2))
+                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog search", "ok": False, "error": _catalog_usage()}), indent=2))
                     return 1
                 query_parts: list[str] = []
                 provider = None
@@ -11452,28 +11464,13 @@ def main() -> int:
                     query_parts.append(token)
                 query = " ".join(query_parts).strip()
                 if not query and not provider and not feature:
-                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog", "ok": False, "error": _catalog_usage()}), indent=2))
+                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog search", "ok": False, "error": _catalog_usage()}), indent=2))
                     return 1
                 print(dumps_ascii(_with_json_schema("catalog search", _catalog_search_report(query, provider, feature=feature)), indent=2))
                 return 0
             if parts[1] == "refresh":
                 catalog = write_ai_models_catalog()
-                print(
-                    dumps_ascii(
-                        _with_json_schema(
-                            "catalog refresh",
-                        {
-                            "command": "catalog",
-                            "ok": True,
-                            "path": str(catalog_path()),
-                            "generated_at": catalog.get("generated_at"),
-                            "model_count": len(catalog.get("models", [])) if isinstance(catalog.get("models", []), list) else 0,
-                            "source_urls": catalog.get("source_urls", {}),
-                        },
-                        ),
-                        indent=2,
-                    )
-                )
+                print(dumps_ascii(_with_json_schema("catalog refresh", _catalog_refresh_report(catalog)), indent=2))
                 return 0
         response = _handle_model_command(task, agent, config)
         payload = _with_json_schema("catalog", {"command": "catalog", "message": response})
