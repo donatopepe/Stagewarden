@@ -87,6 +87,11 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - `/resume context` mostra ultimo tentativo modello, route, evidenza tool e snapshot git.
 - `/roles domains` mostra responsabilita e perimetro dei ruoli.
 - `/role configure [role]` mostra responsabilita PRINCE2 e scope del ruolo prima di assegnare provider/modello/account.
+- `/roles menu` apre il menu guidato del tree PRINCE2 per aggiungere o rimuovere nodi e approvare la baseline.
+- `/role menu [node_id]` apre il menu guidato di un nodo, con cambio modello in stile KiloCode, update tolleranza e rimozione.
+- `/role model <node_id> ...` cambia il modello del nodo; il chooser mostra prima le alternative piu forti, piu deboli e poi il resto del catalogo.
+- `/role tolerance set <node_id> <percent>` e `/role tolerance reset <node_id>` aggiornano o ricalcolano il margine di tolleranza del nodo.
+- `/role remove <node_id> [reparent_children=<yes|no>]` rimuove un nodo dalla baseline dinamica.
 - `/roles tree approve` salva l'albero PRINCE2 corrente come baseline approvata in `.stagewarden_models.json` e `.stagewarden_handoff.json`.
 - `/roles baseline` mostra la baseline approvata che guidera i futuri handoff di contesto per ruolo.
 - `/roles baseline matrix` mostra la matrice della baseline approvata, inclusi nodi delegati e pool reviewer/fallback.

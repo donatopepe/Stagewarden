@@ -15,7 +15,16 @@ from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
-from stagewarden.main import _catalog_status_report, _handle_model_command, _interactive_completion_candidates, _render_boundary, _render_handoff, run_interactive_shell
+from stagewarden.main import (
+    _catalog_status_report,
+    _guided_role_node_menu,
+    _guided_role_tree_menu,
+    _handle_model_command,
+    _interactive_completion_candidates,
+    _render_boundary,
+    _render_handoff,
+    run_interactive_shell,
+)
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.secrets import SecretStore
@@ -3016,6 +3025,81 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider"], "openai")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider_model"], "gpt-5.4-mini")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["params"]["reasoning_effort"], "medium")
+
+    def test_interactive_shell_roles_menu_can_add_and_remove_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            input_stream = StringIO(
+                "add-child\n"
+                "management.project_manager\n"
+                "team_manager\n"
+                "delivery.menu_team\n"
+                "remove\n"
+                "delivery.menu_team\n"
+                "yes\n"
+                "back\n"
+            )
+            output_stream = StringIO()
+            result = _guided_role_tree_menu(
+                prefs=prefs,
+                config=AgentConfig(workspace_root=root, max_steps=1),
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            node_ids = {
+                item["node_id"]
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict)
+            }
+
+            self.assertIn("PRINCE2 tree menu closed.", result)
+            self.assertIn("PRINCE2 tree menu:", rendered)
+            self.assertIn("Added delegated PRINCE2 role node delivery.menu_team under management.project_manager.", rendered)
+            self.assertIn("Removed PRINCE2 role node delivery.menu_team.", rendered)
+            self.assertNotIn("delivery.menu_team", node_ids)
+
+    def test_interactive_shell_role_menu_can_switch_model_by_menu(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            input_stream = StringIO(
+                "model\n"
+                "chatgpt:gpt-5.4\n"
+                "medium\n"
+                "1\n"
+                "back\n"
+            )
+            output_stream = StringIO()
+            result = _guided_role_node_menu(
+                prefs=prefs,
+                config=AgentConfig(workspace_root=root, max_steps=1),
+                node_id="delivery.team_manager",
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            team_node = next(
+                item
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict) and item.get("node_id") == "delivery.team_manager"
+            )
+
+            self.assertIn("Closed node menu for delivery.team_manager.", result)
+            self.assertIn("PRINCE2 node detail:", rendered)
+            self.assertIn("Node menu for delivery.team_manager:", rendered)
+            self.assertIn("model_recommendation:", rendered)
+            self.assertIn("Assigned role node delivery.team_manager: provider=chatgpt provider_model=gpt-5.4 account=none reasoning_effort=medium", rendered)
+            self.assertEqual(team_node["assignment"]["provider"], "chatgpt")
+            self.assertEqual(team_node["assignment"]["provider_model"], "gpt-5.4")
+            self.assertEqual(team_node["assignment"]["params"]["reasoning_effort"], "medium")
 
     def test_interactive_shell_role_assign_prioritizes_local_fallback_candidates_for_delivery_node(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

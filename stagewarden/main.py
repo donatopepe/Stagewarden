@@ -134,6 +134,8 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
     "accounts",
     "roles",
     "roles setup",
+    "roles menu",
+    "roles tree menu",
     "roles propose",
     "roles domains",
     "roles context",
@@ -183,6 +185,10 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
     "account clear",
     "role configure",
     "role clear",
+    "role menu",
+    "role model",
+    "role tolerance",
+    "role remove",
     "sources",
     "sources status",
     "permission mode",
@@ -1237,6 +1243,15 @@ def _render_prince2_role_control(config: AgentConfig) -> str:
                 f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
                 f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
             )
+            node_record = _role_tree_node_record(config, str(node.get("node_id", "")))
+            if node_record:
+                recommendation = _node_model_recommendation(config, node_record)
+                suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
+                lines.append(
+                    f"    model_recommendation: direction={recommendation.get('direction', 'hold')} "
+                    f"provider={suggested.get('provider') or 'none'} provider_model={suggested.get('provider_model') or 'none'} "
+                    f"bucket={suggested.get('bucket', 'none')}"
+                )
     else:
         lines.append("- critical_nodes: none")
     return "\n".join(lines)
@@ -1408,6 +1423,7 @@ def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
         f"- role_type: {report['role_type']}",
         f"- state: {runtime_state['state']} wait={runtime_state['wait_status']} inbox={runtime_state['inbox_count']} outbox={runtime_state['outbox_count']}",
         f"- provider: {assignment.get('provider') or 'none'} provider_model={assignment.get('provider_model') or 'none'} account={assignment.get('account') or 'none'}",
+        f"- tolerance_margin: {runtime_state.get('tolerance_margin_percent', 'unknown')} pressure={runtime_state.get('tolerance_pressure_percent', 'unknown')} state={runtime_state.get('tolerance_state', runtime_state['state'])}",
         f"- responsibility_domain: {role_context['responsibility_domain']}",
         f"- context_scope: {role_context['context_scope']}",
         f"- accountability_boundary: {role_context['accountability_boundary']}",
@@ -1419,8 +1435,15 @@ def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
         f"- outgoing_edges: {', '.join(str(edge.get('edge_id')) for edge in comms['outgoing_edges']) or 'none'}",
         f"- agent_tools: {', '.join(caps['shell_operations'] + caps['git_operations'][:2] + ['...'])}",
         f"- file_ops: {', '.join(caps['file_operations'][:6])}, ...",
-        "- communication_commands:",
     ]
+    recommendation = _node_model_recommendation(config, _role_tree_node_record(config, node_id) or {})
+    suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
+    lines.append(
+        f"- model_recommendation: direction={recommendation.get('direction', 'hold')} "
+        f"provider={suggested.get('provider') or 'none'} provider_model={suggested.get('provider_model') or 'none'} "
+        f"bucket={suggested.get('bucket', 'none')}"
+    )
+    lines.append("- communication_commands:")
     for command in comms["commands"]:
         lines.append(f"  {command}")
     lines.append(f"- project_task: {report['project_context']['task']}")
@@ -2572,7 +2595,10 @@ def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
         provider_model = assignment.get("provider_model", "none") if isinstance(assignment, dict) and assignment else "none"
         label = (
             f"{node.get('label', node_id)} [{node_id}] "
-            f"role={node.get('role_type', 'unknown')} provider={provider} provider_model={provider_model}"
+            f"role={node.get('role_type', 'unknown')} "
+            f"state={node.get('tolerance_state', node.get('state', 'unknown'))} "
+            f"margin={node.get('tolerance_margin_percent', 'unknown')} pressure={node.get('tolerance_pressure_percent', 'unknown')} "
+            f"provider={provider} provider_model={provider_model}"
         )
         options.append((node_id, label))
     return options
@@ -2589,12 +2615,166 @@ def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, objec
     return None
 
 
+def _role_tree_node_children(config: AgentConfig, node_id: str) -> list[dict[str, object]]:
+    prefs = _load_model_preferences(config)
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_node_children")
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
+    return [dict(node) for node in nodes if isinstance(node, dict) and str(node.get("parent_id", "")).strip() == node_id]
+
+
+def _with_prince2_role_tree_baseline_mutation(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    source: str,
+    mutator: Callable[[dict[str, object], dict[str, object], list[dict[str, object]]], None],
+) -> dict[str, object]:
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source=source)
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
+    mutator(baseline, tree, nodes)
+    tree["nodes"] = nodes
+    baseline["tree"] = tree
+    baseline["status"] = "approved"
+    baseline["source"] = source
+    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
+    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
+    _persist_prince2_role_tree_baseline(config, prefs, baseline)
+    return baseline
+
+
 def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:
     pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
     routes = pools.get("fallback", []) if isinstance(pools.get("fallback"), list) else []
     local_routes = [dict(item) for item in routes if isinstance(item, dict) and item.get("provider") == "local"]
     local_routes.sort(key=lambda item: str(item.get("provider_model", "")))
     return local_routes
+
+
+def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
+    if not isinstance(entry, dict) or not entry:
+        return None
+    intelligence = entry.get("intelligence_rank")
+    if isinstance(intelligence, (int, float)):
+        return float(intelligence)
+    speed = entry.get("speed_rank")
+    if isinstance(speed, (int, float)):
+        return float(speed)
+    return None
+
+
+def _catalog_model_choice_key(provider: str, provider_model: str) -> str:
+    return f"{provider}:{provider_model}"
+
+
+def _parse_catalog_model_choice(choice: str) -> tuple[str, str] | None:
+    provider, separator, provider_model = str(choice).partition(":")
+    if not separator:
+        return None
+    provider = provider.strip()
+    provider_model = provider_model.strip()
+    if not provider or not provider_model:
+        return None
+    return provider, provider_model
+
+
+def _node_model_recommendation(config: AgentConfig, node: dict[str, object]) -> dict[str, object]:
+    prefs = _load_model_preferences(config)
+    catalog = load_ai_models_catalog()
+    assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+    current_provider = str(assignment.get("provider", "")).strip()
+    current_provider_model = str(assignment.get("provider_model", "")).strip()
+    current_entry = catalog_entry_for_provider_model(current_provider, current_provider_model, catalog) if current_provider and current_provider_model else None
+    current_score = _catalog_power_score(current_entry)
+    current_label = "current assignment"
+    if current_provider and current_provider_model:
+        current_label = f"{current_provider}:{current_provider_model}"
+
+    candidates: list[dict[str, object]] = []
+    for provider in prefs.enabled_models or list(SUPPORTED_MODELS):
+        for spec in provider_model_specs(provider):
+            if spec.id == "provider-default":
+                continue
+            entry = catalog_entry_for_provider_model(provider, spec.id, catalog)
+            score = _catalog_power_score(entry)
+            if current_provider and current_provider_model and provider == current_provider and spec.id == current_provider_model:
+                continue
+            bucket = "peer"
+            delta = None
+            if current_score is not None and score is not None:
+                delta = round(current_score - score, 3)
+                if delta > 0:
+                    bucket = "stronger"
+                elif delta < 0:
+                    bucket = "lighter"
+            candidates.append(
+                {
+                    "provider": provider,
+                    "provider_model": spec.id,
+                    "label": f"{provider} / {spec.id} | {spec.label}{_catalog_option_suffix(entry)}",
+                    "score": score,
+                    "delta": delta,
+                    "bucket": bucket,
+                }
+            )
+
+    stronger = [item for item in candidates if item["bucket"] == "stronger"]
+    lighter = [item for item in candidates if item["bucket"] == "lighter"]
+    peers = [item for item in candidates if item["bucket"] == "peer"]
+
+    stronger.sort(key=lambda item: (float(item["score"]) if isinstance(item.get("score"), (int, float)) else 999.0, str(item["provider"]), str(item["provider_model"])))
+    lighter.sort(key=lambda item: (-(float(item["score"]) if isinstance(item.get("score"), (int, float)) else 0.0), str(item["provider"]), str(item["provider_model"])))
+    peers.sort(key=lambda item: (str(item["provider"]), str(item["provider_model"])))
+
+    try:
+        node_margin = float(node.get("tolerance_margin_percent", 25.0) or 25.0)
+    except (TypeError, ValueError):
+        node_margin = 25.0
+    try:
+        node_pressure = float(node.get("tolerance_pressure_percent", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        node_pressure = 0.0
+    state = str(node.get("state", "")).strip().lower() or "idle"
+    tolerance_state = str(node.get("tolerance_state") or state)
+    direction = "hold"
+    if tolerance_state == "escalated" or node_pressure > node_margin:
+        direction = "stronger"
+    elif node_pressure < node_margin * 0.5:
+        direction = "lighter"
+
+    suggested = None
+    if direction == "stronger" and stronger:
+        suggested = stronger[0]
+    elif direction == "lighter" and lighter:
+        suggested = lighter[0]
+    elif current_provider and current_provider_model:
+        suggested = {
+            "provider": current_provider,
+            "provider_model": current_provider_model,
+            "label": current_label,
+            "score": current_score,
+            "delta": 0.0,
+            "bucket": "current",
+        }
+    elif stronger:
+        suggested = stronger[0]
+    elif peers:
+        suggested = peers[0]
+
+    return {
+        "current": {
+            "provider": current_provider or None,
+            "provider_model": current_provider_model or None,
+            "label": current_label,
+            "score": current_score,
+        },
+        "direction": direction,
+        "suggested": suggested,
+        "stronger": stronger[:6],
+        "lighter": lighter[:6],
+        "peers": peers[:8],
+    }
 
 
 def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool: str) -> str:
@@ -2620,6 +2800,92 @@ def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool
     else:
         lines.append("- recommended_local_fallbacks: none")
     return "\n".join(lines)
+
+
+def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
+    node = _role_tree_node_record(config, node_id)
+    if not node:
+        return f"PRINCE2 node '{node_id}' not found."
+    assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
+    recommendation = _node_model_recommendation(config, node)
+    suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
+    children = _role_tree_node_children(config, node_id)
+    lines = [
+        "PRINCE2 node detail:",
+        f"- node_id: {node.get('node_id', node_id)}",
+        f"- label: {node.get('label', node_id)}",
+        f"- role_type: {node.get('role_type', 'unknown')}",
+        f"- parent_id: {node.get('parent_id') or 'none'}",
+        f"- level: {node.get('level', 'unknown')}",
+        f"- accountable_owner: {node.get('accountable_owner', 'user')}",
+        f"- tolerance_margin_percent: {node.get('tolerance_margin_percent', 'unknown')}",
+        f"- tolerance_pressure_percent: {node.get('tolerance_pressure_percent', 'unknown')}",
+        f"- tolerance_state: {node.get('tolerance_state', node.get('state', 'unknown'))}",
+        f"- autonomy_rule: {node.get('autonomy_rule', 'none')}",
+        f"- escalation_target: {node.get('escalation_target', 'board.executive')}",
+        f"- assignment: provider={assignment.get('provider') or 'none'} provider_model={assignment.get('provider_model') or 'none'} account={assignment.get('account') or 'none'}",
+        f"- children: {', '.join(str(item.get('node_id')) for item in children) or 'none'}",
+        f"- model_direction: {recommendation.get('direction', 'hold')}",
+        (
+            "- model_suggestion: "
+            f"{suggested.get('provider') or 'none'}:{suggested.get('provider_model') or 'none'} "
+            f"bucket={suggested.get('bucket', 'none')} "
+            f"score={suggested.get('score', 'n/a')}"
+        ),
+        (
+            "- model_recommendation: "
+            f"direction={recommendation.get('direction', 'hold')} "
+            f"stronger={len([item for item in recommendation.get('stronger', []) if isinstance(item, dict)])} "
+            f"lighter={len([item for item in recommendation.get('lighter', []) if isinstance(item, dict)])}"
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def _node_model_choice_options(config: AgentConfig, node_id: str) -> list[tuple[str, str]]:
+    node = _role_tree_node_record(config, node_id)
+    if not node:
+        return []
+    recommendation = _node_model_recommendation(config, node)
+    current = recommendation.get("current", {}) if isinstance(recommendation.get("current"), dict) else {}
+    current_key = _catalog_model_choice_key(
+        str(current.get("provider", "")).strip(),
+        str(current.get("provider_model", "")).strip(),
+    )
+
+    options: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    def append_group(prefix: str, items: list[dict[str, object]]) -> None:
+        for item in items:
+            provider = str(item.get("provider", "")).strip()
+            provider_model = str(item.get("provider_model", "")).strip()
+            if not provider or not provider_model:
+                continue
+            key = _catalog_model_choice_key(provider, provider_model)
+            if key in seen:
+                continue
+            seen.add(key)
+            label = str(item.get("label", key))
+            if key == current_key:
+                label = f"[current] {label}"
+            else:
+                label = f"[{prefix}] {label}"
+            options.append((key, label))
+
+    append_group("stronger", [item for item in recommendation.get("stronger", []) if isinstance(item, dict)])
+    append_group("lighter", [item for item in recommendation.get("lighter", []) if isinstance(item, dict)])
+    append_group("peer", [item for item in recommendation.get("peers", []) if isinstance(item, dict)])
+
+    if current_key and current_key not in seen and current.get("provider") and current.get("provider_model"):
+        options.insert(
+            0,
+            (
+                current_key,
+                f"[current] {current.get('provider')} / {current.get('provider_model')} | current assignment",
+            ),
+        )
+    return options
 
 
 def _guided_provider_options_for_node(
@@ -2984,6 +3250,396 @@ def _guided_role_assign(
     )
 
 
+def _set_prince2_role_node_tolerance_margin(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    margin_percent: float,
+    source: str = "role_tolerance_set",
+) -> dict[str, object]:
+    clean_margin = max(0.0, min(100.0, float(margin_percent)))
+
+    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
+        for node in nodes:
+            if str(node.get("node_id", "")).strip() != node_id:
+                continue
+            node["tolerance_margin_percent"] = round(clean_margin, 2)
+            tolerance_profile = dict(node.get("tolerance_profile", {})) if isinstance(node.get("tolerance_profile", {}), dict) else {}
+            tolerance_profile["margin_percent"] = round(clean_margin, 2)
+            tolerance_profile["manual_override"] = True
+            node["tolerance_profile"] = tolerance_profile
+            node["autonomy_rule"] = str(node.get("autonomy_rule", "")).strip() or "work autonomously within the margin; escalate when pressure exceeds margin."
+            break
+
+    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
+    return _role_tree_node_record(config, node_id) or {}
+
+
+def _reset_prince2_role_node_tolerance(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    source: str = "role_tolerance_reset",
+) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    tolerance_profile = _project_tolerance_profile(handoff)
+
+    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
+        for node in nodes:
+            if str(node.get("node_id", "")).strip() != node_id:
+                continue
+            role_type = str(node.get("role_type", "")).strip()
+            profile = tolerance_profile.node_profile(role_type)
+            node["accountable_owner"] = profile.get("accountable_owner", tolerance_profile.accountable_owner)
+            node["tolerance_margin_percent"] = profile.get("margin_percent", tolerance_profile.project_margin_percent)
+            node["tolerance_pressure_percent"] = profile.get("pressure_percent", tolerance_profile.project_pressure_percent)
+            node["autonomy_rule"] = profile.get("autonomy_rule", node.get("autonomy_rule", ""))
+            node["escalation_target"] = profile.get("escalation_target", node.get("escalation_target", "board.executive"))
+            node["tolerance_profile"] = profile
+            break
+
+    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
+    return _role_tree_node_record(config, node_id) or {}
+
+
+def _remove_prince2_role_node(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    reparent_children: bool = True,
+    source: str = "role_remove",
+) -> dict[str, object]:
+    removed: dict[str, object] = {}
+
+    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
+        nonlocal removed
+        target = next((node for node in nodes if str(node.get("node_id", "")).strip() == node_id), None)
+        if target is None:
+            raise ValueError(f"Role node '{node_id}' not found.")
+        if node_id == "board.executive":
+            raise ValueError("The Project Executive root node cannot be removed.")
+        removed = dict(target)
+        parent_id = str(target.get("parent_id")) if target.get("parent_id") not in {None, ""} else None
+        if reparent_children:
+            for child in nodes:
+                if str(child.get("parent_id", "")).strip() == node_id:
+                    child["parent_id"] = parent_id
+        nodes[:] = [node for node in nodes if str(node.get("node_id", "")).strip() != node_id]
+        flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
+        edges = flow.get("edges", []) if isinstance(flow, dict) else []
+        if isinstance(edges, list):
+            flow["edges"] = [
+                edge
+                for edge in edges
+                if isinstance(edge, dict)
+                and str(edge.get("source_node", "")).strip() != node_id
+                and str(edge.get("target_node", "")).strip() != node_id
+            ]
+            baseline["flow"] = flow
+
+    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
+    return removed
+
+
+def _assign_prince2_role_node_model(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    provider: str,
+    provider_model: str,
+    params: dict[str, str] | None = None,
+    account: str | None = None,
+    pool: str = "primary",
+) -> dict[str, object]:
+    return _assign_prince2_role_node(
+        config,
+        prefs,
+        node_id=node_id,
+        provider=provider,
+        provider_model=provider_model,
+        params=params,
+        account=account,
+        pool=pool,
+    )
+
+
+def _guided_role_node_model_choice(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    node_id: str,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided PRINCE2 node model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu` or `role model`."
+    node = _role_tree_node_record(config, node_id)
+    if not node:
+        return f"PRINCE2 node '{node_id}' not found."
+    output_stream.write(_render_prince2_role_node_detail(config, node_id) + "\n")
+    output_stream.write(_guided_role_node_assignment_context(config, node_id, "primary") + "\n")
+    output_stream.write(_guided_provider_context(prefs) + "\n")
+    choice = _prompt_menu_choice(
+        title=f"Choose provider-model for {node_id}:",
+        options=_node_model_choice_options(config, node_id),
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if choice is None:
+        return "Role node model selection cancelled."
+    parsed = _parse_catalog_model_choice(choice)
+    if parsed is None:
+        return f"Invalid provider-model choice '{choice}'."
+    provider, provider_model = parsed
+    spec = provider_model_spec(provider, provider_model)
+    params: dict[str, str] = {}
+    if spec is not None and spec.reasoning_efforts:
+        current_reasoning = prefs.params_for_model(provider).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
+        reasoning = _prompt_menu_choice(
+            title=f"Choose reasoning_effort for {provider}:{provider_model}:",
+            options=[(effort, f"{effort}{' (default)' if effort == current_reasoning else ''}") for effort in spec.reasoning_efforts],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if reasoning is None:
+            return "Role node model selection cancelled."
+        params["reasoning_effort"] = reasoning
+    account_options = [("", "none")]
+    account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
+    account = _prompt_menu_choice(
+        title=f"Choose account for {provider}:",
+        options=account_options,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if account is None:
+        return "Role node model selection cancelled."
+    try:
+        node = _assign_prince2_role_node_model(
+            config,
+            prefs,
+            node_id=node_id,
+            provider=provider,
+            provider_model=provider_model,
+            params=params,
+            account=account or None,
+            pool="primary",
+        )
+    except ValueError as exc:
+        return str(exc)
+    return (
+        f"Assigned role node {node.get('node_id')}: provider={node.get('assignment', {}).get('provider')} "
+        f"provider_model={node.get('assignment', {}).get('provider_model')} account={node.get('assignment', {}).get('account') or 'none'} "
+        f"{' '.join(f'{key}={value}' for key, value in sorted((node.get('assignment', {}).get('params', {}) or {}).items()))}".strip()
+    ).strip()
+
+
+def _guided_role_node_menu(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    node_id: str,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided PRINCE2 node menu is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu`."
+    current = node_id
+    while True:
+        node = _role_tree_node_record(config, current)
+        if not node:
+            return f"PRINCE2 node '{current}' not found."
+        output_stream.write(_render_prince2_role_node_detail(config, current) + "\n")
+        action = _prompt_menu_choice(
+            title=f"Node menu for {current}:",
+            options=[
+                ("view", "View node detail again"),
+                ("model", "Change model assignment"),
+                ("auto-model", "Auto-pick a stronger or lighter model from the menu"),
+                ("tolerance", "Adjust tolerance margin"),
+                ("reset-tolerance", "Reset tolerance from project brief"),
+                ("add-child", "Add delegated child node"),
+                ("remove", "Remove this node"),
+                ("back", "Back"),
+            ],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if action is None or action == "back":
+            return f"Closed node menu for {current}."
+        if action == "view":
+            output_stream.write(_render_prince2_role_node_detail(config, current) + "\n")
+            continue
+        if action == "model":
+            output_stream.write(_guided_role_node_model_choice(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "auto-model":
+            recommendation = _node_model_recommendation(config, node)
+            suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
+            provider = str(suggested.get("provider", "")).strip()
+            provider_model = str(suggested.get("provider_model", "")).strip()
+            if not provider or not provider_model:
+                output_stream.write("No automatic model suggestion is available for this node.\n")
+                continue
+            spec = provider_model_spec(provider, provider_model)
+            params: dict[str, str] = {}
+            if spec is not None and spec.reasoning_efforts:
+                preferred = prefs.params_for_model(provider).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
+                if preferred not in spec.reasoning_efforts:
+                    preferred = spec.reasoning_default or spec.reasoning_efforts[0]
+                params["reasoning_effort"] = preferred
+            try:
+                updated = _assign_prince2_role_node_model(
+                    config,
+                    prefs,
+                    node_id=current,
+                    provider=provider,
+                    provider_model=provider_model,
+                    params=params,
+                    account=(prefs.account_for_model(provider) if provider in (prefs.accounts_by_model or {}) else None),
+                    pool="primary",
+                )
+            except ValueError as exc:
+                output_stream.write(str(exc) + "\n")
+                continue
+            output_stream.write(
+                f"Auto model switch applied: provider={updated.get('assignment', {}).get('provider')} "
+                f"provider_model={updated.get('assignment', {}).get('provider_model')}\n"
+            )
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "tolerance":
+            output_stream.write("Set new tolerance margin percent: ")
+            output_stream.flush()
+            response = input_stream.readline()
+            if response == "":
+                return "Node menu cancelled."
+            try:
+                margin = float(response.strip().rstrip("%"))
+            except ValueError:
+                output_stream.write("Invalid margin. Enter a numeric percentage.\n")
+                continue
+            try:
+                updated = _set_prince2_role_node_tolerance_margin(config, prefs, node_id=current, margin_percent=margin)
+            except ValueError as exc:
+                output_stream.write(str(exc) + "\n")
+                continue
+            output_stream.write(
+                f"Updated tolerance margin for {current}: margin={updated.get('tolerance_margin_percent', 'unknown')}.\n"
+            )
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "reset-tolerance":
+            updated = _reset_prince2_role_node_tolerance(config, prefs, node_id=current)
+            output_stream.write(
+                f"Reset tolerance for {current}: margin={updated.get('tolerance_margin_percent', 'unknown')} pressure={updated.get('tolerance_pressure_percent', 'unknown')}.\n"
+            )
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "add-child":
+            output_stream.write(_guided_role_add_child(prefs=prefs, config=config, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "remove":
+            output_stream.write("Reparent direct children to the parent of this node? [yes/no]: ")
+            output_stream.flush()
+            response = input_stream.readline()
+            if response == "":
+                return "Node menu cancelled."
+            reparent = response.strip().lower() in {"y", "yes", "true", "1"}
+            try:
+                removed = _remove_prince2_role_node(config, prefs, node_id=current, reparent_children=reparent)
+            except ValueError as exc:
+                output_stream.write(str(exc) + "\n")
+                continue
+            output_stream.write(
+                f"Removed PRINCE2 role node {removed.get('node_id', current)}.\n"
+            )
+            prefs = _load_model_preferences(config)
+            return f"Removed PRINCE2 role node {current}."
+    return f"Closed node menu for {current}."
+
+
+def _guided_role_tree_menu(
+    *,
+    prefs: ModelPreferences,
+    config: AgentConfig,
+    input_stream: TextIO | None,
+    output_stream: TextIO | None,
+) -> str:
+    if input_stream is None or output_stream is None:
+        return "Guided PRINCE2 tree menu is available in the interactive shell. Run `python3 -m stagewarden.main` and use `roles menu`."
+    while True:
+        output_stream.write(_render_prince2_role_tree(config) + "\n")
+        action = _prompt_menu_choice(
+            title="PRINCE2 tree menu:",
+            options=[
+                ("node", "Open a node menu"),
+                ("add-child", "Add delegated node"),
+                ("remove", "Remove a node"),
+                ("approve", "Approve the current baseline"),
+                ("refresh", "Refresh tree view"),
+                ("back", "Back"),
+            ],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if action is None or action == "back":
+            return "PRINCE2 tree menu closed."
+        if action == "node":
+            node_id = _prompt_menu_choice(
+                title="Choose role-tree node:",
+                options=_role_tree_node_options(config),
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            if node_id is None:
+                continue
+            output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=node_id, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "add-child":
+            output_stream.write(_guided_role_add_child(prefs=prefs, config=config, input_stream=input_stream, output_stream=output_stream) + "\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "remove":
+            node_id = _prompt_menu_choice(
+                title="Choose role-tree node to remove:",
+                options=_role_tree_node_options(config),
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            if node_id is None:
+                continue
+            output_stream.write("Reparent direct children to the removed node's parent? [yes/no]: ")
+            output_stream.flush()
+            response = input_stream.readline()
+            if response == "":
+                return "PRINCE2 tree menu cancelled."
+            reparent = response.strip().lower() in {"y", "yes", "true", "1"}
+            try:
+                _remove_prince2_role_node(config, prefs, node_id=node_id, reparent_children=reparent)
+            except ValueError as exc:
+                output_stream.write(str(exc) + "\n")
+                continue
+            output_stream.write(f"Removed PRINCE2 role node {node_id}.\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "approve":
+            _approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_menu")
+            output_stream.write("Approved PRINCE2 role-tree baseline from menu.\n")
+            prefs = _load_model_preferences(config)
+            continue
+        if action == "refresh":
+            output_stream.write(_render_prince2_role_tree(config) + "\n")
+            continue
+
+
 def _guided_roles_setup(
     *,
     prefs: ModelPreferences,
@@ -3152,9 +3808,24 @@ def _handle_role_command(
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
-        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup"
+        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree menu | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | roles menu"
     if parts[0] == "role":
         prefs = _load_model_preferences(config)
+        if len(parts) == 2 and parts[1] == "menu":
+            return _guided_role_tree_menu(
+                prefs=prefs,
+                config=config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+        if len(parts) == 3 and parts[1] == "menu":
+            return _guided_role_node_menu(
+                prefs=prefs,
+                config=config,
+                node_id=parts[2],
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
         if len(parts) in {4, 5} and parts[1] == "add-child":
             try:
                 child = _add_child_prince2_role_node(
@@ -3176,6 +3847,90 @@ def _handle_role_command(
                 config=config,
                 input_stream=input_stream,
                 output_stream=output_stream,
+            )
+        if len(parts) >= 3 and parts[1] == "model":
+            if len(parts) == 3:
+                return _guided_role_node_menu(
+                    prefs=prefs,
+                    config=config,
+                    node_id=parts[2],
+                    input_stream=input_stream,
+                    output_stream=output_stream,
+                )
+            if len(parts) < 5:
+                return "Usage: role model <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]"
+            extra_params: dict[str, str] = {}
+            account = None
+            pool = "primary"
+            for token in parts[5:]:
+                key, separator, value = token.partition("=")
+                if not separator:
+                    return "Usage: role model <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]"
+                if key == "account":
+                    account = value or None
+                elif key == "pool":
+                    pool = value
+                else:
+                    extra_params[key] = value
+            try:
+                node = _assign_prince2_role_node_model(
+                    config,
+                    prefs,
+                    node_id=parts[2],
+                    provider=parts[3],
+                    provider_model=parts[4],
+                    params=extra_params,
+                    account=account,
+                    pool=pool,
+                )
+            except ValueError as exc:
+                return str(exc)
+            assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+            if pool == "primary":
+                return (
+                    f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
+                    f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'} pool=primary."
+                )
+            pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
+            routes = pools.get(pool, []) if isinstance(pools.get(pool, []), list) else []
+            route = routes[-1] if routes and isinstance(routes[-1], dict) else {}
+            return (
+                f"Assigned role node {node.get('node_id')}: provider={route.get('provider')} "
+                f"provider_model={route.get('provider_model')} account={route.get('account') or 'none'} pool={pool}."
+            )
+        if len(parts) >= 3 and parts[1] == "tolerance":
+            if len(parts) == 5 and parts[2] == "set":
+                try:
+                    margin = float(parts[4].rstrip("%"))
+                except ValueError:
+                    return "Usage: role tolerance set <node_id> <percent>"
+                try:
+                    updated = _set_prince2_role_node_tolerance_margin(config, prefs, node_id=parts[3], margin_percent=margin)
+                except ValueError as exc:
+                    return str(exc)
+                return f"Updated tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')}."
+            if len(parts) == 4 and parts[2] == "reset":
+                updated = _reset_prince2_role_node_tolerance(config, prefs, node_id=parts[3])
+                return (
+                    f"Reset tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')} "
+                    f"pressure={updated.get('tolerance_pressure_percent', 'unknown')}."
+                )
+            return "Usage: role tolerance set <node_id> <percent> | role tolerance reset <node_id>"
+        if len(parts) >= 3 and parts[1] == "remove":
+            reparent_children = True
+            for token in parts[3:]:
+                key, separator, value = token.partition("=")
+                if not separator:
+                    return "Usage: role remove <node_id> [reparent_children=<yes|no>]"
+                if key == "reparent_children":
+                    reparent_children = value.strip().lower() not in {"0", "false", "no"}
+            try:
+                removed = _remove_prince2_role_node(config, prefs, node_id=parts[2], reparent_children=reparent_children)
+            except ValueError as exc:
+                return str(exc)
+            return (
+                f"Removed PRINCE2 role node {removed.get('node_id', parts[2])}.\n"
+                + _render_prince2_role_tree_baseline(config)
             )
         if len(parts) >= 5 and parts[1] == "assign":
             extra_params: dict[str, str] = {}
@@ -3345,7 +4100,7 @@ def _handle_role_command(
             _save_model_preferences(config, prefs)
             _sync_prince2_roles_to_handoff(config, prefs)
             return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
-        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]"
+        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role menu [node_id] | role model <node_id> [provider provider_model] [reasoning_effort=<value>] [account=<name>] | role tolerance set <node_id> <percent> | role tolerance reset <node_id> | role remove <node_id> [reparent_children=<yes|no>] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]"
     return None
 
 
