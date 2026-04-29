@@ -10,6 +10,7 @@
 - **AI Model Catalog Enrichment:** Added catalog aliases and `catalog search` so the snapshot can be queried by model id, name, aliases, providers, or features instead of only by direct provider-model lookup. `catalog search` now accepts `provider=` and `feature=` filters.
 - **AI Model Catalog Automation:** Added a scheduled GitHub Actions workflow that rebuilds the catalog, commits refreshed snapshots back to the branch when they change, and uploads the refreshed snapshot as an artifact.
 - **KiloCode Study Material:** Added `external_sources/kilocode` as a local research clone and expanded the study docs/policy baseline to include KiloCode alongside Codex CLI and Claude Code.
+- **PRINCE2 Node Shell Navigation:** Added a human-visible ASCII role-tree renderer with status legend, node descriptions, and shell hints. Added `roles shell` / `role shell` navigators so each node can be viewed as a shell thread and traversed through parent, sibling, and child hops.
 
 ## Completed Work: AI Model Catalog
 
@@ -17,6 +18,7 @@
 - **Data Sources:** Information is being gathered from Ollama (local models), OpenRouter API, and Artificial Analysis.
 - **Data Structure:** A detailed JSON structure has been defined for the catalog. Key fields include `provider`, `model_name`, `model_id`, `context_window`, `cost_per_input_token_usd`, `cost_per_output_token_usd`, `blended_price_usd_per_1m_tokens` (with 'local' or 'N/A' for local models), `intelligence_rank`, `speed_rank`, `latency_rank`, `openness`, and `features`.
 - **Status:** No open implementation items remain for the AI model catalog scope. The builder, selection integration, refresh workflow, search enrichment, scheduled automation, and commit/push workflow are all complete.
+- **Status:** The PRINCE2 node tree is now human-readable, and node shells can be opened and navigated directly from the tree or node menus.
 
 ## PRINCE2 Alignment
 
@@ -28,6 +30,7 @@
 - The AI model catalog work is complete, including snapshot generation, catalog search, refresh automation, provider/feature query facets, and commit/push workflow for refreshed snapshots.
 - Validation completed with the full unittest suite passing.
 - The KiloCode study corpus and baseline documentation are now updated and tracked alongside the existing Codex CLI and Claude Code references.
+- The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, and nodes expose a navigable shell view with parent/sibling/child hops.
 
 # Operational Notes
 
@@ -37,5 +40,5 @@
 
 - **Git Head Baseline:** `b2994c4056d5076209ac6d73c05437478bf97df9`
 - **Plan Status:** Completed.
-- **Current Step:** Formal close completed AI model catalog work.
-- **Updated At:** 2026-04-27T17:12:00Z
+- **Current Step:** PRINCE2 node shell and navigation UX completed.
+- **Updated At:** 2026-04-29T00:00:00Z
