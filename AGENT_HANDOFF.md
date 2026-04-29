@@ -3,7 +3,7 @@
 ## Current objective
 Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 so every AI response is reviewed by a devil's-advocate critic, nodes can spawn child recovery threads, and per-node token accounting stays visible.
 Centralize the versioned JSON schemas used by the machine-readable status/report commands so other agents can validate one shared contract source instead of per-command ad hoc literals.
-Extend the same shared schema registry to the other stable JSON CLI surfaces, including help, commands, slash, catalog, goal, model usage, git, sessions, and register reports.
+Extend the same shared schema registry to the remaining stable JSON CLI surfaces, including help, commands, slash, catalog, goal, model usage, git, sessions, role views, project brief/design, system reports, and other register-style outputs.
 
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
@@ -13,7 +13,7 @@ Extend the same shared schema registry to the other stable JSON CLI surfaces, in
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
 - Those schema names and versions are now centralized in `stagewarden/json_schema_registry.py`.
-- The shared registry now also covers stable JSON surfaces for `help`, `commands`, `slash`, `slash choose`, `catalog status`, `catalog search`, `goal`, `goal set`, `goal status`, `goal clear`, `doctor`, `models`, `model limits`, `models usage`, `accounts`, `permissions`, `git status`, `git log`, `git history`, `git show`, `sessions`, `risks`, `issues`, `quality`, `exception`, `lessons`, `todo`, `transcript`, `resume --show`, and `resume context`.
+- The shared registry now also covers stable JSON surfaces for `help`, `commands`, `slash`, `slash choose`, `catalog`, `catalog status`, `catalog search`, `catalog refresh`, `goal`, `goal set`, `goal status`, `goal clear`, `doctor`, `models`, `model`, `model inspect`, `model limits`, `model limit-record`, `model limit-clear`, `account limit-record`, `account limit-clear`, `project brief`, `project brief set`, `project brief clear`, `project design`, `project tree propose`, `project tree approve`, `roles`, `roles domains`, `roles tree`, `roles tree approve`, `roles baseline`, `roles baseline matrix`, `roles context`, `roles active`, `roles control`, `roles queues`, `roles messages`, `roles runtime`, `roles tick`, `roles check`, `roles flow`, `roles matrix`, `shell backend use`, `web search`, `download`, `checksum`, `compress`, `archive verify`, `models usage`, `accounts`, `permissions`, `git status`, `git log`, `git history`, `git show`, `sessions`, `risks`, `issues`, `quality`, `exception`, `lessons`, `todo`, `transcript`, `resume --show`, `resume context`, and `resume --clear`.
 - The help system now exposes an `agent` topic that documents the multi-agent startup/handoff protocol.
 - The current compatibility slice remains complete and validated with wet-run tests.
 
@@ -27,6 +27,7 @@ Extend the same shared schema registry to the other stable JSON CLI surfaces, in
 - `stagewarden/json_schema_registry.py`: shared source of truth for operational JSON schema names and versions.
 - `stagewarden/commands.py`: added `/help agent` and a dedicated agent-compatibility help topic.
 - `README.md` and `README_IT.md`: documented the multi-agent protocol and the new help entry.
+- `stagewarden/main.py`: expanded the shared JSON schema wrapper to the remaining CLI surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register reports.
 
 ## Important files
 - `AGENTS.md`: startup and handoff rules for agents.
