@@ -59,7 +59,7 @@ class Agent:
         directive = self._merge_caveman_state(directive, task)
 
         effective_task = directive.stripped_task or task
-        checklist = self.prince2.build_checklist(effective_task)
+        checklist = self.prince2.build_checklist(effective_task, project_brief=self.project_handoff.project_brief)
         assessment = self.prince2.assess_task(effective_task, checklist)
         pid = self.prince2.build_pid(effective_task, checklist)
         if directive.active:

@@ -786,6 +786,9 @@ class ProjectHandoff:
             lines.append(
                 f"- {node.get('label', node.get('node_id', 'node'))} [{node.get('node_id', 'unknown')}]: "
                 f"state={node.get('state', 'unknown')} "
+                f"owner={node.get('accountable_owner', 'user')} "
+                f"margin={node.get('tolerance_margin_percent', 'unknown')} "
+                f"pressure={node.get('tolerance_pressure_percent', 'unknown')} "
                 f"inbox={node.get('inbox_count', 0)} outbox={node.get('outbox_count', 0)} "
                 f"wait={node.get('wait_status', 'none')} "
                 f"provider={((node.get('assignment') or {}).get('provider') if isinstance(node.get('assignment'), dict) else None) or 'none'} "
@@ -805,7 +808,7 @@ class ProjectHandoff:
             }
         active_nodes = []
         for node in nodes:
-            state = str(node.get("state", "idle")).strip().lower()
+            state = self._node_tolerance_state(node)
             if state == "completed":
                 continue
             active_nodes.append(
@@ -813,6 +816,7 @@ class ProjectHandoff:
                     "node_id": str(node.get("node_id", "")),
                     "label": str(node.get("label", node.get("node_id", ""))),
                     "state": state or "idle",
+                    "tolerance_state": state or "idle",
                     "wait_status": str(node.get("wait_status", "none")),
                     "inbox_count": int(node.get("inbox_count", 0) or 0),
                     "outbox_count": int(node.get("outbox_count", 0) or 0),
@@ -840,6 +844,10 @@ class ProjectHandoff:
         for node in nodes:
             lines.append(
                 f"- {node.get('label')} [{node.get('node_id')}]: state={node.get('state')} "
+                f"owner={node.get('accountable_owner', 'user')} "
+                f"margin={node.get('tolerance_margin_percent', 'unknown')} "
+                f"pressure={node.get('tolerance_pressure_percent', 'unknown')} "
+                f"tolerance_state={node.get('tolerance_state', node.get('state'))} "
                 f"wait={node.get('wait_status')} inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
                 f"provider={node.get('provider')} provider_model={node.get('provider_model')}"
             )
@@ -944,7 +952,7 @@ class ProjectHandoff:
         inbox_nodes = 0
         for node in active_nodes:
             node_id = str(node.get("node_id", ""))
-            state = str(node.get("state", "idle")).strip().lower() or "idle"
+            state = self._node_tolerance_state(node)
             wait_status = str(node.get("wait_status", "none")).strip().lower() or "none"
             inbox_count = int(node.get("inbox_count", 0) or 0)
             outbox_count = int(node.get("outbox_count", 0) or 0)
@@ -953,7 +961,11 @@ class ProjectHandoff:
             if state == "escalated":
                 escalated_nodes += 1
                 severity = "exception"
-                reasons.append("node escalated beyond delegated tolerance")
+                margin = self._node_tolerance_margin(node)
+                pressure = self._node_tolerance_pressure(node)
+                reasons.append(
+                    f"tolerance pressure {pressure:.2f}% exceeds margin {margin:.2f}%"
+                )
             if state == "blocked":
                 blocked_nodes += 1
                 severity = "exception"
@@ -983,6 +995,10 @@ class ProjectHandoff:
                         "reasons": reasons,
                         "provider": str(node.get("provider", "none")),
                         "provider_model": str(node.get("provider_model", "none")),
+                        "accountable_owner": str(node.get("accountable_owner", "user")),
+                        "tolerance_margin_percent": self._node_tolerance_margin(node),
+                        "tolerance_pressure_percent": self._node_tolerance_pressure(node),
+                        "autonomy_rule": str(node.get("autonomy_rule", "")),
                         "queue_state": str(queue_row.get("state", state)),
                     }
                 )
@@ -1060,6 +1076,8 @@ class ProjectHandoff:
             lines.append(
                 f"  - {node.get('label')} [{node.get('node_id')}]: severity={node.get('severity')} "
                 f"state={node.get('state')} wait={node.get('wait_status')} "
+                f"owner={node.get('accountable_owner', 'user')} margin={node.get('tolerance_margin_percent', 'unknown')} "
+                f"pressure={node.get('tolerance_pressure_percent', 'unknown')} "
                 f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
                 f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
             )
@@ -1260,7 +1278,18 @@ class ProjectHandoff:
 
     def tick_prince2_node(self, *, node_id: str) -> dict[str, Any]:
         node = self._prince2_runtime_node(node_id)
-        state = str(node.get("state", "idle")).strip().lower()
+        state = self._node_tolerance_state(node)
+        if state == "escalated":
+            raise ValueError(
+                f"Node '{node_id}' exceeds its tolerance margin and must escalate to {node.get('escalation_target', 'board.executive')}."
+            )
+        if state == "completed":
+            return {
+                "node_id": node_id,
+                "state": "completed",
+                "consumed_message": None,
+                "remaining_inbox": len([dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]),
+            }
         if state == "waiting":
             raise ValueError(f"Node '{node_id}' is waiting and cannot tick until woken.")
         inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
@@ -1328,7 +1357,21 @@ class ProjectHandoff:
                 continue
             processed += 1
             state = str(node.get("state", "idle")).strip().lower() or "idle"
+            tolerance_state = self._node_tolerance_state(node)
             inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
+            if tolerance_state == "escalated":
+                skipped += 1
+                results.append(
+                    {
+                        "node_id": node_id,
+                        "action": "skip",
+                        "state": tolerance_state,
+                        "reason": "tolerance_margin_exceeded",
+                        "margin_percent": self._node_tolerance_margin(node),
+                        "pressure_percent": self._node_tolerance_pressure(node),
+                    }
+                )
+                continue
             if state == "waiting" and inbox:
                 allowed = [str(item).strip() for item in node.get("wake_triggers", []) if str(item).strip()]
                 if "message_received" in allowed:
@@ -1689,7 +1732,7 @@ class ProjectHandoff:
             "wait_triggers": 0,
         }
         for node in nodes:
-            state = str(node.get("state", "idle")).strip().lower() or "idle"
+            state = self._node_runtime_state(node)
             if state in counts:
                 counts[state] += 1
             wait_status = str(node.get("wait_status", "none")).strip().lower()
@@ -1709,6 +1752,39 @@ class ProjectHandoff:
             raise ValueError(f"Node '{node_id}' not found in PRINCE2 node runtime.")
         self.prince2_node_runtime["nodes"] = nodes
         return node
+
+    def _node_tolerance_margin(self, node: dict[str, Any]) -> float:
+        try:
+            margin = float(node.get("tolerance_margin_percent", 25.0) or 25.0)
+        except (TypeError, ValueError):
+            return 25.0
+        if margin <= 0:
+            return 25.0
+        return min(margin, 100.0)
+
+    def _node_tolerance_pressure(self, node: dict[str, Any]) -> float:
+        try:
+            pressure = float(node.get("tolerance_pressure_percent", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+        if pressure < 0:
+            return 0.0
+        return min(pressure, 100.0)
+
+    def _node_tolerance_state(self, node: dict[str, Any]) -> str:
+        state = str(node.get("state", "idle")).strip().lower() or "idle"
+        if state == "completed":
+            return state
+        if state in {"escalated", "blocked"}:
+            return state
+        margin = self._node_tolerance_margin(node)
+        pressure = self._node_tolerance_pressure(node)
+        if pressure > margin:
+            return "escalated"
+        return state
+
+    def _node_runtime_state(self, node: dict[str, Any]) -> str:
+        return self._node_tolerance_state(node)
 
     def _materialize_prince2_node_runtime(self, baseline: dict[str, Any]) -> dict[str, Any]:
         tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
@@ -1756,6 +1832,14 @@ class ProjectHandoff:
                     "delegated_authority": str(node.get("delegated_authority", "")),
                     "context_scope": str(node.get("context_scope", "")),
                     "responsibility_domain": str(node.get("responsibility_domain", "")),
+                    "accountable_owner": str(node.get("accountable_owner", "user")) or "user",
+                    "tolerance_margin_percent": float(node.get("tolerance_margin_percent", 25.0) or 25.0),
+                    "tolerance_pressure_percent": float(node.get("tolerance_pressure_percent", 0.0) or 0.0),
+                    "autonomy_rule": str(node.get("autonomy_rule", "")),
+                    "escalation_target": str(node.get("escalation_target", "board.executive")),
+                    "tolerance_profile": dict(node.get("tolerance_profile", {}))
+                    if isinstance(node.get("tolerance_profile", {}), dict)
+                    else {},
                     "assignment": assignment,
                     "incoming_edges": [
                         str(edge.get("edge_id", ""))
