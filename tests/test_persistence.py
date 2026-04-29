@@ -183,6 +183,11 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(runtime["runtime"]["nodes"][0]["node_id"], "management.project_manager")
             self.assertEqual(runtime["runtime"]["nodes"][0]["state"], "ready")
             self.assertEqual(runtime["runtime"]["nodes"][0]["wake_triggers"], ["escalation", "stage_boundary_review"])
+            self.assertGreater(int(runtime["runtime"]["nodes"][0]["business_case_input_token_count"]), 0)
+            self.assertEqual(int(runtime["runtime"]["nodes"][0]["business_case_output_token_count"]), 0)
+            self.assertGreater(float(runtime["runtime"]["nodes"][0]["business_case_input_cost_usd"]), 0.0)
+            self.assertGreater(float(runtime["runtime"]["nodes"][0]["business_case_cost_usd"]), 0.0)
+            self.assertIn("pricing", runtime["runtime"]["nodes"][0])
 
     def test_project_handoff_rejects_prince2_message_payload_outside_edge_scope(self) -> None:
         handoff = ProjectHandoff()
@@ -294,6 +299,13 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(ticked["state"], "running")
         self.assertIsNotNone(ticked["consumed_message"])
         self.assertEqual(ticked["remaining_inbox"], 0)
+        runtime_node = next(
+            item
+            for item in handoff.prince2_node_runtime_report()["runtime"]["nodes"]
+            if item["node_id"] == "delivery.team_manager"
+        )
+        self.assertGreater(int(runtime_node["business_case_input_token_count"]), 0)
+        self.assertEqual(int(runtime_node["business_case_output_token_count"]), 0)
 
     def test_project_handoff_can_batch_tick_prince2_runtime(self) -> None:
         handoff = ProjectHandoff()
@@ -359,6 +371,9 @@ class PersistenceTests(unittest.TestCase):
         }
         self.assertEqual(nodes["management.project_manager"]["state"], "completed")
         self.assertEqual(nodes["delivery.team_manager"]["state"], "running")
+        self.assertGreater(int(nodes["management.project_manager"]["business_case_output_token_count"]), 0)
+        self.assertGreater(int(nodes["delivery.team_manager"]["business_case_input_token_count"]), 0)
+        self.assertEqual(int(nodes["delivery.team_manager"]["business_case_output_token_count"]), 0)
         self.assertEqual(nodes["delivery.team_manager"]["inbox_count"], 0)
 
     def test_project_handoff_can_build_prince2_control_report(self) -> None:
@@ -422,6 +437,9 @@ class PersistenceTests(unittest.TestCase):
         critical = {item["node_id"]: item for item in report["critical_nodes"]}
         self.assertIn("delivery.team_manager", critical)
         self.assertIn("queued inbound message(s)", " ".join(critical["delivery.team_manager"]["reasons"]))
+        self.assertGreater(int(critical["delivery.team_manager"]["business_case_input_token_count"]), 0)
+        self.assertEqual(int(critical["delivery.team_manager"]["business_case_output_token_count"]), 0)
+        self.assertIn("pricing", critical["delivery.team_manager"])
 
     def test_project_handoff_can_close_step_issues_and_clear_exception_plan(self) -> None:
         handoff = ProjectHandoff(

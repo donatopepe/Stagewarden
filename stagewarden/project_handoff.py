@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
 from .prince2 import PRINCE2_THEME_NAMES, Prince2AgentPolicy, Prince2ToleranceProfile
 from .role_tree import prince2_node_description, prince2_status_color
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
@@ -12,6 +13,26 @@ from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _round_usd(value: float) -> float:
+    return round(max(0.0, float(value)), 8)
+
+
+def _safe_price_per_token(value: object) -> float | None:
+    try:
+        price = float(str(value))
+    except (TypeError, ValueError):
+        return None
+    return None if price < 0 else price
+
+
+def _safe_token_count(value: object) -> int:
+    try:
+        count = int(float(str(value)))
+    except (TypeError, ValueError):
+        return 0
+    return max(0, count)
 
 
 @dataclass(slots=True)
@@ -828,8 +849,18 @@ class ProjectHandoff:
                 )
             lines.append(
                 f"  thread_tokens total={node.get('thread_token_count', 0)} "
-                f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
+                f"business_case={node.get('business_case_token_count', 0)} "
+                f"input={node.get('business_case_input_token_count', 0)} "
+                f"output={node.get('business_case_output_token_count', 0)} "
+                f"cost_usd={node.get('business_case_cost_usd', 0)} child_count={node.get('child_count', 0)}"
             )
+            pricing = node.get("pricing", {}) if isinstance(node.get("pricing", {}), dict) else {}
+            if pricing:
+                lines.append(
+                    f"  pricing input_usd={pricing.get('cost_per_input_token_usd', 'none')} "
+                    f"output_usd={pricing.get('cost_per_output_token_usd', 'none')} "
+                    f"source={pricing.get('source', 'unknown')}"
+                )
             kpi_tokens = node.get("kpi_token_counts", {}) if isinstance(node.get("kpi_token_counts", {}), dict) else {}
             if isinstance(kpi_tokens, dict) and kpi_tokens:
                 lines.append(
@@ -867,6 +898,12 @@ class ProjectHandoff:
                     "provider_model": ((node.get("assignment") or {}).get("provider_model") if isinstance(node.get("assignment"), dict) else None) or "none",
                     "last_transition_at": str(node.get("last_transition_at", "")),
                     "business_case_token_count": int(node.get("business_case_token_count", 0) or 0),
+                    "business_case_input_token_count": int(node.get("business_case_input_token_count", 0) or 0),
+                    "business_case_output_token_count": int(node.get("business_case_output_token_count", 0) or 0),
+                    "business_case_input_cost_usd": float(node.get("business_case_input_cost_usd", 0.0) or 0.0),
+                    "business_case_output_cost_usd": float(node.get("business_case_output_cost_usd", 0.0) or 0.0),
+                    "business_case_cost_usd": float(node.get("business_case_cost_usd", 0.0) or 0.0),
+                    "pricing": dict(node.get("pricing", {})) if isinstance(node.get("pricing", {}), dict) else {},
                     "thread_token_count": int(node.get("thread_token_count", 0) or 0),
                     "child_count": int(node.get("child_count", 0) or 0),
                     "spawn_source": str(node.get("spawn_source", "")),
@@ -915,8 +952,18 @@ class ProjectHandoff:
             )
             lines.append(
                 f"  thread_tokens total={node.get('thread_token_count', 0)} "
-                f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
+                f"business_case={node.get('business_case_token_count', 0)} "
+                f"input={node.get('business_case_input_token_count', 0)} "
+                f"output={node.get('business_case_output_token_count', 0)} "
+                f"cost_usd={node.get('business_case_cost_usd', 0)} child_count={node.get('child_count', 0)}"
             )
+            pricing = node.get("pricing", {}) if isinstance(node.get("pricing", {}), dict) else {}
+            if pricing:
+                lines.append(
+                    f"  pricing input_usd={pricing.get('cost_per_input_token_usd', 'none')} "
+                    f"output_usd={pricing.get('cost_per_output_token_usd', 'none')} "
+                    f"source={pricing.get('source', 'unknown')}"
+                )
             lines.append(f"  switch_hint=role switch {node.get('node_id', 'unknown')}")
         return "\n".join(lines)
 
@@ -1077,6 +1124,12 @@ class ProjectHandoff:
                         "child_ids": child_ids,
                         "child_count": len(child_ids),
                         "business_case_token_count": int(node.get("business_case_token_count", 0) or 0),
+                        "business_case_input_token_count": int(node.get("business_case_input_token_count", 0) or 0),
+                        "business_case_output_token_count": int(node.get("business_case_output_token_count", 0) or 0),
+                        "business_case_input_cost_usd": float(node.get("business_case_input_cost_usd", 0.0) or 0.0),
+                        "business_case_output_cost_usd": float(node.get("business_case_output_cost_usd", 0.0) or 0.0),
+                        "business_case_cost_usd": float(node.get("business_case_cost_usd", 0.0) or 0.0),
+                        "pricing": dict(node.get("pricing", {})) if isinstance(node.get("pricing", {}), dict) else {},
                         "thread_token_count": int(node.get("thread_token_count", 0) or 0),
                         "kpi_token_counts": dict(node.get("kpi_token_counts", {})) if isinstance(node.get("kpi_token_counts", {}), dict) else {},
                         "antagonist_name": str(node.get("antagonist_name", "")),
@@ -1168,8 +1221,18 @@ class ProjectHandoff:
             )
             lines.append(
                 f"    thread_tokens total={node.get('thread_token_count', 0)} "
-                f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
+                f"business_case={node.get('business_case_token_count', 0)} "
+                f"input={node.get('business_case_input_token_count', 0)} "
+                f"output={node.get('business_case_output_token_count', 0)} "
+                f"cost_usd={node.get('business_case_cost_usd', 0)} child_count={node.get('child_count', 0)}"
             )
+            pricing = node.get("pricing", {}) if isinstance(node.get("pricing", {}), dict) else {}
+            if pricing:
+                lines.append(
+                    f"    pricing input_usd={pricing.get('cost_per_input_token_usd', 'none')} "
+                    f"output_usd={pricing.get('cost_per_output_token_usd', 'none')} "
+                    f"source={pricing.get('source', 'unknown')}"
+                )
             lines.append(
                 f"    antagonist={node.get('antagonist_name', 'unknown')} "
                 f"pressure={node.get('antagonist_pressure_percent', 0)} "
@@ -1327,8 +1390,16 @@ class ProjectHandoff:
         source["last_transition_at"] = message["timestamp"]
         target["last_transition_at"] = message["timestamp"]
         message_tokens = max(1, len(" ".join(clean_payload + evidence + [message["summary"]]).split()))
-        self._bump_node_thread_tokens(source, amount=max(1, message_tokens // 2), bucket=self._node_flow_bucket(str(edge.get("flow_type", ""))))
-        self._bump_node_thread_tokens(target, amount=message_tokens, bucket="business_case")
+        self._bump_node_thread_tokens(
+            source,
+            output_tokens=message_tokens,
+            bucket=self._node_flow_bucket(str(edge.get("flow_type", ""))),
+        )
+        self._bump_node_thread_tokens(
+            target,
+            input_tokens=message_tokens,
+            bucket="business_case",
+        )
         if str(target.get("state", "idle")).strip().lower() in {"idle", "waiting"}:
             target["state"] = "ready"
         if str(target.get("wait_status", "none")).strip().lower() != "none":
@@ -1952,6 +2023,30 @@ class ProjectHandoff:
             return "escalated"
         return state
 
+    def _node_model_pricing(self, node: dict[str, Any], catalog: dict[str, Any] | None = None) -> dict[str, Any]:
+        assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+        provider = str(assignment.get("provider", "")).strip()
+        provider_model = str(assignment.get("provider_model", "")).strip()
+        pricing = {
+            "provider": provider or "none",
+            "provider_model": provider_model or "none",
+            "cost_per_input_token_usd": None,
+            "cost_per_output_token_usd": None,
+            "blended_price_usd_per_1m_tokens": None,
+            "source": None,
+        }
+        if not provider or not provider_model or provider_model == "provider-default":
+            return pricing
+        catalog_data = catalog if catalog is not None else load_ai_models_catalog()
+        entry = catalog_entry_for_provider_model(provider, provider_model, catalog_data)
+        if not entry:
+            return pricing
+        pricing["cost_per_input_token_usd"] = _safe_price_per_token(entry.get("cost_per_input_token_usd"))
+        pricing["cost_per_output_token_usd"] = _safe_price_per_token(entry.get("cost_per_output_token_usd"))
+        pricing["blended_price_usd_per_1m_tokens"] = entry.get("blended_price_usd_per_1m_tokens")
+        pricing["source"] = entry.get("source")
+        return pricing
+
     def _node_thread_token_profile(self, node: dict[str, Any]) -> dict[str, Any]:
         text_parts = [
             str(node.get("label", "")),
@@ -1962,9 +2057,9 @@ class ProjectHandoff:
             str(node.get("context_scope", "")),
             str(node.get("autonomy_rule", "")),
         ]
-        business_case_tokens = sum(len(part.split()) for part in text_parts if part.strip())
-        if business_case_tokens <= 0:
-            business_case_tokens = 1
+        business_case_input_tokens = sum(len(part.split()) for part in text_parts if part.strip())
+        if business_case_input_tokens <= 0:
+            business_case_input_tokens = 1
         tolerance_profile = node.get("tolerance_profile", {})
         theme_scores = tolerance_profile.get("theme_scores", {}) if isinstance(tolerance_profile, dict) else {}
         kpi_token_counts: dict[str, int] = {}
@@ -1973,17 +2068,29 @@ class ProjectHandoff:
                 score = float(theme_scores.get(theme, 0.0))
             except (TypeError, ValueError):
                 score = 0.0
-            kpi_token_counts[theme] = max(0, int(round(business_case_tokens * score)))
+            kpi_token_counts[theme] = max(0, int(round(business_case_input_tokens * score)))
         token_budget = node.get("token_budget")
         try:
             token_budget_value = int(token_budget) if token_budget not in {None, ""} else None
         except (TypeError, ValueError):
             token_budget_value = None
+        pricing = self._node_model_pricing(node)
+        input_price = pricing.get("cost_per_input_token_usd")
+        output_price = pricing.get("cost_per_output_token_usd")
+        business_case_output_tokens = int(node.get("business_case_output_token_count", 0) or 0)
+        business_case_input_cost_usd = _round_usd(business_case_input_tokens * float(input_price or 0.0))
+        business_case_output_cost_usd = _round_usd(business_case_output_tokens * float(output_price or 0.0))
         return {
-            "business_case_token_count": business_case_tokens,
+            "business_case_token_count": business_case_input_tokens + business_case_output_tokens,
+            "business_case_input_token_count": business_case_input_tokens,
+            "business_case_output_token_count": business_case_output_tokens,
+            "business_case_input_cost_usd": business_case_input_cost_usd,
+            "business_case_output_cost_usd": business_case_output_cost_usd,
+            "business_case_cost_usd": _round_usd(business_case_input_cost_usd + business_case_output_cost_usd),
             "kpi_token_counts": kpi_token_counts,
-            "thread_token_count": business_case_tokens + sum(kpi_token_counts.values()),
+            "thread_token_count": business_case_input_tokens + business_case_output_tokens + sum(kpi_token_counts.values()),
             "token_budget": token_budget_value,
+            "pricing": pricing,
         }
 
     def _node_antagonist_evidence(self, node: dict[str, Any]) -> dict[str, Any]:
@@ -2184,12 +2291,36 @@ class ProjectHandoff:
             return "organization"
         return "progress"
 
-    def _bump_node_thread_tokens(self, node: dict[str, Any], *, amount: int, bucket: str | None = None) -> None:
+    def _bump_node_thread_tokens(
+        self,
+        node: dict[str, Any],
+        *,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        bucket: str | None = None,
+    ) -> None:
+        input_count = max(0, int(input_tokens))
+        output_count = max(0, int(output_tokens))
+        amount = input_count + output_count
         if amount <= 0:
             return
         node["thread_token_count"] = int(node.get("thread_token_count", 0) or 0) + amount
-        if bucket == "business_case":
-            node["business_case_token_count"] = int(node.get("business_case_token_count", 0) or 0) + amount
+        node["business_case_input_token_count"] = int(node.get("business_case_input_token_count", 0) or 0) + input_count
+        node["business_case_output_token_count"] = int(node.get("business_case_output_token_count", 0) or 0) + output_count
+        node["business_case_token_count"] = int(node.get("business_case_input_token_count", 0) or 0) + int(node.get("business_case_output_token_count", 0) or 0)
+        pricing = self._node_model_pricing(node)
+        input_price = float(pricing.get("cost_per_input_token_usd") or 0.0)
+        output_price = float(pricing.get("cost_per_output_token_usd") or 0.0)
+        node["business_case_input_cost_usd"] = _round_usd(
+            float(node.get("business_case_input_cost_usd", 0.0) or 0.0) + (input_count * input_price)
+        )
+        node["business_case_output_cost_usd"] = _round_usd(
+            float(node.get("business_case_output_cost_usd", 0.0) or 0.0) + (output_count * output_price)
+        )
+        node["business_case_cost_usd"] = _round_usd(
+            float(node.get("business_case_input_cost_usd", 0.0) or 0.0)
+            + float(node.get("business_case_output_cost_usd", 0.0) or 0.0)
+        )
         kpi_counts = node.get("kpi_token_counts", {})
         if isinstance(kpi_counts, dict) and bucket in PRINCE2_THEME_NAMES:
             kpi_counts[bucket] = int(kpi_counts.get(bucket, 0) or 0) + amount
@@ -2260,9 +2391,15 @@ class ProjectHandoff:
             "spawned_from": node_id,
             "spawned_at": _utc_now(),
             "business_case_token_count": thread_profile["business_case_token_count"],
+            "business_case_input_token_count": thread_profile["business_case_input_token_count"],
+            "business_case_output_token_count": thread_profile["business_case_output_token_count"],
+            "business_case_input_cost_usd": thread_profile["business_case_input_cost_usd"],
+            "business_case_output_cost_usd": thread_profile["business_case_output_cost_usd"],
+            "business_case_cost_usd": thread_profile["business_case_cost_usd"],
             "kpi_token_counts": dict(thread_profile["kpi_token_counts"]),
             "thread_token_count": thread_profile["thread_token_count"],
             "token_budget": thread_profile["token_budget"],
+            "pricing": dict(thread_profile.get("pricing", {})),
         }
         nodes.append(child)
         tree["nodes"] = nodes
@@ -2350,11 +2487,19 @@ class ProjectHandoff:
                     "child_ids": child_ids,
                     "child_count": len(child_ids),
                     "business_case_token_count": int(previous.get("business_case_token_count", thread_tokens["business_case_token_count"]) or thread_tokens["business_case_token_count"]),
+                    "business_case_input_token_count": int(previous.get("business_case_input_token_count", thread_tokens["business_case_input_token_count"]) or thread_tokens["business_case_input_token_count"]),
+                    "business_case_output_token_count": int(previous.get("business_case_output_token_count", thread_tokens["business_case_output_token_count"]) or thread_tokens["business_case_output_token_count"]),
+                    "business_case_input_cost_usd": float(previous.get("business_case_input_cost_usd", thread_tokens["business_case_input_cost_usd"]) or thread_tokens["business_case_input_cost_usd"]),
+                    "business_case_output_cost_usd": float(previous.get("business_case_output_cost_usd", thread_tokens["business_case_output_cost_usd"]) or thread_tokens["business_case_output_cost_usd"]),
+                    "business_case_cost_usd": float(previous.get("business_case_cost_usd", thread_tokens["business_case_cost_usd"]) or thread_tokens["business_case_cost_usd"]),
                     "kpi_token_counts": dict(previous.get("kpi_token_counts", thread_tokens["kpi_token_counts"]))
                     if isinstance(previous.get("kpi_token_counts", thread_tokens["kpi_token_counts"]), dict)
                     else dict(thread_tokens["kpi_token_counts"]),
                     "thread_token_count": int(previous.get("thread_token_count", thread_tokens["thread_token_count"]) or thread_tokens["thread_token_count"]),
                     "token_budget": thread_tokens["token_budget"],
+                    "pricing": dict(previous.get("pricing", thread_tokens.get("pricing", {})))
+                    if isinstance(previous.get("pricing", thread_tokens.get("pricing", {})), dict)
+                    else dict(thread_tokens.get("pricing", {})),
                     "antagonist_profile": dict(antagonist_profile),
                     "antagonist_name": str(antagonist_profile.get("antagonist_name", f"{node.get('label', node_id)} Antagonist")),
                     "antagonist_pressure_percent": float(antagonist_profile.get("decision_kpis", {}).get("antagonist_pressure_percent", 0.0) or 0.0)

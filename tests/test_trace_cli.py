@@ -3937,6 +3937,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(baseline_nodes["management.project_manager.escalation"]["spawn_source"], "escalation")
             self.assertGreater(int(child.get("thread_token_count", 0) or 0), 0)
             self.assertGreater(int(child.get("business_case_token_count", 0) or 0), 0)
+            self.assertGreater(int(child.get("business_case_input_token_count", 0) or 0), 0)
+            self.assertIn("business_case_cost_usd", child)
             critical = next(
                 item
                 for item in control_payload["critical_nodes"]
@@ -3949,6 +3951,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Escalation Child", runtime_text.stdout)
             self.assertIn("thread_tokens total=", runtime_text.stdout)
             self.assertIn("business_case=", runtime_text.stdout)
+            self.assertIn("input=", runtime_text.stdout)
+            self.assertIn("output=", runtime_text.stdout)
+            self.assertIn("cost_usd=", runtime_text.stdout)
             self.assertIn("antagonist_name", control_json.stdout)
             self.assertIn("devil_advocate", control_json.stdout)
 
@@ -4243,6 +4248,8 @@ class TraceAndCliTests(unittest.TestCase):
                 for item in tick_payload["runtime"]["runtime"]["nodes"]
             }
             self.assertEqual(tick_rows["delivery.team_manager"]["state"], "running")
+            self.assertGreater(int(tick_rows["delivery.team_manager"]["business_case_input_token_count"]), 0)
+            self.assertEqual(int(tick_rows["delivery.team_manager"]["business_case_output_token_count"]), 0)
 
     def test_roles_tick_advances_runtime_in_batch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -4315,6 +4322,9 @@ class TraceAndCliTests(unittest.TestCase):
             }
             self.assertEqual(rows["management.project_manager"]["state"], "completed")
             self.assertEqual(rows["delivery.team_manager"]["state"], "running")
+            self.assertGreater(int(rows["management.project_manager"]["business_case_output_token_count"]), 0)
+            self.assertGreater(int(rows["delivery.team_manager"]["business_case_input_token_count"]), 0)
+            self.assertEqual(int(rows["delivery.team_manager"]["business_case_output_token_count"]), 0)
             self.assertEqual(payload["messages"]["nodes"][0]["inbox"], [])
 
     def test_project_design_report_exposes_capability_spec_project_spec_and_gaps(self) -> None:
