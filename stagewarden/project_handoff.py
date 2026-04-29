@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .prince2 import PRINCE2_THEME_NAMES, Prince2AgentPolicy, Prince2ToleranceProfile
 from .role_tree import prince2_node_description, prince2_status_color
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
@@ -795,9 +796,20 @@ class ProjectHandoff:
                 f"inbox={node.get('inbox_count', 0)} outbox={node.get('outbox_count', 0)} "
                 f"wait={node.get('wait_status', 'none')} "
                 f"provider={((node.get('assignment') or {}).get('provider') if isinstance(node.get('assignment'), dict) else None) or 'none'} "
-                f"provider_model={((node.get('assignment') or {}).get('provider_model') if isinstance(node.get('assignment'), dict) else None) or 'none'}"
+                f"provider_model={((node.get('assignment') or {}).get('provider_model') if isinstance(node.get('assignment'), dict) else None) or 'none'} "
+                f"spawn_source={node.get('spawn_source', 'none') or 'none'}"
             )
             lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
+            lines.append(
+                f"  thread_tokens total={node.get('thread_token_count', 0)} "
+                f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
+            )
+            kpi_tokens = node.get("kpi_token_counts", {}) if isinstance(node.get("kpi_token_counts", {}), dict) else {}
+            if isinstance(kpi_tokens, dict) and kpi_tokens:
+                lines.append(
+                    "  kpi_tokens="
+                    + ", ".join(f"{theme}:{kpi_tokens.get(theme, 0)}" for theme in PRINCE2_THEME_NAMES)
+                )
             lines.append(f"  switch_hint=role switch {node.get('node_id', 'unknown')}")
         return "\n".join(lines)
 
@@ -828,6 +840,11 @@ class ProjectHandoff:
                     "provider": ((node.get("assignment") or {}).get("provider") if isinstance(node.get("assignment"), dict) else None) or "none",
                     "provider_model": ((node.get("assignment") or {}).get("provider_model") if isinstance(node.get("assignment"), dict) else None) or "none",
                     "last_transition_at": str(node.get("last_transition_at", "")),
+                    "business_case_token_count": int(node.get("business_case_token_count", 0) or 0),
+                    "thread_token_count": int(node.get("thread_token_count", 0) or 0),
+                    "child_count": int(node.get("child_count", 0) or 0),
+                    "spawn_source": str(node.get("spawn_source", "")),
+                    "spawn_reason": str(node.get("spawn_reason", "")),
                 }
             )
         return {
@@ -856,9 +873,14 @@ class ProjectHandoff:
                 f"pressure={node.get('tolerance_pressure_percent', 'unknown')} "
                 f"tolerance_state={node.get('tolerance_state', node.get('state'))} "
                 f"wait={node.get('wait_status')} inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
-                f"provider={node.get('provider')} provider_model={node.get('provider_model')}"
+                f"provider={node.get('provider')} provider_model={node.get('provider_model')} "
+                f"spawn_source={node.get('spawn_source', 'none') or 'none'}"
             )
             lines.append(f"  description={node.get('description') or prince2_node_description(node)}")
+            lines.append(
+                f"  thread_tokens total={node.get('thread_token_count', 0)} "
+                f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
+            )
             lines.append(f"  switch_hint=role switch {node.get('node_id', 'unknown')}")
         return "\n".join(lines)
 
@@ -992,6 +1014,7 @@ class ProjectHandoff:
                 reasons.append(f"{outbox_count} outbound message(s) pending visibility")
             if reasons:
                 queue_row = queue_rows.get(node_id, {})
+                child_ids = [str(item.get("node_id", "")) for item in nodes if str(item.get("parent_id", "")).strip() == node_id and str(item.get("node_id", "")).strip()]
                 critical_nodes.append(
                     {
                         "node_id": node_id,
@@ -1009,6 +1032,11 @@ class ProjectHandoff:
                         "tolerance_pressure_percent": self._node_tolerance_pressure(node),
                         "autonomy_rule": str(node.get("autonomy_rule", "")),
                         "queue_state": str(queue_row.get("state", state)),
+                        "child_ids": child_ids,
+                        "child_count": len(child_ids),
+                        "business_case_token_count": int(node.get("business_case_token_count", 0) or 0),
+                        "thread_token_count": int(node.get("thread_token_count", 0) or 0),
+                        "kpi_token_counts": dict(node.get("kpi_token_counts", {})) if isinstance(node.get("kpi_token_counts", {}), dict) else {},
                     }
                 )
         summary = self.prince2_node_runtime_summary()
@@ -1090,6 +1118,13 @@ class ProjectHandoff:
                 f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
                 f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
             )
+            lines.append(
+                f"    thread_tokens total={node.get('thread_token_count', 0)} "
+                f"business_case={node.get('business_case_token_count', 0)} child_count={node.get('child_count', 0)}"
+            )
+            child_ids = [str(item) for item in node.get("child_ids", []) if str(item).strip()]
+            if child_ids:
+                lines.append(f"    child_ids={', '.join(child_ids)}")
             lines.append(f"    switch_hint=role switch {node.get('node_id', 'unknown')}")
         return "\n".join(lines)
 
@@ -1233,6 +1268,9 @@ class ProjectHandoff:
         target["inbox_count"] = len(target["inbox"])
         source["last_transition_at"] = message["timestamp"]
         target["last_transition_at"] = message["timestamp"]
+        message_tokens = max(1, len(" ".join(clean_payload + evidence + [message["summary"]]).split()))
+        self._bump_node_thread_tokens(source, amount=max(1, message_tokens // 2), bucket=self._node_flow_bucket(str(edge.get("flow_type", ""))))
+        self._bump_node_thread_tokens(target, amount=message_tokens, bucket="business_case")
         if str(target.get("state", "idle")).strip().lower() in {"idle", "waiting"}:
             target["state"] = "ready"
         if str(target.get("wait_status", "none")).strip().lower() != "none":
@@ -1290,9 +1328,24 @@ class ProjectHandoff:
         node = self._prince2_runtime_node(node_id)
         state = self._node_tolerance_state(node)
         if state == "escalated":
-            raise ValueError(
-                f"Node '{node_id}' exceeds its tolerance margin and must escalate to {node.get('escalation_target', 'board.executive')}."
+            spawned_child = self._spawn_prince2_escalation_child(
+                node_id=node_id,
+                reason="tolerance_margin_exceeded",
             )
+            node["state"] = "escalated"
+            node["wait_status"] = "none"
+            node["wait_reason"] = None
+            node["last_transition_at"] = _utc_now()
+            self.updated_at = _utc_now()
+            return {
+                "node_id": node_id,
+                "state": "escalated",
+                "reason": "tolerance_margin_exceeded",
+                "escalation_target": str(node.get("escalation_target", "board.executive")),
+                "spawned_child": spawned_child,
+                "consumed_message": None,
+                "remaining_inbox": len([dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]),
+            }
         if state == "completed":
             return {
                 "node_id": node_id,
@@ -1357,6 +1410,8 @@ class ProjectHandoff:
         processed = 0
         woken = 0
         progressed = 0
+        escalated = 0
+        spawned_children = 0
         skipped = 0
         results: list[dict[str, Any]] = []
         for node in nodes:
@@ -1367,21 +1422,7 @@ class ProjectHandoff:
                 continue
             processed += 1
             state = str(node.get("state", "idle")).strip().lower() or "idle"
-            tolerance_state = self._node_tolerance_state(node)
             inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
-            if tolerance_state == "escalated":
-                skipped += 1
-                results.append(
-                    {
-                        "node_id": node_id,
-                        "action": "skip",
-                        "state": tolerance_state,
-                        "reason": "tolerance_margin_exceeded",
-                        "margin_percent": self._node_tolerance_margin(node),
-                        "pressure_percent": self._node_tolerance_pressure(node),
-                    }
-                )
-                continue
             if state == "waiting" and inbox:
                 allowed = [str(item).strip() for item in node.get("wake_triggers", []) if str(item).strip()]
                 if "message_received" in allowed:
@@ -1407,8 +1448,44 @@ class ProjectHandoff:
                         }
                     )
                     continue
+            tolerance_state = self._node_tolerance_state(node)
+            if tolerance_state == "escalated":
+                tick = self.tick_prince2_node(node_id=node_id)
+                escalated += 1
+                spawned_child = tick.get("spawned_child") if isinstance(tick.get("spawned_child"), dict) else None
+                if spawned_child is not None:
+                    spawned_children += 1
+                results.append(
+                    {
+                        "node_id": node_id,
+                        "action": "escalate",
+                        "state": tick.get("state", "escalated"),
+                        "reason": tick.get("reason", "tolerance_margin_exceeded"),
+                        "margin_percent": self._node_tolerance_margin(node),
+                        "pressure_percent": self._node_tolerance_pressure(node),
+                        "spawned_child": spawned_child,
+                    }
+                )
+                continue
             if state in {"ready", "running", "completed"}:
                 tick = self.tick_prince2_node(node_id=node_id)
+                if tick.get("state") == "escalated":
+                    escalated += 1
+                    spawned_child = tick.get("spawned_child") if isinstance(tick.get("spawned_child"), dict) else None
+                    if spawned_child is not None:
+                        spawned_children += 1
+                    results.append(
+                        {
+                            "node_id": node_id,
+                            "action": "escalate",
+                            "state": tick.get("state", "escalated"),
+                            "reason": tick.get("reason", "tolerance_margin_exceeded"),
+                            "margin_percent": self._node_tolerance_margin(node),
+                            "pressure_percent": self._node_tolerance_pressure(node),
+                            "spawned_child": spawned_child,
+                        }
+                    )
+                    continue
                 progressed += 1
                 results.append(
                     {
@@ -1435,6 +1512,8 @@ class ProjectHandoff:
             "processed": processed,
             "woken": woken,
             "progressed": progressed,
+            "escalated": escalated,
+            "spawned_children": spawned_children,
             "skipped": skipped,
             "max_nodes": limit,
             "results": results,
@@ -1793,6 +1872,144 @@ class ProjectHandoff:
             return "escalated"
         return state
 
+    def _node_thread_token_profile(self, node: dict[str, Any]) -> dict[str, Any]:
+        text_parts = [
+            str(node.get("label", "")),
+            str(node.get("description", "")),
+            str(node.get("accountability_boundary", "")),
+            str(node.get("delegated_authority", "")),
+            str(node.get("responsibility_domain", "")),
+            str(node.get("context_scope", "")),
+            str(node.get("autonomy_rule", "")),
+        ]
+        business_case_tokens = sum(len(part.split()) for part in text_parts if part.strip())
+        if business_case_tokens <= 0:
+            business_case_tokens = 1
+        tolerance_profile = node.get("tolerance_profile", {})
+        theme_scores = tolerance_profile.get("theme_scores", {}) if isinstance(tolerance_profile, dict) else {}
+        kpi_token_counts: dict[str, int] = {}
+        for theme in PRINCE2_THEME_NAMES:
+            try:
+                score = float(theme_scores.get(theme, 0.0))
+            except (TypeError, ValueError):
+                score = 0.0
+            kpi_token_counts[theme] = max(0, int(round(business_case_tokens * score)))
+        token_budget = node.get("token_budget")
+        try:
+            token_budget_value = int(token_budget) if token_budget not in {None, ""} else None
+        except (TypeError, ValueError):
+            token_budget_value = None
+        return {
+            "business_case_token_count": business_case_tokens,
+            "kpi_token_counts": kpi_token_counts,
+            "thread_token_count": business_case_tokens + sum(kpi_token_counts.values()),
+            "token_budget": token_budget_value,
+        }
+
+    def _node_flow_bucket(self, flow_type: str) -> str:
+        clean = str(flow_type).strip().lower()
+        if clean in {"authorization", "board_decision"}:
+            return "business_case"
+        if clean in {"assurance", "quality"}:
+            return "quality"
+        if clean in {"exception"}:
+            return "change"
+        if clean in {"delegation"}:
+            return "plans"
+        if clean in {"record"}:
+            return "organization"
+        return "progress"
+
+    def _bump_node_thread_tokens(self, node: dict[str, Any], *, amount: int, bucket: str | None = None) -> None:
+        if amount <= 0:
+            return
+        node["thread_token_count"] = int(node.get("thread_token_count", 0) or 0) + amount
+        if bucket == "business_case":
+            node["business_case_token_count"] = int(node.get("business_case_token_count", 0) or 0) + amount
+        kpi_counts = node.get("kpi_token_counts", {})
+        if isinstance(kpi_counts, dict) and bucket in PRINCE2_THEME_NAMES:
+            kpi_counts[bucket] = int(kpi_counts.get(bucket, 0) or 0) + amount
+            node["kpi_token_counts"] = kpi_counts
+
+    def _spawn_prince2_escalation_child(self, *, node_id: str, reason: str) -> dict[str, Any] | None:
+        baseline = self.prince2_role_tree_baseline if isinstance(self.prince2_role_tree_baseline, dict) else {}
+        tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+        nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
+        parent = next((node for node in nodes if str(node.get("node_id", "")).strip() == node_id), None)
+        if parent is None:
+            return None
+        existing_child = next(
+            (
+                node
+                for node in nodes
+                if str(node.get("parent_id", "")).strip() == node_id
+                and str(node.get("spawn_source", "")).strip().lower() == "escalation"
+            ),
+            None,
+        )
+        if existing_child is not None:
+            runtime_nodes = [node for node in (self.prince2_node_runtime or {}).get("nodes", []) if isinstance(node, dict)]
+            runtime_child = next(
+                (node for node in runtime_nodes if str(node.get("node_id", "")).strip() == str(existing_child.get("node_id", ""))),
+                None,
+            )
+            return dict(runtime_child or existing_child)
+        existing_ids = {str(node.get("node_id", "")).strip() for node in nodes if str(node.get("node_id", "")).strip()}
+        base_child_id = f"{node_id}.escalation"
+        child_id = base_child_id
+        suffix = 2
+        while child_id in existing_ids:
+            child_id = f"{base_child_id}_{suffix}"
+            suffix += 1
+        parent_label = str(parent.get("label", node_id)).strip() or node_id
+        parent_role = str(parent.get("role_type", "project_manager")).strip() or "project_manager"
+        parent_profile = parent.get("tolerance_profile", {}) if isinstance(parent.get("tolerance_profile", {}), dict) else {}
+        thread_profile = self._node_thread_token_profile(parent)
+        child = {
+            "node_id": child_id,
+            "role_type": parent_role,
+            "label": f"{parent_label} Escalation Child",
+            "description": f"Auto-generated escalation child for {parent_label} after {reason.replace('_', ' ')}.",
+            "parent_id": node_id,
+            "level": f"delegated_{str(parent.get('level', 'node')).strip() or 'node'}",
+            "state": "ready" if parent.get("assignment") else "idle",
+            "runtime_status": "active_actor",
+            "wait_status": "none",
+            "wait_reason": None,
+            "wake_triggers": list((parent.get("context_rule") or {}).get("expansion_events", [])) if isinstance(parent.get("context_rule"), dict) else [],
+            "context_rule": dict(parent.get("context_rule", {})) if isinstance(parent.get("context_rule"), dict) else {},
+            "accountability_boundary": f"escalation recovery lane under {parent_label}",
+            "delegated_authority": f"supports {parent_label} within approved tolerances after escalation.",
+            "context_scope": str(parent.get("context_scope", "")) or "escalation recovery",
+            "responsibility_domain": str(parent.get("responsibility_domain", "")) or "controlled project work",
+            "accountable_owner": str(parent.get("accountable_owner", "user")) or "user",
+            "tolerance_margin_percent": float(parent.get("tolerance_margin_percent", 25.0) or 25.0),
+            "tolerance_pressure_percent": 0.0,
+            "autonomy_rule": str(parent.get("autonomy_rule", "")) or "work autonomously within the margin and escalate when pressure exceeds the limit.",
+            "escalation_target": str(parent.get("escalation_target", "board.executive")),
+            "tolerance_profile": dict(parent_profile),
+            "assignment": dict(parent.get("assignment", {})) if isinstance(parent.get("assignment", {}), dict) else {},
+            "fallback_pool": list(parent.get("fallback_pool", [])) if isinstance(parent.get("fallback_pool", []), list) else [],
+            "readiness": "escalation_spawned",
+            "spawn_source": "escalation",
+            "spawn_reason": reason,
+            "spawned_from": node_id,
+            "spawned_at": _utc_now(),
+            "business_case_token_count": thread_profile["business_case_token_count"],
+            "kpi_token_counts": dict(thread_profile["kpi_token_counts"]),
+            "thread_token_count": thread_profile["thread_token_count"],
+            "token_budget": thread_profile["token_budget"],
+        }
+        nodes.append(child)
+        tree["nodes"] = nodes
+        baseline["tree"] = tree
+        baseline["status"] = "approved"
+        baseline["source"] = "escalation_spawn"
+        baseline["approved_at"] = _utc_now()
+        self.sync_prince2_role_tree_baseline(baseline)
+        runtime_nodes = [node for node in (self.prince2_node_runtime or {}).get("nodes", []) if isinstance(node, dict)]
+        return next((dict(node) for node in runtime_nodes if str(node.get("node_id", "")).strip() == child_id), dict(child))
+
     def _node_runtime_state(self, node: dict[str, Any]) -> str:
         return self._node_tolerance_state(node)
 
@@ -1801,6 +2018,13 @@ class ProjectHandoff:
         flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
         nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
         edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
+        child_ids_by_parent: dict[str, list[str]] = {}
+        for raw_node in nodes:
+            parent_id = str(raw_node.get("parent_id", "")).strip()
+            node_id = str(raw_node.get("node_id", "")).strip()
+            if not parent_id or not node_id:
+                continue
+            child_ids_by_parent.setdefault(parent_id, []).append(node_id)
         existing_runtime = self.prince2_node_runtime if isinstance(self.prince2_node_runtime, dict) else {}
         existing_nodes = {
             str(node.get("node_id")): node
@@ -1825,6 +2049,8 @@ class ProjectHandoff:
             default_state = "ready" if assignment else "idle"
             wait_status = str(previous.get("wait_status", "none")).strip().lower() or "none"
             wait_reason = str(previous.get("wait_reason", "")).strip() or None
+            thread_tokens = self._node_thread_token_profile(node)
+            child_ids = list(child_ids_by_parent.get(node_id, []))
             materialized_nodes.append(
                 {
                     "node_id": node_id,
@@ -1852,6 +2078,18 @@ class ProjectHandoff:
                     if isinstance(node.get("tolerance_profile", {}), dict)
                     else {},
                     "assignment": assignment,
+                    "spawn_source": str(node.get("spawn_source", "")),
+                    "spawn_reason": str(node.get("spawn_reason", "")),
+                    "spawned_from": str(node.get("spawned_from", "")),
+                    "spawned_at": str(node.get("spawned_at", "")),
+                    "child_ids": child_ids,
+                    "child_count": len(child_ids),
+                    "business_case_token_count": int(previous.get("business_case_token_count", thread_tokens["business_case_token_count"]) or thread_tokens["business_case_token_count"]),
+                    "kpi_token_counts": dict(previous.get("kpi_token_counts", thread_tokens["kpi_token_counts"]))
+                    if isinstance(previous.get("kpi_token_counts", thread_tokens["kpi_token_counts"]), dict)
+                    else dict(thread_tokens["kpi_token_counts"]),
+                    "thread_token_count": int(previous.get("thread_token_count", thread_tokens["thread_token_count"]) or thread_tokens["thread_token_count"]),
+                    "token_budget": thread_tokens["token_budget"],
                     "incoming_edges": [
                         str(edge.get("edge_id", ""))
                         for edge in edges
