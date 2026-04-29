@@ -5,13 +5,13 @@
   "goal": {},
   "project_brief": {},
   "status": "completed",
-  "current_step_id": "external-io-fallback-command-contract",
-  "current_step_title": "Preserve the exact input command in the external IO JSON fallback",
+  "current_step_id": "node-token-cost-split",
+  "current_step_title": "Split node tokens into input/output buckets and attach Artificial Analysis pricing",
   "current_step_status": "completed",
-  "latest_observation": "Primary AI responses now run through a devil's-advocate review pass, node antagonists expose log evidence signals, the shared JSON schema registry covers the remaining CLI surfaces, catalog JSON reports now use specific status/search/refresh command names, the catalog fallback preserves the exact input command string, the file fallback now has a shared schema while preserving the exact input command string, the update fallback now does the same, the git fallback now preserves the exact input command string with a shared schema, and external_io now preserves exact malformed or unsupported command strings with a shared schema.",
+  "latest_observation": "Node business-case accounting now tracks separate input/output token buckets, node pricing is attached from the shared model catalog, the catalog can ingest Artificial Analysis pricing when an API key is available, and the runtime/control views show the split token and cost fields with wet-run validation.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "da61a4e",
-  "git_head_baseline": "da61a4e",
+  "git_head": "a6923bc",
+  "git_head_baseline": "97190e8c82aef30c58e8335691299a0d362e6ed0",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -60,8 +60,24 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-04-29T18:39:13Z",
+  "updated_at": "2026-04-29T18:55:00Z",
   "entries": [
+    {
+      "timestamp": "2026-04-29T18:55:00Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "node-token-cost-split",
+      "summary": "Node token accounting now tracks separate input and output buckets, with pricing sourced from the shared model catalog and Artificial Analysis when available.",
+      "step_id": "node-token-cost-split",
+      "step_title": "Split node tokens into input/output buckets and attach Artificial Analysis pricing",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a6923bc",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-04-29T17:07:52Z",
       "phase": "finish",
