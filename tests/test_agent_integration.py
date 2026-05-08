@@ -10,6 +10,7 @@ from pathlib import Path
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
+from stagewarden.provider_registry import model_token_env
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 
@@ -172,6 +173,14 @@ def write_resume_rate_limit_stub(root: Path) -> Path:
 
 
 class AgentIntegrationTests(unittest.TestCase):
+    def _openrouter_env_name(self) -> str:
+        candidate = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
+        if os.environ.get(candidate):
+            return candidate
+        if candidate != "OPENROUTER_API_KEY" and os.environ.get("OPENROUTER_API_KEY"):
+            return "OPENROUTER_API_KEY"
+        self.fail("OpenRouter API key is required for this test.")
+
     def test_agent_completes_task_with_stub_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -245,16 +254,16 @@ class AgentIntegrationTests(unittest.TestCase):
             root = Path(tmp_dir)
             stub = write_success_stub(root)
             prefs = ModelPreferences.default()
-            prefs.enabled_models = ["openai", "local"]
-            prefs.preferred_model = "openai"
-            prefs.add_account("openai", "work", "OPENAI_API_KEY_WORK")
-            prefs.set_variant("openai", "gpt-5.4-mini")
+            openrouter_env = self._openrouter_env_name()
+            prefs.enabled_models = ["cheap", "local"]
+            prefs.preferred_model = "cheap"
+            prefs.add_account("cheap", "live", openrouter_env)
+            prefs.set_variant("cheap", "provider-default")
             prefs.save(root / ".stagewarden_models.json")
 
             original = os.environ.get("RUN_MODEL_BIN")
-            original_key = os.environ.get("OPENAI_API_KEY_WORK")
+            original_key = os.environ.get(openrouter_env)
             os.environ["RUN_MODEL_BIN"] = str(stub)
-            os.environ["OPENAI_API_KEY_WORK"] = "work-token"
             try:
                 output = StringIO()
                 with redirect_stdout(output):
@@ -272,17 +281,17 @@ class AgentIntegrationTests(unittest.TestCase):
                 else:
                     os.environ["RUN_MODEL_BIN"] = original
                 if original_key is None:
-                    os.environ.pop("OPENAI_API_KEY_WORK", None)
+                    os.environ.pop(openrouter_env, None)
                 else:
-                    os.environ["OPENAI_API_KEY_WORK"] = original_key
+                    os.environ[openrouter_env] = original_key
 
             rendered = output.getvalue()
             self.assertTrue(result.ok)
-            self.assertIn("variant=gpt-5.4-mini", rendered)
-            self.assertIn("account=work", rendered)
+            self.assertIn("variant=provider-default", rendered)
+            self.assertIn("account=live", rendered)
             self.assertIn("git_head_before=", rendered)
             self.assertIn("git_head_after=", rendered)
-            self.assertIn("model=openai variant=gpt-5.4-mini account=work", rendered)
+            self.assertIn("model=cheap variant=provider-default account=live", rendered)
 
     def test_agent_closes_matching_open_issues_on_immediate_project_closure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
