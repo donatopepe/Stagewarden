@@ -5,87 +5,456 @@
     {
       "id": "governance",
       "label": "Governance",
-      "description": "Prompt-driven PRINCE2 governance checks for planning, vague task rejection, and escalation.",
+      "description": "Prompt-driven PRINCE2 governance checks for complex planning, issue triage, stakeholder pressure, and escalation.",
       "min_accuracy": 1.0,
       "regression_tolerance": 0.0,
       "cases": [
         {
           "id": "checklist_structure",
           "kind": "checklist_structure",
-          "prompt": "Implement an auth fix in production and produce the PRINCE2 checklist before doing anything else.",
-          "source": "Stagewarden PRINCE2 prompt inspired by SWE-bench style issue framing."
+          "prompt": "A fintech platform migration must hit a board deadline, keep audit evidence for regulators, preserve data residency controls, and avoid disrupting a customer pilot. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before any execution starts.",
+          "source": "Stagewarden PRINCE2 prompt inspired by controlled high-stakes digital transformation and governance tailoring."
         },
         {
           "id": "vague_task_rejected",
           "kind": "vague_task_rejected",
-          "prompt": "stuff",
-          "source": "Stagewarden PRINCE2 vague-task rejection prompt."
+          "prompt": "Sort out the release mess across compliance, support, delivery, and the board, and make it go live this week.",
+          "source": "Stagewarden PRINCE2 vague-task rejection prompt inspired by ambiguous stakeholder escalation."
         },
         {
           "id": "escalation_trigger",
           "kind": "escalation_trigger",
-          "prompt": "Implement a production feature under tight tolerance, validate it, and escalate if the margin is exceeded.",
-          "source": "Stagewarden PRINCE2 escalation prompt inspired by risk-heavy agentic tasks."
+          "prompt": "Implement a production feature for the hospital records migration under tight tolerance: a vendor delay, a data-protection concern, and a 15% cost overrun have pushed the stage outside tolerance. Review the release evidence, validate the recovery options, decide whether to authorize the next stage, prepare the exception report, and escalate to the board with change-control implications and stakeholder impacts.",
+          "source": "Stagewarden PRINCE2 escalation prompt inspired by exception control and cross-functional recovery decisions."
         }
       ]
     },
     {
       "id": "assurance",
       "label": "Assurance",
-      "description": "Prompt-driven PRINCE2 assurance checks for critic output, wet-run gating, and prompt packet coverage.",
+      "description": "Prompt-driven PRINCE2 assurance checks for critic output, wet-run gating, quality records, and prompt packet coverage.",
       "min_accuracy": 1.0,
       "regression_tolerance": 0.0,
       "cases": [
         {
           "id": "critic_accept",
           "kind": "critic_accept",
-          "prompt": "Validate wet-run evidence for a controlled change.",
-          "source": "Stagewarden PRINCE2 critic acceptance prompt inspired by terminal-validation tasks."
+          "prompt": "Validate a release candidate using real command output, confirm rollback evidence, verify product acceptance criteria, and reject any claim that skips the quality records or the issue log.",
+          "source": "Stagewarden PRINCE2 critic acceptance prompt inspired by quality assurance and evidence-driven release control."
         },
         {
           "id": "critic_block",
           "kind": "critic_block",
-          "prompt": "Validate wet-run evidence but do not accept any completion claim without real command output.",
-          "source": "Stagewarden PRINCE2 critic blocking prompt inspired by Terminal-Bench style evidence checks."
+          "prompt": "Validate a release candidate, but block acceptance unless the evidence includes production-safe rollback, signed quality records, and unambiguous command output.",
+          "source": "Stagewarden PRINCE2 critic blocking prompt inspired by controlled release gating and assurance scrutiny."
         },
         {
           "id": "critic_invalid",
           "kind": "critic_invalid",
-          "prompt": "Validate wet-run evidence and reject malformed critic JSON.",
-          "source": "Stagewarden PRINCE2 critic validation prompt inspired by structured-output regressions."
+          "prompt": "Validate wet-run evidence and reject malformed critic JSON even if the narrative sounds plausible and the issue tracker looks complete.",
+          "source": "Stagewarden PRINCE2 critic validation prompt inspired by structured-output regressions under ambiguous evidence."
         },
         {
           "id": "wet_run_required",
           "kind": "wet_run_required",
-          "prompt": "Validate wet-run evidence without a real execution trace.",
-          "source": "Stagewarden PRINCE2 wet-run gate prompt inspired by execution-focused benchmarks."
+          "prompt": "Validate a hotfix without any production command output, while the team claims the stage is approved and the rollback already succeeded.",
+          "source": "Stagewarden PRINCE2 wet-run gate prompt inspired by release evidence and control framework checks."
         },
         {
           "id": "prompt_context",
           "kind": "prompt_context",
-          "prompt": "Implement the requested code change and keep the PRINCE2 role context explicit in the prompt packet.",
-          "source": "Stagewarden PRINCE2 prompt-packet coverage prompt inspired by agentic planning benchmarks."
+          "prompt": "Prepare the PRINCE2 prompt packet for a mixed delivery project with quality review, sustainability constraints, stakeholder resistance, and a board deadline; keep the role context explicit and the change-control path visible.",
+          "source": "Stagewarden PRINCE2 prompt-packet coverage prompt inspired by people, sustainability, and change-control guidance."
         }
       ]
     },
     {
       "id": "recovery",
       "label": "Recovery",
-      "description": "Prompt-driven PRINCE2 recovery checks for exception clearance and recovery-lane context.",
+      "description": "Prompt-driven PRINCE2 recovery checks for exception clearance, rollback, incident communication, and recovery-lane context.",
       "min_accuracy": 1.0,
       "regression_tolerance": 0.0,
       "cases": [
         {
           "id": "recovery_gate_closure",
           "kind": "recovery_gate",
-          "prompt": "inspect the repo and implement a fix and validate the result",
-          "source": "Stagewarden PRINCE2 recovery prompt inspired by agent recovery integration coverage."
+          "prompt": "A failed deployment must be rolled back, the issue register updated, the exception plan closed, and the board briefed because the supplier missed the release window and support reports active incidents. Use the recovery lane to stabilize, validate, and close the gate.",
+          "source": "Stagewarden PRINCE2 recovery prompt inspired by incident recovery, rollback, and board-facing closure."
         },
         {
           "id": "recovery_prompt_context",
           "kind": "recovery_prompt_context",
-          "prompt": "inspect the repo and implement a fix under exception control",
-          "source": "Stagewarden PRINCE2 recovery prompt inspired by recovery-lane context coverage."
+          "prompt": "A live incident triggered a recovery stage: coordinate rollback, communicate with users, preserve evidence, and decide what belongs in the exception report versus the issue register before reopening the change request.",
+          "source": "Stagewarden PRINCE2 recovery prompt inspired by recovery-lane context coverage and issue/change distinctions."
+        }
+      ]
+    },
+    {
+      "id": "advanced",
+      "label": "Advanced",
+      "description": "Public-trace PRINCE2 stress tests drawn from cloud migration, records governance, data transformation, and procurement-delay case studies.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "welsh_cloud_migration",
+          "kind": "checklist_structure",
+          "prompt": "A Welsh Government style cloud migration must keep roughly 33 million documents and about 20 terabytes of records in sync while maintaining service availability, security assurance, and a clean split between old and new domains. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on the Welsh Government cloud migration case study."
+        },
+        {
+          "id": "dedalus_migration_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A healthcare cloud migration covering 56 solutions and 40 managed-service customers is approaching a hard deadline. A supplier delay, a security recertification concern, and downtime risk have pushed the stage outside tolerance. Review the evidence, validate the recovery options, prepare the exception report, and decide whether to escalate to the board or rebaseline the stage.",
+          "source": "Based on the NHS England / Dedalus cloud migration case study."
+        },
+        {
+          "id": "staffordshire_records_packet",
+          "kind": "prompt_context",
+          "prompt": "An information-governance rollout for Microsoft 365 and SharePoint needs clear roles, a pilot across differently sized teams, frequent communications, and a culture-change plan because records management and migration work are both complex. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on the Staffordshire County Council information governance case study."
+        },
+        {
+          "id": "surrey_data_recovery",
+          "kind": "recovery_prompt_context",
+          "prompt": "A county data transformation programme has poor data maturity, siloed ownership, and a backlog of data migration issues. The Data Board wants a recovery plan that stabilizes the current workstream, preserves evidence, clarifies accountability, and decides what belongs in the exception report versus the issue register before rebaselining.",
+          "source": "Based on the Surrey County Council data transformation programme case study."
+        },
+        {
+          "id": "procurement_delay_gate",
+          "kind": "recovery_gate",
+          "prompt": "A public infrastructure project is stuck because procurement delays, contract renegotiation, running-payment pressure, and limited contractor capacity are pushing the work beyond tolerance. Use the recovery lane to review the implementation bottlenecks, decide whether the stage can be rebaselined, and close the exception path only after the board has a credible recovery option.",
+          "source": "Based on World Bank local case studies about implementation delays, procurement problems, and funding mismatches."
+        }
+      ]
+    },
+    {
+      "id": "stress",
+      "label": "Stress",
+      "description": "Combined PRINCE2 stress cases that mix governance pressure, supplier delay, data governance conflict, and recovery decisions.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "healthcare_cloud_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A healthcare cloud migration must re-architect 56 solutions, keep 40 managed-service customers available, satisfy security accreditation, and hold the board deadline while clinical stakeholders want minimum downtime. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Combined from the NHS England / Dedalus cloud migration trace and related cloud-governance pressures."
+        },
+        {
+          "id": "cross_agency_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A cross-agency data programme has fragmented ownership, a supplier delay, unresolved records-management risks, and a procurement overrun that now pushes the stage outside tolerance. Review the evidence, validate the recovery options, decide whether to authorize the next stage, prepare the exception report, and escalate to the board with stakeholder impacts and rebaseline options.",
+          "source": "Combined from Surrey data-transformation, Staffordshire records-governance, and procurement-delay case material."
+        },
+        {
+          "id": "records_change_packet",
+          "kind": "prompt_context",
+          "prompt": "A records-management rollout for Microsoft 365 and SharePoint needs role clarity, pilot sequencing, retention policy alignment, and communication with users who are worried about change, ownership, and repository rationalisation. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Combined from Staffordshire County Council and similar records-governance case material."
+        },
+        {
+          "id": "procurement_recovery_gate",
+          "kind": "recovery_gate",
+          "prompt": "A public-sector delivery programme is blocked by procurement delays, contract renegotiation, running-payment pressure, and contractor capacity limits. Use the recovery lane to review the implementation bottlenecks, decide whether the stage can be rebaselined, and close the exception path only after the board has a credible recovery option that preserves service continuity.",
+          "source": "Combined from World Bank implementation-delay cases and cloud-migration continuity constraints."
+        }
+      ]
+    },
+    {
+      "id": "regulatory",
+      "label": "Regulatory",
+      "description": "PRINCE2 cases focused on data protection, secure-by-design governance, AI assurance, audit readiness, and compliance recovery.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "ons_secure_by_design_checklist",
+          "kind": "checklist_structure",
+          "prompt": "An ONS-style secure-by-design transformation is bringing security into the project lifecycle from day one, with governance, reporting, and threat reduction baked into every decision. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on the Office for National Statistics secure-by-design case study."
+        },
+        {
+          "id": "ico_dpia_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A public authority is about to launch a records platform but the DPIA, lawful-basis mapping, retention rules, and audit trail are incomplete. Review the evidence, validate the remediation options, decide whether to authorize the next stage, prepare the exception report, and escalate to the board with privacy, security, and accountability impacts.",
+          "source": "Based on ICO data-protection audit framework case studies and public-sector accountability guidance."
+        },
+        {
+          "id": "ey_ai_governance_packet",
+          "kind": "prompt_context",
+          "prompt": "A global biopharmaceutical company is asking for an AI governance review covering safety, robustness, transparency, explainability, fairness, and accountability before the next release train. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on the UK government AI assurance case study for EY's responsible AI framework."
+        },
+        {
+          "id": "opss_compliance_wet_run",
+          "kind": "wet_run_required",
+          "prompt": "A consumer-safety remediation programme has a regulator watching closely, a compliance notice in flight, and a product fix that cannot be claimed done without direct evidence from a wet run. Validate the hotfix using real command output, preserve the audit trail, and block closure until the team can show the production-safe outcome.",
+          "source": "Based on OPSS compliance and consumer-confidence case material."
+        }
+      ]
+    },
+    {
+      "id": "regulatory_stress",
+      "label": "Regulatory Stress",
+      "description": "Harder PRINCE2 cases that combine compliance, privacy, auditability, model governance, and incident recovery under board pressure.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "privacy_breach_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A live privacy incident has exposed retention, lawful-basis, and evidence-trail gaps while the board wants a launch decision today. Review the evidence, validate the remediation options, prepare the exception report, and escalate with clear breach-notification, accountability, and service-continuity impacts.",
+          "source": "Based on public-sector privacy, breach response, and data-governance trace material."
+        },
+        {
+          "id": "audit_ready_packet",
+          "kind": "checklist_structure",
+          "prompt": "An audit-ready release needs control mapping, evidence provenance, issue-log discipline, retention rules, and a sign-off path that a regulator can replay later. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on secure-by-design, audit-readiness, and records-governance public material."
+        },
+        {
+          "id": "ai_change_control_packet",
+          "kind": "prompt_context",
+          "prompt": "An AI system change request affects safety, explainability, fairness, and human oversight, and the governance board wants a visible path from review to approval. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on UK public AI assurance and responsible-AI governance material."
+        },
+        {
+          "id": "compliance_wet_run_gate",
+          "kind": "wet_run_required",
+          "prompt": "A compliance remediation programme is claiming success, but the regulator will only accept direct wet-run evidence, preserved command output, and an unchanged audit trail. Validate the hotfix with real output, keep the evidence chain intact, and block closure until the board can see a production-safe result.",
+          "source": "Based on consumer-safety compliance and wet-run control case material."
+        }
+      ]
+    },
+    {
+      "id": "legal_stress",
+      "label": "Legal Stress",
+      "description": "PRINCE2 cases that mix legal hold, contractual risk, disclosure pressure, evidence preservation, and board escalation.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "litigation_hold_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A litigation hold has landed while the board still wants the programme to release this week, but records retention, evidence preservation, and contract liability are all unclear. Review the evidence, validate the remediation options, prepare the exception report, and escalate with disclosure, legal, and service-continuity impacts.",
+          "source": "Based on public-sector legal-hold, records-retention, and board-escalation trace material."
+        },
+        {
+          "id": "contract_change_packet",
+          "kind": "prompt_context",
+          "prompt": "A supplier renegotiation touches indemnity, acceptance criteria, service credits, and change control, and the delivery team needs a board-visible approval path. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on public procurement and contract-management case material."
+        },
+        {
+          "id": "disclosure_ready_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A disclosure-ready delivery needs document provenance, evidence retention, controlled sign-off, and a stage plan that can survive legal review. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on legal-discovery, evidence-management, and public accountability trace material."
+        },
+        {
+          "id": "contract_remediation_wet_run",
+          "kind": "wet_run_required",
+          "prompt": "A contractual remediation programme cannot claim closure without a wet run, preserved command output, and a board-visible audit trail because the supplier dispute is still live. Validate the fix with real output, keep the evidence chain intact, and block closure until the service and contract risk are both demonstrably under control.",
+          "source": "Based on contract-remediation and evidence-preservation case material."
+        }
+      ]
+    },
+    {
+      "id": "incident_response",
+      "label": "Incident Response",
+      "description": "PRINCE2 cases for breach handling, outage recovery, rollback control, evidence preservation, and operational escalation.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "major_breach_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A major security breach has triggered customer-impact, evidence-preservation, and notification obligations while the board still wants a go-live decision. Review the evidence, validate the remediation options, prepare the exception report, and escalate with disclosure, operational, and recovery impacts.",
+          "source": "Based on breach-response, notification, and board-escalation trace material."
+        },
+        {
+          "id": "outage_recovery_packet",
+          "kind": "prompt_context",
+          "prompt": "A service outage has forced a rollback and the delivery team needs a board-visible recovery path that preserves evidence and keeps change control visible. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on service-outage and rollback recovery case material."
+        },
+        {
+          "id": "rollback_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A failed release needs rollback discipline, clear communications, preserved logs, and a stage plan that can survive post-incident review. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on incident-response and operational-governance trace material."
+        },
+        {
+          "id": "incident_wet_run_gate",
+          "kind": "wet_run_required",
+          "prompt": "An incident remediation programme cannot claim closure without a wet run, preserved command output, and a board-visible audit trail because the service is still unstable. Validate the fix with real output, keep the evidence chain intact, and block closure until the outage risk is demonstrably under control.",
+          "source": "Based on incident-remediation and outage-control case material."
+        }
+      ]
+    },
+    {
+      "id": "vendor_failure",
+      "label": "Vendor Failure",
+      "description": "PRINCE2 cases for supplier collapse, third-party risk, contract renegotiation, fallback planning, and board escalation.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "supplier_collapse_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A critical vendor has collapsed mid-stage, the board is demanding continuity, and the programme must decide whether to rebaseline, replace the supplier, or recover the stage. Review the evidence, validate the remediation options, prepare the exception report, and escalate with contract, continuity, and stakeholder impacts.",
+          "source": "Based on supplier-failure, contingency-planning, and board-escalation case material."
+        },
+        {
+          "id": "third_party_recovery_packet",
+          "kind": "prompt_context",
+          "prompt": "A third-party dependency has failed and the delivery team needs a board-visible recovery path that preserves evidence and keeps fallback governance visible. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on third-party dependency and recovery-planning case material."
+        },
+        {
+          "id": "supplier_review_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A supplier review needs contract status, evidence of dependency risk, fallback options, and a stage plan that can survive board scrutiny. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on vendor-management, procurement, and contingency-planning trace material."
+        },
+        {
+          "id": "vendor_remediation_wet_run",
+          "kind": "wet_run_required",
+          "prompt": "A vendor remediation programme cannot claim closure without a wet run, preserved command output, and a board-visible audit trail because the supplier still has unresolved obligations. Validate the fix with real output, keep the evidence chain intact, and block closure until the continuity risk is demonstrably under control.",
+          "source": "Based on supplier-remediation and continuity-control case material."
+        }
+      ]
+    },
+    {
+      "id": "multi_vendor_crisis",
+      "label": "Multi Vendor Crisis",
+      "description": "PRINCE2 cases for cascading supplier failure, shared dependencies, fallback governance, and urgent board recovery decisions.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "cascading_supplier_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "Two critical suppliers have failed at once, the board wants a release decision today, and the programme must separate fallback actions from contract claims and service continuity. Review the evidence, validate the remediation options, prepare the exception report, and escalate with dependency, continuity, and stakeholder impacts.",
+          "source": "Based on cascading supplier-failure and dependency-crisis case material."
+        },
+        {
+          "id": "dependency_crisis_packet",
+          "kind": "prompt_context",
+          "prompt": "A dependency crisis across multiple vendors has left the delivery team without a stable path to production, and the board wants a visible recovery decision tree. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on multi-vendor dependency and recovery-planning material."
+        },
+        {
+          "id": "fallback_structure_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A multi-vendor fallback plan needs dependency mapping, contract status, evidence of recovery options, and a stage plan that can survive board scrutiny. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on contingency-planning, supplier dependency, and board-governance trace material."
+        },
+        {
+          "id": "multi_vendor_wet_run",
+          "kind": "wet_run_required",
+          "prompt": "A recovery programme spanning several vendors cannot claim closure without a wet run, preserved command output, and a board-visible audit trail because the dependency chain is still unstable. Validate the fix with real output, keep the evidence chain intact, and block closure until the cascade risk is demonstrably under control.",
+          "source": "Based on multi-vendor recovery and evidence-preservation case material."
+        }
+      ]
+    },
+    {
+      "id": "supply_chain_failure",
+      "label": "Supply Chain Failure",
+      "description": "PRINCE2 cases for supply shortages, logistics collapse, procurement delays, inventory gaps, and continuity planning.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "logistics_breakdown_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A logistics breakdown has created inventory shortages, the board wants a release decision, and the programme must decide whether to rebaseline or hold the stage. Review the evidence, validate the remediation options, prepare the exception report, and escalate with continuity, procurement, and stakeholder impacts.",
+          "source": "Based on logistics-disruption and procurement-delay trace material."
+        },
+        {
+          "id": "inventory_risk_packet",
+          "kind": "prompt_context",
+          "prompt": "A supply shortage has left the delivery team without a stable path to production, and the board wants a visible recovery path that preserves evidence and keeps procurement governance visible. Prepare the PRINCE2 prompt packet with explicit role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on inventory-risk and continuity-planning material."
+        },
+        {
+          "id": "continuity_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A continuity plan needs supplier mapping, inventory status, fallback options, and a stage plan that can survive board scrutiny. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on supply-chain resilience and procurement-governance trace material."
+        },
+        {
+          "id": "supply_chain_wet_run",
+          "kind": "wet_run_required",
+          "prompt": "A supply-chain remediation programme cannot claim closure without a wet run, preserved command output, and a board-visible audit trail because the procurement chain is still unstable. Validate the fix with real output, keep the evidence chain intact, and block closure until the continuity risk is demonstrably under control.",
+          "source": "Based on supply-chain resilience and evidence-preservation case material."
+        }
+      ]
+    },
+    {
+      "id": "regulatory_war_room",
+      "label": "Regulatory War Room",
+      "description": "PRINCE2 cases for live board-room escalation where regulation, breach response, vendor risk, and continuity all collide.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "war_room_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "A regulatory war room is live because a breach, vendor outage, and legal hold now all affect the same release decision. Review the evidence, validate the remediation options, prepare the exception report, and escalate with privacy, continuity, and board-authority impacts.",
+          "source": "Based on combined regulatory-response, incident, and supplier-risk trace material."
+        },
+        {
+          "id": "war_room_packet",
+          "kind": "prompt_context",
+          "prompt": "A board room war game is underway and the team needs a visible recovery tree that keeps compliance, vendor fallback, and escalation authority explicit. Prepare the PRINCE2 prompt packet with role context, quality controls, stakeholder mapping, and change-path visibility.",
+          "source": "Based on board-room incident-response and governance material."
+        },
+        {
+          "id": "war_room_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A war room needs a checklist that maps regulation, incident handling, supplier fallback, and evidence retention before the release can move. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on live escalation-control and governance trace material."
+        },
+        {
+          "id": "war_room_wet_run",
+          "kind": "wet_run_required",
+          "prompt": "A regulatory war room cannot claim closure without a wet run, preserved command output, and a board-visible audit trail because the breach and supplier issues are still active. Validate the fix with real output, keep the evidence chain intact, and block closure until the combined risk is demonstrably under control.",
+          "source": "Based on breach-response, continuity, and evidence-preservation case material."
+        }
+      ]
+    },
+    {
+      "id": "board_crisis",
+      "label": "Board Crisis",
+      "description": "PRINCE2 cases for board quorum failure, executive escalation, crisis authority, and recovery decisions under pressure.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "quorum_failure_escalation",
+          "kind": "escalation_trigger",
+          "prompt": "The board has lost quorum just as a release crisis and a supplier outage hit the same stage, so no routine approval path exists. Review the evidence, validate the remediation options, prepare the exception report, and escalate with authority, continuity, and stakeholder impacts.",
+          "source": "Based on board-governance crisis and supplier-outage trace material."
+        },
+        {
+          "id": "executive_recovery_packet",
+          "kind": "prompt_context",
+          "prompt": "An executive crisis meeting needs a visible recovery path that keeps decision authority, fallback options, and quality controls explicit. Prepare the PRINCE2 prompt packet with role context, stakeholder mapping, and change-path visibility.",
+          "source": "Based on board escalation and executive recovery-planning material."
+        },
+        {
+          "id": "crisis_checklist",
+          "kind": "checklist_structure",
+          "prompt": "A board crisis needs a checklist that maps quorum, authority, executive ownership, and continuity controls before the release can move. Produce the PRINCE2 checklist, stage plan, risk view, change-control approach, and stakeholder map before execution starts.",
+          "source": "Based on board-crisis and governance trace material."
+        },
+        {
+          "id": "board_crisis_wet_run",
+          "kind": "wet_run_required",
+          "prompt": "A board crisis cannot claim closure without a wet run, preserved command output, and a board-visible audit trail because the quorum failure and outage are still active. Validate the fix with real output, keep the evidence chain intact, and block closure until the combined risk is demonstrably under control.",
+          "source": "Based on board crisis, continuity, and evidence-preservation case material."
         }
       ]
     }
