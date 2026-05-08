@@ -130,7 +130,7 @@ def run_prince2_benchmark(*, baseline_path: str | Path | None = None) -> dict[st
             case_report["prompt"] = case.prompt
             case_report["source"] = case.source
             case_report["passed"] = bool(case_report.get("passed"))
-            case_report["node_runtime"] = _case_node_runtime_snapshot(case_report.pop("node_runtime_source", None))
+            case_report["node_runtime"] = _case_node_runtime_snapshot(case_report.pop("node_runtime_source", None), case=case)
             if case_report["passed"]:
                 suite_correct += 1
                 correct_cases += 1
@@ -354,7 +354,48 @@ def _build_case_runtime_handoff(case: Prince2BenchmarkCase) -> ProjectHandoff:
     return project_handoff
 
 
-def _case_node_runtime_snapshot(source: object) -> dict[str, Any]:
+def _case_orchestration_node_ids(case: Prince2BenchmarkCase) -> list[str]:
+    node_ids: list[str] = []
+    seen: set[str] = set()
+    for transition in _suite_transition_plan(case.suite_id):
+        for key in ("source_node", "target_node"):
+            node_id = str(transition.get(key, "")).strip()
+            if node_id and node_id not in seen:
+                seen.add(node_id)
+                node_ids.append(node_id)
+    return node_ids
+
+
+def _summarize_case_node_runtime(nodes: list[dict[str, Any]], *, status: str, materialized_at: str, baseline_source: str) -> dict[str, Any]:
+    counts = {
+        "command": "roles runtime",
+        "status": status,
+        "nodes": len(nodes),
+        "ready": 0,
+        "waiting": 0,
+        "running": 0,
+        "blocked": 0,
+        "escalated": 0,
+        "idle": 0,
+        "completed": 0,
+        "message_queues": 0,
+        "wait_triggers": 0,
+    }
+    for node in nodes:
+        state = str(node.get("state", "")).strip().lower()
+        if state in counts:
+            counts[state] += 1
+        wait_status = str(node.get("wait_status", "none")).strip().lower()
+        if wait_status not in {"", "none"}:
+            counts["waiting"] += 0 if state == "waiting" else 1
+        counts["message_queues"] += int(node.get("inbox_count", 0) or 0) + int(node.get("outbox_count", 0) or 0)
+        counts["wait_triggers"] += len(node.get("wake_triggers", [])) if isinstance(node.get("wake_triggers"), list) else 0
+    counts["materialized_at"] = materialized_at
+    counts["baseline_source"] = baseline_source
+    return counts
+
+
+def _case_node_runtime_snapshot(source: object, *, case: Prince2BenchmarkCase) -> dict[str, Any]:
     if isinstance(source, ProjectHandoff):
         runtime_report = source.prince2_node_runtime_report()
     elif isinstance(source, dict) and source:
@@ -370,18 +411,37 @@ def _case_node_runtime_snapshot(source: object) -> dict[str, Any]:
             "runtime": {},
             "nodes": [],
             "transitions": [],
+            "orchestration": {"node_ids": _case_orchestration_node_ids(case), "mode": "suite_transition_plan"},
             "detail": "PRINCE2 node runtime: missing\n- action: approve a role-tree baseline first.",
         }
     runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report, dict) else {}
-    nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)] if isinstance(runtime, dict) else []
-    transitions = _collect_node_transitions(nodes)
+    full_nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)] if isinstance(runtime, dict) else []
+    selected_node_ids = _case_orchestration_node_ids(case)
+    selected_nodes = [node for node in full_nodes if str(node.get("node_id", "")).strip() in selected_node_ids]
+    transitions = _collect_node_transitions(selected_nodes)
+    materialized_at = str(runtime.get("materialized_at", runtime_report.get("summary", {}).get("materialized_at", "")))
+    baseline_source = str(runtime.get("baseline_source", runtime_report.get("summary", {}).get("baseline_source", "unknown")))
+    summary = _summarize_case_node_runtime(
+        selected_nodes,
+        status=str(runtime_report.get("status", "missing")),
+        materialized_at=materialized_at,
+        baseline_source=baseline_source,
+    )
+    filtered_runtime = dict(runtime) if isinstance(runtime, dict) else {}
+    filtered_runtime["nodes"] = selected_nodes
     return {
         "status": str(runtime_report.get("status", "missing")),
-        "summary": runtime_report.get("summary", {}),
-        "runtime": dict(runtime) if isinstance(runtime, dict) else {},
-        "nodes": nodes,
+        "summary": summary,
+        "runtime": filtered_runtime,
+        "nodes": selected_nodes,
         "transitions": transitions,
-        "detail": _render_case_node_runtime_detail(runtime_report, nodes=nodes, transitions=transitions),
+        "orchestration": {
+            "mode": "suite_transition_plan",
+            "node_ids": selected_node_ids,
+            "node_count": len(selected_nodes),
+            "role_types": [str(node.get("role_type", "")) for node in selected_nodes],
+        },
+        "detail": _render_case_node_runtime_detail({"status": runtime_report.get("status", "missing"), "summary": summary, "runtime": filtered_runtime}, nodes=selected_nodes, transitions=transitions),
     }
 
 
