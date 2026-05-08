@@ -743,7 +743,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
             )
-            prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.block_account("claude", "team", "2099-05-01T19:00")
             prefs.set_account_limit_snapshot(
                 "claude",
                 "team",
@@ -1025,7 +1025,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "raw_message": "You've hit your usage limit. Try again at 8:05 PM.",
                 },
             )
-            prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.block_account("claude", "team", "2099-05-01T19:00")
             prefs.last_limit_message_by_account = {"claude:team": "Claude usage limited until 2026-05-01T19:00."}
             prefs.set_account_limit_snapshot(
                 "claude",
@@ -1082,7 +1082,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(providers["claude"]["active_account"], "none")
             self.assertEqual(providers["claude"]["last_success"]["account"], "team")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["name"], "team")
-            self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2026-05-01T19:00")
+            self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2099-05-01T19:00")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["last_limit_reason"], "usage_limit")
             self.assertIn("usage limited", providers["claude"]["blocked_accounts"][0]["last_limit_message"].lower())
             self.assertEqual(
@@ -2952,7 +2952,7 @@ class TraceAndCliTests(unittest.TestCase):
                 account=team_assignment.get("account"),
                 source="test_independence_warning",
             )
-            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.blocked_until_by_model = {"chatgpt": "2099-05-01T18:30"}
             prefs.save(root / ".stagewarden_models.json")
 
             completed = run_main_capture(root, "roles check")
@@ -3015,7 +3015,7 @@ class TraceAndCliTests(unittest.TestCase):
             propose = run_main_capture(root, "roles propose")
             self.assertEqual(propose.returncode, 0, propose.stderr)
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
-            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.blocked_until_by_model = {"chatgpt": "2099-05-01T18:30"}
             prefs.save(root / ".stagewarden_models.json")
 
             completed = run_main_capture(root, "roles matrix")
@@ -3025,7 +3025,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 role matrix:", completed.stdout)
             self.assertIn("Project Manager [management.project_manager]", completed.stdout)
             self.assertIn("provider_blocked", completed.stdout)
-            self.assertIn("provider_blocked_until=2026-05-01T18:30", completed.stdout)
+            self.assertIn("provider_blocked_until=2099-05-01T18:30", completed.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             payload = json.loads(json_completed.stdout)
@@ -3033,7 +3033,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["status"], "error")
             rows = {item["node_id"]: item for item in payload["rows"]}
             self.assertEqual(rows["management.project_manager"]["provider"], "chatgpt")
-            self.assertEqual(rows["management.project_manager"]["provider_blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(rows["management.project_manager"]["provider_blocked_until"], "2099-05-01T18:30")
             self.assertIn("authorize.project", rows["management.project_manager"]["incoming_edges"])
             self.assertIn("issue.work_package", rows["management.project_manager"]["outgoing_edges"])
             self.assertIn("stage_plan", rows["management.project_manager"]["context_include"])

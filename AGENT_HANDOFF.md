@@ -17,6 +17,7 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
 - `AGENT_HANDOFF.md` is now the agent-facing handoff mirror.
 - Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
+- The repo is currently on branch `pr/p4-p5-updates` at clean `HEAD 8aa58ab` (`stagewarden: initialize workspace`) with no uncommitted changes.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting split into input/output buckets, per-node pricing sourced from the shared model catalog, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.

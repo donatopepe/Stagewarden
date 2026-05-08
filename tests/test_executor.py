@@ -1286,7 +1286,7 @@ class ExecutorTests(unittest.TestCase):
             config = AgentConfig(workspace_root=root)
             prefs = ModelPreferences.default()
             prefs.enabled_models = ["local", "openai"]
-            prefs.blocked_until_by_model = {"openai": "2026-05-01T18:30"}
+            prefs.blocked_until_by_model = {"openai": "2099-05-01T18:30"}
             prefs.save(config.model_prefs_path)
             tree = build_prince2_role_tree(prefs)
             team_node = next(node for node in tree["nodes"] if isinstance(node, dict) and node["node_id"] == "delivery.team_manager")
