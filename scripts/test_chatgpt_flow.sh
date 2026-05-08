@@ -108,7 +108,7 @@ stub.write_text(
 stub.chmod(0o755)
 
 os.environ["RUN_MODEL_BIN"] = str(stub)
-manager = HandoffManager(timeout_seconds=5)
+manager = HandoffManager(timeout_seconds=20)
 manager.account_env_by_target = {f"cheap:live": env_name}
 prompt = "\n".join(
     [
@@ -120,29 +120,45 @@ prompt = "\n".join(
         "Answer:",
     ]
 )
-result = manager.execute(format_run_model("cheap", prompt, account="live"))
+cases = [
+    (
+        "What is the embryological origin of the hyoid bone?\nA. The first pharyngeal arch\nB. The first and second pharyngeal arches\nC. The second pharyngeal arch\nD. The second and third pharyngeal arches\nAnswer:",
+        "D",
+    ),
+    (
+        "Which of these branches of the trigeminal nerve contain somatic motor processes?\nA. The supraorbital nerve\nB. The infraorbital nerve\nC. The mental nerve\nD. None of the above\nAnswer:",
+        "D",
+    ),
+    (
+        "The pleura\nA. have no sensory innervation.\nB. are separated by a 2 mm space.\nC. extend into the neck.\nD. are composed of respiratory epithelium.\nAnswer:",
+        "C",
+    ),
+]
 
-if not result.ok:
-    raise SystemExit(result.error or "OpenRouter smoke test failed.")
-payload = json.loads(result.output)
-if payload.get("account") != "live":
-    raise SystemExit("Backend runner did not receive the expected account.")
-if payload.get("target") != "cheap:live":
-    raise SystemExit("Backend runner did not receive the expected target.")
-if payload.get("requested_model") != "cheap":
-    raise SystemExit("Backend runner did not receive the expected model.")
-if not payload.get("routed_model"):
-    raise SystemExit("OpenRouter did not return a routed model.")
-if not payload.get("content"):
-    raise SystemExit("OpenRouter did not return content.")
-matches = re.findall(r"\b([ABCD])\b", payload["content"].upper())
-if not matches or matches[-1] != "D":
-    raise SystemExit(f"OpenRouter benchmark answer was unexpected: {payload['content']!r}")
-usage = payload.get("usage") or {}
-if int(usage.get("total_tokens", 0)) <= 0:
-    raise SystemExit("OpenRouter usage metadata was not returned.")
+for prompt, expected_choice in cases:
+    result = manager.execute(format_run_model("cheap", prompt, account="live"))
+
+    if not result.ok:
+        raise SystemExit(result.error or "OpenRouter smoke test failed.")
+    payload = json.loads(result.output)
+    if payload.get("account") != "live":
+        raise SystemExit("Backend runner did not receive the expected account.")
+    if payload.get("target") != "cheap:live":
+        raise SystemExit("Backend runner did not receive the expected target.")
+    if payload.get("requested_model") != "cheap":
+        raise SystemExit("Backend runner did not receive the expected model.")
+    if not payload.get("routed_model"):
+        raise SystemExit("OpenRouter did not return a routed model.")
+    if not payload.get("content"):
+        raise SystemExit("OpenRouter did not return content.")
+    matches = re.findall(r"\b([ABCD])\b", payload["content"].upper())
+    if not matches or matches[-1] != expected_choice:
+        raise SystemExit(f"OpenRouter benchmark answer was unexpected: {payload['content']!r}")
+    usage = payload.get("usage") or {}
+    if int(usage.get("total_tokens", 0)) <= 0:
+        raise SystemExit("OpenRouter usage metadata was not returned.")
 
 print(f"OpenRouter env used: {env_name}")
-print("Backend runner confirmed real OpenRouter call.")
+print("Backend runner confirmed real OpenRouter benchmark suite.")
 print("OpenRouter smoke test completed.")
 PY
