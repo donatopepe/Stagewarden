@@ -7,6 +7,7 @@ from pathlib import Path
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
+from stagewarden.prince2_benchmark import run_prince2_benchmark
 from stagewarden.prince2 import Prince2AgentPolicy
 
 
@@ -68,6 +69,17 @@ class Prince2Tests(unittest.TestCase):
             result = agent.run("stuff")
             self.assertFalse(result.ok)
             self.assertIn("PRINCE2 governance gate", result.message)
+
+    def test_prince2_benchmark_reports_prompt_baseline(self) -> None:
+        report = run_prince2_benchmark()
+        self.assertEqual(report["command"], "prince2 benchmark")
+        self.assertEqual(report["baseline"]["provider"], "stagewarden")
+        self.assertEqual(report["overall"]["suite_count"], 2)
+        self.assertEqual(report["overall"]["total_cases"], 8)
+        self.assertTrue(report["overall"]["passed"])
+        self.assertTrue(report["suites"]["governance"]["passed"])
+        self.assertTrue(report["suites"]["assurance"]["passed"])
+        self.assertIn("prompt", report["governance"]["cases"][0])
 
 
 if __name__ == "__main__":

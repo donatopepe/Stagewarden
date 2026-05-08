@@ -38,6 +38,7 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "slash choose": "stagewarden.slash_choose",
     "baseline": "stagewarden.baseline",
     "battery": "stagewarden.battery",
+    "prince2 benchmark": "stagewarden.prince2_benchmark",
     "shell backend": "stagewarden.shell_backend",
     "auth status": "stagewarden.auth_status",
     "project brief": "stagewarden.project_brief",

@@ -1,0 +1,72 @@
+{
+  "_version": "1",
+  "provider": "stagewarden",
+  "suites": [
+    {
+      "id": "governance",
+      "label": "Governance",
+      "description": "Prompt-driven PRINCE2 governance checks for planning, vague task rejection, and escalation.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "checklist_structure",
+          "kind": "checklist_structure",
+          "prompt": "Implement an auth fix in production and produce the PRINCE2 checklist before doing anything else.",
+          "source": "Stagewarden PRINCE2 prompt inspired by SWE-bench style issue framing."
+        },
+        {
+          "id": "vague_task_rejected",
+          "kind": "vague_task_rejected",
+          "prompt": "stuff",
+          "source": "Stagewarden PRINCE2 vague-task rejection prompt."
+        },
+        {
+          "id": "escalation_trigger",
+          "kind": "escalation_trigger",
+          "prompt": "Implement a production feature under tight tolerance, validate it, and escalate if the margin is exceeded.",
+          "source": "Stagewarden PRINCE2 escalation prompt inspired by risk-heavy agentic tasks."
+        }
+      ]
+    },
+    {
+      "id": "assurance",
+      "label": "Assurance",
+      "description": "Prompt-driven PRINCE2 assurance checks for critic output, wet-run gating, and prompt packet coverage.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "critic_accept",
+          "kind": "critic_accept",
+          "prompt": "Validate wet-run evidence for a controlled change.",
+          "source": "Stagewarden PRINCE2 critic acceptance prompt inspired by terminal-validation tasks."
+        },
+        {
+          "id": "critic_block",
+          "kind": "critic_block",
+          "prompt": "Validate wet-run evidence but do not accept any completion claim without real command output.",
+          "source": "Stagewarden PRINCE2 critic blocking prompt inspired by Terminal-Bench style evidence checks."
+        },
+        {
+          "id": "critic_invalid",
+          "kind": "critic_invalid",
+          "prompt": "Validate wet-run evidence and reject malformed critic JSON.",
+          "source": "Stagewarden PRINCE2 critic validation prompt inspired by structured-output regressions."
+        },
+        {
+          "id": "wet_run_required",
+          "kind": "wet_run_required",
+          "prompt": "Validate wet-run evidence without a real execution trace.",
+          "source": "Stagewarden PRINCE2 wet-run gate prompt inspired by execution-focused benchmarks."
+        },
+        {
+          "id": "prompt_context",
+          "kind": "prompt_context",
+          "prompt": "Implement the requested code change and keep the PRINCE2 role context explicit in the prompt packet.",
+          "source": "Stagewarden PRINCE2 prompt-packet coverage prompt inspired by agentic planning benchmarks."
+        }
+      ]
+    }
+  ]
+}

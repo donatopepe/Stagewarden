@@ -6,12 +6,12 @@
   "project_brief": {},
   "status": "completed",
   "current_step_id": "openrouter-benchmark-baseline",
-  "current_step_title": "Expand the live OpenRouter benchmark to general, reasoning, and truthfulness suites",
+  "current_step_title": "Add historical snapshot comparison to the live OpenRouter benchmark",
   "current_step_status": "completed",
-  "latest_observation": "The OpenRouter smoke flow and the new --openrouter-benchmark CLI now execute live OpenRouter API calls through RUN_MODEL_BIN on a three-suite public baseline covering MMLU, ARC-Challenge, and TruthfulQA-MC, and the benchmark report writes a shared JSON snapshot when requested.",
+  "latest_observation": "The OpenRouter smoke flow and the new --openrouter-benchmark CLI now execute live OpenRouter API calls through RUN_MODEL_BIN on a three-suite public baseline covering MMLU, ARC-Challenge, and TruthfulQA-MC, and the benchmark can append a JSONL history snapshot and fail on regressions when requested.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "6dede7e",
-  "git_head_baseline": "6dede7e",
+  "git_head": "02260e0",
+  "git_head_baseline": "02260e0",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-08T08:08:46Z",
+  "updated_at": "2026-05-08T08:21:13Z",
   "entries": [
     {
       "timestamp": "2026-05-08T07:45:48Z",
@@ -354,6 +354,22 @@
       "model": null,
       "action_type": null,
       "git_head": "6dede7e",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T08:21:13Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "openrouter-benchmark-history",
+      "summary": "The live OpenRouter benchmark now tracks optional JSONL history snapshots and fails on real regressions relative to the previous run.",
+      "step_id": "openrouter-benchmark-history",
+      "step_title": "Add historical snapshot comparison to the live OpenRouter benchmark",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "02260e0",
       "details": {
         "plan_status": "step-1:completed,step-2:completed,step-3:completed"
       }

@@ -2,19 +2,21 @@
 
 ## Current State
 
-- The repository is on branch `pr/p4-p5-updates` at `HEAD 6dede7e` and the working tree is clean.
+- The repository is on branch `pr/p4-p5-updates` at `HEAD 02260e0`.
 - The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
-- The benchmark runner emits a `suites` map in the JSON report, and the smoke/CLI tests now validate the same 3-suite baseline with a fixed real OpenRouter model for stability.
-- `tests/test_handoff.py` now also uses the same fixed real OpenRouter model for live transport coverage.
-- The full unittest suite passes: `378 tests`, `OK`.
+- The benchmark runner emits a `suites` map and an optional `history` block, and the history path is opt-in through `--openrouter-benchmark-history`.
+- The smoke and CLI tests validate the same 3-suite baseline plus the history snapshot path with a fixed real OpenRouter model for stability.
+- `tests/test_handoff.py` also uses the same fixed real OpenRouter model for live transport coverage.
+- The full unittest suite passes: `379 tests`, `OK`.
 
 ## Recent Work
 
-- `stagewarden/openrouter_benchmark.py`: generalized the benchmark report shape.
-- `data/openrouter_benchmark_baseline.json`: replaced the 2-suite MMLU-only baseline with the 3-suite public benchmark baseline.
-- `tests/test_trace_cli.py`: updated benchmark assertions to the new suite map and case counts.
-- `scripts/test_chatgpt_flow.sh`: updated the live smoke script to the new baseline.
-- `tests/test_handoff.py`: switched the live transport stub to a fixed OpenRouter model.
+- `stagewarden/openrouter_benchmark.py`: added JSONL history tracking and regression comparison.
+- `stagewarden/main.py`: added `--openrouter-benchmark-history`.
+- `data/openrouter_benchmark_baseline.json`: added per-suite regression tolerances.
+- `tests/test_trace_cli.py`: updated the benchmark assertions and added a regression comparison unit test.
+- `scripts/test_chatgpt_flow.sh`: updated the live smoke script to validate the history snapshot path.
+- `tests/test_handoff.py`: kept the live transport stub on the fixed OpenRouter model.
 
 ## Notes
 
