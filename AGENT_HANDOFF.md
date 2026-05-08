@@ -1,15 +1,16 @@
 # Agent Handoff
 
 ## Current objective
-Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while preserving the PRINCE2 critic, escalation, token-accounting, and shared JSON-schema work. Keep the OpenRouter live benchmark stable, and keep the local PRINCE2 benchmark stable so regressions are caught with real wet-run validation.
+Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while preserving the PRINCE2 critic, escalation, token-accounting, and shared JSON-schema work. Keep the OpenRouter live benchmark stable, and keep the local PRINCE2 benchmark stable while exposing rich default runtime data for analysis and statistics.
 
 ## Current state
 - The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
 - `stagewarden/openrouter_benchmark.py` now returns a `suites` map, per-suite regression metadata, and an optional `history` block that compares the current run against the latest JSONL snapshot.
 - The benchmark can append a history snapshot when `--openrouter-benchmark-history` is supplied, and it fails the run if the current accuracy regresses relative to the previous snapshot.
 - The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with three prompt-driven suites: `governance`, `assurance`, and `recovery`.
-- `stagewarden/prince2_benchmark.py` feeds real executor, critic, and recovery-lane paths with prompt text, wet-run evidence checks, and PRINCE2 prompt-packet assertions.
+- `stagewarden/prince2_benchmark.py` now includes rich default runtime snapshots for every case, including the full node roster, role assignments, parent links, inbox/outbox counts, message transitions, wet-run evidence, and PRINCE2 prompt-packet assertions.
 - `tests/test_trace_cli.py`, `tests/test_prince2.py`, `tests/test_json_schema_registry.py`, and `stagewarden/commands.py` now cover the PRINCE2 benchmark command and schema registration.
+- `python3 -m stagewarden.main --prince2-benchmark` now prints the full default benchmark report with nodes, roles, and transitions for every case.
 - `python3 -m unittest discover -s tests` passes: `381 tests`, `OK`.
 
 ## Recent changes
@@ -19,6 +20,7 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - `stagewarden/prince2_benchmark.py`: added a local PRINCE2 benchmark runner with prompt-driven governance and assurance cases.
 - `stagewarden/main.py`: added `--prince2-benchmark` and `--prince2-benchmark-output`.
 - `data/prince2_benchmark_baseline.json`: added the baseline suites and prompt cases for PRINCE2 benchmark coverage.
+- `stagewarden/prince2_benchmark.py`: expanded the default report with node runtime and transition snapshots for every case.
 - `stagewarden/commands.py`: exposed `prince2 benchmark` in the command catalog.
 - `stagewarden/json_schema_registry.py`: registered the new `prince2 benchmark` schema.
 - `tests/test_prince2.py`: added a direct runner assertion for the PRINCE2 benchmark baseline.
@@ -56,6 +58,10 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - Decision: include a recovery suite that uses the real agent recovery lane.
   - Reason: PRINCE2 should measure exception handling and recovery closure, not only steady-state execution.
   - Trade-offs: the benchmark is slower, but it covers the flow that matters when a stage goes wrong.
+- Decision: include node runtime and transition snapshots by default.
+  - Reason: the benchmark should be useful for analysis and statistics without requiring a separate inspection command.
+  - Trade-offs: the JSON is larger, but every case now carries the context needed to compare nodes, roles, and transitions over time.
+  - Verification: `python3 -m stagewarden.main --prince2-benchmark` now emits the full node/transition detail for every case by default.
 
 ## Open issues
 - Bugs: none known in the live benchmark slice.
@@ -74,4 +80,5 @@ python3 -m unittest discover -s tests
 python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_openrouter_benchmark_cli_reports_multi_suite_baseline
 python3 -m stagewarden.main --prince2-benchmark
 python3 -m unittest tests.test_prince2.Prince2Tests.test_prince2_benchmark_reports_prompt_baseline
+python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_prince2_benchmark_cli_reports_prompt_baseline
 ```

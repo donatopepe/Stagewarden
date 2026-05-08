@@ -82,6 +82,8 @@ class Prince2Tests(unittest.TestCase):
         self.assertTrue(report["suites"]["recovery"]["passed"])
         self.assertIn("prompt", report["governance"]["cases"][0])
         self.assertIn("node_runtime", report["governance"]["cases"][0])
+        self.assertIn("detail", report["governance"]["cases"][0]["node_runtime"])
+        self.assertIn("PRINCE2 node runtime:", report["governance"]["cases"][0]["node_runtime"]["detail"])
         self.assertTrue(report["governance"]["cases"][0]["node_runtime"]["nodes"])
         self.assertTrue(report["governance"]["cases"][0]["node_runtime"]["transitions"])
 
