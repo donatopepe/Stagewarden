@@ -81,6 +81,9 @@ class Prince2Tests(unittest.TestCase):
         self.assertTrue(report["suites"]["assurance"]["passed"])
         self.assertTrue(report["suites"]["recovery"]["passed"])
         self.assertIn("prompt", report["governance"]["cases"][0])
+        self.assertIn("node_runtime", report["governance"]["cases"][0])
+        self.assertTrue(report["governance"]["cases"][0]["node_runtime"]["nodes"])
+        self.assertTrue(report["governance"]["cases"][0]["node_runtime"]["transitions"])
 
 
 if __name__ == "__main__":

@@ -130,6 +130,7 @@ def run_prince2_benchmark(*, baseline_path: str | Path | None = None) -> dict[st
             case_report["prompt"] = case.prompt
             case_report["source"] = case.source
             case_report["passed"] = bool(case_report.get("passed"))
+            case_report["node_runtime"] = _case_node_runtime_snapshot(case_report.pop("node_runtime_source", None))
             if case_report["passed"]:
                 suite_correct += 1
                 correct_cases += 1
@@ -213,8 +214,219 @@ def _run_prince2_benchmark_case(case: Prince2BenchmarkCase) -> dict[str, Any]:
     return runner(case)
 
 
+def _suite_transition_plan(suite_id: str) -> list[dict[str, Any]]:
+    plans: dict[str, list[dict[str, Any]]] = {
+        "governance": [
+            {
+                "source_node": "board.executive",
+                "target_node": "management.project_manager",
+                "edge_id": "authorize.project",
+                "payload_scope": [
+                    "business_justification",
+                    "approved_tolerances",
+                    "stage_objectives",
+                    "reporting_controls",
+                ],
+                "summary": "authorize project baseline and delegated tolerances",
+            },
+            {
+                "source_node": "management.project_manager",
+                "target_node": "delivery.team_manager",
+                "edge_id": "issue.work_package",
+                "payload_scope": [
+                    "assigned_work_package",
+                    "product_descriptions",
+                    "quality_criteria",
+                    "delivery_tolerances",
+                ],
+                "summary": "issue controlled work package",
+            },
+        ],
+        "assurance": [
+            {
+                "source_node": "board.executive",
+                "target_node": "management.project_manager",
+                "edge_id": "authorize.project",
+                "payload_scope": [
+                    "business_justification",
+                    "approved_tolerances",
+                    "stage_objectives",
+                    "reporting_controls",
+                ],
+                "summary": "authorize project baseline and delegated tolerances",
+            },
+            {
+                "source_node": "management.project_manager",
+                "target_node": "assurance.project_assurance",
+                "edge_id": "assure.quality_risk",
+                "payload_scope": [
+                    "quality_evidence",
+                    "risk_controls",
+                    "issue_controls",
+                    "lessons",
+                    "closure_evidence",
+                ],
+                "summary": "send assurance evidence",
+            },
+            {
+                "source_node": "management.project_manager",
+                "target_node": "support.project_support",
+                "edge_id": "record.project_evidence",
+                "payload_scope": [
+                    "approved_baseline_delta",
+                    "register_entry",
+                    "git_evidence",
+                    "decision_record",
+                ],
+                "summary": "record project evidence",
+            },
+        ],
+        "recovery": [
+            {
+                "source_node": "board.executive",
+                "target_node": "management.project_manager",
+                "edge_id": "authorize.project",
+                "payload_scope": [
+                    "business_justification",
+                    "approved_tolerances",
+                    "stage_objectives",
+                    "reporting_controls",
+                ],
+                "summary": "authorize recovery baseline and delegated tolerances",
+            },
+            {
+                "source_node": "management.project_manager",
+                "target_node": "authority.change_authority",
+                "edge_id": "escalate.stage_exception",
+                "payload_scope": [
+                    "exception_report",
+                    "impact_assessment",
+                    "options",
+                    "risks",
+                    "issues",
+                    "rebaseline_need",
+                ],
+                "summary": "escalate stage exception for recovery",
+            },
+        ],
+    }
+    return plans.get(suite_id, plans["governance"])
+
+
+def _build_case_runtime_handoff(case: Prince2BenchmarkCase) -> ProjectHandoff:
+    task = case.prompt
+    project_handoff = ProjectHandoff(task=task)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        config = AgentConfig(workspace_root=Path(tmp_dir))
+        prefs = ModelPreferences.default()
+        prefs.enabled_models = ["local", "openai"]
+        prefs.preferred_model = "openai"
+        prefs.set_prince2_role_assignment(
+            "project_assurance",
+            mode="manual",
+            provider="openai",
+            provider_model="gpt-5.4-mini",
+            params={"reasoning_effort": "medium"},
+            source="prince2_benchmark",
+        )
+        prefs.save(config.model_prefs_path)
+        project_handoff.sync_prince2_role_tree_baseline(
+            {
+                "version": "1",
+                "approved_at": "2026-05-08T00:00:00Z",
+                "source": "prince2_benchmark",
+                "status": "approved",
+                "tree": build_prince2_role_tree(prefs),
+                "flow": build_prince2_role_flow(),
+                "check": check_prince2_role_tree(prefs),
+                "matrix": build_prince2_role_matrix(prefs),
+            }
+        )
+        for transition in _suite_transition_plan(case.suite_id):
+            project_handoff.send_prince2_node_message(
+                source_node=transition["source_node"],
+                target_node=transition["target_node"],
+                edge_id=transition["edge_id"],
+                payload_scope=list(transition["payload_scope"]),
+                evidence_refs=["prince2_benchmark"],
+                summary=transition["summary"],
+            )
+    return project_handoff
+
+
+def _case_node_runtime_snapshot(source: object) -> dict[str, Any]:
+    if isinstance(source, ProjectHandoff):
+        runtime_report = source.prince2_node_runtime_report()
+    elif isinstance(source, dict) and source:
+        runtime_report = {
+            "status": str(source.get("status", "missing")),
+            "summary": source.get("summary", {}),
+            "runtime": dict(source.get("runtime", {})),
+        }
+    else:
+        return {"status": "missing", "summary": {}, "nodes": [], "transitions": []}
+    runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report, dict) else {}
+    nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)] if isinstance(runtime, dict) else []
+    transitions = _collect_node_transitions(nodes)
+    return {
+        "status": str(runtime_report.get("status", "missing")),
+        "summary": runtime_report.get("summary", {}),
+        "nodes": [
+            {
+                "node_id": str(node.get("node_id", "")),
+                "role_type": str(node.get("role_type", "")),
+                "label": str(node.get("label", "")),
+                "parent_id": node.get("parent_id"),
+                "state": str(node.get("state", "")),
+                "wait_status": str(node.get("wait_status", "")),
+                "inbox_count": int(node.get("inbox_count", 0) or 0),
+                "outbox_count": int(node.get("outbox_count", 0) or 0),
+                "accountable_owner": str(node.get("accountable_owner", "")),
+                "tolerance_margin_percent": float(node.get("tolerance_margin_percent", 0.0) or 0.0),
+                "tolerance_pressure_percent": float(node.get("tolerance_pressure_percent", 0.0) or 0.0),
+                "assignment": dict(node.get("assignment", {})) if isinstance(node.get("assignment"), dict) else {},
+            }
+            for node in nodes
+        ],
+        "transitions": transitions,
+    }
+
+
+def _collect_node_transitions(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    transitions: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for node in nodes:
+        for direction in ("outbox", "inbox"):
+            for message in node.get(direction, []):
+                if not isinstance(message, dict):
+                    continue
+                message_id = str(message.get("message_id", "")).strip()
+                if not message_id or message_id in seen:
+                    continue
+                seen.add(message_id)
+                transitions.append(
+                    {
+                        "message_id": message_id,
+                        "timestamp": str(message.get("timestamp", "")),
+                        "direction": direction,
+                        "source_node": str(message.get("source_node", "")),
+                        "target_node": str(message.get("target_node", "")),
+                        "edge_id": str(message.get("edge_id", "")),
+                        "flow_type": str(message.get("flow_type", "")),
+                        "payload_scope": [str(item) for item in message.get("payload_scope", []) if str(item).strip()],
+                        "evidence_refs": [str(item) for item in message.get("evidence_refs", []) if str(item).strip()],
+                        "validation_condition": str(message.get("validation_condition", "")),
+                        "decision_authority": str(message.get("decision_authority", "")),
+                        "summary": str(message.get("summary", "")),
+                        "status": str(message.get("status", "")),
+                    }
+                )
+    return transitions
+
+
 def _policy_case_checklist_structure(case: Prince2BenchmarkCase) -> dict[str, Any]:
     checklist = Prince2AgentPolicy().build_checklist(case.prompt)
+    runtime = _build_case_runtime_handoff(case)
     passed = bool(checklist.stage_plan) and bool(checklist.quality_criteria) and "risk" in checklist.tolerances
     return {
         "passed": passed,
@@ -225,11 +437,12 @@ def _policy_case_checklist_structure(case: Prince2BenchmarkCase) -> dict[str, An
             "tolerances": sorted(checklist.tolerances),
             "prompt_excerpt": case.prompt[:240],
         },
-        "expected": {
-            "stage_plan": "non-empty",
-            "quality_criteria": "non-empty",
-            "tolerances": "includes risk",
-        },
+            "expected": {
+                "stage_plan": "non-empty",
+                "quality_criteria": "non-empty",
+                "tolerances": "includes risk",
+            },
+        "node_runtime_source": runtime,
     }
 
 
@@ -237,6 +450,7 @@ def _policy_case_vague_rejection(case: Prince2BenchmarkCase) -> dict[str, Any]:
     policy = Prince2AgentPolicy()
     checklist = policy.build_checklist(case.prompt)
     assessment = policy.assess_task(case.prompt, checklist)
+    runtime = _build_case_runtime_handoff(case)
     passed = (not assessment.allowed) and bool(assessment.reasons)
     return {
         "passed": passed,
@@ -246,10 +460,11 @@ def _policy_case_vague_rejection(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "reasons": list(assessment.reasons),
             "prompt_excerpt": case.prompt[:240],
         },
-        "expected": {
-            "allowed": False,
-            "reasons": "non-empty",
-        },
+            "expected": {
+                "allowed": False,
+                "reasons": "non-empty",
+            },
+        "node_runtime_source": runtime,
     }
 
 
@@ -262,6 +477,7 @@ def _policy_case_escalation_trigger(case: Prince2BenchmarkCase) -> dict[str, Any
         "pressure_percent": 40.0,
     }
     assessment = policy.assess_task(case.prompt, checklist)
+    runtime = _build_case_runtime_handoff(case)
     passed = assessment.allowed and assessment.escalation_required and bool(assessment.escalation_notes)
     return {
         "passed": passed,
@@ -272,11 +488,12 @@ def _policy_case_escalation_trigger(case: Prince2BenchmarkCase) -> dict[str, Any
             "notes": list(assessment.escalation_notes),
             "prompt_excerpt": case.prompt[:240],
         },
-        "expected": {
-            "allowed": True,
-            "escalation_required": True,
-            "escalation_notes": "non-empty",
-        },
+            "expected": {
+                "allowed": True,
+                "escalation_required": True,
+                "escalation_notes": "non-empty",
+            },
+        "node_runtime_source": runtime,
     }
 
 
@@ -398,6 +615,7 @@ def _executor_case_accept(case: Prince2BenchmarkCase) -> dict[str, Any]:
         )
         outcome = executor.execute_step(task=case.prompt, step=step, plan=[step], iteration=1, last_observation="none")
     review_prompt = handoff.calls[1] if len(handoff.calls) > 1 else ""
+    runtime_source = getattr(executor, "project_handoff", None)
     passed = (
         outcome.ok
         and len(handoff.calls) == 2
@@ -417,6 +635,7 @@ def _executor_case_accept(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "error_type": None,
             "devil_advocate_review": True,
         },
+        "node_runtime_source": runtime_source,
     }
 
 
@@ -445,6 +664,7 @@ def _executor_case_block(case: Prince2BenchmarkCase) -> dict[str, Any]:
             ],
         )
         outcome = executor.execute_step(task=case.prompt, step=step, plan=[step], iteration=1, last_observation="none")
+    runtime_source = getattr(executor, "project_handoff", None)
     passed = (not outcome.ok) and outcome.error_type == "critic_rejection"
     return {
         "passed": passed,
@@ -458,6 +678,7 @@ def _executor_case_block(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "ok": False,
             "error_type": "critic_rejection",
         },
+        "node_runtime_source": runtime_source,
     }
 
 
@@ -486,6 +707,7 @@ def _executor_case_invalid_critic(case: Prince2BenchmarkCase) -> dict[str, Any]:
             ],
         )
         outcome = executor.execute_step(task=case.prompt, step=step, plan=[step], iteration=1, last_observation="none")
+    runtime_source = getattr(executor, "project_handoff", None)
     passed = (not outcome.ok) and outcome.error_type == "critic_invalid_output"
     return {
         "passed": passed,
@@ -499,6 +721,7 @@ def _executor_case_invalid_critic(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "ok": False,
             "error_type": "critic_invalid_output",
         },
+        "node_runtime_source": runtime_source,
     }
 
 
@@ -545,6 +768,7 @@ def _executor_case_wet_run_required(case: Prince2BenchmarkCase) -> dict[str, Any
             ],
         )
         outcome = executor.execute_step(task=case.prompt, step=step, plan=[step], iteration=1, last_observation="none")
+    runtime_source = getattr(executor, "project_handoff", None)
     passed = (not outcome.ok) and outcome.error_type == "wet_run_required"
     return {
         "passed": passed,
@@ -558,6 +782,7 @@ def _executor_case_wet_run_required(case: Prince2BenchmarkCase) -> dict[str, Any
             "ok": False,
             "error_type": "wet_run_required",
         },
+        "node_runtime_source": runtime_source,
     }
 
 
@@ -587,6 +812,7 @@ def _executor_case_prompt_packet(case: Prince2BenchmarkCase) -> dict[str, Any]:
         )
         outcome = executor.execute_step(task=case.prompt, step=step, plan=[step], iteration=1, last_observation="none")
     prompt = handoff.calls[0] if handoff.calls else ""
+    runtime_source = getattr(executor, "project_handoff", None)
     passed = (
         outcome.ok
         and "prince2_active_role" in prompt
@@ -610,6 +836,7 @@ def _executor_case_prompt_packet(case: Prince2BenchmarkCase) -> dict[str, Any]:
                 "core_agent_capabilities: shell=true files=true git=true wet_run_required=true",
             ],
         },
+        "node_runtime_source": runtime_source,
     }
 
 
@@ -679,6 +906,9 @@ def _agent_case_recovery_gate(case: Prince2BenchmarkCase) -> dict[str, Any]:
         root = Path(tmp_dir)
         stub = _write_agent_success_stub(root)
         handoff = _recovery_handoff_payload(case.prompt)
+        case_runtime = _build_case_runtime_handoff(case)
+        handoff.sync_prince2_role_tree_baseline(dict(case_runtime.prince2_role_tree_baseline))
+        handoff.prince2_node_runtime = json.loads(json.dumps(case_runtime.prince2_node_runtime))
         handoff.save(root / ".stagewarden_handoff.json")
         with _temp_run_model_env(stub):
             agent = Agent(AgentConfig(workspace_root=root, max_steps=10, verbose=False))
@@ -708,6 +938,7 @@ def _agent_case_recovery_gate(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "closed_risks": True,
             "recovery_steps": "completed",
         },
+        "node_runtime_source": saved,
     }
 
 
@@ -737,6 +968,7 @@ def _executor_case_recovery_prompt_packet(case: Prince2BenchmarkCase) -> dict[st
         )
         outcome = executor.execute_step(task=case.prompt, step=step, plan=[step], iteration=1, last_observation="exception plan active")
     prompt = handoff.calls[0] if handoff.calls else ""
+    runtime_source = getattr(executor, "project_handoff", None)
     passed = (
         outcome.ok
         and "recovery_state:" in prompt
@@ -760,6 +992,7 @@ def _executor_case_recovery_prompt_packet(case: Prince2BenchmarkCase) -> dict[st
                 "core_agent_capabilities: shell=true files=true git=true wet_run_required=true",
             ],
         },
+        "node_runtime_source": runtime_source,
     }
 
 
