@@ -106,6 +106,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "resume --clear",
             "models usage",
             "ljson benchmark",
+            "openrouter benchmark",
         }
         self.assertEqual(set(json_schema_commands()), expected)
         self.assertEqual(set(JSON_SCHEMA_REGISTRY), expected)

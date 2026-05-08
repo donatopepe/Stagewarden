@@ -1,0 +1,68 @@
+{
+  "_format": "stagewarden_openrouter_benchmark_baseline",
+  "_version": 1,
+  "provider": "openrouter",
+  "model": "cheap",
+  "account": "live",
+  "timeout_seconds": 30,
+  "suites": [
+    {
+      "id": "simple",
+      "label": "MMLU factual baseline",
+      "description": "Short multiple-choice prompts used as a quick factual control.",
+      "min_accuracy": 1.0,
+      "cases": [
+        {
+          "id": "hyoid_origin",
+          "kind": "choice",
+          "expected_answer": "D",
+          "source": "MMLU public benchmark prompt",
+          "prompt": "What is the embryological origin of the hyoid bone?\nA. The first pharyngeal arch\nB. The first and second pharyngeal arches\nC. The second pharyngeal arch\nD. The second and third pharyngeal arches\nAnswer:"
+        },
+        {
+          "id": "trigeminal_motor",
+          "kind": "choice",
+          "expected_answer": "D",
+          "source": "MMLU public benchmark prompt",
+          "prompt": "Which of these branches of the trigeminal nerve contain somatic motor processes?\nA. The supraorbital nerve\nB. The infraorbital nerve\nC. The mental nerve\nD. None of the above\nAnswer:"
+        },
+        {
+          "id": "pleura",
+          "kind": "choice",
+          "expected_answer": "C",
+          "source": "MMLU public benchmark prompt",
+          "prompt": "The pleura\nA. have no sensory innervation.\nB. are separated by a 2 mm space.\nC. extend into the neck.\nD. are composed of respiratory epithelium.\nAnswer:"
+        }
+      ]
+    },
+    {
+      "id": "complex",
+      "label": "MMLU extended baseline",
+      "description": "Longer instruction-heavy prompts that keep the same public benchmark answers but add extra reasoning pressure.",
+      "min_accuracy": 1.0,
+      "cases": [
+        {
+          "id": "hyoid_origin_extended",
+          "kind": "choice",
+          "expected_answer": "D",
+          "source": "MMLU public benchmark prompt, extended instruction",
+          "prompt": "Think carefully and answer only with the final letter. What is the embryological origin of the hyoid bone?\nA. The first pharyngeal arch\nB. The first and second pharyngeal arches\nC. The second pharyngeal arch\nD. The second and third pharyngeal arches\nAnswer:"
+        },
+        {
+          "id": "trigeminal_motor_extended",
+          "kind": "choice",
+          "expected_answer": "D",
+          "source": "MMLU public benchmark prompt, extended instruction",
+          "prompt": "Think carefully and answer only with the final letter. Which of these branches of the trigeminal nerve contain somatic motor processes?\nA. The supraorbital nerve\nB. The infraorbital nerve\nC. The mental nerve\nD. None of the above\nAnswer:"
+        },
+        {
+          "id": "pleura_extended",
+          "kind": "choice",
+          "expected_answer": "C",
+          "source": "MMLU public benchmark prompt, extended instruction",
+          "prompt": "Think carefully and answer only with the final letter. The pleura\nA. have no sensory innervation.\nB. are separated by a 2 mm space.\nC. extend into the neck.\nD. are composed of respiratory epithelium.\nAnswer:"
+        }
+      ]
+    }
+  ]
+}

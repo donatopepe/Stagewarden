@@ -10,15 +10,14 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "[1/1] Verifying OpenRouter API key wiring"
-PYTHONPATH="$PROJECT_DIR" SMOKE_DIR="$SMOKE_DIR" python3 - <<'PY'
+echo "[1/1] Running live OpenRouter benchmark baseline"
+PYTHONPATH="$PROJECT_DIR" PROJECT_DIR="$PROJECT_DIR" SMOKE_DIR="$SMOKE_DIR" python3 - <<'PY'
 import json
 import os
-import re
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 
-from stagewarden.handoff import HandoffManager, format_run_model
 from stagewarden.provider_registry import model_token_env
 
 env_name = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
@@ -107,58 +106,52 @@ stub.write_text(
 )
 stub.chmod(0o755)
 
-os.environ["RUN_MODEL_BIN"] = str(stub)
-manager = HandoffManager(timeout_seconds=20)
-manager.account_env_by_target = {f"cheap:live": env_name}
-prompt = "\n".join(
+output_path = Path(os.environ["SMOKE_DIR"]) / "openrouter-benchmark.json"
+env = dict(os.environ)
+env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "")
+env["RUN_MODEL_BIN"] = str(stub)
+completed = subprocess.run(
     [
-        "What is the embryological origin of the hyoid bone?",
-        "A. The first pharyngeal arch",
-        "B. The first and second pharyngeal arches",
-        "C. The second pharyngeal arch",
-        "D. The second and third pharyngeal arches",
-        "Answer:",
-    ]
+        "python3",
+        "-m",
+        "stagewarden.main",
+        "--openrouter-benchmark",
+        "--openrouter-benchmark-output",
+        str(output_path),
+    ],
+    cwd=Path(os.environ["PROJECT_DIR"]),
+    env=env,
+    capture_output=True,
+    text=True,
+    timeout=300,
+    check=False,
 )
-cases = [
-    (
-        "What is the embryological origin of the hyoid bone?\nA. The first pharyngeal arch\nB. The first and second pharyngeal arches\nC. The second pharyngeal arch\nD. The second and third pharyngeal arches\nAnswer:",
-        "D",
-    ),
-    (
-        "Which of these branches of the trigeminal nerve contain somatic motor processes?\nA. The supraorbital nerve\nB. The infraorbital nerve\nC. The mental nerve\nD. None of the above\nAnswer:",
-        "D",
-    ),
-    (
-        "The pleura\nA. have no sensory innervation.\nB. are separated by a 2 mm space.\nC. extend into the neck.\nD. are composed of respiratory epithelium.\nAnswer:",
-        "C",
-    ),
-]
+if completed.returncode != 0:
+    raise SystemExit(completed.stderr or completed.stdout or "OpenRouter benchmark CLI failed.")
 
-for prompt, expected_choice in cases:
-    result = manager.execute(format_run_model("cheap", prompt, account="live"))
+payload = json.loads(completed.stdout)
+if payload.get("command") != "openrouter benchmark":
+    raise SystemExit("Benchmark CLI did not report the expected command.")
+if payload.get("schema", {}).get("name") != "stagewarden.openrouter_benchmark":
+    raise SystemExit("Benchmark CLI did not emit the shared schema.")
+if not payload.get("simple", {}).get("passed"):
+    raise SystemExit("Simple OpenRouter baseline did not pass.")
+if not payload.get("complex", {}).get("passed"):
+    raise SystemExit("Complex OpenRouter baseline did not pass.")
+if not payload.get("overall", {}).get("passed"):
+    raise SystemExit("Overall OpenRouter benchmark baseline did not pass.")
+if payload.get("overall", {}).get("total_cases") != 6:
+    raise SystemExit("Benchmark CLI reported an unexpected case count.")
+if payload.get("overall", {}).get("suite_count") != 2:
+    raise SystemExit("Benchmark CLI reported an unexpected suite count.")
+if not output_path.exists():
+    raise SystemExit("Benchmark output file was not written.")
 
-    if not result.ok:
-        raise SystemExit(result.error or "OpenRouter smoke test failed.")
-    payload = json.loads(result.output)
-    if payload.get("account") != "live":
-        raise SystemExit("Backend runner did not receive the expected account.")
-    if payload.get("target") != "cheap:live":
-        raise SystemExit("Backend runner did not receive the expected target.")
-    if payload.get("requested_model") != "cheap":
-        raise SystemExit("Backend runner did not receive the expected model.")
-    if not payload.get("routed_model"):
-        raise SystemExit("OpenRouter did not return a routed model.")
-    if not payload.get("content"):
-        raise SystemExit("OpenRouter did not return content.")
-    matches = re.findall(r"\b([ABCD])\b", payload["content"].upper())
-    if not matches or matches[-1] != expected_choice:
-        raise SystemExit(f"OpenRouter benchmark answer was unexpected: {payload['content']!r}")
-    usage = payload.get("usage") or {}
-    if int(usage.get("total_tokens", 0)) <= 0:
-        raise SystemExit("OpenRouter usage metadata was not returned.")
+saved = json.loads(output_path.read_text(encoding="utf-8"))
+if saved.get("command") != "openrouter benchmark":
+    raise SystemExit("Benchmark output file did not contain the expected command.")
 
 print(f"OpenRouter env used: {env_name}")
 print("Backend runner confirmed real OpenRouter benchmark suite.")
-print("OpenRouter smoke test completed.")
+print("OpenRouter benchmark smoke test completed.")
 PY
