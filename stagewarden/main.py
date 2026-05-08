@@ -52,6 +52,7 @@ from .modelprefs import (
     limit_snapshot_from_message,
 )
 from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
+from .openrouter_benchmark import run_openrouter_benchmark
 from .json_schema_registry import json_schema
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .planner import PlanStep
@@ -242,6 +243,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ljson-numeric", action="store_true", help="Use numeric-key LJSON representation when encoding.")
     parser.add_argument("--ljson-gzip", action="store_true", help="Write gzipped LJSON when encoding.")
     parser.add_argument("--ljson-benchmark", metavar="JSON_PATH", help="Benchmark standard JSON vs LJSON for a JSON array file.")
+    parser.add_argument("--openrouter-benchmark", action="store_true", help="Run the live OpenRouter benchmark baseline and report accuracy by suite.")
+    parser.add_argument("--openrouter-benchmark-output", metavar="OUT_PATH", help="Write the live OpenRouter benchmark report to a JSON file.")
     parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
     parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
     parser.add_argument("--full", action="store_true", help="Show expanded status dashboard sections.")
@@ -11345,6 +11348,14 @@ def main() -> int:
             )
         )
         return 0
+
+    if args.openrouter_benchmark:
+        report = run_openrouter_benchmark()
+        rendered = dumps_ascii(_with_json_schema("openrouter benchmark", report), indent=2)
+        if args.openrouter_benchmark_output:
+            write_text_utf8(Path(args.openrouter_benchmark_output), rendered)
+        print(rendered)
+        return 0 if report.get("overall", {}).get("passed") else 1
 
     task = " ".join(args.task).strip()
     if args.caveman_help:

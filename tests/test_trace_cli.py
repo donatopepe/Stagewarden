@@ -9,6 +9,7 @@ import threading
 import unittest
 from io import StringIO
 from pathlib import Path
+import textwrap
 from unittest.mock import patch
 
 from stagewarden.agent import Agent
@@ -32,6 +33,7 @@ from stagewarden.main import (
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.secrets import SecretStore
+from stagewarden.provider_registry import model_token_env
 from tests.test_agent_integration import write_resume_network_stub
 
 
@@ -89,6 +91,90 @@ def write_success_stub(root: Path) -> Path:
     return path
 
 
+def write_openrouter_live_stub(root: Path, env_name: str) -> Path:
+    path = root / "run_model_openrouter_live_stub.py"
+    path.write_text(
+        textwrap.dedent(
+            f"""\
+            #!/usr/bin/env python3
+            from __future__ import annotations
+
+            import json
+            import os
+            import sys
+            import urllib.request
+
+
+            def main() -> int:
+                if len(sys.argv) < 3:
+                    print(json.dumps({{"error": "usage: stub <model> <prompt>"}}))
+                    return 1
+
+                requested_model = sys.argv[1]
+                prompt = sys.argv[2]
+                api_key = os.environ.get("{env_name}", "") or os.environ.get("OPENROUTER_API_KEY", "")
+                if not api_key:
+                    print(json.dumps({{"error": "missing {env_name}"}}))
+                    return 1
+
+                payload = {{
+                    "model": "openrouter/auto",
+                    "messages": [
+                        {{"role": "system", "content": "Answer with only one letter: A, B, C, or D or with only the final numeric result."}},
+                        {{"role": "user", "content": prompt}},
+                    ],
+                    "max_tokens": 256,
+                    "temperature": 0,
+                    "plugins": [
+                        {{
+                            "id": "auto-router",
+                            "allowed_models": [
+                                "anthropic/claude-sonnet-4.5",
+                                "openai/gpt-5.1",
+                                "google/gemini-3.1-pro-preview",
+                            ],
+                        }}
+                    ],
+                }}
+                request = urllib.request.Request(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={{
+                        "Authorization": f"Bearer {{api_key}}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://stagewarden.local",
+                        "X-Title": "Stagewarden tests",
+                    }},
+                    method="POST",
+                )
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    data = json.load(response)
+
+                choices = data.get("choices") or []
+                message = choices[0].get("message") if choices else {{}}
+                content = str((message or {{}}).get("content") or (message or {{}}).get("reasoning") or "").strip()
+                print(json.dumps({{
+                    "account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""),
+                    "target": os.environ.get("STAGEWARDEN_MODEL_TARGET", ""),
+                    "requested_model": requested_model,
+                    "routed_model": data.get("model", ""),
+                    "content": content,
+                    "usage": data.get("usage", {{}}),
+                    "action": {{"type": "complete", "message": content or "OpenRouter call completed."}},
+                }}))
+                return 0
+
+
+            if __name__ == "__main__":
+                raise SystemExit(main())
+            """
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
 def run_main_in_cwd(cwd: Path, *args: str) -> int:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT)
@@ -106,7 +192,7 @@ def run_main_in_cwd(cwd: Path, *args: str) -> int:
     return completed.returncode
 
 
-def run_main_capture(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def run_main_capture(cwd: Path, *args: str, timeout: int = 20) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT)
     return subprocess.run(
@@ -115,7 +201,7 @@ def run_main_capture(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
         env=env,
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=timeout,
         check=False,
     )
 
@@ -181,6 +267,48 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["record_count"], 2)
             self.assertIn("standard", payload)
             self.assertIn("numeric", payload)
+
+    def test_openrouter_benchmark_cli_reports_simple_and_complex_baselines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            env_name = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
+            if not (os.environ.get(env_name) or os.environ.get("OPENROUTER_API_KEY")):
+                self.skipTest("OpenRouter API key is required for this test.")
+            stub = write_openrouter_live_stub(root, env_name)
+            original_bin = os.environ.get("RUN_MODEL_BIN")
+            output_path = root / "openrouter-benchmark.json"
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                completed = run_main_capture(
+                    root,
+                    "--openrouter-benchmark",
+                    "--openrouter-benchmark-output",
+                    str(output_path),
+                    timeout=300,
+                )
+            finally:
+                if original_bin is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original_bin
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "openrouter benchmark")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.openrouter_benchmark")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertTrue(payload["simple"]["passed"])
+            self.assertTrue(payload["complex"]["passed"])
+            self.assertTrue(payload["overall"]["passed"])
+            self.assertEqual(payload["overall"]["suite_count"], 2)
+            self.assertEqual(payload["overall"]["total_cases"], 6)
+            self.assertEqual(payload["baseline"]["timeout_seconds"], 30)
+            self.assertGreaterEqual(payload["simple"]["accuracy"], 1.0)
+            self.assertGreaterEqual(payload["complex"]["accuracy"], 1.0)
+            self.assertTrue(output_path.exists())
+            saved = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["command"], "openrouter benchmark")
+            self.assertTrue(saved["overall"]["passed"])
 
     def test_interactive_shell_handles_help_and_exit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
