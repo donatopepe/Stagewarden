@@ -14,6 +14,7 @@ echo "[1/1] Verifying OpenRouter API key wiring"
 PYTHONPATH="$PROJECT_DIR" SMOKE_DIR="$SMOKE_DIR" python3 - <<'PY'
 import json
 import os
+import re
 from pathlib import Path
 from textwrap import dedent
 
@@ -54,11 +55,21 @@ stub.write_text(
             payload = {{
                 "model": "openrouter/auto",
                 "messages": [
-                    {{"role": "system", "content": "Reply with a short confirmation."}},
+                    {{"role": "system", "content": "Answer with only one letter: A, B, C, or D."}},
                     {{"role": "user", "content": prompt}},
                 ],
-                "max_tokens": 8,
+                "max_tokens": 256,
                 "temperature": 0,
+                "plugins": [
+                    {{
+                        "id": "auto-router",
+                        "allowed_models": [
+                            "anthropic/claude-sonnet-4.5",
+                            "openai/gpt-5.1",
+                            "google/gemini-3.1-pro-preview",
+                        ],
+                    }}
+                ],
             }}
             request = urllib.request.Request(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -76,7 +87,7 @@ stub.write_text(
 
             choices = data.get("choices") or []
             message = choices[0].get("message") if choices else {{}}
-            content = str((message or {{}}).get("content", "")).strip()
+            content = str((message or {{}}).get("content") or (message or {{}}).get("reasoning") or "").strip()
             print(json.dumps({{
                 "account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""),
                 "target": os.environ.get("STAGEWARDEN_MODEL_TARGET", ""),
@@ -99,7 +110,17 @@ stub.chmod(0o755)
 os.environ["RUN_MODEL_BIN"] = str(stub)
 manager = HandoffManager(timeout_seconds=5)
 manager.account_env_by_target = {f"cheap:live": env_name}
-result = manager.execute(format_run_model("cheap", "smoke prompt", account="live"))
+prompt = "\n".join(
+    [
+        "What is the embryological origin of the hyoid bone?",
+        "A. The first pharyngeal arch",
+        "B. The first and second pharyngeal arches",
+        "C. The second pharyngeal arch",
+        "D. The second and third pharyngeal arches",
+        "Answer:",
+    ]
+)
+result = manager.execute(format_run_model("cheap", prompt, account="live"))
 
 if not result.ok:
     raise SystemExit(result.error or "OpenRouter smoke test failed.")
@@ -114,6 +135,9 @@ if not payload.get("routed_model"):
     raise SystemExit("OpenRouter did not return a routed model.")
 if not payload.get("content"):
     raise SystemExit("OpenRouter did not return content.")
+matches = re.findall(r"\b([ABCD])\b", payload["content"].upper())
+if not matches or matches[-1] != "D":
+    raise SystemExit(f"OpenRouter benchmark answer was unexpected: {payload['content']!r}")
 usage = payload.get("usage") or {}
 if int(usage.get("total_tokens", 0)) <= 0:
     raise SystemExit("OpenRouter usage metadata was not returned.")

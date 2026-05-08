@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import textwrap
 import unittest
@@ -49,11 +50,21 @@ class HandoffTests(unittest.TestCase):
                     payload = {
                         "model": "openrouter/auto",
                         "messages": [
-                            {"role": "system", "content": "Reply with a short confirmation."},
+                            {"role": "system", "content": "Answer with only one letter: A, B, C, or D."},
                             {"role": "user", "content": prompt},
                         ],
-                        "max_tokens": 8,
+                        "max_tokens": 256,
                         "temperature": 0,
+                        "plugins": [
+                            {
+                                "id": "auto-router",
+                                "allowed_models": [
+                                    "anthropic/claude-sonnet-4.5",
+                                    "openai/gpt-5.1",
+                                    "google/gemini-3.1-pro-preview",
+                                ],
+                            }
+                        ],
                     }
                     request = urllib.request.Request(
                         "https://openrouter.ai/api/v1/chat/completions",
@@ -71,7 +82,7 @@ class HandoffTests(unittest.TestCase):
 
                     choices = data.get("choices") or []
                     message = choices[0].get("message") if choices else {}
-                    content = str((message or {}).get("content", "")).strip()
+                    content = str((message or {}).get("content") or (message or {}).get("reasoning") or "").strip()
                     print(json.dumps({
                         "account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""),
                         "target": os.environ.get("STAGEWARDEN_MODEL_TARGET", ""),
@@ -93,6 +104,26 @@ class HandoffTests(unittest.TestCase):
         stub.chmod(0o755)
         return stub
 
+    def _mmlu_benchmark_prompt(self) -> tuple[str, str]:
+        return (
+            "\n".join(
+                [
+                    "What is the embryological origin of the hyoid bone?",
+                    "A. The first pharyngeal arch",
+                    "B. The first and second pharyngeal arches",
+                    "C. The second pharyngeal arch",
+                    "D. The second and third pharyngeal arches",
+                    "Answer:",
+                ]
+            ),
+            "D",
+        )
+
+    def _last_choice(self, text: str) -> str:
+        matches = re.findall(r"\b([ABCD])\b", text.upper())
+        self.assertTrue(matches, f"No choice letter found in response: {text!r}")
+        return matches[-1]
+
     def test_parse_and_format(self) -> None:
         command = format_run_model("local", "hello")
         model, prompt, account = parse_run_model_command(command)
@@ -107,16 +138,17 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(prompt, "hello")
         self.assertEqual(account, "work")
 
-    def test_handoff_invokes_configured_binary_with_openrouter_key(self) -> None:
+    def test_handoff_runs_mmlu_benchmark_prompt_against_openrouter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             stub = self._write_openrouter_live_runner(tmp_dir)
             original = os.environ.get("RUN_MODEL_BIN")
             openrouter_env = self._openrouter_env_name()
+            prompt, expected_answer = self._mmlu_benchmark_prompt()
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
                 manager = HandoffManager(timeout_seconds=5)
                 manager.account_env_by_target = {f"cheap:live": openrouter_env}
-                result = manager.execute(format_run_model("cheap", "prompt", account="live"))
+                result = manager.execute(format_run_model("cheap", prompt, account="live"))
             finally:
                 if original is None:
                     os.environ.pop("RUN_MODEL_BIN", None)
@@ -131,6 +163,7 @@ class HandoffTests(unittest.TestCase):
         self.assertTrue(payload["routed_model"])
         self.assertTrue(payload["content"])
         self.assertGreater(payload["usage"]["total_tokens"], 0)
+        self.assertEqual(self._last_choice(payload["content"]), expected_answer)
 
     def test_handoff_streams_output_through_callback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -172,11 +205,12 @@ class HandoffTests(unittest.TestCase):
             stub = self._write_openrouter_live_runner(tmp_dir)
             original_bin = os.environ.get("RUN_MODEL_BIN")
             openrouter_env = self._openrouter_env_name()
+            prompt, _ = self._mmlu_benchmark_prompt()
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
                 manager = HandoffManager(timeout_seconds=5)
                 manager.account_env_by_target = {f"cheap:live": openrouter_env}
-                result = manager.execute(format_run_model("cheap", "prompt", account="live"))
+                result = manager.execute(format_run_model("cheap", prompt, account="live"))
             finally:
                 if original_bin is None:
                     os.environ.pop("RUN_MODEL_BIN", None)
