@@ -5,6 +5,7 @@ import os
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
@@ -366,7 +367,36 @@ def _case_orchestration_node_ids(case: Prince2BenchmarkCase) -> list[str]:
     return node_ids
 
 
-def _summarize_case_node_runtime(nodes: list[dict[str, Any]], *, status: str, materialized_at: str, baseline_source: str) -> dict[str, Any]:
+def _parse_utc_timestamp(value: str) -> datetime | None:
+    clean_value = str(value).strip()
+    if not clean_value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(clean_value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _age_ms(now: datetime, then: str) -> int | None:
+    parsed = _parse_utc_timestamp(then)
+    if parsed is None:
+        return None
+    delta = now - parsed
+    return max(0, int(delta.total_seconds() * 1000))
+
+
+def _summarize_case_node_runtime(
+    nodes: list[dict[str, Any]],
+    *,
+    status: str,
+    materialized_at: str,
+    baseline_source: str,
+    snapshot_at: str,
+) -> dict[str, Any]:
+    now = _parse_utc_timestamp(snapshot_at) or datetime.now(timezone.utc)
     counts = {
         "command": "roles runtime",
         "status": status,
@@ -380,7 +410,29 @@ def _summarize_case_node_runtime(nodes: list[dict[str, Any]], *, status: str, ma
         "completed": 0,
         "message_queues": 0,
         "wait_triggers": 0,
+        "providers": {},
+        "provider_models": {},
+        "role_types": [],
+        "tokens": {
+            "business_case_input": 0,
+            "business_case_output": 0,
+            "business_case_total": 0,
+            "thread_total": 0,
+        },
+        "cost_usd": {
+            "business_case_input": 0.0,
+            "business_case_output": 0.0,
+            "business_case_total": 0.0,
+        },
+        "timing": {
+            "snapshot_at": snapshot_at,
+            "materialized_at": materialized_at,
+            "elapsed_since_materialization_ms": _age_ms(now, materialized_at),
+            "max_age_since_last_transition_ms": None,
+        },
     }
+    role_types: list[str] = []
+    max_age_since_last_transition_ms: int | None = None
     for node in nodes:
         state = str(node.get("state", "")).strip().lower()
         if state in counts:
@@ -390,8 +442,32 @@ def _summarize_case_node_runtime(nodes: list[dict[str, Any]], *, status: str, ma
             counts["waiting"] += 0 if state == "waiting" else 1
         counts["message_queues"] += int(node.get("inbox_count", 0) or 0) + int(node.get("outbox_count", 0) or 0)
         counts["wait_triggers"] += len(node.get("wake_triggers", [])) if isinstance(node.get("wake_triggers"), list) else 0
+        role_type = str(node.get("role_type", "")).strip()
+        if role_type and role_type not in role_types:
+            role_types.append(role_type)
+        assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+        provider = str(assignment.get("provider", "none") or "none")
+        provider_model = str(assignment.get("provider_model", "none") or "none")
+        counts["providers"][provider] = int(counts["providers"].get(provider, 0)) + 1
+        provider_variant = f"{provider}:{provider_model}"
+        counts["provider_models"][provider_variant] = int(counts["provider_models"].get(provider_variant, 0)) + 1
+        input_tokens = int(node.get("business_case_input_token_count", 0) or 0)
+        output_tokens = int(node.get("business_case_output_token_count", 0) or 0)
+        thread_tokens = int(node.get("thread_token_count", 0) or 0)
+        counts["tokens"]["business_case_input"] += input_tokens
+        counts["tokens"]["business_case_output"] += output_tokens
+        counts["tokens"]["business_case_total"] += input_tokens + output_tokens
+        counts["tokens"]["thread_total"] += thread_tokens
+        counts["cost_usd"]["business_case_input"] += float(node.get("business_case_input_cost_usd", 0.0) or 0.0)
+        counts["cost_usd"]["business_case_output"] += float(node.get("business_case_output_cost_usd", 0.0) or 0.0)
+        counts["cost_usd"]["business_case_total"] += float(node.get("business_case_cost_usd", 0.0) or 0.0)
+        age_ms = _age_ms(now, str(node.get("last_transition_at", "")))
+        if age_ms is not None:
+            max_age_since_last_transition_ms = age_ms if max_age_since_last_transition_ms is None else max(max_age_since_last_transition_ms, age_ms)
+    counts["role_types"] = role_types
     counts["materialized_at"] = materialized_at
     counts["baseline_source"] = baseline_source
+    counts["timing"]["max_age_since_last_transition_ms"] = max_age_since_last_transition_ms
     return counts
 
 
@@ -421,11 +497,13 @@ def _case_node_runtime_snapshot(source: object, *, case: Prince2BenchmarkCase) -
     transitions = _collect_node_transitions(selected_nodes)
     materialized_at = str(runtime.get("materialized_at", runtime_report.get("summary", {}).get("materialized_at", "")))
     baseline_source = str(runtime.get("baseline_source", runtime_report.get("summary", {}).get("baseline_source", "unknown")))
+    snapshot_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     summary = _summarize_case_node_runtime(
         selected_nodes,
         status=str(runtime_report.get("status", "missing")),
         materialized_at=materialized_at,
         baseline_source=baseline_source,
+        snapshot_at=snapshot_at,
     )
     filtered_runtime = dict(runtime) if isinstance(runtime, dict) else {}
     filtered_runtime["nodes"] = selected_nodes
@@ -441,7 +519,7 @@ def _case_node_runtime_snapshot(source: object, *, case: Prince2BenchmarkCase) -
             "node_count": len(selected_nodes),
             "role_types": [str(node.get("role_type", "")) for node in selected_nodes],
         },
-        "detail": _render_case_node_runtime_detail({"status": runtime_report.get("status", "missing"), "summary": summary, "runtime": filtered_runtime}, nodes=selected_nodes, transitions=transitions),
+        "detail": _render_case_node_runtime_detail({"status": runtime_report.get("status", "missing"), "summary": summary, "runtime": filtered_runtime, "snapshot_at": snapshot_at}, nodes=selected_nodes, transitions=transitions),
     }
 
 
@@ -455,6 +533,7 @@ def _render_case_node_runtime_detail(
     nodes = list(nodes or [node for node in runtime.get("nodes", []) if isinstance(node, dict)])
     transitions = list(transitions or _collect_node_transitions(nodes))
     summary = runtime_report.get("summary", {}) if isinstance(runtime_report, dict) else {}
+    snapshot_at = str(runtime_report.get("snapshot_at", datetime.now(timezone.utc).isoformat(timespec="seconds")))
     lines = [
         "PRINCE2 node runtime:",
         f"- status: {runtime_report.get('status', 'missing')}",
@@ -465,6 +544,7 @@ def _render_case_node_runtime_detail(
         ),
         f"- materialized_at: {runtime.get('materialized_at', 'unknown')}",
         f"- baseline_source: {runtime.get('baseline_source', 'unknown')}",
+        f"- snapshot_at: {snapshot_at}",
         (
             f"- wait_triggers: {summary.get('wait_triggers', 0)} "
             f"message_queues={summary.get('message_queues', 0)}"
@@ -478,6 +558,8 @@ def _render_case_node_runtime_detail(
             assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
             context_rule = node.get("context_rule", {}) if isinstance(node.get("context_rule"), dict) else {}
             antagonist_profile = node.get("antagonist_profile", {}) if isinstance(node.get("antagonist_profile"), dict) else {}
+            age_since_last_transition_ms = _age_ms(_parse_utc_timestamp(snapshot_at) or datetime.now(timezone.utc), str(node.get("last_transition_at", "")))
+            age_since_materialization_ms = _age_ms(_parse_utc_timestamp(snapshot_at) or datetime.now(timezone.utc), str(runtime.get("materialized_at", "")))
             lines.append(
                 f"  [{index}] {node.get('node_id', 'unknown')} role={node.get('role_type', 'unknown')} "
                 f"label={node.get('label', 'unknown')} parent={node.get('parent_id') or 'none'} "
@@ -492,12 +574,16 @@ def _render_case_node_runtime_detail(
                 f"      owner={node.get('accountable_owner', 'user')} "
                 f"provider={assignment.get('provider', 'none') or 'none'} "
                 f"provider_model={assignment.get('provider_model', 'none') or 'none'} "
+                f"account={assignment.get('account') or 'none'} "
+                f"params={json.dumps(assignment.get('params', {}), sort_keys=True) if isinstance(assignment.get('params'), dict) else '{}'} "
                 f"spawn_source={node.get('spawn_source', 'none') or 'none'} "
                 f"spawn_reason={node.get('spawn_reason', 'none') or 'none'}"
             )
             lines.append(
                 f"      inbox={node.get('inbox_count', 0)} outbox={node.get('outbox_count', 0)} "
-                f"child_count={node.get('child_count', 0)} last_transition_at={node.get('last_transition_at', 'unknown')}"
+                f"child_count={node.get('child_count', 0)} last_transition_at={node.get('last_transition_at', 'unknown')} "
+                f"age_since_last_transition_ms={age_since_last_transition_ms if age_since_last_transition_ms is not None else 'unknown'} "
+                f"age_since_materialization_ms={age_since_materialization_ms if age_since_materialization_ms is not None else 'unknown'}"
             )
             lines.append(
                 f"      tokens total={node.get('thread_token_count', 0)} "
@@ -554,6 +640,44 @@ def _render_case_node_runtime_detail(
                 f"decision_authority={transition.get('decision_authority', 'none')} "
                 f"summary={transition.get('summary', 'none')}"
             )
+    if isinstance(summary.get("providers"), dict) and summary["providers"]:
+        lines.append(
+            "- provider_usage: "
+            + ", ".join(f"{key}={summary['providers'][key]}" for key in sorted(summary["providers"]))
+        )
+    if isinstance(summary.get("provider_models"), dict) and summary["provider_models"]:
+        lines.append(
+            "- provider_model_usage: "
+            + ", ".join(f"{key}={summary['provider_models'][key]}" for key in sorted(summary["provider_models"]))
+        )
+    if isinstance(summary.get("tokens"), dict):
+        tokens = summary["tokens"]
+        lines.append(
+            "- token_totals: "
+            f"business_case_input={tokens.get('business_case_input', 0)} "
+            f"business_case_output={tokens.get('business_case_output', 0)} "
+            f"business_case_total={tokens.get('business_case_total', 0)} "
+            f"thread_total={tokens.get('thread_total', 0)}"
+        )
+    if isinstance(summary.get("cost_usd"), dict):
+        costs = summary["cost_usd"]
+        lines.append(
+            "- cost_totals_usd: "
+            f"business_case_input={costs.get('business_case_input', 0.0)} "
+            f"business_case_output={costs.get('business_case_output', 0.0)} "
+            f"business_case_total={costs.get('business_case_total', 0.0)}"
+        )
+    if isinstance(summary.get("role_types"), list) and summary["role_types"]:
+        lines.append("- role_types: " + ", ".join(str(item) for item in summary["role_types"]))
+    timing = summary.get("timing") if isinstance(summary.get("timing"), dict) else {}
+    if timing:
+        lines.append(
+            "- timing: "
+            f"snapshot_at={timing.get('snapshot_at', 'unknown')} "
+            f"materialized_at={timing.get('materialized_at', 'unknown')} "
+            f"elapsed_since_materialization_ms={timing.get('elapsed_since_materialization_ms', 'unknown')} "
+            f"max_age_since_last_transition_ms={timing.get('max_age_since_last_transition_ms', 'unknown')}"
+        )
     return "\n".join(lines)
 
 
