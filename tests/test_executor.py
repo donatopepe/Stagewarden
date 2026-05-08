@@ -1203,6 +1203,97 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(any(item.action_type == "devil_advocate_review" for item in memory.tool_transcript))
             self.assertGreaterEqual(len(handoff.calls), 2)
 
+    def test_executor_blocks_when_devil_advocate_output_is_invalid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff = ProjectHandoff(task="validate wet-run evidence")
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "version": "1",
+                    "approved_at": "2026-04-29T08:30:00",
+                    "source": "unit_test",
+                    "status": "approved",
+                    "tree": build_prince2_role_tree(prefs),
+                    "flow": build_prince2_role_flow(),
+                    "check": check_prince2_role_tree(prefs),
+                    "matrix": build_prince2_role_matrix(prefs),
+                }
+            )
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"])
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete the task",
+                                "validation": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "critic",
+                        "command": "run_model openai critic",
+                        "output": json.dumps(
+                            {
+                                "contradictions": [],
+                                "missing_evidence": ["Real command output"],
+                                "counter_argument": "The response assumes success without proof.",
+                                "must_escalate": True,
+                                "confidence": 0.97,
+                            }
+                        ),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-validate",
+                title="Validate evidence",
+                instruction="validate the wet-run evidence",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+
+            outcome = executor.execute_step(task="validate evidence", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.error_type, "critic_invalid_output")
+            self.assertIn("missing a valid verdict", outcome.observation)
+            self.assertTrue(
+                any(
+                    item.action_type == "devil_advocate_review" and item.error_type == "critic_invalid_output"
+                    for item in memory.tool_transcript
+                )
+            )
+            self.assertGreaterEqual(len(handoff.calls), 2)
+
     def test_executor_selects_delegated_node_when_step_mentions_node_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

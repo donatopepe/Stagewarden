@@ -3,6 +3,8 @@
 ## Resolved Issues & Current State
 
 - The repository is currently clean on branch `pr/p4-p5-updates` at `HEAD 8aa58ab`.
+- Date-sensitive test fixtures were rebalanced so only the tests that need an active block window use future-dated values, while historical snapshot/report tests keep the original 2026 values.
+- The full `python3 -m unittest discover -s tests` suite passes after that alignment.
 - **Test Suite Stability:** The `TypeError: dataclass() got an unexpected keyword argument 'slots'` preventing `unittest` execution has been resolved. The test suite now runs successfully.
 - **Test Environment Improvements:** Enhanced `tests/conftest.py` and `bootstrap_tests.sh` for robust test setup, including correct `PYTHONPATH` export, verbose output, and disabling output capturing during test runs.
 - **AI Model Catalog Bootstrap:** Added `stagewarden/model_catalog.py`, `scripts/build_ai_models_catalog.py`, and `data/ai_models_catalog.json` to normalize provider data into a shared catalog snapshot using live OpenRouter/Ollama inputs and Artificial Analysis rank metadata.

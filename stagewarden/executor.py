@@ -430,6 +430,33 @@ class Executor:
             + (f" missing_evidence={'; '.join(review_missing)}" if review_missing else "")
             + (f" counter_argument={review_counter_argument}" if review_counter_argument else "")
         )
+        if not devil_advocate.get("ok"):
+            self.memory.record_attempt(
+                iteration=iteration,
+                step_id=step.id,
+                model=str(devil_advocate.get("model", model)),
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                action_type="devil_advocate_rejection",
+                action_signature=dumps_ascii(review_payload, sort_keys=True),
+                success=False,
+                observation=str(devil_advocate.get("error", review_header)),
+                error_type="critic_invalid_output",
+            )
+            return StepOutcome(
+                ok=False,
+                step_completed=False,
+                model=str(devil_advocate.get("model", model)),
+                action_type="devil_advocate_rejection",
+                observation=str(devil_advocate.get("error", review_header)),
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                git_head_before=git_head_before,
+                git_head_after=self._git_head(),
+                error_type="critic_invalid_output",
+                prince2_assessment=None,
+                prince2_role=prince2_role,
+            )
         if devil_advocate.get("ok") and (review_verdict == "block" or bool(review_payload.get("must_escalate"))):
             self.memory.record_attempt(
                 iteration=iteration,
@@ -806,12 +833,22 @@ class Executor:
             detail=result.output[:2000],
             error_type=None if review.get("ok") else "critic_invalid_output",
         )
+        if not review.get("ok"):
+            return {
+                "ok": False,
+                "model": critic_model,
+                "account": critic_account,
+                "result": result,
+                "review": review.get("payload", {}),
+                "error": review.get("error", "Devil advocate review is invalid."),
+            }
         return {
             "ok": bool(review.get("ok")),
             "model": critic_model,
             "account": critic_account,
             "result": result,
             "review": review.get("payload", {}),
+            "error": "",
         }
 
     def _accounts_configured(self, model: str) -> bool:
