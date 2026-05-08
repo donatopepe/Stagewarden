@@ -2,11 +2,11 @@
 
 ## Current State
 
-- The repository is on branch `pr/p4-p5-updates` at `HEAD abb43eb`.
+- The repository is on branch `pr/p4-p5-updates` at `HEAD c303af3`.
 - The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
 - The benchmark runner emits a `suites` map and an optional `history` block, and the history path is opt-in through `--openrouter-benchmark-history`.
-- The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with prompt-driven `governance` and `assurance` suites.
-- `stagewarden/prince2_benchmark.py` exercises the real PRINCE2 executor and critic paths with wet-run markers and prompt-packet assertions.
+- The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with prompt-driven `governance`, `assurance`, and `recovery` suites.
+- `stagewarden/prince2_benchmark.py` exercises the real PRINCE2 executor, critic, and recovery-lane paths with wet-run markers and prompt-packet assertions.
 - The CLI and registry tests cover the new benchmark command and JSON schema registration.
 - The full unittest suite passes: `381 tests`, `OK`.
 

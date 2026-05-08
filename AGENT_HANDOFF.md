@@ -7,8 +7,8 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
 - `stagewarden/openrouter_benchmark.py` now returns a `suites` map, per-suite regression metadata, and an optional `history` block that compares the current run against the latest JSONL snapshot.
 - The benchmark can append a history snapshot when `--openrouter-benchmark-history` is supplied, and it fails the run if the current accuracy regresses relative to the previous snapshot.
-- The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with two prompt-driven suites: `governance` and `assurance`.
-- `stagewarden/prince2_benchmark.py` feeds real executor and critic paths with prompt text, wet-run evidence checks, and PRINCE2 prompt-packet assertions.
+- The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with three prompt-driven suites: `governance`, `assurance`, and `recovery`.
+- `stagewarden/prince2_benchmark.py` feeds real executor, critic, and recovery-lane paths with prompt text, wet-run evidence checks, and PRINCE2 prompt-packet assertions.
 - `tests/test_trace_cli.py`, `tests/test_prince2.py`, `tests/test_json_schema_registry.py`, and `stagewarden/commands.py` now cover the PRINCE2 benchmark command and schema registration.
 - `python3 -m unittest discover -s tests` passes: `381 tests`, `OK`.
 
@@ -53,6 +53,9 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - Decision: make the PRINCE2 benchmark prompt-driven and local.
   - Reason: PRINCE2 needs to measure governance, critic gating, wet-run evidence, and prompt-packet context, not just answer quality.
   - Trade-offs: the cases are synthetic, but they exercise the actual executor and critic paths deterministically.
+- Decision: include a recovery suite that uses the real agent recovery lane.
+  - Reason: PRINCE2 should measure exception handling and recovery closure, not only steady-state execution.
+  - Trade-offs: the benchmark is slower, but it covers the flow that matters when a stage goes wrong.
 
 ## Open issues
 - Bugs: none known in the live benchmark slice.
