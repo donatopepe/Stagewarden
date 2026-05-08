@@ -30,6 +30,7 @@ from stagewarden.main import (
     _status_pricing_report,
     run_interactive_shell,
 )
+from stagewarden.openrouter_benchmark import _compare_openrouter_benchmark_snapshots
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 from stagewarden.secrets import SecretStore
@@ -268,6 +269,7 @@ class TraceAndCliTests(unittest.TestCase):
             stub = write_openrouter_live_stub(root, env_name)
             original_bin = os.environ.get("RUN_MODEL_BIN")
             output_path = root / "openrouter-benchmark.json"
+            history_path = root / "openrouter-benchmark-history.jsonl"
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
                 completed = run_main_capture(
@@ -275,6 +277,8 @@ class TraceAndCliTests(unittest.TestCase):
                     "--openrouter-benchmark",
                     "--openrouter-benchmark-output",
                     str(output_path),
+                    "--openrouter-benchmark-history",
+                    str(history_path),
                     timeout=300,
                 )
             finally:
@@ -295,13 +299,43 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["overall"]["suite_count"], 3)
             self.assertEqual(payload["overall"]["total_cases"], 9)
             self.assertEqual(payload["baseline"]["timeout_seconds"], 60)
+            self.assertIn("history", payload)
+            self.assertTrue(payload["history"]["enabled"])
+            self.assertTrue(payload["history"]["appended"])
+            self.assertIsNone(payload["history"]["previous"])
+            self.assertFalse(payload["overall"]["regressed"])
             self.assertGreaterEqual(payload["suites"]["general"]["accuracy"], 1.0)
             self.assertGreaterEqual(payload["suites"]["reasoning"]["accuracy"], 1.0)
             self.assertGreaterEqual(payload["suites"]["truthfulness"]["accuracy"], 1.0)
             self.assertTrue(output_path.exists())
+            self.assertTrue(history_path.exists())
             saved = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["command"], "openrouter benchmark")
             self.assertTrue(saved["overall"]["passed"])
+
+    def test_openrouter_benchmark_history_comparison_detects_regressions(self) -> None:
+        previous = {
+            "overall": {"accuracy": 1.0},
+            "suites": {
+                "general": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "reasoning": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "truthfulness": {"accuracy": 1.0, "regression_tolerance": 0.0},
+            },
+        }
+        current = {
+            "overall": {"accuracy": 0.889},
+            "suites": {
+                "general": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "reasoning": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "truthfulness": {"accuracy": 0.667, "regression_tolerance": 0.0},
+            },
+        }
+
+        regressions = _compare_openrouter_benchmark_snapshots(previous, current)
+
+        self.assertEqual(len(regressions), 1)
+        self.assertEqual(regressions[0]["suite_id"], "truthfulness")
+        self.assertLess(regressions[0]["delta_accuracy"], 0.0)
 
     def test_interactive_shell_handles_help_and_exit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
