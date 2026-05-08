@@ -7921,6 +7921,32 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
 
         def execute(self, command: str):  # noqa: ANN001
             self.calls.append(command)
+            command_lower = command.lower()
+            if (
+                "required keys: verdict" in command_lower
+                or "allowed verdict values: accept, revise, block" in command_lower
+                or "you are the devil's advocate / project assurance critic" in command_lower
+            ) and not self.outputs:
+                payload = {
+                    "ok": True,
+                    "model": "local",
+                    "backend": "local/ollama",
+                    "prompt": command,
+                    "command": command,
+                    "output": dumps_ascii(
+                        {
+                            "summary": "devil advocate review",
+                            "verdict": "accept",
+                            "contradictions": [],
+                            "missing_evidence": [],
+                            "counter_argument": "No contradiction found.",
+                            "must_escalate": False,
+                            "confidence": 0.9,
+                        }
+                    ),
+                    "error": "",
+                }
+                return type("ModelResult", (), payload)()
             payload = self.outputs.pop(0) if self.outputs else {
                 "ok": True,
                 "model": "local",
