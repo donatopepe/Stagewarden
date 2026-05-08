@@ -6,7 +6,7 @@
 - The repository is currently on branch `pr/p4-p5-updates` at `HEAD ae8cab7` with uncommitted edits in the executor, CLI battery stub, tests, and handoff artifacts.
 - Date-sensitive test fixtures were rebalanced so only the tests that need an active block window use future-dated values, while historical snapshot/report tests keep the original 2026 values.
 - The OpenRouter transport tests now perform live API requests through a temporary `RUN_MODEL_BIN` wrapper instead of simulated account tokens.
-- The smoke script now performs a live OpenRouter API call on a public MMLU benchmark prompt through `RUN_MODEL_BIN` and no longer relies on ChatGPT/device-login simulation or secret-store placeholders.
+- The smoke script now performs live OpenRouter API calls on a small public MMLU benchmark suite through `RUN_MODEL_BIN` and no longer relies on ChatGPT/device-login simulation or secret-store placeholders.
 - The devil's-advocate critic now blocks invalid review payloads explicitly with `critic_invalid_output` instead of falling through as if the review were accepted.
 - The battery stub and integration stubs now emit valid critic review JSON for review prompts so the wet-run simulations stay aligned with the runtime contract.
 - The full `python3 -m unittest discover -s tests` suite passes after that alignment and critic-contract fix.
@@ -28,7 +28,7 @@
 - **PRINCE2 Devil-Advocate Review:** Primary AI responses now run through a second AI review pass that acts as the devil's advocate, flags contradictions or missing wet-run evidence, and can block unsafe completions.
 - **PRINCE2 Devil-Advocate Failure Mode:** Invalid review payloads now stop the step with `critic_invalid_output` rather than falling through.
 - **OpenRouter Test Transport:** Backend-injection tests now perform live OpenRouter API requests through a temporary `RUN_MODEL_BIN` wrapper instead of simulated account tokens.
-- **OpenRouter Smoke Script:** The `scripts/test_chatgpt_flow.sh` smoke path now performs a live OpenRouter API call on a public MMLU benchmark prompt and no longer depends on ChatGPT login or secret-store simulation.
+- **OpenRouter Smoke Script:** The `scripts/test_chatgpt_flow.sh` smoke path now performs live OpenRouter API calls on a small public MMLU benchmark suite and no longer depends on ChatGPT login or secret-store simulation.
 - **JSON Contracts:** `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, `board --json`, `help --json`, `commands --json`, `slash --json`, `slash choose --json`, `catalog --json`, `goal --json`, `doctor --json`, `models --json`, `model limits --json`, `models usage --json`, `accounts --json`, `permissions --json`, `git status --json`, `git log --json`, `git history --json`, `git show --json`, `sessions --json`, `risks --json`, `issues --json`, `quality --json`, `exception --json`, `lessons --json`, `todo --json`, `transcript --json`, `resume --show --json`, and `resume context --json` now expose versioned schema blocks so other agents can validate the payloads explicitly.
 - **JSON Schema Registry:** Those schema names and versions now live in `stagewarden/json_schema_registry.py` as the single source of truth for the stable JSON CLI surfaces.
 - **Catalog JSON Command Names:** `catalog status`, `catalog search`, and `catalog refresh` now declare their specific command names in the JSON payloads instead of using a generic `catalog` label.
@@ -61,7 +61,7 @@
 - The PRINCE2 node tree now renders in a human-visible layout with status colors and descriptions, nodes expose a navigable shell view with parent/sibling/child hops, escalations can spawn child recovery threads with thread-token accounting, each node now separates business-case input/output token counts with pricing attached, and each node exposes an antagonist KPI profile derived from risks and anti-benefits.
 - The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted.
 - The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted, and invalid review payloads now fail the step explicitly.
-- The backend-injection tests now exercise the real OpenRouter API key from the environment for transport coverage rather than simulated account tokens, and one live path uses a public MMLU benchmark prompt.
+- The backend-injection tests now exercise the real OpenRouter API key from the environment for transport coverage rather than simulated account tokens, and one live path uses a small public MMLU benchmark suite.
 - The operational and supporting JSON views now carry versioned schema blocks for cross-agent compatibility and explicit payload validation.
 - The JSON schema names and versions are centralized in `stagewarden/json_schema_registry.py`.
 - The shared JSON schema registry now also covers the remaining command/report surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register-style outputs.

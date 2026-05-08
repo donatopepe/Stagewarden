@@ -8,7 +8,7 @@
   "current_step_id": "openrouter-smoke-script",
   "current_step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
   "current_step_status": "completed",
-  "latest_observation": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN on a public MMLU benchmark prompt, and the smoke script no longer depends on ChatGPT/device-login simulation or secret-store placeholders.",
+  "latest_observation": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN on a small public MMLU benchmark suite, and the smoke script no longer depends on ChatGPT/device-login simulation or secret-store placeholders.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "4623391",
   "git_head_baseline": "97190e8c82aef30c58e8335691299a0d362e6ed0",
@@ -60,8 +60,24 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-08T07:15:43Z",
+  "updated_at": "2026-05-08T07:21:00Z",
   "entries": [
+    {
+      "timestamp": "2026-05-08T07:21:00Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "openrouter-smoke-script",
+      "summary": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN on a small public MMLU benchmark suite.",
+      "step_id": "openrouter-smoke-script",
+      "step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "becf608",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-05-08T07:15:43Z",
       "phase": "finish",

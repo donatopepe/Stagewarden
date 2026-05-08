@@ -104,20 +104,48 @@ class HandoffTests(unittest.TestCase):
         stub.chmod(0o755)
         return stub
 
-    def _mmlu_benchmark_prompt(self) -> tuple[str, str]:
-        return (
-            "\n".join(
-                [
-                    "What is the embryological origin of the hyoid bone?",
-                    "A. The first pharyngeal arch",
-                    "B. The first and second pharyngeal arches",
-                    "C. The second pharyngeal arch",
-                    "D. The second and third pharyngeal arches",
-                    "Answer:",
-                ]
+    def _mmlu_benchmark_cases(self) -> list[tuple[str, str]]:
+        return [
+            (
+                "\n".join(
+                    [
+                        "What is the embryological origin of the hyoid bone?",
+                        "A. The first pharyngeal arch",
+                        "B. The first and second pharyngeal arches",
+                        "C. The second pharyngeal arch",
+                        "D. The second and third pharyngeal arches",
+                        "Answer:",
+                    ]
+                ),
+                "D",
             ),
-            "D",
-        )
+            (
+                "\n".join(
+                    [
+                        "Which of these branches of the trigeminal nerve contain somatic motor processes?",
+                        "A. The supraorbital nerve",
+                        "B. The infraorbital nerve",
+                        "C. The mental nerve",
+                        "D. None of the above",
+                        "Answer:",
+                    ]
+                ),
+                "D",
+            ),
+            (
+                "\n".join(
+                    [
+                        "The pleura",
+                        "A. have no sensory innervation.",
+                        "B. are separated by a 2 mm space.",
+                        "C. extend into the neck.",
+                        "D. are composed of respiratory epithelium.",
+                        "Answer:",
+                    ]
+                ),
+                "C",
+            ),
+        ]
 
     def _last_choice(self, text: str) -> str:
         matches = re.findall(r"\b([ABCD])\b", text.upper())
@@ -138,32 +166,32 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(prompt, "hello")
         self.assertEqual(account, "work")
 
-    def test_handoff_runs_mmlu_benchmark_prompt_against_openrouter(self) -> None:
+    def test_handoff_runs_mmlu_benchmark_suite_against_openrouter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             stub = self._write_openrouter_live_runner(tmp_dir)
             original = os.environ.get("RUN_MODEL_BIN")
             openrouter_env = self._openrouter_env_name()
-            prompt, expected_answer = self._mmlu_benchmark_prompt()
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
-                manager = HandoffManager(timeout_seconds=5)
+                manager = HandoffManager(timeout_seconds=20)
                 manager.account_env_by_target = {f"cheap:live": openrouter_env}
-                result = manager.execute(format_run_model("cheap", prompt, account="live"))
+                for prompt, expected_answer in self._mmlu_benchmark_cases():
+                    with self.subTest(expected_answer=expected_answer):
+                        result = manager.execute(format_run_model("cheap", prompt, account="live"))
+                        self.assertTrue(result.ok)
+                        payload = json.loads(result.output)
+                        self.assertEqual(payload["account"], "live")
+                        self.assertEqual(payload["target"], "cheap:live")
+                        self.assertEqual(payload["requested_model"], "cheap")
+                        self.assertTrue(payload["routed_model"])
+                        self.assertTrue(payload["content"])
+                        self.assertGreater(payload["usage"]["total_tokens"], 0)
+                        self.assertEqual(self._last_choice(payload["content"]), expected_answer)
             finally:
                 if original is None:
                     os.environ.pop("RUN_MODEL_BIN", None)
                 else:
                     os.environ["RUN_MODEL_BIN"] = original
-
-        self.assertTrue(result.ok)
-        payload = json.loads(result.output)
-        self.assertEqual(payload["account"], "live")
-        self.assertEqual(payload["target"], "cheap:live")
-        self.assertEqual(payload["requested_model"], "cheap")
-        self.assertTrue(payload["routed_model"])
-        self.assertTrue(payload["content"])
-        self.assertGreater(payload["usage"]["total_tokens"], 0)
-        self.assertEqual(self._last_choice(payload["content"]), expected_answer)
 
     def test_handoff_streams_output_through_callback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -185,7 +213,7 @@ class HandoffTests(unittest.TestCase):
             chunks: list[str] = []
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
-                manager = HandoffManager(timeout_seconds=5)
+                manager = HandoffManager(timeout_seconds=20)
                 manager.stream_callback = chunks.append
                 result = manager.execute(format_run_model("local", "prompt"))
             finally:
@@ -205,7 +233,7 @@ class HandoffTests(unittest.TestCase):
             stub = self._write_openrouter_live_runner(tmp_dir)
             original_bin = os.environ.get("RUN_MODEL_BIN")
             openrouter_env = self._openrouter_env_name()
-            prompt, _ = self._mmlu_benchmark_prompt()
+            prompt, _ = self._mmlu_benchmark_cases()[0]
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
                 manager = HandoffManager(timeout_seconds=5)
