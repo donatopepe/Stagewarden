@@ -6,12 +6,12 @@
   "project_brief": {},
   "status": "completed",
   "current_step_id": "openrouter-benchmark-baseline",
-  "current_step_title": "Add a live OpenRouter benchmark command with simple and complex public MMLU-style suites",
+  "current_step_title": "Expand the live OpenRouter benchmark to general, reasoning, and truthfulness suites",
   "current_step_status": "completed",
-  "latest_observation": "The OpenRouter smoke flow and the new --openrouter-benchmark CLI now execute live OpenRouter API calls through RUN_MODEL_BIN on a public MMLU-style baseline, and the benchmark report writes a shared JSON snapshot when requested.",
+  "latest_observation": "The OpenRouter smoke flow and the new --openrouter-benchmark CLI now execute live OpenRouter API calls through RUN_MODEL_BIN on a three-suite public baseline covering MMLU, ARC-Challenge, and TruthfulQA-MC, and the benchmark report writes a shared JSON snapshot when requested.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "ef771fd",
-  "git_head_baseline": "97190e8c82aef30c58e8335691299a0d362e6ed0",
+  "git_head": "6dede7e",
+  "git_head_baseline": "6dede7e",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-08T07:45:48Z",
+  "updated_at": "2026-05-08T08:08:46Z",
   "entries": [
     {
       "timestamp": "2026-05-08T07:45:48Z",
@@ -340,6 +340,22 @@
       "details": {
         "plan_status": "step-1:ready,step-2:planned,step-3:planned",
         "success": false
+      }
+    },
+    {
+      "timestamp": "2026-05-08T08:08:46Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "openrouter-benchmark-baseline",
+      "summary": "The live OpenRouter benchmark now runs three public suites covering MMLU, ARC-Challenge, and TruthfulQA-MC, and the smoke and transport tests use the same fixed-model real OpenRouter path.",
+      "step_id": "openrouter-benchmark-baseline",
+      "step_title": "Expand the live OpenRouter benchmark to general, reasoning, and truthfulness suites",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "6dede7e",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
       }
     }
   ]
