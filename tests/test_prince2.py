@@ -74,11 +74,12 @@ class Prince2Tests(unittest.TestCase):
         report = run_prince2_benchmark()
         self.assertEqual(report["command"], "prince2 benchmark")
         self.assertEqual(report["baseline"]["provider"], "stagewarden")
-        self.assertEqual(report["overall"]["suite_count"], 2)
-        self.assertEqual(report["overall"]["total_cases"], 8)
+        self.assertEqual(report["overall"]["suite_count"], 3)
+        self.assertEqual(report["overall"]["total_cases"], 10)
         self.assertTrue(report["overall"]["passed"])
         self.assertTrue(report["suites"]["governance"]["passed"])
         self.assertTrue(report["suites"]["assurance"]["passed"])
+        self.assertTrue(report["suites"]["recovery"]["passed"])
         self.assertIn("prompt", report["governance"]["cases"][0])
 
 
