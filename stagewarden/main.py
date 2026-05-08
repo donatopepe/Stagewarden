@@ -53,6 +53,7 @@ from .modelprefs import (
 )
 from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
 from .openrouter_benchmark import run_openrouter_benchmark
+from .prince2_benchmark import run_prince2_benchmark
 from .json_schema_registry import json_schema
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .planner import PlanStep
@@ -246,6 +247,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--openrouter-benchmark", action="store_true", help="Run the live OpenRouter benchmark baseline and report accuracy by suite.")
     parser.add_argument("--openrouter-benchmark-output", metavar="OUT_PATH", help="Write the live OpenRouter benchmark report to a JSON file.")
     parser.add_argument("--openrouter-benchmark-history", metavar="HISTORY_PATH", help="Append a JSONL history snapshot and compare the current benchmark against the latest prior run.")
+    parser.add_argument("--prince2-benchmark", action="store_true", help="Run the local PRINCE2 benchmark baseline and report accuracy by suite.")
+    parser.add_argument("--prince2-benchmark-output", metavar="OUT_PATH", help="Write the local PRINCE2 benchmark report to a JSON file.")
     parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
     parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
     parser.add_argument("--full", action="store_true", help="Show expanded status dashboard sections.")
@@ -11358,6 +11361,14 @@ def main() -> int:
         print(rendered)
         return 0 if report.get("overall", {}).get("passed") else 1
 
+    if args.prince2_benchmark:
+        report = run_prince2_benchmark()
+        rendered = dumps_ascii(_with_json_schema("prince2 benchmark", report), indent=2)
+        if args.prince2_benchmark_output:
+            write_text_utf8(Path(args.prince2_benchmark_output), rendered)
+        print(rendered)
+        return 0 if report.get("overall", {}).get("passed") else 1
+
     task = " ".join(args.task).strip()
     if args.caveman_help:
         task = "/caveman help"
@@ -11457,6 +11468,11 @@ def main() -> int:
         else:
             print(_render_status_full(agent, config))
         return 0
+    if task == "prince2 benchmark":
+        report = run_prince2_benchmark()
+        rendered = dumps_ascii(_with_json_schema("prince2 benchmark", report), indent=2)
+        print(rendered)
+        return 0 if report.get("overall", {}).get("passed") else 1
     if task == "statusline":
         agent = _configure_readonly_agent_for_workspace(config)
         print(dumps_ascii(_with_json_schema("statusline", _statusline_report(agent, config)), indent=2))

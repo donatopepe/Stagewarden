@@ -313,6 +313,25 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(saved["command"], "openrouter benchmark")
             self.assertTrue(saved["overall"]["passed"])
 
+    def test_prince2_benchmark_cli_reports_prompt_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "--prince2-benchmark")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "prince2 benchmark")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.prince2_benchmark")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertEqual(payload["overall"]["suite_count"], 2)
+            self.assertEqual(payload["overall"]["total_cases"], 8)
+            self.assertTrue(payload["overall"]["passed"])
+            self.assertTrue(payload["suites"]["governance"]["passed"])
+            self.assertTrue(payload["suites"]["assurance"]["passed"])
+            self.assertEqual(payload["baseline"]["provider"], "stagewarden")
+            self.assertEqual(payload["governance"]["case_count"], 3)
+            self.assertEqual(payload["assurance"]["case_count"], 5)
+
     def test_openrouter_benchmark_history_comparison_detects_regressions(self) -> None:
         previous = {
             "overall": {"accuracy": 1.0},
