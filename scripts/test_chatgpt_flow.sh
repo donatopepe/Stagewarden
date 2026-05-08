@@ -26,6 +26,7 @@ if not token:
     raise SystemExit("OpenRouter API key is required for this smoke test.")
 
 smoke_dir = Path(os.environ["SMOKE_DIR"])
+fixed_model = "google/gemini-3.1-pro-preview"
 stub = smoke_dir / "run_model_test_stub"
 stub.write_text(
     dedent(
@@ -52,23 +53,13 @@ stub.write_text(
                 return 1
 
             payload = {{
-                "model": "openrouter/auto",
+                "model": "{fixed_model}",
                 "messages": [
                     {{"role": "system", "content": "Answer with only one letter: A, B, C, or D."}},
                     {{"role": "user", "content": prompt}},
                 ],
                 "max_tokens": 256,
                 "temperature": 0,
-                "plugins": [
-                    {{
-                        "id": "auto-router",
-                        "allowed_models": [
-                            "anthropic/claude-sonnet-4.5",
-                            "openai/gpt-5.1",
-                            "google/gemini-3.1-pro-preview",
-                        ],
-                    }}
-                ],
             }}
             request = urllib.request.Request(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -134,15 +125,17 @@ if payload.get("command") != "openrouter benchmark":
     raise SystemExit("Benchmark CLI did not report the expected command.")
 if payload.get("schema", {}).get("name") != "stagewarden.openrouter_benchmark":
     raise SystemExit("Benchmark CLI did not emit the shared schema.")
-if not payload.get("simple", {}).get("passed"):
-    raise SystemExit("Simple OpenRouter baseline did not pass.")
-if not payload.get("complex", {}).get("passed"):
-    raise SystemExit("Complex OpenRouter baseline did not pass.")
+if not payload.get("suites", {}).get("general", {}).get("passed"):
+    raise SystemExit("General OpenRouter baseline did not pass.")
+if not payload.get("suites", {}).get("reasoning", {}).get("passed"):
+    raise SystemExit("Reasoning OpenRouter baseline did not pass.")
+if not payload.get("suites", {}).get("truthfulness", {}).get("passed"):
+    raise SystemExit("Truthfulness OpenRouter baseline did not pass.")
 if not payload.get("overall", {}).get("passed"):
     raise SystemExit("Overall OpenRouter benchmark baseline did not pass.")
-if payload.get("overall", {}).get("total_cases") != 6:
+if payload.get("overall", {}).get("total_cases") != 9:
     raise SystemExit("Benchmark CLI reported an unexpected case count.")
-if payload.get("overall", {}).get("suite_count") != 2:
+if payload.get("overall", {}).get("suite_count") != 3:
     raise SystemExit("Benchmark CLI reported an unexpected suite count.")
 if not output_path.exists():
     raise SystemExit("Benchmark output file was not written.")

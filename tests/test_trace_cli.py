@@ -38,6 +38,7 @@ from tests.test_agent_integration import write_resume_network_stub
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FIXED_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview"
 
 
 def write_success_stub(root: Path) -> Path:
@@ -118,23 +119,13 @@ def write_openrouter_live_stub(root: Path, env_name: str) -> Path:
                     return 1
 
                 payload = {{
-                    "model": "openrouter/auto",
+                    "model": "{FIXED_OPENROUTER_MODEL}",
                     "messages": [
                         {{"role": "system", "content": "Answer with only one letter: A, B, C, or D or with only the final numeric result."}},
                         {{"role": "user", "content": prompt}},
                     ],
                     "max_tokens": 256,
                     "temperature": 0,
-                    "plugins": [
-                        {{
-                            "id": "auto-router",
-                            "allowed_models": [
-                                "anthropic/claude-sonnet-4.5",
-                                "openai/gpt-5.1",
-                                "google/gemini-3.1-pro-preview",
-                            ],
-                        }}
-                    ],
                 }}
                 request = urllib.request.Request(
                     "https://openrouter.ai/api/v1/chat/completions",
@@ -268,7 +259,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("standard", payload)
             self.assertIn("numeric", payload)
 
-    def test_openrouter_benchmark_cli_reports_simple_and_complex_baselines(self) -> None:
+    def test_openrouter_benchmark_cli_reports_multi_suite_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             env_name = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
@@ -297,14 +288,16 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "openrouter benchmark")
             self.assertEqual(payload["schema"]["name"], "stagewarden.openrouter_benchmark")
             self.assertEqual(payload["schema"]["version"], "1")
-            self.assertTrue(payload["simple"]["passed"])
-            self.assertTrue(payload["complex"]["passed"])
+            self.assertTrue(payload["suites"]["general"]["passed"])
+            self.assertTrue(payload["suites"]["reasoning"]["passed"])
+            self.assertTrue(payload["suites"]["truthfulness"]["passed"])
             self.assertTrue(payload["overall"]["passed"])
-            self.assertEqual(payload["overall"]["suite_count"], 2)
-            self.assertEqual(payload["overall"]["total_cases"], 6)
-            self.assertEqual(payload["baseline"]["timeout_seconds"], 30)
-            self.assertGreaterEqual(payload["simple"]["accuracy"], 1.0)
-            self.assertGreaterEqual(payload["complex"]["accuracy"], 1.0)
+            self.assertEqual(payload["overall"]["suite_count"], 3)
+            self.assertEqual(payload["overall"]["total_cases"], 9)
+            self.assertEqual(payload["baseline"]["timeout_seconds"], 60)
+            self.assertGreaterEqual(payload["suites"]["general"]["accuracy"], 1.0)
+            self.assertGreaterEqual(payload["suites"]["reasoning"]["accuracy"], 1.0)
+            self.assertGreaterEqual(payload["suites"]["truthfulness"]["accuracy"], 1.0)
             self.assertTrue(output_path.exists())
             saved = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["command"], "openrouter benchmark")

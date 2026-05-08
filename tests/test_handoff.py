@@ -13,6 +13,8 @@ from stagewarden.provider_registry import model_token_env
 
 
 class HandoffTests(unittest.TestCase):
+    FIXED_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview"
+
     def _openrouter_env_name(self) -> str:
         candidate = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
         if os.environ.get(candidate):
@@ -48,23 +50,13 @@ class HandoffTests(unittest.TestCase):
                         return 1
 
                     payload = {
-                        "model": "openrouter/auto",
+                        "model": "__FIXED_OPENROUTER_MODEL__",
                         "messages": [
                             {"role": "system", "content": "Answer with only one letter: A, B, C, or D."},
                             {"role": "user", "content": prompt},
                         ],
                         "max_tokens": 256,
                         "temperature": 0,
-                        "plugins": [
-                            {
-                                "id": "auto-router",
-                                "allowed_models": [
-                                    "anthropic/claude-sonnet-4.5",
-                                    "openai/gpt-5.1",
-                                    "google/gemini-3.1-pro-preview",
-                                ],
-                            }
-                        ],
                     }
                     request = urllib.request.Request(
                         "https://openrouter.ai/api/v1/chat/completions",
@@ -98,7 +90,7 @@ class HandoffTests(unittest.TestCase):
                 if __name__ == "__main__":
                     raise SystemExit(main())
                 """
-            ),
+            ).replace("__FIXED_OPENROUTER_MODEL__", self.FIXED_OPENROUTER_MODEL),
             encoding="utf-8",
         )
         stub.chmod(0o755)

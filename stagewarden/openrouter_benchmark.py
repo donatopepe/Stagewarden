@@ -141,7 +141,7 @@ def run_openrouter_benchmark(
 
     overall_accuracy = 0.0 if total_cases == 0 else round(correct_cases / total_cases, 3)
     overall_passed = passed_suites == len(report_suites) and total_cases > 0
-    return {
+    report = {
         "command": "openrouter benchmark",
         "baseline": {
             "path": str(baseline_path or openrouter_benchmark_baseline_path()),
@@ -152,8 +152,7 @@ def run_openrouter_benchmark(
             "timeout_seconds": baseline_timeout,
             "openrouter_env": openrouter_env,
         },
-        "simple": report_suites.get("simple", {}),
-        "complex": report_suites.get("complex", {}),
+        "suites": report_suites,
         "overall": {
             "total_cases": total_cases,
             "passed_suites": passed_suites,
@@ -162,6 +161,9 @@ def run_openrouter_benchmark(
             "passed": overall_passed,
         },
     }
+    for suite_id, suite_report in report_suites.items():
+        report[suite_id] = suite_report
+    return report
 
 
 def _load_suite_cases(suite_id: str, suite: dict[str, Any]) -> list[OpenRouterBenchmarkCase]:
