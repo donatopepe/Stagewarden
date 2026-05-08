@@ -8,9 +8,9 @@
   "current_step_id": "node-token-cost-split",
   "current_step_title": "Split node tokens into input/output buckets and attach Artificial Analysis pricing",
   "current_step_status": "completed",
-  "latest_observation": "Node business-case accounting now tracks separate input/output token buckets, node pricing is attached from the shared model catalog, the catalog can ingest Artificial Analysis pricing when an API key is available, the runtime/control views show the split token and cost fields with wet-run validation, the date-sensitive tests were rebalanced so active block windows stay future-dated only where needed, and the full unittest suite passes on the clean HEAD 8aa58ab.",
+  "latest_observation": "Node business-case accounting now tracks separate input/output token buckets, node pricing is attached from the shared model catalog, the devil's-advocate critic now blocks invalid review payloads with critic_invalid_output, the battery and integration stubs emit valid critic JSON for review prompts, the date-sensitive tests were rebalanced so active block windows stay future-dated only where needed, and the full unittest suite passes on HEAD ae8cab7.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "8aa58ab",
+  "git_head": "ae8cab7",
   "git_head_baseline": "97190e8c82aef30c58e8335691299a0d362e6ed0",
   "risk_register": [
     {
@@ -62,6 +62,22 @@
   "prince2_node_runtime": {},
   "updated_at": "2026-04-29T18:55:00Z",
   "entries": [
+    {
+      "timestamp": "2026-05-08T06:15:00Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "critic-invalid-output-guard",
+      "summary": "Invalid devil's-advocate review payloads now block the step explicitly, and the battery/integration stubs emit valid critic JSON during simulations.",
+      "step_id": "critic-invalid-output-guard",
+      "step_title": "Block invalid devil's-advocate review payloads explicitly",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "ae8cab7",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-04-29T18:55:00Z",
       "phase": "finish",

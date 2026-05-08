@@ -16,11 +16,12 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 ## Current state
 - `AGENTS.md` has been added as the startup and continuity protocol for all agents.
 - `AGENT_HANDOFF.md` is now the agent-facing handoff mirror.
-- Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
-- The repo is currently on branch `pr/p4-p5-updates` at clean `HEAD 8aa58ab` (`stagewarden: initialize workspace`) with no uncommitted changes.
+- Existing Stagewarden handoff artifacts remain in place and stay aligned with the agent handoff state.
+- The repo is currently on branch `pr/p4-p5-updates` at `HEAD ae8cab7` (`stagewarden: initialize workspace`) with uncommitted edits in the executor, CLI battery stub, tests, and handoff artifacts.
 - Date-sensitive test fixtures were corrected so live block windows are only future-dated where the runtime must see them as active, while the historical snapshot tests keep their original 2026 dates.
-- The full `python3 -m unittest discover -s tests` suite now passes after that fixture alignment.
-- The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
+- The devil's-advocate critic now blocks invalid review payloads explicitly with `critic_invalid_output` instead of falling through as if the review were accepted.
+- The battery stub and integration stubs now emit valid critic review JSON for review prompts so the wet-run simulations stay aligned with the runtime contract.
+- The full `python3 -m unittest discover -s tests` suite now passes after those alignment fixes.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting split into input/output buckets, per-node pricing sourced from the shared model catalog, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
@@ -40,6 +41,10 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 ## Recent changes
 - `AGENTS.md`: added mandatory startup and handoff protocol.
 - `AGENT_HANDOFF.md`: added the compatibility handoff structure.
+- `stagewarden/executor.py`: invalid devil's-advocate reviews now stop the step with `critic_invalid_output` instead of falling through.
+- `stagewarden/main.py`: battery stubs now emit valid critic review JSON when a review prompt is executed.
+- `tests/test_agent_integration.py`, `tests/test_trace_cli.py`, and `/Users/donato/Stagewarden/run_model_stub`: integration and CLI stubs now distinguish primary model calls from devil's-advocate review prompts.
+- `tests/test_executor.py`: added coverage for invalid devil's-advocate output blocking.
 - `tests/test_trace_cli.py`: battery now covers provider limits, permission denial, PRINCE2 runtime failure modes, escalation child spawn/token accounting, and antagonist KPI controls.
 - `stagewarden/main.py`, `stagewarden/executor.py`, and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes, tracks per-node thread tokens, runs a devil's-advocate review pass on model responses, and surfaces per-node antagonists.
 - `stagewarden/main.py`: `status --json` and `statusline --json` now emit versioned schema blocks for cross-agent compatibility.

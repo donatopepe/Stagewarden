@@ -7,9 +7,18 @@ import unittest
 from pathlib import Path
 
 from stagewarden.handoff import HandoffManager, format_run_model, parse_run_model_command
+from stagewarden.provider_registry import model_token_env
 
 
 class HandoffTests(unittest.TestCase):
+    def _openrouter_env_name(self) -> str:
+        candidate = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
+        if os.environ.get(candidate):
+            return candidate
+        if candidate != "OPENROUTER_API_KEY" and os.environ.get("OPENROUTER_API_KEY"):
+            return "OPENROUTER_API_KEY"
+        self.fail("OpenRouter API key is required for this test.")
+
     def test_parse_and_format(self) -> None:
         command = format_run_model("local", "hello")
         model, prompt, account = parse_run_model_command(command)
@@ -24,7 +33,7 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(prompt, "hello")
         self.assertEqual(account, "work")
 
-    def test_handoff_invokes_configured_binary(self) -> None:
+    def test_handoff_invokes_configured_binary_with_openrouter_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             stub = Path(tmp_dir) / "run_model_test_stub"
             stub.write_text(
@@ -34,29 +43,24 @@ class HandoffTests(unittest.TestCase):
                     import json
                     import os
                     import sys
-                    print(json.dumps({"summary":"ok","account":os.environ.get("STAGEWARDEN_MODEL_ACCOUNT",""),"token":os.environ.get("OPENAI_API_KEY","") or os.environ.get("CHATGPT_TOKEN",""),"action":{"type":"complete","message":"done"}}))
+                    print(json.dumps({"summary":"ok","account":os.environ.get("STAGEWARDEN_MODEL_ACCOUNT",""),"token":os.environ.get("OPENROUTER_API_KEY",""),"action":{"type":"complete","message":"done"}}))
                     """
                 )
             )
             stub.chmod(0o755)
             original = os.environ.get("RUN_MODEL_BIN")
-            original_work = os.environ.get("OPENAI_API_KEY_WORK")
             original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            openrouter_env = self._openrouter_env_name()
             os.environ["RUN_MODEL_BIN"] = str(stub)
-            os.environ["OPENAI_API_KEY_WORK"] = "work-token"
             try:
                 manager = HandoffManager(timeout_seconds=5)
-                manager.account_env_by_target = {"openai:work": "OPENAI_API_KEY_WORK"}
-                result = manager.execute(format_run_model("openai", "prompt", account="work"))
+                manager.account_env_by_target = {f"cheap:live": openrouter_env}
+                result = manager.execute(format_run_model("cheap", "prompt", account="live"))
             finally:
                 if original is None:
                     os.environ.pop("RUN_MODEL_BIN", None)
                 else:
                     os.environ["RUN_MODEL_BIN"] = original
-                if original_work is None:
-                    os.environ.pop("OPENAI_API_KEY_WORK", None)
-                else:
-                    os.environ["OPENAI_API_KEY_WORK"] = original_work
                 if original_store is None:
                     os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
                 else:
@@ -64,8 +68,8 @@ class HandoffTests(unittest.TestCase):
 
         self.assertTrue(result.ok)
         self.assertIn('"type": "complete"', result.output)
-        self.assertIn('"account": "work"', result.output)
-        self.assertIn('"token": "work-token"', result.output)
+        self.assertIn('"account": "live"', result.output)
+        self.assertIn(f'"token": "{os.environ.get(openrouter_env, "")}"', result.output)
 
     def test_handoff_streams_output_through_callback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -102,31 +106,28 @@ class HandoffTests(unittest.TestCase):
         self.assertIn('"summary":"ok"', rendered)
         self.assertIn('"message":"done"', rendered)
 
-    def test_handoff_passes_chatgpt_token_to_backend(self) -> None:
+    def test_handoff_passes_openrouter_api_key_to_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             stub = Path(tmp_dir) / "run_model_test_stub"
-            store = Path(tmp_dir) / "secrets"
             stub.write_text(
                 textwrap.dedent(
                     """\
                     #!/usr/bin/env python3
                     import json
                     import os
-                    print(json.dumps({"account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""), "token": os.environ.get("CHATGPT_TOKEN", "")}))
+                    print(json.dumps({"account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""), "token": os.environ.get("OPENROUTER_API_KEY", "")}))
                     """
                 )
             )
             stub.chmod(0o755)
             original_bin = os.environ.get("RUN_MODEL_BIN")
             original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
+            openrouter_env = self._openrouter_env_name()
             os.environ["RUN_MODEL_BIN"] = str(stub)
-            os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = str(store)
             try:
-                from stagewarden.secrets import SecretStore
-
-                saved = SecretStore().save_token("chatgpt", "personal", "chatgpt-session-token")
-                self.assertTrue(saved.ok, saved.message)
-                result = HandoffManager(timeout_seconds=5).execute(format_run_model("chatgpt", "prompt", account="personal"))
+                manager = HandoffManager(timeout_seconds=5)
+                manager.account_env_by_target = {f"cheap:live": openrouter_env}
+                result = manager.execute(format_run_model("cheap", "prompt", account="live"))
             finally:
                 if original_bin is None:
                     os.environ.pop("RUN_MODEL_BIN", None)
@@ -138,8 +139,8 @@ class HandoffTests(unittest.TestCase):
                     os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
 
         self.assertTrue(result.ok, result.error)
-        self.assertIn('"account": "personal"', result.output)
-        self.assertIn('"token": "chatgpt-session-token"', result.output)
+        self.assertIn('"account": "live"', result.output)
+        self.assertIn(f'"token": "{os.environ.get(openrouter_env, "")}"', result.output)
 
     def test_handoff_loads_saved_account_token_when_env_mapping_is_absent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
