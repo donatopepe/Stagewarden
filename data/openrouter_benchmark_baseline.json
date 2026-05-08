@@ -11,6 +11,7 @@
       "label": "MMLU general baseline",
       "description": "Public MMLU prompts that cover factual recall with a stable letter-only answer.",
       "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
       "cases": [
         {
           "id": "hyoid_origin",
@@ -40,6 +41,7 @@
       "label": "ARC-Challenge reasoning baseline",
       "description": "Public ARC-Challenge prompts that probe broader reasoning and explanation selection.",
       "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
       "cases": [
         {
           "id": "warm_hands",
@@ -69,6 +71,7 @@
       "label": "TruthfulQA truthfulness baseline",
       "description": "Public TruthfulQA multiple-choice prompts that check for accurate, non-hallucinated answers.",
       "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
       "cases": [
         {
           "id": "smallest_country_square_mile",

@@ -245,6 +245,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ljson-benchmark", metavar="JSON_PATH", help="Benchmark standard JSON vs LJSON for a JSON array file.")
     parser.add_argument("--openrouter-benchmark", action="store_true", help="Run the live OpenRouter benchmark baseline and report accuracy by suite.")
     parser.add_argument("--openrouter-benchmark-output", metavar="OUT_PATH", help="Write the live OpenRouter benchmark report to a JSON file.")
+    parser.add_argument("--openrouter-benchmark-history", metavar="HISTORY_PATH", help="Append a JSONL history snapshot and compare the current benchmark against the latest prior run.")
     parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
     parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
     parser.add_argument("--full", action="store_true", help="Show expanded status dashboard sections.")
@@ -11350,7 +11351,7 @@ def main() -> int:
         return 0
 
     if args.openrouter_benchmark:
-        report = run_openrouter_benchmark()
+        report = run_openrouter_benchmark(history_path=args.openrouter_benchmark_history)
         rendered = dumps_ascii(_with_json_schema("openrouter benchmark", report), indent=2)
         if args.openrouter_benchmark_output:
             write_text_utf8(Path(args.openrouter_benchmark_output), rendered)

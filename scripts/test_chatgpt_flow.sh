@@ -98,6 +98,7 @@ stub.write_text(
 stub.chmod(0o755)
 
 output_path = Path(os.environ["SMOKE_DIR"]) / "openrouter-benchmark.json"
+history_path = Path(os.environ["SMOKE_DIR"]) / "openrouter-benchmark-history.jsonl"
 env = dict(os.environ)
 env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "")
 env["RUN_MODEL_BIN"] = str(stub)
@@ -109,6 +110,8 @@ completed = subprocess.run(
         "--openrouter-benchmark",
         "--openrouter-benchmark-output",
         str(output_path),
+        "--openrouter-benchmark-history",
+        str(history_path),
     ],
     cwd=Path(os.environ["PROJECT_DIR"]),
     env=env,
@@ -133,12 +136,20 @@ if not payload.get("suites", {}).get("truthfulness", {}).get("passed"):
     raise SystemExit("Truthfulness OpenRouter baseline did not pass.")
 if not payload.get("overall", {}).get("passed"):
     raise SystemExit("Overall OpenRouter benchmark baseline did not pass.")
+if not payload.get("history", {}).get("enabled"):
+    raise SystemExit("Benchmark history tracking was not enabled.")
+if not payload.get("history", {}).get("appended"):
+    raise SystemExit("Benchmark history snapshot was not appended.")
+if payload.get("overall", {}).get("regressed"):
+    raise SystemExit("Benchmark reported an unexpected regression on the initial run.")
 if payload.get("overall", {}).get("total_cases") != 9:
     raise SystemExit("Benchmark CLI reported an unexpected case count.")
 if payload.get("overall", {}).get("suite_count") != 3:
     raise SystemExit("Benchmark CLI reported an unexpected suite count.")
 if not output_path.exists():
     raise SystemExit("Benchmark output file was not written.")
+if not history_path.exists():
+    raise SystemExit("Benchmark history file was not written.")
 
 saved = json.loads(output_path.read_text(encoding="utf-8"))
 if saved.get("command") != "openrouter benchmark":
