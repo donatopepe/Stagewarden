@@ -333,6 +333,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["governance"]["case_count"], 3)
             self.assertEqual(payload["assurance"]["case_count"], 5)
             self.assertEqual(payload["recovery"]["case_count"], 2)
+            self.assertIn("detail", payload["governance"]["cases"][0]["node_runtime"])
+            self.assertIn("nodes detail:", payload["governance"]["cases"][0]["node_runtime"]["detail"])
+            self.assertIn("transitions:", payload["governance"]["cases"][0]["node_runtime"]["detail"])
 
     def test_openrouter_benchmark_history_comparison_detects_regressions(self) -> None:
         previous = {

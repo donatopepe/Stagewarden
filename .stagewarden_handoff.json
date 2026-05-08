@@ -8,7 +8,7 @@
   "current_step_id": "prince2-benchmark-baseline",
   "current_step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
   "current_step_status": "completed",
-  "latest_observation": "The local PRINCE2 benchmark command now runs prompt-driven governance, assurance, and recovery suites through the real executor, critic, and recovery-lane paths, the CLI exposes --prince2-benchmark, and python3 -m unittest discover -s tests passes with 381 tests.",
+  "latest_observation": "The local PRINCE2 benchmark command now emits rich default runtime data for every case, including materialized nodes, role assignments, message transitions, wet-run evidence, and prompt-packet assertions.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "c303af3",
   "git_head_baseline": "c303af3",
@@ -60,7 +60,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-08T08:21:13Z",
+  "updated_at": "2026-05-08T09:06:38Z",
   "entries": [
     {
       "timestamp": "2026-05-08T08:55:34Z",
@@ -402,6 +402,22 @@
       "model": null,
       "action_type": null,
       "git_head": "02260e0",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T09:06:38Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The local PRINCE2 benchmark report now includes default node runtime snapshots and transitions for every case, making analysis and statistics available from the main benchmark command.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
       "details": {
         "plan_status": "step-1:completed,step-2:completed,step-3:completed"
       }

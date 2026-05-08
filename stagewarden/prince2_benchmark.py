@@ -364,32 +364,137 @@ def _case_node_runtime_snapshot(source: object) -> dict[str, Any]:
             "runtime": dict(source.get("runtime", {})),
         }
     else:
-        return {"status": "missing", "summary": {}, "nodes": [], "transitions": []}
+        return {
+            "status": "missing",
+            "summary": {},
+            "runtime": {},
+            "nodes": [],
+            "transitions": [],
+            "detail": "PRINCE2 node runtime: missing\n- action: approve a role-tree baseline first.",
+        }
     runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report, dict) else {}
     nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)] if isinstance(runtime, dict) else []
     transitions = _collect_node_transitions(nodes)
     return {
         "status": str(runtime_report.get("status", "missing")),
         "summary": runtime_report.get("summary", {}),
-        "nodes": [
-            {
-                "node_id": str(node.get("node_id", "")),
-                "role_type": str(node.get("role_type", "")),
-                "label": str(node.get("label", "")),
-                "parent_id": node.get("parent_id"),
-                "state": str(node.get("state", "")),
-                "wait_status": str(node.get("wait_status", "")),
-                "inbox_count": int(node.get("inbox_count", 0) or 0),
-                "outbox_count": int(node.get("outbox_count", 0) or 0),
-                "accountable_owner": str(node.get("accountable_owner", "")),
-                "tolerance_margin_percent": float(node.get("tolerance_margin_percent", 0.0) or 0.0),
-                "tolerance_pressure_percent": float(node.get("tolerance_pressure_percent", 0.0) or 0.0),
-                "assignment": dict(node.get("assignment", {})) if isinstance(node.get("assignment"), dict) else {},
-            }
-            for node in nodes
-        ],
+        "runtime": dict(runtime) if isinstance(runtime, dict) else {},
+        "nodes": nodes,
         "transitions": transitions,
+        "detail": _render_case_node_runtime_detail(runtime_report, nodes=nodes, transitions=transitions),
     }
+
+
+def _render_case_node_runtime_detail(
+    runtime_report: dict[str, Any],
+    *,
+    nodes: list[dict[str, Any]] | None = None,
+    transitions: list[dict[str, Any]] | None = None,
+) -> str:
+    runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report, dict) else {}
+    nodes = list(nodes or [node for node in runtime.get("nodes", []) if isinstance(node, dict)])
+    transitions = list(transitions or _collect_node_transitions(nodes))
+    summary = runtime_report.get("summary", {}) if isinstance(runtime_report, dict) else {}
+    lines = [
+        "PRINCE2 node runtime:",
+        f"- status: {runtime_report.get('status', 'missing')}",
+        f"- nodes: {summary.get('nodes', len(nodes))}",
+        (
+            f"- ready: {summary.get('ready', 0)} waiting={summary.get('waiting', 0)} "
+            f"running={summary.get('running', 0)} blocked={summary.get('blocked', 0)}"
+        ),
+        f"- materialized_at: {runtime.get('materialized_at', 'unknown')}",
+        f"- baseline_source: {runtime.get('baseline_source', 'unknown')}",
+        (
+            f"- wait_triggers: {summary.get('wait_triggers', 0)} "
+            f"message_queues={summary.get('message_queues', 0)}"
+        ),
+    ]
+    if not nodes:
+        lines.append("- nodes: none")
+    else:
+        lines.append("- nodes detail:")
+        for index, node in enumerate(nodes, start=1):
+            assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
+            context_rule = node.get("context_rule", {}) if isinstance(node.get("context_rule"), dict) else {}
+            antagonist_profile = node.get("antagonist_profile", {}) if isinstance(node.get("antagonist_profile"), dict) else {}
+            lines.append(
+                f"  [{index}] {node.get('node_id', 'unknown')} role={node.get('role_type', 'unknown')} "
+                f"label={node.get('label', 'unknown')} parent={node.get('parent_id') or 'none'} "
+                f"level={node.get('level', 'unknown')}"
+            )
+            lines.append(
+                f"      state={node.get('state', 'unknown')} wait={node.get('wait_status', 'none')} "
+                f"wait_reason={node.get('wait_reason') or 'none'} wake_triggers="
+                f"{', '.join(str(item) for item in node.get('wake_triggers', []) if str(item).strip()) or 'none'}"
+            )
+            lines.append(
+                f"      owner={node.get('accountable_owner', 'user')} "
+                f"provider={assignment.get('provider', 'none') or 'none'} "
+                f"provider_model={assignment.get('provider_model', 'none') or 'none'} "
+                f"spawn_source={node.get('spawn_source', 'none') or 'none'} "
+                f"spawn_reason={node.get('spawn_reason', 'none') or 'none'}"
+            )
+            lines.append(
+                f"      inbox={node.get('inbox_count', 0)} outbox={node.get('outbox_count', 0)} "
+                f"child_count={node.get('child_count', 0)} last_transition_at={node.get('last_transition_at', 'unknown')}"
+            )
+            lines.append(
+                f"      tokens total={node.get('thread_token_count', 0)} "
+                f"business_case={node.get('business_case_token_count', 0)} "
+                f"input={node.get('business_case_input_token_count', 0)} "
+                f"output={node.get('business_case_output_token_count', 0)} "
+                f"cost_usd={node.get('business_case_cost_usd', 0)}"
+            )
+            if context_rule:
+                include = ", ".join(str(item) for item in context_rule.get("include", []) if str(item).strip()) or "none"
+                exclude = ", ".join(str(item) for item in context_rule.get("exclude", []) if str(item).strip()) or "none"
+                lines.append(f"      context include={include} exclude={exclude}")
+            if antagonist_profile:
+                lines.append(
+                    f"      antagonist={antagonist_profile.get('antagonist_name', 'unknown')} "
+                    f"pressure={antagonist_profile.get('decision_kpis', {}).get('antagonist_pressure_percent', 0)}"
+                )
+            inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
+            outbox = [dict(item) for item in node.get("outbox", []) if isinstance(item, dict)]
+            if inbox:
+                lines.append("      inbox messages:")
+                for message in inbox:
+                    lines.append(
+                        f"        - {message.get('message_id', 'unknown')} {message.get('source_node', 'unknown')} "
+                        f"-> {message.get('target_node', 'unknown')} edge={message.get('edge_id', 'unknown')} "
+                        f"status={message.get('status', 'unknown')} summary={message.get('summary', 'unknown')}"
+                    )
+            if outbox:
+                lines.append("      outbox messages:")
+                for message in outbox:
+                    lines.append(
+                        f"        - {message.get('message_id', 'unknown')} {message.get('source_node', 'unknown')} "
+                        f"-> {message.get('target_node', 'unknown')} edge={message.get('edge_id', 'unknown')} "
+                        f"status={message.get('status', 'unknown')} summary={message.get('summary', 'unknown')}"
+                    )
+    if not transitions:
+        lines.append("- transitions: none")
+    else:
+        lines.append("- transitions:")
+        for index, transition in enumerate(transitions, start=1):
+            payload_scope = ", ".join(transition.get("payload_scope", [])) or "none"
+            evidence_refs = ", ".join(transition.get("evidence_refs", [])) or "none"
+            lines.append(
+                f"  [{index}] {transition.get('message_id', 'unknown')} {transition.get('source_node', 'unknown')} "
+                f"-> {transition.get('target_node', 'unknown')} edge={transition.get('edge_id', 'unknown')} "
+                f"direction={transition.get('direction', 'unknown')} status={transition.get('status', 'unknown')}"
+            )
+            lines.append(
+                f"      flow_type={transition.get('flow_type', 'unknown')} "
+                f"payload_scope={payload_scope} evidence_refs={evidence_refs}"
+            )
+            lines.append(
+                f"      validation_condition={transition.get('validation_condition', 'none')} "
+                f"decision_authority={transition.get('decision_authority', 'none')} "
+                f"summary={transition.get('summary', 'none')}"
+            )
+    return "\n".join(lines)
 
 
 def _collect_node_transitions(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
