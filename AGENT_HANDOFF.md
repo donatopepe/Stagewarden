@@ -1,28 +1,39 @@
 # Agent Handoff
 
 ## Current objective
-Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while preserving the PRINCE2 critic, escalation, token-accounting, and shared JSON-schema work. Keep the OpenRouter live benchmark stable, comparable, and able to fail on real regressions over time.
+Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while preserving the PRINCE2 critic, escalation, token-accounting, and shared JSON-schema work. Keep the OpenRouter live benchmark stable, and keep the local PRINCE2 benchmark stable so regressions are caught with real wet-run validation.
 
 ## Current state
 - The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
 - `stagewarden/openrouter_benchmark.py` now returns a `suites` map, per-suite regression metadata, and an optional `history` block that compares the current run against the latest JSONL snapshot.
 - The benchmark can append a history snapshot when `--openrouter-benchmark-history` is supplied, and it fails the run if the current accuracy regresses relative to the previous snapshot.
-- `tests/test_trace_cli.py` and `scripts/test_chatgpt_flow.sh` now validate the 3-suite benchmark plus the opt-in history path using a fixed real OpenRouter model for stability.
-- `tests/test_handoff.py` also uses the same fixed real OpenRouter model for transport coverage.
-- `python3 -m unittest discover -s tests` passes: `379 tests`, `OK`.
+- The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with two prompt-driven suites: `governance` and `assurance`.
+- `stagewarden/prince2_benchmark.py` feeds real executor and critic paths with prompt text, wet-run evidence checks, and PRINCE2 prompt-packet assertions.
+- `tests/test_trace_cli.py`, `tests/test_prince2.py`, `tests/test_json_schema_registry.py`, and `stagewarden/commands.py` now cover the PRINCE2 benchmark command and schema registration.
+- `python3 -m unittest discover -s tests` passes: `381 tests`, `OK`.
 
 ## Recent changes
 - `stagewarden/openrouter_benchmark.py`: added opt-in JSONL history tracking and regression comparison.
 - `stagewarden/main.py`: added `--openrouter-benchmark-history` and wired it into the live benchmark command.
 - `data/openrouter_benchmark_baseline.json`: added per-suite `regression_tolerance` values alongside the 3-suite public baseline.
-- `tests/test_trace_cli.py`: updated benchmark assertions for the new history block and regression helper.
-- `scripts/test_chatgpt_flow.sh`: now checks the written history snapshot in addition to the benchmark output file.
-- `tests/test_handoff.py`: still uses the fixed OpenRouter model for live transport coverage.
+- `stagewarden/prince2_benchmark.py`: added a local PRINCE2 benchmark runner with prompt-driven governance and assurance cases.
+- `stagewarden/main.py`: added `--prince2-benchmark` and `--prince2-benchmark-output`.
+- `data/prince2_benchmark_baseline.json`: added the baseline suites and prompt cases for PRINCE2 benchmark coverage.
+- `stagewarden/commands.py`: exposed `prince2 benchmark` in the command catalog.
+- `stagewarden/json_schema_registry.py`: registered the new `prince2 benchmark` schema.
+- `tests/test_prince2.py`: added a direct runner assertion for the PRINCE2 benchmark baseline.
+- `tests/test_trace_cli.py`: added CLI coverage for `--prince2-benchmark`.
+- `tests/test_json_schema_registry.py`: updated registry coverage for the new schema command.
 
 ## Important files
 - `stagewarden/openrouter_benchmark.py`: live benchmark runner, history writer, and regression comparator.
 - `data/openrouter_benchmark_baseline.json`: public prompt baseline used by the benchmark.
+- `stagewarden/prince2_benchmark.py`: local PRINCE2 benchmark runner and executor harness.
+- `data/prince2_benchmark_baseline.json`: prompt-driven PRINCE2 benchmark baseline.
 - `tests/test_trace_cli.py`: CLI, history, and smoke-coverage assertions.
+- `tests/test_prince2.py`: PRINCE2 policy and benchmark assertions.
+- `tests/test_json_schema_registry.py`: schema command coverage.
+- `stagewarden/commands.py`: command catalog exposure for `prince2 benchmark`.
 - `scripts/test_chatgpt_flow.sh`: live smoke entrypoint.
 - `stagewarden/json_schema_registry.py`: schema contract registry for machine-readable outputs.
 
@@ -39,15 +50,18 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 - Decision: fail the benchmark when the current snapshot regresses against the previous snapshot.
   - Reason: the benchmark is meant to detect real quality drift, not just threshold failures.
   - Trade-offs: stricter gating, but much better baseline control over time.
+- Decision: make the PRINCE2 benchmark prompt-driven and local.
+  - Reason: PRINCE2 needs to measure governance, critic gating, wet-run evidence, and prompt-packet context, not just answer quality.
+  - Trade-offs: the cases are synthetic, but they exercise the actual executor and critic paths deterministically.
 
 ## Open issues
 - Bugs: none known in the live benchmark slice.
-- Risks: TruthfulQA-style prompts can still be sensitive to wording, so any future prompt edits should be re-wet-run before landing.
-- Unknowns: whether to add more benchmark families before the next publish.
+- Risks: TruthfulQA-style prompts and PRINCE2 wet-run markers can still be sensitive to wording, so any future prompt edits should be re-wet-run before landing.
+- Unknowns: whether to add more benchmark families or more PRINCE2 prompt suites before the next publish.
 
 ## Next steps
-1. Decide whether to commit/push this benchmark history slice.
-2. Add more public benchmark families only if they stay stable under wet-run validation.
+1. Decide whether to commit/push this benchmark slice.
+2. Add more public benchmark families or more PRINCE2 prompt suites only if they stay stable under wet-run validation.
 3. Keep `AGENT_HANDOFF.md`, `HANDOFF.md`, and `.stagewarden_handoff.json` synchronized after the next code change.
 
 ## Commands
@@ -55,4 +69,6 @@ Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers wh
 ./scripts/test_chatgpt_flow.sh
 python3 -m unittest discover -s tests
 python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_openrouter_benchmark_cli_reports_multi_suite_baseline
+python3 -m stagewarden.main --prince2-benchmark
+python3 -m unittest tests.test_prince2.Prince2Tests.test_prince2_benchmark_reports_prompt_baseline
 ```

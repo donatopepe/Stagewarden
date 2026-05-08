@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
 
+from .agent import Agent
 from .config import AgentConfig
 from .executor import Executor
 from .memory import MemoryStore
@@ -60,6 +62,19 @@ class Prince2BenchmarkHandoff:
                 "error": "",
             }
         return SimpleNamespace(**payload)
+
+
+@contextmanager
+def _temp_run_model_env(stub_path: Path):
+    original = os.environ.get("RUN_MODEL_BIN")
+    os.environ["RUN_MODEL_BIN"] = str(stub_path)
+    try:
+        yield
+    finally:
+        if original is None:
+            os.environ.pop("RUN_MODEL_BIN", None)
+        else:
+            os.environ["RUN_MODEL_BIN"] = original
 
 
 def prince2_benchmark_baseline_path() -> Path:
@@ -598,6 +613,156 @@ def _executor_case_prompt_packet(case: Prince2BenchmarkCase) -> dict[str, Any]:
     }
 
 
+def _write_agent_success_stub(root: Path) -> Path:
+    path = root / "run_model_success_stub.py"
+    path.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "from __future__ import annotations",
+                "import json",
+                "import re",
+                "import sys",
+                "",
+                "def extract(prompt: str, field: str) -> str:",
+                '    match = re.search(rf"^{re.escape(field)}=(.+)$", prompt, re.MULTILINE)',
+                "    return match.group(1).strip() if match else ''",
+                "",
+                "def main() -> int:",
+                "    if len(sys.argv) < 3:",
+                '        print(json.dumps({"error": "usage: stub <model> <prompt>"}))',
+                "        return 1",
+                "    prompt = sys.argv[2]",
+                "    prompt_lower = prompt.lower()",
+                "    instruction = extract(prompt, 'instruction').lower()",
+                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower:",
+                '        print(json.dumps({"summary": "devil advocate review", "verdict": "accept", "contradictions": [], "missing_evidence": [], "counter_argument": "No issue detected.", "must_escalate": False, "confidence": 0.9}))',
+                "        return 0",
+                "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
+                '        action = {"type": "complete", "message": "analysis validated exit_code=0"}',
+                "    else:",
+                '        action = {"type": "complete", "message": "validation completed exit_code=0"}',
+                '    print(json.dumps({"summary": "stub response", "action": action}))',
+                "    return 0",
+                "",
+                "if __name__ == '__main__':",
+                "    raise SystemExit(main())",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
+def _recovery_handoff_payload(task: str) -> ProjectHandoff:
+    return ProjectHandoff(
+        task=task,
+        status="exception",
+        current_step_id="step-2",
+        current_step_title="2. Implement a fix",
+        current_step_status="failed",
+        latest_observation="tests failed after patch",
+        plan_status="step-1:completed,step-2:failed,step-3:planned",
+        risk_register=[
+            {"risk": "regression remains after failed patch", "status": "open"},
+        ],
+        issue_register=[
+            {"step_id": "step-2", "severity": "high", "summary": "tests still failing", "status": "open"},
+        ],
+        exception_plan=["review failing test output", "prepare corrective patch"],
+    )
+
+
+def _agent_case_recovery_gate(case: Prince2BenchmarkCase) -> dict[str, Any]:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        root = Path(tmp_dir)
+        stub = _write_agent_success_stub(root)
+        handoff = _recovery_handoff_payload(case.prompt)
+        handoff.save(root / ".stagewarden_handoff.json")
+        with _temp_run_model_env(stub):
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=10, verbose=False))
+            result = agent.run(case.prompt)
+        saved = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+    passed = (
+        result.ok
+        and saved.exception_plan == []
+        and all(item.get("status") == "closed" for item in saved.issue_register)
+        and all(item.get("status") == "closed" for item in saved.risk_register)
+        and "recovery-step-1:completed" in saved.plan_status
+        and "recovery-step-2:completed" in saved.plan_status
+    )
+    return {
+        "passed": passed,
+        "summary": "recovery lane clears exception controls and closes the gate",
+        "observed": {
+            "ok": result.ok,
+            "exception_plan": list(saved.exception_plan),
+            "plan_status": saved.plan_status,
+            "message": result.message,
+        },
+        "expected": {
+            "ok": True,
+            "exception_plan": [],
+            "closed_issues": True,
+            "closed_risks": True,
+            "recovery_steps": "completed",
+        },
+    }
+
+
+def _executor_case_recovery_prompt_packet(case: Prince2BenchmarkCase) -> dict[str, Any]:
+    step = PlanStep(
+        id="recovery-step-1",
+        title="Stabilize recovery lane",
+        instruction=case.prompt,
+        validation="Recovery evidence exists and the exception plan can be cleared.",
+    )
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        executor, handoff = _build_executor_harness(
+            root=Path(tmp_dir),
+            task=case.prompt,
+            step=step,
+            outputs=[
+                _primary_output(message="recovery completed exit_code=0"),
+                _critic_output(
+                    verdict="accept",
+                    contradictions=[],
+                    missing_evidence=[],
+                    counter_argument="No issue detected.",
+                    must_escalate=False,
+                    confidence=0.9,
+                ),
+            ],
+        )
+        outcome = executor.execute_step(task=case.prompt, step=step, plan=[step], iteration=1, last_observation="exception plan active")
+    prompt = handoff.calls[0] if handoff.calls else ""
+    passed = (
+        outcome.ok
+        and "recovery_state:" in prompt
+        and "PRINCE2 node AI context packet" in prompt
+        and "active_flow_rule: context moves only through approved PRINCE2 flow edges" in prompt
+        and "core_agent_capabilities: shell=true files=true git=true wet_run_required=true" in prompt
+    )
+    return {
+        "passed": passed,
+        "summary": "recovery prompt packet includes recovery state and flow context",
+        "observed": {
+            "ok": outcome.ok,
+            "prompt_excerpt": prompt[:1200],
+        },
+        "expected": {
+            "ok": True,
+            "contains": [
+                "recovery_state:",
+                "PRINCE2 node AI context packet",
+                "active_flow_rule: context moves only through approved PRINCE2 flow edges",
+                "core_agent_capabilities: shell=true files=true git=true wet_run_required=true",
+            ],
+        },
+    }
+
+
 _CASE_RUNNERS: dict[str, Callable[[Prince2BenchmarkCase], dict[str, Any]]] = {
     "checklist_structure": _policy_case_checklist_structure,
     "vague_task_rejected": _policy_case_vague_rejection,
@@ -607,4 +772,6 @@ _CASE_RUNNERS: dict[str, Callable[[Prince2BenchmarkCase], dict[str, Any]]] = {
     "critic_invalid": _executor_case_invalid_critic,
     "wet_run_required": _executor_case_wet_run_required,
     "prompt_context": _executor_case_prompt_packet,
+    "recovery_gate": _agent_case_recovery_gate,
+    "recovery_prompt_context": _executor_case_recovery_prompt_packet,
 }

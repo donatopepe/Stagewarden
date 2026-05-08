@@ -67,6 +67,27 @@
           "source": "Stagewarden PRINCE2 prompt-packet coverage prompt inspired by agentic planning benchmarks."
         }
       ]
+    },
+    {
+      "id": "recovery",
+      "label": "Recovery",
+      "description": "Prompt-driven PRINCE2 recovery checks for exception clearance and recovery-lane context.",
+      "min_accuracy": 1.0,
+      "regression_tolerance": 0.0,
+      "cases": [
+        {
+          "id": "recovery_gate_closure",
+          "kind": "recovery_gate",
+          "prompt": "inspect the repo and implement a fix and validate the result",
+          "source": "Stagewarden PRINCE2 recovery prompt inspired by agent recovery integration coverage."
+        },
+        {
+          "id": "recovery_prompt_context",
+          "kind": "recovery_prompt_context",
+          "prompt": "inspect the repo and implement a fix under exception control",
+          "source": "Stagewarden PRINCE2 recovery prompt inspired by recovery-lane context coverage."
+        }
+      ]
     }
   ]
 }

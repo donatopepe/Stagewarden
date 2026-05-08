@@ -323,14 +323,16 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["command"], "prince2 benchmark")
             self.assertEqual(payload["schema"]["name"], "stagewarden.prince2_benchmark")
             self.assertEqual(payload["schema"]["version"], "1")
-            self.assertEqual(payload["overall"]["suite_count"], 2)
-            self.assertEqual(payload["overall"]["total_cases"], 8)
+            self.assertEqual(payload["overall"]["suite_count"], 3)
+            self.assertEqual(payload["overall"]["total_cases"], 10)
             self.assertTrue(payload["overall"]["passed"])
             self.assertTrue(payload["suites"]["governance"]["passed"])
             self.assertTrue(payload["suites"]["assurance"]["passed"])
+            self.assertTrue(payload["suites"]["recovery"]["passed"])
             self.assertEqual(payload["baseline"]["provider"], "stagewarden")
             self.assertEqual(payload["governance"]["case_count"], 3)
             self.assertEqual(payload["assurance"]["case_count"], 5)
+            self.assertEqual(payload["recovery"]["case_count"], 2)
 
     def test_openrouter_benchmark_history_comparison_detects_regressions(self) -> None:
         previous = {
