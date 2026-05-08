@@ -81,7 +81,7 @@ class Prince2Tests(unittest.TestCase):
         self.assertTrue(report["suites"]["assurance"]["passed"])
         self.assertTrue(report["suites"]["recovery"]["passed"])
         self.assertEqual(report["governance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
-        self.assertEqual(report["assurance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 4)
+        self.assertEqual(report["assurance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 2)
         self.assertEqual(report["recovery"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
         self.assertIn("prompt", report["governance"]["cases"][0])
         self.assertIn("node_runtime", report["governance"]["cases"][0])

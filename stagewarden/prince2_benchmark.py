@@ -355,16 +355,45 @@ def _build_case_runtime_handoff(case: Prince2BenchmarkCase) -> ProjectHandoff:
     return project_handoff
 
 
-def _case_orchestration_node_ids(case: Prince2BenchmarkCase) -> list[str]:
-    node_ids: list[str] = []
-    seen: set[str] = set()
-    for transition in _suite_transition_plan(case.suite_id):
-        for key in ("source_node", "target_node"):
-            node_id = str(transition.get(key, "")).strip()
-            if node_id and node_id not in seen:
-                seen.add(node_id)
-                node_ids.append(node_id)
-    return node_ids
+def _case_orchestration_node_ids(case: Prince2BenchmarkCase, runtime_report: dict[str, Any]) -> list[str]:
+    runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report, dict) else {}
+    nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
+    by_node_id = {str(node.get("node_id", "")).strip(): node for node in nodes if str(node.get("node_id", "")).strip()}
+    active_ids: set[str] = set()
+    for node in nodes:
+        node_id = str(node.get("node_id", "")).strip()
+        if not node_id:
+            continue
+        state = str(node.get("state", "")).strip().lower()
+        wait_status = str(node.get("wait_status", "none")).strip().lower()
+        inbox_count = int(node.get("inbox_count", 0) or 0)
+        outbox_count = int(node.get("outbox_count", 0) or 0)
+        if state not in {"idle", "ready", "unassigned"} or wait_status not in {"", "none"} or inbox_count > 0 or outbox_count > 0:
+            active_ids.add(node_id)
+    if not active_ids:
+        for node in nodes:
+            node_id = str(node.get("node_id", "")).strip()
+            if node_id and isinstance(node.get("assignment"), dict) and node.get("assignment"):
+                active_ids.add(node_id)
+    if not active_ids:
+        for transition in _suite_transition_plan(case.suite_id):
+            for key in ("source_node", "target_node"):
+                node_id = str(transition.get(key, "")).strip()
+                if node_id:
+                    active_ids.add(node_id)
+    expanded = True
+    while expanded:
+        expanded = False
+        for node_id in list(active_ids):
+            node = by_node_id.get(node_id)
+            if not node:
+                continue
+            parent_id = str(node.get("parent_id", "")).strip()
+            if parent_id and parent_id not in active_ids:
+                active_ids.add(parent_id)
+                expanded = True
+    ordered_ids = [str(node.get("node_id", "")).strip() for node in nodes if str(node.get("node_id", "")).strip() in active_ids]
+    return ordered_ids
 
 
 def _parse_utc_timestamp(value: str) -> datetime | None:
@@ -487,12 +516,12 @@ def _case_node_runtime_snapshot(source: object, *, case: Prince2BenchmarkCase) -
             "runtime": {},
             "nodes": [],
             "transitions": [],
-            "orchestration": {"node_ids": _case_orchestration_node_ids(case), "mode": "suite_transition_plan"},
+            "orchestration": {"node_ids": [], "mode": "dynamic_runtime_graph"},
             "detail": "PRINCE2 node runtime: missing\n- action: approve a role-tree baseline first.",
         }
     runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report, dict) else {}
     full_nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)] if isinstance(runtime, dict) else []
-    selected_node_ids = _case_orchestration_node_ids(case)
+    selected_node_ids = _case_orchestration_node_ids(case, runtime_report)
     selected_nodes = [node for node in full_nodes if str(node.get("node_id", "")).strip() in selected_node_ids]
     transitions = _collect_node_transitions(selected_nodes)
     materialized_at = str(runtime.get("materialized_at", runtime_report.get("summary", {}).get("materialized_at", "")))
@@ -514,10 +543,11 @@ def _case_node_runtime_snapshot(source: object, *, case: Prince2BenchmarkCase) -
         "nodes": selected_nodes,
         "transitions": transitions,
         "orchestration": {
-            "mode": "suite_transition_plan",
+            "mode": "dynamic_runtime_graph",
             "node_ids": selected_node_ids,
             "node_count": len(selected_nodes),
             "role_types": [str(node.get("role_type", "")) for node in selected_nodes],
+            "rule": "derived from runtime activity, queue pressure, and parent closure",
         },
         "detail": _render_case_node_runtime_detail({"status": runtime_report.get("status", "missing"), "summary": summary, "runtime": filtered_runtime, "snapshot_at": snapshot_at}, nodes=selected_nodes, transitions=transitions),
     }
