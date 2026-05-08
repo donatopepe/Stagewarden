@@ -1,16 +1,16 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "prince2 devil advocate review",
+  "task": "openrouter-smoke-script",
   "goal": {},
   "project_brief": {},
   "status": "completed",
-  "current_step_id": "node-token-cost-split",
-  "current_step_title": "Split node tokens into input/output buckets and attach Artificial Analysis pricing",
+  "current_step_id": "openrouter-smoke-script",
+  "current_step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
   "current_step_status": "completed",
-  "latest_observation": "Node business-case accounting now tracks separate input/output token buckets, node pricing is attached from the shared model catalog, the devil's-advocate critic now blocks invalid review payloads with critic_invalid_output, the battery and integration stubs emit valid critic JSON for review prompts, the date-sensitive tests were rebalanced so active block windows stay future-dated only where needed, and the full unittest suite passes on HEAD ae8cab7.",
+  "latest_observation": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN, and the smoke script no longer depends on ChatGPT/device-login simulation or secret-store placeholders.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "ae8cab7",
+  "git_head": "4623391",
   "git_head_baseline": "97190e8c82aef30c58e8335691299a0d362e6ed0",
   "risk_register": [
     {
@@ -60,8 +60,40 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-04-29T18:55:00Z",
+  "updated_at": "2026-05-08T06:47:26Z",
   "entries": [
+    {
+      "timestamp": "2026-05-08T06:47:26Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "openrouter-smoke-script",
+      "summary": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN and no longer rely on stubbed no-op output.",
+      "step_id": "openrouter-smoke-script",
+      "step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "4623391",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T06:27:54Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "openrouter-smoke-script",
+      "summary": "The smoke script now verifies real OpenRouter API-key injection through RUN_MODEL_BIN and no longer relies on ChatGPT/device-login simulation or secret-store placeholders.",
+      "step_id": "openrouter-smoke-script",
+      "step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "4623391",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-05-08T06:15:00Z",
       "phase": "finish",
@@ -70,6 +102,22 @@
       "summary": "Invalid devil's-advocate review payloads now block the step explicitly, and the battery/integration stubs emit valid critic JSON during simulations.",
       "step_id": "critic-invalid-output-guard",
       "step_title": "Block invalid devil's-advocate review payloads explicitly",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "ae8cab7",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T06:16:00Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "openrouter-test-transport",
+      "summary": "Backend-injection tests now use the real OpenRouter API key from the environment instead of simulated account tokens.",
+      "step_id": "openrouter-test-transport",
+      "step_title": "Use the real OpenRouter API key in backend-injection tests",
       "step_status": "completed",
       "model": null,
       "action_type": null,

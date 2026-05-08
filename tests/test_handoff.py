@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import textwrap
@@ -19,6 +20,79 @@ class HandoffTests(unittest.TestCase):
             return "OPENROUTER_API_KEY"
         self.fail("OpenRouter API key is required for this test.")
 
+    def _write_openrouter_live_runner(self, tmp_dir: str) -> Path:
+        stub = Path(tmp_dir) / "run_model_openrouter_live_stub.py"
+        stub.write_text(
+            textwrap.dedent(
+                """\
+                #!/usr/bin/env python3
+                from __future__ import annotations
+
+                import json
+                import os
+                import sys
+                import urllib.request
+
+
+                def main() -> int:
+                    if len(sys.argv) < 3:
+                        print(json.dumps({"error": "usage: stub <model> <prompt>"}))
+                        return 1
+
+                    requested_model = sys.argv[1]
+                    prompt = sys.argv[2]
+                    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+                    if not api_key:
+                        print(json.dumps({"error": "missing OPENROUTER_API_KEY"}))
+                        return 1
+
+                    payload = {
+                        "model": "openrouter/auto",
+                        "messages": [
+                            {"role": "system", "content": "Reply with a short confirmation."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        "max_tokens": 8,
+                        "temperature": 0,
+                    }
+                    request = urllib.request.Request(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://stagewarden.local",
+                            "X-Title": "Stagewarden tests",
+                        },
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(request, timeout=60) as response:
+                        data = json.load(response)
+
+                    choices = data.get("choices") or []
+                    message = choices[0].get("message") if choices else {}
+                    content = str((message or {}).get("content", "")).strip()
+                    print(json.dumps({
+                        "account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""),
+                        "target": os.environ.get("STAGEWARDEN_MODEL_TARGET", ""),
+                        "requested_model": requested_model,
+                        "routed_model": data.get("model", ""),
+                        "content": content,
+                        "usage": data.get("usage", {}),
+                        "action": {"type": "complete", "message": content or "OpenRouter call completed."},
+                    }))
+                    return 0
+
+
+                if __name__ == "__main__":
+                    raise SystemExit(main())
+                """
+            ),
+            encoding="utf-8",
+        )
+        stub.chmod(0o755)
+        return stub
+
     def test_parse_and_format(self) -> None:
         command = format_run_model("local", "hello")
         model, prompt, account = parse_run_model_command(command)
@@ -35,21 +109,8 @@ class HandoffTests(unittest.TestCase):
 
     def test_handoff_invokes_configured_binary_with_openrouter_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            stub = Path(tmp_dir) / "run_model_test_stub"
-            stub.write_text(
-                textwrap.dedent(
-                    """\
-                    #!/usr/bin/env python3
-                    import json
-                    import os
-                    import sys
-                    print(json.dumps({"summary":"ok","account":os.environ.get("STAGEWARDEN_MODEL_ACCOUNT",""),"token":os.environ.get("OPENROUTER_API_KEY",""),"action":{"type":"complete","message":"done"}}))
-                    """
-                )
-            )
-            stub.chmod(0o755)
+            stub = self._write_openrouter_live_runner(tmp_dir)
             original = os.environ.get("RUN_MODEL_BIN")
-            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
             openrouter_env = self._openrouter_env_name()
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
@@ -61,15 +122,15 @@ class HandoffTests(unittest.TestCase):
                     os.environ.pop("RUN_MODEL_BIN", None)
                 else:
                     os.environ["RUN_MODEL_BIN"] = original
-                if original_store is None:
-                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
-                else:
-                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
 
         self.assertTrue(result.ok)
-        self.assertIn('"type": "complete"', result.output)
-        self.assertIn('"account": "live"', result.output)
-        self.assertIn(f'"token": "{os.environ.get(openrouter_env, "")}"', result.output)
+        payload = json.loads(result.output)
+        self.assertEqual(payload["account"], "live")
+        self.assertEqual(payload["target"], "cheap:live")
+        self.assertEqual(payload["requested_model"], "cheap")
+        self.assertTrue(payload["routed_model"])
+        self.assertTrue(payload["content"])
+        self.assertGreater(payload["usage"]["total_tokens"], 0)
 
     def test_handoff_streams_output_through_callback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -108,20 +169,8 @@ class HandoffTests(unittest.TestCase):
 
     def test_handoff_passes_openrouter_api_key_to_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            stub = Path(tmp_dir) / "run_model_test_stub"
-            stub.write_text(
-                textwrap.dedent(
-                    """\
-                    #!/usr/bin/env python3
-                    import json
-                    import os
-                    print(json.dumps({"account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""), "token": os.environ.get("OPENROUTER_API_KEY", "")}))
-                    """
-                )
-            )
-            stub.chmod(0o755)
+            stub = self._write_openrouter_live_runner(tmp_dir)
             original_bin = os.environ.get("RUN_MODEL_BIN")
-            original_store = os.environ.get("STAGEWARDEN_SECRET_STORE_DIR")
             openrouter_env = self._openrouter_env_name()
             os.environ["RUN_MODEL_BIN"] = str(stub)
             try:
@@ -133,14 +182,13 @@ class HandoffTests(unittest.TestCase):
                     os.environ.pop("RUN_MODEL_BIN", None)
                 else:
                     os.environ["RUN_MODEL_BIN"] = original_bin
-                if original_store is None:
-                    os.environ.pop("STAGEWARDEN_SECRET_STORE_DIR", None)
-                else:
-                    os.environ["STAGEWARDEN_SECRET_STORE_DIR"] = original_store
 
         self.assertTrue(result.ok, result.error)
-        self.assertIn('"account": "live"', result.output)
-        self.assertIn(f'"token": "{os.environ.get(openrouter_env, "")}"', result.output)
+        payload = json.loads(result.output)
+        self.assertEqual(payload["account"], "live")
+        self.assertEqual(payload["target"], "cheap:live")
+        self.assertTrue(payload["content"])
+        self.assertGreaterEqual(payload["usage"]["prompt_tokens"], 1)
 
     def test_handoff_loads_saved_account_token_when_env_mapping_is_absent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
