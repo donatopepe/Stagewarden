@@ -18,6 +18,8 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - `AGENT_HANDOFF.md` is now the agent-facing handoff mirror.
 - Existing Stagewarden handoff artifacts remain in place and should stay aligned with the agent handoff state.
 - The repo is currently on branch `pr/p4-p5-updates` at clean `HEAD 8aa58ab` (`stagewarden: initialize workspace`) with no uncommitted changes.
+- Date-sensitive test fixtures were corrected so live block windows are only future-dated where the runtime must see them as active, while the historical snapshot tests keep their original 2026 dates.
+- The full `python3 -m unittest discover -s tests` suite now passes after that fixture alignment.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting split into input/output buckets, per-node pricing sourced from the shared model catalog, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.

@@ -8,7 +8,7 @@
   "current_step_id": "node-token-cost-split",
   "current_step_title": "Split node tokens into input/output buckets and attach Artificial Analysis pricing",
   "current_step_status": "completed",
-  "latest_observation": "Node business-case accounting now tracks separate input/output token buckets, node pricing is attached from the shared model catalog, the catalog can ingest Artificial Analysis pricing when an API key is available, the runtime/control views show the split token and cost fields with wet-run validation, and the repo is currently clean at HEAD 8aa58ab.",
+  "latest_observation": "Node business-case accounting now tracks separate input/output token buckets, node pricing is attached from the shared model catalog, the catalog can ingest Artificial Analysis pricing when an API key is available, the runtime/control views show the split token and cost fields with wet-run validation, the date-sensitive tests were rebalanced so active block windows stay future-dated only where needed, and the full unittest suite passes on the clean HEAD 8aa58ab.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "8aa58ab",
   "git_head_baseline": "97190e8c82aef30c58e8335691299a0d362e6ed0",
