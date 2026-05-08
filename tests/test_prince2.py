@@ -46,6 +46,25 @@ class Prince2Tests(unittest.TestCase):
         self.assertTrue(assessment.escalation_notes)
         self.assertIn("exceeds margin", assessment.escalation_notes[0])
 
+    def test_policy_allows_complex_escalation_prompt_with_validation_language(self) -> None:
+        policy = Prince2AgentPolicy()
+        prompt = (
+            "Implement a production feature for the hospital records migration under tight tolerance: "
+            "a vendor delay, a data-protection concern, and a 15% cost overrun have pushed the stage outside tolerance. "
+            "Review the release evidence, validate the recovery options, decide whether to authorize the next stage, "
+            "prepare the exception report, and escalate to the board with change-control implications and stakeholder impacts."
+        )
+        checklist = policy.build_checklist(prompt)
+        checklist.tolerance_profile = {
+            **checklist.tolerance_profile,
+            "margin_percent": 10.0,
+            "pressure_percent": 40.0,
+        }
+        assessment = policy.assess_task(prompt, checklist)
+        self.assertTrue(assessment.allowed)
+        self.assertTrue(assessment.escalation_required)
+        self.assertTrue(assessment.escalation_notes)
+
     def test_policy_rejects_vague_task(self) -> None:
         policy = Prince2AgentPolicy()
         checklist = policy.build_checklist("stuff")
@@ -74,15 +93,37 @@ class Prince2Tests(unittest.TestCase):
         report = run_prince2_benchmark()
         self.assertEqual(report["command"], "prince2 benchmark")
         self.assertEqual(report["baseline"]["provider"], "stagewarden")
-        self.assertEqual(report["overall"]["suite_count"], 3)
-        self.assertEqual(report["overall"]["total_cases"], 10)
+        self.assertEqual(report["overall"]["suite_count"], 14)
+        self.assertEqual(report["overall"]["total_cases"], 55)
         self.assertTrue(report["overall"]["passed"])
         self.assertTrue(report["suites"]["governance"]["passed"])
         self.assertTrue(report["suites"]["assurance"]["passed"])
         self.assertTrue(report["suites"]["recovery"]["passed"])
+        self.assertTrue(report["suites"]["advanced"]["passed"])
+        self.assertTrue(report["suites"]["stress"]["passed"])
+        self.assertTrue(report["suites"]["regulatory"]["passed"])
+        self.assertTrue(report["suites"]["regulatory_stress"]["passed"])
+        self.assertTrue(report["suites"]["legal_stress"]["passed"])
+        self.assertTrue(report["suites"]["incident_response"]["passed"])
+        self.assertTrue(report["suites"]["vendor_failure"]["passed"])
+        self.assertTrue(report["suites"]["multi_vendor_crisis"]["passed"])
+        self.assertTrue(report["suites"]["supply_chain_failure"]["passed"])
+        self.assertTrue(report["suites"]["regulatory_war_room"]["passed"])
+        self.assertTrue(report["suites"]["board_crisis"]["passed"])
         self.assertEqual(report["governance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
         self.assertEqual(report["assurance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 2)
         self.assertEqual(report["recovery"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
+        self.assertEqual(report["advanced"]["case_count"], 5)
+        self.assertEqual(report["stress"]["case_count"], 4)
+        self.assertEqual(report["regulatory"]["case_count"], 4)
+        self.assertEqual(report["regulatory_stress"]["case_count"], 4)
+        self.assertEqual(report["legal_stress"]["case_count"], 4)
+        self.assertEqual(report["incident_response"]["case_count"], 4)
+        self.assertEqual(report["vendor_failure"]["case_count"], 4)
+        self.assertEqual(report["multi_vendor_crisis"]["case_count"], 4)
+        self.assertEqual(report["supply_chain_failure"]["case_count"], 4)
+        self.assertEqual(report["regulatory_war_room"]["case_count"], 4)
+        self.assertEqual(report["board_crisis"]["case_count"], 4)
         self.assertIn("prompt", report["governance"]["cases"][0])
         self.assertIn("node_runtime", report["governance"]["cases"][0])
         self.assertIn("detail", report["governance"]["cases"][0]["node_runtime"])

@@ -8,7 +8,7 @@
   "current_step_id": "prince2-benchmark-baseline",
   "current_step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
   "current_step_status": "completed",
-  "latest_observation": "The local PRINCE2 benchmark command now emits the full runtime payload plus a readable node/role/transition detail block for every case.",
+  "latest_observation": "The PRINCE2 benchmark now includes incident_response, legal_stress, regulatory_stress, vendor_failure, multi_vendor_crisis, supply_chain_failure, regulatory_war_room, and board_crisis suites and the router chooses regulatory-aware routes dynamically while the full report passes with 14 suites and 55 cases.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "c303af3",
   "git_head_baseline": "c303af3",
@@ -60,8 +60,200 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-08T09:17:19Z",
+  "updated_at": "2026-05-08T10:38:57Z",
   "entries": [
+    {
+      "timestamp": "2026-05-08T10:38:57Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a board_crisis suite sourced from quorum failure, executive escalation, and board-authority traces, and the benchmark now passes with 14 suites and 55 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:33:44Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a regulatory_war_room suite sourced from live escalation, breach, vendor risk, legal hold, and continuity-control traces, and the benchmark now passes with 13 suites and 51 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:28:35Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a supply_chain_failure suite sourced from logistics, inventory, procurement, and continuity traces, and the benchmark now passes with 12 suites and 47 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:23:50Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a multi_vendor_crisis suite sourced from cascading supplier failure and shared-dependency traces, and the benchmark now passes with 11 suites and 43 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:18:40Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a vendor_failure suite sourced from supplier collapse, third-party risk, and contingency-planning traces, and the benchmark now passes with 10 suites and 39 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:14:58Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained an incident_response suite sourced from breach, outage, rollback, and incident-remediation traces, and the benchmark now passes with 9 suites and 35 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:09:45Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a legal_stress suite sourced from legal-hold, contract, disclosure, and evidence-preservation traces, and the benchmark now passes with 8 suites and 31 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:05:12Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a regulatory_stress suite sourced from privacy, audit, AI governance, and compliance wet-run traces, and the benchmark now passes with 7 suites and 27 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T09:58:59Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a regulatory suite sourced from secure-by-design, DPIA, AI governance, and wet-run compliance traces, and the benchmark now passes with 6 suites and 23 cases while the router chooses regulatory-aware routes dynamically.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T09:51:43Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained a stress suite sourced from combined governance, recovery, and stakeholder-pressure traces, and the benchmark now passes with 5 suites and 19 cases.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T09:48:18Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark gained an advanced suite sourced from public cloud-migration, records-governance, data-transformation, and procurement-delay traces, and the benchmark now passes with 4 suites and 15 cases.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T09:45:05Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark prompt baselines were made more complex and the escalation case now includes explicit review/validate language, so the benchmark remains evaluative and passes the policy gate.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-05-08T08:55:34Z",
       "phase": "finish",
@@ -428,6 +620,22 @@
       "iteration": 0,
       "task": "prince2-benchmark-baseline",
       "summary": "The local PRINCE2 benchmark report now includes the full runtime payload and a rendered node/role/transition detail block for every case, and the full unittest suite passes.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T09:29:27Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The local PRINCE2 benchmark report now derives orchestration from the live runtime graph and includes provider, provider-model, token, and timing statistics per node.",
       "step_id": "prince2-benchmark-baseline",
       "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
       "step_status": "completed",

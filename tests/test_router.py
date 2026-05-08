@@ -21,6 +21,126 @@ class RouterTests(unittest.TestCase):
         model = router.choose_model("update auth flow in production", "review and validate")
         self.assertEqual(model, "chatgpt")
 
+    def test_regulatory_task_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "regulatory compliance audit for DPIA, retention, and security governance",
+            "prepare the board pack",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "regulatory compliance audit for DPIA, retention, and security governance",
+            "prepare the board pack",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
+    def test_legal_task_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "legal hold and contract disclosure risk for a board escalation",
+            "prepare the evidence pack",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "legal hold and contract disclosure risk for a board escalation",
+            "prepare the evidence pack",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
+    def test_incident_task_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "incident response for a breach, rollback, and outage recovery",
+            "prepare the recovery pack",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "incident response for a breach, rollback, and outage recovery",
+            "prepare the recovery pack",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
+    def test_vendor_task_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "vendor failure and supplier collapse during delivery",
+            "prepare the contingency pack",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "vendor failure and supplier collapse during delivery",
+            "prepare the contingency pack",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
+    def test_multi_vendor_task_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "multi-vendor crisis with cascading dependency failure",
+            "prepare the recovery decision tree",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "multi-vendor crisis with cascading dependency failure",
+            "prepare the recovery decision tree",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
+    def test_supply_chain_task_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "supply chain failure with logistics breakdown and inventory shortages",
+            "prepare the continuity pack",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "supply chain failure with logistics breakdown and inventory shortages",
+            "prepare the continuity pack",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
+    def test_regulatory_war_room_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "regulatory war room with breach, vendor outage, and legal hold",
+            "prepare the board recovery tree",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "regulatory war room with breach, vendor outage, and legal hold",
+            "prepare the board recovery tree",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
+    def test_board_crisis_prefers_deeper_provider(self) -> None:
+        router = ModelRouter()
+        model = router.choose_model(
+            "board crisis with quorum failure and supplier outage",
+            "prepare the executive recovery packet",
+        )
+        self.assertIn(model, {"openai", "claude"})
+        variant = router.choose_variant(
+            model,
+            "board crisis with quorum failure and supplier outage",
+            "prepare the executive recovery packet",
+        )
+        self.assertIsNotNone(variant)
+        self.assertNotIn(variant, {"provider-default", "codex-mini-latest", "gpt-5.4-mini"})
+
     def test_failure_escalation_progression(self) -> None:
         router = ModelRouter()
         self.assertEqual(router.choose_model("x", "y", failure_count=2), "openai")
