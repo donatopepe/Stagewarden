@@ -3,6 +3,8 @@
 ## Current objective
 Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 so every AI response is reviewed by a devil's-advocate critic, nodes can spawn child recovery threads, and per-node token accounting stays visible.
 Split node token accounting into input/output buckets, attach model pricing to the business case, and source those prices from Artificial Analysis when refresh credentials are available.
+Make the OpenRouter transport tests use a real API key from the environment and make the backend runner perform a live OpenRouter request instead of a stubbed no-op.
+Replace the old ChatGPT smoke flow with an OpenRouter-backed smoke script that performs a live API call and verifies the real response shape without secret-store simulation.
 Centralize the versioned JSON schemas used by the machine-readable status/report commands so other agents can validate one shared contract source instead of per-command ad hoc literals.
 Extend the same shared schema registry to the remaining stable JSON CLI surfaces, including help, commands, slash, catalog, goal, model usage, git, sessions, role views, project brief/design, system reports, and other register-style outputs.
 Treat `--ljson-benchmark` as a stable machine-readable report and give it the same shared schema contract.
@@ -19,6 +21,8 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - Existing Stagewarden handoff artifacts remain in place and stay aligned with the agent handoff state.
 - The repo is currently on branch `pr/p4-p5-updates` at `HEAD ae8cab7` (`stagewarden: initialize workspace`) with uncommitted edits in the executor, CLI battery stub, tests, and handoff artifacts.
 - Date-sensitive test fixtures were corrected so live block windows are only future-dated where the runtime must see them as active, while the historical snapshot tests keep their original 2026 dates.
+- The OpenRouter transport tests now perform live API requests through a temporary `RUN_MODEL_BIN` wrapper instead of stubbed no-op output.
+- The smoke script now performs a live OpenRouter API call through `RUN_MODEL_BIN` and no longer depends on ChatGPT/device-login simulation or secret-store placeholders.
 - The devil's-advocate critic now blocks invalid review payloads explicitly with `critic_invalid_output` instead of falling through as if the review were accepted.
 - The battery stub and integration stubs now emit valid critic review JSON for review prompts so the wet-run simulations stay aligned with the runtime contract.
 - The full `python3 -m unittest discover -s tests` suite now passes after those alignment fixes.
@@ -43,7 +47,9 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - `AGENT_HANDOFF.md`: added the compatibility handoff structure.
 - `stagewarden/executor.py`: invalid devil's-advocate reviews now stop the step with `critic_invalid_output` instead of falling through.
 - `stagewarden/main.py`: battery stubs now emit valid critic review JSON when a review prompt is executed.
-- `tests/test_agent_integration.py`, `tests/test_trace_cli.py`, and `/Users/donato/Stagewarden/run_model_stub`: integration and CLI stubs now distinguish primary model calls from devil's-advocate review prompts.
+- `tests/test_handoff.py`: relevant backend-injection tests now perform live OpenRouter API calls through a temporary `RUN_MODEL_BIN` wrapper instead of simulated account tokens.
+- `scripts/test_chatgpt_flow.sh`: replaced the ChatGPT smoke flow with a direct OpenRouter-backed smoke check that performs a live OpenRouter request and avoids secret-store simulation.
+- `tests/test_trace_cli.py` and `/Users/donato/Stagewarden/run_model_stub`: integration and CLI stubs now distinguish primary model calls from devil's-advocate review prompts.
 - `tests/test_executor.py`: added coverage for invalid devil's-advocate output blocking.
 - `tests/test_trace_cli.py`: battery now covers provider limits, permission denial, PRINCE2 runtime failure modes, escalation child spawn/token accounting, and antagonist KPI controls.
 - `stagewarden/main.py`, `stagewarden/executor.py`, and `stagewarden/project_handoff.py`: escalation now materializes recovery child nodes, tracks per-node thread tokens, runs a devil's-advocate review pass on model responses, and surfaces per-node antagonists.
