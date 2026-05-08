@@ -7,6 +7,7 @@
 - Date-sensitive test fixtures were rebalanced so only the tests that need an active block window use future-dated values, while historical snapshot/report tests keep the original 2026 values.
 - The OpenRouter transport tests now perform live API requests through a temporary `RUN_MODEL_BIN` wrapper instead of simulated account tokens.
 - The smoke script now performs live OpenRouter API calls on a small public MMLU benchmark suite through `RUN_MODEL_BIN` and no longer relies on ChatGPT/device-login simulation or secret-store placeholders.
+- The new `openrouter benchmark` CLI command runs the same live OpenRouter baseline through `RUN_MODEL_BIN`, including a longer instruction-heavy suite for regression checks.
 - The devil's-advocate critic now blocks invalid review payloads explicitly with `critic_invalid_output` instead of falling through as if the review were accepted.
 - The battery stub and integration stubs now emit valid critic review JSON for review prompts so the wet-run simulations stay aligned with the runtime contract.
 - The full `python3 -m unittest discover -s tests` suite passes after that alignment and critic-contract fix.
@@ -29,7 +30,9 @@
 - **PRINCE2 Devil-Advocate Failure Mode:** Invalid review payloads now stop the step with `critic_invalid_output` rather than falling through.
 - **OpenRouter Test Transport:** Backend-injection tests now perform live OpenRouter API requests through a temporary `RUN_MODEL_BIN` wrapper instead of simulated account tokens.
 - **OpenRouter Smoke Script:** The `scripts/test_chatgpt_flow.sh` smoke path now performs live OpenRouter API calls on a small public MMLU benchmark suite and no longer depends on ChatGPT login or secret-store simulation.
+- **OpenRouter Benchmark Command:** The `--openrouter-benchmark` CLI path now runs the shared public baseline live, writes an optional JSON snapshot, and reports simple/complex suite accuracy.
 - **JSON Contracts:** `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, `board --json`, `help --json`, `commands --json`, `slash --json`, `slash choose --json`, `catalog --json`, `goal --json`, `doctor --json`, `models --json`, `model limits --json`, `models usage --json`, `accounts --json`, `permissions --json`, `git status --json`, `git log --json`, `git history --json`, `git show --json`, `sessions --json`, `risks --json`, `issues --json`, `quality --json`, `exception --json`, `lessons --json`, `todo --json`, `transcript --json`, `resume --show --json`, and `resume context --json` now expose versioned schema blocks so other agents can validate the payloads explicitly.
+- **JSON Contracts:** `openrouter benchmark --json` now exposes a versioned schema block so other agents can validate the benchmark payload explicitly.
 - **JSON Schema Registry:** Those schema names and versions now live in `stagewarden/json_schema_registry.py` as the single source of truth for the stable JSON CLI surfaces.
 - **Catalog JSON Command Names:** `catalog status`, `catalog search`, and `catalog refresh` now declare their specific command names in the JSON payloads instead of using a generic `catalog` label.
 - **Catalog Fallback Preservation:** The JSON fallback for `catalog` now keeps the exact input command string in the payload so unsupported subcommands remain distinguishable.
@@ -62,6 +65,7 @@
 - The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted.
 - The AI execution path now adds a second devil's-advocate review pass that evaluates the primary model response against wet-run evidence, missing assumptions, and control limits before the result is accepted, and invalid review payloads now fail the step explicitly.
 - The backend-injection tests now exercise the real OpenRouter API key from the environment for transport coverage rather than simulated account tokens, and one live path uses a small public MMLU benchmark suite.
+- The new OpenRouter benchmark command now exercises both the simple and extended public baseline suites live and writes a snapshot file when requested.
 - The operational and supporting JSON views now carry versioned schema blocks for cross-agent compatibility and explicit payload validation.
 - The JSON schema names and versions are centralized in `stagewarden/json_schema_registry.py`.
 - The shared JSON schema registry now also covers the remaining command/report surfaces, including role views, project brief/design, model inspection, catalog refresh, shell backend use, and register-style outputs.

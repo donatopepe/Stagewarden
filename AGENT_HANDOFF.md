@@ -3,11 +3,12 @@
 ## Current objective
 Keep Stagewarden compatible across Codex CLI, Kilo CLI, and human maintainers while extending PRINCE2 so every AI response is reviewed by a devil's-advocate critic, nodes can spawn child recovery threads, and per-node token accounting stays visible.
 Split node token accounting into input/output buckets, attach model pricing to the business case, and source those prices from Artificial Analysis when refresh credentials are available.
-Make the OpenRouter transport tests use a real API key from the environment and make the backend runner perform a live OpenRouter request instead of a stubbed no-op.
-Replace the old ChatGPT smoke flow with an OpenRouter-backed smoke script that performs live API calls on a small public MMLU benchmark suite and verifies the real response shape without secret-store simulation.
+Keep the OpenRouter transport tests using a real API key from the environment and keep the backend runner performing live OpenRouter requests instead of stubs.
+Maintain the OpenRouter live benchmark command and smoke script so they exercise a stable public MMLU-style baseline, including a longer instruction-heavy suite for regression checks.
 Centralize the versioned JSON schemas used by the machine-readable status/report commands so other agents can validate one shared contract source instead of per-command ad hoc literals.
 Extend the same shared schema registry to the remaining stable JSON CLI surfaces, including help, commands, slash, catalog, goal, model usage, git, sessions, role views, project brief/design, system reports, and other register-style outputs.
 Treat `--ljson-benchmark` as a stable machine-readable report and give it the same shared schema contract.
+Treat `--openrouter-benchmark` as a stable machine-readable report and keep it aligned with the public benchmark baseline file.
 Keep the `catalog status`, `catalog search`, and `catalog refresh` JSON payloads aligned with their specific command names so the machine-readable contract stays precise for downstream consumers.
 Preserve the exact input command string in the `catalog` JSON fallback path so even unsupported subcommands remain distinguishable in machine-readable output.
 Treat the generic `file` fallback as a shared JSON surface too, and preserve the exact input command string there so unsupported file subcommands remain distinguishable.
@@ -22,10 +23,11 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - The repo is currently on branch `pr/p4-p5-updates` at `HEAD ae8cab7` (`stagewarden: initialize workspace`) with uncommitted edits in the executor, CLI battery stub, tests, and handoff artifacts.
 - Date-sensitive test fixtures were corrected so live block windows are only future-dated where the runtime must see them as active, while the historical snapshot tests keep their original 2026 dates.
 - The OpenRouter transport tests now perform live API requests through a temporary `RUN_MODEL_BIN` wrapper instead of stubbed no-op output.
-- The smoke script now performs live OpenRouter API calls on a small public MMLU benchmark suite through `RUN_MODEL_BIN` and no longer depends on ChatGPT/device-login simulation or secret-store placeholders.
+- The smoke script now performs live OpenRouter API calls through `RUN_MODEL_BIN` and drives the same benchmark command used by CLI tests.
+- The new `openrouter benchmark` CLI command runs the public baseline live, emits a shared JSON schema, and writes an optional snapshot file.
 - The devil's-advocate critic now blocks invalid review payloads explicitly with `critic_invalid_output` instead of falling through as if the review were accepted.
 - The battery stub and integration stubs now emit valid critic review JSON for review prompts so the wet-run simulations stay aligned with the runtime contract.
-- The full `python3 -m unittest discover -s tests` suite now passes after those alignment fixes.
+- The full `python3 -m unittest discover -s tests` suite now passes after those alignment fixes and the new benchmark command wiring.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - The current runtime work now includes PRINCE2 escalation child spawning, per-node thread token accounting split into input/output buckets, per-node pricing sourced from the shared model catalog, per-node antagonists, devil's-advocate AI review passes, and wet-run battery coverage.
 - `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` now include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
@@ -49,6 +51,12 @@ Treat the generic `external_io` fallback as a shared JSON surface too, and prese
 - `stagewarden/main.py`: battery stubs now emit valid critic review JSON when a review prompt is executed.
 - `tests/test_handoff.py`: relevant backend-injection tests now perform live OpenRouter API calls through a temporary `RUN_MODEL_BIN` wrapper instead of simulated account tokens, and one of those calls uses a small public MMLU benchmark suite.
 - `scripts/test_chatgpt_flow.sh`: replaced the ChatGPT smoke flow with a direct OpenRouter-backed smoke check that performs live OpenRouter requests on a small public MMLU benchmark suite and avoids secret-store simulation.
+- `stagewarden/openrouter_benchmark.py`: new live benchmark runner that loads the shared baseline, executes OpenRouter prompts, and renders a machine-readable report.
+- `data/openrouter_benchmark_baseline.json`: shared public benchmark baseline with simple and extended MMLU-style suites.
+- `stagewarden/main.py`: added `--openrouter-benchmark` and optional output snapshot wiring.
+- `tests/test_trace_cli.py`: added live CLI coverage for the new benchmark command.
+- `tests/test_json_schema_registry.py`: added the new benchmark schema contract to the registry coverage.
+- `scripts/test_chatgpt_flow.sh`: now invokes the benchmark CLI directly and checks the written snapshot.
 - `tests/test_trace_cli.py` and `/Users/donato/Stagewarden/run_model_stub`: integration and CLI stubs now distinguish primary model calls from devil's-advocate review prompts.
 - `tests/test_executor.py`: added coverage for invalid devil's-advocate output blocking.
 - `tests/test_trace_cli.py`: battery now covers provider limits, permission denial, PRINCE2 runtime failure modes, escalation child spawn/token accounting, and antagonist KPI controls.
