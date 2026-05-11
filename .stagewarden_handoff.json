@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "The main CLI dispatcher now lives in stagewarden/cli_dispatch.py, the project-start JSON path is back on the structured report with next_missing_field, and the role bridge regression batch is green again.",
+  "latest_observation": "The interactive shell loop now lives in stagewarden/shell_views.py, the shell and role regression batch is green again after the split, and the refactor continues to move the largest remaining logic blocks out of main.py.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "a38597f7a16300f031def40c42297f554018de08",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-11T00:30:00Z",
+  "updated_at": "2026-05-11T00:40:00Z",
   "entries": [
     {
       "timestamp": "2026-05-09T08:17:31Z",

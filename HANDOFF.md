@@ -13,6 +13,7 @@
 - `stagewarden/model_views.py` now centralizes the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search and model params/preset/variant flows.
 - `stagewarden/project/role_command_flow.py` now centralizes the project-start and roles command dispatch bridge that was still living in `main.py`, and the extracted `role` bridge was just corrected after an indentation bug; the focused `role`/`roles` regression batch is green again.
 - `stagewarden/cli_dispatch.py` now centralizes the main CLI task dispatcher that was still living in `main.py`, and the `project start` JSON path now goes through the structured report again so `next_missing_field` stays in the payload.
+- `stagewarden/shell_views.py` now centralizes the interactive shell loop that was still living in `main.py`, and the shell/role budget/question regression batch is green again after the split.
 - `stagewarden/account_views.py` now centralizes the account command block that was still living in `main.py`, including account add/login/logout/env/import/use/choose/remove/block/unblock/limit commands and the account report.
 - `stagewarden/command_views.py` now centralizes the shell/git/file/session/patch/permission command cluster that was still living in `main.py`.
 - `stagewarden/report_views.py` now centralizes the remaining board/boundary/permissions/risks/issues/quality/exception/lessons/todo report helpers that were still living in `main.py`.
