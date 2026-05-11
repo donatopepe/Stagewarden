@@ -18,6 +18,16 @@ from .modelprefs import ModelPreferences
 from .planner import PlanStep
 from .prince2 import Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
+from .model_catalog import load_ai_models_catalog
+from .provider_registry import (
+    SUPPORTED_MODELS,
+    login_urls,
+    model_backends,
+    model_name_env,
+    model_token_env,
+    model_variant_catalog,
+    provider_capability,
+)
 from .role_tree import build_prince2_role_flow, build_prince2_role_matrix, build_prince2_role_tree, check_prince2_role_tree
 from .router import ModelRouter
 from .textcodec import loads_text, read_text_utf8
@@ -161,6 +171,7 @@ def run_prince2_benchmark(*, baseline_path: str | Path | None = None) -> dict[st
             "version": str(baseline.get("_version", "1")),
             "provider": str(baseline.get("provider", "stagewarden")),
         },
+        "static_inventory": _static_inventory_report(),
         "suites": report_suites,
         "overall": {
             "total_cases": total_cases,
@@ -173,6 +184,67 @@ def run_prince2_benchmark(*, baseline_path: str | Path | None = None) -> dict[st
     for suite_id, suite_report in report_suites.items():
         report[suite_id] = suite_report
     return report
+
+
+def _static_inventory_report() -> dict[str, Any]:
+    catalog = load_ai_models_catalog()
+    models = catalog.get("models", []) if isinstance(catalog, dict) else []
+    provider_counts: dict[str, int] = {}
+    provider_model_ids: dict[str, list[str]] = {}
+    provider_model_names: dict[str, list[str]] = {}
+    if isinstance(models, list):
+        for item in models:
+            if not isinstance(item, dict):
+                continue
+            provider = str(item.get("provider", "")).strip()
+            model_id = str(item.get("model_id", "")).strip()
+            model_name = str(item.get("model_name", "")).strip()
+            if not provider or not model_id:
+                continue
+            provider_counts[provider] = provider_counts.get(provider, 0) + 1
+            provider_model_ids.setdefault(provider, []).append(model_id)
+            if model_name:
+                provider_model_names.setdefault(provider, []).append(model_name)
+    return {
+        "supported_models": list(SUPPORTED_MODELS),
+        "model_backends": model_backends(),
+        "model_variant_catalog": model_variant_catalog(),
+        "model_token_env": model_token_env(),
+        "model_name_env": model_name_env(),
+        "login_urls": login_urls(),
+        "provider_capabilities": {
+            provider: _serialize_provider_capability(provider_capability(provider))
+            for provider in SUPPORTED_MODELS
+        },
+        "ai_models_catalog": {
+            "generated_at": str(catalog.get("generated_at", "")) if isinstance(catalog, dict) else "",
+            "source_urls": dict(catalog.get("source_urls", {})) if isinstance(catalog, dict) and isinstance(catalog.get("source_urls", {}), dict) else {},
+            "total_models": len(models) if isinstance(models, list) else 0,
+            "provider_counts": provider_counts,
+            "provider_model_ids": {provider: sorted(ids) for provider, ids in provider_model_ids.items()},
+            "provider_model_names": {provider: sorted(names) for provider, names in provider_model_names.items()},
+        },
+    }
+
+
+def _serialize_provider_capability(capability) -> dict[str, Any]:  # noqa: ANN001
+    return {
+        "name": capability.name,
+        "provider_label": capability.provider_label,
+        "backend_label": capability.backend_label,
+        "auth_type": capability.auth_type,
+        "model_aliases": list(capability.model_aliases),
+        "default_model": capability.default_model,
+        "context_assumption": capability.context_assumption,
+        "supports_account_profiles": capability.supports_account_profiles,
+        "supports_browser_login": capability.supports_browser_login,
+        "supports_api_key": capability.supports_api_key,
+        "token_env": capability.token_env,
+        "model_env": capability.model_env,
+        "login_url": capability.login_url,
+        "login_hint": capability.login_hint,
+        "source": capability.source,
+    }
 
 
 def _load_suite_cases(suite_id: str, suite: dict[str, Any]) -> list[Prince2BenchmarkCase]:
@@ -320,14 +392,19 @@ def _build_case_runtime_handoff(case: Prince2BenchmarkCase) -> ProjectHandoff:
     with tempfile.TemporaryDirectory() as tmp_dir:
         config = AgentConfig(workspace_root=Path(tmp_dir))
         prefs = ModelPreferences.default()
-        prefs.enabled_models = ["local", "openai"]
-        prefs.preferred_model = "openai"
+        router = ModelRouter()
+        active_models = [model for model in router.status()["active_models"] if isinstance(model, str) and model.strip()]
+        if not active_models:
+            raise RuntimeError("No active models available for PRINCE2 benchmark routing.")
+        route = router.recommend_route(task, "project assurance")
+        prefs.enabled_models = active_models
+        prefs.preferred_model = route.provider
         prefs.set_prince2_role_assignment(
             "project_assurance",
             mode="manual",
-            provider="openai",
-            provider_model="gpt-5.4-mini",
-            params={"reasoning_effort": "medium"},
+            provider=route.provider,
+            provider_model=route.provider_model or route.provider,
+            params=prefs._default_provider_params_for_role(route.provider, route.provider_model or route.provider, "project_assurance"),
             source="prince2_benchmark",
         )
         prefs.save(config.model_prefs_path)
@@ -825,14 +902,19 @@ def _build_executor_harness(
 ) -> tuple[Executor, Prince2BenchmarkHandoff]:
     config = AgentConfig(workspace_root=root)
     prefs = ModelPreferences.default()
-    prefs.enabled_models = ["local", "openai"]
-    prefs.preferred_model = "openai"
+    router = ModelRouter()
+    active_models = [model for model in router.status()["active_models"] if isinstance(model, str) and model.strip()]
+    if not active_models:
+        raise RuntimeError("No active models available for PRINCE2 benchmark routing.")
+    route = router.recommend_route(task, step.instruction)
+    prefs.enabled_models = active_models
+    prefs.preferred_model = route.provider
     prefs.set_prince2_role_assignment(
         "project_assurance",
         mode="manual",
-        provider="openai",
-        provider_model="gpt-5.4-mini",
-        params={"reasoning_effort": "medium"},
+        provider=route.provider,
+        provider_model=route.provider_model or route.provider,
+        params=prefs._default_provider_params_for_role(route.provider, route.provider_model or route.provider, "project_assurance"),
         source="prince2_benchmark",
     )
     prefs.save(config.model_prefs_path)
@@ -921,7 +1003,7 @@ def _executor_case_accept(case: Prince2BenchmarkCase) -> dict[str, Any]:
             task=case.prompt,
             step=step,
             outputs=[
-                _primary_output(),
+                _primary_output(message="PRINCE2 role and flow context validated exit_code=0"),
                 _critic_output(
                     verdict="accept",
                     contradictions=[],
@@ -948,6 +1030,7 @@ def _executor_case_accept(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "ok": outcome.ok,
             "error_type": outcome.error_type,
             "calls": len(handoff.calls),
+            "response_quality": outcome.response_quality,
         },
         "expected": {
             "ok": True,
@@ -992,6 +1075,7 @@ def _executor_case_block(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "ok": outcome.ok,
             "error_type": outcome.error_type,
             "observation": outcome.observation,
+            "response_quality": outcome.response_quality,
         },
         "expected": {
             "ok": False,
@@ -1035,6 +1119,7 @@ def _executor_case_invalid_critic(case: Prince2BenchmarkCase) -> dict[str, Any]:
             "ok": outcome.ok,
             "error_type": outcome.error_type,
             "observation": outcome.observation,
+            "response_quality": outcome.response_quality,
         },
         "expected": {
             "ok": False,
@@ -1096,6 +1181,7 @@ def _executor_case_wet_run_required(case: Prince2BenchmarkCase) -> dict[str, Any
             "ok": outcome.ok,
             "error_type": outcome.error_type,
             "observation": outcome.observation,
+            "response_quality": outcome.response_quality,
         },
         "expected": {
             "ok": False,
@@ -1118,7 +1204,7 @@ def _executor_case_prompt_packet(case: Prince2BenchmarkCase) -> dict[str, Any]:
             task=case.prompt,
             step=step,
             outputs=[
-                _primary_output(),
+                _primary_output(message="PRINCE2 role and flow context validated exit_code=0"),
                 _critic_output(
                     verdict="accept",
                     contradictions=[],
@@ -1145,6 +1231,7 @@ def _executor_case_prompt_packet(case: Prince2BenchmarkCase) -> dict[str, Any]:
         "observed": {
             "ok": outcome.ok,
             "prompt_excerpt": prompt[:1200],
+            "response_quality": outcome.response_quality,
         },
         "expected": {
             "ok": True,
@@ -1184,7 +1271,11 @@ def _write_agent_success_stub(root: Path) -> Path:
                 "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower:",
                 '        print(json.dumps({"summary": "devil advocate review", "verdict": "accept", "contradictions": [], "missing_evidence": [], "counter_argument": "No issue detected.", "must_escalate": False, "confidence": 0.9}))',
                 "        return 0",
-                "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
+                "    if 'recovery' in prompt_lower or 'exception plan' in prompt_lower or 'board' in prompt_lower:",
+                '        action = {"type": "complete", "message": "recovery lane cleared exception controls exit_code=0"}',
+                "    elif 'role and flow context' in prompt_lower or 'prince2 node ai context packet' in prompt_lower:",
+                '        action = {"type": "complete", "message": "PRINCE2 role and flow context validated exit_code=0"}',
+                "    elif instruction.startswith('analyze') or instruction.startswith('inspect'):",
                 '        action = {"type": "complete", "message": "analysis validated exit_code=0"}',
                 "    else:",
                 '        action = {"type": "complete", "message": "validation completed exit_code=0"}',
@@ -1274,7 +1365,7 @@ def _executor_case_recovery_prompt_packet(case: Prince2BenchmarkCase) -> dict[st
             task=case.prompt,
             step=step,
             outputs=[
-                _primary_output(message="recovery completed exit_code=0"),
+                _primary_output(message="recovery lane cleared exception controls exit_code=0"),
                 _critic_output(
                     verdict="accept",
                     contradictions=[],
@@ -1301,6 +1392,7 @@ def _executor_case_recovery_prompt_packet(case: Prince2BenchmarkCase) -> dict[st
         "observed": {
             "ok": outcome.ok,
             "prompt_excerpt": prompt[:1200],
+            "response_quality": outcome.response_quality,
         },
         "expected": {
             "ok": True,

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-29T17:31:16+00:00",
+  "generated_at": "2026-05-11T05:14:19+00:00",
   "models": [
     {
       "aliases": [
@@ -302,32 +302,18 @@
     },
     {
       "aliases": [
-        "Claude 3.7 Sonnet",
         "anthropic/claude-3.7-sonnet",
-        "anthropic:claude-3.7-sonnet",
-        "claude 3.7 sonnet"
+        "anthropic:claude-3.7-sonnet"
       ],
-      "blended_price_usd_per_1m_tokens": 6.0,
-      "context_window": 200000,
-      "cost_per_input_token_usd": 3e-06,
-      "cost_per_output_token_usd": 1.5e-05,
-      "features": [
-        "file",
-        "image",
-        "include_reasoning",
-        "output:text",
-        "reasoning",
-        "stop",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_k",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "anthropic/claude-3.7-sonnet",
-      "model_name": "Claude 3.7 Sonnet",
+      "model_name": "anthropic/claude-3.7-sonnet",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -992,10 +978,10 @@
         "deepseek: deepseek v3.1 terminus",
         "deepseek:deepseek-v3.1-terminus"
       ],
-      "blended_price_usd_per_1m_tokens": 0.36,
+      "blended_price_usd_per_1m_tokens": 0.44,
       "context_window": 163840,
-      "cost_per_input_token_usd": 2.1e-07,
-      "cost_per_output_token_usd": 7.9e-07,
+      "cost_per_input_token_usd": 2.7e-07,
+      "cost_per_output_token_usd": 9.5e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1090,10 +1076,10 @@
         "deepseek: deepseek v3.2 speciale",
         "deepseek:deepseek-v3.2-speciale"
       ],
-      "blended_price_usd_per_1m_tokens": 0.6,
+      "blended_price_usd_per_1m_tokens": 0.32,
       "context_window": 163840,
-      "cost_per_input_token_usd": 4e-07,
-      "cost_per_output_token_usd": 1.2e-06,
+      "cost_per_input_token_usd": 2.87e-07,
+      "cost_per_output_token_usd": 4.31e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1129,7 +1115,7 @@
         "google:gemini-2.0-flash-001"
       ],
       "blended_price_usd_per_1m_tokens": 0.18,
-      "context_window": 1048576,
+      "context_window": 1000000,
       "cost_per_input_token_usd": 1e-07,
       "cost_per_output_token_usd": 4e-07,
       "features": [
@@ -1609,28 +1595,18 @@
     },
     {
       "aliases": [
-        "Google: Gemma 3 12B (free)",
         "google/gemma-3-12b-it:free",
-        "google: gemma 3 12b (free)",
         "google:gemma-3-12b-it:free"
       ],
-      "blended_price_usd_per_1m_tokens": 0.0,
-      "context_window": 32768,
-      "cost_per_input_token_usd": 0.0,
-      "cost_per_output_token_usd": 0.0,
-      "features": [
-        "image",
-        "output:text",
-        "seed",
-        "stop",
-        "temperature",
-        "text",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "google/gemma-3-12b-it:free",
-      "model_name": "Google: Gemma 3 12B (free)",
+      "model_name": "google/gemma-3-12b-it:free",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1677,29 +1653,18 @@
     },
     {
       "aliases": [
-        "Google: Gemma 3 27B (free)",
         "google/gemma-3-27b-it:free",
-        "google: gemma 3 27b (free)",
         "google:gemma-3-27b-it:free"
       ],
-      "blended_price_usd_per_1m_tokens": 0.0,
-      "context_window": 131072,
-      "cost_per_input_token_usd": 0.0,
-      "cost_per_output_token_usd": 0.0,
-      "features": [
-        "image",
-        "output:text",
-        "seed",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "google/gemma-3-27b-it:free",
-      "model_name": "Google: Gemma 3 27B (free)",
+      "model_name": "google/gemma-3-27b-it:free",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1745,29 +1710,18 @@
     },
     {
       "aliases": [
-        "Google: Gemma 3 4B (free)",
         "google/gemma-3-4b-it:free",
-        "google: gemma 3 4b (free)",
         "google:gemma-3-4b-it:free"
       ],
-      "blended_price_usd_per_1m_tokens": 0.0,
-      "context_window": 32768,
-      "cost_per_input_token_usd": 0.0,
-      "cost_per_output_token_usd": 0.0,
-      "features": [
-        "image",
-        "output:text",
-        "seed",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "google/gemma-3-4b-it:free",
-      "model_name": "Google: Gemma 3 4B (free)",
+      "model_name": "google/gemma-3-4b-it:free",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1776,27 +1730,18 @@
     },
     {
       "aliases": [
-        "Google: Gemma 3n 2B (free)",
         "google/gemma-3n-e2b-it:free",
-        "google: gemma 3n 2b (free)",
         "google:gemma-3n-e2b-it:free"
       ],
-      "blended_price_usd_per_1m_tokens": 0.0,
-      "context_window": 8192,
-      "cost_per_input_token_usd": 0.0,
-      "cost_per_output_token_usd": 0.0,
-      "features": [
-        "output:text",
-        "seed",
-        "structured_output",
-        "temperature",
-        "text",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "google/gemma-3n-e2b-it:free",
-      "model_name": "Google: Gemma 3n 2B (free)",
+      "model_name": "google/gemma-3n-e2b-it:free",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1839,27 +1784,18 @@
     },
     {
       "aliases": [
-        "Google: Gemma 3n 4B (free)",
         "google/gemma-3n-e4b-it:free",
-        "google: gemma 3n 4b (free)",
         "google:gemma-3n-e4b-it:free"
       ],
-      "blended_price_usd_per_1m_tokens": 0.0,
-      "context_window": 8192,
-      "cost_per_input_token_usd": 0.0,
-      "cost_per_output_token_usd": 0.0,
-      "features": [
-        "output:text",
-        "seed",
-        "structured_output",
-        "temperature",
-        "text",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "google/gemma-3n-e4b-it:free",
-      "model_name": "Google: Gemma 3n 4B (free)",
+      "model_name": "google/gemma-3n-e4b-it:free",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -2465,9 +2401,9 @@
         "minimax: minimax m2.7",
         "minimax:minimax-m2.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.53,
+      "blended_price_usd_per_1m_tokens": 0.52,
       "context_window": 196608,
-      "cost_per_input_token_usd": 3e-07,
+      "cost_per_input_token_usd": 2.99e-07,
       "cost_per_output_token_usd": 1.2e-06,
       "features": [
         "frequency_penalty",
@@ -2479,6 +2415,7 @@
         "presence_penalty",
         "reasoning",
         "repetition_penalty",
+        "seed",
         "stop",
         "structured_output",
         "temperature",
@@ -2937,10 +2874,10 @@
         "moonshotai: kimi k2.5",
         "moonshotai:kimi-k2.5"
       ],
-      "blended_price_usd_per_1m_tokens": 0.83,
+      "blended_price_usd_per_1m_tokens": 0.8,
       "context_window": 262144,
-      "cost_per_input_token_usd": 4.4e-07,
-      "cost_per_output_token_usd": 2e-06,
+      "cost_per_input_token_usd": 4e-07,
+      "cost_per_output_token_usd": 1.98e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -2949,7 +2886,6 @@
         "logprobs",
         "min_p",
         "output:text",
-        "parallel_tool_calls",
         "presence_penalty",
         "reasoning",
         "repetition_penalty",
@@ -3118,6 +3054,7 @@
         "frequency_penalty",
         "include_reasoning",
         "logit_bias",
+        "logprobs",
         "min_p",
         "output:text",
         "presence_penalty",
@@ -3130,6 +3067,7 @@
         "text",
         "tool_use",
         "top_k",
+        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -4055,10 +3993,10 @@
         "openai/gpt-oss-120b",
         "openai:gpt-oss-120b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.08,
+      "blended_price_usd_per_1m_tokens": 0.07,
       "context_window": 131072,
       "cost_per_input_token_usd": 3.9e-08,
-      "cost_per_output_token_usd": 1.9e-07,
+      "cost_per_output_token_usd": 1.8e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -4158,7 +4096,6 @@
         "output:text",
         "presence_penalty",
         "reasoning",
-        "reasoning_effort",
         "repetition_penalty",
         "seed",
         "stop",
@@ -5378,10 +5315,10 @@
         "xiaomi: mimo-v2-flash",
         "xiaomi:mimo-v2-flash"
       ],
-      "blended_price_usd_per_1m_tokens": 0.14,
+      "blended_price_usd_per_1m_tokens": 0.15,
       "context_window": 262144,
-      "cost_per_input_token_usd": 9e-08,
-      "cost_per_output_token_usd": 2.9e-07,
+      "cost_per_input_token_usd": 1e-07,
+      "cost_per_output_token_usd": 3e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -5685,10 +5622,10 @@
         "z-ai:glm-4.7",
         "z.ai: glm 4.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.72,
+      "blended_price_usd_per_1m_tokens": 0.74,
       "context_window": 202752,
-      "cost_per_input_token_usd": 3.8e-07,
-      "cost_per_output_token_usd": 1.74e-06,
+      "cost_per_input_token_usd": 4e-07,
+      "cost_per_output_token_usd": 1.75e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -5765,10 +5702,10 @@
         "z-ai:glm-5",
         "z.ai: glm 5"
       ],
-      "blended_price_usd_per_1m_tokens": 0.97,
+      "blended_price_usd_per_1m_tokens": 0.93,
       "context_window": 202752,
       "cost_per_input_token_usd": 6e-07,
-      "cost_per_output_token_usd": 2.08e-06,
+      "cost_per_output_token_usd": 1.92e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",

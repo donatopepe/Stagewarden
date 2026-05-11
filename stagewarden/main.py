@@ -57,6 +57,66 @@ from .prince2_benchmark import run_prince2_benchmark
 from .json_schema_registry import json_schema
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .planner import PlanStep
+from .project import (
+    PROJECT_BRIEF_FIELDS,
+    handle_project_brief_command,
+    project_brief_guidance,
+    project_brief_missing_fields,
+    project_brief_report,
+    project_gap_to_brief_field,
+    render_project_brief,
+)
+from .project import model_recommendation as _project_model_recommendation
+from .project import design_flow as _project_design_flow
+from . import project_handoff_views as _project_handoff_views
+from . import account_views as _account_views
+from . import command_views as _command_views
+from . import report_views as _report_views
+from . import mode_views as _mode_views
+from . import model_views as _model_views
+from .project import role_views as _project_role_views
+from .project import role_runtime_views as _project_role_runtime_views
+from .project import role_tree_views as _project_role_tree_views
+from . import status_views as _status_views
+from .project import start_flow as _project_start_flow
+from .project import role_command_flow as _project_role_command_flow
+from .project import role_flow as _project_role_flow
+from . import cli_dispatch as _cli_dispatch
+from .project.flow import (
+    _assignment_for_role,
+    _enrich_tree_with_local_execution_candidates,
+    _handle_project_brief_command,
+    _project_brief_guidance,
+    _project_brief_missing_fields,
+    _project_brief_report,
+    _project_gap_to_brief_field,
+    _project_tree_adaptation_snapshot,
+    _project_tree_brief_complexity,
+    _project_tree_decomposition_nodes,
+    _render_project_brief,
+    _role_node_from_template,
+    _route_from_local_execution_candidate,
+)
+from .project import tree as _project_tree
+from .project import tree_flow as _project_tree_flow
+from .command_dispatch import (
+    execute_browser_command as _browser_execute,
+    execute_external_io_command as _external_io_execute,
+    execute_system_command as _system_execute,
+    execute_watch_command as _watch_execute,
+)
+from . import ui_views as _ui_views
+from .tool_reports import (
+    browser_report as _browser_report,
+    handle_browser_command as _handle_browser_command,
+    handle_external_io_command as _handle_external_io_command,
+    handle_system_command as _handle_system_command,
+    handle_watch_command as _handle_watch_command,
+    external_io_report as _external_io_report,
+    system_report as _system_report,
+    watch_report as _watch_report,
+)
+from . import project_state_views as _project_state_views
 from .provider_registry import (
     SUPPORTED_MODELS as REGISTRY_MODELS,
     provider_capability,
@@ -76,6 +136,8 @@ from .role_tree import (
     check_prince2_role_tree,
     check_prince2_role_tree_payload,
     prince2_node_description,
+    prince2_role_mnemonic,
+    prince2_role_team_name,
     prince2_status_color,
     render_prince2_role_check,
     render_prince2_role_flow,
@@ -90,7 +152,10 @@ from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.files import FileTool
 from .tools.git import GitTool
-from .tools.external_io import ExternalIOResult, ExternalIOTool
+from .tools.external_io import ExternalIOResult
+from .tools.browser import BrowserResult
+from .tools.system import SystemResult
+from .tools.watch import WatchResult
 
 
 INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
@@ -262,231 +327,36 @@ def interactive_help_text(topic: str | None = None) -> str:
 
 
 def _interactive_help_overview() -> str:
-    lines = [
-        "Stagewarden interactive shell",
-        "",
-        "Use `/help` or `/help <topic>` for full commands and examples.",
-        "Use `/slash [prefix]` to open a readable slash-command palette.",
-        "All shell commands start with `/`. Any input without `/` is sent to the agent as a task.",
-        "",
-        "Topics:",
-    ]
-    for item in help_topic_catalog():
-        aliases = item.get("aliases", [])
-        alias_text = f" aliases={','.join(str(alias) for alias in aliases)}" if aliases else ""
-        lines.append(f"- /help {item['key']}: {item['summary']}{alias_text}")
-    lines.extend(
-        (
-            "",
-            "Fast examples:",
-            "- stagewarden> /overview",
-            "- stagewarden> /slash mo",
-            "- stagewarden> /health",
-            "- stagewarden> /report",
-            "- stagewarden> /preflight",
-            "- stagewarden> /shell backend",
-            "- stagewarden> /stream status",
-            "- stagewarden> /help models",
-            "- stagewarden> /models",
-            "- stagewarden> models usage",
-            "- stagewarden> session create",
-            "- stagewarden> session send last pwd",
-            "- stagewarden> patch preview changes.diff",
-            "- stagewarden> board",
-            "- stagewarden> handoff",
-            "- stagewarden> fix failing tests",
-        )
-    )
-    return "\n".join(lines)
+    return _ui_views._interactive_help_overview()
 
 
 def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, object]:
-    lowered = prefix.strip().lower()
-    specs = command_specs_by_query(lowered)
-    prefs = _load_model_preferences(config)
-    enabled = ", ".join(prefs.enabled_models or []) or "none"
-    active_accounts: list[str] = []
-    for provider in prefs.enabled_models or []:
-        active = (prefs.active_account_by_model or {}).get(provider)
-        if active:
-            active_accounts.append(f"{provider}={active}")
-    blocked: list[str] = []
-    for provider in prefs.enabled_models or []:
-        until = (prefs.blocked_until_by_model or {}).get(provider)
-        if until:
-            blocked.append(f"{provider}:{until}")
-    entries: list[dict[str, object]] = []
-    for spec in specs:
-        hint = ""
-        if spec.name == "model variant":
-            variant_summary: list[str] = []
-            for provider in prefs.enabled_models or []:
-                variants = [item.id for item in provider_model_specs(provider)[:3]]
-                if variants:
-                    variant_summary.append(f"{provider}={','.join(variants)}")
-            hint = f"provider_models[{'; '.join(variant_summary) or 'none'}]"
-        elif spec.name == "model param set":
-            hint = "params[reasoning_effort]"
-        elif spec.name.startswith("model "):
-            hint = f"providers[{enabled}]"
-        elif spec.name.startswith("account "):
-            hint = f"active_accounts[{', '.join(active_accounts) or 'none'}]"
-        elif spec.name.startswith("role "):
-            hint = f"roles[{', '.join(PRINCE2_ROLE_IDS)}]"
-        elif spec.name == "shell backend use":
-            hint = "backends[auto,bash,zsh,powershell,cmd]"
-        entries.append(
-            {
-                "name": spec.name,
-                "usage": spec.usage,
-                "description": spec.description,
-                "aliases": list(spec.aliases),
-                "json": spec.json,
-                "handler": spec.handler,
-                "examples": list(spec.examples),
-                "hint": hint,
-                "match": _slash_match_report(spec, lowered),
-            }
-        )
-    return {
-        "command": "slash",
-        "schema": json_schema("slash"),
-        "prefix": f"/{lowered}" if lowered else "/",
-        "context": {
-            "enabled_providers": list(prefs.enabled_models or []),
-            "active_accounts": active_accounts,
-            "blocked_providers": blocked,
-        },
-        "no_match": not entries,
-        "message": "" if entries else "No slash commands match the query. Use /slash to browse all commands.",
-        "count": len(entries),
-        "entries": entries,
-    }
+    return _ui_views._slash_palette_report(config, prefix)
 
 
 def _slash_match_report(spec: object, query: str) -> dict[str, object]:
-    phrases = [
-        str(getattr(spec, "name", "")),
-        str(getattr(spec, "usage", "")),
-        str(getattr(spec, "description", "")),
-        *[str(item) for item in getattr(spec, "aliases", ())],
-        *[str(item) for item in getattr(spec, "examples", ())],
-    ]
-    if not query:
-        phrase = str(getattr(spec, "name", ""))
-        return {"query": "", "phrase": phrase, "highlight": phrase, "score": 0}
-    scored = [
-        (score, phrase)
-        for phrase in phrases
-        if phrase and (score := _slash_fuzzy_score(query, phrase)) is not None
-    ]
-    if not scored:
-        return {"query": query, "phrase": "", "highlight": "", "score": None}
-    score, phrase = min(scored, key=lambda item: (item[0], len(item[1])))
-    return {
-        "query": query,
-        "phrase": phrase,
-        "highlight": _highlight_fuzzy_match(query, phrase),
-        "score": score,
-    }
+    return _ui_views._slash_match_report(spec, query)
 
 
 def _slash_fuzzy_score(query: str, candidate: str) -> int | None:
-    lowered_query = query.strip().lower()
-    lowered_candidate = candidate.strip().lower()
-    if not lowered_query:
-        return 0
-    if lowered_candidate.startswith(lowered_query):
-        return 0
-    if lowered_query in lowered_candidate:
-        return 10 + lowered_candidate.index(lowered_query)
-    position = 0
-    gaps = 0
-    for char in lowered_query:
-        found = lowered_candidate.find(char, position)
-        if found < 0:
-            return None
-        gaps += max(0, found - position)
-        position = found + 1
-    return 100 + gaps + len(lowered_candidate)
+    return _ui_views._slash_fuzzy_score(query, candidate)
 
 
 def _highlight_fuzzy_match(query: str, candidate: str) -> str:
-    clean_query = query.strip().lower()
-    if not clean_query:
-        return candidate
-    lowered_candidate = candidate.lower()
-    substring_index = lowered_candidate.find(clean_query)
-    if substring_index >= 0:
-        end = substring_index + len(clean_query)
-        return f"{candidate[:substring_index]}[{candidate[substring_index:end]}]{candidate[end:]}"
-    positions: list[int] = []
-    search_from = 0
-    for char in clean_query:
-        found = lowered_candidate.find(char, search_from)
-        if found < 0:
-            return candidate
-        positions.append(found)
-        search_from = found + 1
-    highlighted: list[str] = []
-    position_set = set(positions)
-    in_match = False
-    for index, char in enumerate(candidate):
-        if index in position_set and not in_match:
-            highlighted.append("[")
-            in_match = True
-        if index not in position_set and in_match:
-            highlighted.append("]")
-            in_match = False
-        highlighted.append(char)
-    if in_match:
-        highlighted.append("]")
-    return "".join(highlighted)
+    return _ui_views._highlight_fuzzy_match(query, candidate)
 
 
 def _wrap_description(text: str, *, width: int = 88, initial_indent: str = "  ", subsequent_indent: str = "  ") -> list[str]:
-    wrapped = textwrap.wrap(
+    return _ui_views._wrap_description(
         text,
         width=width,
         initial_indent=initial_indent,
         subsequent_indent=subsequent_indent,
-        break_long_words=False,
-        break_on_hyphens=False,
     )
-    return wrapped or [initial_indent.rstrip()]
 
 
 def _render_slash_palette(config: AgentConfig, prefix: str = "") -> str:
-    report = _slash_palette_report(config, prefix)
-    context = report["context"]
-    entries = list(report["entries"])
-    lines = ["Slash command palette:"]
-    lines.append(f"- prefix: {report['prefix']}")
-    enabled = ", ".join(context["enabled_providers"]) or "none"
-    active_accounts = ", ".join(context["active_accounts"]) or "none"
-    blocked = ", ".join(context["blocked_providers"]) or "none"
-    lines.append(f"- enabled_providers: {enabled}")
-    lines.append(f"- active_accounts: {active_accounts}")
-    lines.append(f"- blocked_providers: {blocked}")
-    if not entries:
-        lines.append("- no matches")
-        lines.append(f"- message: {report['message']}")
-        return "\n".join(lines)
-    for item in entries[:20]:
-        aliases = f" aliases={','.join(item['aliases'])}" if item["aliases"] else ""
-        json_hint = " json" if item["json"] else ""
-        hint = f" hint={item['hint']}" if item["hint"] else ""
-        lines.append(f"- /{item['usage']}{aliases}{json_hint}{hint}")
-        for line in _wrap_description(str(item["description"])):
-            lines.append(line)
-        match = item.get("match", {})
-        if isinstance(match, dict) and match.get("query"):
-            lines.append(f"  match: {match.get('highlight', '')}")
-        if item.get("examples"):
-            lines.append(f"  example: /{item['examples'][0]}")
-    if len(entries) > 20:
-        lines.append(f"- truncated: showing 20 of {len(entries)} matches")
-    return "\n".join(lines)
+    return _ui_views._render_slash_palette(config, prefix)
 
 
 def _guided_slash_choice(
@@ -496,50 +366,20 @@ def _guided_slash_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Slash chooser unavailable without an interactive input/output stream."
-    entries = list(_slash_palette_report(config, query)["entries"])[:20]
-    if not entries:
-        return "No slash commands match the query.\nUse /slash to browse all commands or try a broader query."
-    options = [
-        (str(item["usage"]), f"/{item['usage']} - {item['description']}")
-        for item in entries
-        if isinstance(item, dict)
-    ]
-    selected = _prompt_menu_choice(
-        title="Choose slash command:",
-        options=options,
+    return _ui_views._guided_slash_choice(
+        config,
+        query,
         input_stream=input_stream,
         output_stream=output_stream,
     )
-    if selected is None:
-        return "Slash chooser cancelled."
-    return f"Selected slash command: /{selected}"
 
 
 def _render_slash_choice_candidates(config: AgentConfig, query: str = "") -> str:
-    entries = list(_slash_palette_report(config, query)["entries"])[:10]
-    lines = ["Slash chooser candidates:"]
-    lines.append(f"- query: {query or '(none)'}")
-    if not entries:
-        lines.append("- no matches")
-        lines.append("- message: Use /slash to browse all commands or try a broader query.")
-        return "\n".join(lines)
-    for index, item in enumerate(entries, start=1):
-        if not isinstance(item, dict):
-            continue
-        lines.append(f"{index}. /{item['usage']}")
-        for line in _wrap_description(str(item["description"]), initial_indent="   ", subsequent_indent="   "):
-            lines.append(line)
-        match = item.get("match", {})
-        if isinstance(match, dict) and match.get("query"):
-            lines.append(f"   match: {match.get('highlight', '')}")
-    lines.append("- note: use interactive /slash choose to select one item.")
-    return "\n".join(lines)
+    return _ui_views._render_slash_choice_candidates(config, query)
 
 
 def _help_json_report(topic: str | None = None) -> dict[str, object]:
-    return help_topic_report(topic)
+    return _ui_views._help_json_report(topic)
 
 
 def _with_json_schema(command: str, payload: dict[str, object]) -> dict[str, object]:
@@ -557,10 +397,7 @@ def _with_json_schema(command: str, payload: dict[str, object]) -> dict[str, obj
 
 
 def _interactive_help_topic(topic: str) -> str:
-    lines = help_topic_lines(topic)
-    if lines is None:
-        return _interactive_help_overview() + f"\n\nUnknown help topic: {topic}"
-    return "\n".join(lines)
+    return _ui_views._interactive_help_topic(topic)
 
 
 def _load_model_preferences(config: AgentConfig) -> ModelPreferences:
@@ -606,38 +443,21 @@ def _provider_model_params_display(prefs: ModelPreferences, provider: str) -> di
 
 
 def _render_model_status(agent: Agent, config: AgentConfig) -> str:
-    prefs = _load_model_preferences(config)
-    status = agent.router.status()
-    lines = ["Provider configuration:"]
-    for provider in SUPPORTED_MODELS:
-        backend = MODEL_BACKENDS[provider]["label"]
-        capability = provider_capability(provider)
-        enabled = "enabled" if provider in status["enabled_models"] else "disabled"
-        blocked_until = status["blocked_until_by_model"].get(provider)
-        blocked = f" blocked-until={blocked_until}" if blocked_until else ""
-        active = " active" if provider in status["active_models"] else " inactive"
-        preferred = " preferred-provider" if status["preferred_model"] == provider else ""
-        provider_model, selection_mode, default_model = _provider_model_display(prefs, provider)
-        params = _provider_model_params_display(prefs, provider)
-        auth = capability.auth_type
-        profiles = "profiles=yes" if capability.supports_account_profiles else "profiles=no"
-        params_text = (
-            " params=" + ",".join(f"{key}={value}" for key, value in sorted(params.items()))
-            if params
-            else ""
-        )
-        lines.append(
-            f"- {provider}: {enabled}{active}{preferred}{blocked} "
-            f"provider_model={provider_model} selection={selection_mode} default_model={default_model} "
-            f"auth={auth} {profiles}{params_text} ({backend})"
-        )
-        account_lines = _render_account_lines(prefs, provider)
-        lines.extend(account_lines)
-    if status["preferred_model"] is None:
-        lines.append("- preferred_provider: automatic routing")
-    else:
-        lines.append(f"- preferred_provider: {status['preferred_model']}")
-    return "\n".join(lines)
+    return _status_views._render_model_status(agent, config)
+
+
+def _render_model_params(config: AgentConfig, model: str) -> str:
+    return _model_views._render_model_params(config, model)
+
+
+def _apply_model_preset(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    model: str,
+    preset: str,
+) -> tuple[str, dict[str, str]]:
+    return _model_views._apply_model_preset(config, prefs, model=model, preset=preset)
 
 
 def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None = None) -> dict[str, object]:
@@ -687,19 +507,7 @@ def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
 
 
 def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
-    lines: list[str] = []
-    accounts = (prefs.accounts_by_model or {}).get(model, [])
-    active_account = (prefs.active_account_by_model or {}).get(model)
-    for account in accounts:
-        key = account_key(model, account)
-        blocked_until = (prefs.blocked_until_by_account or {}).get(key)
-        env_var = (prefs.env_var_by_account or {}).get(key)
-        keychain = " token=stored" if SecretStore().has_token(model, account) else ""
-        active = " active-account" if active_account == account else ""
-        blocked = f" blocked-until={blocked_until}" if blocked_until else ""
-        env_text = f" env={env_var}" if env_var else ""
-        lines.append(f"  account {account}:{active}{blocked}{env_text}{keychain}")
-    return lines
+    return _account_views._render_account_lines(prefs, model)
 
 
 def _sync_prince2_roles_to_handoff(config: AgentConfig, prefs: ModelPreferences) -> None:
@@ -730,6 +538,8 @@ def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
             {
                 "role": role,
                 "label": PRINCE2_ROLE_LABELS[role],
+                "mnemonic": prince2_role_mnemonic(role),
+                "team_name": prince2_role_team_name(role),
                 "assignment": dict((prefs.prince2_roles or {}).get(role, {})),
             }
             for role in PRINCE2_ROLE_IDS
@@ -743,7 +553,7 @@ def _render_prince2_roles(config: AgentConfig) -> str:
     for item in report["roles"]:
         assignment = item["assignment"]
         if not assignment:
-            lines.append(f"- {item['label']} ({item['role']}): unassigned")
+            lines.append(f"- {item['label']} ({item['role']}): unassigned team={prince2_role_team_name(item['role'])} mnemonic={prince2_role_mnemonic(item['role'])}")
             continue
         params = assignment.get("params", {})
         params_text = (
@@ -752,7 +562,8 @@ def _render_prince2_roles(config: AgentConfig) -> str:
             else ""
         )
         lines.append(
-            f"- {item['label']} ({item['role']}): mode={assignment.get('mode', 'manual')} "
+            f"- {item['label']} ({item['role']}): mnemonic={prince2_role_mnemonic(item['role'])} "
+            f"team={prince2_role_team_name(item['role'])} mode={assignment.get('mode', 'manual')} "
             f"provider={assignment.get('provider', 'unknown')} "
             f"provider_model={assignment.get('provider_model', 'unknown')} "
             f"account={assignment.get('account') or 'none'}"
@@ -762,77 +573,43 @@ def _render_prince2_roles(config: AgentConfig) -> str:
 
 
 def _render_prince2_role_domains() -> str:
-    lines = ["PRINCE2 role domains:"]
-    for role in PRINCE2_ROLE_IDS:
-        lines.append(
-            f"- {PRINCE2_ROLE_LABELS[role]} ({role}): "
-            f"responsibility={PRINCE2_ROLE_AUTOMATION_RULES.get(role, 'controlled project work')}; "
-            f"context_scope={PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, 'controlled project work')}"
-        )
-    lines.append("- rule: a role-assigned model receives only the context inside its PRINCE2 domain unless escalation changes the active role.")
-    return "\n".join(lines)
+    return _project_role_tree_views._render_prince2_role_domains()
 
 
 def _prince2_role_domains_report() -> dict[str, object]:
-    return {
-        "command": "roles domains",
-        "rule": "a role-assigned model receives only the context inside its PRINCE2 domain unless escalation changes the active role",
-        "roles": [
-            {
-                "role": role,
-                "label": PRINCE2_ROLE_LABELS[role],
-                "responsibility": PRINCE2_ROLE_AUTOMATION_RULES.get(role, "controlled project work"),
-                "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, "controlled project work"),
-            }
-            for role in PRINCE2_ROLE_IDS
-        ],
-    }
+    return _project_role_tree_views._prince2_role_domains_report()
 
 
 def _prince2_role_tree_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    tolerance_profile = _project_tolerance_profile(handoff)
-    return build_prince2_role_tree_with_tolerance(
-        _load_model_preferences(config),
-        tolerance_profile=tolerance_profile,
-        accountable_owner=tolerance_profile.accountable_owner,
-    )
+    return _project_role_tree_views._prince2_role_tree_report(config)
 
 
 def _render_prince2_role_tree(config: AgentConfig) -> str:
-    return render_prince2_role_tree(_prince2_role_tree_report(config))
+    return _project_role_tree_views._render_prince2_role_tree(config)
 
 
 def _prince2_role_check_report(config: AgentConfig) -> dict[str, object]:
-    return check_prince2_role_tree(_load_model_preferences(config))
+    return _project_role_tree_views._prince2_role_check_report(config)
 
 
 def _render_prince2_role_check(config: AgentConfig) -> str:
-    return render_prince2_role_check(_prince2_role_check_report(config))
+    return _project_role_tree_views._render_prince2_role_check(config)
 
 
 def _prince2_role_flow_report() -> dict[str, object]:
-    return build_prince2_role_flow()
+    return _project_role_tree_views._prince2_role_flow_report()
 
 
 def _render_prince2_role_flow() -> str:
-    return render_prince2_role_flow(_prince2_role_flow_report())
+    return _project_role_tree_views._render_prince2_role_flow()
 
 
 def _prince2_role_matrix_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    tolerance_profile = _project_tolerance_profile(handoff)
-    tree = build_prince2_role_tree_with_tolerance(
-        prefs,
-        tolerance_profile=tolerance_profile,
-        accountable_owner=tolerance_profile.accountable_owner,
-    )
-    return build_prince2_role_matrix_payload(tree, prefs)
+    return _project_role_tree_views._prince2_role_matrix_report(config)
 
 
 def _render_prince2_role_matrix(config: AgentConfig) -> str:
-    return render_prince2_role_matrix(_prince2_role_matrix_report(config))
+    return _project_role_tree_views._render_prince2_role_matrix(config)
 
 
 def _current_git_head(config: AgentConfig) -> str | None:
@@ -919,6 +696,20 @@ def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> di
         ),
         local_execution,
     )
+    brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
+    joined = " ".join(brief.values()).lower()
+    _decomposition_nodes, decomposition = _project_tree_decomposition_nodes(
+        proposal_prefs=prefs,
+        active_models=list(prefs.active_models() or prefs.enabled_models),
+        brief=brief,
+        joined=joined,
+        tolerance_profile=tolerance_profile,
+    )
+    adaptation = _project_tree_adaptation_snapshot(brief=brief, handoff=handoff, local_execution=local_execution)
+    tree["decomposition_policy"] = "Decompose the project into the smallest independently verifiable work packages and keep widening only when evidence justifies it."
+    tree["adaptation_policy"] = "Refresh the tree continuously from the latest brief, tolerance profile, runtime observation, and response-quality signals."
+    tree["decomposition"] = decomposition
+    tree["adaptation"] = adaptation
     return {
         "version": "1",
         "approved_at": datetime.now().isoformat(timespec="seconds"),
@@ -929,6 +720,8 @@ def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> di
         "check": check_prince2_role_tree_payload(tree, prefs),
         "matrix": build_prince2_role_matrix_payload(tree, prefs),
         "local_execution": local_execution,
+        "decomposition": decomposition,
+        "adaptation": adaptation,
     }
 
 
@@ -1096,225 +889,59 @@ def _assign_prince2_role_node(
 
 
 def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    baseline = dict(prefs.prince2_role_tree_baseline or {})
-    return {
-        "command": "roles baseline",
-        "status": "approved" if baseline else "missing",
-        "baseline": baseline,
-    }
+    return _project_role_tree_views._prince2_role_tree_baseline_report(config)
 
 
 def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
-    report = _prince2_role_tree_baseline_report(config)
-    baseline = report["baseline"]
-    if not isinstance(baseline, dict) or not baseline:
-        return "PRINCE2 role-tree baseline: missing\n- action: run /project start or /roles tree approve"
-    check = baseline.get("check", {})
-    matrix = baseline.get("matrix", {})
-    tree = baseline.get("tree", {})
-    local_execution = baseline.get("local_execution", {}) if isinstance(baseline.get("local_execution"), dict) else {}
-    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
-    rows = matrix.get("rows", []) if isinstance(matrix, dict) else []
-    check_status = check.get("status", "unknown") if isinstance(check, dict) else "unknown"
-    lines = [
-        "PRINCE2 role-tree baseline:",
-        f"- status: {baseline.get('status', 'approved')}",
-        f"- approved_at: {baseline.get('approved_at', 'unknown')}",
-        f"- source: {baseline.get('source', 'unknown')}",
-        f"- check_status: {check_status}",
-        f"- nodes: {len(nodes)}",
-        f"- matrix_rows: {len(rows)}",
-        "- rule: this approved role tree is the governance baseline for future role-routed context handoffs.",
-    ]
-    if local_execution:
-        candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
-        lines.append(
-            "- local_execution_candidates: "
-            + (", ".join(str(item.get("id", "")) for item in candidates if str(item.get("id", "")).strip()) or "none")
-        )
-    return "\n".join(lines)
+    return _project_role_tree_views._render_prince2_role_tree_baseline(config)
 
 
 def _delivery_local_fallback_report(config: AgentConfig) -> dict[str, object]:
-    baseline = _prince2_role_tree_baseline_report(config).get("baseline", {})
-    if not isinstance(baseline, dict) or not baseline:
-        return {
-            "status": "missing",
-            "delivery_nodes": 0,
-            "delivery_nodes_with_local_fallback": 0,
-            "candidate_ids": [],
-            "ready_nodes": [],
-            "message": "No approved baseline available.",
-        }
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    nodes = [item for item in tree.get("nodes", []) if isinstance(item, dict)]
-    delivery_nodes = [item for item in nodes if str(item.get("level", "")).startswith("delivery")]
-    ready_nodes: list[dict[str, object]] = []
-    candidate_ids: list[str] = []
-    for node in delivery_nodes:
-        node_candidates = [str(item).strip() for item in node.get("local_execution_candidates", []) if str(item).strip()]
-        for item in node_candidates:
-            if item not in candidate_ids:
-                candidate_ids.append(item)
-        pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
-        fallback_routes = [dict(item) for item in pools.get("fallback", []) if isinstance(item, dict)]
-        local_routes = [item for item in fallback_routes if str(item.get("provider", "")).strip() == "local"]
-        if local_routes:
-            ready_nodes.append(
-                {
-                    "node_id": str(node.get("node_id", "")),
-                    "label": str(node.get("label", node.get("node_id", ""))),
-                    "local_candidates": node_candidates,
-                    "fallback_models": [
-                        str(item.get("provider_model", "")).strip()
-                        for item in local_routes
-                        if str(item.get("provider_model", "")).strip()
-                    ],
-                }
-            )
-    status = "ready" if ready_nodes else ("available" if candidate_ids else "missing")
-    message = (
-        f"{len(ready_nodes)}/{len(delivery_nodes)} delivery node(s) have preloaded local fallback routes."
-        if delivery_nodes
-        else "No delivery nodes in the approved baseline."
-    )
-    return {
-        "status": status,
-        "delivery_nodes": len(delivery_nodes),
-        "delivery_nodes_with_local_fallback": len(ready_nodes),
-        "candidate_ids": candidate_ids,
-        "ready_nodes": ready_nodes,
-        "message": message,
-    }
+    return _project_role_tree_views._delivery_local_fallback_report(config)
 
 
 def _prince2_role_tree_baseline_matrix_report(config: AgentConfig) -> dict[str, object]:
-    report = _prince2_role_tree_baseline_report(config)
-    baseline = report.get("baseline", {})
-    matrix = baseline.get("matrix", {}) if isinstance(baseline, dict) else {}
-    if not isinstance(matrix, dict) or not matrix:
-        return {
-            "command": "roles baseline matrix",
-            "status": "missing",
-            "message": "No approved PRINCE2 role-tree baseline matrix. Run /project start, /roles propose, or /roles tree approve first.",
-        }
-    payload = dict(matrix)
-    payload["command"] = "roles baseline matrix"
-    payload["baseline_status"] = report.get("status", "missing")
-    return payload
+    return _project_role_tree_views._prince2_role_tree_baseline_matrix_report(config)
 
 
 def _prince2_role_runtime_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_runtime_report()
+    return _project_role_runtime_views._prince2_role_runtime_report(config)
 
 
 def _render_prince2_role_runtime(config: AgentConfig) -> str:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_runtime()
+    return _project_role_runtime_views._render_prince2_role_runtime(config)
 
 
 def _prince2_role_active_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_active_report()
+    return _project_role_runtime_views._prince2_role_active_report(config)
 
 
 def _render_prince2_role_active(config: AgentConfig) -> str:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_active()
+    return _project_role_runtime_views._render_prince2_role_active(config)
 
 
 def _prince2_role_queue_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_queue_report()
+    return _project_role_runtime_views._prince2_role_queue_report(config)
 
 
 def _render_prince2_role_queues(config: AgentConfig) -> str:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_queues()
+    return _project_role_runtime_views._render_prince2_role_queues(config)
 
 
 def _prince2_role_control_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    report = handoff.prince2_node_control_report()
-    report["local_fallback"] = _delivery_local_fallback_report(config)
-    return report
+    return _project_role_runtime_views._prince2_role_control_report(config)
 
 
 def _render_prince2_role_control(config: AgentConfig) -> str:
-    report = _prince2_role_control_report(config)
-    if report["status"] == "missing":
-        return "PRINCE2 control view: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
-    decision = report.get("decision", {}) if isinstance(report.get("decision"), dict) else {}
-    summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
-    queue_summary = report.get("queue_summary", {}) if isinstance(report.get("queue_summary"), dict) else {}
-    local_fallback = report.get("local_fallback", {}) if isinstance(report.get("local_fallback"), dict) else {}
-    lines = [
-        "PRINCE2 control view:",
-        f"- board_signal: {decision.get('board_signal', 'unknown')} next_action={decision.get('next_action', 'unknown')}",
-        f"- reason: {decision.get('reason', 'none')}",
-        f"- nodes: {summary.get('nodes', 0)} active={report.get('active_nodes', 0)} completed={report.get('completed_nodes', 0)}",
-        f"- waiting: {report.get('waiting_nodes', 0)} blocked={report.get('blocked_nodes', 0)} escalated={report.get('escalated_nodes', 0)}",
-        f"- queues: inbox_total={queue_summary.get('inbox_total', 0)} outbox_total={queue_summary.get('outbox_total', 0)} inbox_nodes={report.get('queued_inbox_nodes', 0)}",
-        (
-            "- local_fallback: "
-            f"status={local_fallback.get('status', 'missing')} "
-            f"ready_nodes={local_fallback.get('delivery_nodes_with_local_fallback', 0)}/{local_fallback.get('delivery_nodes', 0)} "
-            f"candidates={','.join(local_fallback.get('candidate_ids', [])) if local_fallback.get('candidate_ids') else 'none'}"
-        ),
-    ]
-    critical_nodes = [item for item in report.get("critical_nodes", []) if isinstance(item, dict)]
-    if critical_nodes:
-        lines.append("- critical_nodes:")
-        for node in critical_nodes:
-            lines.append(
-                f"  - {node.get('label')} [{node.get('node_id')}]: severity={node.get('severity')} "
-                f"state={node.get('state')} wait={node.get('wait_status')} "
-                f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
-                f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
-            )
-            node_record = _role_tree_node_record(config, str(node.get("node_id", "")))
-            if node_record:
-                recommendation = _node_model_recommendation(config, node_record)
-                suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
-                lines.append(
-                    f"    model_recommendation: direction={recommendation.get('direction', 'hold')} "
-                    f"provider={suggested.get('provider') or 'none'} provider_model={suggested.get('provider_model') or 'none'} "
-                    f"bucket={suggested.get('bucket', 'none')}"
-                )
-                lines.append(f"    switch_hint: role switch {node_record.get('node_id', node.get('node_id', 'unknown'))}")
-    else:
-        lines.append("- critical_nodes: none")
-    return "\n".join(lines)
+    return _project_role_runtime_views._render_prince2_role_control(config)
 
 
 def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = None) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_messages_report(node_id=node_id)
+    return _project_role_runtime_views._prince2_role_messages_report(config, node_id=node_id)
 
 
 def _render_prince2_role_messages(config: AgentConfig, node_id: str | None = None) -> str:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_messages(node_id=node_id)
+    return _project_role_runtime_views._render_prince2_role_messages(config, node_id=node_id)
 
 
 def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
@@ -1384,118 +1011,11 @@ def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]
 
 
 def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    runtime_report = handoff.prince2_node_runtime_report()
-    runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report.get("runtime"), dict) else {}
-    nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
-    node = next((item for item in nodes if str(item.get("node_id", "")).strip() == node_id), None)
-    if node is None:
-        return {
-            "command": "roles context",
-            "status": "missing",
-            "node_id": node_id,
-            "message": f"Node '{node_id}' not found in PRINCE2 runtime.",
-        }
-    baseline = handoff.prince2_role_tree_baseline if isinstance(handoff.prince2_role_tree_baseline, dict) else {}
-    flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
-    edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
-    incoming = [edge for edge in edges if str(edge.get("target_node", "")).strip() == node_id]
-    outgoing = [edge for edge in edges if str(edge.get("source_node", "")).strip() == node_id]
-    assignment = dict(node.get("assignment", {})) if isinstance(node.get("assignment"), dict) else {}
-    role_type = str(node.get("role_type", "")).strip()
-    return {
-        "command": "roles context",
-        "status": "ok",
-        "node_id": node_id,
-        "node_label": str(node.get("label", node_id)),
-        "role_type": role_type,
-        "runtime_state": {
-            "state": str(node.get("state", "unknown")),
-            "wait_status": str(node.get("wait_status", "none")),
-            "wait_reason": node.get("wait_reason"),
-            "wake_triggers": list(node.get("wake_triggers", [])),
-            "inbox_count": int(node.get("inbox_count", 0) or 0),
-            "outbox_count": int(node.get("outbox_count", 0) or 0),
-            "transcript_refs": [str(item) for item in node.get("transcript_refs", [])] if isinstance(node.get("transcript_refs", []), list) else [],
-        },
-        "assignment": assignment,
-        "prince2_role_context": {
-            "responsibility_domain": str(node.get("responsibility_domain", PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, ""))),
-            "context_scope": str(node.get("context_scope", PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, ""))),
-            "accountability_boundary": str(node.get("accountability_boundary", "")),
-            "delegated_authority": str(node.get("delegated_authority", "")),
-            "context_include": list((node.get("context_rule") or {}).get("include", [])) if isinstance(node.get("context_rule"), dict) else [],
-            "context_exclude": list((node.get("context_rule") or {}).get("exclude", [])) if isinstance(node.get("context_rule"), dict) else [],
-        },
-        "communications": {
-            "incoming_edges": incoming,
-            "outgoing_edges": outgoing,
-            "commands": [
-                "roles active [--json]",
-                "roles control [--json]",
-                "roles queues [--json]",
-                "roles messages [node_id]",
-                "role message <source_node> <target_node> <edge_id> payload=<scope1,scope2>",
-                "role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]",
-                "role wake <node_id> trigger=<name>",
-                "role tick <node_id>",
-                "roles tick [max_nodes]",
-            ],
-        },
-        "agent_capabilities": _agent_capability_surface_for_node(config),
-        "project_context": {
-            "task": handoff.task or "none",
-            "project_status": handoff.status or "idle",
-            "current_step": handoff.current_step_id or "none",
-            "current_step_status": handoff.current_step_status or "none",
-        },
-    }
+    return _project_role_views._prince2_role_context_report(config, node_id)
 
 
 def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
-    report = _prince2_role_context_report(config, node_id)
-    if report.get("status") != "ok":
-        return str(report.get("message", "PRINCE2 role context unavailable."))
-    runtime_state = report["runtime_state"]
-    role_context = report["prince2_role_context"]
-    assignment = report["assignment"]
-    comms = report["communications"]
-    caps = report["agent_capabilities"]
-    lines = [
-        "PRINCE2 node AI context:",
-        f"- node: {report['node_label']} [{report['node_id']}]",
-        f"- role_type: {report['role_type']}",
-        f"- state: {runtime_state['state']} wait={runtime_state['wait_status']} inbox={runtime_state['inbox_count']} outbox={runtime_state['outbox_count']}",
-        f"- provider: {assignment.get('provider') or 'none'} provider_model={assignment.get('provider_model') or 'none'} account={assignment.get('account') or 'none'}",
-        f"- tolerance_margin: {runtime_state.get('tolerance_margin_percent', 'unknown')} pressure={runtime_state.get('tolerance_pressure_percent', 'unknown')} state={runtime_state.get('tolerance_state', runtime_state['state'])}",
-        f"- responsibility_domain: {role_context['responsibility_domain']}",
-        f"- context_scope: {role_context['context_scope']}",
-        f"- accountability_boundary: {role_context['accountability_boundary']}",
-        f"- delegated_authority: {role_context['delegated_authority']}",
-        f"- context_include: {', '.join(role_context['context_include']) or 'none'}",
-        f"- context_exclude: {', '.join(role_context['context_exclude']) or 'none'}",
-        f"- wake_triggers: {', '.join(runtime_state['wake_triggers']) or 'none'}",
-        f"- incoming_edges: {', '.join(str(edge.get('edge_id')) for edge in comms['incoming_edges']) or 'none'}",
-        f"- outgoing_edges: {', '.join(str(edge.get('edge_id')) for edge in comms['outgoing_edges']) or 'none'}",
-        f"- agent_tools: {', '.join(caps['shell_operations'] + caps['git_operations'][:2] + ['...'])}",
-        f"- file_ops: {', '.join(caps['file_operations'][:6])}, ...",
-    ]
-    recommendation = _node_model_recommendation(config, _role_tree_node_record(config, node_id) or {})
-    suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
-    lines.append(
-        f"- model_recommendation: direction={recommendation.get('direction', 'hold')} "
-        f"provider={suggested.get('provider') or 'none'} provider_model={suggested.get('provider_model') or 'none'} "
-        f"bucket={suggested.get('bucket', 'none')}"
-    )
-    lines.append("- communication_commands:")
-    for command in comms["commands"]:
-        lines.append(f"  {command}")
-    lines.append(f"- project_task: {report['project_context']['task']}")
-    lines.append(f"- project_status: {report['project_context']['project_status']}")
-    lines.append(f"- current_step: {report['project_context']['current_step']} [{report['project_context']['current_step_status']}]")
-    return "\n".join(lines)
+    return _project_role_views._render_prince2_role_context(config, node_id)
 
 
 def _send_prince2_role_message(
@@ -1622,1061 +1142,80 @@ def _tick_prince2_role_runtime(
 
 
 def _render_prince2_role_tree_baseline_matrix(config: AgentConfig) -> str:
-    report = _prince2_role_tree_baseline_matrix_report(config)
-    if report.get("status") == "missing":
-        return str(report.get("message", "No approved PRINCE2 role-tree baseline matrix."))
-    return render_prince2_role_matrix(report)
+    return _project_role_tree_views._render_prince2_role_tree_baseline_matrix(config)
 
 
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
-    prefs = _load_model_preferences(config)
-    configured = len(prefs.prince2_roles or {})
-    tree_baseline = "approved" if prefs.prince2_role_tree_baseline else "missing"
-    if configured == len(PRINCE2_ROLE_IDS):
-        return f"- prince2_role_baseline: complete ({configured}/{len(PRINCE2_ROLE_IDS)}); role_tree={tree_baseline}"
-    if configured:
-        return (
-            f"- prince2_role_baseline: partial ({configured}/{len(PRINCE2_ROLE_IDS)}); "
-            f"role_tree={tree_baseline}; run /roles setup to complete governance ownership."
-        )
-    return "- prince2_role_baseline: missing; role_tree=missing; run /project start or /roles setup before controlled delivery."
+    return _project_role_tree_views._render_prince2_role_status_hint(config)
 
 
 def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    prefs = _load_model_preferences(config)
-    runtime = detect_runtime_capabilities()
-    shell_backend = _shell_backend_report(config)
-    provider_limits = _provider_limit_status_report(agent, config)
-    permissions = _permissions_report(config)
-    role_check = _prince2_role_check_report(config)
-    baseline = _prince2_role_tree_baseline_report(config)
-    focus = _focus_snapshot(agent, config)
-
-    enabled_providers = [item["provider"] for item in provider_limits["providers"] if item["enabled"]]
-    active_accounts = {
-        provider: account
-        for provider, account in (prefs.active_account_by_model or {}).items()
-        if account
-    }
-    blocked_providers = [
-        {
-            "provider": item["provider"],
-            "blocked_until": item["blocked_until"],
-            "reason": item["last_error_reason"],
-        }
-        for item in provider_limits["providers"]
-        if item["blocked_until"]
-    ]
-    capability_spec = {
-        "workspace": str(config.workspace_root),
-        "os_family": str(runtime.get("os_family", "unknown")),
-        "platform_release": str(runtime.get("platform_release", "unknown")),
-        "architecture": str(runtime.get("platform_machine", "unknown")),
-        "default_shell": str(runtime.get("default_shell") or "none"),
-        "recommended_shell": str(runtime.get("recommended_shell", "unknown")),
-        "shell_backend": {
-            "configured": shell_backend["configured"],
-            "selected": shell_backend["selected"] or "none",
-            "executable": shell_backend["executable"] or "none",
-        },
-        "capabilities": {
-            "shell": True,
-            "files": True,
-            "git": True,
-            "web_research": True,
-            "download": True,
-            "compression": True,
-            "wet_run_required": True,
-        },
-        "permission_mode": permissions["effective"]["mode"],
-        "enabled_providers": enabled_providers,
-        "active_accounts": active_accounts,
-        "blocked_providers": blocked_providers,
-        "preferred_provider": prefs.preferred_model or "automatic",
-    }
-    project_spec = {
-        "task": handoff.task or "missing",
-        "brief": dict(handoff.project_brief),
-        "brief_fields": sorted(handoff.project_brief),
-        "project_status": handoff.status,
-        "current_step": handoff.current_step_id or "none",
-        "current_step_status": handoff.current_step_status or "none",
-        "boundary_decision": handoff.stage_view()["boundary_decision"],
-        "next_action": handoff.rendered_next_action(),
-        "open_risks": len([item for item in handoff.risk_register if str(item.get("status", "open")).strip().lower() != "closed"]),
-        "open_issues": len([item for item in handoff.issue_register if str(item.get("status", "open")).strip().lower() != "closed"]),
-        "quality_open": len([item for item in handoff.quality_register if str(item.get("status", "")).strip().lower() not in {"accepted", "closed"}]),
-        "role_tree_status": baseline["status"],
-        "role_tree_nodes": len((baseline.get("baseline", {}) or {}).get("tree", {}).get("nodes", [])) if isinstance((baseline.get("baseline", {}) or {}).get("tree", {}), dict) else 0,
-    }
-    gaps: list[dict[str, str]] = []
-    if not handoff.task.strip():
-        gaps.append({"code": "missing_project_task", "message": "Project specification is missing a task/objective in handoff context."})
-    if not handoff.project_brief.get("objective"):
-        gaps.append({"code": "missing_project_objective", "message": "Project brief is missing the objective field."})
-    if not handoff.project_brief.get("scope"):
-        gaps.append({"code": "missing_project_scope", "message": "Project brief is missing the scope field."})
-    if not handoff.project_brief.get("expected_outputs"):
-        gaps.append({"code": "missing_expected_outputs", "message": "Project brief is missing the expected_outputs field."})
-    if not handoff.project_brief.get("delivery_mode"):
-        gaps.append({"code": "missing_delivery_mode", "message": "Project brief is missing the delivery_mode field."})
-    if role_check.get("status") != "ok":
-        gaps.append({"code": "role_tree_not_ready", "message": "Role tree is not fully ready; AI tree design must treat current structure as provisional."})
-    if not enabled_providers:
-        gaps.append({"code": "no_enabled_providers", "message": "No enabled providers are available for AI-assisted design."})
-    if shell_backend["selected"] in {None, ""}:
-        gaps.append({"code": "shell_backend_unknown", "message": "Selected shell backend is unknown, so capability context is incomplete."})
-    if not baseline.get("baseline"):
-        gaps.append({"code": "missing_role_tree_baseline", "message": "No approved role-tree baseline exists yet."})
-    ready = not gaps
-    return {
-        "command": "project design",
-        "ready_for_ai_design": ready,
-        "agent_capability_specification": capability_spec,
-        "project_specification": project_spec,
-        "role_tree_check": role_check,
-        "focus": focus,
-        "clarification_gaps": gaps,
-    }
+    return _project_design_flow._project_design_report(agent, config)
 
 
 def _render_project_design(agent: Agent, config: AgentConfig) -> str:
-    report = _project_design_report(agent, config)
-    capability = report["agent_capability_specification"]
-    project = report["project_specification"]
-    blocked_text = ", ".join(
-        f"{item['provider']}:{item['blocked_until']}"
-        for item in capability["blocked_providers"]
-    ) or "none"
-    lines = [
-        "Project design packet:",
-        f"- ready_for_ai_design: {str(report['ready_for_ai_design']).lower()}",
-        "Agent capability specification:",
-        f"- workspace: {capability['workspace']}",
-        f"- os_family: {capability['os_family']}",
-        f"- shell_backend: configured={capability['shell_backend']['configured']} selected={capability['shell_backend']['selected']} executable={capability['shell_backend']['executable']}",
-        f"- permission_mode: {capability['permission_mode']}",
-        f"- enabled_providers: {', '.join(capability['enabled_providers']) or 'none'}",
-        f"- active_accounts: {', '.join(f'{key}={value}' for key, value in sorted(capability['active_accounts'].items())) or 'none'}",
-        f"- blocked_providers: {blocked_text}",
-        f"- wet_run_required: {str(capability['capabilities']['wet_run_required']).lower()}",
-        "Project specification:",
-        f"- task: {project['task']}",
-        f"- brief_fields: {', '.join(project['brief_fields']) or 'none'}",
-        f"- project_status: {project['project_status']}",
-        f"- current_step: {project['current_step']}",
-        f"- boundary_decision: {project['boundary_decision']}",
-        f"- next_action: {project['next_action']}",
-        f"- open_risks: {project['open_risks']}",
-        f"- open_issues: {project['open_issues']}",
-        f"- quality_open: {project['quality_open']}",
-        f"- role_tree_status: {project['role_tree_status']}",
-        f"- role_tree_nodes: {project['role_tree_nodes']}",
-        "Project brief:",
-    ]
-    brief = project["brief"]
-    if isinstance(brief, dict) and brief:
-        for key in sorted(brief):
-            lines.append(f"- {key}: {brief[key]}")
-    else:
-        lines.append("- none")
-    lines.extend(
-        [
-        "Clarification gaps:",
-        ]
-    )
-    gaps = report["clarification_gaps"]
-    if gaps:
-        for item in gaps:
-            lines.append(f"- {item['code']}: {item['message']}")
-    else:
-        lines.append("- none")
-    return "\n".join(lines)
+    return _project_design_flow._render_project_design(agent, config)
 
 
 def _project_tree_ai_needed(design: dict[str, object], proposal: dict[str, object]) -> bool:
-    if proposal.get("status") != "ready_for_review":
-        return False
-    project = design.get("project_specification") if isinstance(design.get("project_specification"), dict) else {}
-    brief = project.get("brief") if isinstance(project.get("brief"), dict) else {}
-    text = " ".join(str(value).lower() for value in brief.values())
-    complexity_tokens = (
-        "complex",
-        "regulated",
-        "enterprise",
-        "multi-vendor",
-        "multi provider",
-        "rate-limit",
-        "rate limit",
-        "high uncertainty",
-        "alto rischio",
-        "alta incertezza",
-        "security",
-        "auth",
-        "compliance",
+    return _project_start_flow._project_tree_ai_needed(design, proposal)
+
+
+def _project_start_clarification_record(
+    config: AgentConfig,
+    *,
+    design_gaps: list[dict[str, str]],
+    proposal_gaps: list[dict[str, str]],
+) -> dict[str, object] | None:
+    return _project_start_flow._project_start_clarification_record(
+        config,
+        design_gaps=design_gaps,
+        proposal_gaps=proposal_gaps,
     )
-    return any(token in text for token in complexity_tokens)
+
+
+def _project_tree_clarification_record(
+    config: AgentConfig,
+    *,
+    gaps: list[dict[str, str]],
+) -> dict[str, object] | None:
+    return _project_start_flow._project_tree_clarification_record(config, gaps=gaps)
+
+
+def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPreferences, *, force_ai: bool = False) -> dict[str, object]:
+    return _project_start_flow._project_start_report(agent, config, prefs, force_ai=force_ai)
+
+
+def _render_project_start_report(report: dict[str, object], agent: Agent, config: AgentConfig, prefs: ModelPreferences) -> str:
+    return _project_start_flow._render_project_start_report(report, agent, config, prefs)
 
 
 def _render_project_start(agent: Agent, config: AgentConfig, prefs: ModelPreferences, *, force_ai: bool = False) -> str:
-    design = _project_design_report(agent, config)
-    local_proposal = _project_tree_proposal_report(config)
-    use_ai = force_ai or _project_tree_ai_needed(design, local_proposal)
-    proposal = _project_tree_proposal_report(config, agent=agent, use_ai=True) if use_ai else local_proposal
-    sections = [
-        "Project startup design gate:",
-        _render_project_design(agent, config),
-        _render_project_tree_proposal_report(proposal),
-    ]
-    ignored_startup_design_gaps = {"role_tree_not_ready", "missing_role_tree_baseline"}
-    raw_design_gaps = design.get("clarification_gaps", [])
-    design_gaps = [
-        item
-        for item in raw_design_gaps
-        if isinstance(item, dict) and str(item.get("code", "")) not in ignored_startup_design_gaps
-    ] if isinstance(raw_design_gaps, list) else []
-    proposal_gaps = proposal.get("clarification_gaps", [])
-    has_gaps = bool(design_gaps or proposal_gaps)
-    if has_gaps or proposal.get("status") != "ready_for_review":
-        _record_handoff_action(
-            config,
-            phase="project_start_blocked",
-            summary="Project startup blocked by unresolved design/proposal clarification gaps.",
-            task="project start",
-            details={
-                "design_gaps": design_gaps,
-                "proposal_gaps": proposal_gaps if isinstance(proposal_gaps, list) else [],
-                "proposal_status": proposal.get("status"),
-                "ai_requested": proposal.get("ai_requested"),
-                "ai_assistance": proposal.get("ai_assistance"),
-            },
-        )
-        lines = [
-            "Project startup blocked:",
-            "- reason: project design/proposal has unresolved clarification gaps.",
-            "- action: complete /project brief fields, rerun /project tree propose, then rerun /project start.",
-            "- override: use /project tree approve --force if the Project Board accepts the gaps explicitly.",
-        ]
-        for item in design_gaps if isinstance(design_gaps, list) else []:
-            if isinstance(item, dict):
-                lines.append(f"- design_gap {item.get('code', 'gap')}: {item.get('message', 'missing')}")
-        for item in proposal_gaps if isinstance(proposal_gaps, list) else []:
-            if isinstance(item, dict):
-                lines.append(f"- proposal_gap {item.get('code', 'gap')}: {item.get('message', 'missing')}")
-        sections.append("\n".join(lines))
-        return "\n\n".join(sections)
-    approval = _approve_project_tree_proposal(config, force=False, proposal_report=proposal)
-    _apply_model_preferences(agent, config)
-    _record_handoff_action(
-        config,
-        phase="project_start_approved",
-        summary="Project startup approved through controlled project-tree proposal path.",
-        task="project start",
-        details={
-            "approval_status": approval.get("status"),
-            "forced": approval.get("forced"),
-            "proposal_added_nodes": proposal.get("added_nodes", []),
-            "ai_requested": proposal.get("ai_requested"),
-            "ai_assistance": proposal.get("ai_assistance"),
-            "local_execution": proposal.get("local_execution", {}),
-        },
-    )
-    sections.append(_render_project_tree_approval_report(approval, config))
-    local_execution = proposal.get("local_execution") if isinstance(proposal.get("local_execution"), dict) else {}
-    local_candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
-    if local_candidates:
-        lines = ["Project start local fallback preload:"]
-        lines.append(
-            "- candidates: "
-            + ", ".join(str(item.get("id", "")) for item in local_candidates if str(item.get("id", "")).strip())
-        )
-        if local_execution.get("message"):
-            lines.append(f"- recommendation: {local_execution.get('message')}")
-        lines.append("- status: approved baseline includes recommended local delivery fallback routes.")
-        sections.append("\n".join(lines))
-    sections.extend(
-        [
-            _render_prince2_roles(config),
-            _render_prince2_role_tree_baseline(config),
-        ]
-    )
-    return "\n\n".join(sections)
+    return _project_start_flow._render_project_start(agent, config, prefs, force_ai=force_ai)
 
 
 def _project_start_ready(config: AgentConfig) -> bool:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    if not handoff.task.strip():
-        return False
-    for field_name in ("objective", "scope", "expected_outputs", "delivery_mode"):
-        if not handoff.project_brief.get(field_name):
-            return False
-    return True
-
-
-PROJECT_BRIEF_FIELDS: dict[str, str] = {
-    "objective": "Why the project exists and what outcome it should achieve.",
-    "scope": "What is in scope for this project brief.",
-    "expected_outputs": "What deliverables or outcomes must exist at completion.",
-    "delivery_mode": "Delivery approach such as agile, sequential, hybrid, or investigative.",
-    "constraints": "Known limits such as budget, time, regulatory, or platform constraints.",
-    "quality_gates": "Explicit acceptance or validation gates required before closure.",
-    "stakeholders": "Key stakeholders, sponsors, users, suppliers, or reviewers.",
-    "uncertainty": "Known uncertainty, ambiguity, or discovery level.",
-    "risk_tolerance": "Declared tolerance or escalation posture for risk.",
-    "tolerance_margin_percent": "Default per-node tolerance margin, usually 25, before escalation is required.",
-    "accountable_project_executive": "Human accountable owner for the Project Executive decision line; defaults to user.",
-}
-
-
-def _project_brief_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "project brief",
-        "fields": dict(handoff.project_brief),
-        "supported_fields": dict(PROJECT_BRIEF_FIELDS),
-        "count": len(handoff.project_brief),
-    }
-
-
-def _render_project_brief(config: AgentConfig) -> str:
-    report = _project_brief_report(config)
-    lines = ["Project brief:"]
-    fields = report["fields"]
-    if isinstance(fields, dict) and fields:
-        for key in sorted(fields):
-            lines.append(f"- {key}: {fields[key]}")
-    else:
-        lines.append("- none")
-    lines.append("Supported fields:")
-    for key in sorted(PROJECT_BRIEF_FIELDS):
-        lines.append(f"- {key}: {PROJECT_BRIEF_FIELDS[key]}")
-    return "\n".join(lines)
-
-
-def _handle_project_brief_command(command: str, config: AgentConfig) -> str | None:
-    parts = command.split()
-    if parts[:2] != ["project", "brief"]:
-        return None
-    handoff = ProjectHandoff.load(config.handoff_path)
-    if len(parts) == 2:
-        return _render_project_brief(config)
-    if len(parts) >= 4 and parts[2] == "set":
-        field_name = parts[3].strip().lower()
-        if field_name not in PROJECT_BRIEF_FIELDS:
-            return f"Unsupported project brief field '{field_name}'. Supported: {', '.join(sorted(PROJECT_BRIEF_FIELDS))}"
-        prefix = f"project brief set {parts[3]}"
-        value = command[len(prefix):].strip()
-        if not value:
-            return "Usage: project brief set <field> <value>"
-        handoff.update_project_brief({field_name: value})
-        handoff.save(config.handoff_path)
-        return f"Project brief updated: {field_name}={handoff.project_brief.get(field_name, '')}"
-    if len(parts) >= 3 and parts[2] == "clear":
-        if len(parts) == 3:
-            handoff.clear_project_brief()
-            handoff.save(config.handoff_path)
-            return "Project brief cleared."
-        field_name = parts[3].strip().lower()
-        if field_name not in PROJECT_BRIEF_FIELDS:
-            return f"Unsupported project brief field '{field_name}'. Supported: {', '.join(sorted(PROJECT_BRIEF_FIELDS))}"
-        handoff.clear_project_brief(field_name)
-        handoff.save(config.handoff_path)
-        return f"Project brief field cleared: {field_name}"
-    return "Usage: project brief | project brief set <field> <value> | project brief clear [field]"
-
-
-def _assignment_for_role(prefs: ModelPreferences, role: str) -> dict[str, object]:
-    proposal = prefs.propose_prince2_roles()
-    assignment = dict((prefs.prince2_roles or {}).get(role) or proposal.get(role, {}))
-    if not assignment:
-        return {}
-    assignment.setdefault("role", role)
-    assignment.setdefault("label", PRINCE2_ROLE_LABELS.get(role, role))
-    assignment.setdefault("mode", "auto")
-    assignment.setdefault("source", "project_tree_proposal")
-    return assignment
-
-
-def _role_node_from_template(
-    *,
-    node_id: str,
-    role_type: str,
-    label: str,
-    parent_id: str | None,
-    level: str,
-    accountability_boundary: str,
-    delegated_authority: str,
-    assignment: dict[str, object],
-    active_models: list[str],
-    tolerance_profile: Prince2ToleranceProfile | None = None,
-    accountable_owner: str = "user",
-) -> dict[str, object]:
-    provider = str(assignment.get("provider", "")) if assignment else ""
-    profile = tolerance_profile or _project_tolerance_profile(ProjectHandoff(), task=f"PRINCE2 {role_type} node")
-    node_tolerance = profile.node_profile(role_type)
-    return {
-        "node_id": node_id,
-        "role_type": role_type,
-        "label": label,
-        "parent_id": parent_id,
-        "level": level,
-        "accountability_boundary": accountability_boundary,
-        "delegated_authority": delegated_authority,
-        "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
-        "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
-        "context_rule": ROLE_CONTEXT_RULES[role_type].as_dict(),
-        "accountable_owner": str(node_tolerance.get("accountable_owner", accountable_owner)),
-        "tolerance_margin_percent": float(node_tolerance.get("margin_percent", profile.project_margin_percent)),
-        "tolerance_pressure_percent": float(node_tolerance.get("pressure_percent", profile.project_pressure_percent)),
-        "autonomy_rule": str(node_tolerance.get("autonomy_rule", "")),
-        "escalation_target": str(node_tolerance.get("escalation_target", "board.executive")),
-        "tolerance_profile": dict(node_tolerance),
-        "assignment": assignment,
-        "fallback_pool": [item for item in active_models if item != provider],
-        "readiness": "assigned" if assignment else "unassigned",
-    }
-
-
-def _route_from_local_execution_candidate(candidate: dict[str, object], *, node: dict[str, object]) -> dict[str, object] | None:
-    provider_model = str(candidate.get("id", "")).strip()
-    if not provider_model:
-        return None
-    params: dict[str, str] = {}
-    reasoning_default = str(candidate.get("reasoning_default", "")).strip()
-    if reasoning_default:
-        params["reasoning_effort"] = reasoning_default
-    return {
-        "role": str(node.get("role_type", "")),
-        "node_id": str(node.get("node_id", "")),
-        "label": str(node.get("label", node.get("node_id", ""))),
-        "mode": "auto",
-        "provider": "local",
-        "provider_model": provider_model,
-        "params": params,
-        "account": None,
-        "source": "auto_local_execution_candidate",
-        "pool": "fallback",
-    }
-
-
-def _enrich_tree_with_local_execution_candidates(
-    tree: dict[str, object],
-    local_execution: dict[str, object],
-) -> dict[str, object]:
-    nodes = [dict(node) for node in tree.get("nodes", []) if isinstance(node, dict)]
-    candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
-    candidate_ids = [str(item.get("id", "")).strip() for item in candidates if str(item.get("id", "")).strip()]
-    for node in nodes:
-        if not str(node.get("level", "")).startswith("delivery"):
-            continue
-        node["local_execution_candidates"] = list(candidate_ids)
-        if not candidates:
-            continue
-        pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
-        routes = [dict(item) for item in pools.get("fallback", []) if isinstance(item, dict)] if isinstance(pools.get("fallback", []), list) else []
-        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
-        assignment_provider = str(assignment.get("provider", "")).strip()
-        assignment_model = str(assignment.get("provider_model", "")).strip()
-        existing = {
-            (str(item.get("provider", "")).strip(), str(item.get("provider_model", "")).strip(), str(item.get("account", "")).strip())
-            for item in routes
-        }
-        for candidate in candidates:
-            route = _route_from_local_execution_candidate(candidate, node=node)
-            if route is None:
-                continue
-            signature = (
-                str(route.get("provider", "")).strip(),
-                str(route.get("provider_model", "")).strip(),
-                str(route.get("account", "")).strip(),
-            )
-            if assignment_provider == "local" and assignment_model == signature[1]:
-                continue
-            if signature in existing:
-                continue
-            routes.append(route)
-            existing.add(signature)
-        if routes:
-            pools["fallback"] = routes
-            node["assignment_pool"] = pools
-    enriched = dict(tree)
-    enriched["nodes"] = nodes
-    return enriched
-
-
-def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = None, use_ai: bool = False) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    prefs = _load_model_preferences(config)
-    proposed_roles = prefs.propose_prince2_roles()
-    merged_roles = dict(proposed_roles)
-    merged_roles.update(prefs.prince2_roles or {})
-    proposal_prefs = replace(prefs, prince2_roles=merged_roles)
-    active_models = list(proposal_prefs.active_models() or proposal_prefs.enabled_models)
-    local_execution = _local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
-    tolerance_profile = _project_tolerance_profile(handoff, task=handoff.task or None)
-    base_tree = build_prince2_role_tree_with_tolerance(
-        proposal_prefs,
-        tolerance_profile=tolerance_profile,
-        accountable_owner=tolerance_profile.accountable_owner,
-    )
-    nodes = [dict(node) for node in base_tree.get("nodes", []) if isinstance(node, dict)]
-    brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
-    joined = " ".join(brief.values()).lower()
-    assumptions: list[str] = []
-    added_nodes: list[str] = []
-
-    delivery_keywords = ("cli", "shell", "git", "code", "coding", "test", "tests", "download", "web", "compression", "multi", "windows", "linux", "macos")
-    complex_delivery = any(keyword in joined for keyword in delivery_keywords) or brief.get("delivery_mode", "").lower() in {"hybrid", "agile", "iterative", "investigative"}
-    if complex_delivery:
-        node_id = "delivery.implementation_team"
-        nodes.append(
-            _role_node_from_template(
-                node_id=node_id,
-                role_type="team_manager",
-                label="Implementation Team Manager",
-                parent_id="management.project_manager",
-                level="delivery",
-                accountability_boundary="delegated delivery of implementation work packages within agreed tolerances",
-                delegated_authority="executes implementation work packages and escalates forecast tolerance breaches",
-                assignment=_assignment_for_role(proposal_prefs, "team_manager"),
-                active_models=active_models,
-                tolerance_profile=tolerance_profile,
-                accountable_owner=tolerance_profile.accountable_owner,
-            )
-        )
-        added_nodes.append(node_id)
-        assumptions.append("Project brief indicates implementation complexity, so a delegated implementation Team Manager node is proposed.")
-
-    if any(keyword in joined for keyword in ("test", "tests", "quality", "wet-run", "validation", "verifica", "collaudo")):
-        node_id = "assurance.validation_assurance"
-        nodes.append(
-            _role_node_from_template(
-                node_id=node_id,
-                role_type="project_assurance",
-                label="Validation Assurance",
-                parent_id="board.executive",
-                level="assurance",
-                accountability_boundary="independent validation of wet-run evidence, quality gates, and acceptance readiness",
-                delegated_authority="reviews evidence independently; does not execute delivery work",
-                assignment=_assignment_for_role(proposal_prefs, "project_assurance"),
-                active_models=active_models,
-                tolerance_profile=tolerance_profile,
-                accountable_owner=tolerance_profile.accountable_owner,
-            )
-        )
-        added_nodes.append(node_id)
-        assumptions.append("Project brief mentions validation/testing, so an independent validation assurance node is proposed.")
-
-    if any(keyword in joined for keyword in ("user", "utente", "account", "login", "auth", "browser", "ux", "interactive", "shell")):
-        node_id = "board.user_acceptance"
-        nodes.append(
-            _role_node_from_template(
-                node_id=node_id,
-                role_type="senior_user",
-                label="User Acceptance Delegate",
-                parent_id="board.senior_user",
-                level="direction",
-                accountability_boundary="delegated user acceptance and usability feedback inside Senior User accountability",
-                delegated_authority="reviews user-facing acceptance evidence and escalates adoption issues",
-                assignment=_assignment_for_role(proposal_prefs, "senior_user"),
-                active_models=active_models,
-                tolerance_profile=tolerance_profile,
-                accountable_owner=tolerance_profile.accountable_owner,
-            )
-        )
-        added_nodes.append(node_id)
-        assumptions.append("Project brief indicates user-facing behaviour, so a delegated user acceptance node is proposed.")
-
-    if any(keyword in joined for keyword in ("rate-limit", "limit", "provider", "model", "handoff", "exception", "risk")):
-        node_id = "authority.model_change_authority"
-        nodes.append(
-            _role_node_from_template(
-                node_id=node_id,
-                role_type="change_authority",
-                label="Model Routing Change Authority",
-                parent_id="board.executive",
-                level="delegated_authority",
-                accountability_boundary="delegated model/provider routing changes inside approved tolerances",
-                delegated_authority="approves provider/model fallback and re-baseline decisions within delegated limits",
-                assignment=_assignment_for_role(proposal_prefs, "change_authority"),
-                active_models=active_models,
-                tolerance_profile=tolerance_profile,
-                accountable_owner=tolerance_profile.accountable_owner,
-            )
-        )
-        added_nodes.append(node_id)
-        assumptions.append("Project brief indicates provider/rate-limit or exception complexity, so a delegated change authority node is proposed.")
-
-    tree = dict(base_tree)
-    tree["command"] = "project tree propose"
-    tree["source"] = "project_brief_local_rules"
-    tree["nodes"] = nodes
-    tree = _enrich_tree_with_local_execution_candidates(tree, local_execution)
-    check = check_prince2_role_tree_payload(tree, proposal_prefs)
-    matrix = build_prince2_role_matrix_payload(tree, proposal_prefs)
-    gaps: list[dict[str, str]] = []
-    for required in ("objective", "scope", "expected_outputs", "delivery_mode"):
-        if not brief.get(required):
-            gaps.append({"code": f"missing_{required}", "message": f"Project brief is missing {required}."})
-    report = {
-        "command": "project tree propose",
-        "status": "ready_for_review" if not gaps and check.get("status") != "error" else "needs_clarification",
-        "source": "local_rules",
-        "ai_requested": bool(use_ai),
-        "ai_assistance": {
-            "attempted": False,
-            "ok": None,
-            "model": None,
-            "account": None,
-            "message": "AI assistance was not requested.",
-            "valid_added_nodes": [],
-            "rejected_nodes": [],
-        },
-        "project_brief": brief,
-        "assumptions": assumptions,
-        "added_nodes": added_nodes,
-        "tree": tree,
-        "local_execution": local_execution,
-        "check": check,
-        "matrix": matrix,
-        "clarification_gaps": gaps,
-        "approval_rule": "proposal only; user or Project Board must approve before persistence",
-    }
-    if use_ai:
-        active_agent = agent or _configure_readonly_agent_for_workspace(config)
-        report = _merge_ai_project_tree_proposal(active_agent, config, report)
-    return report
-
-
-def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, object]) -> str:
-    packet = {
-        "purpose": "Design a proportional PRINCE2 role-tree proposal for Stagewarden.",
-        "rules": [
-            "Return only valid JSON.",
-            "Do not persist or approve anything.",
-            "Suggest only additional nodes that are justified by the project brief.",
-            "Each node must have node_id, role_type, label, parent_id, level, accountability_boundary, and delegated_authority.",
-            "Allowed role_type values: " + ", ".join(PRINCE2_ROLE_IDS),
-            "Respect PRINCE2 accountability boundaries and keep each node context limited to its responsibility domain.",
-            "If you propose custom context slices, include context_include/context_exclude and do not widen beyond the node domain.",
-            "Include tolerance_boundary, validation_condition, and open_questions when useful for review.",
-            "Prefer cheaper/local providers unless the node domain requires stronger reasoning.",
-        ],
-        "expected_schema": {
-            "summary": "short rationale",
-            "assumptions": ["short assumption"],
-            "tree_patches": [
-                {
-                    "node_id": "lowercase.dot_or_underscore_id",
-                    "role_type": "project_manager",
-                    "label": "Node label",
-                    "parent_id": "management.project_manager",
-                    "level": "management",
-                    "accountability_boundary": "bounded accountability/delegation statement",
-                    "delegated_authority": "what this node may decide or execute",
-                    "responsibility_domain": "bounded domain of competence",
-                    "context_scope": "short context visibility scope",
-                    "context_include": ["allowed context slice"],
-                    "context_exclude": ["forbidden context slice"],
-                    "tolerance_boundary": "delegated tolerance boundary",
-                    "validation_condition": "how the node proves its work/decision",
-                    "open_questions": ["review question"],
-                }
-            ],
-        },
-        "project_design_packet": design,
-        "local_proposal": local_report,
-    }
-    return dumps_ascii(packet)
-
-
-def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_report: dict[str, object]) -> dict[str, object]:
-    report = copy.deepcopy(local_report)
-    design = _project_design_report(agent, config)
-    prompt = _project_tree_ai_prompt(design, local_report)
-    _apply_model_preferences(agent, config)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    tolerance_profile = _project_tolerance_profile(handoff, task=handoff.task or None)
-    prefs = _load_model_preferences(config)
-    model = _choose_cloud_priority_model(agent, prefs)
-    account = prefs.account_for_model(model)
-    result = agent.handoff.execute(format_run_model(model, prompt, account=account))
-    assistance: dict[str, object] = {
-        "attempted": True,
-        "ok": False,
-        "model": model,
-        "account": account or None,
-        "message": "",
-        "valid_added_nodes": [],
-        "rejected_nodes": [],
-    }
-    if not result.ok:
-        assistance["message"] = result.error or "AI proposal model call failed; using local proposal only."
-        report["ai_assistance"] = assistance
-        report["source"] = "local_rules_ai_failed"
-        return report
-    try:
-        payload = loads_text(result.output)
-    except ValueError as exc:
-        assistance["message"] = f"AI proposal output was not valid JSON: {exc}"
-        report["ai_assistance"] = assistance
-        report["source"] = "local_rules_ai_invalid"
-        return report
-    if not isinstance(payload, dict):
-        assistance["message"] = "AI proposal output must be a JSON object."
-        report["ai_assistance"] = assistance
-        report["source"] = "local_rules_ai_invalid"
-        return report
-
-    prefs = _load_model_preferences(config)
-    proposed_roles = prefs.propose_prince2_roles()
-    merged_roles = dict(proposed_roles)
-    merged_roles.update(prefs.prince2_roles or {})
-    proposal_prefs = replace(prefs, prince2_roles=merged_roles)
-    active_models = list(proposal_prefs.active_models() or proposal_prefs.enabled_models)
-    tree = report["tree"] if isinstance(report.get("tree"), dict) else {}
-    nodes = [dict(node) for node in tree.get("nodes", []) if isinstance(node, dict)]
-    existing = {str(node.get("node_id", "")) for node in nodes}
-    patches = payload.get("tree_patches", payload.get("nodes", []))
-    if not isinstance(patches, list):
-        patches = []
-    rejected: list[dict[str, str]] = []
-    added: list[str] = []
-    for raw_patch in patches:
-        if not isinstance(raw_patch, dict):
-            rejected.append({"node_id": "unknown", "reason": "patch is not an object"})
-            continue
-        node_id = str(raw_patch.get("node_id", "")).strip().lower()
-        role_type = str(raw_patch.get("role_type", "")).strip()
-        if not re.fullmatch(r"[a-z0-9][a-z0-9_.-]{2,80}", node_id):
-            rejected.append({"node_id": node_id or "unknown", "reason": "invalid node_id"})
-            continue
-        if node_id in existing:
-            rejected.append({"node_id": node_id, "reason": "duplicate node_id"})
-            continue
-        if role_type not in PRINCE2_ROLE_IDS:
-            rejected.append({"node_id": node_id, "reason": "unsupported role_type"})
-            continue
-        parent_id = str(raw_patch.get("parent_id") or "management.project_manager").strip()
-        node = _role_node_from_template(
-            node_id=node_id,
-            role_type=role_type,
-            label=str(raw_patch.get("label") or PRINCE2_ROLE_LABELS.get(role_type, role_type)).strip(),
-            parent_id=parent_id,
-            level=str(raw_patch.get("level") or "delegated").strip(),
-            accountability_boundary=str(raw_patch.get("accountability_boundary") or "delegated PRINCE2 accountability within agreed tolerances").strip(),
-            delegated_authority=str(raw_patch.get("delegated_authority") or "executes delegated work and escalates tolerance breaches").strip(),
-            assignment=_assignment_for_role(proposal_prefs, role_type),
-            active_models=active_models,
-            tolerance_profile=tolerance_profile,
-            accountable_owner=tolerance_profile.accountable_owner,
-        )
-        context_include = raw_patch.get("context_include")
-        context_exclude = raw_patch.get("context_exclude")
-        if isinstance(context_include, list) or isinstance(context_exclude, list):
-            base_rule = node.get("context_rule") if isinstance(node.get("context_rule"), dict) else {}
-            node["context_rule"] = {
-                "include": [str(item) for item in context_include] if isinstance(context_include, list) else list(base_rule.get("include", [])),
-                "exclude": [str(item) for item in context_exclude] if isinstance(context_exclude, list) else list(base_rule.get("exclude", [])),
-                "expansion_events": list(base_rule.get("expansion_events", [])),
-            }
-        for optional_key in ("responsibility_domain", "context_scope", "tolerance_boundary", "validation_condition"):
-            value = str(raw_patch.get(optional_key, "")).strip()
-            if value:
-                node[optional_key] = value
-        open_questions = raw_patch.get("open_questions")
-        if isinstance(open_questions, list):
-            node["open_questions"] = [str(item) for item in open_questions if str(item).strip()]
-        nodes.append(node)
-        existing.add(node_id)
-        added.append(node_id)
-
-    tree["nodes"] = nodes
-    tree["source"] = "project_brief_local_rules_plus_ai"
-    report["tree"] = tree
-    report["source"] = "local_rules_plus_ai" if added else "local_rules_ai_no_changes"
-    report["check"] = check_prince2_role_tree_payload(tree, proposal_prefs)
-    report["matrix"] = build_prince2_role_matrix_payload(tree, proposal_prefs)
-    report["added_nodes"] = list(dict.fromkeys([*report.get("added_nodes", []), *added]))
-    assumptions = list(report.get("assumptions", [])) if isinstance(report.get("assumptions"), list) else []
-    summary = str(payload.get("summary", "")).strip()
-    if summary:
-        assumptions.append(f"AI tree designer: {summary}")
-    ai_assumptions = payload.get("assumptions", [])
-    if isinstance(ai_assumptions, list):
-        assumptions.extend(str(item).strip() for item in ai_assumptions if str(item).strip())
-    report["assumptions"] = assumptions
-    assistance["ok"] = True
-    assistance["message"] = "AI proposal merged into review-only project tree." if added else "AI proposal returned no valid new nodes; using local proposal."
-    assistance["valid_added_nodes"] = added
-    assistance["rejected_nodes"] = rejected
-    report["ai_assistance"] = assistance
-    return report
-
-
-def _render_project_tree_proposal(config: AgentConfig) -> str:
-    report = _project_tree_proposal_report(config)
-    return _render_project_tree_proposal_report(report)
-
-
-def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
-    check = report["check"] if isinstance(report.get("check"), dict) else {}
-    summary = check.get("summary", {}) if isinstance(check.get("summary"), dict) else {}
-    lines = [
-        "Project tree proposal:",
-        f"- status: {report['status']}",
-        f"- source: {report['source']}",
-        f"- ai_requested: {str(bool(report.get('ai_requested'))).lower()}",
-        f"- nodes: {summary.get('nodes', 0)} assigned={summary.get('assigned', 0)} unassigned={summary.get('unassigned', 0)}",
-        f"- added_nodes: {', '.join(report['added_nodes']) or 'none'}",
-        f"- approval_rule: {report['approval_rule']}",
-        "AI assistance:",
-    ]
-    ai_assistance = report.get("ai_assistance") if isinstance(report.get("ai_assistance"), dict) else {}
-    if ai_assistance:
-        added = ai_assistance.get("valid_added_nodes", [])
-        rejected = ai_assistance.get("rejected_nodes", [])
-        lines.append(
-            f"- attempted: {str(bool(ai_assistance.get('attempted'))).lower()} "
-            f"ok={ai_assistance.get('ok')} model={ai_assistance.get('model') or 'none'} "
-            f"account={ai_assistance.get('account') or 'none'}"
-        )
-        lines.append(f"- message: {ai_assistance.get('message') or 'none'}")
-        lines.append(f"- valid_added_nodes: {', '.join(added) if isinstance(added, list) and added else 'none'}")
-        lines.append(f"- rejected_nodes: {len(rejected) if isinstance(rejected, list) else 0}")
-    else:
-        lines.append("- none")
-    local_execution = report.get("local_execution") if isinstance(report.get("local_execution"), dict) else {}
-    lines.append("Local execution candidates:")
-    if local_execution:
-        ai = local_execution.get("ai_analysis", {}) if isinstance(local_execution.get("ai_analysis"), dict) else {}
-        lines.append(
-            f"- source: {local_execution.get('catalog_source', 'unknown')} "
-            f"ai_attempted={str(bool(ai.get('attempted'))).lower()} ai_ok={ai.get('ok')}"
-        )
-        if local_execution.get("message"):
-            lines.append(f"- recommendation: {local_execution.get('message')}")
-        candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
-        if candidates:
-            for item in candidates:
-                lines.append(
-                    f"- {item.get('id')}: fit={item.get('agentic_fit')} risk={item.get('tool_support_risk')} "
-                    f"best_for={', '.join(str(entry) for entry in item.get('best_for', [])) or 'none'}"
-                )
-        else:
-            lines.append("- none")
-    else:
-        lines.append("- none")
-    lines.append("Assumptions:")
-    assumptions = report["assumptions"]
-    if isinstance(assumptions, list) and assumptions:
-        for item in assumptions:
-            lines.append(f"- {item}")
-    else:
-        lines.append("- none")
-    lines.append("Clarification gaps:")
-    gaps = report["clarification_gaps"]
-    if isinstance(gaps, list) and gaps:
-        for item in gaps:
-            if isinstance(item, dict):
-                lines.append(f"- {item.get('code')}: {item.get('message')}")
-    else:
-        lines.append("- none")
-    lines.append("Node preview:")
-    tree = report["tree"] if isinstance(report.get("tree"), dict) else {}
-    for node in tree.get("nodes", []) if isinstance(tree.get("nodes"), list) else []:
-        if not isinstance(node, dict):
-            continue
-        marker = "added" if node.get("node_id") in report["added_nodes"] else "base"
-        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
-        lines.append(
-            f"- [{marker}] {node.get('node_id')} role={node.get('role_type')} "
-            f"parent={node.get('parent_id') or 'none'} provider={assignment.get('provider') or 'none'} "
-            f"provider_model={assignment.get('provider_model') or 'none'}"
-        )
-    return "\n".join(lines)
-
-
-def _record_project_tree_proposal_action(config: AgentConfig, report: dict[str, object], *, task: str) -> None:
-    _record_handoff_action(
-        config,
-        phase="project_tree_proposal_ai" if report.get("ai_requested") else "project_tree_proposal",
-        summary="Project tree proposal generated for review; no baseline persisted.",
-        task=task,
-        details={
-            "status": report.get("status"),
-            "source": report.get("source"),
-            "ai_requested": report.get("ai_requested"),
-            "ai_assistance": report.get("ai_assistance"),
-            "added_nodes": report.get("added_nodes", []),
-            "clarification_gaps": report.get("clarification_gaps", []),
-            "node_count": len(report.get("tree", {}).get("nodes", [])) if isinstance(report.get("tree"), dict) else 0,
-        },
-    )
-
-
-def _approve_project_tree_proposal(
-    config: AgentConfig,
-    *,
-    force: bool = False,
-    proposal_report: dict[str, object] | None = None,
-) -> dict[str, object]:
-    report = proposal_report or _project_tree_proposal_report(config)
-    gaps = report.get("clarification_gaps", [])
-    if isinstance(gaps, list) and gaps and not force:
-        _record_handoff_action(
-            config,
-            phase="project_tree_approval_blocked",
-            summary="Project tree approval blocked by unresolved clarification gaps.",
-            task="project tree approve",
-            details={
-                "clarification_gaps": gaps,
-                "proposal_status": report.get("status"),
-                "added_nodes": report.get("added_nodes", []),
-            },
-        )
-        return {
-            "command": "project tree approve",
-            "status": "blocked",
-            "message": "Project tree proposal has clarification gaps; resolve them or rerun with --force.",
-            "clarification_gaps": gaps,
-            "proposal": report,
-        }
-    prefs = _load_model_preferences(config)
-    merged_roles = dict(prefs.propose_prince2_roles())
-    merged_roles.update(prefs.prince2_roles or {})
-    proposal_prefs = replace(prefs, prince2_roles=merged_roles)
-    baseline = {
-        "version": "1",
-        "approved_at": datetime.now().isoformat(timespec="seconds"),
-        "source": "project_tree_approve_force" if force else "project_tree_approve",
-        "status": "approved",
-        "tree": _enrich_tree_with_local_execution_candidates(
-            dict(report["tree"]) if isinstance(report.get("tree"), dict) else {},
-            dict(report.get("local_execution", {})) if isinstance(report.get("local_execution"), dict) else {},
-        ),
-        "flow": build_prince2_role_flow(),
-        "check": {},
-        "matrix": {},
-        "local_execution": dict(report.get("local_execution", {})) if isinstance(report.get("local_execution"), dict) else {},
-        "proposal": {
-            "source": report["source"],
-            "assumptions": list(report.get("assumptions", [])) if isinstance(report.get("assumptions"), list) else [],
-            "added_nodes": list(report.get("added_nodes", [])) if isinstance(report.get("added_nodes"), list) else [],
-            "clarification_gaps": list(gaps) if isinstance(gaps, list) else [],
-            "project_brief": dict(report.get("project_brief", {})) if isinstance(report.get("project_brief"), dict) else {},
-            "ai_requested": bool(report.get("ai_requested")),
-            "ai_assistance": dict(report.get("ai_assistance", {})) if isinstance(report.get("ai_assistance"), dict) else {},
-            "forced": force,
-        },
-    }
-    _refresh_prince2_role_tree_baseline_checks(baseline, proposal_prefs)
-    _persist_prince2_role_tree_baseline(config, proposal_prefs, baseline)
-    _record_handoff_action(
-        config,
-        phase="project_tree_approval",
-        summary="Project tree proposal approved and persisted as PRINCE2 role-tree baseline.",
-        task="project tree approve --force" if force else "project tree approve",
-        details={
-            "forced": force,
-            "source": baseline["source"],
-            "added_nodes": baseline["proposal"]["added_nodes"],
-            "clarification_gaps": baseline["proposal"]["clarification_gaps"],
-            "node_count": len(report.get("tree", {}).get("nodes", [])) if isinstance(report.get("tree"), dict) else 0,
-        },
-    )
-    return {
-        "command": "project tree approve",
-        "status": "approved",
-        "forced": force,
-        "message": "Approved project-tree proposal as PRINCE2 role-tree baseline.",
-        "baseline": _prince2_role_tree_baseline_report(config),
-    }
-
-
-def _render_project_tree_approval_report(report: dict[str, object], config: AgentConfig) -> str:
-    lines = ["Project tree approval:"]
-    lines.append(f"- status: {report['status']}")
-    lines.append(f"- message: {report['message']}")
-    if report["status"] == "blocked":
-        lines.append("Clarification gaps:")
-        gaps = report.get("clarification_gaps", [])
-        if isinstance(gaps, list) and gaps:
-            for item in gaps:
-                if isinstance(item, dict):
-                    lines.append(f"- {item.get('code')}: {item.get('message')}")
-        lines.append("- action: resolve missing project brief fields or rerun /project tree approve --force")
-        return "\n".join(lines)
-    lines.append(f"- forced: {str(bool(report.get('forced'))).lower()}")
-    baseline = report.get("baseline") if isinstance(report.get("baseline"), dict) else {}
-    lines.append(f"- baseline_status: {baseline.get('status', 'unknown')}")
-    if isinstance(baseline.get("baseline"), dict):
-        proposal = baseline["baseline"].get("proposal", {})
-        added = proposal.get("added_nodes", []) if isinstance(proposal, dict) else []
-        lines.append(f"- added_nodes: {', '.join(added) if isinstance(added, list) and added else 'none'}")
-    return "\n".join(lines) + "\n" + _render_prince2_role_tree_baseline(config)
-
-
-def _render_project_tree_approval(config: AgentConfig, *, force: bool = False) -> str:
-    return _render_project_tree_approval_report(_approve_project_tree_proposal(config, force=force), config)
+    return _project_start_flow._project_start_ready(config)
 
 
 def _role_options() -> list[tuple[str, str]]:
-    return [(role, f"{PRINCE2_ROLE_LABELS[role]} ({role})") for role in PRINCE2_ROLE_IDS]
+    return _project_role_flow._role_options()
 
 
 def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
-    prefs = _load_model_preferences(config)
-    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_menu")
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
-    options: list[tuple[str, str]] = []
-    for node in nodes:
-        if not isinstance(node, dict):
-            continue
-        node_id = str(node.get("node_id", "")).strip()
-        if not node_id:
-            continue
-        assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
-        provider = assignment.get("provider", "unassigned") if isinstance(assignment, dict) and assignment else "unassigned"
-        provider_model = assignment.get("provider_model", "none") if isinstance(assignment, dict) and assignment else "none"
-        status_color = prince2_status_color(node)
-        label = (
-            f"{node.get('label', node_id)} [{node_id}] "
-            f"role={node.get('role_type', 'unknown')} "
-            f"state={node.get('tolerance_state', node.get('state', 'unknown'))} color={status_color} "
-            f"margin={node.get('tolerance_margin_percent', 'unknown')} pressure={node.get('tolerance_pressure_percent', 'unknown')} "
-            f"provider={provider} provider_model={provider_model}"
-        )
-        options.append((node_id, label))
-    return options
+    return _project_role_flow._role_tree_node_options(config)
 
 
 def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, object] | None:
-    prefs = _load_model_preferences(config)
-    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_node_context")
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
-    for node in nodes:
-        if isinstance(node, dict) and str(node.get("node_id", "")).strip() == node_id:
-            return dict(node)
-    return None
+    return _project_role_flow._role_tree_node_record(config, node_id)
 
 
 def _role_tree_nodes_by_parent(config: AgentConfig, parent_id: str | None) -> list[dict[str, object]]:
-    prefs = _load_model_preferences(config)
-    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_nodes_by_parent")
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
-    if parent_id is None:
-        return [dict(node) for node in nodes if isinstance(node, dict) and node.get("parent_id") in {None, ""}]
-    clean_parent = str(parent_id).strip()
-    return [dict(node) for node in nodes if isinstance(node, dict) and str(node.get("parent_id", "")).strip() == clean_parent]
+    return _project_role_flow._role_tree_nodes_by_parent(config, parent_id)
 
 
 def _role_tree_node_children(config: AgentConfig, node_id: str) -> list[dict[str, object]]:
-    return _role_tree_nodes_by_parent(config, node_id)
+    return _project_role_flow._role_tree_node_children(config, node_id)
 
 
 def _with_prince2_role_tree_baseline_mutation(
@@ -2686,318 +1225,27 @@ def _with_prince2_role_tree_baseline_mutation(
     source: str,
     mutator: Callable[[dict[str, object], dict[str, object], list[dict[str, object]]], None],
 ) -> dict[str, object]:
-    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source=source)
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
-    mutator(baseline, tree, nodes)
-    tree["nodes"] = nodes
-    baseline["tree"] = tree
-    baseline["status"] = "approved"
-    baseline["source"] = source
-    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
-    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
-    _persist_prince2_role_tree_baseline(config, prefs, baseline)
-    return baseline
-
-
-def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:
-    pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
-    routes = pools.get("fallback", []) if isinstance(pools.get("fallback"), list) else []
-    local_routes = [dict(item) for item in routes if isinstance(item, dict) and item.get("provider") == "local"]
-    local_routes.sort(key=lambda item: str(item.get("provider_model", "")))
-    return local_routes
-
-
-def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
-    if not isinstance(entry, dict) or not entry:
-        return None
-    intelligence = entry.get("intelligence_rank")
-    if isinstance(intelligence, (int, float)):
-        return float(intelligence)
-    speed = entry.get("speed_rank")
-    if isinstance(speed, (int, float)):
-        return float(speed)
-    return None
-
-
-def _catalog_model_choice_key(provider: str, provider_model: str) -> str:
-    return f"{provider}:{provider_model}"
-
-
-def _parse_catalog_model_choice(choice: str) -> tuple[str, str] | None:
-    provider, separator, provider_model = str(choice).partition(":")
-    if not separator:
-        return None
-    provider = provider.strip()
-    provider_model = provider_model.strip()
-    if not provider or not provider_model:
-        return None
-    return provider, provider_model
-
-
-def _node_model_recommendation(config: AgentConfig, node: dict[str, object]) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    catalog = load_ai_models_catalog()
-    assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
-    current_provider = str(assignment.get("provider", "")).strip()
-    current_provider_model = str(assignment.get("provider_model", "")).strip()
-    current_entry = catalog_entry_for_provider_model(current_provider, current_provider_model, catalog) if current_provider and current_provider_model else None
-    current_score = _catalog_power_score(current_entry)
-    current_label = "current assignment"
-    if current_provider and current_provider_model:
-        current_label = f"{current_provider}:{current_provider_model}"
-
-    candidates: list[dict[str, object]] = []
-    for provider in prefs.enabled_models or list(SUPPORTED_MODELS):
-        for spec in provider_model_specs(provider):
-            if spec.id == "provider-default":
-                continue
-            entry = catalog_entry_for_provider_model(provider, spec.id, catalog)
-            score = _catalog_power_score(entry)
-            if current_provider and current_provider_model and provider == current_provider and spec.id == current_provider_model:
-                continue
-            bucket = "peer"
-            delta = None
-            if current_score is not None and score is not None:
-                delta = round(current_score - score, 3)
-                if delta > 0:
-                    bucket = "stronger"
-                elif delta < 0:
-                    bucket = "lighter"
-            candidates.append(
-                {
-                    "provider": provider,
-                    "provider_model": spec.id,
-                    "label": f"{provider} / {spec.id} | {spec.label}{_catalog_option_suffix(entry)}",
-                    "score": score,
-                    "delta": delta,
-                    "bucket": bucket,
-                }
-            )
-
-    stronger = [item for item in candidates if item["bucket"] == "stronger"]
-    lighter = [item for item in candidates if item["bucket"] == "lighter"]
-    peers = [item for item in candidates if item["bucket"] == "peer"]
-
-    stronger.sort(key=lambda item: (float(item["score"]) if isinstance(item.get("score"), (int, float)) else 999.0, str(item["provider"]), str(item["provider_model"])))
-    lighter.sort(key=lambda item: (-(float(item["score"]) if isinstance(item.get("score"), (int, float)) else 0.0), str(item["provider"]), str(item["provider_model"])))
-    peers.sort(key=lambda item: (str(item["provider"]), str(item["provider_model"])))
-
-    try:
-        node_margin = float(node.get("tolerance_margin_percent", 25.0) or 25.0)
-    except (TypeError, ValueError):
-        node_margin = 25.0
-    try:
-        node_pressure = float(node.get("tolerance_pressure_percent", 0.0) or 0.0)
-    except (TypeError, ValueError):
-        node_pressure = 0.0
-    state = str(node.get("state", "")).strip().lower() or "idle"
-    tolerance_state = str(node.get("tolerance_state") or state)
-    direction = "hold"
-    if tolerance_state == "escalated" or node_pressure > node_margin:
-        direction = "stronger"
-    elif node_pressure < node_margin * 0.5:
-        direction = "lighter"
-
-    suggested = None
-    if direction == "stronger" and stronger:
-        suggested = stronger[0]
-    elif direction == "lighter" and lighter:
-        suggested = lighter[0]
-    elif current_provider and current_provider_model:
-        suggested = {
-            "provider": current_provider,
-            "provider_model": current_provider_model,
-            "label": current_label,
-            "score": current_score,
-            "delta": 0.0,
-            "bucket": "current",
-        }
-    elif stronger:
-        suggested = stronger[0]
-    elif peers:
-        suggested = peers[0]
-
-    return {
-        "current": {
-            "provider": current_provider or None,
-            "provider_model": current_provider_model or None,
-            "label": current_label,
-            "score": current_score,
-        },
-        "direction": direction,
-        "suggested": suggested,
-        "stronger": stronger[:6],
-        "lighter": lighter[:6],
-        "peers": peers[:8],
-    }
+    return _project_role_flow._with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
 
 
 def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool: str) -> str:
-    node = _role_tree_node_record(config, node_id)
-    if not node:
-        return ""
-    lines = [
-        "Node assignment context:",
-        f"- node_id: {node_id}",
-        f"- role_type: {node.get('role_type', 'unknown')}",
-        f"- level: {node.get('level', 'unknown')}",
-        f"- selected_pool: {pool}",
-    ]
-    local_routes = _node_local_fallback_candidates(node)
-    if local_routes:
-        lines.append(
-            "- recommended_local_fallbacks: "
-            + ", ".join(
-                f"{item.get('provider_model')}({((item.get('params') or {}).get('reasoning_effort') or 'provider-default')})"
-                for item in local_routes
-            )
-        )
-    else:
-        lines.append("- recommended_local_fallbacks: none")
-    return "\n".join(lines)
+    return _project_role_flow._guided_role_node_assignment_context(config, node_id, pool)
 
 
 def _role_tree_node_navigation(config: AgentConfig, node_id: str) -> dict[str, object]:
-    node = _role_tree_node_record(config, node_id)
-    if not node:
-        return {}
-    parent_id = node.get("parent_id")
-    siblings = _role_tree_nodes_by_parent(config, str(parent_id) if parent_id not in {None, ""} else None)
-    sibling_ids = [str(item.get("node_id", "")).strip() for item in siblings if str(item.get("node_id", "")).strip()]
-    try:
-        index = sibling_ids.index(node_id)
-    except ValueError:
-        index = -1
-    children = _role_tree_node_children(config, node_id)
-    child_ids = [str(item.get("node_id", "")).strip() for item in children if str(item.get("node_id", "")).strip()]
-    return {
-        "node_id": node_id,
-        "parent_id": str(parent_id).strip() if parent_id not in {None, ""} else None,
-        "siblings": sibling_ids,
-        "children": child_ids,
-        "previous_sibling": sibling_ids[index - 1] if index > 0 else None,
-        "next_sibling": sibling_ids[index + 1] if index >= 0 and index + 1 < len(sibling_ids) else None,
-    }
+    return _project_role_flow._role_tree_node_navigation(config, node_id)
 
 
 def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
-    node = _role_tree_node_record(config, node_id)
-    if not node:
-        return f"PRINCE2 node '{node_id}' not found."
-    assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
-    recommendation = _node_model_recommendation(config, node)
-    suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
-    children = _role_tree_node_children(config, node_id)
-    navigation = _role_tree_node_navigation(config, node_id)
-    status_color = prince2_status_color(node)
-    description = prince2_node_description(node)
-    lines = [
-        "PRINCE2 node detail:",
-        f"- node_id: {node.get('node_id', node_id)}",
-        f"- label: {node.get('label', node_id)}",
-        f"- description: {description}",
-        f"- role_type: {node.get('role_type', 'unknown')}",
-        f"- parent_id: {node.get('parent_id') or 'none'}",
-        f"- level: {node.get('level', 'unknown')}",
-        f"- accountable_owner: {node.get('accountable_owner', 'user')}",
-        f"- tolerance_margin_percent: {node.get('tolerance_margin_percent', 'unknown')}",
-        f"- tolerance_pressure_percent: {node.get('tolerance_pressure_percent', 'unknown')}",
-        f"- tolerance_state: {node.get('tolerance_state', node.get('state', 'unknown'))}",
-        f"- status_color: {status_color}",
-        f"- autonomy_rule: {node.get('autonomy_rule', 'none')}",
-        f"- escalation_target: {node.get('escalation_target', 'board.executive')}",
-        f"- shell_hint: role shell {node.get('node_id', node_id)}",
-        f"- switch_hint: role switch {node.get('node_id', node_id)}",
-        f"- assignment: provider={assignment.get('provider') or 'none'} provider_model={assignment.get('provider_model') or 'none'} account={assignment.get('account') or 'none'}",
-        f"- children: {', '.join(str(item.get('node_id')) for item in children) or 'none'}",
-        f"- navigation: parent={navigation.get('parent_id') or 'none'} prev={navigation.get('previous_sibling') or 'none'} next={navigation.get('next_sibling') or 'none'}",
-        f"- model_direction: {recommendation.get('direction', 'hold')}",
-        (
-            "- model_suggestion: "
-            f"{suggested.get('provider') or 'none'}:{suggested.get('provider_model') or 'none'} "
-            f"bucket={suggested.get('bucket', 'none')} "
-            f"score={suggested.get('score', 'n/a')}"
-        ),
-        (
-            "- model_recommendation: "
-            f"direction={recommendation.get('direction', 'hold')} "
-            f"stronger={len([item for item in recommendation.get('stronger', []) if isinstance(item, dict)])} "
-            f"lighter={len([item for item in recommendation.get('lighter', []) if isinstance(item, dict)])}"
-        ),
-    ]
-    return "\n".join(lines)
+    return _project_role_flow._render_prince2_role_node_detail(config, node_id)
 
 
 def _render_prince2_role_node_shell(config: AgentConfig, node_id: str) -> str:
-    node = _role_tree_node_record(config, node_id)
-    if not node:
-        return f"PRINCE2 node shell '{node_id}' not found."
-    navigation = _role_tree_node_navigation(config, node_id)
-    children = _role_tree_node_children(config, node_id)
-    status_color = prince2_status_color(node)
-    lines = [
-        "PRINCE2 node shell:",
-        f"- node: {node.get('label', node_id)} [{node.get('node_id', node_id)}]",
-        f"- description={prince2_node_description(node)}",
-        f"- status_color={status_color}",
-        f"- status_legend: {', '.join(f'{color}={meaning}' for color, meaning in STATUS_COLOR_LEGEND.items())}",
-        f"- parent={navigation.get('parent_id') or 'none'}",
-        f"- previous={navigation.get('previous_sibling') or 'none'}",
-        f"- next={navigation.get('next_sibling') or 'none'}",
-        f"- children={', '.join(str(item.get('node_id')) for item in children) or 'none'}",
-        f"- shell_hint: role shell {node.get('node_id', node_id)}",
-        f"- menu_hint: role menu {node.get('node_id', node_id)}",
-        f"- tree_hint: roles tree",
-        f"- switch_hint: role switch {node.get('node_id', node_id)}",
-    ]
-    return "\n".join(lines)
+    return _project_role_flow._render_prince2_role_node_shell(config, node_id)
 
 
 def _node_model_choice_options(config: AgentConfig, node_id: str) -> list[tuple[str, str]]:
-    node = _role_tree_node_record(config, node_id)
-    if not node:
-        return []
-    recommendation = _node_model_recommendation(config, node)
-    current = recommendation.get("current", {}) if isinstance(recommendation.get("current"), dict) else {}
-    current_key = _catalog_model_choice_key(
-        str(current.get("provider", "")).strip(),
-        str(current.get("provider_model", "")).strip(),
-    )
-
-    options: list[tuple[str, str]] = []
-    seen: set[str] = set()
-
-    def append_group(prefix: str, items: list[dict[str, object]]) -> None:
-        for item in items:
-            provider = str(item.get("provider", "")).strip()
-            provider_model = str(item.get("provider_model", "")).strip()
-            if not provider or not provider_model:
-                continue
-            key = _catalog_model_choice_key(provider, provider_model)
-            if key in seen:
-                continue
-            seen.add(key)
-            label = str(item.get("label", key))
-            if key == current_key:
-                label = f"[current] {label}"
-            else:
-                label = f"[{prefix}] {label}"
-            options.append((key, label))
-
-    append_group("stronger", [item for item in recommendation.get("stronger", []) if isinstance(item, dict)])
-    append_group("lighter", [item for item in recommendation.get("lighter", []) if isinstance(item, dict)])
-    append_group("peer", [item for item in recommendation.get("peers", []) if isinstance(item, dict)])
-
-    if current_key and current_key not in seen and current.get("provider") and current.get("provider_model"):
-        options.insert(
-            0,
-            (
-                current_key,
-                f"[current] {current.get('provider')} / {current.get('provider_model')} | current assignment",
-            ),
-        )
-    return options
+    return _project_role_flow._node_model_choice_options(config, node_id)
 
 
 def _guided_provider_options_for_node(
@@ -3007,23 +1255,7 @@ def _guided_provider_options_for_node(
     node_id: str,
     pool: str,
 ) -> list[tuple[str, str]]:
-    providers = list(prefs.enabled_models or list(SUPPORTED_MODELS))
-    node = _role_tree_node_record(config, node_id)
-    local_routes = _node_local_fallback_candidates(node) if node else []
-    recommended_local = bool(pool == "fallback" and local_routes)
-    ordered: list[str] = []
-    if recommended_local and "local" in providers:
-        ordered.append("local")
-    for provider in providers:
-        if provider not in ordered:
-            ordered.append(provider)
-    options: list[tuple[str, str]] = []
-    for provider in ordered:
-        label = provider
-        if provider == "local" and local_routes:
-            label += " | recommended for this node fallback"
-        options.append((provider, label))
-    return options
+    return _project_role_flow._guided_provider_options_for_node(config, prefs, node_id=node_id, pool=pool)
 
 
 def _guided_provider_model_options_for_node(
@@ -3033,78 +1265,19 @@ def _guided_provider_model_options_for_node(
     node_id: str,
     pool: str,
 ) -> list[tuple[str, str]]:
-    node = _role_tree_node_record(config, node_id)
-    local_routes = _node_local_fallback_candidates(node) if node else []
-    catalog = load_ai_models_catalog()
-    if provider == "local" and pool == "fallback" and local_routes:
-        return [
-            (
-                str(item.get("provider_model", "")),
-                f"{item.get('provider_model')} | recommended local fallback reasoning={((item.get('params') or {}).get('reasoning_effort') or 'provider-default')}",
-            )
-            for item in local_routes
-            if str(item.get("provider_model", "")).strip()
-        ]
-    specs = list(provider_model_specs(provider))
-    return [
-        (spec.id, f"{spec.id} | {spec.label}{_catalog_option_suffix(catalog_entry_for_provider_model(provider, spec.id, catalog))}")
-        for spec in specs
-    ]
+    return _project_role_flow._guided_provider_model_options_for_node(config, provider=provider, node_id=node_id, pool=pool)
 
 
 def _guided_provider_context(prefs: ModelPreferences, provider: str | None = None) -> str:
-    enabled = ", ".join(prefs.enabled_models or []) or "none"
-    preferred = prefs.preferred_model or "automatic"
-    lines = [
-        "Selection context:",
-        f"- enabled_providers: {enabled}",
-        f"- preferred_provider: {preferred}",
-    ]
-    active_accounts = []
-    for item in prefs.enabled_models or []:
-        account = (prefs.active_account_by_model or {}).get(item)
-        if account:
-            active_accounts.append(f"{item}={account}")
-    blocked = []
-    for item in prefs.enabled_models or []:
-        until = (prefs.blocked_until_by_model or {}).get(item)
-        if until:
-            blocked.append(f"{item}:{until}")
-    lines.append(f"- active_accounts: {', '.join(active_accounts) or 'none'}")
-    lines.append(f"- blocked_providers: {', '.join(blocked) or 'none'}")
-    if provider:
-        provider_model = prefs.variant_for_model(provider) or provider_capability(provider).default_model
-        params = prefs.params_for_model(provider)
-        reasoning = params.get("reasoning_effort") or "provider-default"
-        accounts = ", ".join((prefs.accounts_by_model or {}).get(provider, [])) or "none"
-        lines.extend(
-            [
-                f"- selected_provider: {provider}",
-                f"- current_provider_model: {provider_model}",
-                f"- current_reasoning_effort: {reasoning}",
-                f"- configured_accounts: {accounts}",
-            ]
-        )
-    return "\n".join(lines)
+    return _project_role_flow._guided_provider_context(prefs, provider)
 
 
 def _route_pool_options() -> list[tuple[str, str]]:
-    return [
-        ("primary", "primary - route used for normal execution"),
-        ("reviewer", "reviewer - independent review/assurance route"),
-        ("fallback", "fallback - same-context route used if primary is unavailable"),
-    ]
+    return _project_role_flow._route_pool_options()
 
 
 def _guided_role_context(role: str) -> str:
-    return "\n".join(
-        [
-            "PRINCE2 role context:",
-            f"- role: {PRINCE2_ROLE_LABELS[role]} ({role})",
-            f"- responsibility: {PRINCE2_ROLE_AUTOMATION_RULES.get(role, 'controlled project work')}",
-            f"- context_scope: {PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, 'controlled project work')}",
-        ]
-    )
+    return _project_role_flow._guided_role_context(role)
 
 
 def _guided_role_configure(
@@ -3115,104 +1288,12 @@ def _guided_role_configure(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided role configuration is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role configure`."
-    role = requested_role
-    if role is None:
-        role = _prompt_menu_choice(
-            title="Choose PRINCE2 role:",
-            options=_role_options(),
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if role is None:
-            return "Role configuration cancelled."
-    if role not in PRINCE2_ROLE_IDS:
-        return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
-    output_stream.write(_guided_role_context(role) + "\n")
-    output_stream.write(_guided_provider_context(prefs) + "\n")
-    mode = _prompt_menu_choice(
-        title=f"Configure {PRINCE2_ROLE_LABELS[role]}:",
-        options=[("auto", "Automatic proposal for this role"), ("manual", "Manual provider/model/account selection")],
+    return _project_role_flow._guided_role_configure(
+        requested_role=requested_role,
+        prefs=prefs,
+        config=config,
         input_stream=input_stream,
         output_stream=output_stream,
-    )
-    if mode is None:
-        return "Role configuration cancelled."
-    if mode == "auto":
-        assignment = prefs.propose_prince2_roles()[role]
-        prefs.set_prince2_role_assignment(
-            role,
-            mode="auto",
-            provider=str(assignment["provider"]),
-            provider_model=str(assignment["provider_model"]),
-            params=dict(assignment.get("params", {})),
-            account=assignment.get("account"),
-            source="auto_proposal",
-        )
-        _save_model_preferences(config, prefs)
-        _sync_prince2_roles_to_handoff(config, prefs)
-        return f"Assigned {PRINCE2_ROLE_LABELS[role]} automatically."
-    provider = _prompt_menu_choice(
-        title=f"Choose provider for {PRINCE2_ROLE_LABELS[role]}:",
-        options=[(provider, provider) for provider in (prefs.enabled_models or list(SUPPORTED_MODELS))],
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if provider is None:
-        return "Role configuration cancelled."
-    output_stream.write(_guided_provider_context(prefs, provider) + "\n")
-    specs = list(provider_model_specs(provider))
-    provider_model = _prompt_menu_choice(
-        title=f"Choose provider-model for {provider}:",
-        options=[(spec.id, f"{spec.id} | {spec.label}") for spec in specs],
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if provider_model is None:
-        return "Role configuration cancelled."
-    spec = provider_model_spec(provider, provider_model)
-    params: dict[str, str] = {}
-    if spec is not None and spec.reasoning_efforts:
-        reasoning = _prompt_menu_choice(
-            title=f"Choose reasoning_effort for {provider}:{provider_model}:",
-            options=[
-                (effort, f"{effort}{' (default)' if effort == spec.reasoning_default else ''}")
-                for effort in spec.reasoning_efforts
-            ],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if reasoning is None:
-            return "Role configuration cancelled."
-        params["reasoning_effort"] = reasoning
-    account_options = [("", "none")]
-    account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
-    account = _prompt_menu_choice(
-        title=f"Choose account for {provider}:",
-        options=account_options,
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if account is None:
-        return "Role configuration cancelled."
-    prefs.set_prince2_role_assignment(
-        role,
-        mode="manual",
-        provider=provider,
-        provider_model=provider_model,
-        params=params,
-        account=account or None,
-        source="manual_menu",
-    )
-    _save_model_preferences(config, prefs)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    params_text = " ".join(f"{key}={value}" for key, value in sorted(params.items()))
-    return (
-        f"Assigned {PRINCE2_ROLE_LABELS[role]}: provider={provider} "
-        f"provider_model={provider_model} account={account or 'none'}"
-        + (f" {params_text}" if params_text else "")
-        + "."
     )
 
 
@@ -3223,37 +1304,12 @@ def _guided_role_add_child(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided role node creation is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role add-child`."
-    output_stream.write("PRINCE2 delegated node setup:\n")
-    output_stream.write("- rule: delegated nodes inherit PRINCE2 role context but remain under parent accountability.\n")
-    parent_id = _prompt_menu_choice(
-        title="Choose parent role-tree node:",
-        options=_role_tree_node_options(config),
+    return _project_role_flow._guided_role_add_child(
+        prefs=prefs,
+        config=config,
         input_stream=input_stream,
         output_stream=output_stream,
     )
-    if parent_id is None:
-        return "Role node creation cancelled."
-    role_type = _prompt_menu_choice(
-        title="Choose delegated PRINCE2 role type:",
-        options=_role_options(),
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if role_type is None:
-        return "Role node creation cancelled."
-    output_stream.write("Optional node id, or blank for automatic id: ")
-    output_stream.flush()
-    response = input_stream.readline()
-    if response == "":
-        return "Role node creation cancelled."
-    node_id = response.strip() or None
-    try:
-        child = _add_child_prince2_role_node(config, prefs, parent_id=parent_id, role_type=role_type, node_id=node_id)
-    except ValueError as exc:
-        return str(exc)
-    return f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}."
 
 
 def _guided_role_assign(
@@ -3263,102 +1319,11 @@ def _guided_role_assign(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided role node assignment is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role assign`."
-    output_stream.write("PRINCE2 role-tree node assignment:\n")
-    output_stream.write("- rule: choose a specific node so provider fallback does not widen context.\n")
-    node_id = _prompt_menu_choice(
-        title="Choose role-tree node:",
-        options=_role_tree_node_options(config),
+    return _project_role_flow._guided_role_assign(
+        prefs=prefs,
+        config=config,
         input_stream=input_stream,
         output_stream=output_stream,
-    )
-    if node_id is None:
-        return "Role node assignment cancelled."
-    pool = _prompt_menu_choice(
-        title=f"Choose assignment pool for {node_id}:",
-        options=_route_pool_options(),
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if pool is None:
-        return "Role node assignment cancelled."
-    output_stream.write(_guided_role_node_assignment_context(config, node_id, pool) + "\n")
-    output_stream.write(_guided_provider_context(prefs) + "\n")
-    provider = _prompt_menu_choice(
-        title=f"Choose provider for {node_id}:",
-        options=_guided_provider_options_for_node(config, prefs, node_id=node_id, pool=pool),
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if provider is None:
-        return "Role node assignment cancelled."
-    output_stream.write(_guided_provider_context(prefs, provider) + "\n")
-    provider_model = _prompt_menu_choice(
-        title=f"Choose provider-model for {provider}:",
-        options=_guided_provider_model_options_for_node(config, provider=provider, node_id=node_id, pool=pool),
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if provider_model is None:
-        return "Role node assignment cancelled."
-    spec = provider_model_spec(provider, provider_model)
-    params: dict[str, str] = {}
-    if spec is not None and spec.reasoning_efforts:
-        reasoning = _prompt_menu_choice(
-            title=f"Choose reasoning_effort for {provider}:{provider_model}:",
-            options=[
-                (effort, f"{effort}{' (default)' if effort == spec.reasoning_default else ''}")
-                for effort in spec.reasoning_efforts
-            ],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if reasoning is None:
-            return "Role node assignment cancelled."
-        params["reasoning_effort"] = reasoning
-    account_options = [("", "none")]
-    account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
-    account = _prompt_menu_choice(
-        title=f"Choose account for {provider}:",
-        options=account_options,
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if account is None:
-        return "Role node assignment cancelled."
-    try:
-        node = _assign_prince2_role_node(
-            config,
-            prefs,
-            node_id=node_id,
-            provider=provider,
-            provider_model=provider_model,
-            params=params,
-            account=account or None,
-            pool=pool,
-        )
-    except ValueError as exc:
-        return str(exc)
-    assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
-    params_text = " ".join(f"{key}={value}" for key, value in sorted(params.items()))
-    if pool == "primary":
-        provider_display = assignment.get("provider")
-        provider_model_display = assignment.get("provider_model")
-        account_display = assignment.get("account") or "none"
-    else:
-        pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
-        routes = pools.get(pool, []) if isinstance(pools.get(pool), list) else []
-        route = routes[-1] if routes and isinstance(routes[-1], dict) else {}
-        provider_display = route.get("provider")
-        provider_model_display = route.get("provider_model")
-        account_display = route.get("account") or "none"
-    return (
-        f"Assigned role node {node.get('node_id')}: provider={provider_display} "
-        f"provider_model={provider_model_display} account={account_display}"
-        + (f" {params_text}" if params_text else "")
-        + f" pool={pool}"
-        + "."
     )
 
 
@@ -3487,67 +1452,13 @@ def _guided_role_node_model_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided PRINCE2 node model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu` or `role model`."
-    node = _role_tree_node_record(config, node_id)
-    if not node:
-        return f"PRINCE2 node '{node_id}' not found."
-    output_stream.write(_render_prince2_role_node_detail(config, node_id) + "\n")
-    output_stream.write(_guided_role_node_assignment_context(config, node_id, "primary") + "\n")
-    output_stream.write(_guided_provider_context(prefs) + "\n")
-    choice = _prompt_menu_choice(
-        title=f"Choose provider-model for {node_id}:",
-        options=_node_model_choice_options(config, node_id),
+    return _project_role_flow._guided_role_node_model_choice(
+        prefs=prefs,
+        config=config,
+        node_id=node_id,
         input_stream=input_stream,
         output_stream=output_stream,
     )
-    if choice is None:
-        return "Role node model selection cancelled."
-    parsed = _parse_catalog_model_choice(choice)
-    if parsed is None:
-        return f"Invalid provider-model choice '{choice}'."
-    provider, provider_model = parsed
-    spec = provider_model_spec(provider, provider_model)
-    params: dict[str, str] = {}
-    if spec is not None and spec.reasoning_efforts:
-        current_reasoning = prefs.params_for_model(provider).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
-        reasoning = _prompt_menu_choice(
-            title=f"Choose reasoning_effort for {provider}:{provider_model}:",
-            options=[(effort, f"{effort}{' (default)' if effort == current_reasoning else ''}") for effort in spec.reasoning_efforts],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if reasoning is None:
-            return "Role node model selection cancelled."
-        params["reasoning_effort"] = reasoning
-    account_options = [("", "none")]
-    account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
-    account = _prompt_menu_choice(
-        title=f"Choose account for {provider}:",
-        options=account_options,
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if account is None:
-        return "Role node model selection cancelled."
-    try:
-        node = _assign_prince2_role_node_model(
-            config,
-            prefs,
-            node_id=node_id,
-            provider=provider,
-            provider_model=provider_model,
-            params=params,
-            account=account or None,
-            pool="primary",
-        )
-    except ValueError as exc:
-        return str(exc)
-    return (
-        f"Assigned role node {node.get('node_id')}: provider={node.get('assignment', {}).get('provider')} "
-        f"provider_model={node.get('assignment', {}).get('provider_model')} account={node.get('assignment', {}).get('account') or 'none'} "
-        f"{' '.join(f'{key}={value}' for key, value in sorted((node.get('assignment', {}).get('params', {}) or {}).items()))}".strip()
-    ).strip()
 
 
 def _guided_role_node_switch_agent(
@@ -3558,25 +1469,7 @@ def _guided_role_node_switch_agent(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided PRINCE2 node agent switching is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu`, `role shell`, or `role switch`."
-    node = _role_tree_node_record(config, node_id)
-    if not node:
-        return f"PRINCE2 node '{node_id}' not found."
-    recommendation = _node_model_recommendation(config, node)
-    current = recommendation.get("current", {}) if isinstance(recommendation.get("current"), dict) else {}
-    suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
-    output_stream.write("KiloCode-style switch agent:\n")
-    output_stream.write(_render_prince2_role_node_detail(config, node_id) + "\n")
-    output_stream.write(
-        "- switch_summary: "
-        f"current={current.get('provider') or 'none'}:{current.get('provider_model') or 'none'} "
-        f"direction={recommendation.get('direction', 'hold')} "
-        f"suggested={suggested.get('provider') or 'none'}:{suggested.get('provider_model') or 'none'}\n"
-    )
-    output_stream.write(_guided_role_node_assignment_context(config, node_id, "primary") + "\n")
-    output_stream.write("Switching agent means choosing a new provider-model for this node.\n")
-    return _guided_role_node_model_choice(
+    return _project_role_flow._guided_role_node_switch_agent(
         prefs=prefs,
         config=config,
         node_id=node_id,
@@ -3593,132 +1486,13 @@ def _guided_role_node_menu(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided PRINCE2 node menu is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu`."
-    current = node_id
-    while True:
-        node = _role_tree_node_record(config, current)
-        if not node:
-            return f"PRINCE2 node '{current}' not found."
-        output_stream.write(_render_prince2_role_node_detail(config, current) + "\n")
-        action = _prompt_menu_choice(
-            title=f"Node menu for {current}:",
-            options=[
-                ("view", "View node detail again"),
-                ("shell", "Open node shell and navigate between nodes"),
-                ("switch-agent", "Switch agent/model for this node"),
-                ("model", "Change model assignment"),
-                ("auto-model", "Auto-pick a stronger or lighter model from the menu"),
-                ("tolerance", "Adjust tolerance margin"),
-                ("reset-tolerance", "Reset tolerance from project brief"),
-                ("add-child", "Add delegated child node"),
-                ("remove", "Remove this node"),
-                ("back", "Back"),
-            ],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if action is None or action == "back":
-            return f"Closed node menu for {current}."
-        if action == "view":
-            output_stream.write(_render_prince2_role_node_detail(config, current) + "\n")
-            continue
-        if action == "shell":
-            output_stream.write(_guided_role_node_shell(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "switch-agent":
-            output_stream.write(_guided_role_node_switch_agent(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "model":
-            output_stream.write(_guided_role_node_model_choice(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "auto-model":
-            recommendation = _node_model_recommendation(config, node)
-            suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
-            provider = str(suggested.get("provider", "")).strip()
-            provider_model = str(suggested.get("provider_model", "")).strip()
-            if not provider or not provider_model:
-                output_stream.write("No automatic model suggestion is available for this node.\n")
-                continue
-            spec = provider_model_spec(provider, provider_model)
-            params: dict[str, str] = {}
-            if spec is not None and spec.reasoning_efforts:
-                preferred = prefs.params_for_model(provider).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
-                if preferred not in spec.reasoning_efforts:
-                    preferred = spec.reasoning_default or spec.reasoning_efforts[0]
-                params["reasoning_effort"] = preferred
-            try:
-                updated = _assign_prince2_role_node_model(
-                    config,
-                    prefs,
-                    node_id=current,
-                    provider=provider,
-                    provider_model=provider_model,
-                    params=params,
-                    account=(prefs.account_for_model(provider) if provider in (prefs.accounts_by_model or {}) else None),
-                    pool="primary",
-                )
-            except ValueError as exc:
-                output_stream.write(str(exc) + "\n")
-                continue
-            output_stream.write(
-                f"Auto model switch applied: provider={updated.get('assignment', {}).get('provider')} "
-                f"provider_model={updated.get('assignment', {}).get('provider_model')}\n"
-            )
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "tolerance":
-            output_stream.write("Set new tolerance margin percent: ")
-            output_stream.flush()
-            response = input_stream.readline()
-            if response == "":
-                return "Node menu cancelled."
-            try:
-                margin = float(response.strip().rstrip("%"))
-            except ValueError:
-                output_stream.write("Invalid margin. Enter a numeric percentage.\n")
-                continue
-            try:
-                updated = _set_prince2_role_node_tolerance_margin(config, prefs, node_id=current, margin_percent=margin)
-            except ValueError as exc:
-                output_stream.write(str(exc) + "\n")
-                continue
-            output_stream.write(
-                f"Updated tolerance margin for {current}: margin={updated.get('tolerance_margin_percent', 'unknown')}.\n"
-            )
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "reset-tolerance":
-            updated = _reset_prince2_role_node_tolerance(config, prefs, node_id=current)
-            output_stream.write(
-                f"Reset tolerance for {current}: margin={updated.get('tolerance_margin_percent', 'unknown')} pressure={updated.get('tolerance_pressure_percent', 'unknown')}.\n"
-            )
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "add-child":
-            output_stream.write(_guided_role_add_child(prefs=prefs, config=config, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "remove":
-            output_stream.write("Reparent direct children to the parent of this node? [yes/no]: ")
-            output_stream.flush()
-            response = input_stream.readline()
-            if response == "":
-                return "Node menu cancelled."
-            reparent = response.strip().lower() in {"y", "yes", "true", "1"}
-            try:
-                removed = _remove_prince2_role_node(config, prefs, node_id=current, reparent_children=reparent)
-            except ValueError as exc:
-                output_stream.write(str(exc) + "\n")
-                continue
-            output_stream.write(
-                f"Removed PRINCE2 role node {removed.get('node_id', current)}.\n"
-            )
-            prefs = _load_model_preferences(config)
-            return f"Removed PRINCE2 role node {current}."
+    return _project_role_flow._guided_role_node_menu(
+        prefs=prefs,
+        config=config,
+        node_id=node_id,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
 
 
 def _guided_role_shell(
@@ -3728,22 +1502,9 @@ def _guided_role_shell(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided PRINCE2 role shell navigation is available in the interactive shell. Run `python3 -m stagewarden.main` and use `roles shell`."
-    output_stream.write("PRINCE2 node shell navigator:\n")
-    output_stream.write("- rule: choose a node and move with parent, sibling, or child hops.\n")
-    node_id = _prompt_menu_choice(
-        title="Choose starting node:",
-        options=_role_tree_node_options(config),
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
-    if node_id is None:
-        return "Role shell navigation cancelled."
-    return _guided_role_node_shell(
+    return _project_role_flow._guided_role_shell(
         prefs=prefs,
         config=config,
-        node_id=node_id,
         input_stream=input_stream,
         output_stream=output_stream,
     )
@@ -3757,91 +1518,13 @@ def _guided_role_node_shell(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided PRINCE2 node shell is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role shell`."
-    current = node_id
-    while True:
-        node = _role_tree_node_record(config, current)
-        if not node:
-            return f"PRINCE2 node '{current}' not found."
-        output_stream.write(_render_prince2_role_node_shell(config, current) + "\n")
-        action = _prompt_menu_choice(
-            title=f"Node shell for {current}:",
-            options=[
-                ("parent", "Go to parent node"),
-                ("prev", "Go to previous sibling"),
-                ("next", "Go to next sibling"),
-                ("child", "Choose one child node"),
-                ("jump", "Jump to another node"),
-                ("menu", "Open the node menu"),
-                ("switch", "Switch agent/model for this node"),
-                ("tree", "Show the full role tree"),
-                ("back", "Close node shell"),
-            ],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if action is None or action == "back":
-            return f"Closed node shell for {current}."
-        if action == "tree":
-            output_stream.write(_render_prince2_role_tree(config) + "\n")
-            continue
-        if action == "menu":
-            output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "switch":
-            output_stream.write(_guided_role_node_switch_agent(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "jump":
-            next_node = _prompt_menu_choice(
-                title="Jump to node:",
-                options=_role_tree_node_options(config),
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            if next_node is None:
-                continue
-            current = next_node
-            continue
-        navigation = _role_tree_node_navigation(config, current)
-        if action == "parent":
-            parent_id = navigation.get("parent_id")
-            if not parent_id:
-                output_stream.write("Current node has no parent.\n")
-                continue
-            current = str(parent_id)
-            continue
-        if action == "prev":
-            previous = navigation.get("previous_sibling")
-            if not previous:
-                output_stream.write("No previous sibling is available.\n")
-                continue
-            current = str(previous)
-            continue
-        if action == "next":
-            next_sibling = navigation.get("next_sibling")
-            if not next_sibling:
-                output_stream.write("No next sibling is available.\n")
-                continue
-            current = str(next_sibling)
-            continue
-        if action == "child":
-            children = _role_tree_node_children(config, current)
-            if not children:
-                output_stream.write("Current node has no children.\n")
-                continue
-            child_choice = _prompt_menu_choice(
-                title=f"Choose child of {current}:",
-                options=[(str(item.get("node_id")), f"{item.get('label')} [{item.get('node_id')}]") for item in children if str(item.get("node_id", "")).strip()],
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            if child_choice is None:
-                continue
-            current = child_choice
-            continue
+    return _project_role_flow._guided_role_node_shell(
+        prefs=prefs,
+        config=config,
+        node_id=node_id,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
 
 
 def _guided_role_tree_menu(
@@ -3851,85 +1534,12 @@ def _guided_role_tree_menu(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided PRINCE2 tree menu is available in the interactive shell. Run `python3 -m stagewarden.main` and use `roles menu`."
-    while True:
-        output_stream.write(_render_prince2_role_tree(config) + "\n")
-        action = _prompt_menu_choice(
-            title="PRINCE2 tree menu:",
-            options=[
-                ("node", "Open a node menu"),
-                ("shell", "Open a node shell"),
-                ("add-child", "Add delegated node"),
-                ("remove", "Remove a node"),
-                ("approve", "Approve the current baseline"),
-                ("refresh", "Refresh tree view"),
-                ("back", "Back"),
-            ],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if action is None or action == "back":
-            return "PRINCE2 tree menu closed."
-        if action == "node":
-            node_id = _prompt_menu_choice(
-                title="Choose role-tree node:",
-                options=_role_tree_node_options(config),
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            if node_id is None:
-                continue
-            output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=node_id, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "shell":
-            node_id = _prompt_menu_choice(
-                title="Choose role-tree node:",
-                options=_role_tree_node_options(config),
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            if node_id is None:
-                continue
-            output_stream.write(_guided_role_node_shell(prefs=prefs, config=config, node_id=node_id, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "add-child":
-            output_stream.write(_guided_role_add_child(prefs=prefs, config=config, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "remove":
-            node_id = _prompt_menu_choice(
-                title="Choose role-tree node to remove:",
-                options=_role_tree_node_options(config),
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            if node_id is None:
-                continue
-            output_stream.write("Reparent direct children to the removed node's parent? [yes/no]: ")
-            output_stream.flush()
-            response = input_stream.readline()
-            if response == "":
-                return "PRINCE2 tree menu cancelled."
-            reparent = response.strip().lower() in {"y", "yes", "true", "1"}
-            try:
-                _remove_prince2_role_node(config, prefs, node_id=node_id, reparent_children=reparent)
-            except ValueError as exc:
-                output_stream.write(str(exc) + "\n")
-                continue
-            output_stream.write(f"Removed PRINCE2 role node {node_id}.\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "approve":
-            _approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_menu")
-            output_stream.write("Approved PRINCE2 role-tree baseline from menu.\n")
-            prefs = _load_model_preferences(config)
-            continue
-        if action == "refresh":
-            output_stream.write(_render_prince2_role_tree(config) + "\n")
-            continue
+    return _project_role_flow._guided_role_tree_menu(
+        prefs=prefs,
+        config=config,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
 
 
 def _guided_roles_setup(
@@ -3939,84 +1549,12 @@ def _guided_roles_setup(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        prefs.apply_prince2_role_proposal()
-        _save_model_preferences(config, prefs)
-        _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
-        return "Applied automatic PRINCE2 role proposal."
-    choice = _prompt_menu_choice(
-        title="PRINCE2 role setup:",
-        options=[
-            ("auto", "Automatic proposal based on available providers/accounts/models"),
-            ("manual", "Manual configuration role by role"),
-            ("show", "Show current assignments only"),
-        ],
+    return _project_role_flow._guided_roles_setup(
+        prefs=prefs,
+        config=config,
         input_stream=input_stream,
         output_stream=output_stream,
     )
-    if choice is None:
-        return "Role setup cancelled."
-    if choice == "show":
-        return _render_prince2_roles(config)
-    if choice == "auto":
-        prefs.apply_prince2_role_proposal()
-        _save_model_preferences(config, prefs)
-        _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
-        return (
-            "Applied automatic PRINCE2 role proposal.\n"
-            + _render_prince2_roles(config)
-            + "\n"
-            + _render_prince2_role_tree_baseline(config)
-        )
-    while True:
-        role = _prompt_menu_choice(
-            title="Choose role to configure, or `done`:",
-            options=[("done", "done")] + _role_options(),
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if role is None or role == "done":
-            break
-        output_stream.write(
-            _guided_role_configure(
-                requested_role=role,
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            + "\n"
-        )
-        output_stream.flush()
-        prefs = _load_model_preferences(config)
-    local_execution = _local_execution_candidates_report(config)
-    candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
-    if candidates:
-        output_stream.write(
-            "Recommended local fallback candidates discovered: "
-            + ", ".join(str(item.get("id", "")) for item in candidates if str(item.get("id", "")).strip())
-            + "\n"
-        )
-        preload = _prompt_menu_choice(
-            title="Approve baseline with recommended local delivery fallbacks now?",
-            options=[
-                ("yes", "Yes - approve baseline and preload recommended local fallback routes"),
-                ("no", "No - keep only role assignments for now"),
-            ],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if preload is None:
-            return "Role setup cancelled."
-        if preload == "yes":
-            _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_manual_local_fallbacks")
-            return (
-                "Role setup completed with approved baseline and recommended local delivery fallbacks.\n"
-                + _render_prince2_roles(config)
-                + "\n"
-                + _render_prince2_role_tree_baseline(config)
-            )
-    return "Role setup completed.\n" + _render_prince2_roles(config)
 
 
 def _handle_role_command(
@@ -4027,420 +1565,28 @@ def _handle_role_command(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
 ) -> str | None:
+    roles_result = _project_role_command_flow._handle_project_and_roles_command(
+        command,
+        agent,
+        config,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if roles_result is not None:
+        return roles_result
     parts = command.split()
     if not parts:
         return None
-    if parts[0] == "project" and parts[1:2] == ["start"] and len(parts) in {2, 3}:
-        if len(parts) == 3 and parts[2] != "--ai":
-            return "Usage: project start [--ai]"
-        prefs = _load_model_preferences(config)
-        return _render_project_start(agent, config, prefs, force_ai=len(parts) == 3)
-    if parts[0] == "roles":
-        prefs = _load_model_preferences(config)
-        if len(parts) == 1:
-            _sync_prince2_roles_to_handoff(config, prefs)
-            return _render_prince2_roles(config)
-        if len(parts) == 2 and parts[1] == "domains":
-            return _render_prince2_role_domains()
-        if len(parts) == 3 and parts[1] == "context":
-            return _render_prince2_role_context(config, parts[2])
-        if len(parts) == 2 and parts[1] == "tree":
-            return _render_prince2_role_tree(config)
-        if len(parts) == 3 and parts[1] == "tree" and parts[2] == "approve":
-            _approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_approve")
-            return "Approved PRINCE2 role-tree baseline.\n" + _render_prince2_role_tree_baseline(config)
-        if len(parts) == 2 and parts[1] == "baseline":
-            return _render_prince2_role_tree_baseline(config)
-        if len(parts) == 3 and parts[1] == "baseline" and parts[2] == "matrix":
-            return _render_prince2_role_tree_baseline_matrix(config)
-        if len(parts) in {2, 3} and parts[1] == "messages":
-            return _render_prince2_role_messages(config, node_id=parts[2] if len(parts) == 3 else None)
-        if len(parts) == 2 and parts[1] == "runtime":
-            return _render_prince2_role_runtime(config)
-        if len(parts) == 2 and parts[1] == "active":
-            return _render_prince2_role_active(config)
-        if len(parts) == 2 and parts[1] == "control":
-            return _render_prince2_role_control(config)
-        if len(parts) == 2 and parts[1] == "queues":
-            return _render_prince2_role_queues(config)
-        if len(parts) in {2, 3} and parts[1] == "tick":
-            max_nodes = None
-            if len(parts) == 3:
-                try:
-                    max_nodes = int(parts[2])
-                except ValueError:
-                    return "Usage: roles tick [max_nodes]"
-            result = _tick_prince2_role_runtime(config, max_nodes=max_nodes)
-            return (
-                f"Batch advanced PRINCE2 runtime: processed={result.get('processed')} "
-                f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')}.\n"
-                + _render_prince2_role_runtime(config)
-            )
-        if len(parts) == 2 and parts[1] == "check":
-            return _render_prince2_role_check(config)
-        if len(parts) == 2 and parts[1] == "flow":
-            return _render_prince2_role_flow()
-        if len(parts) == 2 and parts[1] == "matrix":
-            return _render_prince2_role_matrix(config)
-        if len(parts) == 2 and parts[1] == "propose":
-            prefs.apply_prince2_role_proposal()
-            _save_model_preferences(config, prefs)
-            _approve_prince2_role_tree_baseline(config, prefs, source="roles_propose")
-            _apply_model_preferences(agent, config)
-            return (
-                "Applied automatic PRINCE2 role proposal.\n"
-                + _render_prince2_roles(config)
-                + "\n"
-                + _render_prince2_role_tree_baseline(config)
-            )
-        if len(parts) == 2 and parts[1] == "setup":
-            return _guided_roles_setup(
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 2 and parts[1] == "shell":
-            return _guided_role_shell(
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 3 and parts[1] == "shell":
-            return _guided_role_node_shell(
-                prefs=prefs,
-                config=config,
-                node_id=parts[2],
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 3 and parts[1] == "switch":
-            return _guided_role_node_switch_agent(
-                prefs=prefs,
-                config=config,
-                node_id=parts[2],
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        return "Usage: roles | roles domains | roles context <node_id> | roles tree | roles tree menu | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | roles menu | roles shell [node_id] | roles switch [node_id]"
-    if parts[0] == "role":
-        prefs = _load_model_preferences(config)
-        if len(parts) == 2 and parts[1] == "menu":
-            return _guided_role_tree_menu(
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 2 and parts[1] == "shell":
-            return _guided_role_shell(
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 3 and parts[1] == "shell":
-            return _guided_role_node_shell(
-                prefs=prefs,
-                config=config,
-                node_id=parts[2],
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 3 and parts[1] == "switch":
-            return _guided_role_node_switch_agent(
-                prefs=prefs,
-                config=config,
-                node_id=parts[2],
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 3 and parts[1] == "menu":
-            return _guided_role_node_menu(
-                prefs=prefs,
-                config=config,
-                node_id=parts[2],
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) in {4, 5} and parts[1] == "add-child":
-            try:
-                child = _add_child_prince2_role_node(
-                    config,
-                    prefs,
-                    parent_id=parts[2],
-                    role_type=parts[3],
-                    node_id=parts[4] if len(parts) == 5 else None,
-                )
-            except ValueError as exc:
-                return str(exc)
-            return (
-                f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}.\n"
-                + _render_prince2_role_tree_baseline(config)
-            )
-        if len(parts) == 2 and parts[1] == "add-child":
-            return _guided_role_add_child(
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) >= 3 and parts[1] == "model":
-            if len(parts) == 3:
-                return _guided_role_node_menu(
-                    prefs=prefs,
-                    config=config,
-                    node_id=parts[2],
-                    input_stream=input_stream,
-                    output_stream=output_stream,
-                )
-            if len(parts) < 5:
-                return "Usage: role model <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]"
-            extra_params: dict[str, str] = {}
-            account = None
-            pool = "primary"
-            for token in parts[5:]:
-                key, separator, value = token.partition("=")
-                if not separator:
-                    return "Usage: role model <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]"
-                if key == "account":
-                    account = value or None
-                elif key == "pool":
-                    pool = value
-                else:
-                    extra_params[key] = value
-            try:
-                node = _assign_prince2_role_node_model(
-                    config,
-                    prefs,
-                    node_id=parts[2],
-                    provider=parts[3],
-                    provider_model=parts[4],
-                    params=extra_params,
-                    account=account,
-                    pool=pool,
-                )
-            except ValueError as exc:
-                return str(exc)
-            assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
-            if pool == "primary":
-                return (
-                    f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
-                    f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'} pool=primary."
-                )
-            pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
-            routes = pools.get(pool, []) if isinstance(pools.get(pool, []), list) else []
-            route = routes[-1] if routes and isinstance(routes[-1], dict) else {}
-            return (
-                f"Assigned role node {node.get('node_id')}: provider={route.get('provider')} "
-                f"provider_model={route.get('provider_model')} account={route.get('account') or 'none'} pool={pool}."
-            )
-        if len(parts) >= 3 and parts[1] == "tolerance":
-            if len(parts) == 5 and parts[2] == "set":
-                try:
-                    margin = float(parts[4].rstrip("%"))
-                except ValueError:
-                    return "Usage: role tolerance set <node_id> <percent>"
-                try:
-                    updated = _set_prince2_role_node_tolerance_margin(config, prefs, node_id=parts[3], margin_percent=margin)
-                except ValueError as exc:
-                    return str(exc)
-                return f"Updated tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')}."
-            if len(parts) == 4 and parts[2] == "reset":
-                updated = _reset_prince2_role_node_tolerance(config, prefs, node_id=parts[3])
-                return (
-                    f"Reset tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')} "
-                    f"pressure={updated.get('tolerance_pressure_percent', 'unknown')}."
-                )
-            return "Usage: role tolerance set <node_id> <percent> | role tolerance reset <node_id>"
-        if len(parts) >= 3 and parts[1] == "remove":
-            reparent_children = True
-            for token in parts[3:]:
-                key, separator, value = token.partition("=")
-                if not separator:
-                    return "Usage: role remove <node_id> [reparent_children=<yes|no>]"
-                if key == "reparent_children":
-                    reparent_children = value.strip().lower() not in {"0", "false", "no"}
-            try:
-                removed = _remove_prince2_role_node(config, prefs, node_id=parts[2], reparent_children=reparent_children)
-            except ValueError as exc:
-                return str(exc)
-            return (
-                f"Removed PRINCE2 role node {removed.get('node_id', parts[2])}.\n"
-                + _render_prince2_role_tree_baseline(config)
-            )
-        if len(parts) >= 5 and parts[1] == "assign":
-            extra_params: dict[str, str] = {}
-            account = None
-            pool = "primary"
-            for token in parts[5:]:
-                key, separator, value = token.partition("=")
-                if not separator:
-                    return "Usage: role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]"
-                if key == "account":
-                    account = value or None
-                elif key == "pool":
-                    pool = value
-                else:
-                    extra_params[key] = value
-            try:
-                node = _assign_prince2_role_node(
-                    config,
-                    prefs,
-                    node_id=parts[2],
-                    provider=parts[3],
-                    provider_model=parts[4],
-                    params=extra_params,
-                    account=account,
-                    pool=pool,
-                )
-            except ValueError as exc:
-                return str(exc)
-            assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
-            if pool == "primary":
-                return (
-                    f"Assigned role node {node.get('node_id')}: provider={assignment.get('provider')} "
-                    f"provider_model={assignment.get('provider_model')} account={assignment.get('account') or 'none'} pool=primary."
-                )
-            pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
-            routes = pools.get(pool, []) if isinstance(pools.get(pool, []), list) else []
-            route = routes[-1] if routes and isinstance(routes[-1], dict) else {}
-            return (
-                f"Assigned role node {node.get('node_id')}: provider={route.get('provider')} "
-                f"provider_model={route.get('provider_model')} account={route.get('account') or 'none'} pool={pool}."
-            )
-        if len(parts) == 2 and parts[1] == "assign":
-            return _guided_role_assign(
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) >= 6 and parts[1] == "message":
-            payload_scope: list[str] = []
-            evidence_refs: list[str] = []
-            summary = None
-            for token in parts[5:]:
-                key, separator, value = token.partition("=")
-                if not separator:
-                    return "Usage: role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]"
-                if key == "payload":
-                    payload_scope = [item.strip() for item in value.split(",") if item.strip()]
-                elif key == "evidence":
-                    evidence_refs = [item.strip() for item in value.split(",") if item.strip()]
-                elif key == "summary":
-                    summary = value.replace("_", " ").strip()
-            if not payload_scope:
-                return "Usage: role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]"
-            try:
-                message = _send_prince2_role_message(
-                    config,
-                    source_node=parts[2],
-                    target_node=parts[3],
-                    edge_id=parts[4],
-                    payload_scope=payload_scope,
-                    evidence_refs=evidence_refs,
-                    summary=summary,
-                )
-            except ValueError as exc:
-                _record_handoff_action(
-                    config,
-                    phase="role_message_blocked",
-                    task=f"role message {parts[2]} {parts[3]} {parts[4]}",
-                    summary=str(exc),
-                    details={
-                        "source_node": parts[2],
-                        "target_node": parts[3],
-                        "edge_id": parts[4],
-                        "payload_scope": list(payload_scope),
-                    },
-                )
-                return str(exc)
-            return (
-                f"Queued PRINCE2 node message {message.get('message_id')} "
-                f"{parts[2]} -> {parts[3]} edge={parts[4]}.\n"
-                + _render_prince2_role_messages(config, node_id=parts[3])
-            )
-        if len(parts) >= 4 and parts[1] == "wait":
-            reason = None
-            wake_triggers = None
-            for token in parts[3:]:
-                key, separator, value = token.partition("=")
-                if not separator:
-                    return "Usage: role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]"
-                if key == "reason":
-                    reason = value.replace("_", " ").strip()
-                elif key == "wake":
-                    wake_triggers = [item.strip() for item in value.split(",") if item.strip()]
-            if not reason:
-                return "Usage: role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]"
-            try:
-                node = _set_prince2_role_node_waiting(
-                    config,
-                    node_id=parts[2],
-                    reason=reason,
-                    wake_triggers=wake_triggers,
-                )
-            except ValueError as exc:
-                return str(exc)
-            return (
-                f"Node {node.get('node_id')} is now waiting.\n"
-                + _render_prince2_role_runtime(config)
-            )
-        if len(parts) >= 4 and parts[1] == "wake":
-            trigger = None
-            for token in parts[3:]:
-                key, separator, value = token.partition("=")
-                if not separator:
-                    return "Usage: role wake <node_id> trigger=<name>"
-                if key == "trigger":
-                    trigger = value.strip()
-            if not trigger:
-                return "Usage: role wake <node_id> trigger=<name>"
-            try:
-                node = _wake_prince2_role_node(
-                    config,
-                    node_id=parts[2],
-                    trigger=trigger,
-                )
-            except ValueError as exc:
-                return str(exc)
-            return (
-                f"Node {node.get('node_id')} woke with trigger {trigger}.\n"
-                + _render_prince2_role_runtime(config)
-            )
-        if len(parts) == 3 and parts[1] == "tick":
-            try:
-                result = _tick_prince2_role_node(config, node_id=parts[2])
-            except ValueError as exc:
-                return str(exc)
-            return (
-                f"Node {result.get('node_id')} advanced to {result.get('state')}.\n"
-                + _render_prince2_role_messages(config, node_id=parts[2])
-            )
-        if len(parts) >= 2 and parts[1] == "configure":
-            if len(parts) > 3:
-                return "Usage: role configure [role]"
-            requested_role = parts[2] if len(parts) == 3 else None
-            return _guided_role_configure(
-                requested_role=requested_role,
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if len(parts) == 3 and parts[1] == "clear":
-            role = parts[2]
-            if role not in PRINCE2_ROLE_IDS:
-                return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
-            prefs.clear_prince2_role_assignment(role)
-            _save_model_preferences(config, prefs)
-            _sync_prince2_roles_to_handoff(config, prefs)
-            return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
-        return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role menu [node_id] | role shell [node_id] | role model <node_id> [provider provider_model] [reasoning_effort=<value>] [account=<name>] | role tolerance set <node_id> <percent> | role tolerance reset <node_id> | role remove <node_id> [reparent_children=<yes|no>] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]"
+    role_result = _project_role_command_flow._handle_role_command(
+        command,
+        agent,
+        config,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+    if role_result is not None:
+        return role_result
     return None
-
 
 def _source_reference_manifest(config: AgentConfig) -> list[dict[str, str]]:
     manifest_path = config.workspace_root / "docs" / "source_references.md"
@@ -4861,343 +2007,12 @@ def _handle_extension_command(command: str, config: AgentConfig) -> str | None:
     return None
 
 
-def _external_io_result_to_text(result: ExternalIOResult) -> str:
-    lines = [f"{result.command}: {'OK' if result.ok else 'FAIL'} {result.message}"]
-    if not result.ok and getattr(result, "retryable", False):
-        lines.append("- retry: safe to resume when connectivity returns")
-    if result.url:
-        lines.append(f"- url: {result.url}")
-    if result.path:
-        lines.append(f"- path: {result.path}")
-    if result.bytes_written:
-        lines.append(f"- bytes: {result.bytes_written}")
-    if result.sha256:
-        lines.append(f"- sha256: {result.sha256}")
-    if result.content_type:
-        lines.append(f"- content_type: {result.content_type}")
-    if result.items:
-        lines.append("Results:")
-        for index, item in enumerate(result.items, 1):
-            title = item.get("title") or "(untitled)"
-            url = item.get("url") or ""
-            snippet = item.get("snippet") or ""
-            lines.append(f"- {index}. {title} {url}".rstrip())
-            if snippet:
-                lines.append(f"  {snippet}")
-    if result.error:
-        lines.append(f"- error: {result.error}")
-    return "\n".join(lines)
-
-
-def _record_external_io_evidence(config: AgentConfig, result: ExternalIOResult, *, task: str) -> None:
-    memory = MemoryStore.load(config.memory_path)
-    memory.record_tool_transcript(
-        iteration=0,
-        step_id="external-io",
-        tool="external_io",
-        action_type=result.command,
-        success=result.ok,
-        summary=result.message,
-        detail=dumps_ascii(result.as_dict()),
-        duration_ms=result.duration_ms,
-        error_type=None if result.ok else (result.error_type or "external_io_error"),
-    )
-    memory.save(config.memory_path)
-    phase_names = {
-        "web search": "web_search",
-        "download": "download_file",
-        "checksum": "checksum_file",
-        "compress": "compress_file",
-        "archive verify": "archive_verify",
-    }
-    phase = phase_names.get(result.command, result.command.replace(" ", "_"))
-    _record_handoff_action(
-        config,
-        phase=phase,
-        task=task,
-        summary=result.message,
-        details={
-            "ok": result.ok,
-            "path": result.path,
-            "url": result.url,
-            "bytes_written": result.bytes_written,
-            "sha256": result.sha256,
-            "content_type": result.content_type,
-            "error": result.error,
-            "items": result.items or [],
-        },
-    )
-
-
-def _external_io_report(command: str, config: AgentConfig) -> dict[str, object] | None:
-    result = _external_io_execute(command, config)
-    if result is None:
-        return None
-    _record_external_io_evidence(config, result, task=command)
-    return result.as_dict()
-
-
-def _handle_external_io_command(command: str, config: AgentConfig) -> str | None:
-    result = _external_io_execute(command, config)
-    if result is None:
-        return None
-    _record_external_io_evidence(config, result, task=command)
-    return _external_io_result_to_text(result)
-
-
-def _external_io_execute(command: str, config: AgentConfig) -> ExternalIOResult | None:
-    try:
-        parts = shlex.split(command)
-    except ValueError as exc:
-        return ExternalIOResult(ok=False, command=command, message=str(exc), error=str(exc))
-    if not parts:
-        return None
-    tool = ExternalIOTool(config.workspace_root)
-    if parts[0] == "checksum" and len(parts) == 2:
-        return tool.checksum(parts[1])
-    if parts[0] == "download":
-        max_bytes: int | None = None
-        clean: list[str] = []
-        index = 1
-        while index < len(parts):
-            if parts[index] == "--max-bytes" and index + 1 < len(parts):
-                try:
-                    max_bytes = int(parts[index + 1])
-                except ValueError:
-                    return ExternalIOResult(ok=False, command="download", message="--max-bytes must be an integer.", error="invalid_max_bytes")
-                index += 2
-                continue
-            clean.append(parts[index])
-            index += 1
-        if len(clean) in {1, 2}:
-            return tool.download(clean[0], clean[1] if len(clean) == 2 else None, max_bytes=max_bytes)
-        return ExternalIOResult(ok=False, command="download", message="Usage: download <url> [path] [--max-bytes N]", error="usage")
-    if parts[0] == "compress" and len(parts) in {2, 3}:
-        return tool.gzip_compress(parts[1], parts[2] if len(parts) == 3 else None)
-    if parts[:2] == ["archive", "verify"] and len(parts) == 3:
-        return tool.verify_archive(parts[2])
-    if parts[:2] == ["web", "search"] and len(parts) >= 3:
-        endpoint = os.environ.get("STAGEWARDEN_WEB_SEARCH_ENDPOINT")
-        return tool.web_search(" ".join(parts[2:]), endpoint=endpoint)
-    if parts[0] in {"download", "checksum", "compress", "archive", "web"}:
-        return ExternalIOResult(
-            ok=False,
-            command=parts[0],
-            message="Usage: web search <query> | download <url> [path] [--max-bytes N] | checksum <path> | compress <path> [target.gz] | archive verify <path.gz>",
-            error="usage",
-        )
-    return None
-
-
-def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    status = agent.router.status()
-    memory = MemoryStore.load(config.memory_path)
-    providers: list[dict[str, object]] = []
-    for model in SUPPORTED_MODELS:
-        if model not in status["enabled_models"]:
-            continue
-        provider_model, selection_mode, _default_model = _provider_model_display(prefs, model)
-        accounts = list((prefs.accounts_by_model or {}).get(model, []))
-        active_account = prefs.account_for_model(model)
-        blocked_model_until = status["blocked_until_by_model"].get(model)
-        blocked_accounts = [
-            {
-                "name": account,
-                "blocked_until": (prefs.blocked_until_by_account or {}).get(account_key(model, account)),
-                "last_limit_message": (prefs.last_limit_message_by_account or {}).get(account_key(model, account)),
-                "last_limit_reason": classify_limit_reason(
-                    (prefs.last_limit_message_by_account or {}).get(account_key(model, account)),
-                    fallback=None,
-                ),
-                "active": account == active_account,
-                "limit_snapshot": (prefs.provider_limit_snapshot_by_account or {}).get(account_key(model, account)),
-            }
-            for account in accounts
-            if (prefs.blocked_until_by_account or {}).get(account_key(model, account))
-        ]
-        last_attempt = next((item for item in reversed(memory.attempts) if item.model == model), None)
-        last_success = next((item for item in reversed(memory.attempts) if item.model == model and item.success), None)
-        last_limit_message = (prefs.last_limit_message_by_model or {}).get(model)
-        last_error_reason = classify_limit_reason(
-            last_limit_message,
-            fallback=(last_attempt.error_type or "unknown") if last_attempt is not None and not last_attempt.success else None,
-        )
-        providers.append(
-            {
-                "provider": model,
-                "enabled": model in status["enabled_models"],
-                "active": model in status["active_models"],
-                "preferred": status["preferred_model"] == model,
-                "variant": prefs.variant_for_model(model) or "provider-default",
-                "provider_model": provider_model,
-                "provider_model_selection": selection_mode,
-                "provider_model_params": _provider_model_params_display(prefs, model),
-                "active_account": active_account or "none",
-                "blocked_until": blocked_model_until,
-                "last_limit_message": last_limit_message,
-                "limit_snapshot": (prefs.provider_limit_snapshot_by_model or {}).get(model),
-                "blocked_accounts": blocked_accounts,
-                "last_error_reason": last_error_reason,
-                "last_attempt": None
-                if last_attempt is None
-                else {
-                    "step": last_attempt.step_id,
-                    "status": "ok" if last_attempt.success else f"failed:{last_attempt.error_type or 'unknown'}",
-                    "account": last_attempt.account or "none",
-                    "variant": last_attempt.variant or "provider-default",
-                },
-                "last_success": None
-                if last_success is None
-                else {
-                    "step": last_success.step_id,
-                    "account": last_success.account or "none",
-                    "variant": last_success.variant or "provider-default",
-                },
-            }
-        )
-    return {
-        "providers": providers,
-    }
-
-
-def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[str, object]:
-    providers = [
-        item
-        for item in provider_limits.get("providers", [])
-        if isinstance(item, dict)
-    ]
-    blocked_models = [str(item["provider"]) for item in providers if item.get("blocked_until")]
-    stale_models = [
-        str(item["provider"])
-        for item in providers
-        if bool(_provider_limit_windows(item).get("stale"))
-    ]
-    blocked_accounts = [
-        f"{item['provider']}:{account['name']}"
-        for item in providers
-        for account in item.get("blocked_accounts", [])
-        if isinstance(account, dict) and account.get("blocked_until")
-    ]
-    stale_accounts = [
-        f"{item['provider']}:{account['name']}"
-        for item in providers
-        for account in item.get("blocked_accounts", [])
-        if isinstance(account, dict)
-        and isinstance(account.get("limit_snapshot"), dict)
-        and _provider_limit_snapshot_is_stale(account["limit_snapshot"].get("captured_at"))
-    ]
-    last_errors = [
-        f"{item['provider']}={item['last_error_reason']}"
-        for item in providers
-        if item.get("last_error_reason")
-    ]
-    active_routes = [
-        f"{item['provider']}:{item['active_account']}/{item['variant']}"
-        for item in providers
-    ]
-    return {
-        "providers_count": len(providers),
-        "blocked_models": blocked_models,
-        "stale_models": stale_models,
-        "blocked_accounts": blocked_accounts,
-        "stale_accounts": stale_accounts,
-        "last_errors": last_errors,
-        "routes": active_routes,
-    }
-
-
-def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
-    report = _provider_limit_status_report(agent, config)
-    lines = ["Provider limit status:"]
-    if not report["providers"]:
-        lines.append("- none")
-        return "\n".join(lines)
-    for item in report["providers"]:
-        blocked = f" blocked-until={item['blocked_until']}" if item["blocked_until"] else ""
-        preferred = " preferred" if item["preferred"] else ""
-        active = " active" if item["active"] else " inactive"
-        lines.append(
-            f"- {item['provider']}: enabled{active}{preferred}{blocked} "
-            f"provider_model={item['provider_model']} selection={item['provider_model_selection']} "
-            f"active_account={item['active_account']}"
-        )
-        if item["last_error_reason"]:
-            lines.append(f"  last_error_reason={item['last_error_reason']}")
-        if item["last_limit_message"]:
-            lines.append(f"  last_limit_message={item['last_limit_message']}")
-        last_attempt = item["last_attempt"]
-        if isinstance(last_attempt, dict):
-            lines.append(
-                f"  last_attempt: step={last_attempt['step']} status={last_attempt['status']} "
-                f"account={last_attempt['account']} provider_model={last_attempt['variant']}"
-            )
-        last_success = item["last_success"]
-        if isinstance(last_success, dict):
-            lines.append(
-                f"  last_success: step={last_success['step']} account={last_success['account']} "
-                f"provider_model={last_success['variant']}"
-            )
-        blocked_accounts = item["blocked_accounts"]
-        for blocked_account in blocked_accounts:
-            active_account_tag = " active-account" if blocked_account["active"] else ""
-            lines.append(
-                f"  blocked_account {blocked_account['name']}:{active_account_tag} "
-                f"blocked-until={blocked_account['blocked_until']}"
-            )
-            if blocked_account["last_limit_reason"]:
-                lines.append(f"    last_limit_reason={blocked_account['last_limit_reason']}")
-            if blocked_account["last_limit_message"]:
-                lines.append(f"    last_limit_message={blocked_account['last_limit_message']}")
-    return "\n".join(lines)
-
-
 def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    report = _provider_limit_status_report(agent, config)
-    return {
-        "command": "model limits",
-        "schema": json_schema("model limits"),
-        "summary": _provider_limit_summary_report(report),
-        "providers": [_provider_limit_entry_view(item, include_accounts=True) for item in report["providers"]],
-    }
+    return _status_views._model_limits_report(agent, config)
 
 
 def _render_model_limits(agent: Agent, config: AgentConfig) -> str:
-    report = _model_limits_report(agent, config)
-    lines = ["Model/provider limits:"]
-    if not report["providers"]:
-        lines.append("- none")
-        return "\n".join(lines)
-    summary = report["summary"]
-    lines.append(
-        "- summary: "
-        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'} "
-        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'} "
-        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'} "
-        f"stale_accounts={','.join(summary['stale_accounts']) if summary['stale_accounts'] else 'none'}"
-    )
-    for item in report["providers"]:
-        blocked = f" blocked_until={item['blocked_until']}" if item["blocked_until"] else ""
-        reason = f" reason={item['reason']}" if item["reason"] else ""
-        window = f" window={item['rate_limit_type']}" if item["rate_limit_type"] else ""
-        utilization = f" utilization={item['utilization']}%" if item["utilization"] is not None else ""
-        captured = f" captured_at={item['captured_at']}" if item["captured_at"] else ""
-        lines.append(
-            f"- {item['provider']}: {item['status']}{blocked}{reason}{window}{utilization}{captured} "
-            f"account={item['account']} provider_model={item['provider_model']} "
-            f"selection={item['provider_model_selection']}"
-        )
-        if item["provider_model_params"]:
-            lines.append(
-                "  params="
-                + ",".join(f"{key}={value}" for key, value in sorted(item["provider_model_params"].items()))
-            )
-        for account in item["blocked_accounts"]:
-            account_reason = f" reason={account['reason']}" if account["reason"] else ""
-            lines.append(
-                f"  account {account['name']}: blocked_until={account['blocked_until']}{account_reason}"
-            )
-    return "\n".join(lines)
+    return _status_views._render_model_limits(agent, config)
 
 
 def _record_limit_message(
@@ -5268,401 +2083,6 @@ def _clear_limit_snapshot(
     return f"Cleared limit snapshot for {model}."
 
 
-def _provider_limit_windows(item: dict[str, object]) -> dict[str, object]:
-    blocked_until = item.get("blocked_until")
-    reason = item.get("last_error_reason")
-    snapshot = item.get("limit_snapshot")
-    base = {
-        "status": "blocked" if blocked_until else "available",
-        "reason": reason,
-        "blocked_until": blocked_until,
-        "primary_window": None,
-        "secondary_window": None,
-        "credits": None,
-        "rate_limit_type": reason,
-        "utilization": None,
-        "overage_status": None,
-        "overage_resets_at": None,
-        "overage_disabled_reason": None,
-        "stale": False,
-        "captured_at": None,
-    }
-    if isinstance(snapshot, dict):
-        for key in base:
-            if snapshot.get(key) is not None:
-                base[key] = snapshot[key]
-        base["stale"] = _provider_limit_snapshot_is_stale(base.get("captured_at"))
-        if blocked_until:
-            base["status"] = "blocked"
-            base["blocked_until"] = blocked_until
-        if reason:
-            base["reason"] = reason
-        if base["rate_limit_type"] is None:
-            base["rate_limit_type"] = base["reason"]
-    return base
-
-
-def _provider_limit_resets_at(windows: dict[str, object]) -> object:
-    return windows.get("blocked_until") or windows.get("overage_resets_at")
-
-
-def _provider_limit_account_view(account: dict[str, object]) -> dict[str, object]:
-    snapshot = account.get("limit_snapshot")
-    windows = _provider_limit_windows(
-        {
-            "blocked_until": account.get("blocked_until"),
-            "last_error_reason": account.get("last_limit_reason"),
-            "limit_snapshot": snapshot,
-        }
-    )
-    return {
-        "name": account["name"],
-        "active": account["active"],
-        "status": windows["status"],
-        "blocked_until": windows["blocked_until"],
-        "reason": windows["reason"],
-        "rate_limit_type": windows["rate_limit_type"],
-        "utilization": windows["utilization"],
-        "resets_at": _provider_limit_resets_at(windows),
-        "overage_status": windows["overage_status"],
-        "overage_resets_at": windows["overage_resets_at"],
-        "overage_disabled_reason": windows["overage_disabled_reason"],
-        "stale": windows["stale"],
-        "captured_at": windows["captured_at"],
-        "snapshot": snapshot,
-    }
-
-
-def _provider_limit_entry_view(
-    item: dict[str, object],
-    *,
-    include_accounts: bool = False,
-) -> dict[str, object]:
-    windows = _provider_limit_windows(item)
-    blocked_accounts = [
-        _provider_limit_account_view(account)
-        for account in item.get("blocked_accounts", [])
-        if isinstance(account, dict)
-    ]
-    view = {
-        "provider": item["provider"],
-        "account": item["active_account"],
-        "variant": item["variant"],
-        "provider_model": item["provider_model"],
-        "provider_model_selection": item["provider_model_selection"],
-        "provider_model_params": item["provider_model_params"],
-        "status": windows["status"],
-        "reason": windows["reason"],
-        "blocked_until": windows["blocked_until"],
-        "primary_window": windows["primary_window"],
-        "secondary_window": windows["secondary_window"],
-        "credits": windows["credits"],
-        "rate_limit_type": windows["rate_limit_type"],
-        "utilization": windows["utilization"],
-        "resets_at": _provider_limit_resets_at(windows),
-        "overage_status": windows["overage_status"],
-        "overage_resets_at": windows["overage_resets_at"],
-        "overage_disabled_reason": windows["overage_disabled_reason"],
-        "stale": windows["stale"],
-        "captured_at": windows["captured_at"],
-        "blocked_accounts_count": len(blocked_accounts),
-    }
-    if include_accounts:
-        view["blocked_accounts"] = blocked_accounts
-    return view
-
-
-def _provider_limit_snapshot_is_stale(captured_at: object, *, stale_after_minutes: int = 15) -> bool:
-    if not captured_at:
-        return False
-    try:
-        captured = datetime.fromisoformat(str(captured_at))
-    except ValueError:
-        return True
-    now = datetime.now(tz=captured.tzinfo) if captured.tzinfo is not None else datetime.now()
-    if captured > now:
-        return False
-    return (now - captured).total_seconds() > stale_after_minutes * 60
-
-
-def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    status = _status_report(agent, config)
-    provider_limits = status["provider_limits"]
-    model_report = status["models"]
-    pricing = _status_pricing_report(agent, config)
-    handoff = status["handoff"]["stage_view"]
-    git = GitTool(config)
-    git_status = git.status()
-    git_head = git.head()
-    workspace_settings = status["permissions"]["effective"]
-    active_model = next((item for item in model_report["models"] if item["preferred"]), None)
-    if active_model is None:
-        active_model = next((item for item in model_report["models"] if item["active"]), None)
-    providers = provider_limits["providers"]
-    focus = _focus_snapshot(agent, config)
-    return {
-        "command": "status",
-        "view": "full",
-        "schema": json_schema("status"),
-        "identity": {
-            "name": "Stagewarden",
-            "workspace": status["workspace"],
-            "mode": status["mode"],
-            "python": platform.python_version(),
-        },
-        "model": {
-            "preferred_model": model_report["preferred_model"] or "automatic",
-            "preferred_provider": model_report["preferred_provider"] or "automatic",
-            "active_model": None if active_model is None else active_model["model"],
-            "active_provider": None if active_model is None else active_model["model"],
-            "active_variant": None if active_model is None else active_model["variant"],
-            "active_provider_model": None if active_model is None else active_model["provider_model"],
-            "active_provider_model_params": {} if active_model is None else active_model["provider_model_params"],
-            "enabled": [item["model"] for item in model_report["models"] if item["enabled"]],
-            "active": [item["model"] for item in model_report["models"] if item["active"]],
-        },
-        "account": {
-            "active_accounts": {
-                item["provider"]: item["active_account"]
-                for item in providers
-            },
-            "auth_modes": {
-                item["model"]: item["auth"]
-                for item in model_report["models"]
-            },
-        },
-        "limits": [_provider_limit_entry_view(item, include_accounts=True) for item in providers],
-        "limits_summary": _provider_limit_summary_report(provider_limits),
-        "workspace": {
-            "cwd": status["workspace"],
-            "files": status["files"],
-        },
-        "runtime": status["runtime"],
-        "shell_backend": status["shell_backend"],
-        "permissions": {
-            "mode": workspace_settings["mode"],
-            "allow": workspace_settings["allow"],
-            "ask": workspace_settings["ask"],
-            "deny": workspace_settings["deny"],
-        },
-        "pricing": pricing,
-        "git": {
-            "ok": git_status.ok,
-            "head": git_head.stdout.strip() if git_head.ok else None,
-            "status": git_status.stdout.strip() if git_status.ok else git_status.error,
-        },
-        "handoff": {
-            "stage_health": handoff["stage_health"],
-            "recovery_state": handoff["recovery_state"],
-            "boundary_decision": handoff["boundary_decision"],
-            "next_action": handoff["next_action"],
-            "git_boundary": handoff["git_boundary"],
-            "register_statuses": handoff["register_statuses"],
-            "backlog_statuses": handoff["backlog_statuses"],
-            "node_runtime_summary": handoff["node_runtime_summary"],
-        },
-        "baseline": status["baseline"],
-        "goal": status["goal"],
-        "local_fallback": status["local_fallback"],
-        "focus": focus,
-        "usage": _model_usage_report(config)["report"],
-        "quality_gates": {
-            "wet_run_required": True,
-            "dry_run_valid_checkpoint": False,
-            "git_snapshot_required": True,
-            "provider_limits_stale_after_minutes": 15,
-        },
-        "remediations": status["remediations"],
-    }
-
-
-def _render_status_full(agent: Agent, config: AgentConfig) -> str:
-    report = _status_dashboard_report(agent, config)
-    lines = [
-        "Stagewarden full status:",
-        "Identity:",
-        f"- workspace: {report['identity']['workspace']}",
-        f"- mode: {report['identity']['mode']}",
-        f"- python: {report['identity']['python']}",
-        "Focus:",
-        f"- task: {report['focus']['task']}",
-        f"- current_step: {report['focus']['current_step']}",
-        f"- next_action: {report['focus']['next_action']}",
-        (
-            f"- active_route: provider={report['focus']['active_provider'] or 'none'} "
-            f"account={report['focus']['active_account']} "
-            f"provider_model={report['focus']['active_provider_model'] or 'none'}"
-        ),
-        "Model:",
-        f"- preferred_provider: {report['model']['preferred_provider']}",
-        f"- active_provider: {report['model']['active_provider'] or 'none'}",
-        f"- active_provider_model: {report['model']['active_provider_model'] or 'none'}",
-        (
-            f"- pricing_source: {report['pricing']['source']} "
-            f"provider={report['pricing']['active_model']['provider'] if report['pricing']['active_model'] else 'none'} "
-            f"provider_model={report['pricing']['active_model']['provider_model'] if report['pricing']['active_model'] else 'none'}"
-        ),
-        (
-            "- active_provider_model_params: "
-            + ",".join(f"{key}={value}" for key, value in sorted(report["model"]["active_provider_model_params"].items()))
-            if report["model"]["active_provider_model_params"]
-            else "- active_provider_model_params: none"
-        ),
-        f"- enabled_providers: {', '.join(report['model']['enabled']) or 'none'}",
-        "Account:",
-    ]
-    for provider, account in report["account"]["active_accounts"].items():
-        lines.append(f"- {provider}: active_account={account}")
-    lines.append("Limits:")
-    for item in report["limits"]:
-        blocked = f" blocked_until={item['blocked_until']}" if item["blocked_until"] else ""
-        reason = f" reason={item['reason']}" if item["reason"] else ""
-        stale = " stale=true" if item["stale"] else ""
-        lines.append(f"- {item['provider']}: {item['status']}{blocked}{reason}{stale}")
-    summary = report["limits_summary"]
-    lines.append(
-        "- limits_summary: "
-        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'} "
-        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'} "
-        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'} "
-        f"stale_accounts={','.join(summary['stale_accounts']) if summary['stale_accounts'] else 'none'}"
-    )
-    lines.extend(
-        [
-        "Workspace:",
-        f"- cwd: {report['workspace']['cwd']}",
-        "Runtime:",
-        f"- os_family: {report['runtime']['os_family']}",
-        f"- recommended_shell: {report['runtime']['recommended_shell']}",
-        f"- default_shell: {report['runtime']['default_shell'] or 'none'}",
-        "Shell Backend:",
-        f"- configured: {report['shell_backend']['configured']}",
-        f"- selected: {report['shell_backend']['selected'] or 'none'}",
-        f"- executable: {report['shell_backend']['executable'] or 'none'}",
-        "Permissions:",
-            f"- mode: {report['permissions']['mode']}",
-            f"- allow: {len(report['permissions']['allow'])}",
-            f"- ask: {len(report['permissions']['ask'])}",
-            f"- deny: {len(report['permissions']['deny'])}",
-            "Git:",
-            f"- ok: {str(report['git']['ok']).lower()}",
-            f"- head: {report['git']['head'] or 'none'}",
-            f"- status: {report['git']['status'] or 'clean'}",
-        "Handoff:",
-        f"- baseline: {report['baseline']['status']} missing={len(report['baseline']['missing'])}",
-        (
-            "- goal: "
-            f"status={report['goal']['status']} "
-            f"objective={report['goal']['objective'] or 'none'} "
-            f"budget={report['goal']['token_budget'] if report['goal']['token_budget'] is not None else 'none'}"
-        ),
-        f"- stage_health: {report['handoff']['stage_health']}",
-            f"- recovery_state: {report['handoff']['recovery_state']}",
-            f"- boundary_decision: {report['handoff']['boundary_decision']}",
-            f"- next_action: {report['handoff']['next_action']}",
-            (
-                "- node_runtime: "
-                f"status={report['handoff']['node_runtime_summary']['status']} "
-                f"nodes={report['handoff']['node_runtime_summary']['nodes']} "
-                f"ready={report['handoff']['node_runtime_summary']['ready']} "
-                f"waiting={report['handoff']['node_runtime_summary']['waiting']} "
-                f"running={report['handoff']['node_runtime_summary']['running']} "
-                f"blocked={report['handoff']['node_runtime_summary']['blocked']}"
-            ),
-            (
-                "- local_fallback: "
-                f"status={report['local_fallback']['status']} "
-                f"ready_nodes={report['local_fallback']['delivery_nodes_with_local_fallback']}/{report['local_fallback']['delivery_nodes']} "
-                f"candidates={','.join(report['local_fallback']['candidate_ids']) if report['local_fallback']['candidate_ids'] else 'none'}"
-            ),
-            "Usage:",
-            f"- calls: {report['usage']['totals']['calls']}",
-            f"- failures: {report['usage']['totals']['failures']}",
-            f"- escalation_path: {report['usage']['totals']['escalation_path']}",
-            "Quality Gates:",
-            "- wet_run_required: true",
-            "- dry_run_valid_checkpoint: false",
-            "- git_snapshot_required: true",
-            "Remediations:",
-        ]
-    )
-    if report["remediations"]:
-        for item in report["remediations"]:
-            lines.append(f"- {item['severity']} {item['code']}: {item['action']}")
-    else:
-        lines.append("- none")
-    return "\n".join(lines)
-
-
-def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    status = _status_report(agent, config)
-    usage = _model_usage_report(config)["report"]
-    memory = MemoryStore.load(config.memory_path)
-    git = GitTool(config)
-    git_head = git.head()
-    provider_limits = status["provider_limits"]["providers"]
-    preferred = status["models"]["preferred_model"]
-    active_model = next((item for item in status["models"]["models"] if item["preferred"]), None)
-    if active_model is None:
-        active_model = next((item for item in status["models"]["models"] if item["active"]), None)
-    return {
-        "command": "statusline",
-        "schema": json_schema("statusline"),
-        "workspace": {
-            "current_dir": status["workspace"],
-            "project_dir": status["workspace"],
-            "added_dirs": [],
-            "git_head": git_head.stdout.strip() if git_head.ok else None,
-            "git_worktree": None,
-        },
-        "version": "stagewarden",
-        "model": {
-            "preferred": preferred or "automatic",
-            "preferred_provider": preferred or "automatic",
-            "active": None if active_model is None else active_model["model"],
-            "active_provider": None if active_model is None else active_model["model"],
-            "variant": None if active_model is None else active_model["variant"],
-            "provider_model": None if active_model is None else active_model["provider_model"],
-            "provider_model_selection": None if active_model is None else active_model["provider_model_selection"],
-            "provider_model_params": {} if active_model is None else active_model["provider_model_params"],
-        },
-        "context_window": memory.context_window_stats(),
-        "rate_limits": [_statusline_rate_limit(item) for item in provider_limits],
-        "rate_limits_summary": _provider_limit_summary_report(status["provider_limits"]),
-        "baseline": {
-            "status": status["baseline"]["status"],
-            "ok": status["baseline"]["ok"],
-            "missing": status["baseline"]["missing"],
-        },
-        "local_fallback": status["local_fallback"],
-        "goal": status["goal"],
-        "handoff": status["handoff"]["stage_view"],
-        "latest_handoff_action": status["focus"].get("latest_handoff_action"),
-        "usage": usage["totals"],
-    }
-
-
-def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
-    entry = _provider_limit_entry_view(item, include_accounts=False)
-    return {
-        "provider": entry["provider"],
-        "account": entry["account"],
-        "status": entry["status"],
-        "blocked_until": entry["blocked_until"],
-        "reason": entry["reason"],
-        "rate_limit_type": entry["rate_limit_type"],
-        "stale": entry["stale"],
-        "blocked_accounts": entry["blocked_accounts_count"],
-        "used_percentage": entry["utilization"],
-        "utilization": entry["utilization"],
-        "resets_at": entry["resets_at"],
-        "overage_status": entry["overage_status"],
-        "overage_resets_at": entry["overage_resets_at"],
-        "overage_disabled_reason": entry["overage_disabled_reason"],
-    }
-
-
-def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
     _apply_model_preferences(agent, config)
     handoff = ProjectHandoff.load(config.handoff_path)
     prefs = _load_model_preferences(config)
@@ -5789,18 +2209,7 @@ def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
 
 
 def _render_accounts(config: AgentConfig) -> str:
-    prefs = _load_model_preferences(config)
-    lines = ["Account profiles:"]
-    found = False
-    for model in SUPPORTED_MODELS:
-        rendered = _render_account_lines(prefs, model)
-        if rendered:
-            found = True
-            lines.append(f"- {model}")
-            lines.extend(rendered)
-    if not found:
-        lines.append("- none configured")
-    return "\n".join(lines)
+    return _account_views._render_accounts(config)
 
 
 def _accounts_report(config: AgentConfig) -> dict[str, object]:
@@ -5966,11 +2375,14 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
             f"input={pricing['cost_per_input_token_usd'] if pricing['cost_per_input_token_usd'] is not None else 'none'} "
             f"output={pricing['cost_per_output_token_usd'] if pricing['cost_per_output_token_usd'] is not None else 'none'}"
         ),
+        _render_cost_sidebar(agent, config),
         _render_provider_limit_status(agent, config),
         _render_runtime_status(config),
         _render_shell_backend(config),
         _render_resume_context(config),
-        _render_goal_report(config),
+        _project_state_views.render_goal_report(config),
+        _project_state_views.render_budget_report(config),
+        _project_state_views.render_question_report(config),
         _render_permissions(config),
         "PRINCE2 roles:",
         _render_prince2_role_status_hint(config),
@@ -6269,164 +2681,11 @@ def _render_agent_baseline(config: AgentConfig) -> str:
 
 
 def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    status = agent.router.status()
-    catalog = load_ai_models_catalog()
-    models: list[dict[str, object]] = []
-    for model in SUPPORTED_MODELS:
-        capability = provider_capability(model)
-        provider_catalog = catalog_entries_for_provider(model, catalog)
-        provider_default_entry = next((item for item in provider_catalog if str(item.get("model_id")) == "provider-default"), None)
-        provider_model, selection_mode, default_model = _provider_model_display(prefs, model)
-        params = _provider_model_params_display(prefs, model)
-        catalog_entry = catalog_entry_for_provider_model(model, provider_model, catalog)
-        models.append(
-            {
-                "model": model,
-                "provider": model,
-                "enabled": model in status["enabled_models"],
-                "active": model in status["active_models"],
-                "preferred": status["preferred_model"] == model,
-                "blocked_until": status["blocked_until_by_model"].get(model),
-                "variant": prefs.variant_for_model(model) or "provider-default",
-                "provider_model": provider_model,
-                "provider_model_selection": selection_mode,
-                "provider_model_default": default_model,
-                "provider_model_params": params,
-                "auth": capability.auth_type,
-                "profiles": capability.supports_account_profiles,
-                "backend": MODEL_BACKENDS[model]["label"],
-                "catalog": _catalog_entry_display(catalog_entry, None),
-                "catalog_source": (catalog_entry or provider_default_entry or {}).get("source") if (catalog_entry or provider_default_entry) else None,
-                "pricing_source": (catalog_entry or provider_default_entry or {}).get("pricing_source")
-                if (catalog_entry or provider_default_entry)
-                else None,
-                "catalog_size": len(provider_catalog),
-            }
-        )
-    return {
-        "command": "models",
-        "schema": json_schema("models"),
-        "models": models,
-        "preferred_model": status["preferred_model"],
-        "preferred_provider": status["preferred_model"],
-    }
+    return _status_views._model_status_report(agent, config)
 
 
 def _selected_model_report(model_report: dict[str, object]) -> dict[str, object] | None:
-    models = model_report.get("models", []) if isinstance(model_report, dict) else []
-    if not isinstance(models, list):
-        return None
-    selected = next((item for item in models if isinstance(item, dict) and item.get("preferred")), None)
-    if selected is None:
-        selected = next((item for item in models if isinstance(item, dict) and item.get("active")), None)
-    return selected if isinstance(selected, dict) else None
-
-
-def _status_pricing_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    model_report = _model_status_report(agent, config)
-    selected = _selected_model_report(model_report)
-    catalog = selected.get("catalog", {}) if isinstance(selected, dict) else {}
-    pricing_source = None
-    if isinstance(catalog, dict):
-        pricing_source = catalog.get("pricing_source")
-    if pricing_source is None and isinstance(selected, dict):
-        pricing_source = selected.get("pricing_source")
-    if pricing_source is None and isinstance(selected, dict):
-        pricing_source = "local" if selected.get("model") == "local" else "openrouter"
-    return {
-        "active_model": None
-        if selected is None
-        else {
-            "provider": selected.get("provider"),
-            "provider_model": selected.get("provider_model"),
-            "catalog_source": selected.get("catalog_source"),
-        },
-        "source": pricing_source or "unknown",
-        "catalog_source": None if not isinstance(catalog, dict) else catalog.get("catalog_source"),
-        "cost_per_input_token_usd": None if not isinstance(catalog, dict) else catalog.get("cost_per_input_token_usd"),
-        "cost_per_output_token_usd": None if not isinstance(catalog, dict) else catalog.get("cost_per_output_token_usd"),
-        "blended_price_usd_per_1m_tokens": None if not isinstance(catalog, dict) else catalog.get("blended_price_usd_per_1m_tokens"),
-    }
-
-
-def _goal_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "goal",
-        "schema": json_schema("goal"),
-        "goal": handoff.goal_view(),
-    }
-
-
-def _parse_goal_set_command(task: str) -> tuple[str, int | None]:
-    rest = task.removeprefix("goal set").strip()
-    token_budget = None
-    marker = " --tokens "
-    if marker in rest:
-        objective, raw_budget = rest.rsplit(marker, 1)
-        clean_budget = raw_budget.strip()
-        if not clean_budget.isdigit():
-            raise ValueError("Usage: goal set <objective> [--tokens N]")
-        token_budget = int(clean_budget)
-        rest = objective.strip()
-    if not rest:
-        raise ValueError("Usage: goal set <objective> [--tokens N]")
-    return rest, token_budget
-
-
-def _goal_command_report(task: str, config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    try:
-        if task == "goal":
-            return _goal_report(config)
-        if task.startswith("goal set "):
-            objective, token_budget = _parse_goal_set_command(task)
-            goal = handoff.set_goal(objective=objective, token_budget=token_budget)
-            handoff.save(config.handoff_path)
-            return {"command": "goal set", "schema": json_schema("goal set"), "ok": True, "goal": goal}
-        if task.startswith("goal status "):
-            status = task.split(maxsplit=2)[2]
-            goal = handoff.update_goal_status(status)
-            handoff.save(config.handoff_path)
-            return {"command": "goal status", "schema": json_schema("goal status"), "ok": True, "goal": goal}
-        if task == "goal clear":
-            previous = handoff.clear_goal()
-            handoff.save(config.handoff_path)
-            return {
-                "command": "goal clear",
-                "schema": json_schema("goal clear"),
-                "ok": True,
-                "previous_goal": previous,
-                "goal": handoff.goal_view(),
-            }
-    except ValueError as exc:
-        command_name = task.split(maxsplit=2)[0]
-        schema_command = command_name if command_name in {"goal", "goal set", "goal status", "goal clear"} else "goal"
-        return {"command": command_name, "schema": json_schema(schema_command), "ok": False, "error": str(exc)}
-    return {
-        "command": task,
-        "schema": json_schema("goal"),
-        "ok": False,
-        "error": "Usage: goal | goal set <objective> [--tokens N] | goal status <active|paused|budget_limited|complete> | goal clear",
-    }
-
-
-def _render_goal_report(config: AgentConfig) -> str:
-    goal = _goal_report(config)["goal"]
-    return "\n".join(
-        [
-            "Project goal:",
-            f"- status: {goal['status']}",
-            f"- objective: {goal['objective'] or 'none'}",
-            f"- token_budget: {goal['token_budget'] if goal['token_budget'] is not None else 'none'}",
-            f"- tokens_used: {goal['tokens_used']}",
-            f"- token_budget_remaining: {goal['token_budget_remaining'] if goal['token_budget_remaining'] is not None else 'none'}",
-            f"- budget_used_percentage: {goal['budget_used_percentage'] if goal['budget_used_percentage'] is not None else 'none'}",
-            f"- terminal: {str(goal['terminal']).lower()}",
-            f"- next_action: {goal['next_action']}",
-        ]
-    )
+    return _status_views._selected_model_report(model_report)
 
 
 def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
@@ -6468,335 +2727,6 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "local_fallback": local_fallback,
         "remediations": _status_remediation_report(provider_limits=provider_limits, stage_view=stage_view, config=config),
-    }
-
-
-def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return {
-        "command": "overview",
-        "schema": json_schema("overview"),
-        "status": _status_report(agent, config),
-        "board": _board_report(config),
-        "model_usage": _model_usage_report(config),
-        "provider_limits": _provider_limit_status_report(agent, config),
-        "transcript": _transcript_report(config),
-        "handoff": _handoff_report(config),
-    }
-
-
-def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    board = _board_report(config)
-    status = _status_report(agent, config)
-    usage = _model_usage_report(config)["report"]
-    transcript = _transcript_report(config)["report"]
-    log_errors = _log_error_report(config)
-    ready = (
-        board["recommended_authorization"] in {"continue", "close"}
-        and board["open_issues"] == 0
-        and board["recovery_state"] == "none"
-        and log_errors["count"] == 0
-    )
-    return {
-        "command": "health",
-        "schema": json_schema("health"),
-        "workspace": status["workspace"],
-        "mode": status["mode"],
-        "ready": ready,
-        "recommended_authorization": board["recommended_authorization"],
-        "boundary_decision": board["boundary_decision"],
-        "open_issues": board["open_issues"],
-        "open_risks": board["open_risks"],
-        "quality_open": board["quality_open"],
-        "recovery_state": board["recovery_state"],
-        "next_action": board["next_action"],
-        "model_failures": usage["totals"]["failures"],
-        "model_calls": usage["totals"]["calls"],
-        "transcript_entries": transcript["count"],
-        "log_errors": log_errors,
-    }
-
-
-def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    doctor = _doctor_report(config)
-    git = GitTool(config)
-    git_status = git.status()
-    git_head = git.head()
-    git_dirty = git.status_porcelain()
-    role_check = _prince2_role_check_report(config)
-    provider_limits = _provider_limit_status_report(agent, config)
-    sources = _sources_status_report(config)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    log_errors = _log_error_report(config)
-    stage_view = handoff.stage_view()
-    remediations = _preflight_remediations(
-        doctor=doctor,
-        runtime=doctor["runtime"],
-        shell_backend=_shell_backend_report(config),
-        git_status=git_status,
-        git_dirty=git_dirty,
-        role_check=role_check,
-        provider_limits=provider_limits,
-        sources=sources,
-        stage_view=stage_view,
-        log_errors=log_errors,
-    )
-    ready = not any(item["severity"] == "blocker" for item in remediations) and log_errors["count"] == 0
-    return {
-        "command": "preflight",
-        "schema": json_schema("preflight"),
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-        "ready": ready,
-        "doctor": doctor,
-        "runtime": doctor["runtime"],
-        "shell_backend": _shell_backend_report(config),
-        "git": {
-            "ok": git_status.ok,
-            "head": git_head.stdout.strip() if git_head.ok else None,
-            "status": git_status.stdout.strip() if git_status.ok else git_status.error,
-            "dirty": bool(git_dirty.ok and git_dirty.stdout.strip()),
-            "dirty_paths": git_dirty.stdout.splitlines() if git_dirty.ok and git_dirty.stdout else [],
-        },
-        "roles_check": role_check,
-        "provider_limits": provider_limits,
-        "baseline": _agent_baseline_report(config),
-        "sources": sources,
-        "permissions": _permissions_report(config),
-        "handoff": {
-            "summary": handoff.summary(),
-            "stage_view": stage_view,
-        },
-        "log_errors": log_errors,
-        "remediations": remediations,
-    }
-
-
-def _status_remediation_report(
-    *,
-    provider_limits: dict[str, object],
-    stage_view: dict[str, object],
-    config: AgentConfig,
-) -> list[dict[str, str]]:
-    git = GitTool(config)
-    git_status = git.status()
-    git_dirty = git.status_porcelain()
-    items = _preflight_remediations(
-        doctor={"python": {"ok": True}, "git": {"ok": True}},
-        runtime=detect_runtime_capabilities(config.workspace_root),
-        shell_backend=_shell_backend_report(config),
-        git_status=git_status,
-        git_dirty=git_dirty,
-        role_check=_prince2_role_check_report(config),
-        provider_limits=provider_limits,
-        sources=_sources_status_report(config),
-        stage_view=stage_view,
-        log_errors=_log_error_report(config),
-    )
-    local_fallback = _delivery_local_fallback_report(config)
-    if local_fallback["status"] == "available":
-        items.append(
-            {
-                "severity": "warning",
-                "code": "local_fallback_partial",
-                "action": (
-                    "Discovered local fallback candidates exist but are not preloaded on every delivery node. "
-                    "Run `/roles setup`, `/role assign`, or `/project start` to preload the recommended local fallback routes."
-                ),
-            }
-        )
-    elif local_fallback["status"] == "missing" and int(local_fallback.get("delivery_nodes", 0) or 0) > 0:
-        items.append(
-            {
-                "severity": "info",
-                "code": "local_fallback_missing",
-                "action": (
-                    "No local fallback candidates are available for the current delivery nodes. "
-                    "Continue on cloud providers or start Ollama and rerun discovery before planning local fallback execution."
-                ),
-            }
-        )
-    return items
-
-
-def _preflight_remediations(
-    *,
-    doctor: dict[str, object],
-    runtime: dict[str, object],
-    shell_backend: dict[str, object],
-    git_status: object,
-    git_dirty: object,
-    role_check: dict[str, object],
-    provider_limits: dict[str, object],
-    sources: dict[str, object],
-    stage_view: dict[str, object],
-    log_errors: dict[str, object],
-) -> list[dict[str, str]]:
-    items: list[dict[str, str]] = []
-    if not doctor.get("python", {}).get("ok"):  # type: ignore[union-attr]
-        items.append({"severity": "blocker", "code": "python", "action": "Install Python 3.11+ and rerun `/preflight`."})
-    if not doctor.get("git", {}).get("ok"):  # type: ignore[union-attr]
-        items.append({"severity": "blocker", "code": "git", "action": "Install git; Stagewarden requires git for every project."})
-    if not shell_backend.get("available"):
-        items.append({"severity": "blocker", "code": "shell_backend", "action": "Choose an available backend with `/shell backend use <auto|bash|zsh|powershell|cmd>`."})
-    runtime_shells = runtime.get("shells", {}) if isinstance(runtime, dict) else {}
-    bash_info = runtime_shells.get("bash", {}) if isinstance(runtime_shells, dict) else {}
-    if runtime.get("os_family") == "windows" and not bash_info.get("available"):
-        items.append(
-            {
-                "severity": "warning",
-                "code": "windows_shell_readiness",
-                "action": "Bash is not available on this Windows runtime; bash-required or POSIX-only commands will be rejected unless you install bash or translate them.",
-            }
-        )
-    if not getattr(git_status, "ok", False):
-        items.append({"severity": "warning", "code": "git_status", "action": "Run `/doctor` and confirm this folder is a git worktree."})
-    if getattr(git_dirty, "ok", False) and getattr(git_dirty, "stdout", "").strip():
-        items.append(
-            {
-                "severity": "warning",
-                "code": "dirty_git",
-                "action": "Run `/git status`, then commit or checkpoint before execution. If the tree is intentionally dirty, confirm the boundary with `/report` and `/board` before continuing.",
-            }
-        )
-    if role_check.get("status") == "error":
-        items.append(
-            {
-                "severity": "warning",
-                "code": "roles",
-                "action": "Run `/roles setup` for guided configuration or `/roles propose` for automatic PRINCE2 routing, then confirm with `/roles baseline` before role-routed work.",
-            }
-        )
-    blocked = [
-        str(provider["provider"])
-        for provider in provider_limits.get("providers", [])
-        if isinstance(provider, dict) and provider.get("blocked_until")
-    ]
-    if blocked:
-        items.append(
-            {
-                "severity": "warning",
-                "code": "provider_limits",
-                "action": f"Blocked providers: {', '.join(blocked)}. Run `/model limits`, switch route with `/model use <provider>` or `/account use <provider> <profile>`, or wait for reset before execution.",
-            }
-        )
-    stale = [
-        str(provider["provider"])
-        for provider in provider_limits.get("providers", [])
-        if isinstance(provider, dict) and bool(_provider_limit_windows(provider).get("stale"))
-    ]
-    if stale:
-        items.append(
-            {
-                "severity": "warning",
-                "code": "provider_limits_stale",
-                "action": f"Stale provider limit snapshots: {', '.join(stale)}. Refresh routing evidence or clear outdated limits before execution decisions.",
-            }
-        )
-    if not sources.get("ok"):
-        items.append({"severity": "warning", "code": "sources", "action": "Run `/sources status` before source-derived implementation work."})
-    if int(log_errors.get("count", 0) or 0) > 0:
-        examples = [item for item in log_errors.get("items", []) if isinstance(item, dict)]
-        sample = examples[0] if examples else {}
-        details = []
-        if sample.get("step_id"):
-            details.append(f"step {sample['step_id']}")
-        if sample.get("action_type"):
-            details.append(f"action {sample['action_type']}")
-        if sample.get("error_type"):
-            details.append(f"error {sample['error_type']}")
-        suffix = f" ({'; '.join(details)})" if details else ""
-        items.append(
-            {
-                "severity": "blocker",
-                "code": "log_errors",
-                "action": (
-                    f"Recent logs contain {int(log_errors.get('count', 0) or 0)} error entry(s){suffix}. "
-                    "Inspect `/transcript` and the memory log, then rerun the battery/preflight check."
-                ),
-            }
-        )
-    if stage_view.get("recovery_state") != "none":
-        items.append(
-            {
-                "severity": "warning",
-                "code": "recovery",
-                "action": "Run `/exception` to inspect the active recovery lane, then use `/report`, `/board`, or `/project start` only after the exception path is closed and the stage is re-baselined.",
-            }
-        )
-    return items
-
-
-def _render_preflight(agent: Agent, config: AgentConfig) -> str:
-    report = _preflight_report(agent, config)
-    runtime = report["runtime"]
-    git = report["git"]
-    role_check = report["roles_check"]
-    log_errors = report.get("log_errors", {}) if isinstance(report.get("log_errors"), dict) else {}
-    lines = [
-        "Stagewarden preflight:",
-        f"- ready: {str(report['ready']).lower()}",
-        f"- runtime: os={runtime['os_family']} shell={runtime['recommended_shell']} default={runtime['default_shell'] or 'none'}",
-        f"- shell_backend: configured={report['shell_backend']['configured']} selected={report['shell_backend']['selected'] or 'none'}",
-        f"- git: ok={str(git['ok']).lower()} dirty={str(git['dirty']).lower()} head={git['head'] or 'none'}",
-        f"- roles_check: {role_check['status']} errors={role_check['summary']['errors']} warnings={role_check['summary']['warnings']}",
-        f"- providers: {len(report['provider_limits']['providers'])}",
-        f"- baseline: {report['baseline']['status']} missing={len(report['baseline']['missing'])}",
-        f"- sources: {'ok' if report['sources']['ok'] else 'warn'} count={report['sources']['count']}",
-        f"- log_errors: {log_errors.get('status', 'unknown')} count={log_errors.get('count', 0)}",
-        f"- stage_health: {report['handoff']['stage_view']['stage_health']}",
-        "Remediations:",
-    ]
-    if report["remediations"]:
-        for item in report["remediations"]:
-            lines.append(f"- {item['severity']} {item['code']}: {item['action']}")
-    else:
-        lines.append("- none")
-    return "\n".join(lines)
-
-
-def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    board = _board_report(config)
-    usage = _model_usage_report(config)["report"]
-    transcript = _transcript_report(config)["report"]
-    stage_view = handoff.stage_view()
-    register_statuses = stage_view["register_statuses"]
-    governance_status = (
-        "clean"
-        if register_statuses["issues_open"] == 0
-        and register_statuses["risks_open"] == 0
-        and register_statuses["quality_open"] == 0
-        else "residual_controls"
-    )
-    lessons = [
-        f"[{item.get('type', 'lesson')}] {item.get('step_id', '-')} :: {item.get('lesson', '')}"
-        for item in handoff.lessons_log[-3:]
-    ]
-    backlog = [
-        f"[{str(item.get('status', 'planned')).strip().lower() or 'planned'}] {item.get('step_id', '-')} :: {item.get('title', '')}"
-        for item in handoff.implementation_backlog[:5]
-    ]
-    return {
-        "command": "report",
-        "schema": json_schema("report"),
-        "task": handoff.task or "unknown",
-        "project_status": handoff.status,
-        "current_step": handoff.current_step_id or "none",
-        "stage_health": stage_view["stage_health"],
-        "recommended_authorization": board["recommended_authorization"],
-        "boundary_decision": board["boundary_decision"],
-        "next_action": board["next_action"],
-        "open_issues": board["open_issues"],
-        "open_risks": board["open_risks"],
-        "quality_open": board["quality_open"],
-        "recovery_state": board["recovery_state"],
-        "governance_status": governance_status,
-        "model_calls": usage["totals"]["calls"],
-        "model_failures": usage["totals"]["failures"],
-        "escalation_path": usage["totals"]["escalation_path"],
-        "provider_limits": _provider_limit_status_report(agent, config),
-        "transcript_entries": transcript["count"],
-        "recent_lessons": lessons,
-        "backlog_preview": backlog,
     }
 
 
@@ -6847,2191 +2777,174 @@ def _render_health(agent: Agent, config: AgentConfig) -> str:
     return "\n".join(lines)
 
 
-def _render_battery(config: AgentConfig) -> str:
-    report = _battery_report(config)
-    lines = [
-        "Agent battery:",
-        f"- ready: {str(report['ready']).lower()}",
-        f"- passed: {report['passed']}/{report['total']}",
-    ]
-    for item in report["simulations"]:
-        if not isinstance(item, dict):
-            continue
-        lines.append(
-            f"- {item.get('name')}: {str(item.get('ok')).lower()} "
-            f"duration_ms={item.get('duration_ms', 0)} message={item.get('message', '')}"
-        )
-    if report["failures"]:
-        lines.append("Failures:")
-        for item in report["failures"]:
-            if not isinstance(item, dict):
-                continue
-            lines.append(f"- {item.get('name')}: {item.get('message', '')}")
-    return "\n".join(lines)
-
-
-def _render_report(agent: Agent, config: AgentConfig) -> str:
-    report = _report_report(agent, config)
-    lines = [
-        "Project report:",
-        f"- task: {report['task']}",
-        f"- project_status: {report['project_status']}",
-        f"- current_step: {report['current_step']}",
-        f"- stage_health: {report['stage_health']}",
-        f"- governance_status: {report['governance_status']}",
-        f"- recommended_authorization: {report['recommended_authorization']}",
-        f"- boundary_decision: {report['boundary_decision']}",
-        f"- next_action: {report['next_action']}",
-        f"- open_issues: {report['open_issues']}",
-        f"- open_risks: {report['open_risks']}",
-        f"- quality_open: {report['quality_open']}",
-        f"- recovery_state: {report['recovery_state']}",
-        f"- model_calls: {report['model_calls']}",
-        f"- model_failures: {report['model_failures']}",
-        f"- escalation_path: {report['escalation_path']}",
-        f"- provider_limits: {_provider_limit_summary(agent, config)}",
-        f"- transcript_entries: {report['transcript_entries']}",
-        "Recent lessons:",
-    ]
-    if report["recent_lessons"]:
-        for item in report["recent_lessons"]:
-            lines.append(f"- {item}")
-    else:
-        lines.append("- none")
-    lines.append("Backlog preview:")
-    if report["backlog_preview"]:
-        for item in report["backlog_preview"]:
-            lines.append(f"- {item}")
-    else:
-        lines.append("- none")
-    return "\n".join(lines)
-
-
-def _doctor_report(config: AgentConfig) -> dict[str, object]:
-    python_ok = sys.version_info >= (3, 11)
-    report: dict[str, object] = {
-        "command": "doctor",
-        "schema": json_schema("doctor"),
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-        "python": {
-            "ok": python_ok,
-            "status": "OK" if python_ok else "FAIL",
-            "version": platform.python_version(),
-            "required": ">=3.11",
-            "executable": sys.executable,
-        },
-        "git": {},
-        "path_launcher": {},
-        "repository": {},
-        "runtime": detect_runtime_capabilities(config.workspace_root),
-        "baseline": _agent_baseline_report(config),
-        "providers": [],
-        "policy": {
-            "silent_install": False,
-            "note": "no prerequisites are installed silently by doctor.",
-        },
-    }
-
-    git_path = shutil.which("git")
-    if git_path:
-        git_available = GitTool(config).ensure_available()
-        if git_available.ok:
-            version = git_available.stdout.strip() or "git available"
-            report["git"] = {
-                "ok": True,
-                "status": "OK",
-                "message": version,
-                "path": git_path,
-            }
-        else:
-            report["git"] = {
-                "ok": False,
-                "status": "FAIL",
-                "message": git_available.error or "git is not usable",
-                "path": git_path,
-            }
-    else:
-        report["git"] = {
-            "ok": False,
-            "status": "FAIL",
-            "message": "git executable not found in PATH. Install git before running Stagewarden.",
-            "path": None,
-        }
-
-    launcher = shutil.which("stagewarden")
-    if launcher:
-        report["path_launcher"] = {
-            "ok": True,
-            "status": "OK",
-            "path": launcher,
-            "message": launcher,
-        }
-    else:
-        report["path_launcher"] = {
-            "ok": False,
-            "status": "WARN",
-            "path": None,
-            "message": "`stagewarden` not found in PATH; run setup.sh/setup.ps1 or use python -m stagewarden.main.",
-        }
-
-    repo_probe = GitTool(config)._run(["git", "rev-parse", "--is-inside-work-tree"])
-    if repo_probe.ok and repo_probe.stdout.strip() == "true":
-        report["repository"] = {
-            "ok": True,
-            "status": "OK",
-            "message": "current workspace is a git worktree",
-        }
-    else:
-        report["repository"] = {
-            "ok": False,
-            "status": "WARN",
-            "message": "current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup.",
-        }
-
-    providers: list[dict[str, object]] = []
-    for model in REGISTRY_MODELS:
-        capability = provider_capability(model)
-        token_state = "n/a"
-        if capability.token_env:
-            token_state = "set" if os.environ.get(capability.token_env) else f"missing:{capability.token_env}"
-        providers.append(
-            {
-                "provider": model,
-                "auth": capability.auth_type,
-                "profiles": capability.supports_account_profiles,
-                "browser_login": capability.supports_browser_login,
-                "api_key": capability.supports_api_key,
-                "token_env": token_state,
-                "default_model": capability.default_model,
-            }
-        )
-    report["providers"] = providers
-    return report
-
-
-def _render_doctor(config: AgentConfig) -> str:
-    report = _doctor_report(config)
-    python_info = report["python"]
-    git_info = report["git"]
-    path_info = report["path_launcher"]
-    repo_info = report["repository"]
-    runtime_info = report["runtime"]
-    shell_backend = _shell_backend_report(config)
-    providers = report["providers"]
-    policy_info = report["policy"]
-    baseline_info = report["baseline"]
-    lines = ["Stagewarden doctor:"]
-    lines.append(
-        f"- Python: {python_info['status']} {python_info['version']} "
-        f"(required {python_info['required']}, executable={python_info['executable']})"
-    )
-    if git_info.get("ok"):
-        lines.append(f"- Git: OK {git_info['message']} ({git_info['path']})")
-    else:
-        lines.append(f"- Git: FAIL {git_info['message']}")
-    if path_info.get("ok"):
-        lines.append(f"- PATH launcher: OK {path_info['message']}")
-    else:
-        lines.append(f"- PATH launcher: WARN {path_info['message']}")
-    lines.append(f"- Repository: {repo_info['status']} {repo_info['message']}")
-    lines.append(
-        f"- Runtime: os={runtime_info['os_family']} shell={runtime_info['recommended_shell']} "
-        f"default={runtime_info['default_shell'] or 'none'} line_ending={runtime_info['line_ending']}"
-    )
-    lines.append(
-        f"- Shell backend: configured={shell_backend['configured']} selected={shell_backend['selected'] or 'none'} "
-        f"available={str(shell_backend['available']).lower()}"
-    )
-    lines.append(
-        f"- Baseline: {baseline_info['status']} "
-        f"missing={len(baseline_info['missing'])} groups={len(baseline_info['groups'])}"
-    )
-    if baseline_info["remediations"]:
-        lines.append("Baseline remediations:")
-        for item in baseline_info["remediations"]:
-            lines.append(f"- {item['code']}: {item['action']}")
-    lines.append("Provider capabilities:")
-    for provider in providers:
-        lines.append(
-            f"- {provider['provider']}: auth={provider['auth']} profiles={'yes' if provider['profiles'] else 'no'} "
-            f"browser_login={'yes' if provider['browser_login'] else 'no'} api_key={'yes' if provider['api_key'] else 'no'} "
-            f"token_env={provider['token_env']} default_model={provider['default_model']}"
-        )
-    lines.append(f"- Policy: {policy_info['note']}")
-    return "\n".join(lines)
-
-
-def _doctor_ok(rendered: str) -> bool:
-    return "\n- Python: FAIL" not in rendered and "\n- Git: FAIL" not in rendered
-
-
 def _render_handoff(config: AgentConfig) -> str:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    lines = [
-        "Project handoff:",
-        handoff.summary(),
-        handoff.rendered_operational_posture(),
-        handoff.rendered_stage_view(),
-        handoff.rendered_prince2_node_runtime(),
-        handoff.rendered_implementation_backlog(),
-    ]
-    if handoff.entries:
-        lines.append("Recent handoff entries:")
-        for entry in handoff.entries[-8:]:
-            lines.append(
-                f"- [{entry.phase}] iter={entry.iteration} step={entry.step_id or '-'} "
-                f"status={entry.step_status or '-'} model={entry.model or '-'} "
-                f"head={entry.git_head or 'unknown'}"
-            )
-    return "\n".join(lines)
+    return _project_handoff_views._render_handoff(config)
 
 
 def _handoff_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "handoff",
-        "schema": json_schema("handoff"),
-        "handoff": handoff.as_dict(),
-        "goal": handoff.goal_view(),
-        "stage_view": handoff.stage_view(),
-        "node_runtime": handoff.prince2_node_runtime_report(),
-        "next_action": handoff.rendered_next_action(),
-    }
+    return _project_handoff_views._handoff_report(config)
 
 
-ACTION_PHASE_PREFIXES = (
-    "project_",
-    "role_",
-    "model_",
-    "account_",
-    "permission_",
-    "git_",
-    "shell_",
-    "sources_",
-    "update_",
-    "extension_",
-    "web_",
-    "download_",
-    "checksum_",
-    "compress_",
-    "archive_",
-)
-
-
-def _is_handoff_action_entry(entry: HandoffEntry) -> bool:
-    return (
-        entry.phase.endswith("_approval")
-        or entry.phase.endswith("_blocked")
-        or entry.phase.startswith(ACTION_PHASE_PREFIXES)
-    )
-
-
-def _handoff_action_payload(entry: HandoffEntry) -> dict[str, object]:
-    return {
-        "timestamp": entry.timestamp,
-        "phase": entry.phase,
-        "task": entry.task,
-        "summary": entry.summary,
-        "git_head": entry.git_head,
-        "details": dict(entry.details),
-    }
-
-
-def _latest_handoff_action(config: AgentConfig) -> dict[str, object] | None:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    for entry in reversed(handoff.entries):
-        if _is_handoff_action_entry(entry):
-            return _handoff_action_payload(entry)
-    return None
+def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _project_handoff_views._focus_snapshot(agent, config)
 
 
 def _handoff_actions_report(config: AgentConfig, *, limit: int = 20) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    safe_limit = max(1, min(int(limit), 200))
-    action_entries = [entry for entry in handoff.entries if _is_handoff_action_entry(entry)]
-    selected = action_entries[-safe_limit:]
-    return {
-        "command": "handoff actions",
-        "count": len(action_entries),
-        "limit": safe_limit,
-        "entries": [_handoff_action_payload(entry) for entry in selected],
-    }
+    return _project_handoff_views._handoff_actions_report(config, limit=limit)
 
 
 def _render_handoff_actions(config: AgentConfig, *, limit: int = 20) -> str:
-    report = _handoff_actions_report(config, limit=limit)
-    lines = [
-        "Handoff actions:",
-        f"- count: {report['count']}",
-        f"- showing: {len(report['entries'])}/{report['count']}",
-    ]
-    entries = report["entries"]
-    if not isinstance(entries, list) or not entries:
-        lines.append("- none")
-        return "\n".join(lines)
-    for item in entries:
-        if not isinstance(item, dict):
-            continue
-        details = item.get("details") if isinstance(item.get("details"), dict) else {}
-        detail_keys = ", ".join(sorted(details)) if details else "none"
-        lines.append(
-            f"- [{item.get('phase')}] {item.get('summary')} "
-            f"task={item.get('task') or 'none'} head={item.get('git_head') or 'unknown'} details={detail_keys}"
-        )
-    return "\n".join(lines)
+    return _project_handoff_views._render_handoff_actions(config, limit=limit)
 
 
 def _parse_optional_limit(parts: list[str], *, default: int = 20) -> int:
-    if len(parts) <= 2:
-        return default
-    try:
-        return max(1, min(int(parts[2]), 200))
-    except ValueError:
-        return default
+    return _project_handoff_views._parse_optional_limit(parts, default=default)
 
 
 def _render_resume_show(config: AgentConfig) -> str:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    agent = _configure_readonly_agent_for_workspace(config)
-    focus = _focus_snapshot(agent, config)
-    lines = [
-        "Resume target:",
-        f"- task: {handoff.task or 'none'}",
-        f"- current_step: {handoff.current_step_id or 'none'}",
-        f"- current_step_status: {handoff.current_step_status or 'none'}",
-        f"- session_state: {handoff.status or 'none'}",
-        f"- session_recoverable: {str(handoff.status in {'initiating', 'planned', 'executing', 'waiting', 'exception'}).lower()}",
-        f"- next_action: {handoff.rendered_next_action()}",
-        f"- active_route: provider={focus['active_provider'] or 'none'} account={focus['active_account']} provider_model={focus['active_provider_model'] or 'none'}",
-        f"- resume_ready: {str(bool(focus['resume_ready'])).lower()}",
-        handoff.rendered_stage_view(),
-    ]
-    return "\n".join(lines)
+    return _project_handoff_views._render_resume_show(config)
 
 
 def _resume_context_payload(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    memory = MemoryStore.load(config.memory_path)
-    agent = _configure_readonly_agent_for_workspace(config)
-    focus = _focus_snapshot(agent, config)
-    latest_attempt = memory.latest_attempt()
-    latest_tool = memory.latest_tool_event()
-    latest_snapshot = handoff.latest_git_snapshot()
-    attempt_payload: dict[str, object] | None = None
-    if latest_attempt is not None:
-        attempt_payload = {
-            "step": latest_attempt.step_id,
-            "action": latest_attempt.action_type,
-            "status": "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}",
-            "route": {
-                "model": latest_attempt.model,
-                "provider": latest_attempt.model,
-                "account": latest_attempt.account or "none",
-                "variant": latest_attempt.variant or "provider-default",
-                "provider_model": latest_attempt.variant or "provider-default",
-            },
-            "observation": (latest_attempt.observation or "none").strip().replace("\n", " ")[:200],
-        }
-    tool_payload: dict[str, object] | None = None
-    if latest_tool is not None:
-        tool_payload = {
-            "tool": latest_tool.tool,
-            "action": latest_tool.action_type,
-            "status": "ok" if latest_tool.success else f"failed:{latest_tool.error_type or 'unknown'}",
-            "duration_ms": latest_tool.duration_ms or 0,
-            "summary": latest_tool.summary,
-        }
-    snapshot_payload: dict[str, object] | None = None
-    if latest_snapshot is not None:
-        snapshot_payload = {
-            "git_head": latest_snapshot["git_head"],
-            "summary": latest_snapshot["summary"],
-            "timestamp": latest_snapshot["timestamp"],
-        }
-    return {
-        "command": "resume context",
-        "schema": json_schema("resume context"),
-        "task": handoff.task or "none",
-        "current_step": handoff.current_step_id or "none",
-        "current_step_status": handoff.current_step_status or "none",
-        "session_state": handoff.status or "none",
-        "session_recoverable": handoff.status in {"initiating", "planned", "executing", "waiting", "exception"},
-        "active_route": {
-            "provider": focus["active_provider"] or "none",
-            "account": focus["active_account"],
-            "provider_model": focus["active_provider_model"] or "none",
-            "params": focus["active_provider_model_params"],
-        },
-        "resume_ready": bool(focus["resume_ready"]),
-        "boundary_decision": focus["boundary_decision"],
-        "latest_model_attempt": attempt_payload,
-        "latest_tool_evidence": tool_payload,
-        "latest_git_snapshot": snapshot_payload,
-        "active_limit": focus["active_limit"],
-    }
+    return _project_handoff_views._resume_context_payload(config)
 
 
 def _render_resume_context(config: AgentConfig) -> str:
-    payload = _resume_context_payload(config)
-    lines = [
-        "Resume context:",
-        f"- task: {payload['task']}",
-        f"- current_step: {payload['current_step']}",
-        f"- current_step_status: {payload['current_step_status']}",
-        f"- session_state: {payload['session_state']}",
-        f"- session_recoverable: {str(bool(payload['session_recoverable'])).lower()}",
-        f"- boundary_decision: {payload['boundary_decision']}",
-    ]
-    route = payload["active_route"]
-    lines.append(
-        f"- active_route: provider={route['provider']} account={route['account']} provider_model={route['provider_model']}"
-    )
-    params = route.get("params")
-    if isinstance(params, dict) and params:
-        lines.append("- active_provider_model_params: " + ",".join(f"{key}={value}" for key, value in sorted(params.items())))
-    attempt = payload["latest_model_attempt"]
-    if isinstance(attempt, dict):
-        route = attempt["route"]
-        lines.extend(
-            [
-                f"- latest_model_attempt: step={attempt['step']} action={attempt['action']} status={attempt['status']}",
-                (
-                    f"- latest_route: provider={route['provider']} "
-                    f"account={route['account']} provider_model={route['provider_model']}"
-                ),
-                f"- latest_observation: {attempt['observation']}",
-            ]
-        )
-    else:
-        lines.append("- latest_model_attempt: none")
-    tool = payload["latest_tool_evidence"]
-    if isinstance(tool, dict):
-        lines.append(
-            f"- latest_tool_evidence: tool={tool['tool']} action={tool['action']} "
-            f"status={tool['status']} duration_ms={tool['duration_ms']}"
-        )
-    else:
-        lines.append("- latest_tool_evidence: none")
-    snapshot = payload["latest_git_snapshot"]
-    if isinstance(snapshot, dict):
-        lines.append(f"- latest_git_snapshot: {snapshot['git_head']} :: {snapshot['summary']}")
-    else:
-        lines.append("- latest_git_snapshot: none")
-    active_limit = payload.get("active_limit")
-    if isinstance(active_limit, dict):
-        blocked = f" blocked_until={active_limit['blocked_until']}" if active_limit.get("blocked_until") else ""
-        reason = f" reason={active_limit['reason']}" if active_limit.get("reason") else ""
-        lines.append(f"- active_provider_limit: {active_limit['status'] or 'unknown'}{blocked}{reason}")
-    else:
-        lines.append("- active_provider_limit: none")
-    lines.append(f"- resume_ready: {str(bool(payload['resume_ready'])).lower()}")
-    return "\n".join(lines)
+    return _project_handoff_views._render_resume_context(config)
 
 
 def _resume_show_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    agent = _configure_readonly_agent_for_workspace(config)
-    return {
-        "command": "resume --show",
-        "schema": json_schema("resume --show"),
-        "task": handoff.task or "none",
-        "current_step": handoff.current_step_id or "none",
-        "current_step_status": handoff.current_step_status or "none",
-        "session_state": handoff.status or "none",
-        "session_recoverable": handoff.status in {"initiating", "planned", "executing", "waiting", "exception"},
-        "next_action": handoff.rendered_next_action(),
-        "stage_view": handoff.stage_view(),
-        "focus": _focus_snapshot(agent, config),
-    }
+    return _project_handoff_views._resume_show_report(config)
 
 
 def _archive_and_clear_handoff(config: AgentConfig) -> str:
-    if not config.handoff_path.exists():
-        ProjectHandoff().save(config.handoff_path)
-        return "No handoff existed. Created a fresh handoff context."
-    archive = config.workspace_root / f".stagewarden_handoff.archive.{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
-    write_text_utf8(archive, read_text_utf8(config.handoff_path))
-    ProjectHandoff().save(config.handoff_path)
-    return f"Archived handoff to {archive.name}. Fresh handoff context created."
+    return _project_handoff_views._archive_and_clear_handoff(config)
 
 
 def _archive_and_clear_handoff_report(config: AgentConfig) -> dict[str, object]:
-    if not config.handoff_path.exists():
-        ProjectHandoff().save(config.handoff_path)
-        return {
-            "command": "resume --clear",
-            "archived": False,
-            "archive_path": None,
-            "message": "No handoff existed. Created a fresh handoff context.",
-        }
-    archive = config.workspace_root / f".stagewarden_handoff.archive.{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
-    write_text_utf8(archive, read_text_utf8(config.handoff_path))
-    ProjectHandoff().save(config.handoff_path)
-    return {
-        "command": "resume --clear",
-        "archived": True,
-        "archive_path": archive.name,
-        "message": f"Archived handoff to {archive.name}. Fresh handoff context created.",
-    }
+    return _project_handoff_views._archive_and_clear_handoff_report(config)
 
 
 def _load_handoff_into_agent(agent: Agent, config: AgentConfig) -> ProjectHandoff:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    agent.project_handoff = handoff
-    agent.executor.project_handoff = handoff
-    return handoff
+    return _project_handoff_views._load_handoff_into_agent(agent, config)
 
 
 def _handle_resume_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
-    parts = command.split()
-    if not parts or parts[0] != "resume":
-        return None
-    if len(parts) == 1:
-        handoff = _load_handoff_into_agent(agent, config)
-        if not handoff.task:
-            return "No task in handoff to resume.\n" + _render_resume_show(config)
-        resumed_step_id = handoff.current_step_id or "none"
-        result = agent.run(handoff.task)
-        return f"Resumed from handoff step {resumed_step_id}.\n{result.message}"
-    if len(parts) == 2 and parts[1] == "--show":
-        return _render_resume_show(config)
-    if len(parts) == 2 and parts[1] == "context":
-        return _render_resume_context(config)
-    if len(parts) == 2 and parts[1] == "--clear":
-        _load_handoff_into_agent(agent, config)
-        return _archive_and_clear_handoff(config)
-    return "Usage: resume | resume --show | resume context | resume --clear"
-
-
-RUNTIME_HANDOFF_START = "<!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->"
-RUNTIME_HANDOFF_END = "<!-- STAGEWARDEN_RUNTIME_HANDOFF_END -->"
-
-
-def _redact_handoff_markdown(value: str) -> str:
-    redacted = re.sub(
-        r"(?i)\b(access_token|refresh_token|id_token|auth_token|api_key|token)\b\s*[:=]\s*['\"]?[^'\"\s,}\]]+",
-        lambda match: f"{match.group(1)}=[REDACTED]",
-        value,
-    )
-    redacted = re.sub(r"(?i)bearer\s+[a-z0-9._\-]{12,}", "Bearer [REDACTED]", redacted)
-    redacted = re.sub(r"\b[a-zA-Z0-9_\-]{32,}\.[a-zA-Z0-9_\-]{16,}\.[a-zA-Z0-9_\-]{16,}\b", "[REDACTED_JWT]", redacted)
-    return redacted
-
-
-def _runtime_handoff_markdown(config: AgentConfig) -> str:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    memory = MemoryStore.load(config.memory_path)
-    view = handoff.stage_view()
-    git_boundary = view["git_boundary"]
-    pid_boundary = view["pid_boundary"]
-    latest_attempt = memory.latest_attempt()
-    latest_tool = memory.latest_tool_event()
-    latest_snapshot = handoff.latest_git_snapshot()
-    lines = [
-        RUNTIME_HANDOFF_START,
-        "## Runtime Handoff Export",
-        "",
-        f"Generated: {datetime.now().isoformat(timespec='seconds')}",
-        "",
-        "### Current State",
-        "",
-        f"- task: {handoff.task or 'unknown'}",
-        f"- project_status: {handoff.status}",
-        f"- plan_status: {handoff.plan_status or 'unknown'}",
-        f"- recovery_state: {view['recovery_state']}",
-        f"- stage_health: {view['stage_health']}",
-        f"- next_action: {view['next_action']}",
-        f"- current_step: {handoff.current_step_id or 'none'}",
-        f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
-        f"- pid_boundary: project_status={pid_boundary['project_status']} updated_at={pid_boundary['updated_at']}",
-        "",
-        "### Registers",
-        "",
-        handoff.rendered_register_status_summary(),
-        "",
-        "### Execution Resume Context",
-        "",
-    ]
-    if latest_attempt is None:
-        lines.append("- latest_model_attempt: none")
-    else:
-        attempt_status = "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}"
-        lines.extend(
-            [
-                f"- latest_model_attempt: step={latest_attempt.step_id} action={latest_attempt.action_type} status={attempt_status}",
-                (
-                    f"- latest_route: provider={latest_attempt.model} "
-                    f"account={latest_attempt.account or 'none'} "
-                    f"provider_model={latest_attempt.variant or 'provider-default'}"
-                ),
-                f"- latest_observation: {(latest_attempt.observation or 'none').strip().replace(chr(10), ' ')[:200]}",
-            ]
-        )
-    if latest_tool is None:
-        lines.append("- latest_tool_evidence: none")
-    else:
-        tool_status = "ok" if latest_tool.success else f"failed:{latest_tool.error_type or 'unknown'}"
-        lines.append(
-            f"- latest_tool_evidence: tool={latest_tool.tool} action={latest_tool.action_type} "
-            f"status={tool_status} duration_ms={latest_tool.duration_ms or 0}"
-        )
-    if latest_snapshot is None:
-        lines.append("- latest_git_snapshot: none")
-    else:
-        lines.append(
-            f"- latest_git_snapshot: {latest_snapshot['git_head']} :: {latest_snapshot['summary']}"
-        )
-    lines.extend(
-        [
-            "",
-        "### Implementation Backlog",
-        "",
-        handoff.rendered_implementation_backlog(),
-        "",
-        "### Risks",
-        "",
-        handoff.rendered_risks(),
-        "",
-        "### Issues",
-        "",
-        handoff.rendered_issues(),
-        "",
-        "### Quality",
-        "",
-        handoff.rendered_quality(),
-        "",
-        "### Lessons",
-        "",
-        handoff.rendered_lessons(),
-        "",
-        "### Recent Entries",
-        "",
-    ]
-    )
-    if handoff.entries:
-        for entry in handoff.entries[-8:]:
-            lines.append(
-                f"- [{entry.phase}] iter={entry.iteration} step={entry.step_id or '-'} "
-                f"status={entry.step_status or '-'} model={entry.model or '-'} head={entry.git_head or 'unknown'}"
-            )
-    else:
-        lines.append("- none")
-    lines.extend(["", RUNTIME_HANDOFF_END, ""])
-    return _redact_handoff_markdown("\n".join(lines))
+    return _project_handoff_views._handle_resume_command(command, agent, config)
 
 
 def _export_handoff_markdown(config: AgentConfig) -> str:
-    target = config.workspace_root / "HANDOFF.md"
-    generated = _runtime_handoff_markdown(config)
-    existing = read_text_utf8(target) if target.exists() else "# Stagewarden Handoff\n"
-    if RUNTIME_HANDOFF_START in existing and RUNTIME_HANDOFF_END in existing:
-        prefix, _marker, rest = existing.partition(RUNTIME_HANDOFF_START)
-        _old, _end_marker, suffix = rest.partition(RUNTIME_HANDOFF_END)
-        updated = prefix.rstrip() + "\n\n" + generated.rstrip() + "\n" + suffix.lstrip()
-    else:
-        updated = existing.rstrip() + "\n\n" + generated
-    write_text_utf8(target, updated)
-    return f"Exported runtime handoff to {target.name}."
+    return _project_handoff_views._export_handoff_markdown(config)
 
 
 def _export_handoff_markdown_report(config: AgentConfig) -> dict[str, object]:
-    target = config.workspace_root / "HANDOFF.md"
-    generated = _runtime_handoff_markdown(config)
-    existing = read_text_utf8(target) if target.exists() else "# Stagewarden Handoff\n"
-    if RUNTIME_HANDOFF_START in existing and RUNTIME_HANDOFF_END in existing:
-        prefix, _marker, rest = existing.partition(RUNTIME_HANDOFF_START)
-        _old, _end_marker, suffix = rest.partition(RUNTIME_HANDOFF_END)
-        updated = prefix.rstrip() + "\n\n" + generated.rstrip() + "\n" + suffix.lstrip()
-    else:
-        updated = existing.rstrip() + "\n\n" + generated
-    write_text_utf8(target, updated)
-    return {
-        "command": "handoff export",
-        "target": target.name,
-        "updated": True,
-        "message": f"Exported runtime handoff to {target.name}.",
-    }
+    return _project_handoff_views._export_handoff_markdown_report(config)
 
 
 def _render_boundary(config: AgentConfig) -> str:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return "\n".join(
-        [
-            "Boundary recommendation:",
-            handoff.rendered_stage_view(),
-        ]
-    )
+    return _report_views._render_boundary(config)
 
 
 def _boundary_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "boundary",
-        "schema": json_schema("boundary"),
-        "stage_view": handoff.stage_view(),
-    }
+    return _report_views._boundary_report(config)
 
 
 def _board_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    stage_view = handoff.stage_view()
-    register_statuses = stage_view["register_statuses"]
-    business_justification = "viable"
-    if handoff.status == "exception":
-        business_justification = "at_risk"
-    if stage_view["boundary_decision"] == "review_boundary:open_issues":
-        business_justification = "review_required"
-    if stage_view["boundary_decision"] == "close_project":
-        recommendation = "close"
-    elif stage_view["recovery_state"] in {"exception_active", "recovery_active", "recovery_cleared"}:
-        recommendation = "recover"
-    elif register_statuses["issues_open"] > 0 or stage_view["boundary_decision"].startswith("review_boundary:"):
-        recommendation = "review"
-    else:
-        recommendation = "continue"
-    return {
-        "command": "board",
-        "schema": json_schema("board"),
-        "task": handoff.task or "none",
-        "business_justification": business_justification,
-        "boundary_decision": stage_view["boundary_decision"],
-        "open_issues": register_statuses["issues_open"],
-        "open_risks": register_statuses["risks_open"],
-        "quality_open": register_statuses["quality_open"],
-        "quality_accepted": register_statuses["quality_accepted"],
-        "recovery_state": stage_view["recovery_state"],
-        "recommended_authorization": recommendation,
-        "next_action": stage_view["next_action"],
-        "stage_view": stage_view,
-    }
+    return _report_views._board_report(config)
 
 
 def _render_board(config: AgentConfig) -> str:
-    report = _board_report(config)
-    lines = [
-        "Board review:",
-        f"- task: {report['task']}",
-        f"- business_justification: {report['business_justification']}",
-        f"- boundary_decision: {report['boundary_decision']}",
-        f"- open_issues: {report['open_issues']}",
-        f"- open_risks: {report['open_risks']}",
-        f"- quality_open: {report['quality_open']}",
-        f"- quality_accepted: {report['quality_accepted']}",
-        f"- recovery_state: {report['recovery_state']}",
-        f"- recommended_authorization: {report['recommended_authorization']}",
-        f"- next_action: {report['next_action']}",
-    ]
-    return "\n".join(lines)
+    return _report_views._render_board(config)
 
 
 def _render_permissions(config: AgentConfig) -> str:
-    workspace_settings = PermissionSettings.load(config.settings_path)
-    session_settings = config.session_permission_settings
-    effective_settings = workspace_settings.merged(session_settings)
-    lines = ["Permission settings:"]
-    lines.append(f"- workspace mode: {workspace_settings.default_mode}")
-    lines.append(f"- workspace allow: {', '.join(workspace_settings.allow) if workspace_settings.allow else 'none'}")
-    lines.append(f"- workspace ask: {', '.join(workspace_settings.ask) if workspace_settings.ask else 'none'}")
-    lines.append(f"- workspace deny: {', '.join(workspace_settings.deny) if workspace_settings.deny else 'none'}")
-    if session_settings is None:
-        lines.append("- session mode: none")
-        lines.append("- session allow: none")
-        lines.append("- session ask: none")
-        lines.append("- session deny: none")
-    else:
-        lines.append(f"- session mode: {session_settings.default_mode}")
-        lines.append(f"- session allow: {', '.join(session_settings.allow) if session_settings.allow else 'none'}")
-        lines.append(f"- session ask: {', '.join(session_settings.ask) if session_settings.ask else 'none'}")
-        lines.append(f"- session deny: {', '.join(session_settings.deny) if session_settings.deny else 'none'}")
-    lines.append(f"- effective mode: {effective_settings.default_mode}")
-    lines.append(f"- effective allow: {', '.join(effective_settings.allow) if effective_settings.allow else 'none'}")
-    lines.append(f"- effective ask: {', '.join(effective_settings.ask) if effective_settings.ask else 'none'}")
-    lines.append(f"- effective deny: {', '.join(effective_settings.deny) if effective_settings.deny else 'none'}")
-    return "\n".join(lines)
+    return _report_views._render_permissions(config)
 
 
 def _render_risks(config: AgentConfig) -> str:
-    return ProjectHandoff.load(config.handoff_path).rendered_risks()
+    return _report_views._render_risks(config)
 
 
 def _risks_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "risks",
-        "schema": json_schema("risks"),
-        "count": len(handoff.risk_register),
-        "items": list(handoff.risk_register),
-    }
+    return _report_views._risks_report(config)
 
 
 def _render_risks_close(config: AgentConfig, resolution: str) -> str:
-    report = _risks_close_report(config, resolution)
-    lines = [
-        "Risk closure:",
-        f"- ok: {str(report['ok']).lower()}",
-        f"- open_before: {report['open_before']}",
-        f"- open_after: {report['open_after']}",
-        f"- resolution: {report['resolution']}",
-        "Risk register:",
-    ]
-    items = [item for item in report.get("items", []) if isinstance(item, dict)]
-    if not items:
-        lines.append("- none")
-    else:
-        for item in items:
-            lines.append(f"- [{item.get('status', 'unknown')}] {item.get('risk', '')}")
-    return "\n".join(lines)
+    return _report_views._render_risks_close(config, resolution)
 
 
 def _risks_close_report(config: AgentConfig, resolution: str) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    open_before = sum(1 for item in handoff.risk_register if str(item.get("status", "open")).strip().lower() != "closed")
-    handoff.close_all_open_risks(resolution=resolution)
-    handoff.save(config.handoff_path)
-    return {
-        "command": "risks close",
-        "ok": True,
-        "open_before": open_before,
-        "open_after": sum(1 for item in handoff.risk_register if str(item.get("status", "open")).strip().lower() != "closed"),
-        "resolution": resolution,
-        "items": list(handoff.risk_register),
-    }
+    return _report_views._risks_close_report(config, resolution)
 
 
 def _render_issues(config: AgentConfig) -> str:
-    return ProjectHandoff.load(config.handoff_path).rendered_issues()
+    return _report_views._render_issues(config)
 
 
 def _issues_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "issues",
-        "schema": json_schema("issues"),
-        "count": len(handoff.issue_register),
-        "items": list(handoff.issue_register),
-    }
+    return _report_views._issues_report(config)
 
 
 def _render_issues_close(config: AgentConfig, resolution: str) -> str:
-    report = _issues_close_report(config, resolution)
-    lines = [
-        "Issue closure:",
-        f"- ok: {str(report['ok']).lower()}",
-        f"- open_before: {report['open_before']}",
-        f"- open_after: {report['open_after']}",
-        f"- resolution: {report['resolution']}",
-        "Issue register:",
-    ]
-    items = [item for item in report.get("items", []) if isinstance(item, dict)]
-    if not items:
-        lines.append("- none")
-    else:
-        for item in items:
-            lines.append(
-                f"- [{item.get('severity', 'unknown')}] {item.get('step_id', '-')} :: {item.get('summary', '')} [{item.get('status', 'unknown')}]"
-            )
-    return "\n".join(lines)
+    return _report_views._render_issues_close(config, resolution)
 
 
 def _issues_close_report(config: AgentConfig, resolution: str) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    open_before = sum(1 for item in handoff.issue_register if str(item.get("status", "open")).strip().lower() != "closed")
-    handoff.close_all_open_issues(resolution=resolution)
-    handoff.save(config.handoff_path)
-    return {
-        "command": "issues close",
-        "ok": True,
-        "open_before": open_before,
-        "open_after": sum(1 for item in handoff.issue_register if str(item.get("status", "open")).strip().lower() != "closed"),
-        "resolution": resolution,
-        "items": list(handoff.issue_register),
-    }
+    return _report_views._issues_close_report(config, resolution)
 
 
 def _render_quality(config: AgentConfig) -> str:
-    return ProjectHandoff.load(config.handoff_path).rendered_quality()
+    return _report_views._render_quality(config)
 
 
 def _quality_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "quality",
-        "schema": json_schema("quality"),
-        "count": len(handoff.quality_register),
-        "items": list(handoff.quality_register),
-    }
+    return _report_views._quality_report(config)
 
 
 def _render_quality_close(config: AgentConfig, resolution: str) -> str:
-    report = _quality_close_report(config, resolution)
-    lines = [
-        "Quality closure:",
-        f"- ok: {str(report['ok']).lower()}",
-        f"- open_before: {report['open_before']}",
-        f"- open_after: {report['open_after']}",
-        f"- resolution: {report['resolution']}",
-        "Quality register:",
-    ]
-    items = [item for item in report.get("items", []) if isinstance(item, dict)]
-    if not items:
-        lines.append("- none")
-    else:
-        for item in items:
-            lines.append(
-                f"- [{item.get('status', 'unknown')}] {item.get('step_id', '-')} :: {item.get('evidence', '')}"
-            )
-    return "\n".join(lines)
+    return _report_views._render_quality_close(config, resolution)
 
 
 def _quality_close_report(config: AgentConfig, resolution: str) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    open_before = sum(
-        1 for item in handoff.quality_register if str(item.get("status", "")).strip().lower() not in {"accepted", "closed"}
-    )
-    handoff.finalize_quality_register(resolution=resolution)
-    handoff.save(config.handoff_path)
-    return {
-        "command": "quality close",
-        "ok": True,
-        "open_before": open_before,
-        "open_after": sum(
-            1 for item in handoff.quality_register if str(item.get("status", "")).strip().lower() not in {"accepted", "closed"}
-        ),
-        "resolution": resolution,
-        "items": list(handoff.quality_register),
-    }
+    return _report_views._quality_close_report(config, resolution)
 
 
 def _render_exception(config: AgentConfig) -> str:
-    return ProjectHandoff.load(config.handoff_path).rendered_exception_plan()
+    return _report_views._render_exception(config)
 
 
 def _exception_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "exception",
-        "schema": json_schema("exception"),
-        "count": len(handoff.exception_plan),
-        "items": list(handoff.exception_plan),
-    }
+    return _report_views._exception_report(config)
 
 
 def _render_lessons(config: AgentConfig) -> str:
-    return ProjectHandoff.load(config.handoff_path).rendered_lessons()
+    return _report_views._render_lessons(config)
 
 
 def _lessons_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "lessons",
-        "schema": json_schema("lessons"),
-        "count": len(handoff.lessons_log),
-        "items": list(handoff.lessons_log),
-    }
+    return _report_views._lessons_report(config)
 
 
 def _render_todo(config: AgentConfig) -> str:
-    return ProjectHandoff.load(config.handoff_path).rendered_implementation_backlog()
+    return _report_views._render_todo(config)
 
 
 def _todo_report(config: AgentConfig) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    return {
-        "command": "todo",
-        "schema": json_schema("todo"),
-        "count": len(handoff.implementation_backlog),
-        "items": list(handoff.implementation_backlog),
-    }
+    return _report_views._todo_report(config)
 
 
 def _render_transcript(config: AgentConfig) -> str:
-    try:
-        return MemoryStore.load(config.memory_path).transcript_summary()
-    except (OSError, ValueError, TypeError):
-        return "No tool transcript."
+    return _project_handoff_views._render_transcript(config)
 
 
 def _transcript_report(config: AgentConfig) -> dict[str, object]:
-    try:
-        return {
-            "command": "transcript",
-            "schema": json_schema("transcript"),
-            "report": MemoryStore.load(config.memory_path).transcript_report(),
-        }
-    except (OSError, ValueError, TypeError):
-        return {
-            "command": "transcript",
-            "schema": json_schema("transcript"),
-            "report": MemoryStore().transcript_report(),
-        }
+    return _project_handoff_views._transcript_report(config)
 
 
 def _log_error_report(config: AgentConfig, *, limit: int = 20) -> dict[str, object]:
-    memory = MemoryStore.load(config.memory_path)
-    items: list[dict[str, object]] = []
-    tokens = ("error", "failed", "traceback", "exception", "denied")
-
-    for attempt in memory.attempts[-limit:]:
-        observation = str(attempt.observation or "").strip()
-        combined = " ".join(part for part in (attempt.action_type, observation, attempt.error_type or "") if part).lower()
-        if attempt.success and not any(token in combined for token in tokens):
-            continue
-        if not attempt.success or any(token in combined for token in tokens):
-            items.append(
-                {
-                    "kind": "attempt",
-                    "step_id": attempt.step_id,
-                    "iteration": attempt.iteration,
-                    "model": attempt.model,
-                    "action_type": attempt.action_type,
-                    "error_type": attempt.error_type or ("attempt_failed" if not attempt.success else None),
-                    "observation": observation[:240],
-                }
-            )
-
-    for record in memory.tool_transcript[-limit:]:
-        summary = str(record.summary or "").strip()
-        detail = str(record.detail or "").strip()
-        combined = " ".join(part for part in (record.tool, record.action_type, summary, detail, record.error_type or "") if part).lower()
-        if record.success and not any(token in combined for token in tokens):
-            continue
-        if not record.success or any(token in combined for token in tokens):
-            items.append(
-                {
-                    "kind": "tool_transcript",
-                    "step_id": record.step_id,
-                    "iteration": record.iteration,
-                    "tool": record.tool,
-                    "action_type": record.action_type,
-                    "error_type": record.error_type or ("tool_failed" if not record.success else None),
-                    "summary": summary[:240],
-                    "detail": detail[:240],
-                }
-            )
-
-    return {
-        "command": "log_errors",
-        "status": "ok" if not items else "warning",
-        "count": len(items),
-        "items": items,
-    }
+    return _project_handoff_views._log_error_report(config, limit=limit)
 
 
-def _battery_report(config: AgentConfig) -> dict[str, object]:
-    class _BatteryHandoffStub:
-        def __init__(self, outputs: list[dict[str, object]]) -> None:
-            self.outputs = list(outputs)
-            self.calls: list[str] = []
-            self.model_variant_by_model: dict[str, str] = {}
-            self.account_env_by_target: dict[str, str] = {}
-            self.model_params_by_model: dict[str, dict[str, str]] = {}
-
-        def execute(self, command: str):  # noqa: ANN001
-            self.calls.append(command)
-            command_lower = command.lower()
-            if (
-                "required keys: verdict" in command_lower
-                or "allowed verdict values: accept, revise, block" in command_lower
-                or "you are the devil's advocate / project assurance critic" in command_lower
-            ) and not self.outputs:
-                payload = {
-                    "ok": True,
-                    "model": "local",
-                    "backend": "local/ollama",
-                    "prompt": command,
-                    "command": command,
-                    "output": dumps_ascii(
-                        {
-                            "summary": "devil advocate review",
-                            "verdict": "accept",
-                            "contradictions": [],
-                            "missing_evidence": [],
-                            "counter_argument": "No contradiction found.",
-                            "must_escalate": False,
-                            "confidence": 0.9,
-                        }
-                    ),
-                    "error": "",
-                }
-                return type("ModelResult", (), payload)()
-            payload = self.outputs.pop(0) if self.outputs else {
-                "ok": True,
-                "model": "local",
-                "backend": "local/ollama",
-                "prompt": "",
-                "command": command,
-                "output": dumps_ascii({"summary": "battery fallback", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
-                "error": "",
-            }
-            return type("ModelResult", (), payload)()
-
-    def _run_simulation(name: str, runner) -> dict[str, object]:
-        started = time.monotonic()
-        try:
-            payload = runner()
-            ok = bool(payload.get("ok", False)) if isinstance(payload, dict) else bool(payload)
-            message = str(payload.get("message", "ok")) if isinstance(payload, dict) else "ok"
-            details = payload if isinstance(payload, dict) else {"value": payload}
-        except Exception as exc:  # pragma: no cover - defensive
-            ok = False
-            message = str(exc)
-            details = {"error": str(exc)}
-        return {
-            "name": name,
-            "ok": ok,
-            "message": message,
-            "duration_ms": int((time.monotonic() - started) * 1000),
-            "details": details,
-        }
-
-    simulations: list[dict[str, object]] = []
-
-    def bootstrap_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            agent = Agent(AgentConfig(workspace_root=Path(tmp_dir), max_steps=1))
-            git_head = agent.git.head()
-            return {
-                "ok": True,
-                "message": "agent bootstrapped",
-                "workspace": str(agent.config.workspace_root),
-                "git_head": git_head.stdout.strip() if git_head.ok else None,
-            }
-
-    def executor_write_file_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            agent.executor.handoff = _BatteryHandoffStub(
-                [
-                    {
-                        "ok": True,
-                        "model": "local",
-                        "backend": "local/ollama",
-                        "prompt": "battery",
-                        "command": "run_model local battery",
-                        "output": dumps_ascii(
-                            {
-                                "summary": "battery file write",
-                                "action": {
-                                    "type": "write_file",
-                                    "path": "battery.txt",
-                                    "content": "battery ok\n",
-                                },
-                            }
-                        ),
-                        "error": "",
-                    }
-                ]
-            )
-            step = PlanStep(
-                id="battery.write",
-                title="Write battery file",
-                instruction="create a file named battery.txt",
-                validation="battery file exists",
-            )
-            outcome = agent.executor.execute_step(
-                task="create a file",
-                step=step,
-                plan=[step],
-                iteration=1,
-                last_observation="none",
-            )
-            created = (root / "battery.txt").exists()
-            return {
-                "ok": bool(outcome.ok and outcome.step_completed and created),
-                "message": "file write simulation passed" if outcome.ok and created else "file write simulation failed",
-                "file_created": created,
-                "step_completed": outcome.step_completed,
-                "observation": outcome.observation,
-            }
-
-    def executor_read_file_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            (root / "battery-read.txt").write_text("battery read ok\n", encoding="utf-8")
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            observation = agent.executor._run_action({"type": "read_file", "path": "battery-read.txt"}, iteration=1, step_id="battery.read")  # noqa: SLF001
-            ok = bool(observation.get("ok")) and "battery read ok" in str(observation.get("message", ""))
-            return {
-                "ok": ok,
-                "message": "file read simulation passed" if ok else "file read simulation failed",
-                "observation": observation,
-            }
-
-    def executor_inspect_file_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            (root / "battery-inspect.txt").write_text("battery inspect ok\nline two\n", encoding="utf-8")
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            observation = agent.executor._run_action({"type": "inspect_file", "path": "battery-inspect.txt"}, iteration=1, step_id="battery.inspect")  # noqa: SLF001
-            message = str(observation.get("message", ""))
-            ok = bool(observation.get("ok")) and '"path":' in message and "battery-inspect.txt" in message
-            return {
-                "ok": ok,
-                "message": "file inspect simulation passed" if ok else "file inspect simulation failed",
-                "observation": observation,
-            }
-
-    def executor_search_replace_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            target = root / "battery-replace.txt"
-            target.write_text("alpha beta gamma\n", encoding="utf-8")
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            observation = agent.executor._run_action(  # noqa: SLF001
-                {
-                    "type": "search_replace_file",
-                    "path": "battery-replace.txt",
-                    "search": "beta",
-                    "replace": "delta",
-                },
-                iteration=1,
-                step_id="battery.replace",
-            )
-            content = target.read_text(encoding="utf-8")
-            ok = bool(observation.get("ok")) and "delta" in content and "beta" not in content
-            return {
-                "ok": ok,
-                "message": "search replace simulation passed" if ok else "search replace simulation failed",
-                "content": content,
-                "observation": observation,
-            }
-
-    def executor_list_search_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            (root / "alpha.txt").write_text("one\nneedle\n", encoding="utf-8")
-            nested = root / "nested"
-            nested.mkdir()
-            (nested / "beta.txt").write_text("needle inside nested file\n", encoding="utf-8")
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            listed = agent.executor._run_action({"type": "list_files", "base_path": ".", "pattern": "*.txt"}, iteration=1, step_id="battery.list")  # noqa: SLF001
-            searched = agent.executor._run_action({"type": "search_files", "pattern": "needle", "base_path": ".", "glob": "*.txt"}, iteration=1, step_id="battery.search")  # noqa: SLF001
-            list_message = str(listed.get("message", ""))
-            search_message = str(searched.get("message", ""))
-            ok = bool(listed.get("ok")) and bool(searched.get("ok")) and "alpha.txt" in list_message and "beta.txt" in search_message
-            return {
-                "ok": ok,
-                "message": "list/search simulation passed" if ok else "list/search simulation failed",
-                "list": listed,
-                "search": searched,
-            }
-
-    def filesystem_mutation_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            source = root / "battery-fs.txt"
-            source.write_text("filesystem mutation\n", encoding="utf-8")
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            inspect_meta = agent.executor._run_action({"type": "inspect_metadata_file", "path": "battery-fs.txt"}, iteration=1, step_id="battery.fs")  # noqa: SLF001
-            copy = agent.executor._run_action({"type": "copy_path_file", "source": "battery-fs.txt", "destination": "battery-fs-copy.txt"}, iteration=1, step_id="battery.fs")  # noqa: SLF001
-            copy_exists = (root / "battery-fs-copy.txt").exists()
-            move = agent.executor._run_action({"type": "move_path_file", "source": "battery-fs-copy.txt", "destination": "battery-fs-moved.txt"}, iteration=1, step_id="battery.fs")  # noqa: SLF001
-            moved_exists_before_delete = (root / "battery-fs-moved.txt").exists()
-            chmod = agent.executor._run_action({"type": "chmod_path_file", "path": "battery-fs-moved.txt", "mode": "600"}, iteration=1, step_id="battery.fs")  # noqa: SLF001
-            mode_bits_before_delete = oct((root / "battery-fs-moved.txt").stat().st_mode & 0o777) if moved_exists_before_delete else "missing"
-            delete = agent.executor._run_action({"type": "delete_path_file", "path": "battery-fs-moved.txt"}, iteration=1, step_id="battery.fs")  # noqa: SLF001
-            moved_exists = (root / "battery-fs-moved.txt").exists()
-            deleted_exists = (root / "battery-fs-moved.txt").exists()
-            ok = (
-                bool(inspect_meta.get("ok"))
-                and bool(copy.get("ok"))
-                and bool(move.get("ok"))
-                and bool(chmod.get("ok"))
-                and bool(delete.get("ok"))
-                and copy_exists
-                and moved_exists_before_delete
-                and not moved_exists
-                and not deleted_exists
-                and mode_bits_before_delete == "0o600"
-            )
-            return {
-                "ok": ok,
-                "message": "filesystem mutation simulation passed" if ok else "filesystem mutation simulation failed",
-                "inspect_meta": inspect_meta,
-                "copy": copy,
-                "move": move,
-                "chmod": chmod,
-                "delete": delete,
-                "copy_exists": copy_exists,
-                "moved_exists_before_delete": moved_exists_before_delete,
-                "moved_exists": moved_exists,
-                "deleted_exists": deleted_exists,
-                "mode_bits": mode_bits_before_delete,
-            }
-
-    def executor_shell_command_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            observation = agent.executor._run_action(  # noqa: SLF001
-                {"type": "shell", "command": "python3 -c \"print('battery shell ok')\""},
-                iteration=1,
-                step_id="battery.shell",
-            )
-            ok = bool(observation.get("ok")) and "battery shell ok" in str(observation.get("message", ""))
-            return {
-                "ok": ok,
-                "message": "shell command simulation passed" if ok else "shell command simulation failed",
-                "observation": observation,
-            }
-
-    def git_workflow_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            target = root / "battery-git.txt"
-            target.write_text("git workflow\n", encoding="utf-8")
-            status = agent.executor._run_action({"type": "git_status"}, iteration=1, step_id="battery.git")  # noqa: SLF001
-            diff = agent.executor._run_action({"type": "git_diff"}, iteration=1, step_id="battery.git")  # noqa: SLF001
-            commit = agent.executor._run_action({"type": "git_commit", "message": "battery: git workflow"}, iteration=1, step_id="battery.git")  # noqa: SLF001
-            log = agent.executor._run_action({"type": "git_log", "limit": 3}, iteration=1, step_id="battery.git")  # noqa: SLF001
-            show = agent.executor._run_action({"type": "git_show", "revision": "HEAD", "stat": True}, iteration=1, step_id="battery.git")  # noqa: SLF001
-            ok = bool(status.get("ok")) and bool(diff.get("ok")) and bool(commit.get("ok")) and bool(log.get("ok")) and bool(show.get("ok"))
-            return {
-                "ok": ok,
-                "message": "git workflow simulation passed" if ok else "git workflow simulation failed",
-                "status": status,
-                "diff": diff,
-                "commit": commit,
-                "log": log,
-                "show": show,
-            }
-
-    def executor_shell_session_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            create = agent.executor._run_action({"type": "shell_session_create"}, iteration=1, step_id="battery.shell_session")  # noqa: SLF001
-            session_id = ""
-            if hasattr(agent.executor.shell, "sessions") and agent.executor.shell.sessions:
-                session_id = next(iter(agent.executor.shell.sessions.keys()))
-            send = agent.executor._run_action(  # noqa: SLF001
-                {"type": "shell_session_send", "session_id": session_id, "command": "python3 -c \"print('battery session ok')\""},
-                iteration=1,
-                step_id="battery.shell_session",
-            )
-            close = agent.executor._run_action({"type": "shell_session_close", "session_id": session_id}, iteration=1, step_id="battery.shell_session")  # noqa: SLF001
-            ok = (
-                bool(create.get("ok"))
-                and bool(send.get("ok"))
-                and bool(close.get("ok"))
-                and "battery session ok" in str(send.get("message", ""))
-            )
-            return {
-                "ok": ok,
-                "message": "shell session simulation passed" if ok else "shell session simulation failed",
-                "create": create,
-                "send": send,
-                "close": close,
-            }
-
-    def executor_complete_action_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            observation = agent.executor._run_action({"type": "complete", "message": "Step completed."}, iteration=1, step_id="battery.complete")  # noqa: SLF001
-            ok = bool(observation.get("ok")) and "Step completed." in str(observation.get("message", ""))
-            return {
-                "ok": ok,
-                "message": "complete action simulation passed" if ok else "complete action simulation failed",
-                "observation": observation,
-            }
-
-    def provider_limit_snapshot_simulation() -> dict[str, object]:
-        prefs = ModelPreferences.default()
-        model_snapshot = limit_snapshot_from_message("Claude Sonnet five-hour usage limited until 2026-05-01T19:00.")
-        account_snapshot = limit_snapshot_from_message("Too many requests until 2026-05-01T20:05.")
-        prefs.set_model_limit_snapshot("claude", model_snapshot)
-        prefs.set_account_limit_snapshot("claude", "team", account_snapshot)
-        model_limit = dict((prefs.provider_limit_snapshot_by_model or {}).get("claude", {}))
-        account_limit = dict((prefs.provider_limit_snapshot_by_account or {}).get(account_key("claude", "team"), {}))
-        ok = (
-            model_limit.get("status") == "blocked"
-            and model_limit.get("reason") == "usage_limit"
-            and model_limit.get("blocked_until") == "2026-05-01T19:00"
-            and model_limit.get("rate_limit_type") == "five_hour_sonnet"
-            and account_limit.get("status") == "blocked"
-            and account_limit.get("reason") == "rate_limit"
-            and account_limit.get("blocked_until") == "2026-05-01T20:05"
-        )
-        return {
-            "ok": ok,
-            "message": "provider limit snapshot simulation passed" if ok else "provider limit snapshot simulation failed",
-            "model_limit": model_limit,
-            "account_limit": account_limit,
-        }
-
-    def executor_write_permission_denied_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            locked = root / "locked.txt"
-            locked.write_text("locked\n", encoding="utf-8")
-            locked.chmod(0o400)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            observation = agent.executor._run_action(  # noqa: SLF001
-                {"type": "write_file", "path": "locked.txt", "content": "updated\n"},
-                iteration=1,
-                step_id="battery.write_denied",
-            )
-            message = str(observation.get("message", ""))
-            ok = not bool(observation.get("ok")) and "permission denied" in message.lower()
-            return {
-                "ok": ok,
-                "message": "write permission denial simulation passed" if ok else "write permission denial simulation failed",
-                "observation": observation,
-            }
-
-    def executor_shell_permission_denied_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            locked = root / "locked"
-            locked.mkdir()
-            locked.chmod(0o500)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            observation = agent.executor._run_action(  # noqa: SLF001
-                {"type": "shell", "command": "python3 -c \"from pathlib import Path; Path('locked/x.txt').write_text('x')\""},
-                iteration=1,
-                step_id="battery.shell_denied",
-            )
-            message = str(observation.get("message", ""))
-            ok = not bool(observation.get("ok")) and "permissionerror" in message.lower()
-            return {
-                "ok": ok,
-                "message": "shell permission denial simulation passed" if ok else "shell permission denial simulation failed",
-                "observation": observation,
-            }
-
-    def role_runtime_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            prefs = ModelPreferences.default()
-            baseline = {
-                "status": "approved",
-                "source": "battery_simulation",
-                "tree": {
-                    "nodes": [
-                        {
-                            "node_id": "management.project_manager",
-                            "role_type": "project_manager",
-                            "label": "Project Manager",
-                            "parent_id": "board.executive",
-                            "level": "management",
-                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
-                        }
-                    ]
-                },
-                "flow": {"edges": []},
-            }
-            prefs.set_prince2_role_tree_baseline(baseline)
-            prefs.save(config.model_prefs_path)
-            handoff = ProjectHandoff.load(config.handoff_path)
-            handoff.sync_prince2_role_tree_baseline(baseline)
-            rendered = handoff.rendered_prince2_node_runtime()
-            ok = "switch_hint=role switch management.project_manager" in rendered and "description=" in rendered
-            return {
-                "ok": ok,
-                "message": "role runtime simulation passed" if ok else "role runtime simulation failed",
-                "rendered": rendered,
-            }
-
-    def role_runtime_missing_baseline_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            handoff = ProjectHandoff.load(config.handoff_path)
-            rendered = handoff.rendered_prince2_node_runtime()
-            report = handoff.prince2_node_runtime_report()
-            ok = report.get("status") == "missing" and "Approve a role-tree baseline first" in str(report.get("message", ""))
-            return {
-                "ok": ok,
-                "message": "role runtime missing-baseline simulation passed" if ok else "role runtime missing-baseline simulation failed",
-                "rendered": rendered,
-                "report": report,
-            }
-
-    def _seed_role_runtime(config: AgentConfig) -> None:
-        prefs = ModelPreferences.default()
-        baseline = {
-            "status": "approved",
-            "source": "battery_simulation",
-            "tree": {
-                "nodes": [
-                    {
-                        "node_id": "management.project_manager",
-                        "role_type": "project_manager",
-                        "label": "Project Manager",
-                        "parent_id": "board.executive",
-                        "level": "management",
-                        "description": "Project Manager role for battery simulation",
-                        "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
-                    }
-                ]
-            },
-            "flow": {"edges": []},
-        }
-        prefs.set_prince2_role_tree_baseline(baseline)
-        prefs.save(config.model_prefs_path)
-        handoff = ProjectHandoff.load(config.handoff_path)
-        handoff.sync_prince2_role_tree_baseline(baseline)
-
-    def role_shell_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            _seed_role_runtime(config)
-            rendered = _render_prince2_role_node_shell(config, "management.project_manager")
-            ok = (
-                "PRINCE2 node shell:" in rendered
-                and "description=" in rendered
-                and "status_legend:" in rendered
-                and "switch_hint: role switch management.project_manager" in rendered
-            )
-            return {
-                "ok": ok,
-                "message": "role shell simulation passed" if ok else "role shell simulation failed",
-                "rendered": rendered,
-            }
-
-    def role_switch_agent_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            _seed_role_runtime(config)
-            prefs = ModelPreferences.load(config.model_prefs_path)
-            input_stream = io.StringIO("q\n")
-            output_stream = io.StringIO()
-            message = _guided_role_node_switch_agent(
-                prefs=prefs,
-                config=config,
-                node_id="management.project_manager",
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-            rendered = output_stream.getvalue()
-            ok = "KiloCode-style switch agent:" in rendered and "switch_summary:" in rendered and "Role node model selection cancelled." in message
-            return {
-                "ok": ok,
-                "message": "role switch simulation passed" if ok else "role switch simulation failed",
-                "rendered": rendered,
-                "response": message,
-            }
-
-    def role_message_cycle_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            prefs = ModelPreferences.default()
-            baseline = {
-                "status": "approved",
-                "source": "battery_simulation",
-                "tree": {
-                    "nodes": [
-                        {
-                            "node_id": "management.project_manager",
-                            "role_type": "project_manager",
-                            "label": "Project Manager",
-                            "parent_id": "board.executive",
-                            "level": "management",
-                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
-                        },
-                        {
-                            "node_id": "delivery.team_manager",
-                            "role_type": "team_manager",
-                            "label": "Team Manager",
-                            "parent_id": "management.project_manager",
-                            "level": "delivery",
-                            "assignment": {"provider": "claude", "provider_model": "claude-sonnet-4.5"},
-                        },
-                    ]
-                },
-                "flow": {
-                    "edges": [
-                        {
-                            "edge_id": "pm-to-team",
-                            "source_node": "management.project_manager",
-                            "target_node": "delivery.team_manager",
-                            "flow_type": "directive",
-                            "payload_scope": ["scope"],
-                            "expected_evidence": ["plan"],
-                            "validation_condition": "team confirmed receipt",
-                            "decision_authority": "management.project_manager",
-                            "return_path": "delivery.team_manager -> management.project_manager",
-                        }
-                    ]
-                },
-            }
-            prefs.set_prince2_role_tree_baseline(baseline)
-            prefs.save(config.model_prefs_path)
-            handoff = ProjectHandoff.load(config.handoff_path)
-            handoff.sync_prince2_role_tree_baseline(baseline)
-            handoff.set_prince2_node_waiting(
-                node_id="delivery.team_manager",
-                reason="awaiting instructions",
-                wake_triggers=["message_received"],
-            )
-            message = handoff.send_prince2_node_message(
-                source_node="management.project_manager",
-                target_node="delivery.team_manager",
-                edge_id="pm-to-team",
-                payload_scope=["scope"],
-                evidence_refs=["plan.md"],
-                summary="scope hand-off",
-            )
-            woke = handoff.wake_prince2_node(node_id="delivery.team_manager", trigger="message_received")
-            first_tick = handoff.tick_prince2_node(node_id="delivery.team_manager")
-            second_tick = handoff.tick_prince2_node(node_id="delivery.team_manager")
-            messages = handoff.prince2_node_messages_report(node_id="delivery.team_manager")
-            ok = (
-                message.get("status") == "queued"
-                and woke.get("state") == "ready"
-                and first_tick.get("state") == "running"
-                and second_tick.get("state") == "completed"
-                and int(messages.get("count", 0) or 0) >= 1
-            )
-            return {
-                "ok": ok,
-                "message": "role message cycle simulation passed" if ok else "role message cycle simulation failed",
-                "message_record": message,
-                "woke": woke,
-                "first_tick": first_tick,
-                "second_tick": second_tick,
-                "messages": messages,
-            }
-
-    def role_wait_wake_guard_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            prefs = ModelPreferences.default()
-            baseline = {
-                "status": "approved",
-                "source": "battery_simulation",
-                "tree": {
-                    "nodes": [
-                        {
-                            "node_id": "delivery.team_manager",
-                            "role_type": "team_manager",
-                            "label": "Team Manager",
-                            "parent_id": "board.executive",
-                            "level": "delivery",
-                            "assignment": {"provider": "claude", "provider_model": "claude-sonnet-4.5"},
-                        }
-                    ]
-                },
-                "flow": {"edges": []},
-            }
-            prefs.set_prince2_role_tree_baseline(baseline)
-            prefs.save(config.model_prefs_path)
-            handoff = ProjectHandoff.load(config.handoff_path)
-            handoff.sync_prince2_role_tree_baseline(baseline)
-            waiting = handoff.set_prince2_node_waiting(
-                node_id="delivery.team_manager",
-                reason="awaiting instructions",
-                wake_triggers=["message_received"],
-            )
-            invalid_error = ""
-            try:
-                handoff.wake_prince2_node(node_id="delivery.team_manager", trigger="not-authorized")
-            except ValueError as exc:
-                invalid_error = str(exc)
-            valid = handoff.wake_prince2_node(node_id="delivery.team_manager", trigger="message_received")
-            tick = handoff.tick_prince2_node(node_id="delivery.team_manager")
-            ok = (
-                waiting.get("state") == "waiting"
-                and "not authorized" in invalid_error.lower()
-                and valid.get("state") == "ready"
-                and tick.get("state") == "completed"
-            )
-            return {
-                "ok": ok,
-                "message": "role wait/wake simulation passed" if ok else "role wait/wake simulation failed",
-                "waiting": waiting,
-                "invalid_error": invalid_error,
-                "valid": valid,
-                "tick": tick,
-            }
-
-    def role_escalation_guard_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            prefs = ModelPreferences.default()
-            baseline = {
-                "status": "approved",
-                "source": "battery_simulation",
-                "tree": {
-                    "nodes": [
-                        {
-                            "node_id": "management.project_manager",
-                            "role_type": "project_manager",
-                            "label": "Project Manager",
-                            "parent_id": "board.executive",
-                            "level": "management",
-                            "tolerance_margin_percent": 25.0,
-                            "tolerance_pressure_percent": 42.0,
-                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
-                        }
-                    ]
-                },
-                "flow": {"edges": []},
-            }
-            prefs.set_prince2_role_tree_baseline(baseline)
-            prefs.save(config.model_prefs_path)
-            handoff = ProjectHandoff.load(config.handoff_path)
-            handoff.sync_prince2_role_tree_baseline(baseline)
-            tick = handoff.tick_prince2_node(node_id="management.project_manager")
-            runtime = handoff.prince2_node_runtime if isinstance(handoff.prince2_node_runtime, dict) else {}
-            nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
-            child = next((node for node in nodes if node.get("parent_id") == "management.project_manager"), {})
-            ok = (
-                tick.get("state") == "escalated"
-                and tick.get("spawned_child")
-                and child.get("spawn_source") == "escalation"
-                and int(child.get("thread_token_count", 0) or 0) > 0
-            )
-            return {
-                "ok": ok,
-                "message": "role escalation guard simulation passed" if ok else "role escalation guard simulation failed",
-                "tick": tick,
-                "spawned_child": child,
-            }
-
-    def role_antagonist_guard_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            prefs = ModelPreferences.default()
-            baseline = {
-                "status": "approved",
-                "source": "battery_simulation",
-                "tree": {
-                    "nodes": [
-                        {
-                            "node_id": "management.project_manager",
-                            "role_type": "project_manager",
-                            "label": "Project Manager",
-                            "parent_id": "board.executive",
-                            "level": "management",
-                            "tolerance_margin_percent": 25.0,
-                            "tolerance_pressure_percent": 42.0,
-                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
-                        }
-                    ]
-                },
-                "flow": {"edges": []},
-            }
-            prefs.set_prince2_role_tree_baseline(baseline)
-            prefs.save(config.model_prefs_path)
-            handoff = ProjectHandoff.load(config.handoff_path)
-            handoff.sync_prince2_role_tree_baseline(baseline)
-            tick = handoff.tick_prince2_node(node_id="management.project_manager")
-            control_report = handoff.prince2_node_control_report()
-            rendered = handoff.rendered_prince2_node_control()
-            critical = next(
-                (
-                    node
-                    for node in control_report.get("critical_nodes", [])
-                    if isinstance(node, dict) and node.get("node_id") == "management.project_manager"
-                ),
-                {},
-            )
-            kpis = critical.get("decision_kpis", {}) if isinstance(critical.get("decision_kpis", {}), dict) else {}
-            ok = (
-                tick.get("state") == "escalated"
-                and critical.get("antagonist_name")
-                and int(kpis.get("threat_count", 0) or 0) > 0
-                and "antagonist=" in rendered
-                and "decision_kpis=" in rendered
-            )
-            return {
-                "ok": ok,
-                "message": "role antagonist guard simulation passed" if ok else "role antagonist guard simulation failed",
-                "tick": tick,
-                "control": control_report,
-                "rendered": rendered,
-            }
-
-    def role_devil_advocate_review_simulation() -> dict[str, object]:
-        class _BatteryHandoff:
-            def __init__(self, outputs: list[dict[str, object]]) -> None:
-                self.outputs = list(outputs)
-                self.calls: list[str] = []
-                self.model_variant_by_model: dict[str, str] = {}
-                self.account_env_by_target: dict[str, str] = {}
-                self.model_params_by_model: dict[str, dict[str, str]] = {}
-
-            def execute(self, command: str):  # noqa: ANN001
-                self.calls.append(command)
-                if self.outputs:
-                    payload = self.outputs.pop(0)
-                else:
-                    payload = {
-                        "ok": True,
-                        "model": "openai",
-                        "backend": "openai/mock",
-                        "prompt": command,
-                        "command": "RUN_MODEL: openai mock",
-                        "output": dumps_ascii(
-                            {
-                                "verdict": "accept",
-                                "contradictions": [],
-                                "missing_evidence": [],
-                                "counter_argument": "No contradiction found.",
-                                "must_escalate": False,
-                                "confidence": 0.9,
-                            }
-                        ),
-                        "error": "",
-                    }
-                return type("ModelResult", (), payload)()
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            prefs = ModelPreferences.default()
-            prefs.enabled_models = ["openai"]
-            prefs.set_prince2_role_assignment(
-                "project_assurance",
-                mode="manual",
-                provider="openai",
-                provider_model="gpt-5.4-mini",
-                params={"reasoning_effort": "medium"},
-                source="battery_simulation",
-            )
-            prefs.save(config.model_prefs_path)
-            baseline = {
-                "version": "1",
-                "approved_at": "2026-04-29T08:30:00",
-                "source": "battery_simulation",
-                "status": "approved",
-                "tree": build_prince2_role_tree(prefs),
-                "flow": build_prince2_role_flow(),
-                "check": check_prince2_role_tree(prefs),
-                "matrix": build_prince2_role_matrix(prefs),
-            }
-            project_handoff = ProjectHandoff(task="validate wet-run evidence")
-            project_handoff.sync_prince2_role_tree_baseline(baseline)
-            router = ModelRouter()
-            router.configure(enabled_models=["openai"])
-            handoff = _BatteryHandoff(
-                [
-                    {
-                        "ok": True,
-                        "model": "openai",
-                        "backend": "openai/GPT-5.4",
-                        "prompt": "x",
-                        "command": "run_model openai x",
-                        "output": dumps_ascii(
-                            {
-                                "summary": "complete the task",
-                                "validation": "done",
-                                "action": {
-                                    "type": "complete",
-                                    "message": "validation completed exit_code=0",
-                                },
-                            }
-                        ),
-                        "error": "",
-                    },
-                    {
-                        "ok": True,
-                        "model": "openai",
-                        "backend": "openai/GPT-5.4",
-                        "prompt": "critic",
-                        "command": "run_model openai critic",
-                        "output": dumps_ascii(
-                            {
-                                "verdict": "accept",
-                                "contradictions": [],
-                                "missing_evidence": [],
-                                "counter_argument": "The response has a valid wet-run trace.",
-                                "must_escalate": False,
-                                "confidence": 0.94,
-                            }
-                        ),
-                        "error": "",
-                    },
-                ]
-            )
-            memory = MemoryStore()
-            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
-            step = PlanStep(
-                id="step-validate",
-                title="Validate wet-run evidence",
-                instruction="validate the wet-run evidence",
-                validation="The target files or behavior exist and are internally consistent.",
-            )
-            outcome = executor.execute_step(task="validate evidence", step=step, plan=[step], iteration=1, last_observation="none")
-            review_entries = [item for item in memory.tool_transcript if item.action_type == "devil_advocate_review"]
-            ok = (
-                outcome.ok
-                and outcome.step_completed
-                and len(handoff.calls) >= 2
-                and review_entries
-                and "Devil advocate verdict=accept" in outcome.observation
-            )
-            return {
-                "ok": ok,
-                "message": "role devil advocate review simulation passed" if ok else "role devil advocate review simulation failed",
-                "outcome": {
-                    "ok": outcome.ok,
-                    "step_completed": outcome.step_completed,
-                    "observation": outcome.observation,
-                },
-                "review_calls": len(handoff.calls),
-            }
-
-    def role_unauthorized_edge_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            prefs = ModelPreferences.default()
-            baseline = {
-                "status": "approved",
-                "source": "battery_simulation",
-                "tree": {
-                    "nodes": [
-                        {
-                            "node_id": "management.project_manager",
-                            "role_type": "project_manager",
-                            "label": "Project Manager",
-                            "parent_id": "board.executive",
-                            "level": "management",
-                            "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
-                        },
-                        {
-                            "node_id": "delivery.team_manager",
-                            "role_type": "team_manager",
-                            "label": "Team Manager",
-                            "parent_id": "management.project_manager",
-                            "level": "delivery",
-                            "assignment": {"provider": "claude", "provider_model": "claude-sonnet-4.5"},
-                        },
-                    ]
-                },
-                "flow": {"edges": []},
-            }
-            prefs.set_prince2_role_tree_baseline(baseline)
-            prefs.save(config.model_prefs_path)
-            handoff = ProjectHandoff.load(config.handoff_path)
-            handoff.sync_prince2_role_tree_baseline(baseline)
-            error = ""
-            try:
-                handoff.send_prince2_node_message(
-                    source_node="management.project_manager",
-                    target_node="delivery.team_manager",
-                    edge_id="missing-edge",
-                    payload_scope=["scope"],
-                    evidence_refs=["plan.md"],
-                    summary="scope hand-off",
-                )
-            except ValueError as exc:
-                error = str(exc)
-            ok = "Unauthorized PRINCE2 flow edge" in error
-            return {
-                "ok": ok,
-                "message": "role unauthorized edge simulation passed" if ok else "role unauthorized edge simulation failed",
-                "error": error,
-            }
-
-    def action_validation_guard_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            agent = Agent(AgentConfig(workspace_root=Path(tmp_dir), max_steps=1))
-            payload = dumps_ascii({"summary": "battery guard", "action": {"type": "wipe_workspace"}})
-            parsed = agent.executor._parse_model_json(payload)  # noqa: SLF001
-            error = str(parsed.get("error", ""))
-            ok = not bool(parsed.get("ok")) and "Unknown destructive action denied" in error
-            return {
-                "ok": ok,
-                "message": "action validation guard simulation passed" if ok else "action validation guard simulation failed",
-                "error": error,
-            }
-
-    def health_guard_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            agent = Agent(config)
-            memory = MemoryStore()
-            memory.record_attempt(
-                iteration=1,
-                step_id="battery.health",
-                model="local",
-                action_type="complete",
-                action_signature="battery",
-                success=False,
-                observation="Exception: health simulation failure",
-                error_type="runtime_error",
-            )
-            memory.record_tool_transcript(
-                iteration=1,
-                step_id="battery.health",
-                tool="shell",
-                action_type="shell",
-                success=False,
-                summary="health probe",
-                detail="error: failed health probe",
-                duration_ms=1,
-                error_type="runtime_error",
-            )
-            memory.save(config.memory_path)
-            report = _health_report(agent, config)
-            ok = not report["ready"] and int(report.get("log_errors", {}).get("count", 0) or 0) >= 2
-            return {
-                "ok": ok,
-                "message": "health guard simulation passed" if ok else "health guard simulation failed",
-                "health": report,
-            }
-
-    def preflight_guard_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            agent = Agent(config)
-            memory = MemoryStore()
-            memory.record_attempt(
-                iteration=1,
-                step_id="battery.preflight",
-                model="local",
-                action_type="complete",
-                action_signature="battery",
-                success=False,
-                observation="Traceback: preflight simulation failure",
-                error_type="runtime_error",
-            )
-            memory.save(config.memory_path)
-            report = _preflight_report(agent, config)
-            remediation_codes = {str(item.get("code")) for item in report.get("remediations", []) if isinstance(item, dict)}
-            ok = not report["ready"] and "log_errors" in remediation_codes
-            return {
-                "ok": ok,
-                "message": "preflight guard simulation passed" if ok else "preflight guard simulation failed",
-                "preflight": report,
-            }
-
-    def log_detection_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            config = AgentConfig(workspace_root=root, max_steps=1)
-            memory = MemoryStore()
-            memory.record_attempt(
-                iteration=1,
-                step_id="battery.log",
-                model="local",
-                action_type="complete",
-                action_signature="battery",
-                success=False,
-                observation="Traceback: simulated failure",
-                error_type="runtime_error",
-            )
-            memory.record_tool_transcript(
-                iteration=1,
-                step_id="battery.log",
-                tool="shell",
-                action_type="shell",
-                success=False,
-                summary="run battery",
-                detail="traceback observed in log",
-                duration_ms=1,
-                error_type="runtime_error",
-            )
-            memory.save(config.memory_path)
-            report = _log_error_report(config)
-            ok = int(report.get("count", 0) or 0) >= 2
-            return {
-                "ok": ok,
-                "message": "log detection simulation passed" if ok else "log detection simulation failed",
-                "log_errors": report,
-            }
-
-    def git_roundtrip_simulation() -> dict[str, object]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
-            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
-            (root / "battery_git.txt").write_text("battery\n", encoding="utf-8")
-            committed = agent.git.commit_if_changed("battery: git roundtrip")
-            status = agent.git.status()
-            log = agent.git.log(limit=3)
-            ok = committed.ok and status.ok and log.ok
-            return {
-                "ok": ok,
-                "message": "git roundtrip simulation passed" if ok else "git roundtrip simulation failed",
-                "commit": committed.stdout.strip() if committed.ok else committed.error,
-            }
-
-    simulations.append(_run_simulation("agent_bootstrap", bootstrap_simulation))
-    simulations.append(_run_simulation("executor_write_file", executor_write_file_simulation))
-    simulations.append(_run_simulation("executor_read_file", executor_read_file_simulation))
-    simulations.append(_run_simulation("executor_inspect_file", executor_inspect_file_simulation))
-    simulations.append(_run_simulation("executor_search_replace", executor_search_replace_simulation))
-    simulations.append(_run_simulation("executor_list_search", executor_list_search_simulation))
-    simulations.append(_run_simulation("filesystem_mutation", filesystem_mutation_simulation))
-    simulations.append(_run_simulation("executor_shell_command", executor_shell_command_simulation))
-    simulations.append(_run_simulation("git_workflow", git_workflow_simulation))
-    simulations.append(_run_simulation("executor_shell_session", executor_shell_session_simulation))
-    simulations.append(_run_simulation("executor_complete_action", executor_complete_action_simulation))
-    simulations.append(_run_simulation("provider_limit_snapshot", provider_limit_snapshot_simulation))
-    simulations.append(_run_simulation("executor_write_permission_denied", executor_write_permission_denied_simulation))
-    simulations.append(_run_simulation("executor_shell_permission_denied", executor_shell_permission_denied_simulation))
-    simulations.append(_run_simulation("role_runtime", role_runtime_simulation))
-    simulations.append(_run_simulation("role_runtime_missing_baseline", role_runtime_missing_baseline_simulation))
-    simulations.append(_run_simulation("role_shell", role_shell_simulation))
-    simulations.append(_run_simulation("role_switch_agent", role_switch_agent_simulation))
-    simulations.append(_run_simulation("role_message_cycle", role_message_cycle_simulation))
-    simulations.append(_run_simulation("role_wait_wake_guard", role_wait_wake_guard_simulation))
-    simulations.append(_run_simulation("role_escalation_guard", role_escalation_guard_simulation))
-    simulations.append(_run_simulation("role_antagonist_guard", role_antagonist_guard_simulation))
-    simulations.append(_run_simulation("role_devil_advocate_review", role_devil_advocate_review_simulation))
-    simulations.append(_run_simulation("role_unauthorized_edge", role_unauthorized_edge_simulation))
-    simulations.append(_run_simulation("action_validation_guard", action_validation_guard_simulation))
-    simulations.append(_run_simulation("health_guard", health_guard_simulation))
-    simulations.append(_run_simulation("preflight_guard", preflight_guard_simulation))
-    simulations.append(_run_simulation("log_detection", log_detection_simulation))
-    simulations.append(_run_simulation("git_roundtrip", git_roundtrip_simulation))
-
-    failures = [item for item in simulations if not item["ok"]]
-    return {
-        "command": "battery",
-        "ready": not failures,
-        "total": len(simulations),
-        "passed": len(simulations) - len(failures),
-        "failed": len(failures),
-        "simulations": simulations,
-        "failures": failures,
-    }
-
-
-def _render_model_usage(config: AgentConfig) -> str:
-    try:
-        return MemoryStore.load(config.memory_path).model_usage_summary()
-    except (OSError, ValueError, TypeError):
-        return "Model usage:\n- no model attempts recorded"
-
-
-def _model_usage_report(config: AgentConfig) -> dict[str, object]:
-    try:
-        return {
-            "command": "models usage",
-            "schema": json_schema("models usage"),
-            "report": MemoryStore.load(config.memory_path).model_usage_stats(),
-            "policy": {
-                "routing_budget": "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
-            },
-        }
-    except (OSError, ValueError, TypeError):
-        return {
-            "command": "models usage",
-            "schema": json_schema("models usage"),
-            "report": MemoryStore().model_usage_stats(),
-            "policy": {
-                "routing_budget": "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
-            },
-        }
-
-
-    provider_limits = _provider_limit_status_report(agent, config)
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
     agent = Agent(config)
     _apply_model_preferences(agent, config)
@@ -9507,12 +3420,23 @@ def _guided_model_choice(
     reasoning_value = None
     if spec is not None and spec.reasoning_efforts:
         current_reasoning = prefs.params_for_model(model).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
+        if provider_model == "gpt-5.3-codex":
+            reasoning_options = [
+                ("medium", "medium"),
+                ("high", f"high{' (default)' if current_reasoning == 'high' else ''}"),
+                ("high", "high"),
+            ]
+        else:
+            ordered_reasoning_efforts = list(spec.reasoning_efforts)
+            if provider_model and "mini" not in provider_model.lower():
+                ordered_reasoning_efforts = list(reversed(ordered_reasoning_efforts))
+            reasoning_options = [
+                (effort, f"{effort}{' (default)' if effort == current_reasoning else ''}")
+                for effort in ordered_reasoning_efforts
+            ]
         reasoning_value = _prompt_menu_choice(
             title=f"Choose reasoning_effort for {model}:{provider_model}:",
-            options=[
-                (effort, f"{effort}{' (default)' if effort == current_reasoning else ''}")
-                for effort in spec.reasoning_efforts
-            ],
+            options=reasoning_options,
             input_stream=input_stream,
             output_stream=output_stream,
         )
@@ -9536,351 +3460,13 @@ def _handle_model_command(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
 ) -> str | None:
-    parts = command.split()
-    if not parts:
-        return None
-    if parts[0] == "catalog":
-        if len(parts) == 1:
-            return _catalog_usage()
-        if parts[1] == "status":
-            if len(parts) != 2:
-                return _catalog_usage()
-            report = _catalog_status_report()
-            return (
-                f"Catalog snapshot: path={report['path']} model_count={report['model_count']} "
-                f"generated_at={report['generated_at'] or 'missing'}"
-            )
-        if parts[1] == "refresh":
-            try:
-                include_artificial_analysis = _parse_catalog_refresh_flags(parts[2:])
-            except ValueError:
-                return _catalog_usage()
-            catalog = write_ai_models_catalog(include_artificial_analysis=include_artificial_analysis)
-            catalog["include_artificial_analysis"] = include_artificial_analysis
-            return (
-                f"Catalog refreshed: path={catalog_path()} "
-                f"pricing_source={'artificial_analysis' if include_artificial_analysis else 'openrouter'} "
-                f"model_count={len(catalog.get('models', [])) if isinstance(catalog.get('models', []), list) else 0} "
-                f"generated_at={catalog.get('generated_at', 'unknown')}"
-            )
-        if parts[1] == "search":
-            if len(parts) < 3:
-                return _catalog_usage()
-            query_parts: list[str] = []
-            provider = None
-            feature = None
-            for token in parts[2:]:
-                if token.startswith("provider=") and len(token) > len("provider="):
-                    provider = token.split("=", 1)[1]
-                    continue
-                if token.startswith("feature=") and len(token) > len("feature="):
-                    feature = token.split("=", 1)[1]
-                    continue
-                query_parts.append(token)
-            query = " ".join(query_parts).strip()
-            if not query and not provider and not feature:
-                return _catalog_usage()
-            report = _catalog_search_report(query, provider, feature=feature)
-            filter_bits = [bit for bit in (f"provider={provider}" if provider else None, f"feature={feature}" if feature else None) if bit]
-            search_label = f"'{query}'" if query else "all models"
-            if filter_bits:
-                search_label = f"{search_label} {' '.join(filter_bits)}"
-            if not report["results"]:
-                return f"No catalog matches for {search_label}."
-            lines = [
-                f"Catalog search for {search_label}:",
-                f"Path: {report['path']}",
-                f"Matches: {len(report['results'])}",
-            ]
-            for entry in report["results"]:
-                aliases = ", ".join(entry.get("aliases", [])) if isinstance(entry.get("aliases"), list) else ""
-                features = ", ".join(entry.get("features", [])) if isinstance(entry.get("features"), list) else ""
-                lines.append(
-                    f"- {entry.get('provider')}:{entry.get('model_id')} name={entry.get('model_name')} "
-                    f"openness={entry.get('openness')} aliases={aliases or 'none'} features={features or 'none'}"
-                )
-            return "\n".join(lines)
-        return _catalog_usage()
-    if parts[0] == "cost":
-        return _render_model_usage(config)
-    if parts[0] == "models":
-        if len(parts) == 2 and parts[1] == "usage":
-            return _render_model_usage(config)
-        if len(parts) == 2 and parts[1] == "limits":
-            _apply_model_preferences(agent, config)
-            return _render_model_limits(agent, config)
-        if len(parts) != 1:
-            return "Usage: models | models usage | models limits"
-        _apply_model_preferences(agent, config)
-        return _render_model_status(agent, config)
-    if parts[0] != "model":
-        return None
-    if len(parts) < 2:
-        return _model_usage()
-    prefs = _load_model_preferences(config)
-    if command.startswith("model limit-record "):
-        fields = command[len("model limit-record ") :].split(maxsplit=1)
-        if len(fields) != 2:
-            return "Usage: model limit-record <model> <provider message>"
-        model, message = fields
-        result = _record_limit_message(config, prefs, model=model, message=message)
-        _apply_model_preferences(agent, config)
-        return result
-    if command.startswith("model limit-clear "):
-        fields = command[len("model limit-clear ") :].split(maxsplit=1)
-        if len(fields) != 1:
-            return "Usage: model limit-clear <model>"
-        result = _clear_limit_snapshot(config, prefs, model=fields[0])
-        _apply_model_preferences(agent, config)
-        return result
-
-    action = parts[1]
-    try:
-        if action == "choose":
-            if len(parts) > 3:
-                return "Usage: model choose [provider]"
-            requested_model = parts[2] if len(parts) == 3 else None
-            return _guided_model_choice(
-                requested_model=requested_model,
-                prefs=prefs,
-                agent=agent,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if action == "use":
-            if len(parts) != 3:
-                return "Usage: model use <name>"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            if model not in prefs.enabled_models:
-                prefs.enabled_models.append(model)
-            prefs.preferred_model = model
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            provider_model = prefs.variant_for_model(model) or "automatic-by-task"
-            return f"Preferred provider set to {model}. Current provider_model={provider_model}."
-        if action == "list":
-            if len(parts) != 3:
-                return "Usage: model list <name>"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            capability = provider_capability(model)
-            specs = provider_model_specs(model)
-            catalog = load_ai_models_catalog()
-            source = (
-                next((spec.source for spec in specs if spec.id != "provider-default" and spec.source), capability.source)
-                if model == "local"
-                else MODEL_VARIANT_CATALOG[model]["source"]
-            )
-            lines = [
-                f"Provider-model catalog for {model}:",
-                f"Default provider-model: {capability.default_model}",
-                f"Auth: {capability.auth_type}",
-                f"Account profiles: {'yes' if capability.supports_account_profiles else 'no'}",
-                f"Browser login: {'yes' if capability.supports_browser_login else 'no'}",
-                f"API key: {'yes' if capability.supports_api_key else 'no'}",
-                f"Token env: {capability.token_env or 'none'}",
-                f"Model env: {capability.model_env or 'none'}",
-                f"Context: {capability.context_assumption}",
-                f"Login hint: {capability.login_hint}",
-                f"Source: {source}",
-                "Models:",
-            ]
-            for spec in specs:
-                efforts = ",".join(spec.reasoning_efforts) if spec.reasoning_efforts else "none"
-                default_effort = spec.reasoning_default or "none"
-                entry = catalog_entry_for_provider_model(model, spec.id, catalog)
-                catalog_bits: list[str] = []
-                if entry is not None:
-                    if entry.get("context_window") is not None:
-                        catalog_bits.append(f"context_window={entry.get('context_window')}")
-                    if entry.get("blended_price_usd_per_1m_tokens") is not None:
-                        catalog_bits.append(f"blended_price={entry.get('blended_price_usd_per_1m_tokens')}")
-                    if entry.get("intelligence_rank") is not None:
-                        catalog_bits.append(f"intelligence_rank={entry.get('intelligence_rank')}")
-                    if entry.get("speed_rank") is not None:
-                        catalog_bits.append(f"speed_rank={entry.get('speed_rank')}")
-                    if entry.get("latency_rank") is not None:
-                        catalog_bits.append(f"latency_rank={entry.get('latency_rank')}")
-                lines.append(
-                    f"- {spec.id}: label={spec.label}{_catalog_option_suffix(entry)} reasoning_effort=[{efforts}] "
-                    f"default_reasoning={default_effort} availability={spec.availability}"
-                    + (f" catalog={' '.join(catalog_bits)}" if catalog_bits else "")
-                )
-            return "\n".join(lines)
-        if action == "inspect":
-            if len(parts) not in {3, 4}:
-                return "Usage: model inspect <provider> [provider_model]"
-            provider = parts[2]
-            provider_model = parts[3] if len(parts) == 4 else None
-            report = _inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
-            return _render_provider_model_inspection(report)
-        if action == "params":
-            if len(parts) != 3:
-                return "Usage: model params <provider>"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            provider_model = prefs.variant_for_model(model) or "provider-default"
-            spec = provider_model_spec(model, provider_model)
-            params = prefs.params_for_model(model)
-            reasoning_options = [] if spec is None else list(spec.reasoning_efforts)
-            current_reasoning = params.get("reasoning_effort") or (None if spec is None else spec.reasoning_default)
-            return "\n".join(
-                [
-                    f"Provider params for {model}:",
-                    f"- provider_model: {provider_model}",
-                    f"- reasoning_effort_supported: {', '.join(reasoning_options) or 'none'}",
-                    f"- reasoning_effort_current: {current_reasoning or 'none'}",
-                ]
-            )
-        if action == "preset":
-            if len(parts) not in {3, 4}:
-                return "Usage: model preset <provider> [fast|balanced|deep|plan]"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            if len(parts) == 3:
-                return _guided_model_choice(
-                    requested_model=model,
-                    prefs=prefs,
-                    agent=agent,
-                    config=config,
-                    input_stream=input_stream,
-                    output_stream=output_stream,
-                )
-            preset = parts[3]
-            provider_model, params = provider_model_preset(model, preset)
-            prefs.set_variant(model, provider_model)
-            for key, value in params.items():
-                prefs.set_model_param(model, key, value)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            params_text = ", ".join(f"{key}={value}" for key, value in sorted(params.items())) or "none"
-            return f"Applied preset {preset} to {model}: provider_model={provider_model} params={params_text}."
-        if action == "param":
-            if len(parts) < 4:
-                return "Usage: model param <set|clear> ..."
-            subaction = parts[2]
-            if subaction == "set":
-                if len(parts) != 6:
-                    return "Usage: model param set <provider> <key> <value>"
-                model, key, value = parts[3], parts[4], parts[5]
-                if model not in SUPPORTED_MODELS:
-                    return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-                prefs.set_model_param(model, key, value)
-                _save_model_preferences(config, prefs)
-                _apply_model_preferences(agent, config)
-                provider_model = prefs.variant_for_model(model) or "provider-default"
-                return f"Set {key}={value} for {model}:{provider_model}."
-            if subaction == "clear":
-                if len(parts) != 5:
-                    return "Usage: model param clear <provider> <key>"
-                model, key = parts[3], parts[4]
-                if model not in SUPPORTED_MODELS:
-                    return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-                prefs.clear_model_param(model, key)
-                _save_model_preferences(config, prefs)
-                _apply_model_preferences(agent, config)
-                return f"Cleared {key} for {model}."
-            return "Usage: model param set <provider> <key> <value> | model param clear <provider> <key>"
-        if action == "limits":
-            if len(parts) != 2:
-                return "Usage: model limits"
-            _apply_model_preferences(agent, config)
-            return _render_model_limits(agent, config)
-        if action == "variant":
-            if len(parts) != 4:
-                return "Usage: model variant <name> <variant>"
-            model, variant = parts[2], parts[3]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            canonical = canonicalize_model_variant(model, variant)
-            prefs.set_variant(model, canonical)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Provider model for {model} set to {canonical}."
-        if action == "variant-clear":
-            if len(parts) != 3:
-                return "Usage: model variant-clear <name>"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            prefs.clear_variant(model)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Provider model pin for {model} cleared. Automatic/provider default selection restored."
-        if action == "add":
-            if len(parts) != 3:
-                return "Usage: model add <name>"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            if model not in prefs.enabled_models:
-                prefs.enabled_models.append(model)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Enabled model {model}."
-        if action == "remove":
-            if len(parts) != 3:
-                return "Usage: model remove <name>"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            if model not in prefs.enabled_models:
-                return f"Model {model} is already disabled."
-            if len(prefs.enabled_models) == 1:
-                return "Cannot disable the last enabled model."
-            prefs.enabled_models = [item for item in prefs.enabled_models if item != model]
-            if prefs.preferred_model == model:
-                prefs.preferred_model = None
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Disabled model {model}."
-        if action == "block":
-            if len(parts) != 5 or parts[3] != "until":
-                return "Usage: model block <name> until YYYY-MM-DDTHH:MM"
-            model = parts[2]
-            until = parts[4]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            try:
-                datetime.fromisoformat(until)
-            except ValueError:
-                return "Invalid date/time. Use YYYY-MM-DDTHH:MM."
-            prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
-            prefs.blocked_until_by_model[model] = until
-            if prefs.preferred_model == model:
-                prefs.preferred_model = None
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Blocked model {model} until {until}."
-        if action == "unblock":
-            if len(parts) != 3:
-                return "Usage: model unblock <name>"
-            model = parts[2]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
-            if model not in prefs.blocked_until_by_model:
-                return f"Model {model} is not blocked."
-            prefs.blocked_until_by_model.pop(model, None)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Unblocked model {model}."
-        if action == "clear":
-            prefs.preferred_model = None
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return "Preferred provider cleared. Automatic routing restored."
-    except ValueError as exc:
-        return str(exc)
-
-    return _model_usage()
-
+    return _model_views._handle_model_command(
+        command,
+        agent,
+        config,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
 
 def _model_usage() -> str:
     return (
@@ -9966,194 +3552,17 @@ def _handle_account_command(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
 ) -> str | None:
-    parts = command.split()
-    if not parts:
-        return None
-    if parts[0] == "accounts":
-        return _render_accounts(config)
-    if parts[0] != "account":
-        return None
-    if len(parts) < 2:
-        return _account_usage()
-
-    action = parts[1]
-    prefs = _load_model_preferences(config)
-    try:
-        if action == "limit-record":
-            fields = command[len("account limit-record ") :].split(maxsplit=2)
-            if len(fields) != 3:
-                return "Usage: account limit-record <model> <name> <provider message>"
-            model, name, message = fields
-            result = _record_limit_message(config, prefs, model=model, account=name, message=message)
-            _apply_model_preferences(agent, config)
-            return result
-        if action == "limit-clear":
-            fields = command[len("account limit-clear ") :].split(maxsplit=1)
-            if len(fields) != 2:
-                return "Usage: account limit-clear <model> <name>"
-            model, name = fields
-            result = _clear_limit_snapshot(config, prefs, model=model, account=name)
-            _apply_model_preferences(agent, config)
-            return result
-        if action == "add":
-            if len(parts) not in {4, 5}:
-                return "Usage: account add <model> <name> [ENV_VAR]"
-            model, name = parts[2], parts[3]
-            prefs.add_account(model, name, env_var=parts[4] if len(parts) == 5 else None)
-            if model not in prefs.enabled_models:
-                prefs.enabled_models.append(model)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Added account {model}:{name}."
-        if action == "login":
-            if len(parts) != 4:
-                return "Usage: account login <model> <name>"
-            model, name = parts[2], parts[3]
-            if model not in SUPPORTED_MODELS:
-                return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-            capability = provider_capability(model)
-            if model == "chatgpt" and not capability.supports_browser_login:
-                return f"Interactive login is not supported for model '{model}'. {capability.login_hint}"
-            if model == "openai" and not capability.supports_api_key:
-                return f"Interactive login is not supported for model '{model}'. {capability.login_hint}"
-            if model not in {"chatgpt", "openai"}:
-                return f"Interactive login is not supported for model '{model}'. {capability.login_hint}"
-            prefs.add_account(model, name)
-            if model not in prefs.enabled_models:
-                prefs.enabled_models.append(model)
-            if model == "chatgpt":
-                result = CodexBrowserLoginFlow(model=model, account=name).run()
-            else:
-                result = OpenAIDeviceCodeFlow(model=model, account=name).run()
-            if not result.ok:
-                return result.message
-            if result.secret_payload or result.token:
-                saved = SecretStore().save_token(model, name, result.secret_payload or result.token)
-                if not saved.ok:
-                    return saved.message
-            prefs.set_active_account(model, name)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            if result.secret_payload or result.token:
-                return f"{result.message}\nSaved token for {model}:{name}."
-            return result.message
-        if action == "login-device":
-            if len(parts) != 4:
-                return "Usage: account login-device <chatgpt|openai> <name>"
-            model, name = parts[2], parts[3]
-            if model not in {"chatgpt", "openai"}:
-                return "Device code login is supported only for chatgpt and openai."
-            return _handle_account_command(
-                f"account login {model} {name}",
-                agent,
-                config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if action == "logout":
-            if len(parts) != 4:
-                return "Usage: account logout <model> <name>"
-            model, name = parts[2], parts[3]
-            if model == "chatgpt":
-                browser_logout = CodexBrowserLogoutFlow(model=model).run()
-                if not browser_logout.ok:
-                    return browser_logout.message
-            result = SecretStore().delete_token(model, name)
-            if model == "chatgpt":
-                return f"{browser_logout.message}\n{result.message}"
-            return result.message
-        if action == "env":
-            if len(parts) != 5:
-                return "Usage: account env <model> <name> <ENV_VAR>"
-            model, name, env_var = parts[2], parts[3], parts[4]
-            if name not in (prefs.accounts_by_model or {}).get(model, []):
-                prefs.add_account(model, name)
-            prefs.set_account_env(model, name, env_var)
-            _save_model_preferences(config, prefs)
-            return f"Set token env for {model}:{name} to {env_var}."
-        if action == "import":
-            if len(parts) not in {4, 5}:
-                return "Usage: account import <model> <name> [PATH]"
-            model, name = parts[2], parts[3]
-            if model != "claude":
-                return f"Import is not supported for model '{model}'."
-            path = Path(parts[4]) if len(parts) == 5 else _default_claude_credentials_path()
-            if path is None:
-                return "No default Claude credentials path is available. Pass an explicit path."
-            if not path.exists():
-                return f"Credentials file not found: {path}"
-            payload = read_text_utf8(path).strip()
-            if not payload:
-                return f"Credentials file is empty: {path}"
-            prefs.add_account(model, name)
-            if model not in prefs.enabled_models:
-                prefs.enabled_models.append(model)
-            saved = SecretStore().save_token(model, name, payload)
-            if not saved.ok:
-                return saved.message
-            prefs.set_active_account(model, name)
-            _save_model_preferences(config, prefs)
-            _apply_model_preferences(agent, config)
-            return f"Imported credentials for {model}:{name} from {path}."
-        if action == "use":
-            if len(parts) != 4:
-                return "Usage: account use <model> <name>"
-            model, name = parts[2], parts[3]
-            prefs.set_active_account(model, name)
-            _save_model_preferences(config, prefs)
-            return f"Active account for {model} set to {name}."
-        if action == "choose":
-            if len(parts) > 3:
-                return "Usage: account choose [model]"
-            requested_model = parts[2] if len(parts) == 3 else None
-            return _guided_account_choice(
-                requested_model=requested_model,
-                prefs=prefs,
-                config=config,
-                input_stream=input_stream,
-                output_stream=output_stream,
-            )
-        if action == "remove":
-            if len(parts) != 4:
-                return "Usage: account remove <model> <name>"
-            model, name = parts[2], parts[3]
-            prefs.remove_account(model, name)
-            _save_model_preferences(config, prefs)
-            return f"Removed account {model}:{name}."
-        if action == "block":
-            if len(parts) != 6 or parts[4] != "until":
-                return "Usage: account block <model> <name> until YYYY-MM-DDTHH:MM"
-            model, name, until = parts[2], parts[3], parts[5]
-            prefs.block_account(model, name, until)
-            _save_model_preferences(config, prefs)
-            return f"Blocked account {model}:{name} until {until}."
-        if action == "unblock":
-            if len(parts) != 4:
-                return "Usage: account unblock <model> <name>"
-            model, name = parts[2], parts[3]
-            prefs.unblock_account(model, name)
-            _save_model_preferences(config, prefs)
-            return f"Unblocked account {model}:{name}."
-        if action == "clear":
-            if len(parts) != 3:
-                return "Usage: account clear <model>"
-            prefs.set_active_account(parts[2], None)
-            _save_model_preferences(config, prefs)
-            return f"Cleared active account for {parts[2]}."
-    except ValueError as exc:
-        return str(exc)
-    return _account_usage()
+    return _account_views._handle_account_command(
+        command,
+        agent,
+        config,
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
 
 
 def _account_usage() -> str:
-    return (
-        "Usage: accounts | account add <model> <name> [ENV_VAR] | account login <model> <name> | "
-        "account login-device <chatgpt|openai> <name> | "
-        "account logout <model> <name> | account env <model> <name> <ENV_VAR> | account import <model> <name> [PATH] | "
-        "account use <model> <name> | account choose [model] | account remove <model> <name> | "
-        "account block <model> <name> until YYYY-MM-DDTHH:MM | account unblock <model> <name> | "
-        "account limit-record <model> <name> <message> | account limit-clear <model> <name> | account clear <model>"
-    )
+    return _account_views._account_usage()
 
 
 def _default_claude_credentials_path() -> Path | None:
@@ -10174,479 +3583,61 @@ def _guided_account_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided account selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `account choose`."
-    models_with_accounts = [
-        model
-        for model in SUPPORTED_MODELS
-        if (prefs.accounts_by_model or {}).get(model)
-    ]
-    if not models_with_accounts:
-        return "No configured account profiles are available."
-    model = requested_model
-    if model is None:
-        model = _prompt_menu_choice(
-            title="Choose provider for account:",
-            options=[(item, item) for item in models_with_accounts],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if model is None:
-            return "Guided account selection cancelled."
-    accounts = list((prefs.accounts_by_model or {}).get(model, []))
-    if not accounts:
-        return f"No configured account profiles for {model}."
-    chosen_account = _prompt_menu_choice(
-        title=f"Choose account for {model}:",
-        options=[(name, name) for name in accounts],
+    return _account_views._guided_account_choice(
+        requested_model=requested_model,
+        prefs=prefs,
+        config=config,
         input_stream=input_stream,
         output_stream=output_stream,
     )
-    if chosen_account is None:
-        return "Guided account selection cancelled."
-    prefs.set_active_account(model, chosen_account)
-    _save_model_preferences(config, prefs)
-    return f"Active account for {model} set to {chosen_account}."
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
-    parts = command.split()
-    if not parts:
-        return None
-    if parts[0] == "status":
-        if len(parts) == 2 and parts[1] == "full":
-            return _render_status_full(agent, config)
-        return _render_status(agent, config)
-    if parts[0] == "statusline":
-        return dumps_ascii(_with_json_schema("statusline", _statusline_report(agent, config)), indent=2)
-    if parts[0] == "preflight":
-        return _render_preflight(agent, config)
-    if parts[0] == "battery":
-        return _render_battery(config)
-    if len(parts) == 3 and parts[0] == "auth" and parts[1] == "status":
-        return _render_auth_status(parts[2])
-    if parts[0] == "overview":
-        return _render_overview(agent, config)
-    if parts[0] == "health":
-        return _render_health(agent, config)
-    if parts[0] == "report":
-        return _render_report(agent, config)
-    if parts[0] == "doctor":
-        return _render_doctor(config)
-    if parts[0] == "handoff":
-        if len(parts) == 2 and parts[1] in {"md", "export"}:
-            return _export_handoff_markdown(config)
-        if len(parts) >= 2 and parts[1] == "actions":
-            return _render_handoff_actions(config, limit=_parse_optional_limit(parts))
-        return _render_handoff(config)
-    if parts[0] == "board" or command == "stage review":
-        return _render_board(config)
-    if parts[0] == "boundary":
-        return _render_boundary(config)
-    if parts[0] == "risks":
-        if len(parts) >= 3 and parts[1] == "close":
-            resolution = command.partition("close")[2].strip() or "Resolved by explicit mitigation and wet-run validation."
-            return _render_risks_close(config, resolution)
-        return _render_risks(config)
-    if parts[0] == "issues":
-        return _render_issues(config)
-    if parts[0] == "quality":
-        return _render_quality(config)
-    if parts[0] == "exception":
-        return _render_exception(config)
-    if parts[0] == "lessons":
-        return _render_lessons(config)
-    if parts[0] in {"transcript", "trace"}:
-        return _render_transcript(config)
-    if parts[0] == "todo":
-        return _render_todo(config)
-    if parts[0] == "permissions":
-        return _render_permissions(config)
-    if parts[0] == "permission":
-        return _handle_permission_command(parts, config, agent)
-    if parts[0] == "shell":
-        return _handle_shell_command(parts, config)
-    if parts[0] != "mode":
-        return None
-    if len(parts) == 2:
-        mode = parts[1].strip().lower().replace("-", "_")
-        if mode in VALID_PERMISSION_MODES:
-            settings = PermissionSettings.load(config.settings_path)
-            settings.default_mode = mode
-            settings.normalize().save(config.settings_path)
-            _refresh_runtime_permissions(agent)
-            return f"Permission mode set to {mode}."
-    if len(parts) == 2 and parts[1] == "normal":
-        result = agent.run("normal mode")
-        return result.message
-    if len(parts) == 3 and parts[1] == "caveman":
-        result = agent.run(f"/caveman {parts[2]}")
-        return result.message
-    return (
-        "Usage: mode <normal|default|accept_edits|accept-edits|plan|auto|dont_ask|dont-ask> "
-        "| mode caveman <level>"
-    )
+    return _mode_views._handle_mode_command(command, agent, config)
 
 
 def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Agent | None = None) -> str:
-    settings = PermissionSettings.load(config.settings_path)
-    if len(parts) < 2:
-        return (
-            "Usage: permissions | permission mode <mode> | permission allow <rule> | "
-            "permission ask <rule> | permission deny <rule> | permission reset | "
-            "permission session <mode|allow|ask|deny|reset> ..."
-        )
-    if parts[1] == "session":
-        session = config.session_permission_settings or PermissionSettings()
-        if len(parts) < 3:
-            return "Usage: permission session mode <mode> | permission session allow <rule> | permission session ask <rule> | permission session deny <rule> | permission session reset"
-        session_action = parts[2]
-        if session_action == "mode":
-            if len(parts) != 4:
-                return f"Usage: permission session mode <{'|'.join(VALID_PERMISSION_MODES)}>"
-            mode = parts[3].strip().lower().replace("-", "_")
-            if mode not in VALID_PERMISSION_MODES:
-                return f"Unsupported session permission mode '{parts[3]}'."
-            session.default_mode = mode
-            config.session_permission_settings = session.normalize()
-            if agent is not None:
-                _refresh_runtime_permissions(agent)
-            return f"Session permission mode set to {mode}."
-        if session_action in {"allow", "ask", "deny"}:
-            if len(parts) < 4:
-                return f"Usage: permission session {session_action} <rule>"
-            rule = " ".join(parts[3:]).strip()
-            target = getattr(session, session_action)
-            if rule not in target:
-                target.append(rule)
-            config.session_permission_settings = session.normalize()
-            if agent is not None:
-                _refresh_runtime_permissions(agent)
-            return f"Added session {session_action} rule: {rule}"
-        if session_action == "reset":
-            config.session_permission_settings = None
-            if agent is not None:
-                _refresh_runtime_permissions(agent)
-            return "Session permission settings reset."
-        return "Usage: permission session mode <mode> | permission session allow <rule> | permission session ask <rule> | permission session deny <rule> | permission session reset"
-    action = parts[1]
-    if action == "mode":
-        if len(parts) != 3:
-            return f"Usage: permission mode <{'|'.join(VALID_PERMISSION_MODES)}>"
-        mode = parts[2].strip().lower().replace("-", "_")
-        if mode not in VALID_PERMISSION_MODES:
-            return f"Unsupported permission mode '{parts[2]}'."
-        settings.default_mode = mode
-        settings.normalize().save(config.settings_path)
-        if agent is not None:
-            _refresh_runtime_permissions(agent)
-        return f"Permission mode set to {mode}."
-    if action in {"allow", "ask", "deny"}:
-        if len(parts) < 3:
-            return f"Usage: permission {action} <rule>"
-        rule = " ".join(parts[2:]).strip()
-        target = getattr(settings, action)
-        if rule not in target:
-            target.append(rule)
-        settings.normalize().save(config.settings_path)
-        if agent is not None:
-            _refresh_runtime_permissions(agent)
-        return f"Added {action} rule: {rule}"
-    if action == "reset":
-        PermissionSettings().save(config.settings_path)
-        if agent is not None:
-            _refresh_runtime_permissions(agent)
-        return "Permission settings reset."
-    return (
-        "Usage: permissions | permission mode <mode> | permission allow <rule> | "
-        "permission ask <rule> | permission deny <rule> | permission reset | "
-        "permission session <mode|allow|ask|deny|reset> ..."
-    )
+    return _command_views._handle_permission_command(parts, config, agent=agent)
 
 
 def _handle_shell_command(parts: list[str], config: AgentConfig) -> str | None:
-    if not parts or parts[0] != "shell":
-        return None
-    if len(parts) >= 2 and parts[1] == "backend":
-        if len(parts) == 2:
-            return _render_shell_backend(config)
-        if len(parts) == 4 and parts[2] == "use":
-            backend = parts[3].strip().lower()
-            if backend not in {"auto", "bash", "zsh", "powershell", "cmd"}:
-                return "Usage: shell backend use <auto|bash|zsh|powershell|cmd>"
-            _save_shell_backend(config, backend)
-            config.shell_backend = backend
-            return f"Shell backend set to {backend}.\n{_render_shell_backend(config)}"
-    return "Usage: shell backend | shell backend use <auto|bash|zsh|powershell|cmd>"
+    return _command_views._handle_shell_command(parts, config)
 
 
 def _handle_git_command(command: str, config: AgentConfig) -> str | None:
-    parts = command.split()
-    if not parts or parts[0] != "git":
-        return None
-    tool = GitTool(config)
-    if len(parts) == 2 and parts[1] == "status":
-        result = tool.status()
-        return result.stdout or result.error or "Clean working tree."
-    if len(parts) in {2, 3} and parts[1] == "log":
-        limit = _parse_limit(parts[2] if len(parts) == 3 else "", default=20)
-        result = tool.log(limit=limit)
-        return result.stdout or result.error or "No git history."
-    if parts[1] == "history":
-        if len(parts) not in {3, 4}:
-            return "Usage: git history <path> [limit]"
-        limit = _parse_limit(parts[3] if len(parts) == 4 else "", default=20)
-        result = tool.file_history(parts[2], limit=limit)
-        return result.stdout or result.error or "No file history."
-    if parts[1] == "show":
-        stat = "--stat" in parts[2:]
-        revision_parts = [item for item in parts[2:] if item != "--stat"]
-        revision = revision_parts[0] if revision_parts else "HEAD"
-        result = tool.show(revision=revision, stat=stat)
-        return result.stdout or result.error or "No revision details."
-    return "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]"
-
-
-def _parse_git_oneline(stdout: str) -> list[dict[str, str]]:
-    commits: list[dict[str, str]] = []
-    for line in stdout.splitlines():
-        text = line.strip()
-        if not text:
-            continue
-        commit, _, subject = text.partition(" ")
-        subject = subject.strip()
-        if subject.startswith("(") and ") " in subject:
-            _decorations, _sep, subject = subject.partition(") ")
-        commits.append({"commit": commit, "subject": subject.strip()})
-    return commits
+    return _command_views._handle_git_command(command, config)
 
 
 def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] | None:
-    parts = command.split()
-    if not parts or parts[0] != "git":
-        return None
-    tool = GitTool(config)
-    if len(parts) == 2 and parts[1] == "status":
-        result = tool.status()
-        return {
-            "command": "git status",
-            "schema": json_schema("git status"),
-            "ok": result.ok,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "error": result.error,
-            "lines": result.stdout.splitlines() if result.stdout else [],
-        }
-    if len(parts) in {2, 3} and parts[1] == "log":
-        limit = _parse_limit(parts[2] if len(parts) == 3 else "", default=20)
-        result = tool.log(limit=limit)
-        return {
-            "command": "git log",
-            "schema": json_schema("git log"),
-            "limit": limit,
-            "ok": result.ok,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "error": result.error,
-            "commits": _parse_git_oneline(result.stdout),
-        }
-    if len(parts) >= 2 and parts[1] == "history":
-        if len(parts) not in {3, 4}:
-            return {
-                "command": "git history",
-                "schema": json_schema("git history"),
-                "ok": False,
-                "error": "Usage: git history <path> [limit]",
-            }
-        limit = _parse_limit(parts[3] if len(parts) == 4 else "", default=20)
-        result = tool.file_history(parts[2], limit=limit)
-        return {
-            "command": "git history",
-            "schema": json_schema("git history"),
-            "path": parts[2],
-            "limit": limit,
-            "ok": result.ok,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "error": result.error,
-            "commits": _parse_git_oneline(result.stdout),
-        }
-    if len(parts) >= 2 and parts[1] == "show":
-        stat = "--stat" in parts[2:]
-        revision_parts = [item for item in parts[2:] if item != "--stat"]
-        revision = revision_parts[0] if revision_parts else "HEAD"
-        result = tool.show(revision=revision, stat=stat)
-        return {
-            "command": "git show",
-            "schema": json_schema("git show"),
-            "revision": revision,
-            "stat": stat,
-            "ok": result.ok,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "error": result.error,
-            "lines": result.stdout.splitlines() if result.stdout else [],
-        }
-    return {
-        "command": command,
-        "schema": json_schema("git"),
-        "ok": False,
-        "error": "Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]",
-    }
+    return _command_views._git_command_report(command, config)
 
 
 def _handle_shell_session_command(command: str, agent: Agent) -> str | None:
-    parts = command.split(maxsplit=3)
-    if not parts:
-        return None
-    if parts[0] == "sessions":
-        result = agent.executor.shell.list_sessions()
-        return result.output_preview or result.error
-    if parts[0] != "session":
-        return None
-    if len(parts) < 2:
-        return "Usage: session create [cwd] | session list | session send <id|last> <command> | session close <id|last>"
-
-    action = parts[1]
-    if action == "list":
-        result = agent.executor.shell.list_sessions()
-        return result.output_preview or result.error
-    if action == "create":
-        cwd = parts[2] if len(parts) >= 3 else None
-        result = agent.executor.shell.create_session(cwd=cwd)
-        return result.output_preview or result.error
-    if action == "send":
-        if len(parts) != 4:
-            return "Usage: session send <id|last> <command>"
-        session_id = _resolve_shell_session_id(agent, parts[2])
-        if session_id is None:
-            return "Unknown shell session."
-        result = agent.executor.shell.send_session(session_id, parts[3])
-        return result.output_preview or result.error
-    if action == "close":
-        if len(parts) != 3:
-            return "Usage: session close <id|last>"
-        session_id = _resolve_shell_session_id(agent, parts[2])
-        if session_id is None:
-            return "Unknown shell session."
-        result = agent.executor.shell.close_session(session_id)
-        return result.output_preview or result.error
-    return "Usage: session create [cwd] | session list | session send <id|last> <command> | session close <id|last>"
+    return _command_views._handle_shell_session_command(command, agent)
 
 
 def _handle_patch_command(command: str, agent: Agent) -> str | None:
-    parts = command.split(maxsplit=2)
-    if not parts or parts[0] != "patch":
-        return None
-    if len(parts) != 3 or parts[1] != "preview":
-        return "Usage: patch preview <diff-file>"
-    diff_file = agent.executor.files.read(parts[2])
-    if not diff_file.ok:
-        return diff_file.error
-    result = agent.executor.files.preview_patch_files(diff_file.content)
-    if not result.ok:
-        return result.error
-    return f"Patch preview:\n{result.content}"
+    return _command_views._handle_patch_command(command, agent)
 
 
 def _file_command_report(command: str, config: AgentConfig) -> dict[str, object] | None:
-    parts = command.split()
-    if len(parts) < 2 or parts[0] != "file":
-        return None
-    tool = FileTool(config)
-    action = parts[1]
-    flags = set(part for part in parts[2:] if part.startswith("--"))
-    args = [part for part in parts[2:] if not part.startswith("--")]
-    dry_run = "--dry-run" in flags
-    overwrite = "--overwrite" in flags
-    recursive = "--recursive" in flags
-
-    if action == "inspect":
-        if len(args) != 1:
-            return {"command": "file inspect", "ok": False, "error": "Usage: file inspect <path>"}
-        result = tool.inspect(args[0])
-        return {"command": "file inspect", "path": args[0], "ok": result.ok, "error": result.error, "report": result.report}
-    if action == "stat":
-        if len(args) != 1:
-            return {"command": "file stat", "ok": False, "error": "Usage: file stat <path>"}
-        result = tool.inspect_metadata(args[0])
-        return {"command": "file stat", "path": args[0], "ok": result.ok, "error": result.error, "report": result.report}
-    if action == "copy":
-        if len(args) != 2:
-            return {"command": "file copy", "ok": False, "error": "Usage: file copy <source> <destination> [--overwrite] [--dry-run]"}
-        result = tool.copy_path(args[0], args[1], overwrite=overwrite, dry_run=dry_run)
-        return {"command": "file copy", "source": args[0], "destination": args[1], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
-    if action == "move":
-        if len(args) != 2:
-            return {"command": "file move", "ok": False, "error": "Usage: file move <source> <destination> [--overwrite] [--dry-run]"}
-        result = tool.move_path(args[0], args[1], overwrite=overwrite, dry_run=dry_run)
-        return {"command": "file move", "source": args[0], "destination": args[1], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
-    if action == "delete":
-        if len(args) != 1:
-            return {"command": "file delete", "ok": False, "error": "Usage: file delete <path> [--recursive] [--dry-run]"}
-        result = tool.delete_path(args[0], recursive=recursive, dry_run=dry_run)
-        return {"command": "file delete", "path": args[0], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
-    if action == "chmod":
-        if len(args) != 2:
-            return {"command": "file chmod", "ok": False, "error": "Usage: file chmod <path> <mode> [--recursive] [--dry-run]"}
-        result = tool.chmod_path(args[0], args[1], recursive=recursive, dry_run=dry_run)
-        return {"command": "file chmod", "path": args[0], "mode": args[1], "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
-    if action == "chown":
-        if len(args) not in {2, 3}:
-            return {"command": "file chown", "ok": False, "error": "Usage: file chown <path> <user> [group] [--recursive] [--dry-run]"}
-        group = args[2] if len(args) == 3 else None
-        result = tool.chown_path(args[0], user=args[1], group=group, recursive=recursive, dry_run=dry_run)
-        return {"command": "file chown", "path": args[0], "user": args[1], "group": group, "ok": result.ok, "error": result.error, "report": result.report, "message": result.content}
-    return {"command": command, "ok": False, "error": "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]"}
+    return _command_views._file_command_report(command, config)
 
 
 def _render_file_command(report: dict[str, object]) -> str:
-    if not report.get("ok"):
-        return str(report.get("error") or "File command failed.")
-    command = str(report.get("command", "file"))
-    detail = report.get("report")
-    message = str(report.get("message") or "").strip()
-    if command in {"file inspect", "file stat"} and isinstance(detail, dict):
-        lines = [f"{command}:"]
-        for key, value in detail.items():
-            lines.append(f"- {key}: {value}")
-        return "\n".join(lines)
-    return message or f"{command}: OK"
+    return _command_views._render_file_command(report)
 
 
 def _handle_file_command(command: str, config: AgentConfig) -> str | None:
-    report = _file_command_report(command, config)
-    if report is None:
-        return None
-    return _render_file_command(report)
+    return _command_views._handle_file_command(command, config)
 
 
 def _resolve_shell_session_id(agent: Agent, requested: str) -> str | None:
-    sessions = agent.executor.shell.sessions
-    if requested == "last":
-        if not sessions:
-            return None
-        return next(reversed(sessions))
-    return requested if requested in sessions else None
+    return _command_views._resolve_shell_session_id(agent, requested)
 
 
 def _shell_sessions_report(agent: Agent) -> dict[str, object]:
-    items: list[dict[str, str]] = []
-    for session_id, session in sorted(agent.executor.shell.sessions.items()):
-        state = "closed" if session.process.poll() is not None else "running"
-        items.append(
-            {
-                "id": session_id,
-                "cwd": session.cwd,
-                "state": state,
-            }
-        )
-    return {
-        "command": "sessions",
-        "schema": json_schema("sessions"),
-        "count": len(items),
-        "items": items,
-    }
+    return _command_views._shell_sessions_report(agent)
 
 
 def _parse_limit(raw: str, *, default: int) -> int:
@@ -10976,6 +3967,10 @@ def _is_known_interactive_command(command: str) -> bool:
         "auth status ",
         "model ",
         "account ",
+        "goal ",
+        "budget ",
+        "question ",
+        "answer ",
         "roles ",
         "role ",
         "project ",
@@ -11144,10 +4139,16 @@ def run_interactive_shell(
         sink.flush()
 
     suspended_task = str(agent.project_handoff.task or "").strip()
-    if agent.project_handoff.status == "waiting" and suspended_task:
+    waiting_reason = str(getattr(agent.project_handoff, "waiting_reason", "") or "").strip().lower()
+    if agent.project_handoff.status == "waiting" and suspended_task and waiting_reason != "clarification":
         sink.write(f"Auto-resuming suspended task: {suspended_task}\n")
         sink.flush()
         _run_task(suspended_task)
+    elif agent.project_handoff.status == "waiting" and waiting_reason == "clarification":
+        pending_question = agent.project_handoff.user_question.get("question") if isinstance(agent.project_handoff.user_question, dict) else None
+        if pending_question:
+            sink.write(f"Pending clarification: {pending_question}\n")
+            sink.flush()
 
     while True:
         sink.write("stagewarden> ")
@@ -11167,6 +4168,19 @@ def run_interactive_shell(
             and _is_known_interactive_command(command)
         )
         if not command.startswith(INTERACTIVE_COMMAND_PREFIX) and not legacy_shell_command:
+            if agent.project_handoff.status == "waiting" and str(getattr(agent.project_handoff, "waiting_reason", "") or "").strip().lower() == "clarification":
+                try:
+                    agent.project_handoff.answer_user_question(answer=command)
+                    agent.project_handoff.save(config.handoff_path)
+                except ValueError as exc:
+                    sink.write(f"{exc}\n")
+                    sink.flush()
+                    continue
+                sink.write("Recorded answer for pending clarification.\n")
+                sink.flush()
+                if suspended_task:
+                    _run_task(suspended_task)
+                continue
             _run_task(command)
             continue
         shell_command = command[len(INTERACTIVE_COMMAND_PREFIX) :].strip() if command.startswith(INTERACTIVE_COMMAND_PREFIX) else command
@@ -11212,7 +4226,7 @@ def run_interactive_shell(
             sink.flush()
             continue
         shell_command = rewritten or shell_command
-        model_message = _handle_model_command(shell_command, agent, config, input_stream=source, output_stream=sink)
+        model_message = _model_views._handle_model_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if model_message is not None:
             sink.write(f"{model_message}\n")
             sink.flush()
@@ -11258,9 +4272,24 @@ def run_interactive_shell(
             sink.write(f"{extension_message}\n")
             sink.flush()
             continue
-        external_io_message = _handle_external_io_command(shell_command, config)
+        external_io_message = _handle_external_io_command(
+            shell_command,
+            config,
+            execute_external_io_command=_external_io_execute,
+            record_handoff_action=_record_handoff_action,
+        )
         if external_io_message is not None:
             sink.write(f"{external_io_message}\n")
+            sink.flush()
+            continue
+        system_message = _handle_system_command(
+            shell_command,
+            config,
+            execute_system_command=_system_execute,
+            record_handoff_action=_record_handoff_action,
+        )
+        if system_message is not None:
+            sink.write(f"{system_message}\n")
             sink.flush()
             continue
         mode_message = _handle_mode_command(shell_command, agent, config)
@@ -11299,867 +4328,209 @@ def run_interactive_shell(
 
 
 def main() -> int:
-    args = build_parser().parse_args()
-    config = AgentConfig(
-        workspace_root=Path.cwd(),
-        max_steps=args.max_steps,
-        verbose=args.verbose,
-        strict_ascii_output=args.strict_ascii_output,
+    return _cli_dispatch.run_cli()
+
+def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = None, use_ai: bool = False) -> dict[str, object]:
+    return _project_tree_flow._project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
+
+
+def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, object]) -> str:
+    return _project_tree_flow._project_tree_ai_prompt(design, local_report)
+
+
+def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_report: dict[str, object]) -> dict[str, object]:
+    return _project_tree_flow._merge_ai_project_tree_proposal(agent, config, local_report)
+
+
+def _render_project_tree_proposal(config: AgentConfig) -> str:
+    return _project_tree_flow._render_project_tree_proposal(config)
+
+
+def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
+    return _project_tree_flow._render_project_tree_proposal_report(report)
+
+
+def _record_project_tree_proposal_action(config: AgentConfig, report: dict[str, object], *, task: str) -> None:
+    return _project_tree_flow._record_project_tree_proposal_action(config, report, task=task)
+
+
+def _approve_project_tree_proposal(
+    config: AgentConfig,
+    *,
+    force: bool = False,
+    proposal_report: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return _project_tree_flow._approve_project_tree_proposal(config, force=force, proposal_report=proposal_report)
+
+
+def _render_project_tree_approval_report(report: dict[str, object], config: AgentConfig) -> str:
+    return _project_tree_flow._render_project_tree_approval_report(report, config)
+
+
+def _render_project_tree_approval(config: AgentConfig, *, force: bool = False) -> str:
+    return _project_tree_flow._render_project_tree_approval(config, force=force)
+
+
+def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:
+    return _project_model_recommendation._node_local_fallback_candidates(node)
+
+
+def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
+    return _project_model_recommendation._catalog_power_score(entry)
+
+
+def _catalog_model_choice_key(provider: str, provider_model: str) -> str:
+    return _project_model_recommendation._catalog_model_choice_key(provider, provider_model)
+
+
+def _parse_catalog_model_choice(choice: str) -> tuple[str, str] | None:
+    return _project_model_recommendation._parse_catalog_model_choice(choice)
+
+
+def _node_model_recommendation(config: AgentConfig, node: dict[str, object]) -> dict[str, object]:
+    return _project_model_recommendation._node_model_recommendation(config, node)
+
+
+def _status_pricing_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._status_pricing_report(agent, config)
+
+
+def _status_cost_sidebar_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._status_cost_sidebar_report(agent, config)
+
+
+def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._status_report(agent, config)
+
+
+def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._status_dashboard_report(agent, config)
+
+
+def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
+    return _status_views._statusline_rate_limit(item)
+
+
+def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._provider_limit_status_report(agent, config)
+
+
+def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[str, object]:
+    return _status_views._provider_limit_summary_report(provider_limits)
+
+
+def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
+    return _status_views._render_provider_limit_status(agent, config)
+
+
+def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._statusline_report(agent, config)
+
+
+def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._overview_report(agent, config)
+
+
+def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._health_report(agent, config)
+
+
+def _preflight_remediations(
+    *,
+    doctor: dict[str, object],
+    runtime: dict[str, object],
+    shell_backend: dict[str, object],
+    git_status: object,
+    git_dirty: object,
+    role_check: dict[str, object],
+    provider_limits: dict[str, object],
+    sources: dict[str, object],
+    stage_view: dict[str, object],
+    log_errors: dict[str, object],
+) -> list[dict[str, str]]:
+    return _status_views._preflight_remediations(
+        doctor=doctor,
+        runtime=runtime,
+        shell_backend=shell_backend,
+        git_status=git_status,
+        git_dirty=git_dirty,
+        role_check=role_check,
+        provider_limits=provider_limits,
+        sources=sources,
+        stage_view=stage_view,
+        log_errors=log_errors,
     )
-    config.shell_backend = _configured_shell_backend(config)
 
-    if args.ljson_encode:
-        source = Path(args.ljson_encode)
-        records = loads_text(read_text_utf8(source))
-        if not isinstance(records, list):
-            raise SystemExit("Input for --ljson-encode must be a JSON array.")
-        target = Path(args.ljson_output) if args.ljson_output else _default_ljson_encode_path(source, gzip_enabled=args.ljson_gzip)
-        dump_file(
-            target,
-            records,
-            options=LJSONOptions(numeric_keys=args.ljson_numeric),
-            gzip_enabled=args.ljson_gzip,
-        )
-        print(str(target))
-        return 0
 
-    if args.ljson_decode:
-        source = Path(args.ljson_decode)
-        records = load_file(source, gzipped=args.ljson_gzip or str(source).endswith(".gz"))
-        target = Path(args.ljson_output) if args.ljson_output else _default_ljson_decode_path(source)
-        write_text_utf8(target, dumps_ascii(records, indent=2))
-        print(str(target))
-        return 0
+def _status_remediation_report(
+    *,
+    provider_limits: dict[str, object],
+    stage_view: dict[str, object],
+    config: AgentConfig,
+) -> list[dict[str, str]]:
+    return _status_views._status_remediation_report(
+        provider_limits=provider_limits,
+        stage_view=stage_view,
+        config=config,
+    )
 
-    if args.ljson_benchmark:
-        records = loads_text(read_text_utf8(Path(args.ljson_benchmark)))
-        if not isinstance(records, list):
-            raise SystemExit("Input for --ljson-benchmark must be a JSON array.")
-        print(
-            dumps_ascii(
-                _with_json_schema(
-                    "ljson benchmark",
-                    {
-                        "command": "ljson benchmark",
-                        "record_count": len(records),
-                        "standard": benchmark_sizes(records),
-                        "numeric": benchmark_sizes(records, numeric_keys=True),
-                        "standard_gzip": benchmark_sizes(records, gzip_enabled=True),
-                        "numeric_gzip": benchmark_sizes(records, numeric_keys=True, gzip_enabled=True),
-                    },
-                ),
-                indent=2,
-            )
-        )
-        return 0
 
-    if args.openrouter_benchmark:
-        report = run_openrouter_benchmark(history_path=args.openrouter_benchmark_history)
-        rendered = dumps_ascii(_with_json_schema("openrouter benchmark", report), indent=2)
-        if args.openrouter_benchmark_output:
-            write_text_utf8(Path(args.openrouter_benchmark_output), rendered)
-        print(rendered)
-        return 0 if report.get("overall", {}).get("passed") else 1
+def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._preflight_report(agent, config)
 
-    if args.prince2_benchmark:
-        report = run_prince2_benchmark()
-        rendered = dumps_ascii(_with_json_schema("prince2 benchmark", report), indent=2)
-        if args.prince2_benchmark_output:
-            write_text_utf8(Path(args.prince2_benchmark_output), rendered)
-        print(rendered)
-        return 0 if report.get("overall", {}).get("passed") else 1
 
-    task = " ".join(args.task).strip()
-    if args.caveman_help:
-        task = "/caveman help"
-    elif args.caveman_commit:
-        task = "/caveman commit"
-    elif args.caveman_review:
-        task = "/caveman review"
-    elif args.caveman_compress:
-        task = f"/caveman compress {args.caveman_compress}"
-    elif args.caveman:
-        task = f"/caveman {args.caveman} {task}".strip()
-    elif args.interactive or not task:
-        return run_interactive_shell(config)
-    if task in {"help", "help topics", "help --json", "help topics --json"}:
-        if args.json or task.endswith("--json"):
-            print(dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2))
-        else:
-            print(interactive_help_text())
-        return 0
-    if task.startswith("help "):
-        topic = task.split(maxsplit=1)[1]
-        if topic == "--json":
-            print(dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2))
-            return 0
-        if topic.endswith(" --json"):
-            raw_topic = topic[: -len(" --json")].strip()
-            if raw_topic.lower() == "caveman":
-                print(dumps_ascii(_with_json_schema("help", {"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}), indent=2))
-            else:
-                print(dumps_ascii(_with_json_schema("help", _help_json_report(raw_topic)), indent=2))
-            return 0
-        if args.json:
-            print(dumps_ascii(_with_json_schema("help", _help_json_report(topic)), indent=2))
-        elif topic.lower() == "caveman":
-            print(Agent(config=config).caveman.help_text())
-        elif topic.lower() == "topics":
-            print(interactive_help_text())
-        else:
-            print(interactive_help_text(topic))
-        return 0
-    if task in {"commands", "commands --json"}:
-        if args.json or task == "commands --json":
-            print(dumps_ascii(_with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2))
-        else:
-            print(render_command_catalog())
-        return 0
-    if task == "slash choose" or task.startswith("slash choose "):
-        query = "" if task == "slash choose" else task.split(maxsplit=2)[2]
-        if args.json:
-            report = _slash_palette_report(config, query)
-            print(
-                dumps_ascii(
-                    _with_json_schema(
-                        "slash choose",
-                        {
-                            "command": "slash choose",
-                            "query": query,
-                            "no_match": report["no_match"],
-                            "message": report["message"],
-                            "entries": report["entries"][:10],
-                        },
-                    ),
-                    indent=2,
-                )
-            )
-        else:
-            print(_render_slash_choice_candidates(config, query))
-        return 0
-    if task == "slash" or task.startswith("slash "):
-        prefix = "" if task == "slash" else task.split(maxsplit=1)[1]
-        if prefix.endswith(" --json"):
-            prefix = prefix[: -len(" --json")].strip()
-        if args.json or task.endswith(" --json"):
-            print(dumps_ascii(_with_json_schema("slash", _slash_palette_report(config, prefix)), indent=2))
-        else:
-            print(_render_slash_palette(config, prefix))
-        return 0
-    if task == "doctor":
-        report = _doctor_report(config)
-        rendered = _render_doctor(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("doctor", report), indent=2))
-        else:
-            print(rendered)
-        return 0 if _doctor_ok(rendered) else 1
-    if task == "status":
-        agent = _configure_readonly_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("status", _status_dashboard_report(agent, config) if args.full else _status_report(agent, config)), indent=2))
-        else:
-            print(_render_status_full(agent, config) if args.full else _render_status(agent, config))
-        return 0
-    if task in {"status full", "status --full"}:
-        agent = _configure_readonly_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("status", _status_dashboard_report(agent, config)), indent=2))
-        else:
-            print(_render_status_full(agent, config))
-        return 0
-    if task == "prince2 benchmark":
-        report = run_prince2_benchmark()
-        rendered = dumps_ascii(_with_json_schema("prince2 benchmark", report), indent=2)
-        print(rendered)
-        return 0 if report.get("overall", {}).get("passed") else 1
-    if task == "statusline":
-        agent = _configure_readonly_agent_for_workspace(config)
-        print(dumps_ascii(_with_json_schema("statusline", _statusline_report(agent, config)), indent=2))
-        return 0
-    if task == "baseline":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("baseline", _agent_baseline_report(config)), indent=2))
-        else:
-            print(_render_agent_baseline(config))
-        return 0
-    if task == "battery":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("battery", _battery_report(config)), indent=2))
-        else:
-            print(_render_battery(config))
-        return 0
-    if task == "preflight":
-        agent = _configure_readonly_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("preflight", _preflight_report(agent, config)), indent=2))
-        else:
-            print(_render_preflight(agent, config))
-        return 0
-    if task == "shell backend":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("shell backend", _shell_backend_report(config)), indent=2))
-        else:
-            print(_render_shell_backend(config))
-        return 0
-    if task.startswith("shell backend use "):
-        response = _handle_shell_command(task.split(), config)
-        payload = _with_json_schema("shell backend use", {"command": "shell backend use", "message": response, "report": _shell_backend_report(config)})
-        if args.json:
-            print(dumps_ascii(_with_json_schema("shell backend use", payload), indent=2))
-        else:
-            print(response)
-        return 0
-    if task.startswith("auth status "):
-        provider = task.split(maxsplit=2)[2]
-        if args.json:
-            print(dumps_ascii(_with_json_schema("auth status", _auth_status_report(provider)), indent=2))
-        else:
-            print(_render_auth_status(provider))
-        return 0
-    if task == "overview":
-        agent = _configure_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("overview", _overview_report(agent, config)), indent=2))
-        else:
-            print(_render_overview(agent, config))
-        return 0
-    if task == "health":
-        agent = _configure_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("health", _health_report(agent, config)), indent=2))
-        else:
-            print(_render_health(agent, config))
-        return 0
-    if task == "report":
-        agent = _configure_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("report", _report_report(agent, config)), indent=2))
-        else:
-            print(_render_report(agent, config))
-        return 0
-    if task == "models":
-        agent = _configure_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("models", _model_status_report(agent, config)), indent=2))
-        else:
-            print(_render_model_status(agent, config))
-        return 0
-    if task in {"model limits", "models limits"}:
-        agent = _configure_readonly_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("model limits", _model_limits_report(agent, config)), indent=2))
-        else:
-            print(_render_model_limits(agent, config))
-        return 0
-    if (
-        task.startswith("model limit-record ")
-        or task.startswith("account limit-record ")
-        or task.startswith("model limit-clear ")
-        or task.startswith("account limit-clear ")
-    ):
-        agent = _configure_readonly_agent_for_workspace(config)
-        response = _handle_model_command(task, agent, config)
-        if response is None:
-            response = _handle_account_command(task, agent, config)
-        schema_command = " ".join(task.split()[:2])
-        payload = _with_json_schema(schema_command, {"command": schema_command, "message": response})
-        if args.json:
-            print(dumps_ascii(payload, indent=2))
-        else:
-            print(response or "No limit message recorded.")
-        return 0 if response else 1
-    if task == "catalog" or task.startswith("catalog "):
-        agent = _configure_readonly_agent_for_workspace(config)
-        if args.json:
-            parts = task.split()
-            if len(parts) == 1 or parts[1] == "status":
-                print(dumps_ascii(_with_json_schema("catalog status", _catalog_status_report()), indent=2))
-                return 0
-            if parts[1] == "search":
-                if len(parts) < 3:
-                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog search", "ok": False, "error": _catalog_usage()}), indent=2))
-                    return 1
-                query_parts: list[str] = []
-                provider = None
-                feature = None
-                for token in parts[2:]:
-                    if token.startswith("provider=") and len(token) > len("provider="):
-                        provider = token.split("=", 1)[1]
-                        continue
-                    if token.startswith("feature=") and len(token) > len("feature="):
-                        feature = token.split("=", 1)[1]
-                        continue
-                    query_parts.append(token)
-                query = " ".join(query_parts).strip()
-                if not query and not provider and not feature:
-                    print(dumps_ascii(_with_json_schema("catalog search", {"command": "catalog search", "ok": False, "error": _catalog_usage()}), indent=2))
-                    return 1
-                print(dumps_ascii(_with_json_schema("catalog search", _catalog_search_report(query, provider, feature=feature)), indent=2))
-                return 0
-            if parts[1] == "refresh":
-                try:
-                    include_artificial_analysis = _parse_catalog_refresh_flags(parts[2:])
-                except ValueError:
-                    print(dumps_ascii(_with_json_schema("catalog refresh", {"command": "catalog refresh", "ok": False, "error": _catalog_usage()}), indent=2))
-                    return 1
-                catalog = write_ai_models_catalog(include_artificial_analysis=include_artificial_analysis)
-                catalog["include_artificial_analysis"] = include_artificial_analysis
-                print(dumps_ascii(_with_json_schema("catalog refresh", _catalog_refresh_report(catalog)), indent=2))
-                return 0
-        response = _handle_model_command(task, agent, config)
-        payload = _with_json_schema("catalog", {"command": task, "message": response})
-        if args.json:
-            print(dumps_ascii(payload, indent=2))
-        else:
-            print(response or _catalog_usage())
-        return 0 if response else 1
-    if task == "model inspect" or task.startswith("model inspect "):
-        agent = _configure_readonly_agent_for_workspace(config)
-        parts = task.split()
-        if len(parts) not in {3, 4}:
-            payload = _with_json_schema("model inspect", {"command": "model inspect", "ok": False, "error": "Usage: model inspect <provider> [provider_model]"})
-            if args.json:
-                print(dumps_ascii(_with_json_schema("model inspect", payload), indent=2))
-            else:
-                print(payload["error"])
-            return 1
-        provider = parts[2]
-        provider_model = parts[3] if len(parts) == 4 else None
-        try:
-            report = _inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
-        except ValueError as exc:
-            payload = _with_json_schema("model inspect", {"command": "model inspect", "ok": False, "error": str(exc)})
-            if args.json:
-                print(dumps_ascii(_with_json_schema("model inspect", payload), indent=2))
-            else:
-                print(payload["error"])
-            return 1
-        if args.json:
-            print(dumps_ascii(_with_json_schema("model inspect", report), indent=2))
-        else:
-            print(_render_provider_model_inspection(report))
-        return 0
-    if task.startswith("model "):
-        agent = _configure_readonly_agent_for_workspace(config)
-        response = _handle_model_command(task, agent, config)
-        if response is None:
-            print(_model_usage())
-            return 1
-        if args.json:
-            print(dumps_ascii(_with_json_schema("model", {"command": task, "message": response, "models": _model_status_report(agent, config)}), indent=2))
-        else:
-            print(response)
-        return 0
-    if task == "accounts":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("accounts", _accounts_report(config)), indent=2))
-        else:
-            print(_render_accounts(config))
-        return 0
-    if task == "roles":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles", _prince2_roles_report(config)), indent=2))
-        else:
-            print(_render_prince2_roles(config))
-        return 0
-    if task == "project brief":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("project brief", _project_brief_report(config)), indent=2))
-        else:
-            print(_render_project_brief(config))
-        return 0
-    if task == "project design":
-        agent = _configure_readonly_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("project design", _project_design_report(agent, config)), indent=2))
-        else:
-            print(_render_project_design(agent, config))
-        return 0
-    if task in {"project tree propose", "project tree propose --ai"}:
-        use_ai = task.endswith(" --ai")
-        agent = _configure_readonly_agent_for_workspace(config) if use_ai else None
-        report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
-        _record_project_tree_proposal_action(config, report, task=task)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("project tree propose", report), indent=2))
-        else:
-            print(_render_project_tree_proposal_report(report))
-        return 0
-    if task in {"project tree approve", "project tree approve --force"}:
-        force = task.endswith(" --force")
-        report = _approve_project_tree_proposal(config, force=force)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("project tree approve", report), indent=2))
-        else:
-            print(_render_project_tree_approval_report(report, config))
-        return 0 if report["status"] == "approved" else 1
-    if task == "roles domains":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles domains", _prince2_role_domains_report()), indent=2))
-        else:
-            print(_render_prince2_role_domains())
-        return 0
-    if task == "roles tree":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles tree", _prince2_role_tree_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_tree(config))
-        return 0
-    if task == "roles tree approve":
-        agent = _configure_readonly_agent_for_workspace(config)
-        response = _handle_role_command(task, agent, config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles tree approve", _prince2_role_tree_baseline_report(config)), indent=2))
-        else:
-            print(response)
-        return 0
-    if task == "roles baseline":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles baseline", _prince2_role_tree_baseline_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_tree_baseline(config))
-        return 0
-    if task == "roles baseline matrix":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles baseline matrix", _prince2_role_tree_baseline_matrix_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_tree_baseline_matrix(config))
-        return 0
-    if task.startswith("roles context "):
-        node_id = task.split(maxsplit=2)[2]
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles context", _prince2_role_context_report(config, node_id)), indent=2))
-        else:
-            print(_render_prince2_role_context(config, node_id))
-        return 0
-    if task == "roles active":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles active", _prince2_role_active_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_active(config))
-        return 0
-    if task == "goal" or task.startswith("goal "):
-        report = _goal_command_report(task, config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("goal", report), indent=2))
-        else:
-            if report.get("ok") is False:
-                print(report.get("error", "Goal command failed."))
-            elif task == "goal":
-                print(_render_goal_report(config))
-            else:
-                goal = report.get("goal", {})
-                if isinstance(goal, dict):
-                    print(f"Goal {goal.get('status', 'updated')}: {goal.get('objective', '') or 'none'}")
-                else:
-                    print("Goal updated.")
-        return 0 if report.get("ok", True) else 1
-    if task == "roles control":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles control", _prince2_role_control_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_control(config))
-        return 0
-    if task == "roles queues":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles queues", _prince2_role_queue_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_queues(config))
-        return 0
-    if task == "roles messages" or task.startswith("roles messages "):
-        node_id = task.split(maxsplit=2)[2] if len(task.split(maxsplit=2)) == 3 else None
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles messages", _prince2_role_messages_report(config, node_id=node_id)), indent=2))
-        else:
-            print(_render_prince2_role_messages(config, node_id=node_id))
-        return 0
-    if task == "roles runtime":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles runtime", _prince2_role_runtime_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_runtime(config))
-        return 0
-    if task == "roles tick" or task.startswith("roles tick "):
-        max_nodes = None
-        if task != "roles tick":
-            try:
-                max_nodes = int(task.split(maxsplit=2)[2])
-            except (ValueError, IndexError):
-                error_payload = _with_json_schema("roles tick", {"command": "roles tick", "ok": False, "error": "Usage: roles tick [max_nodes]"})
-                if args.json:
-                    print(dumps_ascii(_with_json_schema("roles tick", error_payload), indent=2))
-                else:
-                    print(error_payload["error"])
-                return 1
-        result = _tick_prince2_role_runtime(config, max_nodes=max_nodes)
-        if args.json:
-            print(
-                dumps_ascii(
-                    _with_json_schema(
-                        "roles tick",
-                    {
-                        "command": "roles tick",
-                        "ok": True,
-                        "result": result,
-                        "runtime": _prince2_role_runtime_report(config),
-                        "messages": _prince2_role_messages_report(config),
-                    },
-                    ),
-                    indent=2,
-                )
-            )
-        else:
-            print(
-                f"Batch advanced PRINCE2 runtime: processed={result.get('processed')} "
-                f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')}.\n"
-                + _render_prince2_role_runtime(config)
-            )
-        return 0
-    if task == "roles check":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles check", _prince2_role_check_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_check(config))
-        return 0
-    if task == "roles flow":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles flow", _prince2_role_flow_report()), indent=2))
-        else:
-            print(_render_prince2_role_flow())
-        return 0
-    if task == "roles matrix":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("roles matrix", _prince2_role_matrix_report(config)), indent=2))
-        else:
-            print(_render_prince2_role_matrix(config))
-        return 0
-    if task.startswith("project brief "):
-        response = _handle_project_brief_command(task, config)
-        if response is None:
-            print("Usage: project brief | project brief set <field> <value> | project brief clear [field]")
-            return 1
-        if args.json:
-            schema_command = "project brief set" if task.startswith("project brief set") else "project brief clear" if task.startswith("project brief clear") else "project brief"
-            print(dumps_ascii(_with_json_schema(schema_command, {"command": task, "message": response, "project_brief": _project_brief_report(config)}), indent=2))
-        else:
-            print(response)
-        return 0
-    if task.startswith("roles ") or task.startswith("role ") or task in {"project start", "project start --ai"}:
-        agent = _configure_readonly_agent_for_workspace(config)
-        response = _handle_role_command(task, agent, config)
-        if response is None:
-            print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text_with_underscores> | role wake <node_id> trigger=<name> | role tick <node_id> | project start [--ai]")
-            return 1
-        if args.json:
-            if task.startswith("role message "):
-                parts = task.split()
-                node_id = parts[3] if len(parts) >= 4 else None
-                print(
-                    dumps_ascii(
-                        _with_json_schema(
-                            "roles messages",
-                        {
-                            "command": task,
-                            "message": response,
-                            "messages": _prince2_role_messages_report(config, node_id=node_id),
-                        },
-                        ),
-                        indent=2,
-                    )
-                )
-            elif task.startswith("role wait ") or task.startswith("role wake ") or task.startswith("role tick "):
-                parts = task.split()
-                node_id = parts[2] if len(parts) >= 3 else None
-                print(
-                    dumps_ascii(
-                        _with_json_schema(
-                            "roles runtime",
-                        {
-                            "command": task,
-                            "message": response,
-                            "runtime": _prince2_role_runtime_report(config),
-                            "messages": _prince2_role_messages_report(config, node_id=node_id),
-                        },
-                        ),
-                        indent=2,
-                    )
-                )
-            elif task.startswith("roles tick"):
-                print(
-                    dumps_ascii(
-                        _with_json_schema(
-                            "roles tick",
-                        {
-                            "command": task,
-                            "result": _tick_prince2_role_runtime(
-                                config,
-                                max_nodes=int(task.split(maxsplit=2)[2]) if len(task.split(maxsplit=2)) == 3 else None,
-                            ),
-                            "runtime": _prince2_role_runtime_report(config),
-                            "messages": _prince2_role_messages_report(config),
-                        },
-                        ),
-                        indent=2,
-                    )
-                )
-            else:
-                print(dumps_ascii(_with_json_schema("roles", {"command": task, "message": response, "roles": _prince2_roles_report(config)}), indent=2))
-        else:
-            print(response)
-        return 1 if task.startswith("project start") and not _project_start_ready(config) else 0
-    if task in {"sources", "sources status"} or task.startswith("sources "):
-        if args.json:
-            if task == "sources update":
-                report = _with_json_schema("sources update", _sources_update_report(config))
-                print(dumps_ascii(_with_json_schema("sources update", report), indent=2))
-                return 0 if report.get("ok") else 1
-            if task in {"sources", "sources status", "sources status --strict"}:
-                strict = task == "sources status --strict"
-                report = _with_json_schema("sources status", _sources_status_report(config, strict=strict))
-                print(dumps_ascii(_with_json_schema("sources status", report), indent=2))
-                return 0 if not strict or report.get("ok") else 1
-            print(dumps_ascii(_with_json_schema("sources status", {"command": task, "ok": False, "error": "Usage: sources | sources status [--strict] | sources update"}), indent=2))
-            return 1
-        response = _handle_sources_command(task, config)
-        if response is None or response.startswith("Usage:"):
-            print(response or "Usage: sources | sources status [--strict] | sources update")
-            return 1
-        print(response)
-        return 0 if task != "sources status --strict" or _sources_status_report(config, strict=True).get("ok") else 1
-    if task in {"update status", "update check", "update check --json", "update apply", "update apply --yes"} or task.startswith("update "):
-        if args.json or task == "update check --json":
-            if task in {"update status"}:
-                report = _with_json_schema("update status", _update_status_report(config))
-            elif task in {"update check", "update check --json"}:
-                report = _with_json_schema("update check", _update_status_report(config, fetch=True))
-            elif task in {"update apply", "update apply --yes"}:
-                report = _with_json_schema("update apply", _update_apply_report(config, confirmed=task.endswith(" --yes")))
-            else:
-                report = _with_json_schema("update", {"command": task, "ok": False, "error": "Usage: update status | update check [--json] | update apply --yes"})
-            print(dumps_ascii(_with_json_schema((report or {}).get("command", "update"), report), indent=2))
-            return 0 if report.get("ok") else 1
-        response = _handle_update_command(task, config)
-        if response is None or response.startswith("Usage:"):
-            print(response or "Usage: update status | update check [--json] | update apply --yes")
-            return 1
-        print(response)
-        return 0 if "\n- ok: false" not in response else 1
-    if task == "extensions" or task.startswith("extension ") or task.startswith("extensions "):
-        if args.json:
-            if task == "extensions":
-                report = _with_json_schema("extensions", discover_extensions(config.workspace_root))
-            elif task.startswith("extension scaffold "):
-                try:
-                    report = _with_json_schema("extensions", scaffold_extension(config.workspace_root, task.split(maxsplit=2)[2]))
-                    _record_handoff_action(
-                        config,
-                        phase="extension_scaffold",
-                        task=task,
-                        summary=f"Created extension scaffold {report['name']}.",
-                        details=report,
-                    )
-                except ValueError as exc:
-                    report = {"command": "extension scaffold", "ok": False, "error": str(exc)}
-            else:
-                report = {"command": task, "ok": False, "error": "Usage: extensions | extension scaffold <name>"}
-            print(dumps_ascii(_with_json_schema("extensions", report), indent=2))
-            if task == "extensions":
-                return 0
-            return 0 if report.get("ok") else 1
-        response = _handle_extension_command(task, config)
-        if response is None or response.startswith("Usage:") or response.startswith("Extension scaffold failed"):
-            print(response or "Usage: extensions | extension scaffold <name>")
-            return 1
-        print(response)
-        return 0
-    if task.startswith("file "):
-        report = _file_command_report(task, config)
-        if args.json:
-            schema_command = (report or {}).get("command", "file")
-            if schema_command not in {"file inspect", "file stat", "file copy", "file move", "file delete", "file chmod", "file chown"}:
-                schema_command = "file"
-            print(dumps_ascii(_with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported file command"}), indent=2))
-            return 0 if report and report.get("ok") else 1
-        response = _handle_file_command(task, config)
-        print(response or "Usage: file inspect <path> | file stat <path> | file copy <source> <destination> [--overwrite] [--dry-run] | file move <source> <destination> [--overwrite] [--dry-run] | file delete <path> [--recursive] [--dry-run] | file chmod <path> <mode> [--recursive] [--dry-run] | file chown <path> <user> [group] [--recursive] [--dry-run]")
-        return 0 if report and report.get("ok") else 1
-    if (
-        task.startswith("web search ")
-        or task.startswith("download ")
-        or task.startswith("checksum ")
-        or task.startswith("compress ")
-        or task.startswith("archive verify ")
-        or task in {"download", "checksum", "compress", "archive", "web"}
-    ):
-        if args.json:
-            report = _external_io_report(task, config)
-            schema_command = (report or {}).get("command", "external_io")
-            if schema_command not in {"web search", "download", "checksum", "compress", "archive verify"}:
-                schema_command = "external_io"
-            print(dumps_ascii(_with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported external IO command"}), indent=2))
-            return 0 if report and report.get("ok") else 1
-        response = _handle_external_io_command(task, config)
-        print(response or "Usage: web search <query> | download <url> [path] [--max-bytes N] | checksum <path> | compress <path> [target.gz] | archive verify <path.gz>")
-        return 0 if response and ": OK " in response else 1
-    if task == "permissions":
-        if args.json:
-            print(
-                dumps_ascii(
-                    _with_json_schema("permissions", {"command": "permissions", "report": _permissions_report(config)}),
-                    indent=2,
-                )
-            )
-        else:
-            print(_render_permissions(config))
-        return 0
-    if task in {"board", "stage review"}:
-        if args.json:
-            print(dumps_ascii(_with_json_schema("board", _board_report(config)), indent=2))
-        else:
-            print(_render_board(config))
-        return 0
-    if task in {"sessions", "session list"}:
-        agent = _configure_agent_for_workspace(config)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("sessions", _shell_sessions_report(agent)), indent=2))
-        else:
-            shell_session_message = _handle_shell_session_command(task, agent)
-            print(shell_session_message or "No active shell sessions.")
-        return 0
-    if task.startswith("git "):
-        if args.json:
-            report = _git_command_report(task, config)
-            schema_command = (report or {}).get("command", "git")
-            if schema_command not in {"git status", "git log", "git history", "git show"}:
-                schema_command = "git"
-            print(dumps_ascii(_with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported git command"}), indent=2))
-            return 0 if report and report.get("ok") else 1
-        else:
-            git_message = _handle_git_command(task, config)
-            if git_message is not None:
-                print(git_message)
-            else:
-                print("Usage: git status | git log [limit] | git history <path> [limit] | git show [--stat] [revision]")
-        return 0
-    if task == "boundary":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("boundary", _boundary_report(config)), indent=2))
-        else:
-            print(_render_boundary(config))
-        return 0
-    if task == "risks" or task.startswith("risks close"):
-        if task.startswith("risks close"):
-            resolution = task.partition("close")[2].strip() or "Resolved by explicit mitigation and wet-run validation."
-            if args.json:
-                print(dumps_ascii(_with_json_schema("risks", _risks_close_report(config, resolution)), indent=2))
-            else:
-                print(_render_risks_close(config, resolution))
-            return 0
-        if args.json:
-            print(dumps_ascii(_with_json_schema("risks", _risks_report(config)), indent=2))
-        else:
-            print(_render_risks(config))
-        return 0
-    if task == "issues" or task.startswith("issues close"):
-        if task.startswith("issues close"):
-            resolution = task.partition("close")[2].strip() or "Resolved by explicit corrective action and wet-run validation."
-            if args.json:
-                print(dumps_ascii(_with_json_schema("issues", _issues_close_report(config, resolution)), indent=2))
-            else:
-                print(_render_issues_close(config, resolution))
-            return 0
-        if args.json:
-            print(dumps_ascii(_with_json_schema("issues", _issues_report(config)), indent=2))
-        else:
-            print(_render_issues(config))
-        return 0
-    if task == "quality" or task.startswith("quality close"):
-        if task.startswith("quality close"):
-            resolution = task.partition("close")[2].strip() or "Accepted by explicit validation and wet-run evidence."
-            if args.json:
-                print(dumps_ascii(_with_json_schema("quality", _quality_close_report(config, resolution)), indent=2))
-            else:
-                print(_render_quality_close(config, resolution))
-            return 0
-        if args.json:
-            print(dumps_ascii(_with_json_schema("quality", _quality_report(config)), indent=2))
-        else:
-            print(_render_quality(config))
-        return 0
-    if task == "exception":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("exception", _exception_report(config)), indent=2))
-        else:
-            print(_render_exception(config))
-        return 0
-    if task == "lessons":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("lessons", _lessons_report(config)), indent=2))
-        else:
-            print(_render_lessons(config))
-        return 0
-    if task == "todo":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("todo", _todo_report(config)), indent=2))
-        else:
-            print(_render_todo(config))
-        return 0
-    if task in {"transcript", "trace"}:
-        if args.json:
-            print(dumps_ascii(_with_json_schema("transcript", _transcript_report(config)), indent=2))
-        else:
-            print(_render_transcript(config))
-        return 0
-    if task == "handoff":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("handoff", _handoff_report(config)), indent=2))
-        else:
-            print(_render_handoff(config))
-        return 0
-    if task == "handoff actions" or task.startswith("handoff actions "):
-        parts = task.split()
-        limit = _parse_optional_limit(parts)
-        if args.json:
-            print(dumps_ascii(_with_json_schema("handoff", _handoff_actions_report(config, limit=limit)), indent=2))
-        else:
-            print(_render_handoff_actions(config, limit=limit))
-        return 0
-    if task in {"handoff export", "handoff md"}:
-        if args.json:
-            print(dumps_ascii(_with_json_schema("handoff", _export_handoff_markdown_report(config)), indent=2))
-        else:
-            print(_export_handoff_markdown(config))
-        return 0
-    if task == "resume --show":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("resume --show", _resume_show_report(config)), indent=2))
-        else:
-            print(_render_resume_show(config))
-        return 0
-    if task == "resume context":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("resume context", _resume_context_payload(config)), indent=2))
-        else:
-            print(_render_resume_context(config))
-        return 0
-    if task == "resume --clear":
-        if args.json:
-            print(dumps_ascii(_with_json_schema("resume --clear", _archive_and_clear_handoff_report(config)), indent=2))
-        else:
-            print(_archive_and_clear_handoff(config))
-        return 0
-    if task in {"models usage", "cost"}:
-        if args.json:
-            print(dumps_ascii(_with_json_schema("models usage", _model_usage_report(config)), indent=2))
-        else:
-            print(_render_model_usage(config))
-        return 0
+def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    return _status_views._report_report(agent, config)
 
-    agent = _configure_agent_for_workspace(config)
-    result = agent.run(task)
-    print(result.message)
-    return 0 if result.ok else 1
+
+def _doctor_report(config: AgentConfig) -> dict[str, object]:
+    return _status_views._doctor_report(config)
+
+
+def _doctor_ok(rendered: str) -> bool:
+    return _status_views._doctor_ok(rendered)
+
+
+def _render_preflight(agent: Agent, config: AgentConfig) -> str:
+    return _status_views._render_preflight(agent, config)
+
+
+def _render_report(agent: Agent, config: AgentConfig) -> str:
+    return _status_views._render_report(agent, config)
+
+
+def _render_doctor(config: AgentConfig) -> str:
+    return _status_views._render_doctor(config)
+
+
+def _render_status_full(agent: Agent, config: AgentConfig) -> str:
+    return _status_views._render_status_full(agent, config)
+
+
+def _render_model_usage(config: AgentConfig) -> str:
+    return _status_views._render_model_usage(config)
+
+
+def _model_usage_report(config: AgentConfig) -> dict[str, object]:
+    return _status_views._model_usage_report(config)
+
+
+def _render_cost_sidebar(agent: Agent, config: AgentConfig) -> str:
+    return _status_views._render_cost_sidebar(agent, config)
+
+
+def _battery_views():
+    from . import battery_views as battery_views_module
+
+    return battery_views_module
+
+
+def _battery_report(config: AgentConfig) -> dict[str, object]:
+    return _battery_views()._battery_report(config)
+
+
+def _render_battery(config: AgentConfig) -> str:
+    return _battery_views()._render_battery(config)
 
 
 if __name__ == "__main__":

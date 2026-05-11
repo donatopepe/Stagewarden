@@ -15,6 +15,36 @@ STATUS_COLOR_LEGEND = {
     "grey": "idle or unassigned",
 }
 
+PRINCE2_ROLE_TEAM_NAMES: dict[str, str] = {
+    "project_executive": "Board",
+    "senior_user": "Board",
+    "senior_supplier": "Board",
+    "project_manager": "Management",
+    "team_manager": "Delivery",
+    "project_assurance": "Assurance",
+    "project_support": "Support",
+    "change_authority": "Authority",
+}
+
+PRINCE2_ROLE_MNEMONICS: dict[str, str] = {
+    "project_executive": "PEX",
+    "senior_user": "SU",
+    "senior_supplier": "SS",
+    "project_manager": "PM",
+    "team_manager": "TM",
+    "project_assurance": "PA",
+    "project_support": "PS",
+    "change_authority": "CA",
+}
+
+
+def prince2_role_team_name(role: str) -> str:
+    return PRINCE2_ROLE_TEAM_NAMES.get(role, "Unassigned")
+
+
+def prince2_role_mnemonic(role: str) -> str:
+    return PRINCE2_ROLE_MNEMONICS.get(role, role[:3].upper() or "NOD")
+
 
 @dataclass(frozen=True)
 class RoleContextRule:
@@ -69,7 +99,9 @@ def prince2_status_color(node: dict[str, object], *, runtime_state: str | None =
 @dataclass(frozen=True)
 class RoleTreeNode:
     node_id: str
+    mnemonic: str
     role_type: str
+    team_name: str
     label: str
     description: str
     parent_id: str | None
@@ -349,7 +381,9 @@ def build_prince2_role_tree_with_tolerance(
         nodes.append(
             RoleTreeNode(
                 node_id=str(raw["node_id"]),
+                mnemonic=prince2_role_mnemonic(role_type),
                 role_type=role_type,
+                team_name=prince2_role_team_name(role_type),
                 label=PRINCE2_ROLE_LABELS[role_type],
                 description=prince2_node_description(
                     {
@@ -535,7 +569,9 @@ def build_prince2_role_matrix_payload(tree: dict[str, object], prefs: ModelPrefe
         rows.append(
             {
                 "node_id": node.get("node_id"),
+                "mnemonic": node.get("mnemonic"),
                 "role_type": node.get("role_type"),
+                "team_name": node.get("team_name"),
                 "label": node.get("label"),
                 "parent_id": node.get("parent_id"),
                 "level": node.get("level"),
@@ -547,6 +583,7 @@ def build_prince2_role_matrix_payload(tree: dict[str, object], prefs: ModelPrefe
                 "escalation_target": node.get("escalation_target"),
                 "provider": provider or None,
                 "provider_model": assignment.get("provider_model") if assignment else None,
+                "mode": assignment.get("mode") if assignment else None,
                 "params": dict(assignment.get("params", {})) if isinstance(assignment.get("params"), dict) else {},
                 "account": account or None,
                 "provider_blocked_until": (prefs.blocked_until_by_model or {}).get(provider) if provider else None,
@@ -587,7 +624,8 @@ def render_prince2_role_matrix(matrix: dict[str, object]) -> str:
         provider_block = f" provider_blocked_until={row.get('provider_blocked_until')}" if row.get("provider_blocked_until") else ""
         account_block = f" account_blocked_until={row.get('account_blocked_until')}" if row.get("account_blocked_until") else ""
         lines.append(
-            f"- {row.get('label')} [{row.get('node_id')}]: readiness={row.get('readiness')} "
+            f"- {row.get('label')} [{row.get('node_id')}]: mnemonic={row.get('mnemonic')} team={row.get('team_name')} "
+            f"readiness={row.get('readiness')} mode={row.get('mode') or 'manual'} "
             f"owner={row.get('accountable_owner') or 'user'} "
             f"margin={row.get('tolerance_margin_percent')} pressure={row.get('tolerance_pressure_percent')} "
             f"provider={row.get('provider') or 'none'} provider_model={row.get('provider_model') or 'none'} "
@@ -644,9 +682,11 @@ def render_prince2_role_tree(tree: dict[str, object]) -> str:
         next_prefix = f"{prefix}   " if is_last else f"{prefix}|  "
         lines.append(
             f"{prefix}{connector} {node.get('label')} [{node.get('node_id')}] "
+            f"mnemonic={node.get('mnemonic')} team={node.get('team_name')} "
             f"level={node.get('level')} readiness={node.get('readiness')} "
             f"color={status_color} owner={node.get('accountable_owner') or 'user'} "
             f"margin={node.get('tolerance_margin_percent')} pressure={node.get('tolerance_pressure_percent')} "
+            f"mode={(assignment.get('mode', 'manual') if isinstance(assignment, dict) else 'manual')} "
             f"provider={provider} provider_model={provider_model} shell=role shell {node.get('node_id')}"
         )
         lines.append(f"{prefix}   description={description}")

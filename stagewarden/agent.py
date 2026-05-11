@@ -119,6 +119,40 @@ class Agent:
         self._save_pid(pid)
 
         if not assessment.allowed:
+            if assessment.clarification_questions:
+                question = assessment.clarification_questions[0]
+                user_question = self.project_handoff.ask_user(
+                    question=question,
+                    reason="clarification",
+                    context={
+                        "task": effective_task,
+                        "reasons": list(assessment.reasons),
+                        "escalation_required": assessment.escalation_required,
+                    },
+                )
+                pid.status = "waiting"
+                pid.outcome = question
+                self._save_pid(pid)
+                self._save_handoff()
+                self._trace(
+                    phase="await_user_clarification",
+                    iteration=0,
+                    task=effective_task,
+                    prince2_assessment=assessment.as_dict(),
+                    prince2_pid=pid.as_dict(),
+                    clarification_question=user_question,
+                    plan_status=self._plan_status(plan),
+                )
+                self._save_trace()
+                message = (
+                    "Clarification needed.\n"
+                    f"- question: {question}\n"
+                    f"- reason: {assessment.reasons[0] if assessment.reasons else 'task requires clarification'}\n"
+                    "Reply with the answer in the shell, or rerun the task with more detail."
+                )
+                if directive.active:
+                    message = self.caveman.format_text(message, directive.level)
+                return AgentResult(False, 0, message)
             pid.status = "rejected"
             pid.outcome = "Rejected by PRINCE2 governance gate before execution."
             self._save_pid(pid)

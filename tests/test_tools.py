@@ -5,16 +5,21 @@ import json
 import os
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from stagewarden.config import AgentConfig
 from stagewarden.permissions import PermissionPolicy, PermissionSettings
 from stagewarden.runtime_env import select_shell_backend
 from stagewarden.shell_compat import command_requires_posix_shell, prepare_command_for_shell, shell_env_reference, shell_path_literal, shell_quote
+from stagewarden.tools.browser import BrowserTool
 from stagewarden.tools.git import GitTool
 from stagewarden.tools.external_io import ExternalIOTool
 from stagewarden.tools.files import FileTool
+from stagewarden.tools.system import SystemTool
+from stagewarden.tools.watch import WatchTool
 from stagewarden.tools.shell import ShellTool
 from stagewarden.textcodec import detect_confusables
 
@@ -116,6 +121,134 @@ class ToolTests(unittest.TestCase):
                 server.shutdown()
                 thread.join(timeout=2)
                 server.server_close()
+
+    def test_browser_tool_fetch_and_open(self) -> None:
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                body = b"<html><head><title>Stagewarden</title></head><body><a href='https://example.test'>Example</a></body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            except PermissionError as exc:
+                self.skipTest(f"local HTTP bind unavailable: {exc}")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                tool = BrowserTool(Path(tmp_dir))
+                url = f"http://127.0.0.1:{server.server_port}/index.html"
+                fetched = tool.fetch(url)
+                self.assertTrue(fetched.ok, fetched.error)
+                self.assertEqual(fetched.title, "Stagewarden")
+                self.assertTrue(any(item["href"] == "https://example.test" for item in (fetched.items or [])))
+
+                with patch("stagewarden.tools.browser.webbrowser.open", return_value=True):
+                    opened = tool.open(url)
+                    self.assertTrue(opened.ok, opened.error)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+
+    def test_watch_tool_detects_file_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            target = root / "watched.txt"
+            target.write_text("before\n", encoding="utf-8")
+            tool = WatchTool(root, timeout_seconds=1.5, poll_interval=0.1)
+
+            def mutate() -> None:
+                time.sleep(0.2)
+                target.write_text("after\n", encoding="utf-8")
+
+            thread = threading.Thread(target=mutate, daemon=True)
+            thread.start()
+            result = tool.watch("watched.txt", timeout_seconds=1.2, recursive=False, poll_interval=0.1)
+            thread.join(timeout=2)
+            self.assertTrue(result.ok, result.error)
+            self.assertTrue(any(item.get("event_type") in {"modified", "changed"} for item in (result.items or [])))
+
+    def test_external_io_hash_and_archive_roundtrip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            bundle = root / "bundle"
+            (bundle / "nested").mkdir(parents=True)
+            (bundle / "nested" / "data.txt").write_text("hello archive\n", encoding="utf-8")
+            tool = ExternalIOTool(root)
+
+            hashed = tool.hash_file("bundle/nested/data.txt", algorithm="md5")
+            self.assertTrue(hashed.ok, hashed.error)
+            self.assertEqual(hashed.hash_algorithm, "md5")
+            self.assertTrue(hashed.digest)
+
+            created = tool.archive_create("bundle", "exports/bundle.tar.gz")
+            self.assertTrue(created.ok, created.error)
+            self.assertEqual(created.path, "exports/bundle.tar.gz")
+            self.assertNotIn(".tar.tar.gz", created.message)
+            self.assertTrue((root / "exports" / "bundle.tar.gz").exists())
+
+            listed = tool.archive_list("exports/bundle.tar.gz")
+            self.assertTrue(listed.ok, listed.error)
+            self.assertTrue(any(item["name"].endswith("data.txt") for item in (listed.items or [])))
+
+            extracted = tool.archive_extract("exports/bundle.tar.gz", "expanded")
+            self.assertTrue(extracted.ok, extracted.error)
+            self.assertTrue((root / "expanded" / "bundle" / "nested" / "data.txt").exists())
+
+    def test_system_tool_info_process_port_and_url(self) -> None:
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                body = b"ok"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = SystemTool(root, max_items=5)
+
+            info = tool.info()
+            self.assertTrue(info.ok, info.error)
+            self.assertIn("platform", info.info or {})
+
+            usage = tool.disk_usage(".")
+            self.assertTrue(usage.ok, usage.error)
+            self.assertIn("total", usage.info or {})
+
+            listed = tool.process_list(limit=3)
+            self.assertTrue(listed.ok, listed.error)
+            self.assertLessEqual(len(listed.items or []), 3)
+
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            except PermissionError as exc:
+                self.skipTest(f"local HTTP bind unavailable: {exc}")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                port = tool.port_check("127.0.0.1", server.server_port)
+                self.assertTrue(port.ok, port.error)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+
+            with patch("stagewarden.tools.system.webbrowser.open", return_value=True):
+                opened = tool.open_url("https://example.test")
+                self.assertTrue(opened.ok, opened.error)
 
     def test_git_tool_initializes_repository_and_commits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

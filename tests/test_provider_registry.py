@@ -54,12 +54,102 @@ class ProviderRegistryTests(unittest.TestCase):
         backends = model_backends()
         self.assertEqual(backends["claude"]["label"], "claude/sonnet")
         self.assertIn("opusplan", available_model_variants("claude"))
-        self.assertEqual(canonicalize_model_variant("openai", "gpt-5.4-mini"), "gpt-5.4-mini")
+        self.assertIn(canonicalize_model_variant("openai", "gpt-5.4-mini"), available_model_variants("openai"))
+
+    def test_catalog_driven_provider_presets_are_dynamic(self) -> None:
+        catalog = {
+            "models": [
+                {
+                    "provider": "openai",
+                    "model_id": "gpt-5.4-nano",
+                    "model_name": "GPT-5.4 Nano",
+                    "context_window": 128000,
+                    "cost_per_input_token_usd": 1e-6,
+                    "cost_per_output_token_usd": 4e-6,
+                    "blended_price_usd_per_1m_tokens": 2.5,
+                    "features": ["text"],
+                    "source": "openrouter:gpt-5.4-nano",
+                },
+                {
+                    "provider": "openai",
+                    "model_id": "gpt-5.4",
+                    "model_name": "GPT-5.4",
+                    "context_window": 1048576,
+                    "cost_per_input_token_usd": 2.5e-6,
+                    "cost_per_output_token_usd": 1.5e-5,
+                    "blended_price_usd_per_1m_tokens": 5.63,
+                    "features": ["text", "reasoning", "tool_use", "structured_output"],
+                    "source": "openrouter:gpt-5.4",
+                },
+                {
+                    "provider": "claude",
+                    "model_id": "haiku",
+                    "model_name": "Claude Haiku",
+                    "context_window": 200000,
+                    "cost_per_input_token_usd": 8e-7,
+                    "cost_per_output_token_usd": 4e-6,
+                    "blended_price_usd_per_1m_tokens": 1.6,
+                    "features": ["text"],
+                    "source": "anthropic:haiku",
+                },
+                {
+                    "provider": "claude",
+                    "model_id": "opus",
+                    "model_name": "Claude Opus",
+                    "context_window": 1000000,
+                    "cost_per_input_token_usd": 1.5e-5,
+                    "cost_per_output_token_usd": 7.5e-5,
+                    "blended_price_usd_per_1m_tokens": 33.75,
+                    "features": ["text", "reasoning", "tool_use"],
+                    "source": "anthropic:opus",
+                },
+                {
+                    "provider": "cheap",
+                    "model_id": "provider-default",
+                    "model_name": "Provider default",
+                    "features": [],
+                    "source": "openrouter:provider-default",
+                },
+                {
+                    "provider": "cheap",
+                    "model_id": "cheap-fast",
+                    "model_name": "Cheap Fast",
+                    "context_window": 128000,
+                    "cost_per_input_token_usd": 5e-7,
+                    "cost_per_output_token_usd": 1e-6,
+                    "blended_price_usd_per_1m_tokens": 0.88,
+                    "features": ["text"],
+                    "source": "openrouter:cheap-fast",
+                },
+                {
+                    "provider": "cheap",
+                    "model_id": "cheap-deep",
+                    "model_name": "Cheap Deep",
+                    "context_window": 1000000,
+                    "cost_per_input_token_usd": 2e-6,
+                    "cost_per_output_token_usd": 8e-6,
+                    "blended_price_usd_per_1m_tokens": 3.5,
+                    "features": ["text", "reasoning", "tool_use"],
+                    "source": "openrouter:cheap-deep",
+                },
+            ]
+        }
+        with patch("stagewarden.provider_registry._load_ai_models_catalog", return_value=catalog):
+            self.assertIn("gpt-5.4-nano", available_model_variants("openai"))
+            self.assertEqual(provider_model_preset("openai", "fast")[0], "gpt-5.4-nano")
+            self.assertEqual(provider_model_preset("openai", "deep")[0], "gpt-5.4")
+            self.assertEqual(provider_model_preset("claude", "fast")[0], "haiku")
+            self.assertEqual(provider_model_preset("claude", "plan")[0], "opus")
+            self.assertEqual(provider_model_preset("cheap", "fast")[0], "cheap-fast")
+            self.assertEqual(provider_model_preset("cheap", "deep")[0], "cheap-deep")
 
     def test_local_provider_uses_dynamic_ollama_catalog_and_presets(self) -> None:
         original = os.environ.get("STAGEWARDEN_OLLAMA_BASE_URL")
+        original_lm_studio = os.environ.get("STAGEWARDEN_LM_STUDIO_BASE_URL")
         os.environ["STAGEWARDEN_OLLAMA_BASE_URL"] = "http://127.0.0.1:11434"
+        os.environ["STAGEWARDEN_LM_STUDIO_BASE_URL"] = "http://127.0.0.1:1234"
         self.addCleanup(lambda: os.environ.pop("STAGEWARDEN_OLLAMA_BASE_URL", None) if original is None else os.environ.__setitem__("STAGEWARDEN_OLLAMA_BASE_URL", original))
+        self.addCleanup(lambda: os.environ.pop("STAGEWARDEN_LM_STUDIO_BASE_URL", None) if original_lm_studio is None else os.environ.__setitem__("STAGEWARDEN_LM_STUDIO_BASE_URL", original_lm_studio))
         payload = {
             "models": [
                 {
@@ -76,14 +166,32 @@ class ProviderRegistryTests(unittest.TestCase):
                 },
             ]
         }
-        with patch("stagewarden.provider_registry.urlopen", return_value=_FakeResponse(payload)):
+        lm_studio_payload = {
+            "data": [
+                {"id": "llama-3.1-8b-instruct"},
+                {"id": "deepseek-r1-distill-qwen-14b"},
+            ]
+        }
+
+        def fake_urlopen(request, timeout=0):
+            url = getattr(request, "full_url", request)
+            if str(url).endswith("/api/tags"):
+                return _FakeResponse(payload)
+            if str(url).endswith("/v1/models"):
+                return _FakeResponse(lm_studio_payload)
+            raise AssertionError(f"Unexpected request: {url}")
+
+        with patch("stagewarden.provider_registry.urlopen", side_effect=fake_urlopen):
             specs = {spec.id: spec for spec in provider_model_specs("local")}
 
             self.assertIn("qwen2.5-coder:7b", specs)
             self.assertIn("deepseek-r1:14b", specs)
             self.assertIn("codestral:latest", specs)
+            self.assertIn("llama-3.1-8b-instruct", specs)
+            self.assertIn("deepseek-r1-distill-qwen-14b", specs)
             self.assertEqual(specs["qwen2.5-coder:7b"].availability, "local-agentic")
             self.assertEqual(specs["codestral:latest"].availability, "local-limited")
+            self.assertEqual(specs["llama-3.1-8b-instruct"].availability, "local-lm-studio")
             self.assertIn("validate tool support", specs["codestral:latest"].context_window_hint.lower())
             self.assertIn("qwen2.5-coder:7b", available_model_variants("local"))
 

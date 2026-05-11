@@ -270,6 +270,7 @@ class Prince2Assessment:
     reasons: list[str]
     closure_ready: bool
     escalation_notes: list[str] = field(default_factory=list)
+    clarification_questions: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -278,6 +279,7 @@ class Prince2Assessment:
             "reasons": list(self.reasons),
             "closure_ready": self.closure_ready,
             "escalation_notes": list(self.escalation_notes),
+            "clarification_questions": list(self.clarification_questions),
         }
 
 
@@ -411,6 +413,8 @@ class Prince2AgentPolicy:
         product_focus = "Define deliverables first, then actions and tools."
         adaptation_policy = (
             "Adapt governance to task size, risk, and complexity. "
+            "Decompose the work into the smallest independently verifiable tasks possible, then keep refining the tree as new evidence arrives. "
+            "Treat refactoring as a permanent cyclic phase across nodes, roles, stages, and microtasks, not a one-off cleanup step. "
             "Small tasks use the lightest viable controls; complex or risky tasks require stricter staged control. "
             "If the method feels heavier than the task, reduce paperwork, not principles."
         )
@@ -420,10 +424,11 @@ class Prince2AgentPolicy:
         )
         stage_plan = [
             "Verify objective, context, and constraints.",
-            "Plan a bounded next step with validation and no overengineering.",
+            "Split the requested outcome into the smallest independently verifiable work packages.",
+            "Plan the next minimal step with validation and no overengineering.",
             "Execute one controlled change or observation.",
-            "Validate outcome against quality criteria.",
-            "Escalate or close at stage boundary.",
+            "Validate the smallest deliverable against quality criteria.",
+            "Re-evaluate the tree, risks, and tolerances at the boundary.",
         ]
         quality_criteria = [
             "Output matches the requested outcome.",
@@ -454,9 +459,12 @@ class Prince2AgentPolicy:
         }
         controls = [
             "Work stage-by-stage.",
+            "Break work into the smallest reviewable work packages before execution.",
             "Use management by exception.",
             "For small tasks, keep documentation and controls minimal but explicit.",
             "For complex or risky tasks, increase formal controls, evidence, and boundary checks.",
+            "Refactor the organizational tree cyclically so nodes, roles, stages, and microtasks stay readable and proportionate.",
+            "Rebuild the tree whenever the brief, risk, validation, or response quality changes.",
             "Keep trace, memory, and validation evidence.",
         ]
         closure_criteria = [
@@ -465,7 +473,10 @@ class Prince2AgentPolicy:
             "Residual risks and assumptions communicated.",
         ]
         lessons_policy = "Use prior attempts and failures to adjust the next step."
-        stage_boundary_review = "At each stage boundary, re-check business case, risks, quality, and whether to continue."
+        stage_boundary_review = (
+            "At each stage boundary, re-check business case, risks, quality, whether the work is still decomposed into the smallest practical tasks, "
+            "and whether the tree should be refreshed before continuing."
+        )
         tolerance_profile = self.build_tolerance_profile(
             task,
             Prince2Checklist(
@@ -509,16 +520,20 @@ class Prince2AgentPolicy:
         lowered = task.lower()
         reasons: list[str] = []
         escalation_required = False
+        clarification_questions: list[str] = []
 
         risky_tokens = ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")
         if len(task.strip()) < 8:
             reasons.append("Task too vague to establish business justification and product focus.")
+            clarification_questions.append("What outcome do you want me to deliver?")
         if not any(token in lowered for token in ("create", "implement", "fix", "update", "write", "read", "analyze", "validate", "review", "plan")):
             reasons.append("Task does not express a clear product or management outcome.")
+            clarification_questions.append("What is the concrete deliverable or decision you want from me?")
         if any(token in lowered for token in risky_tokens):
             escalation_required = True
             if "validate" not in lowered and "test" not in lowered and "review" not in lowered:
                 reasons.append("High-impact task lacks explicit validation or review criteria.")
+                clarification_questions.append("Which validation or review evidence should I use before proceeding?")
 
         tolerance_profile = checklist.tolerance_profile if isinstance(checklist.tolerance_profile, dict) else {}
         margin = _parse_margin_percent(tolerance_profile.get("margin_percent"), default=25.0)
@@ -532,12 +547,14 @@ class Prince2AgentPolicy:
 
         allowed = not reasons
         closure_ready = allowed and bool(checklist.closure_criteria) and bool(checklist.quality_criteria)
+        clarification_questions = [item for item in dict.fromkeys(clarification_questions) if item.strip()]
         return Prince2Assessment(
             allowed=allowed,
             escalation_required=escalation_required,
             reasons=reasons,
             closure_ready=closure_ready,
             escalation_notes=escalation_notes,
+            clarification_questions=clarification_questions,
         )
 
     def assess_completion(self, observation: str, checklist: Prince2Checklist) -> Prince2Assessment:

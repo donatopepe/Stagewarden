@@ -2,12 +2,75 @@
 
 ## Current State
 
-- The repository is on branch `pr/p4-p5-updates` at `HEAD c303af3`.
+- The executor now verifies mutating actions after execution instead of trusting tool success blindly.
+- The repo now includes a broader cross-platform utility surface: `stagewarden/tools/system.py` handles info, disk usage, process listing, process kill, port check, clipboard, and URL opening, while `stagewarden/tools/external_io.py` now covers generic hashing plus archive listing/extraction/creation.
+- `stagewarden/command_dispatch.py` now centralizes the parsing and execution of the common tool families, and `stagewarden/tool_reports.py` centralizes the related text/report/evidence helpers so `stagewarden/main.py` can stay thinner.
+- `stagewarden/project_state_views.py` now centralizes goal, budget, and question state/report helpers so the project-state commands no longer live inline in `stagewarden/main.py`.
+- `stagewarden/executor_quality.py` now centralizes the response-quality scorer so `stagewarden/executor.py` can stay thinner.
+- `stagewarden/project_handoff_state.py` now centralizes the persisted budget, goal, and user-question state helpers that were still living inside `stagewarden/project_handoff.py`.
+- `stagewarden/project_handoff_views.py` now centralizes the handoff/resume/board/register/transcript operational reports that were still living inside `stagewarden/project_handoff.py`.
+- `stagewarden/mode_views.py` now centralizes the mode/status/project/report dispatch bridge that was still living in `main.py`.
+- `stagewarden/model_views.py` now centralizes the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search and model params/preset/variant flows.
+- `stagewarden/project/role_command_flow.py` now centralizes the project-start and roles command dispatch bridge that was still living in `main.py`, and the extracted `role` bridge was just corrected after an indentation bug; the focused `role`/`roles` regression batch is green again.
+- `stagewarden/cli_dispatch.py` now centralizes the main CLI task dispatcher that was still living in `main.py`, and the `project start` JSON path now goes through the structured report again so `next_missing_field` stays in the payload.
+- `stagewarden/account_views.py` now centralizes the account command block that was still living in `main.py`, including account add/login/logout/env/import/use/choose/remove/block/unblock/limit commands and the account report.
+- `stagewarden/command_views.py` now centralizes the shell/git/file/session/patch/permission command cluster that was still living in `main.py`.
+- `stagewarden/report_views.py` now centralizes the remaining board/boundary/permissions/risks/issues/quality/exception/lessons/todo report helpers that were still living in `main.py`.
+- `stagewarden/project_handoff_runtime.py` now centralizes the PRINCE2 runtime, message-flow, persistence, and node-token/cost helpers that were still living inside `stagewarden/project_handoff.py`.
+- The remaining legacy method bodies were removed from `stagewarden/project_handoff.py`; it now stays as a thin wrapper around the runtime module and the view/state split.
+- `stagewarden/executor_prompting.py` now centralizes the prompt, packet, schema, and role-context helpers that were still living inside `stagewarden/executor.py`.
+- `stagewarden/mode_views.py` now centralizes the mode/status/project/report dispatch bridge that was still living in `main.py`.
+- `stagewarden/project/brief.py` now centralizes the project-brief fields, guidance, and clarification helpers inside the new `stagewarden/project/` subpackage, `stagewarden/project/flow.py` now carries the wrapper bridge that `main.py` used to keep inline, `stagewarden/project/tree_flow.py` now carries the project-tree proposal/approval/report bridge, and `stagewarden/project_brief_flow.py` is compatibility only.
+- `stagewarden/project/tree_flow.py` is now the active project-tree proposal/approval/report bridge and passes the focused project-tree regression batch.
+- The legacy project-tree implementation bodies were removed from `stagewarden/main.py`, leaving only thin wrappers that delegate into `stagewarden/project/tree_flow.py`.
+- `stagewarden/project/model_recommendation.py` now owns the tree model-selection helpers that were still duplicated in the tree bridge and main wrappers.
+- `stagewarden/project/design_flow.py` now owns the project design packet/report helpers that were still living in `main.py`.
+- `stagewarden/project/role_views.py` now owns the PRINCE2 role runtime/context report and render helpers that were still living in `main.py`.
+- `stagewarden/project/role_runtime_views.py` now owns the PRINCE2 runtime, active, queues, control, and messages report/render helpers that were still living in `main.py`.
+- `stagewarden/project/role_flow.py` now owns the PRINCE2 role-tree node discovery, navigation, detail, shell, provider-choice, action, and menu helpers that were still living in `main.py`.
+- `stagewarden/project/role_tree_views.py` now owns the remaining PRINCE2 role domains/tree/baseline render helpers that were still living in `main.py`.
+- `stagewarden/project/start_flow.py` now owns the `project start` gate, clarification records, and startup rendering helpers that were still living in `main.py`.
+- `stagewarden/battery_views.py` now owns the battery report/render slice that was still living in `main.py`, the old inline battery report body and inline battery renderer were removed from `main.py`, leaving only the thin wrapper bridge, `stagewarden/status_views.py` now owns the model-usage/cost-sidebar/full-status/provider-limit/model-status helper slice, `stagewarden/project_handoff_views.py` now owns the handoff/resume/board/register/transcript operational reports, `stagewarden/ui_views.py` now owns the help/slash UI helpers, and the focused battery regression batch is green again after the split.
+- The PRINCE2 role shell render now includes the `status_legend:` line and the `switch_hint:` line expected by the battery, and the antagonist KPI path now exposes `threat_count` so the role battery passes again.
+- `stagewarden/status_views.py` now owns the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status/provider-limit/model-status helper slice, while `stagewarden/main.py` shadows the old bodies with thin wrappers into that module.
+- `_focus_snapshot` was restored after the status cleanup so the battery and resume/status paths keep working.
+- The next structure slice should keep grouping related code into subfolders by concern so the module surface stays readable as the repo grows, then continue trimming the remaining status helpers and any other legacy duplicates out of `main.py`.
+- The focused validation batch for the new dispatch/report split passed after wiring the callbacks through the shell and JSON paths.
+- The PRINCE2 tree proposal now emits explicit micro-task decomposition nodes and live adaptation metadata.
+- The approved PRINCE2 role-tree baseline now persists the same decomposition and adaptation metadata.
+- The PRINCE2 checklist now tells the policy to split work into the smallest independently verifiable packages and to refresh at each boundary.
+- The current governance slice now implements `auto/manual/manual_min/blocked` assignment modes, node mnemonic/team metadata, a chat-like node transcript with visible token/cost information, a status cost sidebar, and `status full` node-level cost breakdown.
+- Project budgets are now persisted on the handoff, visible in status views, and controllable through `budget`, `budget set`, `budget status`, and `budget clear`.
+- The agent can now ask the user for clarification on vague tasks, persist the pending question, and accept the answer in the shell before resuming the task.
+- The structured `project start` gate now persists a clarification question when the project brief is incomplete and shows the pending question alongside the blocking gaps.
+- The `project tree propose --ai` gate now also persists a clarification question when the brief is incomplete and shows the pending question alongside the blocking gaps.
+- `project brief` now shows the next missing field so the brief can be completed step by step, and the same signal is available in JSON.
+- `project start` and `project tree propose --ai` now also expose the next missing field or gap in JSON, matching the interactive guidance.
+- The latest broader regression batch covering `project brief`, `project start`, `project tree propose --ai`, and project-tree approval passed after the JSON guidance refactor.
+- The repository is on branch `pr/p4-p5-updates` at `HEAD a38597f`.
 - The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
 - The benchmark runner emits a `suites` map and an optional `history` block, and the history path is opt-in through `--openrouter-benchmark-history`.
 - The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with prompt-driven `governance`, `assurance`, `recovery`, `advanced`, `stress`, `regulatory`, `regulatory_stress`, `legal_stress`, `incident_response`, `vendor_failure`, `multi_vendor_crisis`, `supply_chain_failure`, `regulatory_war_room`, and `board_crisis` suites.
 - `stagewarden/prince2_benchmark.py` now derives benchmark orchestration from the live runtime graph, so the reported node count varies with the actual case execution.
 - `stagewarden/prince2_benchmark.py` now exposes the full runtime payload plus a readable detail block for nodes, roles, parent links, inbox/outbox counts, transitions, provider usage, provider-model variants, token totals, and timing by default for every benchmark case.
+- `stagewarden/provider_registry.py` now discovers local models automatically from both Ollama and LM Studio, and `provider_model_preset()` now picks variants from catalog/runtime scores instead of hardcoded model-name tables.
+- `stagewarden/tools/browser.py` now provides browser fetch/open/screenshot flows with stdlib parsing plus optional Playwright screenshots.
+- `stagewarden/tools/watch.py` now provides filesystem event observation with watchdog when available and polling fallback otherwise.
+- `stagewarden/main.py`, `stagewarden/commands.py`, and `stagewarden/json_schema_registry.py` now route and document the new `system`, `external_io`, `browser`, and `watch` commands.
+- `tests/test_tools.py`, `tests/test_trace_cli.py`, and `tests/test_json_schema_registry.py` now cover the new tool paths and registry entries.
+- `stagewarden/executor.py` now verifies mutating file, shell, git-commit, and multi-file patch actions after execution, and it fails when the workspace proof is missing or mismatched.
+- `stagewarden/prince2.py` now explicitly treats refactoring as a permanent cyclic phase across nodes, roles, stages, and microtasks inside the PRINCE2 checklist policy.
+- `stagewarden/project/role_flow.py` and `stagewarden/project_handoff_runtime.py` restored the PRINCE2 role shell contract expected by the battery and exposed `threat_count` in antagonist decision KPIs.
+- `stagewarden/status_views.py`: extracted the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status helper slice, while `stagewarden/main.py` shadows the old bodies with wrappers into that module.
+- `stagewarden/main.py`: restored `_focus_snapshot` after the status cleanup so the battery/resume paths keep working.
+- `stagewarden/main.py`: removed the duplicated legacy `overview/health/preflight/report` bodies after the status split, leaving only the wrapper layer at the end of the file.
+- `stagewarden/main.py`, `stagewarden/project_handoff.py`, `stagewarden/project_handoff_state.py`, `stagewarden/project_handoff_views.py`, `stagewarden/project_handoff_runtime.py`, `stagewarden/prince2.py`, `stagewarden/commands.py`, `stagewarden/json_schema_registry.py`, `tests/test_persistence.py`, `tests/test_prince2.py`, and `tests/test_trace_cli.py` now cover project budget management plus the agent clarification-question flow.
+- `stagewarden/model_views.py`: now owns the model/catalog/provider-selection extraction target that was still living in `main.py`.
+- `stagewarden/main.py` now also shows the next missing `project brief` field after each edit and in the summary view, and it exposes the same signal in JSON.
+- `stagewarden/main.py` now also exposes the next missing field or gap for `project start` and `project tree propose --ai` in JSON.
+- `tests/test_trace_cli.py` now also passes a broader regression batch covering the brief/start/tree flows after the JSON guidance refactor.
+- `tests/test_trace_cli.py` now also covers `project start` clarification persistence.
+- `tests/test_trace_cli.py` now also covers AI-assisted project-tree clarification persistence.
 - `data/prince2_benchmark_baseline.json` now uses more complex PRINCE2 prompts, and the escalation case includes explicit `review/validate` language so the policy checker still allows it while requiring escalation.
 - `data/prince2_benchmark_baseline.json` now also includes an `advanced` suite built from public traces covering cloud migration, records governance, data transformation, and procurement delays.
 - `data/prince2_benchmark_baseline.json` now also includes a `stress` suite that mixes governance pressure, recovery, and stakeholder conflict.
@@ -20,12 +83,23 @@
 - `data/prince2_benchmark_baseline.json` now also includes a `supply_chain_failure` suite that mixes supply shortages, logistics collapse, procurement delays, inventory gaps, and continuity planning.
 - `data/prince2_benchmark_baseline.json` now also includes a `regulatory_war_room` suite that mixes live board-room escalation, breach response, vendor risk, legal hold, and continuity control.
 - `data/prince2_benchmark_baseline.json` now also includes a `board_crisis` suite that mixes quorum failure, executive escalation, crisis authority, and recovery decisions under pressure.
-- `stagewarden/router.py` now biases model selection dynamically for regulatory prompts while leaving the existing deterministic path intact for the rest.
+- `stagewarden/router.py` now biases model selection dynamically for regulatory prompts while leaving the existing deterministic path intact for the rest, and it now delegates variant selection to catalog-driven presets instead of hardcoded variant names.
+- `stagewarden/prince2_benchmark.py` now uses the router to choose the project-assurance assignment instead of hardcoding `openai:gpt-5.4-mini`, and it now uses router-derived active models instead of a fixed `["local", "openai"]` whitelist; `stagewarden/modelprefs.py` now also derives role defaults from dynamic provider-model scoring instead of hardcoded role-to-model tables; `stagewarden/executor.py` now escalates weak or blocked responses by using a structured completion-quality scorer and then upgrading the variant first and the provider if the prompt still needs more capability, and the score is surfaced in the PRINCE2 benchmark report for completion cases; the current run shows `openai:gpt-5.4-nano` and `cheap:openai/gpt-5.4-nano`; the interactive shell now has a cost sidebar command, and `status full` now includes the complete node cost breakdown.
 - The CLI and registry tests cover the new benchmark command and JSON schema registration.
 - The PRINCE2 benchmark tests pass after the escalation-prompt fix, advanced-suite expansion, stress-suite expansion, regulatory-suite expansion, regulatory_stress-suite expansion, legal_stress-suite expansion, incident_response-suite expansion, vendor_failure-suite expansion, multi_vendor_crisis-suite expansion, supply_chain_failure-suite expansion, regulatory_war_room-suite expansion, and board_crisis-suite expansion; the full unittest suite currently has one flaky live OpenRouter test that retries cleanly outside this slice.
+- Local provider discovery is now automatic across Ollama and LM Studio, so the dynamic model inventory should match whichever runtime is actually present on the machine.
+- Next functional slice to resume: `Ritornando al discorso funzionale di Stagewarden: utente fa richiesta > agente analizza richiesta ma sopratutto tutti i punti ambigui; l'IA non deve fare assunzioni e deve chiedere all'utente tutte le delucidazioni; solo quando non ci sono punti ambigui parte con il progetto; suddivide il progetto in microtask o stage; se nascono punti ambigui ci si ferma e si chiede all'utente delucidazioni, mai assunzioni; l'utente puo' fare nuove richieste che modificano il progetto quindi si ripete l'intero ciclo; i nodi possono modificare gli stage loro assegnati e possono essere anche cancellati o creati nuovi nodi in base alle nuove specifiche di progetto; l'intero sistema deve essere il più dinamico possibile continuando a seguire le regole PRINCE2 quindi anche tolleranze, limiti di stage, report nodo team e ad pm, business case, ecc... rileggi libro PRINCE2 per tutte le regole.`
+- Refactor priority: treat refactoring as a permanent cyclic phase across the whole organizational tree, including nodes, roles, stages, and microtasks, not only the code files themselves.
+- Next architecture slice to resume: keep trimming the remaining large helpers in `stagewarden/main.py` and related dispatch/report modules because the codebase is getting hard to read as tools and flows accumulate, and keep organizing related code into subfolders by concern so the structure stays navigable.
 
 ## Recent Work
 
+- `stagewarden/executor.py`: added post-action verification for mutating file, shell, git-commit, and multi-file patch actions.
+- `tests/test_executor.py`: added regression coverage for file read-back verification, verification failure on mismatched read-back, shell status-change verification, and git commit HEAD advancement.
+- `stagewarden/main.py`: added live tree decomposition nodes, continuous adaptation metadata, and richer project-tree reporting.
+- `stagewarden/prince2.py`: tightened the adaptation policy, stage plan, controls, and boundary review language toward smallest-task decomposition.
+- `stagewarden/modelprefs.py`: preserved decomposition and adaptation metadata when normalizing the approved role-tree baseline.
+- `tests/test_trace_cli.py`: added regression coverage for micro-task decomposition and refresh-on-brief-change behavior.
 - `stagewarden/openrouter_benchmark.py`: added JSONL history tracking and regression comparison.
 - `stagewarden/main.py`: added `--openrouter-benchmark-history`.
 - `data/openrouter_benchmark_baseline.json`: added per-suite regression tolerances.
@@ -50,6 +124,10 @@
 - TruthfulQA-style prompts and PRINCE2 wet-run markers are the most brittle parts of the baselines and should be re-wet-run if changed.
 - The PRINCE2 report is intentionally verbose so node roles, transitions, runtime state, token consumption, provider/model routing, and timing are available without a second command, and `--prince2-benchmark` prints that detail by default.
 - The shared JSON schema registry now covers both benchmark commands and the other stable JSON surfaces.
+- Node visibility now includes mnemonic and team membership in the main role/runtime/message views.
+- The status shell now exposes the cost sidebar with model usage and top cost nodes.
+- The full status shell now shows every node with cost, tokens, provider, and team metadata.
+- `blocked` role assignments are now skipped by the executor rather than being treated as active routes.
 
 ## Validation
 
