@@ -82,6 +82,8 @@ from .project import start_flow as _project_start_flow
 from .project import role_command_flow as _project_role_command_flow
 from .project import role_flow as _project_role_flow
 from . import cli_dispatch as _cli_dispatch
+from . import auth_views as _auth_views
+from . import model_inspection_views as _model_inspection_views
 from .project.flow import (
     _assignment_for_role,
     _enrich_tree_with_local_execution_candidates,
@@ -2142,54 +2144,7 @@ def _clear_limit_snapshot(
 
 
 def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
-    lines = [
-        "Focus snapshot:",
-        f"- task: {snapshot['task']}",
-        f"- current_step: {snapshot['current_step']}",
-        f"- current_step_status: {snapshot['current_step_status']}",
-        f"- next_action: {snapshot['next_action']}",
-        f"- boundary_decision: {snapshot['boundary_decision']}",
-        f"- active_route: provider={snapshot['active_provider'] or 'none'} account={snapshot['active_account']} provider_model={snapshot['active_provider_model'] or 'none'}",
-    ]
-    params = snapshot.get("active_provider_model_params")
-    if isinstance(params, dict) and params:
-        lines.append("- active_provider_model_params: " + ",".join(f"{key}={value}" for key, value in sorted(params.items())))
-    else:
-        lines.append("- active_provider_model_params: none")
-    latest_attempt = snapshot.get("latest_model_attempt")
-    if isinstance(latest_attempt, dict):
-        lines.append(
-            f"- latest_model_attempt: step={latest_attempt['step']} action={latest_attempt['action']} "
-            f"status={latest_attempt['status']} provider={latest_attempt['provider']} "
-            f"provider_model={latest_attempt['provider_model']}"
-        )
-    else:
-        lines.append("- latest_model_attempt: none")
-    latest_tool = snapshot.get("latest_tool_evidence")
-    if isinstance(latest_tool, dict):
-        lines.append(
-            f"- latest_tool_evidence: tool={latest_tool['tool']} action={latest_tool['action']} status={latest_tool['status']}"
-        )
-    else:
-        lines.append("- latest_tool_evidence: none")
-    active_limit = snapshot.get("active_limit")
-    if isinstance(active_limit, dict):
-        blocked = f" blocked_until={active_limit['blocked_until']}" if active_limit.get("blocked_until") else ""
-        reason = f" reason={active_limit['reason']}" if active_limit.get("reason") else ""
-        stale = " stale=true" if active_limit.get("stale") else ""
-        lines.append(f"- active_provider_limit: {active_limit['status'] or 'unknown'}{blocked}{reason}{stale}")
-    else:
-        lines.append("- active_provider_limit: none")
-    latest_action = snapshot.get("latest_handoff_action")
-    if isinstance(latest_action, dict):
-        lines.append(
-            f"- latest_handoff_action: phase={latest_action['phase']} task={latest_action['task']} "
-            f"summary={latest_action['summary']} git_head={latest_action['git_head'] or 'none'}"
-        )
-    else:
-        lines.append("- latest_handoff_action: none")
-    lines.append(f"- resume_ready: {str(bool(snapshot['resume_ready'])).lower()}")
-    return "\n".join(lines)
+    return _status_views._render_focus_snapshot(snapshot)
 
 
 def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
@@ -2239,167 +2194,14 @@ def _accounts_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _auth_status_report(provider: str) -> dict[str, object]:
-    normalized = provider.strip().lower()
-    aliases = {
-        "gpt": "chatgpt",
-        "codex": "chatgpt",
-        "openai": "chatgpt",
-    }
-    normalized = aliases.get(normalized, normalized)
-    if normalized not in {"chatgpt", "claude"}:
-        return {
-            "command": "auth status",
-            "provider": provider,
-            "ok": False,
-            "logged_in": False,
-            "auth_method": "unsupported",
-            "source": "stagewarden",
-            "message": "Supported providers: chatgpt, openai, codex, claude.",
-        }
-    if normalized == "chatgpt":
-        codex = shutil.which("codex")
-        if codex is None:
-            return {
-                "command": "auth status",
-                "provider": normalized,
-                "ok": False,
-                "logged_in": False,
-                "auth_method": "missing_cli",
-                "source": "codex login status",
-                "message": "codex CLI not found in PATH.",
-            }
-        completed = subprocess.run(
-            [codex, "login", "status"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            check=False,
-        )
-        message = (completed.stderr or completed.stdout).strip()
-        logged_in = completed.returncode == 0
-        if "ChatGPT" in message:
-            auth_method = "chatgpt"
-        elif "API key" in message:
-            auth_method = "apikey"
-        elif "Not logged in" in message:
-            auth_method = "none"
-        else:
-            auth_method = "unknown"
-        return {
-            "command": "auth status",
-            "provider": normalized,
-            "ok": completed.returncode == 0,
-            "logged_in": logged_in,
-            "auth_method": auth_method,
-            "source": "codex login status",
-            "message": message,
-        }
-    claude = shutil.which("claude")
-    if claude is None:
-        return {
-            "command": "auth status",
-            "provider": normalized,
-            "ok": False,
-            "logged_in": False,
-            "auth_method": "missing_cli",
-            "source": "claude auth status --json",
-            "message": "claude CLI not found in PATH.",
-        }
-    completed = subprocess.run(
-        [claude, "auth", "status", "--json"],
-        capture_output=True,
-        text=True,
-        timeout=15,
-        check=False,
-    )
-    raw = (completed.stdout or completed.stderr).strip()
-    parsed: dict[str, object] = {}
-    if raw:
-        try:
-            value = loads_text(raw)
-            if isinstance(value, dict):
-                parsed = value
-        except ValueError:
-            parsed = {}
-    logged_in = bool(parsed.get("loggedIn")) if parsed else completed.returncode == 0
-    return {
-        "command": "auth status",
-        "provider": normalized,
-        "ok": completed.returncode == 0,
-        "logged_in": logged_in,
-        "auth_method": str(parsed.get("authMethod", "unknown" if raw else "none")),
-        "api_provider": parsed.get("apiProvider"),
-        "source": "claude auth status --json",
-        "message": raw,
-    }
+    return _auth_views._auth_status_report(provider)
 
 
 def _render_auth_status(provider: str) -> str:
-    report = _auth_status_report(provider)
-    lines = [
-        "Provider auth status:",
-        f"- provider: {report['provider']}",
-        f"- ok: {str(report['ok']).lower()}",
-        f"- logged_in: {str(report['logged_in']).lower()}",
-        f"- auth_method: {report['auth_method']}",
-        f"- source: {report['source']}",
-    ]
-    if report.get("api_provider"):
-        lines.append(f"- api_provider: {report['api_provider']}")
-    if report.get("message"):
-        lines.append(f"- message: {report['message']}")
-    return "\n".join(lines)
-
+    return _auth_views._render_auth_status(provider)
 
 def _render_status(agent: Agent, config: AgentConfig) -> str:
-    _apply_model_preferences(agent, config)
-    caveman_state = agent.caveman.load_state(config)
-    mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
-    handoff = ProjectHandoff.load(config.handoff_path)
-    status = _status_report(agent, config)
-    pricing = _status_pricing_report(agent, config)
-    lines = [
-        "Stagewarden status:",
-        f"- workspace: {config.workspace_root}",
-        f"- mode: {mode}",
-        f"- memory: {config.memory_path.name}",
-        f"- trace: {config.trace_path.name}",
-        f"- handoff: {config.handoff_path.name}",
-        f"- model_config: {config.model_prefs_path.name}",
-        _render_agent_baseline(config),
-        _render_focus_snapshot(_focus_snapshot(agent, config)),
-        _render_model_status(agent, config),
-        (
-            f"- pricing_source: {pricing['source']} "
-            f"provider={pricing['active_model']['provider'] if pricing['active_model'] else 'none'} "
-            f"provider_model={pricing['active_model']['provider_model'] if pricing['active_model'] else 'none'} "
-            f"input={pricing['cost_per_input_token_usd'] if pricing['cost_per_input_token_usd'] is not None else 'none'} "
-            f"output={pricing['cost_per_output_token_usd'] if pricing['cost_per_output_token_usd'] is not None else 'none'}"
-        ),
-        _render_cost_sidebar(agent, config),
-        _render_provider_limit_status(agent, config),
-        _render_runtime_status(config),
-        _render_shell_backend(config),
-        _render_resume_context(config),
-        _project_state_views.render_goal_report(config),
-        _project_state_views.render_budget_report(config),
-        _project_state_views.render_question_report(config),
-        _render_permissions(config),
-        "PRINCE2 roles:",
-        _render_prince2_role_status_hint(config),
-        _render_prince2_roles(config),
-        "Handoff summary:",
-        handoff.summary(),
-        handoff.rendered_operational_posture(),
-        "Local fallback readiness:",
-        (
-            f"- status={status['local_fallback']['status']} "
-            f"ready_nodes={status['local_fallback']['delivery_nodes_with_local_fallback']}/{status['local_fallback']['delivery_nodes']} "
-            f"candidates={','.join(status['local_fallback']['candidate_ids']) if status['local_fallback']['candidate_ids'] else 'none'}"
-        ),
-        _render_remediations(status["remediations"]),
-    ]
-    return "\n".join(lines)
+    return _status_views._render_status(agent, config)
 
 
 def _render_remediations(remediations: object) -> str:
@@ -2582,86 +2384,7 @@ BASELINE_REMEDIATION_BY_GROUP: dict[str, str] = {
 
 
 def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
-    catalog = command_catalog()
-    available: set[str] = set()
-    for item in catalog:
-        for value in (item.get("name"), item.get("usage"), *(item.get("aliases", []) if isinstance(item.get("aliases"), list) else [])):
-            if value:
-                available.add(str(value).split("[", 1)[0].split("<", 1)[0].strip())
-                available.add(str(value).strip())
-    groups: list[dict[str, object]] = []
-    missing_total: list[str] = []
-    for group in BASELINE_CAPABILITY_GROUPS:
-        required = [str(item) for item in group["required_commands"]]
-        missing = [item for item in required if item not in available]
-        missing_total.extend(f"{group['id']}:{item}" for item in missing)
-        groups.append(
-            {
-                "id": group["id"],
-                "source": group["source"],
-                "description": group["description"],
-                "required_commands": required,
-                "missing_commands": missing,
-                "status": "ok" if not missing else "missing",
-                "remediation": "none" if not missing else BASELINE_REMEDIATION_BY_GROUP.get(str(group["id"]), "Restore missing command surfaces."),
-            }
-        )
-    runtime = detect_runtime_capabilities(config.workspace_root)
-    shell = _shell_backend_report(config)
-    environment = {
-        "git_available": shutil.which("git") is not None,
-        "shell_available": bool(shell["available"]),
-        "recommended_shell": runtime["recommended_shell"],
-        "os_family": runtime["os_family"],
-    }
-    env_missing = [
-        key
-        for key, ok in {
-            "git_available": environment["git_available"],
-            "shell_available": environment["shell_available"],
-        }.items()
-        if not ok
-    ]
-    status = "ok" if not missing_total and not env_missing else "warn"
-    remediations = [
-        {
-            "severity": "error",
-            "code": f"baseline_{group['id']}",
-            "action": group["remediation"],
-            "missing_commands": group["missing_commands"],
-        }
-        for group in groups
-        if group["status"] != "ok"
-    ]
-    if "git_available" in env_missing:
-        remediations.append(
-            {
-                "severity": "error",
-                "code": "baseline_git_available",
-                "action": "Install Git and ensure `git` is on PATH before running Stagewarden.",
-                "missing_commands": [],
-            }
-        )
-    if "shell_available" in env_missing:
-        remediations.append(
-            {
-                "severity": "error",
-                "code": "baseline_shell_available",
-                "action": "Configure an available shell backend with `/shell backend use <auto|bash|zsh|powershell|cmd>`.",
-                "missing_commands": [],
-            }
-        )
-    return {
-        "command": "baseline",
-        "baseline": "codex_cli+claude_code_minimum",
-        "ok": status == "ok",
-        "status": status,
-        "groups": groups,
-        "environment": environment,
-        "missing": missing_total + env_missing,
-        "remediations": remediations,
-        "remediation": "Implement missing command surfaces or fix local prerequisites before claiming Codex/Claude baseline parity." if status != "ok" else "Baseline satisfied.",
-    }
+    return _status_views._agent_baseline_report(config)
 
 
 def _render_agent_baseline(config: AgentConfig) -> str:
@@ -2690,45 +2413,7 @@ def _selected_model_report(model_report: dict[str, object]) -> dict[str, object]
 
 
 def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    _apply_model_preferences(agent, config)
-    caveman_state = agent.caveman.load_state(config)
-    mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
-    handoff = ProjectHandoff.load(config.handoff_path)
-    provider_limits = _provider_limit_status_report(agent, config)
-    permissions = _permissions_report(config)
-    stage_view = handoff.stage_view()
-    local_fallback = _delivery_local_fallback_report(config)
-    pricing = _status_pricing_report(agent, config)
-    return {
-        "command": "status",
-        "schema": json_schema("status"),
-        "workspace": str(config.workspace_root),
-        "mode": mode,
-        "files": {
-            "memory": config.memory_path.name,
-            "trace": config.trace_path.name,
-            "handoff": config.handoff_path.name,
-            "model_config": config.model_prefs_path.name,
-        },
-        "models": _model_status_report(agent, config),
-        "baseline": _agent_baseline_report(config),
-        "goal": handoff.goal_view(),
-        "provider_limits": provider_limits,
-        "limits_summary": _provider_limit_summary_report(provider_limits),
-        "runtime": detect_runtime_capabilities(config.workspace_root),
-        "shell_backend": _shell_backend_report(config),
-        "focus": _focus_snapshot(agent, config),
-        "roles": _prince2_roles_report(config),
-        "permissions": permissions,
-        "pricing": pricing,
-        "handoff": {
-            "summary": handoff.summary(),
-            "operational_posture": handoff.rendered_operational_posture(),
-            "stage_view": stage_view,
-        },
-        "local_fallback": local_fallback,
-        "remediations": _status_remediation_report(provider_limits=provider_limits, stage_view=stage_view, config=config),
-    }
+    return _status_views._status_report(agent, config)
 
 
 def _render_overview(agent: Agent, config: AgentConfig) -> str:
@@ -3107,88 +2792,11 @@ def _prompt_menu_choice(
 
 
 def _local_model_profile_from_spec(spec) -> dict[str, object]:
-    agentic_fit = "medium"
-    tool_support_risk = "unknown"
-    availability = str(spec.availability or "unknown")
-    hint = str(spec.context_window_hint or "")
-    lowered_hint = hint.lower()
-    if availability == "local-agentic":
-        agentic_fit = "high"
-        tool_support_risk = "medium"
-    elif availability == "local-limited":
-        agentic_fit = "low"
-        tool_support_risk = "high"
-    elif availability == "local-specialized":
-        agentic_fit = "medium"
-        tool_support_risk = "medium"
-    strengths: list[str] = []
-    weaknesses: list[str] = []
-    best_for: list[str] = []
-    if "coder" in spec.id.lower():
-        strengths.append("coding-oriented local model")
-        best_for.append("code editing and repository tasks")
-    if "deepseek" in spec.id.lower() or "r1" in spec.id.lower():
-        strengths.append("stronger reasoning-oriented profile")
-        best_for.append("deeper debugging and analysis")
-    if "sqlcoder" in spec.id.lower():
-        strengths.append("specialized SQL profile")
-        best_for.append("SQL generation and schema work")
-    if "validate tool support" in lowered_hint:
-        weaknesses.append("tool support must be validated before agentic routing")
-        best_for.append("manual/local chat unless validated")
-    if not strengths:
-        strengths.append("available local model discovered from Ollama")
-    if not best_for:
-        best_for.append("general local experimentation")
-    summary = hint or f"Discovered local model {spec.id}."
-    return {
-        "id": spec.id,
-        "label": spec.label,
-        "availability": availability,
-        "reasoning_efforts": list(spec.reasoning_efforts),
-        "reasoning_default": spec.reasoning_default,
-        "metadata_hint": hint,
-        "summary": summary,
-        "strengths": strengths,
-        "weaknesses": weaknesses,
-        "best_for": best_for,
-        "agentic_fit": agentic_fit,
-        "tool_support_risk": tool_support_risk,
-        "source": spec.source,
-    }
+    return _model_inspection_views._local_model_profile_from_spec(spec)
 
 
 def _local_model_inspection_prompt(catalog: list[dict[str, object]], selected_model: str | None) -> str:
-    inventory = dumps_ascii({"models": catalog}, indent=2)
-    return "\n".join(
-        [
-            "You are evaluating dynamically discovered local Ollama models for a Codex-style coding agent.",
-            "Task: analyze the discovered local model inventory and summarize the peculiarities of each model.",
-            "Rules:",
-            "- Use only the provided model ids and metadata hints.",
-            "- Do not invent benchmark numbers.",
-            "- If tool support is uncertain, say so explicitly.",
-            "- Return valid JSON only.",
-            "- JSON schema:",
-            '{',
-            '  "models": [',
-            '    {',
-            '      "id": "model id",',
-            '      "summary": "short summary",',
-            '      "strengths": ["..."],',
-            '      "weaknesses": ["..."],',
-            '      "best_for": ["..."],',
-            '      "agentic_fit": "high|medium|low",',
-            '      "tool_support_risk": "low|medium|high|unknown"',
-            "    }",
-            "  ],",
-            '  "global_recommendation": "short recommendation"',
-            "}",
-            f"Selected model: {selected_model or 'all discovered local models'}",
-            "Discovered inventory:",
-            inventory,
-        ]
-    )
+    return _model_inspection_views._local_model_inspection_prompt(catalog, selected_model)
 
 
 def _inspect_provider_models(
@@ -3198,136 +2806,11 @@ def _inspect_provider_models(
     provider: str,
     provider_model: str | None = None,
 ) -> dict[str, object]:
-    if provider not in SUPPORTED_MODELS:
-        raise ValueError(f"Unsupported model '{provider}'. Supported: {', '.join(SUPPORTED_MODELS)}")
-    specs = [spec for spec in provider_model_specs(provider) if spec.id != "provider-default"]
-    if provider_model is not None:
-        specs = [spec for spec in specs if spec.id == provider_model]
-        if not specs:
-            raise ValueError(f"Provider-model '{provider_model}' not found for provider '{provider}'.")
-    catalog = [_local_model_profile_from_spec(spec) for spec in specs] if provider == "local" else [
-        {
-            "id": spec.id,
-            "label": spec.label,
-            "availability": spec.availability,
-            "reasoning_efforts": list(spec.reasoning_efforts),
-            "reasoning_default": spec.reasoning_default,
-            "metadata_hint": spec.context_window_hint,
-            "summary": spec.context_window_hint or spec.label,
-            "strengths": [],
-            "weaknesses": [],
-            "best_for": [],
-            "agentic_fit": "unknown",
-            "tool_support_risk": "unknown",
-            "source": spec.source,
-        }
-        for spec in specs
-    ]
-    report: dict[str, object] = {
-        "command": "model inspect",
-        "provider": provider,
-        "provider_model": provider_model,
-        "status": "ok",
-        "catalog_source": next((item["source"] for item in catalog if item.get("source")), provider_capability(provider).source) if catalog else provider_capability(provider).source,
-        "models": catalog,
-        "ai_analysis": {
-            "attempted": False,
-            "ok": False,
-            "model": None,
-            "account": None,
-            "message": "",
-        },
-    }
-    if provider != "local" or not catalog:
-        return report
-    _apply_model_preferences(agent, config)
-    prefs = _load_model_preferences(config)
-    analysis_model = _choose_cloud_priority_model(agent, prefs)
-    account = prefs.account_for_model(analysis_model)
-    result = agent.handoff.execute(format_run_model(analysis_model, _local_model_inspection_prompt(catalog, provider_model), account=account))
-    ai_analysis = {
-        "attempted": True,
-        "ok": False,
-        "model": analysis_model,
-        "account": account or None,
-        "message": "",
-    }
-    if not result.ok:
-        ai_analysis["message"] = result.error or "Model inspection call failed."
-        report["ai_analysis"] = ai_analysis
-        report["global_recommendation"] = "Using metadata-derived local model profiles only."
-        return report
-    try:
-        payload = loads_text(result.output)
-    except ValueError as exc:
-        ai_analysis["message"] = f"Inspection output was not valid JSON: {exc}"
-        report["ai_analysis"] = ai_analysis
-        report["global_recommendation"] = "Using metadata-derived local model profiles only."
-        return report
-    ai_models = payload.get("models", []) if isinstance(payload, dict) else []
-    ai_by_id = {
-        str(item.get("id", "")).strip(): item
-        for item in ai_models
-        if isinstance(item, dict) and str(item.get("id", "")).strip()
-    }
-    merged_models: list[dict[str, object]] = []
-    for item in catalog:
-        merged = dict(item)
-        candidate = ai_by_id.get(str(item.get("id")))
-        if isinstance(candidate, dict):
-            for key in ("summary", "agentic_fit", "tool_support_risk"):
-                value = candidate.get(key)
-                if isinstance(value, str) and value.strip():
-                    merged[key] = value.strip()
-            for key in ("strengths", "weaknesses", "best_for"):
-                value = candidate.get(key)
-                if isinstance(value, list):
-                    merged[key] = [str(entry).strip() for entry in value if str(entry).strip()]
-        merged_models.append(merged)
-    ai_analysis["ok"] = True
-    ai_analysis["message"] = "AI synthesis applied to discovered local model inventory."
-    report["models"] = merged_models
-    report["ai_analysis"] = ai_analysis
-    report["global_recommendation"] = (
-        str(payload.get("global_recommendation", "")).strip()
-        if isinstance(payload, dict) and str(payload.get("global_recommendation", "")).strip()
-        else "Prefer models with high agentic fit and lower tool support risk."
-    )
-    return report
+    return _model_inspection_views._inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
 
 
 def _render_provider_model_inspection(report: dict[str, object]) -> str:
-    lines = [
-        f"Provider-model inspection for {report.get('provider', 'unknown')}:",
-        f"- provider_model_filter: {report.get('provider_model') or 'all'}",
-        f"- catalog_source: {report.get('catalog_source', 'unknown')}",
-    ]
-    ai = report.get("ai_analysis", {}) if isinstance(report.get("ai_analysis"), dict) else {}
-    lines.append(
-        f"- ai_analysis: attempted={ai.get('attempted', False)} ok={ai.get('ok', False)} "
-        f"model={ai.get('model') or 'none'} account={ai.get('account') or 'none'}"
-    )
-    if ai.get("message"):
-        lines.append(f"- ai_message: {ai.get('message')}")
-    if report.get("global_recommendation"):
-        lines.append(f"- recommendation: {report.get('global_recommendation')}")
-    models = [item for item in report.get("models", []) if isinstance(item, dict)]
-    if not models:
-        lines.append("- models: none")
-        return "\n".join(lines)
-    lines.append("Models:")
-    for item in models:
-        lines.append(
-            f"- {item.get('id')}: fit={item.get('agentic_fit')} tool_support_risk={item.get('tool_support_risk')} "
-            f"availability={item.get('availability')} summary={item.get('summary')}"
-        )
-        strengths = ", ".join(str(entry) for entry in item.get("strengths", []) if str(entry).strip()) or "none"
-        weaknesses = ", ".join(str(entry) for entry in item.get("weaknesses", []) if str(entry).strip()) or "none"
-        best_for = ", ".join(str(entry) for entry in item.get("best_for", []) if str(entry).strip()) or "none"
-        lines.append(f"  strengths: {strengths}")
-        lines.append(f"  weaknesses: {weaknesses}")
-        lines.append(f"  best_for: {best_for}")
-    return "\n".join(lines)
+    return _model_inspection_views._render_provider_model_inspection(report)
 
 
 def _local_execution_candidates_report(

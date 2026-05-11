@@ -176,6 +176,9 @@ def _delivery_local_fallback_report(config: AgentConfig) -> dict[str, object]:
     ready_nodes: list[dict[str, object]] = []
     candidate_ids: list[str] = []
     for node in delivery_nodes:
+        node_id = str(node.get("node_id", "")).strip()
+        if node_id == "delivery.rollback_lane":
+            continue
         node_candidates = [str(item).strip() for item in node.get("local_execution_candidates", []) if str(item).strip()]
         for item in node_candidates:
             if item not in candidate_ids:
@@ -186,7 +189,7 @@ def _delivery_local_fallback_report(config: AgentConfig) -> dict[str, object]:
         if local_routes:
             ready_nodes.append(
                 {
-                    "node_id": str(node.get("node_id", "")),
+                    "node_id": node_id,
                     "label": str(node.get("label", node.get("node_id", ""))),
                     "local_candidates": node_candidates,
                     "fallback_models": [

@@ -1841,6 +1841,7 @@ def _log_error_report(config: AgentConfig, *, limit: int = 20) -> dict[str, obje
     return {
         "command": "log errors",
         "schema": json_schema("health"),
+        "status": "warning" if items else "ok",
         "count": len(items),
         "items": items,
     }

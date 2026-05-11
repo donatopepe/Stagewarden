@@ -9,6 +9,7 @@ from datetime import datetime
 
 from .agent import Agent
 from .config import AgentConfig
+from .commands import command_catalog
 from .json_schema_registry import json_schema
 from .memory import MemoryStore
 from .modelprefs import SUPPORTED_MODELS, account_key, extract_blocked_until, limit_snapshot_from_message
@@ -179,14 +180,27 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
     prefs = main._load_model_preferences(config)
     main._apply_model_preferences(agent, config)
     capabilities = main.detect_runtime_capabilities(config.workspace_root)
+    memory = MemoryStore.load(config.memory_path)
     providers = []
     for provider in main.REGISTRY_MODELS:
         provider_capability = main.provider_capability(provider)
         active_account = (prefs.active_account_by_model or {}).get(provider)
+        if active_account and (prefs.blocked_until_by_account or {}).get(account_key(provider, active_account)):
+            active_account = None
         provider_model = provider_capability.default_model
         snapshot = (prefs.provider_limit_snapshot_by_model or {}).get(provider)
+        provider_accounts: set[str] = set((prefs.accounts_by_model or {}).get(provider, []))
+        for key in (prefs.blocked_until_by_account or {}).keys():
+            if key.startswith(f"{provider}:"):
+                provider_accounts.add(key.split(":", 1)[1])
+        for key in (prefs.provider_limit_snapshot_by_account or {}).keys():
+            if key.startswith(f"{provider}:"):
+                provider_accounts.add(key.split(":", 1)[1])
+        for key in (prefs.last_limit_message_by_account or {}).keys():
+            if key.startswith(f"{provider}:"):
+                provider_accounts.add(key.split(":", 1)[1])
         blocked_accounts = []
-        for account in (prefs.accounts_by_model or {}).get(provider, []):
+        for account in sorted(provider_accounts):
             key = account_key(provider, account)
             blocked_until = (prefs.blocked_until_by_account or {}).get(key)
             limit_snapshot = (prefs.provider_limit_snapshot_by_account or {}).get(key) or {}
@@ -212,6 +226,17 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 (account.get("last_limit_reason") for account in blocked_accounts if account.get("last_limit_reason")),
                 None,
             )
+        provider_attempts = [item for item in memory.attempts if item.model == provider]
+        last_attempt = provider_attempts[-1] if provider_attempts else None
+        last_success = next((item for item in reversed(provider_attempts) if item.success), None)
+        last_limit_message = (prefs.last_limit_message_by_model or {}).get(provider)
+        if last_limit_message is None and isinstance(snapshot, dict):
+            last_limit_message = snapshot.get("raw_message")
+        if last_limit_message is None:
+            last_limit_message = next(
+                (account.get("last_limit_message") for account in blocked_accounts if account.get("last_limit_message")),
+                None,
+            )
         providers.append(
             {
                 "provider": provider,
@@ -219,9 +244,34 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "provider_model": provider_model,
                 "provider_model_selection": "dynamic",
                 "provider_model_params": {},
-                "active_account": active_account,
+                "active_account": active_account or "none",
                 "blocked_until": (prefs.blocked_until_by_model or {}).get(provider),
                 "last_error_reason": provider_reason or (prefs.last_limit_message_by_model or {}).get(provider),
+                "last_limit_message": last_limit_message,
+                "last_attempt": None
+                if last_attempt is None
+                else {
+                    "iteration": last_attempt.iteration,
+                    "step_id": last_attempt.step_id,
+                    "account": last_attempt.account or "none",
+                    "variant": last_attempt.variant or "provider-default",
+                    "status": "ok" if last_attempt.success else f"failed:{last_attempt.error_type or 'unknown'}",
+                    "model": last_attempt.model,
+                    "action_type": last_attempt.action_type,
+                    "observation": last_attempt.observation,
+                },
+                "last_success": None
+                if last_success is None
+                else {
+                    "iteration": last_success.iteration,
+                    "step_id": last_success.step_id,
+                    "account": last_success.account or "none",
+                    "variant": last_success.variant or "provider-default",
+                    "status": "ok" if last_success.success else f"failed:{last_success.error_type or 'unknown'}",
+                    "model": last_success.model,
+                    "action_type": last_success.action_type,
+                    "observation": last_success.observation,
+                },
                 "limit_snapshot": snapshot,
                 "blocked_accounts": blocked_accounts,
                 "enabled": provider in capabilities.get("providers", []),
@@ -417,9 +467,219 @@ def _model_usage_report(config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
+    lines = [
+        "Focus snapshot:",
+        f"- task: {snapshot['task']}",
+        f"- current_step: {snapshot['current_step']}",
+        f"- current_step_status: {snapshot['current_step_status']}",
+        f"- next_action: {snapshot['next_action']}",
+        f"- boundary_decision: {snapshot['boundary_decision']}",
+        f"- active_route: provider={snapshot['active_provider'] or 'none'} account={snapshot['active_account']} provider_model={snapshot['active_provider_model'] or 'none'}",
+    ]
+    params = snapshot.get("active_provider_model_params")
+    if isinstance(params, dict) and params:
+        lines.append("- active_provider_model_params: " + ",".join(f"{key}={value}" for key, value in sorted(params.items())))
+    else:
+        lines.append("- active_provider_model_params: none")
+    latest_attempt = snapshot.get("latest_model_attempt")
+    if isinstance(latest_attempt, dict):
+        lines.append(
+            f"- latest_model_attempt: step={latest_attempt['step']} action={latest_attempt['action']} "
+            f"status={latest_attempt['status']} provider={latest_attempt['provider']} "
+            f"provider_model={latest_attempt['provider_model']}"
+        )
+    else:
+        lines.append("- latest_model_attempt: none")
+    latest_tool = snapshot.get("latest_tool_evidence")
+    if isinstance(latest_tool, dict):
+        lines.append(
+            f"- latest_tool_evidence: tool={latest_tool['tool']} action={latest_tool['action']} status={latest_tool['status']}"
+        )
+    else:
+        lines.append("- latest_tool_evidence: none")
+    active_limit = snapshot.get("active_limit")
+    if isinstance(active_limit, dict):
+        blocked = f" blocked_until={active_limit['blocked_until']}" if active_limit.get("blocked_until") else ""
+        reason = f" reason={active_limit['reason']}" if active_limit.get("reason") else ""
+        stale = " stale=true" if active_limit.get("stale") else ""
+        lines.append(f"- active_provider_limit: {active_limit['status'] or 'unknown'}{blocked}{reason}{stale}")
+    else:
+        lines.append("- active_provider_limit: none")
+    latest_action = snapshot.get("latest_handoff_action")
+    if isinstance(latest_action, dict):
+        lines.append(
+            f"- latest_handoff_action: phase={latest_action['phase']} task={latest_action['task']} "
+            f"summary={latest_action['summary']} git_head={latest_action['git_head'] or 'none'}"
+        )
+    else:
+        lines.append("- latest_handoff_action: none")
+    lines.append(f"- resume_ready: {str(bool(snapshot['resume_ready'])).lower()}")
+    return "\n".join(lines)
+
+
+def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
+    main = _main()
+    catalog = command_catalog()
+    available: set[str] = set()
+    for item in catalog:
+        for value in (item.get("name"), item.get("usage"), *(item.get("aliases", []) if isinstance(item.get("aliases"), list) else [])):
+            if value:
+                available.add(str(value).split("[", 1)[0].split("<", 1)[0].strip())
+                available.add(str(value).strip())
+    groups: list[dict[str, object]] = []
+    missing_total: list[str] = []
+    for group in main.BASELINE_CAPABILITY_GROUPS:
+        required = [str(item) for item in group["required_commands"]]
+        missing = [item for item in required if item not in available]
+        missing_total.extend(f"{group['id']}:{item}" for item in missing)
+        groups.append(
+            {
+                "id": group["id"],
+                "source": group["source"],
+                "description": group["description"],
+                "required_commands": required,
+                "missing_commands": missing,
+                "status": "ok" if not missing else "missing",
+                "remediation": "none" if not missing else main.BASELINE_REMEDIATION_BY_GROUP.get(str(group["id"]), "Restore missing command surfaces."),
+            }
+        )
+    runtime = main.detect_runtime_capabilities(config.workspace_root)
+    shell = main._shell_backend_report(config)
+    environment = {
+        "git_available": shutil.which("git") is not None,
+        "shell_available": bool(shell["available"]),
+        "recommended_shell": runtime["recommended_shell"],
+        "os_family": runtime["os_family"],
+    }
+    env_missing = [
+        key
+        for key, ok in {
+            "git_available": environment["git_available"],
+            "shell_available": environment["shell_available"],
+        }.items()
+        if not ok
+    ]
+    status = "ok" if not missing_total and not env_missing else "warn"
+    remediations = [
+        {
+            "severity": "error",
+            "code": f"baseline_{group['id']}",
+            "action": group["remediation"],
+            "missing_commands": group["missing_commands"],
+        }
+        for group in groups
+        if group["status"] != "ok"
+    ]
+    if "git_available" in env_missing:
+        remediations.append(
+            {
+                "severity": "error",
+                "code": "baseline_git_available",
+                "action": "Install Git and ensure `git` is on PATH before running Stagewarden.",
+                "missing_commands": [],
+            }
+        )
+    if "shell_available" in env_missing:
+        remediations.append(
+            {
+                "severity": "error",
+                "code": "baseline_shell_available",
+                "action": "Configure an available shell backend with `/shell backend use <auto|bash|zsh|powershell|cmd>`.",
+                "missing_commands": [],
+            }
+        )
+    return {
+        "command": "baseline",
+        "baseline": "codex_cli+claude_code_minimum",
+        "ok": status == "ok",
+        "status": status,
+        "groups": groups,
+        "environment": environment,
+        "missing": missing_total + env_missing,
+        "remediations": remediations,
+        "remediation": "Implement missing command surfaces or fix local prerequisites before claiming Codex/Claude baseline parity." if status != "ok" else "Baseline satisfied.",
+    }
+
+
+def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
+    main = _main()
+    handoff = ProjectHandoff.load(config.handoff_path)
+    active_model = _selected_model_report(main._model_status_report(agent, config))
+    latest_attempt = agent.memory.latest_attempt()
+    latest_tool = agent.memory.latest_tool_event()
+    latest_limit = None
+    if active_model:
+        prefs = main._load_model_preferences(config)
+        latest_limit = dict(prefs.provider_limit_snapshot_by_model or {}).get(str(active_model["provider"]))
+    latest_handoff_action = None
+    if getattr(handoff, "entries", None):
+        latest_entry = handoff.entries[-1]
+        latest_handoff_action = {
+            "phase": latest_entry.phase,
+            "task": latest_entry.task,
+            "summary": latest_entry.summary,
+            "git_head": latest_entry.git_head,
+            "details": dict(latest_entry.details),
+        }
+    return {
+        "task": handoff.task or "none",
+        "current_step": handoff.current_step_id or "none",
+        "current_step_status": handoff.current_step_status or "none",
+        "session_state": handoff.status or "none",
+        "session_recoverable": handoff.status in {"initiating", "planned", "executing", "waiting", "exception"},
+        "next_action": handoff.rendered_next_action(),
+        "boundary_decision": handoff.stage_view()["boundary_decision"],
+        "active_provider": None if active_model is None else active_model["provider"],
+        "active_provider_model": None if active_model is None else active_model["provider_model"],
+        "active_account": "none"
+        if active_model is None
+        else ((main._load_model_preferences(config).active_account_by_model or {}).get(str(active_model["provider"])) or "none"),
+        "active_provider_model_params": {} if active_model is None else dict(active_model["provider_model_params"]),
+        "latest_model_attempt": None
+        if latest_attempt is None
+        else {
+            "step": latest_attempt.step_id,
+            "action": latest_attempt.action_type,
+            "status": "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}",
+            "provider": latest_attempt.model,
+            "provider_model": latest_attempt.variant or "provider-default",
+        },
+        "latest_tool_evidence": None
+        if latest_tool is None
+        else {
+            "tool": latest_tool.tool,
+            "action": latest_tool.action_type,
+            "status": "ok" if latest_tool.success else f"failed:{latest_tool.error_type or 'unknown'}",
+        },
+        "active_limit": None
+        if not isinstance(latest_limit, dict)
+        else {
+            "status": latest_limit.get("status"),
+            "reason": latest_limit.get("reason"),
+            "blocked_until": latest_limit.get("blocked_until"),
+            "stale": bool(latest_limit.get("stale", False)),
+        },
+        "latest_handoff_action": latest_handoff_action,
+        "resume_ready": bool(handoff.task) and handoff.status in {"initiating", "planned", "executing", "waiting", "exception"},
+    }
+
+
 def _status_pricing_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    model_report = _model_status_report(agent, config)
+    main = _main()
+    prefs = main._load_model_preferences(config)
+    model_report = main._model_status_report(agent, config)
     selected = _selected_model_report(model_report)
+    analysis_model = main._choose_cloud_priority_model(agent, prefs)
+    if isinstance(model_report, dict):
+        models = model_report.get("models", [])
+        if isinstance(models, list):
+            cloud_selected = next(
+                (item for item in models if isinstance(item, dict) and item.get("model") == analysis_model),
+                None,
+            )
+            if isinstance(cloud_selected, dict):
+                selected = cloud_selected
     catalog = selected.get("catalog", {}) if isinstance(selected, dict) else {}
     pricing_source = None
     if isinstance(catalog, dict):
@@ -574,7 +834,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "limits_summary": _provider_limit_summary_report(provider_limits),
         "runtime": main.detect_runtime_capabilities(config.workspace_root),
         "shell_backend": main._shell_backend_report(config),
-        "focus": main._focus_snapshot(agent, config),
+        "focus": _focus_snapshot(agent, config),
         "roles": main._prince2_roles_report(config),
         "permissions": permissions,
         "pricing": pricing,
@@ -603,7 +863,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
     if active_model is None:
         active_model = next((item for item in model_report["models"] if item["active"]), None)
     providers = provider_limits["providers"]
-    focus = main._focus_snapshot(agent, config)
+    focus = _focus_snapshot(agent, config)
     budget = _project_state_views.budget_report(config)["budget"]
     question = _project_state_views.question_report(config)["user_question"]
     return {
@@ -685,14 +945,67 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
     }
 
 
+def _render_status(agent: Agent, config: AgentConfig) -> str:
+    main = _main()
+    main._apply_model_preferences(agent, config)
+    caveman_state = agent.caveman.load_state(config)
+    mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
+    handoff = ProjectHandoff.load(config.handoff_path)
+    status = _status_report(agent, config)
+    pricing = _status_pricing_report(agent, config)
+    lines = [
+        "Stagewarden status:",
+        f"- workspace: {config.workspace_root}",
+        f"- mode: {mode}",
+        f"- memory: {config.memory_path.name}",
+        f"- trace: {config.trace_path.name}",
+        f"- handoff: {config.handoff_path.name}",
+        f"- model_config: {config.model_prefs_path.name}",
+        main._render_agent_baseline(config),
+        _render_focus_snapshot(_focus_snapshot(agent, config)),
+        _render_model_status(agent, config),
+        (
+            f"- pricing_source: {pricing['source']} "
+            f"provider={pricing['active_model']['provider'] if pricing['active_model'] else 'none'} "
+            f"provider_model={pricing['active_model']['provider_model'] if pricing['active_model'] else 'none'} "
+            f"input={pricing['cost_per_input_token_usd'] if pricing['cost_per_input_token_usd'] is not None else 'none'} "
+            f"output={pricing['cost_per_output_token_usd'] if pricing['cost_per_output_token_usd'] is not None else 'none'}"
+        ),
+        _render_cost_sidebar(agent, config),
+        _render_provider_limit_status(agent, config),
+        main._render_runtime_status(config),
+        main._render_shell_backend(config),
+        main._render_resume_context(config),
+        _project_state_views.render_goal_report(config),
+        _project_state_views.render_budget_report(config),
+        _project_state_views.render_question_report(config),
+        main._render_permissions(config),
+        "PRINCE2 roles:",
+        main._render_prince2_role_status_hint(config),
+        main._render_prince2_roles(config),
+        "Handoff summary:",
+        handoff.summary(),
+        handoff.rendered_operational_posture(),
+        "Local fallback readiness:",
+        (
+            f"- status={status['local_fallback']['status']} "
+            f"ready_nodes={status['local_fallback']['delivery_nodes_with_local_fallback']}/{status['local_fallback']['delivery_nodes']} "
+            f"candidates={','.join(status['local_fallback']['candidate_ids']) if status['local_fallback']['candidate_ids'] else 'none'}"
+        ),
+        main._render_remediations(status["remediations"]),
+    ]
+    return "\n".join(lines)
+
+
 def _render_status_full(agent: Agent, config: AgentConfig) -> str:
+    main = _main()
     report = _status_dashboard_report(agent, config)
     model = report["model"] if isinstance(report.get("model"), dict) else {}
     account = report["account"] if isinstance(report.get("account"), dict) else {}
     usage = report["usage"] if isinstance(report.get("usage"), dict) else {}
     cost_sidebar = report["cost_sidebar"] if isinstance(report.get("cost_sidebar"), dict) else {}
     lines = [
-        "Stagewarden status (full):",
+        "Stagewarden full status:",
         f"- workspace: {report['identity']['workspace']}",
         f"- mode: {report['identity']['mode']}",
         f"- python: {report['identity']['python']}",
@@ -731,6 +1044,8 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
         for line in _render_cost_sidebar(agent, config).splitlines():
             lines.append(f"  {line}")
     lines.append(f"- quality_gates: {report['quality_gates']}")
+    lines.append("Remediations:")
+    lines.extend(main._render_remediations(report["remediations"]).splitlines()[1:])
     return "\n".join(lines)
 
 
@@ -905,6 +1220,14 @@ def _preflight_remediations(
                 "action": f"Recent logs contain {log_errors.get('count', 0)} error entry(s). Inspect `/transcript` and the memory log, then rerun the battery/preflight check.",
             }
         )
+    if getattr(git_dirty, "ok", False) and str(getattr(git_dirty, "stdout", "")).strip():
+        items.append(
+            {
+                "severity": "warning",
+                "code": "dirty_git",
+                "action": "Run `/git status` and clear or commit the dirty workspace before relying on the current handoff.",
+            }
+        )
     if provider_limits.get("providers"):
         for item in provider_limits.get("providers", []):
             if not isinstance(item, dict) or not item.get("blocked_until"):
@@ -916,6 +1239,31 @@ def _preflight_remediations(
                     "action": f"Provider {item.get('provider')} is blocked until {item.get('blocked_until')}; prefer a different provider or wait for the reset.",
                 }
             )
+    provider_limit_summary = _provider_limit_summary_report(provider_limits)
+    if provider_limit_summary["blocked_models"] or provider_limit_summary["stale_models"]:
+        items.append(
+            {
+                "severity": "warning",
+                "code": "provider_limits",
+                "action": "Run `/model limits` and `/model use <provider>` to inspect blocked or stale provider snapshots before relying on provider availability.",
+            }
+        )
+    if provider_limit_summary["stale_models"]:
+        items.append(
+            {
+                "severity": "warning",
+                "code": "provider_limits_stale",
+                "action": "Refresh provider limit snapshots before relying on provider availability decisions.",
+            }
+        )
+    if stage_view.get("recovery_state") not in {None, "", "none"}:
+        items.append(
+            {
+                "severity": "warning",
+                "code": "recovery",
+                "action": "Run `/exception` to review the recovery plan and clear the active recovery state before continuing.",
+            }
+        )
     if stage_view.get("boundary_decision") in {"review_boundary:no_plan_status", "review_boundary:incomplete"}:
         items.append(
             {
