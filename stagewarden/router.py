@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
-from .provider_registry import SUPPORTED_MODELS, provider_model_specs
+from .provider_registry import SUPPORTED_MODELS, provider_model_preset, provider_model_specs
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,46 +125,12 @@ class ModelRouter:
 
     def choose_variant(self, model: str, task: str, step_text: str, failure_count: int = 0) -> str | None:
         profile = self._task_profile(task, step_text)
-        if not profile["regulatory"]:
-            if model == "claude":
-                if profile["planning"]:
-                    return "opusplan"
-                if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
-                    return "opus"
-                if profile["complexity"] <= 1 and not profile["risky"]:
-                    return "haiku"
-                return "sonnet"
-            if model == "openai":
-                if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
-                    return "gpt-5.4"
-                if profile["complexity"] <= 1 and not profile["risky"]:
-                    return "gpt-5.4-mini"
-                return "gpt-5.2-codex"
-            if model == "chatgpt":
-                if failure_count >= 2 or profile["debug"] or profile["risky"] or profile["complexity"] >= 4:
-                    return "gpt-5.3-codex"
-                if profile["complexity"] <= 1 and not profile["risky"]:
-                    return "codex-mini-latest"
-                return "gpt-5.1-codex-mini"
-
-        catalog = self._catalog()
-        specs = self._provider_specs(model)
-        if not specs:
+        preset = self._variant_preset(profile, failure_count=failure_count)
+        try:
+            variant, _params = provider_model_preset(model, preset)
+        except ValueError:
             return None
-
-        ranked = sorted(
-            (
-                (
-                    self._variant_score(model, spec, profile, failure_count=failure_count, catalog=catalog),
-                    spec.id,
-                )
-                for spec in specs
-                if str(spec.id).strip()
-            ),
-            key=lambda item: (item[0], item[1]),
-            reverse=True,
-        )
-        return ranked[0][1] if ranked else None
+        return variant
 
     def recommend_route(self, task: str, step_text: str, failure_count: int = 0) -> RouteRecommendation:
         profile = self._task_profile(task, step_text)
@@ -333,6 +299,20 @@ class ModelRouter:
         if profile["risky"]:
             parts.append("risky")
         return " / ".join(parts)
+
+    def _variant_preset(self, profile: dict[str, object], *, failure_count: int) -> str:
+        complexity = int(profile["complexity"])
+        if profile["regulatory"]:
+            if profile["planning"] or complexity >= 4 or failure_count >= 2:
+                return "plan"
+            return "deep"
+        if profile["planning"] and complexity >= 3:
+            return "plan"
+        if profile["debug"] or profile["risky"] or complexity >= 4 or failure_count >= 2:
+            return "deep"
+        if complexity <= 1 and not profile["risky"]:
+            return "fast"
+        return "balanced"
 
     def _active_models(self) -> set[str]:
         now = datetime.now()

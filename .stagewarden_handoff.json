@@ -1,17 +1,127 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "prince2-benchmark-baseline",
+  "task": "agent-refactor-slice",
   "goal": {},
+  "project_budget": {},
+  "user_question": {
+    "question_id": "question-1",
+    "question": "What is the objective of this project?",
+    "reason": "clarification",
+    "context": {
+      "source": "project start",
+      "gap_code": "missing_project_objective",
+      "design_gaps": [
+        {
+          "code": "missing_project_objective",
+          "message": "Project brief is missing the objective field."
+        },
+        {
+          "code": "missing_project_scope",
+          "message": "Project brief is missing the scope field."
+        },
+        {
+          "code": "missing_expected_outputs",
+          "message": "Project brief is missing the expected_outputs field."
+        },
+        {
+          "code": "missing_delivery_mode",
+          "message": "Project brief is missing the delivery_mode field."
+        },
+        {
+          "code": "no_enabled_providers",
+          "message": "No enabled providers are available for AI-assisted design."
+        }
+      ],
+      "proposal_gaps": [
+        {
+          "code": "missing_objective",
+          "message": "Project brief is missing objective."
+        },
+        {
+          "code": "missing_scope",
+          "message": "Project brief is missing scope."
+        },
+        {
+          "code": "missing_expected_outputs",
+          "message": "Project brief is missing expected_outputs."
+        },
+        {
+          "code": "missing_delivery_mode",
+          "message": "Project brief is missing delivery_mode."
+        }
+      ]
+    },
+    "status": "pending",
+    "asked_at": "2026-05-11T05:37:18+00:00",
+    "answered_at": null,
+    "answer": null
+  },
+  "user_question_log": [
+    {
+      "question_id": "question-1",
+      "question": "What is the objective of this project?",
+      "reason": "clarification",
+      "context": {
+        "source": "project start",
+        "gap_code": "missing_project_objective",
+        "design_gaps": [
+          {
+            "code": "missing_project_objective",
+            "message": "Project brief is missing the objective field."
+          },
+          {
+            "code": "missing_project_scope",
+            "message": "Project brief is missing the scope field."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing the expected_outputs field."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing the delivery_mode field."
+          },
+          {
+            "code": "no_enabled_providers",
+            "message": "No enabled providers are available for AI-assisted design."
+          }
+        ],
+        "proposal_gaps": [
+          {
+            "code": "missing_objective",
+            "message": "Project brief is missing objective."
+          },
+          {
+            "code": "missing_scope",
+            "message": "Project brief is missing scope."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing expected_outputs."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing delivery_mode."
+          }
+        ]
+      },
+      "status": "pending",
+      "asked_at": "2026-05-11T05:37:18+00:00",
+      "answered_at": null,
+      "answer": null
+    }
+  ],
   "project_brief": {},
-  "status": "completed",
-  "current_step_id": "prince2-benchmark-baseline",
-  "current_step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
-  "current_step_status": "completed",
-  "latest_observation": "The PRINCE2 benchmark now includes incident_response, legal_stress, regulatory_stress, vendor_failure, multi_vendor_crisis, supply_chain_failure, regulatory_war_room, and board_crisis suites and the router chooses regulatory-aware routes dynamically while the full report passes with 14 suites and 55 cases.",
+  "status": "waiting",
+  "waiting_reason": "clarification",
+  "current_step_id": "agent-refactor-slice",
+  "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
+  "current_step_status": "waiting",
+  "latest_observation": "The main CLI dispatcher now lives in stagewarden/cli_dispatch.py, the project-start JSON path is back on the structured report with next_missing_field, and the role bridge regression batch is green again.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "c303af3",
-  "git_head_baseline": "c303af3",
+  "git_head": "a38597f7a16300f031def40c42297f554018de08",
+  "git_head_baseline": "a38597f",
   "risk_register": [
     {
       "risk": "Requirement misunderstanding.",
@@ -55,13 +165,243 @@
       "title": "3. Validate the result with a direct",
       "status": "planned",
       "validation": "A real wet-run command or observable result confirms the step passed; dry-run alone is not valid."
+    },
+    {
+      "step_id": "agent-refactor-slice",
+      "title": "Refactor agent/main/command dispatch into smaller modules",
+      "status": "in_progress",
+      "validation": "The dispatch and tool wiring are split into smaller modules without changing observed CLI behavior, and the focused tests still pass."
     }
   ],
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-08T10:38:57Z",
+  "updated_at": "2026-05-11T00:30:00Z",
   "entries": [
+    {
+      "timestamp": "2026-05-09T08:17:31Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "executor-action-verification",
+      "summary": "Validated post-action verification for file, shell, git-commit, and multi-file patch mutators on 2026-05-09.",
+      "step_id": "executor-action-verification",
+      "step_title": "Verify every mutating action after execution",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-09T06:14:26Z",
+      "phase": "finish",
+      "iteration": 3,
+      "task": "project-brief-guidance",
+      "summary": "Validated the project brief/start/tree JSON guidance with a broader regression batch on 2026-05-09.",
+      "step_id": "project-brief-guidance",
+      "step_title": "Make project brief suggest the next missing field",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T20:54:25Z",
+      "phase": "finish",
+      "iteration": 2,
+      "task": "project-brief-guidance",
+      "summary": "Extended project start and project tree propose --ai JSON reports so they expose the next missing field or gap alongside the interactive guidance.",
+      "step_id": "project-brief-guidance",
+      "step_title": "Make project brief suggest the next missing field",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T20:50:39Z",
+      "phase": "finish",
+      "iteration": 1,
+      "task": "project-brief-guidance",
+      "summary": "Extended project brief guidance into the JSON report so the next missing field is visible to both humans and automation.",
+      "step_id": "project-brief-guidance",
+      "step_title": "Make project brief suggest the next missing field",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T20:48:20Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "project-brief-guidance",
+      "summary": "Added next-field guidance to the project brief view and set command so users can complete the brief incrementally.",
+      "step_id": "project-brief-guidance",
+      "step_title": "Make project brief suggest the next missing field",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T16:10:27Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-governance-visibility",
+      "summary": "Added node-level cost breakdown to status full while keeping the cost sidebar, manual_min support, and chat-like node transcript rendering.",
+      "step_id": "prince2-governance-visibility",
+      "step_title": "Add node-level cost breakdown to status full",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T16:07:56Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-governance-visibility",
+      "summary": "Added manual_min role-mode support and a cost sidebar with business-case totals, active pricing, model usage, and top cost nodes.",
+      "step_id": "prince2-governance-visibility",
+      "step_title": "Add blocked/manual/manual_min node modes, mnemonic/team metadata, chat-style node transcripts, and cost sidebar",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T14:30:00Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-governance-visibility",
+      "summary": "Added blocked-mode routing support, mnemonic/team metadata, and chat-like node transcript rendering with cost visibility.",
+      "step_id": "prince2-governance-visibility",
+      "step_title": "Add blocked/manual/auto node modes, mnemonic/team metadata, and chat-style node transcripts",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T12:05:00Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-tree-dynamic-decomposition",
+      "summary": "The approved PRINCE2 role-tree baseline now preserves the same decomposition and adaptation metadata as the live tree proposal, and the tree proposal/baseline tests passed after the persistence fix.",
+      "step_id": "prince2-tree-dynamic-decomposition",
+      "step_title": "Make the PRINCE2 tree micro-task-first and continuously adaptive",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T11:53:30Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-tree-dynamic-decomposition",
+      "summary": "The PRINCE2 tree proposal now emits explicit micro-task decomposition nodes plus live adaptation metadata, and the checklist now tells the policy to split work into the smallest independently verifiable packages and refresh at each boundary.",
+      "step_id": "prince2-tree-dynamic-decomposition",
+      "step_title": "Make the PRINCE2 tree micro-task-first and continuously adaptive",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T11:05:00Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark now selects variants from catalog/runtime scores instead of hardcoded model-name tables, local model discovery is automatic across Ollama and LM Studio, and the benchmark still passes with 14 suites and 55 cases.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "c303af3",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T11:00:05Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark now derives role defaults from dynamic provider-model scoring in modelprefs instead of hardcoded role-to-model tables, while the benchmark still passes with 14 suites and 55 cases and shows openai:gpt-5.4-nano plus one cheap:openai/gpt-5.4-nano assignment.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:51:33Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark now uses the router-derived active model set instead of a fixed local/openai whitelist, and the current run shows openai:gpt-5.4-nano plus one cheap:openai/gpt-5.4-nano assignment while the benchmark still passes with 14 suites and 55 cases.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-08T10:45:12Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "prince2-benchmark-baseline",
+      "summary": "The PRINCE2 benchmark now derives the project-assurance assignment from the router instead of hardcoding gpt-5.4-mini, and the current run shows openai:gpt-5.4-nano while the benchmark still passes with 14 suites and 55 cases.",
+      "step_id": "prince2-benchmark-baseline",
+      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-05-08T10:38:57Z",
       "phase": "finish",
@@ -644,6 +984,364 @@
       "git_head": "c303af3",
       "details": {
         "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-09T08:31:32Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "tool-surface-expansion",
+      "summary": "Added cross-platform system utilities and hash/archive tool coverage with CLI and registry wiring.",
+      "step_id": "tool-surface-expansion",
+      "step_title": "Add cross-platform system and archive tools",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-09T08:31:32Z",
+      "phase": "finish",
+      "iteration": 1,
+      "task": "tool-surface-expansion",
+      "summary": "Added browser fetch/open/screenshot coverage on top of the cross-platform system and archive tool surface.",
+      "step_id": "tool-surface-expansion",
+      "step_title": "Add cross-platform system, archive, and browser tools",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-09T08:31:32Z",
+      "phase": "finish",
+      "iteration": 2,
+      "task": "tool-surface-expansion",
+      "summary": "Added watch filesystem observation alongside browser and system tool coverage.",
+      "step_id": "tool-surface-expansion",
+      "step_title": "Add cross-platform system, archive, browser, and watch tools",
+      "step_status": "completed",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-11T05:37:18+00:00",
+      "phase": "user_question_asked",
+      "iteration": 3,
+      "task": "agent-refactor-slice",
+      "summary": "Question asked: What is the objective of this project?",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "question": {
+          "question_id": "question-1",
+          "question": "What is the objective of this project?",
+          "reason": "clarification",
+          "context": {
+            "source": "project start",
+            "gap_code": "missing_project_objective",
+            "design_gaps": [
+              {
+                "code": "missing_project_objective",
+                "message": "Project brief is missing the objective field."
+              },
+              {
+                "code": "missing_project_scope",
+                "message": "Project brief is missing the scope field."
+              },
+              {
+                "code": "missing_expected_outputs",
+                "message": "Project brief is missing the expected_outputs field."
+              },
+              {
+                "code": "missing_delivery_mode",
+                "message": "Project brief is missing the delivery_mode field."
+              },
+              {
+                "code": "no_enabled_providers",
+                "message": "No enabled providers are available for AI-assisted design."
+              }
+            ],
+            "proposal_gaps": [
+              {
+                "code": "missing_objective",
+                "message": "Project brief is missing objective."
+              },
+              {
+                "code": "missing_scope",
+                "message": "Project brief is missing scope."
+              },
+              {
+                "code": "missing_expected_outputs",
+                "message": "Project brief is missing expected_outputs."
+              },
+              {
+                "code": "missing_delivery_mode",
+                "message": "Project brief is missing delivery_mode."
+              }
+            ]
+          },
+          "status": "pending",
+          "asked_at": "2026-05-11T05:37:18+00:00",
+          "answered_at": null,
+          "answer": null
+        }
+      }
+    },
+    {
+      "timestamp": "2026-05-11T05:37:18+00:00",
+      "phase": "project_start_clarification_requested",
+      "iteration": 3,
+      "task": "project start",
+      "summary": "Project startup asked for clarification: What is the objective of this project?",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f7a16300f031def40c42297f554018de08",
+      "details": {
+        "question": {
+          "question_id": "question-1",
+          "question": "What is the objective of this project?",
+          "reason": "clarification",
+          "context": {
+            "source": "project start",
+            "gap_code": "missing_project_objective",
+            "design_gaps": [
+              {
+                "code": "missing_project_objective",
+                "message": "Project brief is missing the objective field."
+              },
+              {
+                "code": "missing_project_scope",
+                "message": "Project brief is missing the scope field."
+              },
+              {
+                "code": "missing_expected_outputs",
+                "message": "Project brief is missing the expected_outputs field."
+              },
+              {
+                "code": "missing_delivery_mode",
+                "message": "Project brief is missing the delivery_mode field."
+              },
+              {
+                "code": "no_enabled_providers",
+                "message": "No enabled providers are available for AI-assisted design."
+              }
+            ],
+            "proposal_gaps": [
+              {
+                "code": "missing_objective",
+                "message": "Project brief is missing objective."
+              },
+              {
+                "code": "missing_scope",
+                "message": "Project brief is missing scope."
+              },
+              {
+                "code": "missing_expected_outputs",
+                "message": "Project brief is missing expected_outputs."
+              },
+              {
+                "code": "missing_delivery_mode",
+                "message": "Project brief is missing delivery_mode."
+              }
+            ]
+          },
+          "status": "pending",
+          "asked_at": "2026-05-11T05:37:18+00:00",
+          "answered_at": null,
+          "answer": null
+        },
+        "design_gaps": [
+          {
+            "code": "missing_project_objective",
+            "message": "Project brief is missing the objective field."
+          },
+          {
+            "code": "missing_project_scope",
+            "message": "Project brief is missing the scope field."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing the expected_outputs field."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing the delivery_mode field."
+          },
+          {
+            "code": "no_enabled_providers",
+            "message": "No enabled providers are available for AI-assisted design."
+          }
+        ],
+        "proposal_gaps": [
+          {
+            "code": "missing_objective",
+            "message": "Project brief is missing objective."
+          },
+          {
+            "code": "missing_scope",
+            "message": "Project brief is missing scope."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing expected_outputs."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing delivery_mode."
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-05-11T05:37:18+00:00",
+      "phase": "project_start_blocked",
+      "iteration": 3,
+      "task": "project start",
+      "summary": "Project startup blocked by unresolved design/proposal clarification gaps.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f7a16300f031def40c42297f554018de08",
+      "details": {
+        "design_gaps": [
+          {
+            "code": "missing_project_objective",
+            "message": "Project brief is missing the objective field."
+          },
+          {
+            "code": "missing_project_scope",
+            "message": "Project brief is missing the scope field."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing the expected_outputs field."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing the delivery_mode field."
+          },
+          {
+            "code": "no_enabled_providers",
+            "message": "No enabled providers are available for AI-assisted design."
+          }
+        ],
+        "proposal_gaps": [
+          {
+            "code": "missing_objective",
+            "message": "Project brief is missing objective."
+          },
+          {
+            "code": "missing_scope",
+            "message": "Project brief is missing scope."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing expected_outputs."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing delivery_mode."
+          }
+        ],
+        "proposal_status": "needs_clarification",
+        "ai_requested": false,
+        "ai_assistance": {
+          "attempted": false,
+          "ok": null,
+          "model": null,
+          "account": null,
+          "message": "AI assistance was not requested.",
+          "valid_added_nodes": [],
+          "rejected_nodes": []
+        },
+        "next_missing_field": "objective"
+      }
+    },
+    {
+      "timestamp": "2026-05-11T05:37:30+00:00",
+      "phase": "project_start_blocked",
+      "iteration": 3,
+      "task": "project start",
+      "summary": "Project startup blocked by unresolved design/proposal clarification gaps.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f7a16300f031def40c42297f554018de08",
+      "details": {
+        "design_gaps": [
+          {
+            "code": "missing_project_objective",
+            "message": "Project brief is missing the objective field."
+          },
+          {
+            "code": "missing_project_scope",
+            "message": "Project brief is missing the scope field."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing the expected_outputs field."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing the delivery_mode field."
+          },
+          {
+            "code": "no_enabled_providers",
+            "message": "No enabled providers are available for AI-assisted design."
+          }
+        ],
+        "proposal_gaps": [
+          {
+            "code": "missing_objective",
+            "message": "Project brief is missing objective."
+          },
+          {
+            "code": "missing_scope",
+            "message": "Project brief is missing scope."
+          },
+          {
+            "code": "missing_expected_outputs",
+            "message": "Project brief is missing expected_outputs."
+          },
+          {
+            "code": "missing_delivery_mode",
+            "message": "Project brief is missing delivery_mode."
+          }
+        ],
+        "proposal_status": "needs_clarification",
+        "ai_requested": false,
+        "ai_assistance": {
+          "attempted": false,
+          "ok": null,
+          "model": null,
+          "account": null,
+          "message": "AI assistance was not requested.",
+          "valid_added_nodes": [],
+          "rejected_nodes": []
+        },
+        "next_missing_field": "objective"
       }
     }
   ]

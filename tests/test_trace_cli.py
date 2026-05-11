@@ -6,6 +6,7 @@ import os
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -316,13 +317,16 @@ class TraceAndCliTests(unittest.TestCase):
     def test_prince2_benchmark_cli_reports_prompt_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            completed = run_main_capture(root, "--prince2-benchmark")
+            completed = run_main_capture(root, "--prince2-benchmark", timeout=60)
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "prince2 benchmark")
             self.assertEqual(payload["schema"]["name"], "stagewarden.prince2_benchmark")
             self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("static_inventory", payload)
+            self.assertIn("model_backends", payload["static_inventory"])
+            self.assertIn("ai_models_catalog", payload["static_inventory"])
             self.assertEqual(payload["overall"]["suite_count"], 14)
             self.assertEqual(payload["overall"]["total_cases"], 55)
             self.assertTrue(payload["overall"]["passed"])
@@ -362,6 +366,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("detail", payload["governance"]["cases"][0]["node_runtime"])
             self.assertIn("nodes detail:", payload["governance"]["cases"][0]["node_runtime"]["detail"])
             self.assertIn("transitions:", payload["governance"]["cases"][0]["node_runtime"]["detail"])
+            self.assertIn("response_quality", payload["assurance"]["cases"][0]["observed"])
+            self.assertIn("score", payload["assurance"]["cases"][0]["observed"]["response_quality"])
 
     def test_openrouter_benchmark_history_comparison_detects_regressions(self) -> None:
         previous = {
@@ -2710,9 +2716,9 @@ class TraceAndCliTests(unittest.TestCase):
                 "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
                 "models": [{"provider": "local", "model_id": "provider-default"}],
             }
-            with patch("stagewarden.main.write_ai_models_catalog", return_value=snapshot):
+            with patch("stagewarden.model_views.write_ai_models_catalog", return_value=snapshot):
                 refreshed = _handle_model_command("catalog refresh", agent, config)
-            with patch("stagewarden.main.load_ai_models_catalog", return_value=snapshot):
+            with patch("stagewarden.main.load_ai_models_catalog", return_value=snapshot), patch("stagewarden.model_views.load_ai_models_catalog", return_value=snapshot):
                 report = _catalog_status_report()
 
             self.assertIn("Catalog refreshed:", refreshed or "")
@@ -2735,7 +2741,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
                 "models": [{"provider": "local", "model_id": "provider-default"}],
             }
-            with patch("stagewarden.main.write_ai_models_catalog", return_value=snapshot) as mocked:
+            with patch("stagewarden.model_views.write_ai_models_catalog", return_value=snapshot) as mocked:
                 refreshed = _handle_model_command("catalog refresh --aa", agent, config)
 
             self.assertIn("pricing_source=artificial_analysis", refreshed or "")
@@ -2781,7 +2787,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
             self.assertEqual(search_payload["schema"]["version"], "1")
 
-            with patch("stagewarden.main.load_ai_models_catalog", return_value=catalog):
+            with patch("stagewarden.model_views.load_ai_models_catalog", return_value=catalog):
                 agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
                 config = AgentConfig(workspace_root=root, max_steps=1)
                 response = _handle_model_command("catalog search gpt-5.4", agent, config)
@@ -2821,7 +2827,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
             self.assertEqual(search_payload["schema"]["version"], "1")
 
-            with patch("stagewarden.main.load_ai_models_catalog", return_value=catalog):
+            with patch("stagewarden.model_views.load_ai_models_catalog", return_value=catalog):
                 agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
                 config = AgentConfig(workspace_root=root, max_steps=1)
                 response = _handle_model_command("catalog search feature=tool_use", agent, config)
@@ -3559,6 +3565,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 role-tree baseline:", baseline.stdout)
             self.assertIn("status: approved", baseline.stdout)
             self.assertIn("rule: this approved role tree is the governance baseline", baseline.stdout)
+            self.assertIn("Decomposition:", baseline.stdout)
+            self.assertIn("Adaptation:", baseline.stdout)
             self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "roles_tree_approve")
             self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "roles_tree_approve")
 
@@ -3568,6 +3576,50 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["status"], "approved")
             self.assertEqual(payload["baseline"]["tree"]["command"], "roles tree")
             self.assertEqual(payload["baseline"]["matrix"]["command"], "roles matrix")
+            self.assertIn("decomposition", payload)
+            self.assertIn("adaptation", payload)
+
+    def test_roles_render_blocked_mode_with_mnemonic_and_team(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_assignment(
+                "project_manager",
+                mode="blocked",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                source="unit_test",
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("mnemonic=PM", completed.stdout)
+            self.assertIn("team=Management", completed.stdout)
+            self.assertIn("mode=blocked", completed.stdout)
+            self.assertIn("provider=openai", completed.stdout)
+
+    def test_roles_render_manual_min_mode_with_mnemonic_and_team(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_assignment(
+                "team_manager",
+                mode="manual_min",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                source="unit_test",
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("mnemonic=TM", completed.stdout)
+            self.assertIn("team=Delivery", completed.stdout)
+            self.assertIn("mode=manual_min", completed.stdout)
+            self.assertIn("provider=openai", completed.stdout)
 
     def test_role_add_child_and_assign_updates_role_tree_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -4359,6 +4411,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Queued PRINCE2 node message", completed.stdout)
             self.assertIn("delivery.team_manager", completed.stdout)
             self.assertIn("payload=assigned_work_package,quality_criteria", completed.stdout)
+            rendered_messages = run_main_capture(root, "roles messages delivery.team_manager")
+            self.assertEqual(rendered_messages.returncode, 0, rendered_messages.stderr)
+            self.assertIn("mnemonic=TM", rendered_messages.stdout)
+            self.assertIn("team=Delivery", rendered_messages.stdout)
+            self.assertIn("chat:", rendered_messages.stdout)
+            self.assertIn("summary=issue_work_package", rendered_messages.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             message_payload = json.loads(json_completed.stdout)
@@ -4656,6 +4714,27 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertNotIn("missing_expected_outputs", codes)
             self.assertNotIn("missing_delivery_mode", codes)
 
+    def test_project_brief_set_reports_next_missing_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            completed = run_main_capture(root, "project brief set objective Build a governed coding agent")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project brief updated: objective=Build a governed coding agent", completed.stdout)
+            self.assertIn("Next missing project brief field: scope", completed.stdout)
+            self.assertIn("project brief set scope <value>", completed.stdout)
+
+            brief = run_main_capture(root, "project brief")
+            self.assertEqual(brief.returncode, 0, brief.stderr)
+            self.assertIn("Next missing project brief field: scope", brief.stdout)
+            self.assertIn("- objective: Build a governed coding agent", brief.stdout)
+            json_brief = run_main_capture(root, "project brief", "--json")
+            self.assertEqual(json_brief.returncode, 0, json_brief.stderr)
+            brief_payload = json.loads(json_brief.stdout)
+            self.assertEqual(brief_payload["next_missing_field"], "scope")
+            self.assertIn("Next missing project brief field: scope", brief_payload["guidance"])
+
     def test_project_tree_propose_builds_proportional_review_proposal_from_brief(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -4684,6 +4763,38 @@ class TraceAndCliTests(unittest.TestCase):
             node_ids = {item["node_id"] for item in payload["tree"]["nodes"]}
             self.assertIn("assurance.validation_assurance", node_ids)
             self.assertEqual(payload["clarification_gaps"], [])
+
+    def test_project_tree_proposal_refines_micro_tasks_and_refreshes_on_brief_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a governed coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation and rollback evidence").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+
+            approved = run_main_capture(root, "project tree approve")
+            self.assertEqual(approved.returncode, 0, approved.stderr)
+            self.assertIn("Project tree approval:", approved.stdout)
+
+            self.assertEqual(
+                run_main_capture(root, "project brief set scope shell git model routing browser login and release rollback").returncode,
+                0,
+            )
+
+            completed = run_main_capture(root, "project tree propose", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertIn("Decomposition:", run_main_capture(root, "project tree propose").stdout)
+            self.assertIn("Adaptation:", run_main_capture(root, "project tree propose").stdout)
+            self.assertIn("decomposition", payload)
+            self.assertIn("adaptation", payload)
+            self.assertGreaterEqual(payload["decomposition"]["micro_task_count"], 2)
+            micro_nodes = {item["node_id"] for item in payload["decomposition"]["micro_tasks"]}
+            self.assertIn("management.work_package_breakdown", micro_nodes)
+            self.assertIn("support.evidence_keeper", micro_nodes)
+            self.assertEqual(payload["adaptation"]["status"], "refreshed")
+            self.assertIn("scope", payload["adaptation"]["changed_fields"])
 
     def test_project_tree_propose_ai_attaches_local_execution_candidates_when_discovered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -4898,6 +5009,43 @@ class TraceAndCliTests(unittest.TestCase):
             codes = {item["code"] for item in payload["clarification_gaps"]}
             self.assertIn("missing_objective", codes)
             self.assertIn("missing_scope", codes)
+
+    def test_project_tree_propose_ai_requests_clarification_for_missing_brief(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "project tree propose --ai")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Clarification question:", completed.stdout)
+            self.assertIn("What objective should this project tree optimize for?", completed.stdout)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(handoff.status, "waiting")
+            self.assertEqual(handoff.waiting_reason, "clarification")
+            self.assertEqual(handoff.user_question_view()["status"], "pending")
+            json_completed = run_main_capture(root, "project tree propose --ai", "--json")
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["next_missing_field"], "objective")
+            self.assertEqual(payload["next_missing_gap"]["code"], "missing_objective")
+
+    def test_project_start_requests_clarification_for_missing_brief(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "project start")
+
+            self.assertEqual(completed.returncode, 1, completed.stdout)
+            self.assertIn("Clarification question:", completed.stdout)
+            self.assertIn("What project outcome or objective should I prioritize?", completed.stdout)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(handoff.status, "waiting")
+            self.assertEqual(handoff.waiting_reason, "clarification")
+            self.assertEqual(handoff.user_question_view()["status"], "pending")
+            json_completed = run_main_capture(root, "project start", "--json")
+            self.assertEqual(json_completed.returncode, 1, json_completed.stdout)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["next_missing_field"], "objective")
+            self.assertIn(payload["next_missing_gap"]["code"], {"missing_project_task", "missing_project_objective"})
+            self.assertIn("question", payload["clarification_question"])
 
     def test_project_tree_approve_blocks_until_brief_is_complete(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -5240,6 +5388,89 @@ class TraceAndCliTests(unittest.TestCase):
                 thread.join(timeout=2)
                 server.server_close()
 
+    def test_system_and_archive_cli_commands_expose_dynamic_tools(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            bundle = root / "bundle"
+            (bundle / "nested").mkdir(parents=True)
+            (bundle / "nested" / "data.txt").write_text("hello archive\n", encoding="utf-8")
+
+            system_completed = run_main_capture(root, "system info", "--json")
+            self.assertEqual(system_completed.returncode, 0, system_completed.stderr)
+            system_payload = json.loads(system_completed.stdout)
+            self.assertEqual(system_payload["command"], "system info")
+            self.assertEqual(system_payload["schema"]["name"], "stagewarden.system_info")
+            self.assertIn("platform", system_payload["info"])
+
+            hash_completed = run_main_capture(root, "hash bundle/nested/data.txt", "--json")
+            self.assertEqual(hash_completed.returncode, 0, hash_completed.stderr)
+            hash_payload = json.loads(hash_completed.stdout)
+            self.assertEqual(hash_payload["command"], "hash")
+            self.assertEqual(hash_payload["hash_algorithm"], "sha256")
+            self.assertTrue(hash_payload["digest"])
+
+            archive_completed = run_main_capture(root, "archive create bundle exports/bundle.tar.gz --format gztar", "--json")
+            self.assertEqual(archive_completed.returncode, 0, archive_completed.stderr)
+            archive_payload = json.loads(archive_completed.stdout)
+            self.assertEqual(archive_payload["command"], "archive create")
+            self.assertEqual(archive_payload["path"], "exports/bundle.tar.gz")
+            self.assertTrue((root / "exports" / "bundle.tar.gz").exists())
+
+    def test_browser_cli_fetch_exposes_title_and_links(self) -> None:
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                body = b"<html><head><title>Stagewarden</title></head><body><a href='https://example.test'>Example</a></body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            except PermissionError as exc:
+                self.skipTest(f"local HTTP bind unavailable: {exc}")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_port}/index.html"
+                completed = run_main_capture(root, "browser fetch", url, "--json")
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                payload = json.loads(completed.stdout)
+                self.assertEqual(payload["command"], "browser fetch")
+                self.assertEqual(payload["schema"]["name"], "stagewarden.browser_fetch")
+                self.assertEqual(payload["title"], "Stagewarden")
+                self.assertTrue(any(item["href"] == "https://example.test" for item in payload["items"]))
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+
+    def test_watch_cli_detects_file_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            target = root / "watched.txt"
+
+            def mutate() -> None:
+                time.sleep(1.0)
+                target.write_text("after\n", encoding="utf-8")
+
+            thread = threading.Thread(target=mutate, daemon=True)
+            thread.start()
+            completed = run_main_capture(root, "watch . --timeout 3.0 --recursive --poll 0.1", "--json")
+            thread.join(timeout=2)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "watch")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.watch")
+            self.assertIn("Observed", payload["message"])
+            self.assertEqual(payload["path"], ".")
+
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -5367,6 +5598,174 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("totals: calls=2 failures=1 steps=2 failure_rate=50.00%", rendered)
             self.assertIn("routing: last_model=claude highest_tier=high/fallback highest_model=claude escalation_path=local -> claude", rendered)
             self.assertGreaterEqual(rendered.count("Model usage:"), 2)
+
+    def test_interactive_shell_renders_cost_sidebar_with_business_case_totals(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["openai"]
+            prefs.preferred_model = "openai"
+            prefs.save(root / ".stagewarden_models.json")
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "report costs",
+                "status": "executing",
+                "current_step_id": "step-1",
+                "current_step_title": "Validate costs",
+                "current_step_status": "in_progress",
+                "latest_observation": "cost totals visible",
+                "plan_status": "step-1:in_progress",
+                "prince2_node_runtime": {
+                    "command": "roles runtime",
+                    "status": "materialized",
+                    "materialized_at": "2026-05-08T12:30:00+00:00",
+                    "baseline_source": "unit_test",
+                    "nodes": [
+                        {
+                            "node_id": "board.executive",
+                            "label": "Project Executive",
+                            "mnemonic": "PEX",
+                            "team_name": "Board",
+                            "mode": "auto",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 100,
+                            "business_case_input_cost_usd": 0.01,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.01,
+                        },
+                        {
+                            "node_id": "delivery.team_manager",
+                            "label": "Team Manager",
+                            "mnemonic": "TM",
+                            "team_name": "Delivery",
+                            "mode": "manual_min",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 50,
+                            "business_case_input_cost_usd": 0.004,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.004,
+                        },
+                    ],
+                },
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+
+            input_stream = StringIO("status\nstatus full\ncost sidebar\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Cost sidebar:", rendered)
+            self.assertIn("business_case_total_cost_usd: 0.014", rendered)
+            self.assertIn("Node cost breakdown:", rendered)
+            self.assertIn("top_cost_nodes:", rendered)
+            self.assertIn("board.executive", rendered)
+            self.assertIn("delivery.team_manager", rendered)
+            self.assertIn("cost_usd=0.01", rendered)
+            self.assertIn("cost_usd=0.004", rendered)
+
+    def test_interactive_shell_manages_project_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "budget control",
+                "status": "executing",
+                "current_step_id": "step-1",
+                "current_step_title": "Manage budget",
+                "current_step_status": "in_progress",
+                "latest_observation": "budget control available",
+                "plan_status": "step-1:in_progress",
+                "prince2_node_runtime": {
+                    "command": "roles runtime",
+                    "status": "materialized",
+                    "materialized_at": "2026-05-08T12:30:00+00:00",
+                    "baseline_source": "unit_test",
+                    "nodes": [
+                        {
+                            "node_id": "board.executive",
+                            "label": "Project Executive",
+                            "mnemonic": "PEX",
+                            "team_name": "Board",
+                            "mode": "auto",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 100,
+                            "business_case_input_cost_usd": 0.01,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.01,
+                        },
+                        {
+                            "node_id": "delivery.team_manager",
+                            "label": "Team Manager",
+                            "mnemonic": "TM",
+                            "team_name": "Delivery",
+                            "mode": "manual_min",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 50,
+                            "business_case_input_cost_usd": 0.004,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.004,
+                        },
+                    ],
+                },
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+
+            input_stream = StringIO("budget\nbudget set 0.02 USD\nbudget\nbudget status paused\nbudget\nbudget clear\nbudget\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Project budget:", rendered)
+            self.assertIn("- status: missing", rendered)
+            self.assertIn("Budget active: 0.02 USD", rendered)
+            self.assertIn("- status: active", rendered)
+            self.assertIn("Budget paused: 0.02 USD", rendered)
+            self.assertIn("- status: paused", rendered)
+            self.assertIn("Project budget cleared.", rendered)
+
+    def test_interactive_shell_manages_user_questions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / ".stagewarden_handoff.json").write_text(
+                json.dumps(
+                    {
+                        "_format": "stagewarden_project_handoff",
+                        "_version": 1,
+                        "task": "",
+                        "status": "idle",
+                        "entries": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            input_stream = StringIO(
+                "question ask Which deliverable should I prioritize?\n"
+                "question\n"
+                "answer Prioritize the release checklist.\n"
+                "question\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Question asked: Which deliverable should I prioritize?", rendered)
+            self.assertIn("User question:", rendered)
+            self.assertIn("- status: pending", rendered)
+            self.assertIn("Question answered: Which deliverable should I prioritize?", rendered)
+            self.assertIn("- status: missing", rendered)
 
     def test_interactive_shell_manages_model_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -5771,6 +6170,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 roles:", rendered)
             self.assertIn("prince2_role_baseline: missing", rendered)
             self.assertIn("Provider limit status:", rendered)
+            self.assertIn("Cost sidebar:", rendered)
             self.assertIn("chatgpt: enabled active provider_model=automatic-by-task selection=automatic active_account=none", rendered)
             self.assertIn("last_attempt: step=step-3 status=failed:runtime account=work provider_model=gpt-5.3-codex", rendered)
             self.assertIn("Resume context:", rendered)

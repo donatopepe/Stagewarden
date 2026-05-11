@@ -6,10 +6,14 @@ import hashlib
 import html
 import json
 import mimetypes
+import os
 from pathlib import Path
 import re
+import shutil
 import time
 from typing import Any
+import tarfile
+import zipfile
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse, urlsplit
 from urllib.request import Request, urlopen
 
@@ -23,6 +27,8 @@ class ExternalIOResult:
     url: str | None = None
     bytes_written: int = 0
     sha256: str | None = None
+    hash_algorithm: str | None = None
+    digest: str | None = None
     content_type: str | None = None
     duration_ms: int = 0
     items: list[dict[str, str]] | None = None
@@ -39,6 +45,8 @@ class ExternalIOResult:
             "url": self.url,
             "bytes_written": self.bytes_written,
             "sha256": self.sha256,
+            "hash_algorithm": self.hash_algorithm,
+            "digest": self.digest,
             "content_type": self.content_type,
             "duration_ms": self.duration_ms,
             "items": list(self.items or []),
@@ -68,11 +76,36 @@ class ExternalIOTool:
                 path=self._display_path(target),
                 bytes_written=size,
                 sha256=digest,
+                hash_algorithm="sha256",
+                digest=digest,
                 content_type=mimetypes.guess_type(target.name)[0],
                 duration_ms=self._elapsed_ms(started),
             )
         except (OSError, ValueError) as exc:
             return self._error("checksum", str(exc), started, path=path)
+
+    def hash_file(self, path: str, *, algorithm: str = "sha256") -> ExternalIOResult:
+        started = time.monotonic()
+        try:
+            target = self._safe_path(path)
+            if not target.is_file():
+                raise ValueError("Target path is not a file.")
+            digest = self._hash_file(target, algorithm)
+            size = target.stat().st_size
+            return ExternalIOResult(
+                ok=True,
+                command="hash",
+                message=f"{algorithm.upper()} computed for {self._display_path(target)}.",
+                path=self._display_path(target),
+                bytes_written=size,
+                sha256=digest if algorithm.lower() == "sha256" else None,
+                hash_algorithm=algorithm.lower().replace("-", ""),
+                digest=digest,
+                content_type=mimetypes.guess_type(target.name)[0],
+                duration_ms=self._elapsed_ms(started),
+            )
+        except (OSError, ValueError) as exc:
+            return self._error("hash", str(exc), started, path=path)
 
     def download(self, url: str, destination: str | None = None, *, max_bytes: int | None = None) -> ExternalIOResult:
         started = time.monotonic()
@@ -105,6 +138,8 @@ class ExternalIOTool:
                 url=url,
                 bytes_written=written,
                 sha256=digest.hexdigest(),
+                hash_algorithm="sha256",
+                digest=digest.hexdigest(),
                 content_type=content_type,
                 duration_ms=self._elapsed_ms(started),
             )
@@ -133,6 +168,8 @@ class ExternalIOTool:
                 path=self._display_path(target),
                 bytes_written=size,
                 sha256=digest,
+                hash_algorithm="sha256",
+                digest=digest,
                 content_type="application/gzip",
                 duration_ms=self._elapsed_ms(started),
             )
@@ -162,11 +199,93 @@ class ExternalIOTool:
                 path=self._display_path(target),
                 bytes_written=size,
                 sha256=digest,
+                hash_algorithm="sha256",
+                digest=digest,
                 content_type="application/gzip",
                 duration_ms=self._elapsed_ms(started),
             )
         except (OSError, EOFError, ValueError, gzip.BadGzipFile) as exc:
             return self._error("archive verify", str(exc), started, path=path)
+
+    def archive_list(self, path: str) -> ExternalIOResult:
+        started = time.monotonic()
+        try:
+            target = self._safe_path(path)
+            if not target.is_file():
+                raise ValueError("Archive path is not a file.")
+            items = self._archive_members(target)
+            return ExternalIOResult(
+                ok=True,
+                command="archive list",
+                message=f"Listed {len(items)} archive member(s).",
+                path=self._display_path(target),
+                bytes_written=target.stat().st_size,
+                content_type=mimetypes.guess_type(target.name)[0],
+                duration_ms=self._elapsed_ms(started),
+                items=items,
+                hash_algorithm="sha256",
+                digest=self._sha256_file(target)[0],
+            )
+        except (OSError, ValueError, tarfile.TarError, zipfile.BadZipFile) as exc:
+            return self._error("archive list", str(exc), started, path=path)
+
+    def archive_extract(self, path: str, destination: str | None = None) -> ExternalIOResult:
+        started = time.monotonic()
+        try:
+            target = self._safe_path(path)
+            if not target.is_file():
+                raise ValueError("Archive path is not a file.")
+            extract_root = self._safe_path(destination or self._archive_stem_name(target))
+            extract_root.mkdir(parents=True, exist_ok=True)
+            extracted = self._extract_archive(target, extract_root)
+            digest, size = self._sha256_file(target)
+            return ExternalIOResult(
+                ok=True,
+                command="archive extract",
+                message=f"Extracted {len(extracted)} member(s) to {self._display_path(extract_root)}.",
+                path=self._display_path(extract_root),
+                bytes_written=size,
+                sha256=digest,
+                hash_algorithm="sha256",
+                digest=digest,
+                content_type=mimetypes.guess_type(target.name)[0],
+                duration_ms=self._elapsed_ms(started),
+                items=extracted,
+            )
+        except (OSError, ValueError, tarfile.TarError, zipfile.BadZipFile) as exc:
+            return self._error("archive extract", str(exc), started, path=destination or path)
+
+    def archive_create(self, source: str, destination: str | None = None, *, format: str | None = None) -> ExternalIOResult:
+        started = time.monotonic()
+        try:
+            source_path = self._safe_path(source)
+            if not source_path.exists():
+                raise ValueError("Source path does not exist.")
+            target = self._safe_path(destination or self._archive_default_name(source_path, format))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            archive_format = self._resolve_archive_format(target, format)
+            base_name = self._archive_base_name(target, archive_format)
+            root_dir = str(source_path.parent)
+            base_dir = source_path.name
+            created = shutil.make_archive(base_name, archive_format, root_dir=root_dir, base_dir=base_dir)
+            created_path = Path(created)
+            digest, size = self._sha256_file(created_path)
+            items = self._archive_members(created_path)
+            return ExternalIOResult(
+                ok=True,
+                command="archive create",
+                message=f"Created {archive_format} archive {self._display_path(created_path)}.",
+                path=self._display_path(created_path),
+                bytes_written=size,
+                sha256=digest,
+                hash_algorithm="sha256",
+                digest=digest,
+                content_type=mimetypes.guess_type(created_path.name)[0],
+                duration_ms=self._elapsed_ms(started),
+                items=items,
+            )
+        except (OSError, ValueError, shutil.Error, tarfile.TarError, zipfile.BadZipFile) as exc:
+            return self._error("archive create", str(exc), started, path=destination or source)
 
     def web_search(self, query: str, *, endpoint: str | None = None, limit: int = 5) -> ExternalIOResult:
         started = time.monotonic()
@@ -189,7 +308,9 @@ class ExternalIOTool:
                 message=f"Found {len(items)} result(s) for query.",
                 url=url,
                 bytes_written=len(raw),
-                sha256=hashlib.sha256(raw).hexdigest(),
+                sha256=(digest := hashlib.sha256(raw).hexdigest()),
+                hash_algorithm="sha256",
+                digest=digest,
                 content_type=content_type,
                 duration_ms=self._elapsed_ms(started),
                 items=items,
@@ -221,6 +342,111 @@ class ExternalIOTool:
             if len(results) >= limit:
                 break
         return results
+
+    def _hash_file(self, path: Path, algorithm: str) -> str:
+        normalized = algorithm.strip().lower().replace("-", "")
+        try:
+            hasher = hashlib.new(normalized)
+        except ValueError as exc:
+            raise ValueError("Unsupported hash algorithm.") from exc
+        with path.open("rb") as handle:
+            while True:
+                chunk = handle.read(64 * 1024)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def _archive_default_name(self, source: Path, format: str | None) -> str:
+        return f"{source.name}{self._archive_suffix_for_format(format)}"
+
+    def _archive_stem_name(self, path: Path) -> str:
+        lowered = path.name.lower()
+        for suffix in (".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz", ".zip", ".tar", ".gz", ".bz2", ".xz"):
+            if lowered.endswith(suffix):
+                return path.name[: -len(suffix)]
+        return path.stem or path.name
+
+    def _archive_suffix_for_format(self, format: str | None) -> str:
+        normalized = (format or "tar").strip().lower()
+        return {
+            "zip": ".zip",
+            "tar": ".tar",
+            "gztar": ".tar.gz",
+            "bztar": ".tar.bz2",
+            "xztar": ".tar.xz",
+        }.get(normalized, ".tar")
+
+    def _archive_base_name(self, target: Path, archive_format: str) -> str:
+        suffix = self._archive_suffix_for_format(archive_format)
+        name = target.name
+        lowered = name.lower()
+        if lowered.endswith(suffix):
+            return str(target.with_name(name[: -len(suffix)]))
+        return str(target)
+
+    def _resolve_archive_format(self, target: Path, format: str | None) -> str:
+        if format:
+            normalized = format.strip().lower()
+        else:
+            suffix = "".join(target.suffixes).lower()
+            normalized = {
+                ".zip": "zip",
+                ".tar": "tar",
+                ".tar.gz": "gztar",
+                ".tgz": "gztar",
+                ".tar.bz2": "bztar",
+                ".tbz2": "bztar",
+                ".tar.xz": "xztar",
+                ".txz": "xztar",
+            }.get(suffix, "zip")
+        if normalized not in {"zip", "tar", "gztar", "bztar", "xztar"}:
+            raise ValueError("Unsupported archive format.")
+        return normalized
+
+    def _archive_members(self, path: Path) -> list[dict[str, str]]:
+        if zipfile.is_zipfile(path):
+            with zipfile.ZipFile(path) as archive:
+                return [
+                    {
+                        "name": item.filename,
+                        "size": str(item.file_size),
+                        "compressed_size": str(item.compress_size),
+                    }
+                    for item in archive.infolist()
+                ]
+        if tarfile.is_tarfile(path):
+            with tarfile.open(path) as archive:
+                items: list[dict[str, str]] = []
+                for member in archive.getmembers():
+                    items.append(
+                        {
+                            "name": member.name,
+                            "size": str(member.size),
+                            "type": member.type.decode("utf-8", errors="ignore") if isinstance(member.type, bytes) else str(member.type),
+                        }
+                    )
+                return items
+        if path.suffix == ".gz":
+            return [{"name": path.name, "size": str(path.stat().st_size), "compressed_size": str(path.stat().st_size)}]
+        raise ValueError("Unsupported archive format.")
+
+    def _extract_archive(self, path: Path, destination: Path) -> list[dict[str, str]]:
+        if zipfile.is_zipfile(path):
+            with zipfile.ZipFile(path) as archive:
+                archive.extractall(destination)
+                return [{"name": item.filename, "size": str(item.file_size)} for item in archive.infolist()]
+        if tarfile.is_tarfile(path):
+            with tarfile.open(path) as archive:
+                members = archive.getmembers()
+                archive.extractall(destination)
+                return [{"name": member.name, "size": str(member.size)} for member in members]
+        if path.suffix == ".gz":
+            target = destination / path.with_suffix("").name
+            with gzip.open(path, "rb") as src, target.open("wb") as dst:
+                shutil.copyfileobj(src, dst)
+            return [{"name": target.name, "size": str(target.stat().st_size)}]
+        raise ValueError("Unsupported archive format.")
 
     def _unwrap_duckduckgo_url(self, href: str) -> str:
         parsed = urlparse(href)

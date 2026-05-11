@@ -138,6 +138,77 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(goal["budget_used_percentage"], 105.0)
         self.assertIn("raise budget", goal["next_action"])
 
+    def test_project_budget_roundtrip_and_spend_summary(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.prince2_node_runtime = {
+            "nodes": [
+                {
+                    "node_id": "board.executive",
+                    "business_case_cost_usd": 0.01,
+                },
+                {
+                    "node_id": "delivery.team_manager",
+                    "business_case_cost_usd": 0.004,
+                },
+            ]
+        }
+        budget = handoff.set_project_budget(budget_usd=0.02, currency="usd")
+        self.assertEqual(budget["status"], "active")
+        self.assertEqual(budget["budget_usd"], 0.02)
+        self.assertEqual(budget["currency"], "USD")
+        self.assertEqual(budget["spend_usd"], 0.014)
+        self.assertEqual(budget["remaining_usd"], 0.006)
+        self.assertEqual(budget["budget_used_percentage"], 70.0)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / ".stagewarden_handoff.json"
+            handoff.save(path)
+            loaded = ProjectHandoff.load(path)
+            loaded_budget = loaded.project_budget_view()
+            self.assertEqual(loaded_budget["status"], "active")
+            self.assertEqual(loaded_budget["budget_usd"], 0.02)
+            self.assertEqual(loaded_budget["spend_usd"], 0.014)
+            self.assertEqual(loaded_budget["remaining_usd"], 0.006)
+
+    def test_project_budget_marks_budget_limited_when_spend_is_reached(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.prince2_node_runtime = {
+            "nodes": [
+                {
+                    "node_id": "board.executive",
+                    "business_case_cost_usd": 0.06,
+                }
+            ]
+        }
+        budget = handoff.set_project_budget(budget_usd=0.05, currency="USD")
+        self.assertEqual(budget["status"], "budget_limited")
+        self.assertTrue(budget["terminal"])
+        self.assertEqual(budget["spend_usd"], 0.06)
+        self.assertEqual(budget["remaining_usd"], 0.0)
+        self.assertEqual(budget["budget_used_percentage"], 120.0)
+        self.assertIn("raise budget", budget["next_action"])
+
+    def test_user_question_roundtrip_and_answer_flow(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / ".stagewarden_handoff.json"
+            handoff = ProjectHandoff()
+            question = handoff.ask_user(
+                question="Which deliverable should I prioritize?",
+                reason="clarification",
+                context={"task": "deliver project"},
+            )
+            self.assertEqual(question["status"], "pending")
+            self.assertEqual(question["question"], "Which deliverable should I prioritize?")
+            self.assertEqual(handoff.user_question_view()["status"], "pending")
+            answered = handoff.answer_user_question(answer="Prioritize the release checklist.")
+            self.assertEqual(answered["status"], "answered")
+            self.assertEqual(answered["answer"], "Prioritize the release checklist.")
+            self.assertEqual(handoff.user_question_view()["status"], "missing")
+            handoff.save(path)
+            loaded = ProjectHandoff.load(path)
+            self.assertEqual(loaded.user_question_view()["status"], "missing")
+            self.assertEqual(loaded.user_question_view()["answered_count"], 1)
+
     def test_project_handoff_materializes_prince2_node_runtime_from_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / ".stagewarden_handoff.json"
