@@ -21,9 +21,16 @@ def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, objec
     permissions = main._permissions_report(config)
     role_check = main._prince2_role_check_report(config)
     baseline = main._prince2_role_tree_baseline_report(config)
+    local_fallback = main._delivery_local_fallback_report(config)
+    local_execution = main._local_execution_candidates_report(config, agent=agent, use_ai=False)
     focus = main._focus_snapshot(agent, config)
 
     enabled_providers = [item["provider"] for item in provider_limits["providers"] if item["enabled"]]
+    proposal_local_candidates = [
+        item for item in local_execution.get("candidates", []) if isinstance(item, dict)
+    ]
+    if not enabled_providers and (local_fallback.get("status") in {"ready", "available"} or proposal_local_candidates):
+        enabled_providers = ["local"]
     active_accounts = {
         provider: account
         for provider, account in (prefs.active_account_by_model or {}).items()
@@ -61,6 +68,8 @@ def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, objec
         },
         "permission_mode": permissions["effective"]["mode"],
         "enabled_providers": enabled_providers,
+        "proposal_local_execution": local_execution,
+        "local_fallback": local_fallback,
         "active_accounts": active_accounts,
         "blocked_providers": blocked_providers,
         "preferred_provider": prefs.preferred_model or "automatic",
@@ -91,14 +100,10 @@ def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, objec
         gaps.append({"code": "missing_expected_outputs", "message": "Project brief is missing the expected_outputs field."})
     if not handoff.project_brief.get("delivery_mode"):
         gaps.append({"code": "missing_delivery_mode", "message": "Project brief is missing the delivery_mode field."})
-    if role_check.get("status") != "ok":
-        gaps.append({"code": "role_tree_not_ready", "message": "Role tree is not fully ready; AI tree design must treat current structure as provisional."})
-    if not enabled_providers:
+    if not enabled_providers and not proposal_local_candidates:
         gaps.append({"code": "no_enabled_providers", "message": "No enabled providers are available for AI-assisted design."})
     if shell_backend["selected"] in {None, ""}:
         gaps.append({"code": "shell_backend_unknown", "message": "Selected shell backend is unknown, so capability context is incomplete."})
-    if not baseline.get("baseline"):
-        gaps.append({"code": "missing_role_tree_baseline", "message": "No approved role-tree baseline exists yet."})
     ready = not gaps
     return {
         "command": "project design",
@@ -106,6 +111,7 @@ def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, objec
         "agent_capability_specification": capability_spec,
         "project_specification": project_spec,
         "role_tree_check": role_check,
+        "local_fallback": local_fallback,
         "focus": focus,
         "clarification_gaps": gaps,
     }
@@ -128,6 +134,8 @@ def _render_project_design(agent: Agent, config: AgentConfig) -> str:
         f"- shell_backend: configured={capability['shell_backend']['configured']} selected={capability['shell_backend']['selected']} executable={capability['shell_backend']['executable']}",
         f"- permission_mode: {capability['permission_mode']}",
         f"- enabled_providers: {', '.join(capability['enabled_providers']) or 'none'}",
+        f"- proposal_local_execution: candidates={','.join(str(item.get('id', '')).strip() for item in capability['proposal_local_execution'].get('candidates', []) if isinstance(item, dict) and str(item.get('id', '')).strip()) or 'none'}",
+        f"- local_fallback: status={capability['local_fallback'].get('status', 'missing')} ready_nodes={capability['local_fallback'].get('delivery_nodes_with_local_fallback', 0)}/{capability['local_fallback'].get('delivery_nodes', 0)} candidates={','.join(capability['local_fallback'].get('candidate_ids', [])) if capability['local_fallback'].get('candidate_ids') else 'none'}",
         f"- active_accounts: {', '.join(f'{key}={value}' for key, value in sorted(capability['active_accounts'].items())) or 'none'}",
         f"- blocked_providers: {blocked_text}",
         f"- wet_run_required: {str(capability['capabilities']['wet_run_required']).lower()}",

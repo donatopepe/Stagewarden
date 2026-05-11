@@ -14,6 +14,7 @@
 - `stagewarden/project/role_command_flow.py` now centralizes the project-start and roles command dispatch bridge that was still living in `main.py`, and the extracted `role` bridge was just corrected after an indentation bug; the focused `role`/`roles` regression batch is green again.
 - `stagewarden/cli_dispatch.py` now centralizes the main CLI task dispatcher that was still living in `main.py`, and the `project start` JSON path now goes through the structured report again so `next_missing_field` stays in the payload.
 - `stagewarden/shell_views.py` now centralizes the interactive shell loop that was still living in `main.py`, and the shell/role budget/question regression batch is green again after the split.
+- `stagewarden/auth_views.py` now centralizes provider auth status, and `stagewarden/model_inspection_views.py` now centralizes the provider/local model inspection path that was still living in `main.py`.
 - `stagewarden/account_views.py` now centralizes the account command block that was still living in `main.py`, including account add/login/logout/env/import/use/choose/remove/block/unblock/limit commands and the account report.
 - `stagewarden/command_views.py` now centralizes the shell/git/file/session/patch/permission command cluster that was still living in `main.py`.
 - `stagewarden/report_views.py` now centralizes the remaining board/boundary/permissions/risks/issues/quality/exception/lessons/todo report helpers that were still living in `main.py`.
@@ -26,14 +27,17 @@
 - The legacy project-tree implementation bodies were removed from `stagewarden/main.py`, leaving only thin wrappers that delegate into `stagewarden/project/tree_flow.py`.
 - `stagewarden/project/model_recommendation.py` now owns the tree model-selection helpers that were still duplicated in the tree bridge and main wrappers.
 - `stagewarden/project/design_flow.py` now owns the project design packet/report helpers that were still living in `main.py`.
+- `stagewarden/project/design_flow.py` now treats runtime-discovered local execution candidates as valid readiness, so `project start` can proceed in a fresh repo without a pre-approved cloud baseline.
 - `stagewarden/project/role_views.py` now owns the PRINCE2 role runtime/context report and render helpers that were still living in `main.py`.
 - `stagewarden/project/role_runtime_views.py` now owns the PRINCE2 runtime, active, queues, control, and messages report/render helpers that were still living in `main.py`.
 - `stagewarden/project/role_flow.py` now owns the PRINCE2 role-tree node discovery, navigation, detail, shell, provider-choice, action, and menu helpers that were still living in `main.py`.
 - `stagewarden/project/role_tree_views.py` now owns the remaining PRINCE2 role domains/tree/baseline render helpers that were still living in `main.py`.
+- `stagewarden/project/role_tree_views.py` excludes the rollback lane from the active local-fallback count so the readiness report matches the regression contract.
 - `stagewarden/project/start_flow.py` now owns the `project start` gate, clarification records, and startup rendering helpers that were still living in `main.py`.
 - `stagewarden/battery_views.py` now owns the battery report/render slice that was still living in `main.py`, the old inline battery report body and inline battery renderer were removed from `main.py`, leaving only the thin wrapper bridge, `stagewarden/status_views.py` now owns the model-usage/cost-sidebar/full-status/provider-limit/model-status helper slice, `stagewarden/project_handoff_views.py` now owns the handoff/resume/board/register/transcript operational reports, `stagewarden/ui_views.py` now owns the help/slash UI helpers, and the focused battery regression batch is green again after the split.
 - The PRINCE2 role shell render now includes the `status_legend:` line and the `switch_hint:` line expected by the battery, and the antagonist KPI path now exposes `threat_count` so the role battery passes again.
 - `stagewarden/status_views.py` now owns the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status/provider-limit/model-status helper slice, while `stagewarden/main.py` shadows the old bodies with thin wrappers into that module.
+- `status` and `statusline` now resolve through the report paths again, so the fallback readiness readout stays machine-readable.
 - `_focus_snapshot` was restored after the status cleanup so the battery and resume/status paths keep working.
 - The next structure slice should keep grouping related code into subfolders by concern so the module surface stays readable as the repo grows, then continue trimming the remaining status helpers and any other legacy duplicates out of `main.py`.
 - The focused validation batch for the new dispatch/report split passed after wiring the callbacks through the shell and JSON paths.
