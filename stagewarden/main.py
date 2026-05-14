@@ -300,9 +300,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def interactive_help_text(topic: str | None = None) -> str:
-    if topic:
-        return _interactive_help_topic(topic)
-    return _interactive_help_overview()
+    return _ui_views.interactive_help_text(topic)
 
 
 def _interactive_help_overview() -> str:
