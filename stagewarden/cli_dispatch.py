@@ -1,13 +1,44 @@
 from __future__ import annotations
 
+import argparse
+
 from . import extension_views as _extension_views
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="stagewarden", description="Stagewarden: production-grade CLI coding agent.")
+    parser.add_argument("task", nargs="*", default=[], help='Task to execute, for example: stagewarden "fix the failing tests"')
+    parser.add_argument("--max-steps", type=int, default=20, help="Maximum agent loop iterations.")
+    parser.add_argument("--verbose", action="store_true", help="Print step-by-step logs.")
+    parser.add_argument("--strict-ascii-output", dest="strict_ascii_output", action="store_true", default=True, help="Escape ambiguous non-ASCII characters in structured and generated text output.")
+    parser.add_argument("--allow-unicode-output", dest="strict_ascii_output", action="store_false", help="Disable ASCII-safe escaping for generic file output.")
+    parser.add_argument("--caveman", nargs="?", const="full", choices=["lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan-ultra"], help="Activate caveman mode at the selected level.")
+    parser.add_argument("--caveman-commit", action="store_true", help="Generate a caveman-style commit message from the current diff.")
+    parser.add_argument("--caveman-review", action="store_true", help="Generate one-line caveman review findings for the current diff.")
+    parser.add_argument("--caveman-help", action="store_true", help="Show caveman commands and usage.")
+    parser.add_argument("--caveman-compress", metavar="PATH", help="Compress a natural-language memory file and write a .original backup.")
+    parser.add_argument("--ljson-encode", metavar="JSON_PATH", help="Encode a JSON array file to LJSON.")
+    parser.add_argument("--ljson-decode", metavar="LJSON_PATH", help="Decode an LJSON file to JSON array.")
+    parser.add_argument("--ljson-output", metavar="OUT_PATH", help="Output path for --ljson-encode/--ljson-decode.")
+    parser.add_argument("--ljson-numeric", action="store_true", help="Use numeric-key LJSON representation when encoding.")
+    parser.add_argument("--ljson-gzip", action="store_true", help="Write gzipped LJSON when encoding.")
+    parser.add_argument("--ljson-benchmark", metavar="JSON_PATH", help="Benchmark standard JSON vs LJSON for a JSON array file.")
+    parser.add_argument("--openrouter-benchmark", action="store_true", help="Run the live OpenRouter benchmark baseline and report accuracy by suite.")
+    parser.add_argument("--openrouter-benchmark-output", metavar="OUT_PATH", help="Write the live OpenRouter benchmark report to a JSON file.")
+    parser.add_argument("--openrouter-benchmark-history", metavar="HISTORY_PATH", help="Append a JSONL history snapshot and compare the current benchmark against the latest prior run.")
+    parser.add_argument("--prince2-benchmark", action="store_true", help="Run the local PRINCE2 benchmark baseline and report accuracy by suite.")
+    parser.add_argument("--prince2-benchmark-output", metavar="OUT_PATH", help="Write the local PRINCE2 benchmark report to a JSON file.")
+    parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
+    parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
+    parser.add_argument("--full", action="store_true", help="Show expanded status dashboard sections.")
+    return parser
 
 
 def run_cli() -> int:
     from . import main as main_module
 
     globals().update(main_module.__dict__)
-    args = build_parser().parse_args()
+    args = _build_parser().parse_args()
     config = AgentConfig(
         workspace_root=Path.cwd(),
         max_steps=args.max_steps,
@@ -388,6 +419,11 @@ def run_cli() -> int:
         use_ai = task.endswith(" --ai")
         agent = _configure_readonly_agent_for_workspace(config) if use_ai else None
         report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
+        if use_ai and report.get("status") == "needs_clarification":
+            report["clarification_question"] = _project_tree_clarification_record(
+                config,
+                gaps=list(report.get("clarification_gaps", [])) if isinstance(report.get("clarification_gaps"), list) else [],
+            )
         _record_project_tree_proposal_action(config, report, task=task)
         if args.json:
             print(dumps_ascii(_with_json_schema("project tree propose", report), indent=2))

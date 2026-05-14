@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, TextIO
 
 from .agent import Agent
@@ -57,6 +58,20 @@ def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
     return _main()._catalog_power_score(entry)
 
 
+def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str, str, str]:
+    capability = provider_capability(provider)
+    pinned = prefs.variant_for_model(provider)
+    if pinned:
+        return pinned, "pinned", capability.default_model
+    if provider in {"chatgpt", "openai", "claude"}:
+        return "automatic-by-task", "automatic", capability.default_model
+    return capability.default_model, "provider-default", capability.default_model
+
+
+def _provider_model_params_display(prefs: ModelPreferences, provider: str) -> dict[str, str]:
+    return prefs.params_for_model(provider)
+
+
 def _catalog_model_choice_key(provider: str, provider_model: str) -> str:
     return _main()._catalog_model_choice_key(provider, provider_model)
 
@@ -86,6 +101,18 @@ def _local_execution_candidates_report(
     use_ai: bool = False,
 ) -> dict[str, object]:
     return _main()._local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
+
+
+def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
+    # Allow tests to force OpenRouter auto-selection
+    if os.environ.get("TEST_USE_OPENROUTER_AUTO", "").lower() in {"1", "true", "yes"}:
+        # Use the cheap OpenRouter path with automatic model resolution
+        return "cheap"
+    active = set(agent.router.status().get("active_models", []))
+    for candidate in ("chatgpt", "openai", "claude", "cheap", "local"):
+        if candidate in active:
+            return candidate
+    return agent.router.choose_model("fallback cloud priority", "analysis", 0)
 
 
 def _guided_model_choice(

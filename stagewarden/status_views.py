@@ -14,6 +14,7 @@ from .commands import command_catalog
 from .json_schema_registry import json_schema
 from .memory import MemoryStore
 from .modelprefs import SUPPORTED_MODELS, account_key, extract_blocked_until, limit_snapshot_from_message
+from .permissions import PermissionSettings
 from . import project_state_views as _project_state_views
 from .project_handoff import ProjectHandoff
 from .textcodec import read_text_utf8
@@ -204,6 +205,23 @@ def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[s
     }
 
 
+def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
+    report = _provider_limit_status_report(agent, config)
+    summary = _provider_limit_summary_report(report)
+    if not summary["providers_count"]:
+        return "none"
+    parts = [
+        f"providers={summary['providers_count']}",
+        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'}",
+        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'}",
+        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'}",
+        f"stale_accounts={','.join(summary['stale_accounts']) if summary['stale_accounts'] else 'none'}",
+        f"last_errors={','.join(summary['last_errors']) if summary['last_errors'] else 'none'}",
+        f"routes={','.join(summary['routes'])}",
+    ]
+    return " ".join(parts)
+
+
 def _record_limit_message(
     config: AgentConfig,
     prefs,
@@ -262,11 +280,60 @@ def _clear_limit_snapshot(config: AgentConfig, prefs, *, model: str, account: st
     return f"Cleared limit snapshot for {model}."
 
 
+def _permissions_report(config: AgentConfig) -> dict[str, object]:
+    workspace_settings = PermissionSettings.load(config.settings_path)
+    session_settings = config.session_permission_settings
+    effective_settings = workspace_settings.merged(session_settings)
+    return {
+        "command": "permissions",
+        "schema": json_schema("permissions"),
+        "workspace": {
+            "mode": workspace_settings.default_mode,
+            "allow": list(workspace_settings.allow),
+            "ask": list(workspace_settings.ask),
+            "deny": list(workspace_settings.deny),
+        },
+        "session": {
+            "mode": None if session_settings is None else session_settings.default_mode,
+            "allow": [] if session_settings is None else list(session_settings.allow),
+            "ask": [] if session_settings is None else list(session_settings.ask),
+            "deny": [] if session_settings is None else list(session_settings.deny),
+        },
+        "effective": {
+            "mode": effective_settings.default_mode,
+            "allow": list(effective_settings.allow),
+            "ask": list(effective_settings.ask),
+            "deny": list(effective_settings.deny),
+        },
+    }
+
+
+def _render_runtime_status(config: AgentConfig) -> str:
+    runtime = _main().detect_runtime_capabilities(config.workspace_root)
+    shells = runtime["shells"]
+    lines = [
+        "Runtime:",
+        f"- os_family: {runtime['os_family']}",
+        f"- platform: {runtime['platform_system']} {runtime['platform_release']} {runtime['platform_machine']}",
+        f"- default_shell: {runtime['default_shell'] or 'none'}",
+        f"- recommended_shell: {runtime['recommended_shell']}",
+        f"- path_separator: {runtime['path_separator']}",
+        f"- line_ending: {runtime['line_ending']}",
+    ]
+    for name in ("bash", "zsh", "powershell", "cmd"):
+        info = shells.get(name, {}) if isinstance(shells, dict) else {}
+        state = "available" if info.get("available") else "unavailable"
+        path = info.get("path") or "none"
+        version = f" version={info['version']}" if info.get("version") else ""
+        lines.append(f"- {name}: {state} path={path}{version}")
+    return "\n".join(lines)
+
+
 def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
     main = _main()
     runtime = main.detect_runtime_capabilities(config.workspace_root)
     shell_backend = main._shell_backend_report(config)
-    permissions = main._permissions_report(config)
+    permissions = _permissions_report(config)
     return {
         "workspace": str(config.workspace_root),
         "os_family": str(runtime.get("os_family", "unknown")),
@@ -1056,6 +1123,23 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
     }
 
 
+def _render_agent_baseline(config: AgentConfig) -> str:
+    report = _agent_baseline_report(config)
+    lines = [
+        "Stagewarden Codex/Claude baseline:",
+        f"- status: {report['status']}",
+        f"- ok: {str(report['ok']).lower()}",
+        f"- os: {report['environment']['os_family']} shell={report['environment']['recommended_shell']}",
+        f"- git_available: {str(report['environment']['git_available']).lower()}",
+        "Capability groups:",
+    ]
+    for group in report["groups"]:
+        missing = ",".join(group["missing_commands"]) if group["missing_commands"] else "none"
+        lines.append(f"- {group['id']}: {group['status']} missing={missing}")
+    lines.append(f"Remediation: {report['remediation']}")
+    return "\n".join(lines)
+
+
 def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
     main = _main()
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -1266,7 +1350,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
     provider_limits = _provider_limit_status_report(agent, config)
-    permissions = main._permissions_report(config)
+    permissions = _permissions_report(config)
     stage_view = handoff.stage_view()
     local_fallback = main._delivery_local_fallback_report(config)
     pricing = _status_pricing_report(agent, config)
@@ -1415,7 +1499,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         f"- trace: {config.trace_path.name}",
         f"- handoff: {config.handoff_path.name}",
         f"- model_config: {config.model_prefs_path.name}",
-        main._render_agent_baseline(config),
+        _render_agent_baseline(config),
         _render_focus_snapshot(_focus_snapshot(agent, config)),
         _render_model_status(agent, config),
         (
@@ -1427,7 +1511,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         ),
         _render_cost_sidebar(agent, config),
         _render_provider_limit_status(agent, config),
-        main._render_runtime_status(config),
+        _render_runtime_status(config),
         main._render_shell_backend(config),
         main._render_resume_context(config),
         _project_state_views.render_goal_report(config),
@@ -1446,7 +1530,7 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
             f"ready_nodes={status['local_fallback']['delivery_nodes_with_local_fallback']}/{status['local_fallback']['delivery_nodes']} "
             f"candidates={','.join(status['local_fallback']['candidate_ids']) if status['local_fallback']['candidate_ids'] else 'none'}"
         ),
-        main._render_remediations(status["remediations"]),
+        _render_remediations(status["remediations"]),
     ]
     return "\n".join(lines)
 
@@ -1499,7 +1583,65 @@ def _render_status_full(agent: Agent, config: AgentConfig) -> str:
             lines.append(f"  {line}")
     lines.append(f"- quality_gates: {report['quality_gates']}")
     lines.append("Remediations:")
-    lines.extend(main._render_remediations(report["remediations"]).splitlines()[1:])
+    lines.extend(_render_remediations(report["remediations"]).splitlines()[1:])
+    return "\n".join(lines)
+
+
+def _render_remediations(remediations: object) -> str:
+    lines = ["Remediations:"]
+    if isinstance(remediations, list) and remediations:
+        for item in remediations:
+            if isinstance(item, dict):
+                lines.append(f"- {item.get('severity', 'info')} {item.get('code', 'unknown')}: {item.get('action', '')}")
+        return "\n".join(lines)
+    lines.append("- none")
+    return "\n".join(lines)
+
+
+def _render_overview(agent: Agent, config: AgentConfig) -> str:
+    board = _board_report(config)
+    usage = _model_usage_report(config)["report"]
+    transcript = _transcript_report(config)["report"]
+    status = _status_report(agent, config)
+    lines = [
+        "Workspace overview:",
+        f"- workspace: {status['workspace']}",
+        f"- mode: {status['mode']}",
+        f"- recommended_authorization: {board['recommended_authorization']}",
+        f"- boundary_decision: {board['boundary_decision']}",
+        f"- open_issues: {board['open_issues']}",
+        f"- open_risks: {board['open_risks']}",
+        f"- quality_open: {board['quality_open']}",
+        f"- recovery_state: {board['recovery_state']}",
+        f"- model_calls: {usage['totals']['calls']}",
+        f"- model_failures: {usage['totals']['failures']}",
+        f"- escalation_path: {usage['totals']['escalation_path']}",
+        f"- provider_limits: {_provider_limit_summary(agent, config)}",
+        f"- transcript_entries: {transcript['count']}",
+    ]
+    return "\n".join(lines)
+
+
+def _render_health(agent: Agent, config: AgentConfig) -> str:
+    report = _health_report(agent, config)
+    log_errors = report.get("log_errors", {}) if isinstance(report.get("log_errors"), dict) else {}
+    lines = [
+        "Health check:",
+        f"- workspace: {report['workspace']}",
+        f"- mode: {report['mode']}",
+        f"- ready: {str(report['ready']).lower()}",
+        f"- recommended_authorization: {report['recommended_authorization']}",
+        f"- boundary_decision: {report['boundary_decision']}",
+        f"- open_issues: {report['open_issues']}",
+        f"- open_risks: {report['open_risks']}",
+        f"- quality_open: {report['quality_open']}",
+        f"- recovery_state: {report['recovery_state']}",
+        f"- next_action: {report['next_action']}",
+        f"- model_failures: {report['model_failures']}",
+        f"- model_calls: {report['model_calls']}",
+        f"- transcript_entries: {report['transcript_entries']}",
+        f"- log_errors: {log_errors.get('status', 'unknown')} count={log_errors.get('count', 0)}",
+    ]
     return "\n".join(lines)
 
 
@@ -1824,7 +1966,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "provider_limits": provider_limits,
         "baseline": main._agent_baseline_report(config),
         "sources": sources,
-        "permissions": main._permissions_report(config),
+        "permissions": _permissions_report(config),
         "handoff": {
             "summary": handoff.summary(),
             "stage_view": stage_view,
@@ -2024,7 +2166,7 @@ def _render_report(agent: Agent, config: AgentConfig) -> str:
         f"- model_calls: {report['model_calls']}",
         f"- model_failures: {report['model_failures']}",
         f"- escalation_path: {report['escalation_path']}",
-        f"- provider_limits: {_main()._provider_limit_summary(agent, config)}",
+        f"- provider_limits: {_provider_limit_summary(agent, config)}",
         f"- transcript_entries: {report['transcript_entries']}",
         "Recent lessons:",
     ]

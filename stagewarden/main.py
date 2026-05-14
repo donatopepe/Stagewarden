@@ -53,6 +53,7 @@ from .modelprefs import (
 from .model_catalog import catalog_entry_for_provider_model, catalog_entries_for_provider, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
 from .openrouter_benchmark import run_openrouter_benchmark
 from .prince2_benchmark import run_prince2_benchmark
+from . import json_schema_registry as _json_schema_registry
 from .json_schema_registry import json_schema
 from .permissions import PermissionPolicy, PermissionSettings, VALID_PERMISSION_MODES
 from .planner import PlanStep
@@ -147,7 +148,6 @@ from .role_tree import (
     render_prince2_role_matrix,
     render_prince2_role_tree,
 )
-from .prince2 import Prince2AgentPolicy, Prince2ToleranceProfile
 from .project_handoff import HandoffEntry, ProjectHandoff
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
@@ -295,32 +295,7 @@ INTERACTIVE_COMMAND_PREFIX = "/"
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="stagewarden", description="Stagewarden: production-grade CLI coding agent.")
-    parser.add_argument("task", nargs="*", default=[], help='Task to execute, for example: stagewarden "fix the failing tests"')
-    parser.add_argument("--max-steps", type=int, default=20, help="Maximum agent loop iterations.")
-    parser.add_argument("--verbose", action="store_true", help="Print step-by-step logs.")
-    parser.add_argument("--strict-ascii-output", dest="strict_ascii_output", action="store_true", default=True, help="Escape ambiguous non-ASCII characters in structured and generated text output.")
-    parser.add_argument("--allow-unicode-output", dest="strict_ascii_output", action="store_false", help="Disable ASCII-safe escaping for generic file output.")
-    parser.add_argument("--caveman", nargs="?", const="full", choices=["lite", "full", "ultra", "wenyan-lite", "wenyan", "wenyan-ultra"], help="Activate caveman mode at the selected level.")
-    parser.add_argument("--caveman-commit", action="store_true", help="Generate a caveman-style commit message from the current diff.")
-    parser.add_argument("--caveman-review", action="store_true", help="Generate one-line caveman review findings for the current diff.")
-    parser.add_argument("--caveman-help", action="store_true", help="Show caveman commands and usage.")
-    parser.add_argument("--caveman-compress", metavar="PATH", help="Compress a natural-language memory file and write a .original backup.")
-    parser.add_argument("--ljson-encode", metavar="JSON_PATH", help="Encode a JSON array file to LJSON.")
-    parser.add_argument("--ljson-decode", metavar="LJSON_PATH", help="Decode an LJSON file to JSON array.")
-    parser.add_argument("--ljson-output", metavar="OUT_PATH", help="Output path for --ljson-encode/--ljson-decode.")
-    parser.add_argument("--ljson-numeric", action="store_true", help="Use numeric-key LJSON representation when encoding.")
-    parser.add_argument("--ljson-gzip", action="store_true", help="Write gzipped LJSON when encoding.")
-    parser.add_argument("--ljson-benchmark", metavar="JSON_PATH", help="Benchmark standard JSON vs LJSON for a JSON array file.")
-    parser.add_argument("--openrouter-benchmark", action="store_true", help="Run the live OpenRouter benchmark baseline and report accuracy by suite.")
-    parser.add_argument("--openrouter-benchmark-output", metavar="OUT_PATH", help="Write the live OpenRouter benchmark report to a JSON file.")
-    parser.add_argument("--openrouter-benchmark-history", metavar="HISTORY_PATH", help="Append a JSONL history snapshot and compare the current benchmark against the latest prior run.")
-    parser.add_argument("--prince2-benchmark", action="store_true", help="Run the local PRINCE2 benchmark baseline and report accuracy by suite.")
-    parser.add_argument("--prince2-benchmark-output", metavar="OUT_PATH", help="Write the local PRINCE2 benchmark report to a JSON file.")
-    parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
-    parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
-    parser.add_argument("--full", action="store_true", help="Show expanded status dashboard sections.")
-    return parser
+    return _cli_dispatch._build_parser()
 
 
 def interactive_help_text(topic: str | None = None) -> str:
@@ -386,17 +361,7 @@ def _help_json_report(topic: str | None = None) -> dict[str, object]:
 
 
 def _with_json_schema(command: str, payload: dict[str, object]) -> dict[str, object]:
-    if "schema" in payload:
-        return payload
-    try:
-        result = dict(payload)
-    except TypeError:
-        return payload
-    try:
-        result["schema"] = json_schema(command)
-    except KeyError:
-        return payload
-    return result
+    return _json_schema_registry.with_json_schema(command, payload)
 
 
 def _interactive_help_topic(topic: str) -> str:
@@ -432,17 +397,11 @@ def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferen
 
 
 def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str, str, str]:
-    capability = provider_capability(provider)
-    pinned = prefs.variant_for_model(provider)
-    if pinned:
-        return pinned, "pinned", capability.default_model
-    if provider in {"chatgpt", "openai", "claude"}:
-        return "automatic-by-task", "automatic", capability.default_model
-    return capability.default_model, "provider-default", capability.default_model
+    return _model_views._provider_model_display(prefs, provider)
 
 
 def _provider_model_params_display(prefs: ModelPreferences, provider: str) -> dict[str, str]:
-    return prefs.params_for_model(provider)
+    return _model_views._provider_model_params_display(prefs, provider)
 
 
 def _render_model_status(agent: Agent, config: AgentConfig) -> str:
@@ -523,28 +482,7 @@ def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_prince2_roles(config: AgentConfig) -> str:
-    report = _prince2_roles_report(config)
-    lines = ["PRINCE2 role assignments:"]
-    for item in report["roles"]:
-        assignment = item["assignment"]
-        if not assignment:
-            lines.append(f"- {item['label']} ({item['role']}): unassigned team={prince2_role_team_name(item['role'])} mnemonic={prince2_role_mnemonic(item['role'])}")
-            continue
-        params = assignment.get("params", {})
-        params_text = (
-            " params=" + ",".join(f"{key}={value}" for key, value in sorted(params.items()))
-            if isinstance(params, dict) and params
-            else ""
-        )
-        lines.append(
-            f"- {item['label']} ({item['role']}): mnemonic={prince2_role_mnemonic(item['role'])} "
-            f"team={prince2_role_team_name(item['role'])} mode={assignment.get('mode', 'manual')} "
-            f"provider={assignment.get('provider', 'unknown')} "
-            f"provider_model={assignment.get('provider_model', 'unknown')} "
-            f"account={assignment.get('account') or 'none'}"
-            f"{params_text} source={assignment.get('source', 'manual')}"
-        )
-    return "\n".join(lines)
+    return _project_role_views._render_prince2_roles(config)
 
 
 def _render_prince2_role_domains() -> str:
@@ -612,126 +550,39 @@ def _record_handoff_action(
 
 
 def _parse_project_tolerance_margin_percent(value: object, default: float = 25.0) -> float:
-    if value is None:
-        return default
-    text = str(value).strip()
-    if not text:
-        return default
-    if text.endswith("%"):
-        text = text[:-1].strip()
-    try:
-        parsed = float(text)
-    except ValueError:
-        return default
-    if parsed <= 0:
-        return default
-    return min(100.0, parsed)
+    return _project_role_flow._parse_project_tolerance_margin_percent(value, default=default)
 
 
 def _project_accountable_owner(handoff: ProjectHandoff) -> str:
-    value = handoff.project_brief.get("accountable_project_executive", "user")
-    owner = str(value).strip() if value is not None else "user"
-    return owner or "user"
+    return _project_role_flow._project_accountable_owner(handoff)
 
 
 def _project_tolerance_margin_percent(handoff: ProjectHandoff, default: float = 25.0) -> float:
-    return _parse_project_tolerance_margin_percent(handoff.project_brief.get("tolerance_margin_percent"), default=default)
+    return _project_role_flow._project_tolerance_margin_percent(handoff, default=default)
 
 
 def _project_tolerance_profile(handoff: ProjectHandoff, *, task: str | None = None) -> Prince2ToleranceProfile:
-    policy = Prince2AgentPolicy()
-    effective_task = task or handoff.task or str(handoff.project_brief.get("objective", "")).strip() or "PRINCE2 role tree"
-    margin = _project_tolerance_margin_percent(handoff)
-    owner = _project_accountable_owner(handoff)
-    checklist = policy.build_checklist(
-        effective_task,
-        project_brief=handoff.project_brief,
-        base_margin_percent=margin,
-        accountable_owner=owner,
-    )
-    return policy.build_tolerance_profile(
-        effective_task,
-        checklist,
-        project_brief=handoff.project_brief,
-        base_margin_percent=margin,
-        accountable_owner=owner,
-    )
+    return _project_role_flow._project_tolerance_profile(handoff, task=task)
 
 
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    tolerance_profile = _project_tolerance_profile(handoff)
-    local_execution = _local_execution_candidates_report(config)
-    tree = _enrich_tree_with_local_execution_candidates(
-        build_prince2_role_tree_with_tolerance(
-            prefs,
-            tolerance_profile=tolerance_profile,
-            accountable_owner=tolerance_profile.accountable_owner,
-        ),
-        local_execution,
-    )
-    brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
-    joined = " ".join(brief.values()).lower()
-    _decomposition_nodes, decomposition = _project_tree_decomposition_nodes(
-        proposal_prefs=prefs,
-        active_models=list(prefs.active_models() or prefs.enabled_models),
-        brief=brief,
-        joined=joined,
-        tolerance_profile=tolerance_profile,
-    )
-    adaptation = _project_tree_adaptation_snapshot(brief=brief, handoff=handoff, local_execution=local_execution)
-    tree["decomposition_policy"] = "Decompose the project into the smallest independently verifiable work packages and keep widening only when evidence justifies it."
-    tree["adaptation_policy"] = "Refresh the tree continuously from the latest brief, tolerance profile, runtime observation, and response-quality signals."
-    tree["decomposition"] = decomposition
-    tree["adaptation"] = adaptation
-    return {
-        "version": "1",
-        "approved_at": datetime.now().isoformat(timespec="seconds"),
-        "source": source,
-        "status": "approved",
-        "tree": tree,
-        "flow": build_prince2_role_flow(),
-        "check": check_prince2_role_tree_payload(tree, prefs),
-        "matrix": build_prince2_role_matrix_payload(tree, prefs),
-        "local_execution": local_execution,
-        "decomposition": decomposition,
-        "adaptation": adaptation,
-    }
+    return _project_role_flow._build_prince2_role_tree_baseline(config, source=source)
 
 
 def _approve_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, *, source: str) -> dict[str, object]:
-    baseline = _build_prince2_role_tree_baseline(config, source=source)
-    prefs.set_prince2_role_tree_baseline(baseline)
-    _save_model_preferences(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
-    handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline or {}))
-    handoff.save(config.handoff_path)
-    return baseline
+    return _project_role_flow._approve_prince2_role_tree_baseline(config, prefs, source=source)
 
 
 def _refresh_prince2_role_tree_baseline_checks(baseline: dict[str, object], prefs: ModelPreferences) -> dict[str, object]:
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    baseline["check"] = check_prince2_role_tree_payload(tree, prefs)
-    baseline["matrix"] = build_prince2_role_matrix_payload(tree, prefs)
-    return baseline
+    return _project_role_flow._refresh_prince2_role_tree_baseline_checks(baseline, prefs)
 
 
 def _persist_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, baseline: dict[str, object]) -> None:
-    prefs.set_prince2_role_tree_baseline(baseline)
-    _save_model_preferences(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
-    handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline or {}))
-    handoff.save(config.handoff_path)
+    _project_role_flow._persist_prince2_role_tree_baseline(config, prefs, baseline)
 
 
 def _ensure_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, *, source: str) -> dict[str, object]:
-    baseline = dict(prefs.prince2_role_tree_baseline or {})
-    if baseline:
-        return baseline
-    return _build_prince2_role_tree_baseline(config, source=source)
+    return _project_role_flow._ensure_prince2_role_tree_baseline(config, prefs, source=source)
 
 
 def _add_child_prince2_role_node(
@@ -742,52 +593,13 @@ def _add_child_prince2_role_node(
     role_type: str,
     node_id: str | None = None,
 ) -> dict[str, object]:
-    if role_type not in PRINCE2_ROLE_IDS:
-        raise ValueError(f"Unsupported PRINCE2 role '{role_type}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}")
-    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_add_child")
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    nodes = list(tree.get("nodes", [])) if isinstance(tree.get("nodes", []), list) else []
-    parent = next((node for node in nodes if isinstance(node, dict) and node.get("node_id") == parent_id), None)
-    if parent is None:
-        raise ValueError(f"Parent role node '{parent_id}' not found.")
-    existing_ids = {str(node.get("node_id")) for node in nodes if isinstance(node, dict)}
-    if node_id is None:
-        base = f"{parent_id}.{role_type}"
-        candidate = base
-        index = 2
-        while candidate in existing_ids:
-            candidate = f"{base}_{index}"
-            index += 1
-        node_id = candidate
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+", node_id):
-        raise ValueError("Node id must contain only letters, numbers, dot, dash, and underscore.")
-    if node_id in existing_ids:
-        raise ValueError(f"Role node '{node_id}' already exists.")
-    rule = ROLE_CONTEXT_RULES[role_type].as_dict()
-    child = {
-        "node_id": node_id,
-        "role_type": role_type,
-        "label": f"{PRINCE2_ROLE_LABELS[role_type]} Delegated",
-        "parent_id": parent_id,
-        "level": f"delegated_{parent.get('level', 'node')}",
-        "accountability_boundary": f"delegated {PRINCE2_ROLE_LABELS[role_type]} accountability under {parent.get('label', parent_id)}",
-        "delegated_authority": f"delegated by {parent.get('label', parent_id)}; cannot exceed parent authority or approved tolerances",
-        "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
-        "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
-        "context_rule": rule,
-        "assignment": {},
-        "fallback_pool": list(prefs.active_models() or prefs.enabled_models),
-        "readiness": "unassigned",
-    }
-    nodes.append(child)
-    tree["nodes"] = nodes
-    baseline["tree"] = tree
-    baseline["status"] = "approved"
-    baseline["source"] = "role_add_child"
-    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
-    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
-    _persist_prince2_role_tree_baseline(config, prefs, baseline)
-    return child
+    return _project_role_flow._add_child_prince2_role_node(
+        config,
+        prefs,
+        parent_id=parent_id,
+        role_type=role_type,
+        node_id=node_id,
+    )
 
 
 def _assign_prince2_role_node(
@@ -891,10 +703,8 @@ def _send_prince2_role_message(
     evidence_refs: list[str] | None = None,
     summary: str | None = None,
 ) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    message = handoff.send_prince2_node_message(
+    return _project_role_flow._send_prince2_role_message(
+        config,
         source_node=source_node,
         target_node=target_node,
         edge_id=edge_id,
@@ -902,21 +712,6 @@ def _send_prince2_role_message(
         evidence_refs=evidence_refs,
         summary=summary,
     )
-    handoff.save(config.handoff_path)
-    _record_handoff_action(
-        config,
-        phase="role_message",
-        task=f"role message {source_node} {target_node} {edge_id}",
-        summary=f"Queued governed PRINCE2 node message {message['message_id']}.",
-        details={
-            "source_node": source_node,
-            "target_node": target_node,
-            "edge_id": edge_id,
-            "payload_scope": list(payload_scope),
-            "evidence_refs": list(evidence_refs or []),
-        },
-    )
-    return message
 
 
 def _set_prince2_role_node_waiting(
@@ -926,19 +721,12 @@ def _set_prince2_role_node_waiting(
     reason: str,
     wake_triggers: list[str] | None = None,
 ) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    node = handoff.set_prince2_node_waiting(node_id=node_id, reason=reason, wake_triggers=wake_triggers)
-    handoff.save(config.handoff_path)
-    _record_handoff_action(
+    return _project_role_flow._set_prince2_role_node_waiting(
         config,
-        phase="role_wait",
-        task=f"role wait {node_id}",
-        summary=f"Node {node_id} moved to waiting state.",
-        details={"node_id": node_id, "reason": reason, "wake_triggers": list(wake_triggers or [])},
+        node_id=node_id,
+        reason=reason,
+        wake_triggers=wake_triggers,
     )
-    return node
 
 
 def _wake_prince2_role_node(
@@ -947,19 +735,7 @@ def _wake_prince2_role_node(
     node_id: str,
     trigger: str,
 ) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    node = handoff.wake_prince2_node(node_id=node_id, trigger=trigger)
-    handoff.save(config.handoff_path)
-    _record_handoff_action(
-        config,
-        phase="role_wake",
-        task=f"role wake {node_id}",
-        summary=f"Node {node_id} woke with trigger {trigger}.",
-        details={"node_id": node_id, "trigger": trigger},
-    )
-    return node
+    return _project_role_flow._wake_prince2_role_node(config, node_id=node_id, trigger=trigger)
 
 
 def _tick_prince2_role_node(
@@ -967,20 +743,7 @@ def _tick_prince2_role_node(
     *,
     node_id: str,
 ) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    result = handoff.tick_prince2_node(node_id=node_id)
-    handoff.save(config.handoff_path)
-    _sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
-    _record_handoff_action(
-        config,
-        phase="role_tick",
-        task=f"role tick {node_id}",
-        summary=f"Node {node_id} advanced to {result.get('state', 'unknown')}.",
-        details=dict(result),
-    )
-    return result
+    return _project_role_flow._tick_prince2_role_node(config, node_id=node_id)
 
 
 def _tick_prince2_role_runtime(
@@ -988,20 +751,7 @@ def _tick_prince2_role_runtime(
     *,
     max_nodes: int | None = None,
 ) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    _sync_prince2_roles_to_handoff(config, prefs)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    result = handoff.tick_prince2_runtime(max_nodes=max_nodes)
-    handoff.save(config.handoff_path)
-    _sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
-    _record_handoff_action(
-        config,
-        phase="roles_tick",
-        task=f"roles tick {max_nodes if max_nodes is not None else ''}".strip(),
-        summary=f"Batch advanced PRINCE2 runtime across {result.get('processed', 0)} node(s).",
-        details=dict(result),
-    )
-    return result
+    return _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
 
 
 def _render_prince2_role_tree_baseline_matrix(config: AgentConfig) -> str:
@@ -1544,20 +1294,7 @@ def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
 
 
 def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
-    report = _provider_limit_status_report(agent, config)
-    summary = _provider_limit_summary_report(report)
-    if not summary["providers_count"]:
-        return "none"
-    parts = [
-        f"providers={summary['providers_count']}",
-        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'}",
-        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'}",
-        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'}",
-        f"stale_accounts={','.join(summary['stale_accounts']) if summary['stale_accounts'] else 'none'}",
-        f"last_errors={','.join(summary['last_errors']) if summary['last_errors'] else 'none'}",
-        f"routes={','.join(summary['routes'])}",
-    ]
-    return " ".join(parts)
+    return _status_views._provider_limit_summary(agent, config)
 
 
 def _render_accounts(config: AgentConfig) -> str:
@@ -1565,28 +1302,7 @@ def _render_accounts(config: AgentConfig) -> str:
 
 
 def _accounts_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    models: list[dict[str, object]] = []
-    for model in SUPPORTED_MODELS:
-        accounts = []
-        for account in (prefs.accounts_by_model or {}).get(model, []):
-            key = account_key(model, account)
-            accounts.append(
-                {
-                    "name": account,
-                    "active": (prefs.active_account_by_model or {}).get(model) == account,
-                    "blocked_until": (prefs.blocked_until_by_account or {}).get(key),
-                    "env": (prefs.env_var_by_account or {}).get(key),
-                    "token_stored": SecretStore().has_token(model, account),
-                }
-            )
-        if accounts:
-            models.append({"model": model, "accounts": accounts})
-    return {
-        "command": "accounts",
-        "schema": json_schema("accounts"),
-        "models": models,
-    }
+    return _account_views._accounts_report(config)
 
 
 def _auth_status_report(provider: str) -> dict[str, object]:
@@ -1601,63 +1317,15 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
 
 
 def _render_remediations(remediations: object) -> str:
-    lines = ["Remediations:"]
-    if isinstance(remediations, list) and remediations:
-        for item in remediations:
-            if isinstance(item, dict):
-                lines.append(f"- {item.get('severity', 'info')} {item.get('code', 'unknown')}: {item.get('action', '')}")
-        return "\n".join(lines)
-    lines.append("- none")
-    return "\n".join(lines)
+    return _status_views._render_remediations(remediations)
 
 
 def _render_runtime_status(config: AgentConfig) -> str:
-    runtime = detect_runtime_capabilities(config.workspace_root)
-    shells = runtime["shells"]
-    lines = [
-        "Runtime:",
-        f"- os_family: {runtime['os_family']}",
-        f"- platform: {runtime['platform_system']} {runtime['platform_release']} {runtime['platform_machine']}",
-        f"- default_shell: {runtime['default_shell'] or 'none'}",
-        f"- recommended_shell: {runtime['recommended_shell']}",
-        f"- path_separator: {runtime['path_separator']}",
-        f"- line_ending: {runtime['line_ending']}",
-    ]
-    for name in ("bash", "zsh", "powershell", "cmd"):
-        info = shells.get(name, {}) if isinstance(shells, dict) else {}
-        state = "available" if info.get("available") else "unavailable"
-        path = info.get("path") or "none"
-        version = f" version={info['version']}" if info.get("version") else ""
-        lines.append(f"- {name}: {state} path={path}{version}")
-    return "\n".join(lines)
+    return _status_views._render_runtime_status(config)
 
 
 def _permissions_report(config: AgentConfig) -> dict[str, object]:
-    workspace_settings = PermissionSettings.load(config.settings_path)
-    session_settings = config.session_permission_settings
-    effective_settings = workspace_settings.merged(session_settings)
-    return {
-        "command": "permissions",
-        "schema": json_schema("permissions"),
-        "workspace": {
-            "mode": workspace_settings.default_mode,
-            "allow": list(workspace_settings.allow),
-            "ask": list(workspace_settings.ask),
-            "deny": list(workspace_settings.deny),
-        },
-        "session": {
-            "mode": None if session_settings is None else session_settings.default_mode,
-            "allow": [] if session_settings is None else list(session_settings.allow),
-            "ask": [] if session_settings is None else list(session_settings.ask),
-            "deny": [] if session_settings is None else list(session_settings.deny),
-        },
-        "effective": {
-            "mode": effective_settings.default_mode,
-            "allow": list(effective_settings.allow),
-            "ask": list(effective_settings.ask),
-            "deny": list(effective_settings.deny),
-        },
-    }
+    return _status_views._permissions_report(config)
 
 
 def _workspace_settings_payload(path: Path) -> dict[str, object]:
@@ -1774,20 +1442,7 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_agent_baseline(config: AgentConfig) -> str:
-    report = _agent_baseline_report(config)
-    lines = [
-        "Stagewarden Codex/Claude baseline:",
-        f"- status: {report['status']}",
-        f"- ok: {str(report['ok']).lower()}",
-        f"- os: {report['environment']['os_family']} shell={report['environment']['recommended_shell']}",
-        f"- git_available: {str(report['environment']['git_available']).lower()}",
-        "Capability groups:",
-    ]
-    for group in report["groups"]:
-        missing = ",".join(group["missing_commands"]) if group["missing_commands"] else "none"
-        lines.append(f"- {group['id']}: {group['status']} missing={missing}")
-    lines.append(f"Remediation: {report['remediation']}")
-    return "\n".join(lines)
+    return _status_views._render_agent_baseline(config)
 
 
 def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
@@ -1803,50 +1458,11 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 
 def _render_overview(agent: Agent, config: AgentConfig) -> str:
-    board = _board_report(config)
-    usage = _model_usage_report(config)["report"]
-    transcript = _transcript_report(config)["report"]
-    status = _status_report(agent, config)
-    lines = [
-        "Workspace overview:",
-        f"- workspace: {status['workspace']}",
-        f"- mode: {status['mode']}",
-        f"- recommended_authorization: {board['recommended_authorization']}",
-        f"- boundary_decision: {board['boundary_decision']}",
-        f"- open_issues: {board['open_issues']}",
-        f"- open_risks: {board['open_risks']}",
-        f"- quality_open: {board['quality_open']}",
-        f"- recovery_state: {board['recovery_state']}",
-        f"- model_calls: {usage['totals']['calls']}",
-        f"- model_failures: {usage['totals']['failures']}",
-        f"- escalation_path: {usage['totals']['escalation_path']}",
-        f"- provider_limits: {_provider_limit_summary(agent, config)}",
-        f"- transcript_entries: {transcript['count']}",
-    ]
-    return "\n".join(lines)
+    return _status_views._render_overview(agent, config)
 
 
 def _render_health(agent: Agent, config: AgentConfig) -> str:
-    report = _health_report(agent, config)
-    log_errors = report.get("log_errors", {}) if isinstance(report.get("log_errors"), dict) else {}
-    lines = [
-        "Health check:",
-        f"- workspace: {report['workspace']}",
-        f"- mode: {report['mode']}",
-        f"- ready: {str(report['ready']).lower()}",
-        f"- recommended_authorization: {report['recommended_authorization']}",
-        f"- boundary_decision: {report['boundary_decision']}",
-        f"- open_issues: {report['open_issues']}",
-        f"- open_risks: {report['open_risks']}",
-        f"- quality_open: {report['quality_open']}",
-        f"- recovery_state: {report['recovery_state']}",
-        f"- next_action: {report['next_action']}",
-        f"- model_failures: {report['model_failures']}",
-        f"- model_calls: {report['model_calls']}",
-        f"- transcript_entries: {report['transcript_entries']}",
-        f"- log_errors: {log_errors.get('status', 'unknown')} count={log_errors.get('count', 0)}",
-    ]
-    return "\n".join(lines)
+    return _status_views._render_health(agent, config)
 
 
 def _render_handoff(config: AgentConfig) -> str:
@@ -2036,16 +1652,7 @@ def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
 
 
 def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
-    # Allow tests to force OpenRouter auto-selection
-    import os
-    if os.environ.get("TEST_USE_OPENROUTER_AUTO", "").lower() in {"1", "true", "yes"}:
-        # Use the cheap OpenRouter path with automatic model resolution
-        return "cheap"
-    active = set(agent.router.status().get("active_models", []))
-    for candidate in ("chatgpt", "openai", "claude", "cheap", "local"):
-        if candidate in active:
-            return candidate
-    return agent.router.choose_model("fallback cloud priority", "analysis", 0)
+    return _model_views._choose_cloud_priority_model(agent, prefs)
 
 
 def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = None) -> str:

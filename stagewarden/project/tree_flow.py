@@ -411,6 +411,11 @@ def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
     next_missing_gap = report.get("next_missing_gap")
     if isinstance(next_missing_gap, dict) and next_missing_gap.get("code"):
         lines.append(f"- next_missing_gap: {next_missing_gap.get('code')}")
+    clarification_question = report.get("clarification_question")
+    if isinstance(clarification_question, dict) and clarification_question.get("question"):
+        lines.append("Clarification question:")
+        lines.append(f"- question: {clarification_question.get('question')}")
+        lines.append("- answer: update the brief then rerun /project tree propose --ai")
     lines.append("Node preview:")
     tree = report["tree"] if isinstance(report.get("tree"), dict) else {}
     for node in tree.get("nodes", []) if isinstance(tree.get("nodes"), list) else []:
