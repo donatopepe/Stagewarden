@@ -129,6 +129,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "resume context",
             "resume --clear",
             "models usage",
+            "provider limits",
             "ljson benchmark",
             "openrouter benchmark",
             "prince2 benchmark",

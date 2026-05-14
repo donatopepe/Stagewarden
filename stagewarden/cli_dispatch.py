@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from . import extension_views as _extension_views
+
 
 def run_cli() -> int:
     from . import main as main_module
@@ -663,10 +665,10 @@ def run_cli() -> int:
     if task == "extensions" or task.startswith("extension ") or task.startswith("extensions "):
         if args.json:
             if task == "extensions":
-                report = _with_json_schema("extensions", discover_extensions(config.workspace_root))
+                report = _with_json_schema("extensions", _extension_views.discover_extensions(config.workspace_root))
             elif task.startswith("extension scaffold "):
                 try:
-                    report = _with_json_schema("extensions", scaffold_extension(config.workspace_root, task.split(maxsplit=2)[2]))
+                    report = _with_json_schema("extensions", _extension_views.scaffold_extension(config.workspace_root, task.split(maxsplit=2)[2]))
                     _record_handoff_action(
                         config,
                         phase="extension_scaffold",

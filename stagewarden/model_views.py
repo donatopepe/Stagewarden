@@ -22,7 +22,35 @@ def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
 
 
 def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None = None) -> dict[str, object]:
-    return _main()._catalog_entry_display(entry, spec)
+    if isinstance(entry, dict) and entry:
+        return {
+            "model_name": entry.get("model_name"),
+            "context_window": entry.get("context_window"),
+            "cost_per_input_token_usd": entry.get("cost_per_input_token_usd"),
+            "cost_per_output_token_usd": entry.get("cost_per_output_token_usd"),
+            "blended_price_usd_per_1m_tokens": entry.get("blended_price_usd_per_1m_tokens"),
+            "pricing_source": entry.get("pricing_source"),
+            "intelligence_rank": entry.get("intelligence_rank"),
+            "speed_rank": entry.get("speed_rank"),
+            "latency_rank": entry.get("latency_rank"),
+            "openness": entry.get("openness"),
+            "features": list(entry.get("features", [])) if isinstance(entry.get("features"), list) else [],
+            "catalog_source": entry.get("source"),
+        }
+    return {
+        "model_name": getattr(spec, "label", None) if spec is not None else None,
+        "context_window": getattr(spec, "context_window_hint", None) if spec is not None else None,
+        "cost_per_input_token_usd": None,
+        "cost_per_output_token_usd": None,
+        "blended_price_usd_per_1m_tokens": None,
+        "pricing_source": None,
+        "intelligence_rank": None,
+        "speed_rank": None,
+        "latency_rank": None,
+        "openness": None,
+        "features": [],
+        "catalog_source": None,
+    }
 
 
 def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
@@ -69,14 +97,74 @@ def _guided_model_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
     ) -> str:
-    return _main()._guided_model_choice(
-        requested_model=requested_model,
-        prefs=prefs,
-        agent=agent,
-        config=config,
+    if input_stream is None or output_stream is None:
+        return "Guided model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `model choose`."
+    from .main import _guided_provider_context, _prompt_menu_choice, _save_model_preferences, _apply_model_preferences
+
+    providers = list(prefs.enabled_models or []) or list(SUPPORTED_MODELS)
+    output_stream.write(_guided_provider_context(prefs, requested_model if requested_model in SUPPORTED_MODELS else None) + "\n")
+    model = requested_model
+    if model is None:
+        model = _prompt_menu_choice(
+            title="Choose provider:",
+            options=[(item, item) for item in providers],
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if model is None:
+            return "Guided model selection cancelled."
+    if model not in SUPPORTED_MODELS:
+        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+    if model not in prefs.enabled_models:
+        prefs.enabled_models.append(model)
+    output_stream.write(_guided_provider_context(prefs, model) + "\n")
+    catalog = load_ai_models_catalog()
+    specs = list(provider_model_specs(model))
+    provider_model = _prompt_menu_choice(
+        title=f"Choose provider-model for {model}:",
+        options=[
+            (spec.id, f"{spec.id} | {spec.label}{_catalog_option_suffix(catalog_entry_for_provider_model(model, spec.id, catalog))}")
+            for spec in specs
+        ],
         input_stream=input_stream,
         output_stream=output_stream,
     )
+    if provider_model is None:
+        return "Guided model selection cancelled."
+    spec = provider_model_spec(model, provider_model)
+    reasoning_value = None
+    if spec is not None and spec.reasoning_efforts:
+        current_reasoning = prefs.params_for_model(model).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
+        if provider_model == "gpt-5.3-codex":
+            reasoning_options = [
+                ("medium", "medium"),
+                ("high", f"high{' (default)' if current_reasoning == 'high' else ''}"),
+                ("high", "high"),
+            ]
+        else:
+            ordered_reasoning_efforts = list(spec.reasoning_efforts)
+            if provider_model and "mini" not in provider_model.lower():
+                ordered_reasoning_efforts = list(reversed(ordered_reasoning_efforts))
+            reasoning_options = [
+                (effort, f"{effort}{' (default)' if effort == current_reasoning else ''}")
+                for effort in ordered_reasoning_efforts
+            ]
+        reasoning_value = _prompt_menu_choice(
+            title=f"Choose reasoning_effort for {model}:{provider_model}:",
+            options=reasoning_options,
+            input_stream=input_stream,
+            output_stream=output_stream,
+        )
+        if reasoning_value is None:
+            return "Guided model selection cancelled."
+    prefs.preferred_model = model
+    prefs.set_variant(model, provider_model)
+    if reasoning_value is not None:
+        prefs.set_model_param(model, "reasoning_effort", reasoning_value)
+    _save_model_preferences(config, prefs)
+    _apply_model_preferences(agent, config)
+    params_text = f" reasoning_effort={reasoning_value}" if reasoning_value is not None else ""
+    return f"Guided selection applied: provider={model} provider_model={provider_model}{params_text}."
 
 
 def _render_model_params(config: AgentConfig, model: str) -> str:
