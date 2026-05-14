@@ -370,31 +370,19 @@ def _interactive_help_topic(topic: str) -> str:
 
 
 def _load_model_preferences(config: AgentConfig) -> ModelPreferences:
-    return ModelPreferences.load(config.model_prefs_path)
+    return _model_views._load_model_preferences(config)
 
 
 def _save_model_preferences(config: AgentConfig, prefs: ModelPreferences) -> None:
-    prefs.normalize().save(config.model_prefs_path)
+    _model_views._save_model_preferences(config, prefs)
 
 
 def _sync_handoff_preferences(agent: Agent, prefs: ModelPreferences) -> None:
-    agent.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
-    agent.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
-    agent.handoff.model_params_by_model = {
-        model: dict(params) for model, params in (prefs.params_by_model or {}).items()
-    }
-    agent.project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    _model_views._sync_handoff_preferences(agent, prefs)
 
 
 def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferences:
-    prefs = _load_model_preferences(config)
-    agent.router.configure(
-        enabled_models=prefs.enabled_models,
-        preferred_model=prefs.preferred_model,
-        blocked_until_by_model=prefs.blocked_until_by_model or {},
-    )
-    _sync_handoff_preferences(agent, prefs)
-    return prefs
+    return _model_views._apply_model_preferences(agent, config)
 
 
 def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str, str, str]:
@@ -428,17 +416,7 @@ def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None 
 
 
 def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
-    if not isinstance(entry, dict) or not entry:
-        return ""
-    parts: list[str] = []
-    if entry.get("intelligence_rank") is not None:
-        parts.append(f"I#{entry.get('intelligence_rank')}")
-    if entry.get("speed_rank") is not None:
-        parts.append(f"S#{entry.get('speed_rank')}")
-    price = entry.get("blended_price_usd_per_1m_tokens")
-    if isinstance(price, (int, float)):
-        parts.append(f"${price}/1M")
-    return f" [{' | '.join(parts)}]" if parts else ""
+    return _model_views._catalog_option_suffix(entry)
 
 
 def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
@@ -446,11 +424,7 @@ def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
 
 
 def _sync_prince2_roles_to_handoff(config: AgentConfig, prefs: ModelPreferences) -> None:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
-    if prefs.prince2_role_tree_baseline:
-        handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline))
-    handoff.save(config.handoff_path)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
 
 
 def _sync_prince2_role_tree_baseline_back_to_preferences(
@@ -458,11 +432,7 @@ def _sync_prince2_role_tree_baseline_back_to_preferences(
     prefs: ModelPreferences,
     handoff: ProjectHandoff,
 ) -> None:
-    baseline = handoff.prince2_role_tree_baseline if isinstance(handoff.prince2_role_tree_baseline, dict) else {}
-    if not baseline:
-        return
-    prefs.set_prince2_role_tree_baseline(dict(baseline))
-    prefs.save(config.model_prefs_path)
+    _model_views._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
 
 
 def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
@@ -1740,13 +1710,7 @@ def _account_usage() -> str:
 
 
 def _default_claude_credentials_path() -> Path | None:
-    config_dir = os.environ.get("CLAUDE_CONFIG_DIR")
-    if config_dir:
-        return Path(config_dir) / ".credentials.json"
-    home = Path.home()
-    if not str(home):
-        return None
-    return home / ".claude" / ".credentials.json"
+    return _account_views._default_claude_credentials_path()
 
 
 def _guided_account_choice(

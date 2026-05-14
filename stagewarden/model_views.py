@@ -7,6 +7,7 @@ from .agent import Agent
 from .config import AgentConfig
 from .handoff import format_run_model
 from .json_schema_registry import json_schema
+from .project_handoff import ProjectHandoff
 from .model_catalog import catalog_entry_for_provider_model, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, provider_model_spec, provider_model_specs
 from .provider_registry import provider_capability, provider_model_preset
@@ -19,7 +20,17 @@ def _main():
 
 
 def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
-    return _main()._catalog_option_suffix(entry)
+    if not isinstance(entry, dict) or not entry:
+        return ""
+    parts: list[str] = []
+    if entry.get("intelligence_rank") is not None:
+        parts.append(f"I#{entry.get('intelligence_rank')}")
+    if entry.get("speed_rank") is not None:
+        parts.append(f"S#{entry.get('speed_rank')}")
+    price = entry.get("blended_price_usd_per_1m_tokens")
+    if isinstance(price, (int, float)):
+        parts.append(f"${price}/1M")
+    return f" [{' | '.join(parts)}]" if parts else ""
 
 
 def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None = None) -> dict[str, object]:
@@ -113,6 +124,54 @@ def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
         if candidate in active:
             return candidate
     return agent.router.choose_model("fallback cloud priority", "analysis", 0)
+
+
+def _load_model_preferences(config: AgentConfig) -> ModelPreferences:
+    return ModelPreferences.load(config.model_prefs_path)
+
+
+def _save_model_preferences(config: AgentConfig, prefs: ModelPreferences) -> None:
+    prefs.normalize().save(config.model_prefs_path)
+
+
+def _sync_handoff_preferences(agent: Agent, prefs: ModelPreferences) -> None:
+    agent.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
+    agent.handoff.model_variant_by_model = dict(prefs.variant_by_model or {})
+    agent.handoff.model_params_by_model = {
+        model: dict(params) for model, params in (prefs.params_by_model or {}).items()
+    }
+    agent.project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+
+
+def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferences:
+    prefs = _load_model_preferences(config)
+    agent.router.configure(
+        enabled_models=prefs.enabled_models,
+        preferred_model=prefs.preferred_model,
+        blocked_until_by_model=prefs.blocked_until_by_model or {},
+    )
+    _sync_handoff_preferences(agent, prefs)
+    return prefs
+
+
+def _sync_prince2_roles_to_handoff(config: AgentConfig, prefs: ModelPreferences) -> None:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    if prefs.prince2_role_tree_baseline:
+        handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline))
+    handoff.save(config.handoff_path)
+
+
+def _sync_prince2_role_tree_baseline_back_to_preferences(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    handoff: ProjectHandoff,
+) -> None:
+    baseline = handoff.prince2_role_tree_baseline if isinstance(handoff.prince2_role_tree_baseline, dict) else {}
+    if not baseline:
+        return
+    prefs.set_prince2_role_tree_baseline(dict(baseline))
+    prefs.save(config.model_prefs_path)
 
 
 def _guided_model_choice(

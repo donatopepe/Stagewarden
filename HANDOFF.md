@@ -11,6 +11,7 @@
 - `stagewarden/project_handoff_views.py` now centralizes the handoff/resume/board/register/transcript operational reports that were still living inside `stagewarden/project_handoff.py`.
 - `stagewarden/mode_views.py` now centralizes the mode/status/project/report dispatch bridge that was still living in `main.py`.
 - `stagewarden/model_views.py` now centralizes the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search, model params/preset/variant flows, and the guided model-choice flow.
+- `stagewarden/model_views.py` now also owns the model preference load/save/apply helpers and the PRINCE2 role-sync helpers, so `main.py` only keeps thin bridges for those flows.
 - `stagewarden/model_views.py` now also owns the catalog helper block that was still living in `main.py`, so the CLI can keep `main.py` thinner.
 - `stagewarden/shell_views.py` now also owns the permission approval, rate-limit decision, and interactive completion helpers used by the interactive shell, so the shell flow no longer keeps those prompts and completion rules inline in `main.py`.
 - `stagewarden/status_views.py` now also owns the provider limit snapshot record/clear helpers so the status/provider-limit slice owns the persistence path for limit events.
