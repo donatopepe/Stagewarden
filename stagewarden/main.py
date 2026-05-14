@@ -1244,44 +1244,19 @@ def _permissions_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _workspace_settings_payload(path: Path) -> dict[str, object]:
-    if not path.exists():
-        return {}
-    payload = loads_text(read_text_utf8(path))
-    return payload if isinstance(payload, dict) else {}
+    return _shell_views._workspace_settings_payload(path)
 
 
 def _configured_shell_backend(config: AgentConfig) -> str:
-    payload = _workspace_settings_payload(config.settings_path)
-    shell = payload.get("shell", {}) if isinstance(payload, dict) else {}
-    if isinstance(shell, dict):
-        value = str(shell.get("backend", "auto")).strip().lower()
-        if value in {"auto", "bash", "zsh", "powershell", "cmd"}:
-            return value
-    return "auto"
+    return _shell_views._configured_shell_backend(config)
 
 
 def _save_shell_backend(config: AgentConfig, backend: str) -> None:
-    payload = _workspace_settings_payload(config.settings_path)
-    shell = payload.get("shell", {})
-    if not isinstance(shell, dict):
-        shell = {}
-    shell["backend"] = backend
-    payload["shell"] = shell
-    write_text_utf8(config.settings_path, dumps_ascii(payload, indent=2))
+    _shell_views._save_shell_backend(config, backend)
 
 
 def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
-    configured = _configured_shell_backend(config)
-    capabilities = detect_runtime_capabilities(config.workspace_root)
-    selection = select_shell_backend(configured, capabilities)
-    return {
-        "command": "shell backend",
-        "configured": configured,
-        "selected": selection["selected"],
-        "available": selection["available"],
-        "executable": selection["executable"],
-        "reason": selection["reason"],
-    }
+    return _shell_views._shell_backend_report(config)
 
 
 def _render_shell_backend(config: AgentConfig) -> str:
