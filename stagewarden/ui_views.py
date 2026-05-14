@@ -55,6 +55,12 @@ def _interactive_help_overview() -> str:
     return "\n".join(lines)
 
 
+def interactive_help_text(topic: str | None = None) -> str:
+    if topic:
+        return _interactive_help_topic(topic)
+    return _interactive_help_overview()
+
+
 def _slash_match_report(spec: object, query: str) -> dict[str, object]:
     phrases = [
         str(getattr(spec, "name", "")),
