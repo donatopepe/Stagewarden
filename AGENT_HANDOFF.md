@@ -16,6 +16,7 @@
 - The executor now verifies mutating actions after execution instead of trusting tool success blindly.
 - The repository now has a broader cross-platform utility surface in addition to the existing files, git, shell, and PRINCE2 flows.
 - `stagewarden/model_views.py` now owns the model preference load/save/apply and PRINCE2 role-sync helpers, so `main.py` only keeps thin bridges for those flows.
+- `stagewarden/command_views.py` now owns the shared `parse_limit` helper and `stagewarden/cli_dispatch.py` now owns the LJSON path helpers, so the last utility bodies can stay out of `main.py`.
 - `stagewarden/tools/system.py` provides `system info`, `disk usage`, `process list`, `process kill`, `port check`, clipboard access, and browser opening with optional `psutil` / `pyperclip` support and stdlib fallbacks.
 - `stagewarden/tools/external_io.py` now exposes generic hashing plus archive listing, extraction, and creation for zip/tar-style formats.
 - `stagewarden/tools/browser.py` now provides browser fetch/open/screenshot flows with stdlib parsing plus optional Playwright screenshots.
@@ -103,6 +104,7 @@
 - `stagewarden/agent_setup_views.py`: extracted the agent workspace setup and runtime permission refresh helpers out of `main.py`.
 - `stagewarden/json_schema_registry.py`: extracted the shared `with_json_schema()` helper out of `main.py`.
 - `stagewarden/model_views.py`: now owns the model preference load/save/apply helpers, the catalog option suffix helper, and the PRINCE2 role-sync helpers that were still living in `main.py`.
+- `stagewarden/command_views.py`: now owns the shared `parse_limit` helper and `stagewarden/cli_dispatch.py`: now owns the LJSON path helpers that were still living in `main.py`.
 - `stagewarden/cli_dispatch.py`: project tree proposal now persists the clarification question when AI-assisted proposal still needs brief clarification.
 - `stagewarden/project/tree_flow.py`: project tree proposal render now prints the clarification question when one exists.
 - `stagewarden/model_views.py`: extracted the cloud-priority model chooser out of `main.py`.

@@ -1778,28 +1778,6 @@ def _shell_sessions_report(agent: Agent) -> dict[str, object]:
     return _command_views._shell_sessions_report(agent)
 
 
-def _parse_limit(raw: str, *, default: int) -> int:
-    if not raw:
-        return default
-    try:
-        return max(1, min(int(raw), 200))
-    except ValueError:
-        return default
-
-
-def _default_ljson_encode_path(source: Path, *, gzip_enabled: bool) -> Path:
-    if gzip_enabled:
-        return source.with_suffix(".ljson.gz")
-    return source.with_suffix(".ljson")
-
-
-def _default_ljson_decode_path(source: Path) -> Path:
-    if source.suffix == ".gz":
-        without_gzip = source.with_suffix("")
-        return without_gzip.with_suffix(".json")
-    return source.with_suffix(".json")
-
-
 def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
     return _shell_views._rewrite_shell_command(command, agent)
 
