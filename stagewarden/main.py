@@ -74,6 +74,7 @@ from . import command_views as _command_views
 from . import report_views as _report_views
 from . import mode_views as _mode_views
 from . import model_views as _model_views
+from . import status_dashboard_views as _status_dashboard_views
 from . import agent_setup_views as _agent_setup_views
 from . import extension_views as _extension_views
 from .project import role_views as _project_role_views
@@ -1861,15 +1862,15 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
 
 
 def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._statusline_report(agent, config)
+    return _status_dashboard_views._statusline_report(agent, config)
 
 
 def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._overview_report(agent, config)
+    return _status_dashboard_views._overview_report(agent, config)
 
 
 def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._health_report(agent, config)
+    return _status_dashboard_views._health_report(agent, config)
 
 
 def _preflight_remediations(
@@ -1885,7 +1886,7 @@ def _preflight_remediations(
     stage_view: dict[str, object],
     log_errors: dict[str, object],
 ) -> list[dict[str, str]]:
-    return _status_views._preflight_remediations(
+    return _status_dashboard_views._preflight_remediations(
         doctor=doctor,
         runtime=runtime,
         shell_backend=shell_backend,
@@ -1905,7 +1906,7 @@ def _status_remediation_report(
     stage_view: dict[str, object],
     config: AgentConfig,
 ) -> list[dict[str, str]]:
-    return _status_views._status_remediation_report(
+    return _status_dashboard_views._status_remediation_report(
         provider_limits=provider_limits,
         stage_view=stage_view,
         config=config,
@@ -1913,31 +1914,31 @@ def _status_remediation_report(
 
 
 def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._preflight_report(agent, config)
+    return _status_dashboard_views._preflight_report(agent, config)
 
 
 def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._report_report(agent, config)
+    return _status_dashboard_views._report_report(agent, config)
 
 
 def _doctor_report(config: AgentConfig) -> dict[str, object]:
-    return _status_views._doctor_report(config)
+    return _status_dashboard_views._doctor_report(config)
 
 
 def _doctor_ok(rendered: str) -> bool:
-    return _status_views._doctor_ok(rendered)
+    return _status_dashboard_views._doctor_ok(rendered)
 
 
 def _render_preflight(agent: Agent, config: AgentConfig) -> str:
-    return _status_views._render_preflight(agent, config)
+    return _status_dashboard_views._render_preflight(agent, config)
 
 
 def _render_report(agent: Agent, config: AgentConfig) -> str:
-    return _status_views._render_report(agent, config)
+    return _status_dashboard_views._render_report(agent, config)
 
 
 def _render_doctor(config: AgentConfig) -> str:
-    return _status_views._render_doctor(config)
+    return _status_dashboard_views._render_doctor(config)
 
 
 def _render_status_full(agent: Agent, config: AgentConfig) -> str:

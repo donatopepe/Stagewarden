@@ -5,7 +5,7 @@
 
  `stagewarden/status_views.py` now also owns the agent capability-surface report helper that feeds `roles context`, so the role-context report stays aligned with the status/report logic.
 
- `stagewarden/status_views.py` now also owns the overview, health, and remediations render helpers, so the remaining dashboard bodies no longer live in `main.py`.
+ `stagewarden/status_views.py` now also owns the overview, health, and remediations render helpers, while `stagewarden/status_dashboard_views.py` now centralizes the public statusline/overview/health/preflight/report/doctor bridge and `main.py` delegates those public reports there.
  `stagewarden/project/role_views.py` now also owns the PRINCE2 role assignments render helper, and the bridge in `main.py` now points at the correct module after the extraction.
  `stagewarden/project/role_flow.py` now also owns the project tolerance profile plus the role tolerance margin set/reset helpers, so the tolerance-specific PRINCE2 bodies no longer live in `main.py`.
  `stagewarden/cli_dispatch.py` now also owns the parser builder, so the CLI option surface no longer lives inline in `main.py`.
@@ -142,7 +142,7 @@
 - `stagewarden/status_views.py`: extracted the source reference manifest helper out of `main.py`.
 - `stagewarden/model_views.py`: extracted the provider-model display helpers out of `main.py`.
 - `stagewarden/project/role_flow.py`: restored the PRINCE2 role shell contract expected by the battery, and `stagewarden/project_handoff_runtime.py` now exposes `threat_count` in antagonist decision KPIs.
-- `stagewarden/status_views.py`: extracted the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status helper slice, while `stagewarden/main.py` shadows the old bodies with wrappers into that module.
+- `stagewarden/status_views.py`: extracted the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status helper slice, while `stagewarden/main.py` shadows the old bodies with wrappers into that module; `stagewarden/status_dashboard_views.py` now carries the public dashboard/report bridge.
 - `stagewarden/main.py`: now delegates the remaining PRINCE2 tree/baseline render helpers to `stagewarden/project/role_tree_views.py`.
 - `stagewarden/main.py`: now delegates the project design packet/report helpers to `stagewarden/project/design_flow.py`.
 - `stagewarden/project/tree_flow.py`, `stagewarden/project/role_flow.py`, `stagewarden/project/start_flow.py`, and `stagewarden/project/role_runtime_views.py`: now point the shared baseline/fallback rendering at `stagewarden/project/role_tree_views.py`.
