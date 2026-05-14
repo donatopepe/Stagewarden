@@ -37,8 +37,7 @@ from .commands import (
     render_command_catalog,
 )
 from .config import AgentConfig
-from .extensions import discover_extensions, scaffold_extension
-from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, canonicalize_model_variant, format_run_model
+from .handoff import MODEL_BACKENDS, MODEL_VARIANT_CATALOG, available_model_variants, format_run_model
 from .ljson import LJSONOptions, benchmark_sizes, decode, dump_file, encode, load_file
 from .memory import MemoryStore
 from .modelprefs import (
@@ -74,6 +73,7 @@ from . import command_views as _command_views
 from . import report_views as _report_views
 from . import mode_views as _mode_views
 from . import model_views as _model_views
+from . import extension_views as _extension_views
 from .project import role_views as _project_role_views
 from .project import role_runtime_views as _project_role_runtime_views
 from .project import role_tree_views as _project_role_tree_views
@@ -464,35 +464,7 @@ def _apply_model_preset(
 
 
 def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None = None) -> dict[str, object]:
-    if isinstance(entry, dict) and entry:
-        return {
-            "model_name": entry.get("model_name"),
-            "context_window": entry.get("context_window"),
-            "cost_per_input_token_usd": entry.get("cost_per_input_token_usd"),
-            "cost_per_output_token_usd": entry.get("cost_per_output_token_usd"),
-            "blended_price_usd_per_1m_tokens": entry.get("blended_price_usd_per_1m_tokens"),
-            "pricing_source": entry.get("pricing_source"),
-            "intelligence_rank": entry.get("intelligence_rank"),
-            "speed_rank": entry.get("speed_rank"),
-            "latency_rank": entry.get("latency_rank"),
-            "openness": entry.get("openness"),
-            "features": list(entry.get("features", [])) if isinstance(entry.get("features"), list) else [],
-            "catalog_source": entry.get("source"),
-        }
-    return {
-        "model_name": getattr(spec, "label", None) if spec is not None else None,
-        "context_window": getattr(spec, "context_window_hint", None) if spec is not None else None,
-        "cost_per_input_token_usd": None,
-        "cost_per_output_token_usd": None,
-        "blended_price_usd_per_1m_tokens": None,
-        "pricing_source": None,
-        "intelligence_rank": None,
-        "speed_rank": None,
-        "latency_rank": None,
-        "openness": None,
-        "features": [],
-        "catalog_source": None,
-    }
+    return _model_views._catalog_entry_display(entry, spec)
 
 
 def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
@@ -829,66 +801,16 @@ def _assign_prince2_role_node(
     account: str | None = None,
     pool: str = "primary",
 ) -> dict[str, object]:
-    clean_pool = str(pool).strip().lower() or "primary"
-    if clean_pool not in {"primary", "reviewer", "fallback"}:
-        raise ValueError("Pool must be primary, reviewer, or fallback.")
-    if provider not in SUPPORTED_MODELS:
-        raise ValueError(f"Unsupported provider '{provider}'. Supported: {', '.join(SUPPORTED_MODELS)}")
-    canonical_model = canonicalize_model_variant(provider, provider_model)
-    if account is not None and account not in (prefs.accounts_by_model or {}).get(provider, []):
-        raise ValueError(f"Account '{account}' is not configured for provider '{provider}'.")
-    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_assign")
-    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
-    nodes = list(tree.get("nodes", [])) if isinstance(tree.get("nodes", []), list) else []
-    target = next((node for node in nodes if isinstance(node, dict) and node.get("node_id") == node_id), None)
-    if target is None:
-        raise ValueError(f"Role node '{node_id}' not found.")
-    clean_params: dict[str, str] = {}
-    spec = provider_model_spec(provider, canonical_model)
-    for key, value in (params or {}).items():
-        if key != "reasoning_effort":
-            continue
-        if spec is not None and value in spec.reasoning_efforts:
-            clean_params[key] = value
-    route = {
-        "role": str(target.get("role_type", "")),
-        "node_id": node_id,
-        "label": str(target.get("label", node_id)),
-        "mode": "manual",
-        "provider": provider,
-        "provider_model": canonical_model,
-        "params": clean_params,
-        "account": account,
-        "source": "node_manual",
-    }
-    if clean_pool == "primary":
-        target["assignment"] = route
-        target["fallback_pool"] = [model for model in (prefs.active_models() or prefs.enabled_models) if model != provider]
-        target["readiness"] = "assigned"
-    else:
-        pools = target.get("assignment_pool", {}) if isinstance(target.get("assignment_pool"), dict) else {}
-        routes = [dict(item) for item in pools.get(clean_pool, []) if isinstance(item, dict)] if isinstance(pools.get(clean_pool, []), list) else []
-        routes = [
-            item
-            for item in routes
-            if not (item.get("provider") == provider and item.get("provider_model") == canonical_model and item.get("account") == account)
-        ]
-        route["pool"] = clean_pool
-        routes.append(route)
-        pools[clean_pool] = routes
-        target["assignment_pool"] = pools
-        if target.get("assignment"):
-            target["readiness"] = "assigned"
-        else:
-            target["readiness"] = "reviewer_pool_only" if clean_pool == "reviewer" else "fallback_pool_only"
-    tree["nodes"] = nodes
-    baseline["tree"] = tree
-    baseline["status"] = "approved"
-    baseline["source"] = "role_assign"
-    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
-    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
-    _persist_prince2_role_tree_baseline(config, prefs, baseline)
-    return dict(target)
+    return _project_role_flow._assign_prince2_role_node(
+        config,
+        prefs,
+        node_id=node_id,
+        provider=provider,
+        provider_model=provider_model,
+        params=params,
+        account=account,
+        pool=pool,
+    )
 
 
 def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
@@ -948,69 +870,7 @@ def _render_prince2_role_messages(config: AgentConfig, node_id: str | None = Non
 
 
 def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
-    runtime = detect_runtime_capabilities(config.workspace_root)
-    shell_backend = _shell_backend_report(config)
-    permissions = _permissions_report(config)
-    return {
-        "workspace": str(config.workspace_root),
-        "os_family": str(runtime.get("os_family", "unknown")),
-        "recommended_shell": str(runtime.get("recommended_shell", "unknown")),
-        "default_shell": str(runtime.get("default_shell") or "none"),
-        "shell_backend": {
-            "configured": shell_backend["configured"],
-            "selected": shell_backend["selected"] or "none",
-            "executable": shell_backend["executable"] or "none",
-        },
-        "permission_mode": permissions["effective"]["mode"],
-        "core_tools": {
-            "shell": True,
-            "files": True,
-            "git": True,
-            "web_research": True,
-            "download": True,
-            "compression": True,
-            "wet_run_required": True,
-        },
-        "model_actions": sorted(ALLOWED_MODEL_ACTIONS),
-        "file_operations": [
-            "read_file",
-            "inspect_file",
-            "inspect_metadata_file",
-            "write_file",
-            "apply_patch",
-            "search_replace_file",
-            "insert_text_file",
-            "delete_range_file",
-            "delete_backward_file",
-            "replace_range_file",
-            "convert_encoding_file",
-            "normalize_line_endings_file",
-            "copy_path_file",
-            "move_path_file",
-            "delete_path_file",
-            "chmod_path_file",
-            "chown_path_file",
-            "patch_file",
-            "patch_files",
-            "preview_patch_files",
-            "list_files",
-            "search_files",
-        ],
-        "git_operations": [
-            "git_status",
-            "git_diff",
-            "git_log",
-            "git_show",
-            "git_file_history",
-            "git_commit",
-        ],
-        "shell_operations": [
-            "shell",
-            "shell_session_create",
-            "shell_session_send",
-            "shell_session_close",
-        ],
-    }
+    return _status_views._agent_capability_surface_for_node(config)
 
 
 def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str, object]:
@@ -1392,36 +1252,13 @@ def _remove_prince2_role_node(
     reparent_children: bool = True,
     source: str = "role_remove",
 ) -> dict[str, object]:
-    removed: dict[str, object] = {}
-
-    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
-        nonlocal removed
-        target = next((node for node in nodes if str(node.get("node_id", "")).strip() == node_id), None)
-        if target is None:
-            raise ValueError(f"Role node '{node_id}' not found.")
-        if node_id == "board.executive":
-            raise ValueError("The Project Executive root node cannot be removed.")
-        removed = dict(target)
-        parent_id = str(target.get("parent_id")) if target.get("parent_id") not in {None, ""} else None
-        if reparent_children:
-            for child in nodes:
-                if str(child.get("parent_id", "")).strip() == node_id:
-                    child["parent_id"] = parent_id
-        nodes[:] = [node for node in nodes if str(node.get("node_id", "")).strip() != node_id]
-        flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
-        edges = flow.get("edges", []) if isinstance(flow, dict) else []
-        if isinstance(edges, list):
-            flow["edges"] = [
-                edge
-                for edge in edges
-                if isinstance(edge, dict)
-                and str(edge.get("source_node", "")).strip() != node_id
-                and str(edge.get("target_node", "")).strip() != node_id
-            ]
-            baseline["flow"] = flow
-
-    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
-    return removed
+    return _project_role_flow._remove_prince2_role_node(
+        config,
+        prefs,
+        node_id=node_id,
+        reparent_children=reparent_children,
+        source=source,
+    )
 
 
 def _assign_prince2_role_node_model(
@@ -1435,7 +1272,7 @@ def _assign_prince2_role_node_model(
     account: str | None = None,
     pool: str = "primary",
 ) -> dict[str, object]:
-    return _assign_prince2_role_node(
+    return _project_role_flow._assign_prince2_role_node(
         config,
         prefs,
         node_id=node_id,
@@ -1592,30 +1429,7 @@ def _handle_role_command(
     return None
 
 def _source_reference_manifest(config: AgentConfig) -> list[dict[str, str]]:
-    manifest_path = config.workspace_root / "docs" / "source_references.md"
-    if not manifest_path.exists():
-        return []
-    rows: list[dict[str, str]] = []
-    for line in read_text_utf8(manifest_path).splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("|") or "`external_sources/" not in stripped:
-            continue
-        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-        if len(cells) < 3:
-            continue
-        project = cells[0].replace("`", "").strip()
-        path_match = re.search(r"`([^`]+)`", cells[1])
-        upstream_match = re.search(r"`([^`]+)`", cells[2])
-        if not project or path_match is None or upstream_match is None:
-            continue
-        rows.append(
-            {
-                "project": project,
-                "path": path_match.group(1),
-                "upstream": upstream_match.group(1),
-            }
-        )
-    return rows
+    return _status_views._source_reference_manifest(config)
 
 
 def _git_output(cwd: Path, *args: str) -> tuple[bool, str]:
@@ -1650,364 +1464,51 @@ def _normalize_git_url(url: str | None) -> str:
 
 
 def _sources_status_report(config: AgentConfig, *, strict: bool = False) -> dict[str, object]:
-    manifest = _source_reference_manifest(config)
-    items: list[dict[str, object]] = []
-    for entry in manifest:
-        local_path = config.workspace_root / entry["path"]
-        exists = local_path.exists()
-        is_git = (local_path / ".git").exists()
-        head_ok = False
-        remote_ok = False
-        shallow_ok = False
-        head = None
-        remote = None
-        shallow = None
-        message = "missing"
-        if exists and is_git:
-            head_ok, head = _git_output(local_path, "rev-parse", "--short", "HEAD")
-            remote_ok, remote = _git_output(local_path, "remote", "get-url", "origin")
-            shallow_ok, shallow = _git_output(local_path, "rev-parse", "--is-shallow-repository")
-            message = "ok" if head_ok and remote_ok and _normalize_git_url(remote) == _normalize_git_url(entry["upstream"]) else "metadata mismatch"
-        elif exists:
-            message = "path exists but is not a git repository"
-        items.append(
-            {
-                "project": entry["project"],
-                "path": entry["path"],
-                "expected_upstream": entry["upstream"],
-                "exists": exists,
-                "git_repository": is_git,
-                "head": head if head_ok else None,
-                "upstream": remote if remote_ok else None,
-                "upstream_matches": bool(remote_ok and _normalize_git_url(remote) == _normalize_git_url(entry["upstream"])),
-                "shallow": (shallow == "true") if shallow_ok else None,
-                "status": "OK" if message == "ok" else ("FAIL" if strict else "WARN"),
-                "message": message,
-            }
-        )
-    ok = bool(items) and all(item["status"] == "OK" for item in items)
-    return {
-        "command": "sources status --strict" if strict else "sources status",
-        "manifest": "docs/source_references.md",
-        "strict": strict,
-        "count": len(items),
-        "ok": ok,
-        "summary": {
-            "ok": sum(1 for item in items if item["status"] == "OK"),
-            "warn": sum(1 for item in items if item["status"] == "WARN"),
-            "fail": sum(1 for item in items if item["status"] == "FAIL"),
-        },
-        "items": items,
-    }
+    return _status_views._sources_status_report(config, strict=strict)
 
 
 def _render_sources_status(config: AgentConfig, *, strict: bool = False) -> str:
-    report = _sources_status_report(config, strict=strict)
-    lines = ["External source references:"]
-    if strict:
-        lines.append("- strict: yes")
-    summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
-    lines.append(
-        f"- summary: ok={summary.get('ok', 0)} warn={summary.get('warn', 0)} fail={summary.get('fail', 0)}"
-    )
-    if not report["items"]:
-        return "\n".join(lines + ["- WARN manifest missing or contains no external source rows."])
-    for item in report["items"]:
-        lines.append(
-            f"- {item['project']}: {item['status']} {item['message']} "
-            f"path={item['path']} head={item['head'] or 'unknown'} "
-            f"upstream={item['upstream'] or 'unknown'} shallow={item['shallow']}"
-        )
-        if not item["upstream_matches"]:
-            lines.append(f"  expected_upstream={item['expected_upstream']}")
-    return "\n".join(lines)
+    return _status_views._render_sources_status(config, strict=strict)
 
 
 def _sources_update_report(config: AgentConfig) -> dict[str, object]:
-    status = _sources_status_report(config)
-    items: list[dict[str, object]] = []
-    for item in status["items"]:
-        if not item.get("exists") or not item.get("git_repository"):
-            items.append({**item, "updated": False, "ok": False, "update_message": "missing or not a git repository"})
-            continue
-        if not item.get("upstream_matches"):
-            items.append(
-                {
-                    **item,
-                    "updated": False,
-                    "ok": False,
-                    "before_head": item.get("head"),
-                    "after_head": item.get("head"),
-                    "update_message": "skipped: upstream mismatch",
-                }
-            )
-            continue
-        local_path = config.workspace_root / str(item["path"])
-        before_ok, before = _git_output(local_path, "rev-parse", "--short", "HEAD")
-        completed = subprocess.run(
-            ["git", "pull", "--ff-only"],
-            cwd=local_path,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        after_ok, after = _git_output(local_path, "rev-parse", "--short", "HEAD")
-        output = completed.stdout.strip() or completed.stderr.strip()
-        items.append(
-            {
-                **item,
-                "ok": completed.returncode == 0 and after_ok,
-                "updated": bool(before_ok and after_ok and before != after),
-                "before_head": before if before_ok else None,
-                "after_head": after if after_ok else None,
-                "update_message": output or "already up to date",
-            }
-        )
-    report = {
-        "command": "sources update",
-        "count": len(items),
-        "updated_count": sum(1 for item in items if item.get("updated")),
-        "failed_count": sum(1 for item in items if not item.get("ok")),
-        "ok": bool(items) and all(bool(item.get("ok")) for item in items),
-        "items": items,
-    }
-    _record_handoff_action(
-        config,
-        phase="sources_update",
-        task="sources update",
-        summary=f"Updated {sum(1 for item in items if item.get('updated'))}/{len(items)} external source repositories.",
-        details=report,
-    )
-    return report
+    return _status_views._sources_update_report(config)
 
 
 def _render_sources_update(config: AgentConfig) -> str:
-    report = _sources_update_report(config)
-    lines = ["External source update:"]
-    lines.append(f"- ok: {str(report['ok']).lower()}")
-    lines.append(f"- summary: updated={report['updated_count']} failed={report['failed_count']} total={report['count']}")
-    for item in report["items"]:
-        lines.append(
-            f"- {item['project']}: {'OK' if item.get('ok') else 'FAIL'} "
-            f"updated={str(bool(item.get('updated'))).lower()} "
-            f"before={item.get('before_head') or item.get('head') or 'unknown'} "
-            f"after={item.get('after_head') or 'unknown'}"
-        )
-        if item.get("update_message"):
-            lines.append(f"  message={item['update_message']}")
-    return "\n".join(lines)
+    return _status_views._render_sources_update(config)
 
 
 def _handle_sources_command(command: str, config: AgentConfig) -> str | None:
-    if command in {"sources", "sources status"}:
-        return _render_sources_status(config)
-    if command == "sources status --strict":
-        return _render_sources_status(config, strict=True)
-    if command == "sources update":
-        return _render_sources_update(config)
-    if command.startswith("sources "):
-        return "Usage: sources | sources status [--strict] | sources update"
-    return None
+    return _status_views._handle_sources_command(command, config)
 
 
 def _update_status_report(config: AgentConfig, *, fetch: bool = False) -> dict[str, object]:
-    root = config.workspace_root
-    inside_ok, inside = _git_output(root, "rev-parse", "--is-inside-work-tree")
-    if not inside_ok or inside != "true":
-        return {
-            "command": "update check" if fetch else "update status",
-            "ok": False,
-            "repository": False,
-            "message": "Workspace is not a git repository.",
-            "update_available": False,
-        }
-    fetch_message = None
-    if fetch:
-        fetched = _git_completed(root, "fetch", "--quiet", "--prune", timeout=60)
-        fetch_message = fetched.stdout.strip() or fetched.stderr.strip() or "fetch completed"
-        if fetched.returncode != 0:
-            return {
-                "command": "update check",
-                "ok": False,
-                "repository": True,
-                "message": fetch_message,
-                "update_available": False,
-            }
-    branch_ok, branch = _git_output(root, "branch", "--show-current")
-    head_ok, head = _git_output(root, "rev-parse", "--short", "HEAD")
-    upstream_ok, upstream = _git_output(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
-    upstream_head_ok, upstream_head = (False, "")
-    ahead = behind = 0
-    if upstream_ok:
-        upstream_head_ok, upstream_head = _git_output(root, "rev-parse", "--short", upstream)
-        counts_ok, counts = _git_output(root, "rev-list", "--left-right", "--count", f"HEAD...{upstream}")
-        if counts_ok:
-            parts = counts.split()
-            if len(parts) == 2:
-                ahead, behind = int(parts[0]), int(parts[1])
-    dirty_ok, dirty = _git_output(root, "status", "--porcelain")
-    remote_ok, remote = _git_output(root, "remote", "get-url", "origin")
-    ok = bool(branch_ok and head_ok and upstream_ok and upstream_head_ok and dirty_ok)
-    return {
-        "command": "update check" if fetch else "update status",
-        "ok": ok,
-        "repository": True,
-        "branch": branch if branch_ok else None,
-        "head": head if head_ok else None,
-        "upstream": upstream if upstream_ok else None,
-        "upstream_head": upstream_head if upstream_head_ok else None,
-        "remote": remote if remote_ok else None,
-        "ahead": ahead,
-        "behind": behind,
-        "dirty": bool(dirty.strip()) if dirty_ok else None,
-        "update_available": behind > 0,
-        "fetch_message": fetch_message,
-        "message": "ok" if ok else "No upstream configured or git metadata unavailable.",
-    }
+    return _status_views._update_status_report(config, fetch=fetch)
 
 
 def _render_update_status(config: AgentConfig, *, fetch: bool = False) -> str:
-    report = _update_status_report(config, fetch=fetch)
-    lines = ["Stagewarden self-update:"]
-    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
-    lines.append(f"- branch: {report.get('branch') or 'unknown'}")
-    lines.append(f"- head: {report.get('head') or 'unknown'}")
-    lines.append(f"- upstream: {report.get('upstream') or 'none'}")
-    lines.append(f"- upstream_head: {report.get('upstream_head') or 'unknown'}")
-    lines.append(f"- ahead: {report.get('ahead', 0)}")
-    lines.append(f"- behind: {report.get('behind', 0)}")
-    lines.append(f"- dirty: {str(report.get('dirty')).lower()}")
-    lines.append(f"- update_available: {str(bool(report.get('update_available'))).lower()}")
-    if report.get("fetch_message"):
-        lines.append(f"- fetch: {report['fetch_message']}")
-    if not report.get("ok"):
-        lines.append(f"- message: {report.get('message')}")
-    return "\n".join(lines)
+    return _status_views._render_update_status(config, fetch=fetch)
 
 
 def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dict[str, object]:
-    if not confirmed:
-        return {
-            "command": "update apply",
-            "ok": False,
-            "applied": False,
-            "needs_confirmation": True,
-            "message": "Use update apply --yes to confirm fast-forward self-update.",
-        }
-    before = _update_status_report(config, fetch=True)
-    if not before.get("ok"):
-        return {"command": "update apply", "ok": False, "applied": False, "message": before.get("message"), "before": before}
-    if before.get("dirty"):
-        return {"command": "update apply", "ok": False, "applied": False, "message": "Refusing self-update with dirty working tree.", "before": before}
-    if not before.get("update_available"):
-        return {"command": "update apply", "ok": True, "applied": False, "message": "Already up to date.", "before": before, "after": before}
-    pulled = _git_completed(config.workspace_root, "pull", "--ff-only", timeout=60)
-    after = _update_status_report(config, fetch=False)
-    output = pulled.stdout.strip() or pulled.stderr.strip()
-    report = {
-        "command": "update apply",
-        "ok": pulled.returncode == 0 and bool(after.get("ok")),
-        "applied": pulled.returncode == 0 and before.get("head") != after.get("head"),
-        "message": output or "fast-forward applied",
-        "before": before,
-        "after": after,
-    }
-    _record_handoff_action(
-        config,
-        phase="update_apply",
-        task="update apply --yes",
-        summary=str(report["message"]),
-        details=report,
-    )
-    return report
+    return _status_views._update_apply_report(config, confirmed=confirmed)
 
 
 def _render_update_apply(config: AgentConfig, *, confirmed: bool = False) -> str:
-    report = _update_apply_report(config, confirmed=confirmed)
-    lines = ["Stagewarden self-update apply:"]
-    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
-    lines.append(f"- applied: {str(bool(report.get('applied'))).lower()}")
-    if report.get("needs_confirmation"):
-        lines.append("- needs_confirmation: yes")
-    lines.append(f"- message: {report.get('message')}")
-    before = report.get("before", {}) if isinstance(report.get("before"), dict) else {}
-    after = report.get("after", {}) if isinstance(report.get("after"), dict) else {}
-    if before:
-        lines.append(f"- before_head: {before.get('head') or 'unknown'}")
-    if after:
-        lines.append(f"- after_head: {after.get('head') or 'unknown'}")
-    return "\n".join(lines)
+    return _status_views._render_update_apply(config, confirmed=confirmed)
 
 
 def _handle_update_command(command: str, config: AgentConfig) -> str | None:
-    if command == "update status":
-        return _render_update_status(config)
-    if command in {"update check", "update check --json"}:
-        return _render_update_status(config, fetch=True)
-    if command in {"update apply", "update apply --yes"}:
-        return _render_update_apply(config, confirmed=command.endswith(" --yes"))
-    if command.startswith("update "):
-        return "Usage: update status | update check [--json] | update apply --yes"
-    return None
+    return _status_views._handle_update_command(command, config)
 
 
 def _render_extensions_report(report: dict[str, object]) -> str:
-    lines = ["Stagewarden extensions:"]
-    lines.append(f"- root: {report.get('root', '.stagewarden/extensions')}")
-    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
-    lines.append(f"- count: {report.get('count', 0)}")
-    extensions = report.get("extensions", [])
-    if isinstance(extensions, list) and extensions:
-        for item in extensions:
-            if not isinstance(item, dict):
-                continue
-            caps = ", ".join(str(cap) for cap in item.get("capabilities", []) or []) or "none"
-            execution = str(item.get("execution") or "unknown")
-            schema_version = str(item.get("schema_version") or "unknown")
-            lines.append(
-                f"- {item.get('name')}: {'OK' if item.get('ok') else 'FAIL'} "
-                f"version={item.get('version') or 'unknown'} schema={schema_version} "
-                f"execution={execution} path={item.get('path')} capabilities={caps}"
-            )
-            entrypoints = item.get("entrypoints", {})
-            if isinstance(entrypoints, dict) and entrypoints:
-                rendered = ", ".join(f"{key}={value}" for key, value in sorted(entrypoints.items()))
-                lines.append(f"  entrypoints={rendered}")
-            missing = item.get("missing_entrypoints", [])
-            if isinstance(missing, list) and missing:
-                lines.append(f"  missing_entrypoints={', '.join(str(value) for value in missing)}")
-            if item.get("message") and item.get("message") != "ok":
-                lines.append(f"  message={item['message']}")
-    return "\n".join(lines)
+    return _extension_views._render_extensions_report(report)
 
 
 def _handle_extension_command(command: str, config: AgentConfig) -> str | None:
-    if command == "extensions":
-        return _render_extensions_report(discover_extensions(config.workspace_root))
-    if command.startswith("extension scaffold "):
-        name = command.split(maxsplit=2)[2]
-        try:
-            report = scaffold_extension(config.workspace_root, name)
-        except ValueError as exc:
-            return f"Extension scaffold failed: {exc}"
-        _record_handoff_action(
-            config,
-            phase="extension_scaffold",
-            task=command,
-            summary=f"Created extension scaffold {report['name']}.",
-            details=report,
-        )
-        return (
-            "Extension scaffold created:\n"
-            f"- name: {report['name']}\n"
-            f"- path: {report['path']}\n"
-            f"- manifest: {report['manifest']}\n"
-            "- execution: disabled-by-default"
-        )
-    if command.startswith("extension ") or command.startswith("extensions "):
-        return "Usage: extensions | extension scaffold <name>"
-    return None
+    return _extension_views._handle_extension_command(command, config)
 
 
 def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
@@ -2026,35 +1527,7 @@ def _record_limit_message(
     message: str,
     account: str | None = None,
 ) -> str:
-    if model not in SUPPORTED_MODELS:
-        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-    clean_message = message.strip().replace("\n", " ")[:240]
-    if not clean_message:
-        return "Limit message cannot be empty."
-    until = extract_blocked_until(clean_message)
-    snapshot = limit_snapshot_from_message(clean_message, blocked_until=until)
-    if account:
-        if account not in (prefs.accounts_by_model or {}).get(model, []):
-            prefs.add_account(model, account)
-        prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
-        prefs.last_limit_message_by_account[account_key(model, account)] = clean_message
-        prefs.set_account_limit_snapshot(model, account, snapshot)
-        if until:
-            prefs.block_account(model, account, until)
-    else:
-        prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
-        prefs.last_limit_message_by_model[model] = clean_message
-        prefs.set_model_limit_snapshot(model, snapshot)
-        if until:
-            prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
-            prefs.blocked_until_by_model[model] = until
-            if prefs.preferred_model == model:
-                prefs.preferred_model = None
-    _save_model_preferences(config, prefs)
-    target = f"{model}:{account}" if account else model
-    if until:
-        return f"Recorded limit snapshot for {target}; blocked until {until}."
-    return f"Recorded limit snapshot for {target}; no reset time detected."
+    return _status_views._record_limit_message(config, prefs, model=model, message=message, account=account)
 
 
 def _clear_limit_snapshot(
@@ -2064,84 +1537,7 @@ def _clear_limit_snapshot(
     model: str,
     account: str | None = None,
 ) -> str:
-    if model not in SUPPORTED_MODELS:
-        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-    if account:
-        key = account_key(model, account)
-        prefs.blocked_until_by_account = dict(prefs.blocked_until_by_account or {})
-        prefs.blocked_until_by_account.pop(key, None)
-        prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
-        prefs.last_limit_message_by_account.pop(key, None)
-        prefs.provider_limit_snapshot_by_account = dict(prefs.provider_limit_snapshot_by_account or {})
-        prefs.provider_limit_snapshot_by_account.pop(key, None)
-        _save_model_preferences(config, prefs)
-        return f"Cleared limit snapshot for {model}:{account}."
-    prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
-    prefs.blocked_until_by_model.pop(model, None)
-    prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
-    prefs.last_limit_message_by_model.pop(model, None)
-    prefs.provider_limit_snapshot_by_model = dict(prefs.provider_limit_snapshot_by_model or {})
-    prefs.provider_limit_snapshot_by_model.pop(model, None)
-    _save_model_preferences(config, prefs)
-    return f"Cleared limit snapshot for {model}."
-
-
-    _apply_model_preferences(agent, config)
-    handoff = ProjectHandoff.load(config.handoff_path)
-    prefs = _load_model_preferences(config)
-    memory = MemoryStore.load(config.memory_path)
-    model_report = _model_status_report(agent, config)
-    active_model = next((item for item in model_report["models"] if item["preferred"]), None)
-    if active_model is None:
-        active_model = next((item for item in model_report["models"] if item["active"]), None)
-    latest_attempt = memory.latest_attempt()
-    latest_tool = memory.latest_tool_event()
-    active_provider = None if active_model is None else active_model["provider"]
-    latest_limit = None
-    if active_provider:
-        latest_limit = dict(prefs.provider_limit_snapshot_by_model or {}).get(str(active_provider))
-    return {
-        "task": handoff.task or "none",
-        "current_step": handoff.current_step_id or "none",
-        "current_step_status": handoff.current_step_status or "none",
-        "session_state": handoff.status or "none",
-        "session_recoverable": handoff.status in {"initiating", "planned", "executing", "waiting", "exception"},
-        "next_action": handoff.rendered_next_action(),
-        "boundary_decision": handoff.stage_view()["boundary_decision"],
-        "active_provider": None if active_model is None else active_model["provider"],
-        "active_provider_model": None if active_model is None else active_model["provider_model"],
-        "active_account": "none"
-        if active_model is None
-        else ((_load_model_preferences(config).active_account_by_model or {}).get(str(active_model["provider"])) or "none"),
-        "active_provider_model_params": {} if active_model is None else dict(active_model["provider_model_params"]),
-        "latest_model_attempt": None
-        if latest_attempt is None
-        else {
-            "step": latest_attempt.step_id,
-            "action": latest_attempt.action_type,
-            "status": "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}",
-            "provider": latest_attempt.model,
-            "provider_model": latest_attempt.variant or "provider-default",
-        },
-        "latest_tool_evidence": None
-        if latest_tool is None
-        else {
-            "tool": latest_tool.tool,
-            "action": latest_tool.action_type,
-            "status": "ok" if latest_tool.success else f"failed:{latest_tool.error_type or 'unknown'}",
-        },
-        "active_limit": None
-        if not isinstance(latest_limit, dict)
-        else {
-            "status": latest_limit.get("status"),
-            "reason": latest_limit.get("reason"),
-            "blocked_until": latest_limit.get("blocked_until"),
-            "stale": bool(latest_limit.get("stale", False)),
-        },
-        "latest_handoff_action": _latest_handoff_action(config),
-        "resume_ready": bool(handoff.task) and handoff.status in {"initiating", "planned", "executing", "waiting", "exception"},
-    }
-
+    return _status_views._clear_limit_snapshot(config, prefs, model=model, account=account)
 
 def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
     return _status_views._render_focus_snapshot(snapshot)
@@ -2306,17 +1702,7 @@ def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_shell_backend(config: AgentConfig) -> str:
-    report = _shell_backend_report(config)
-    return "\n".join(
-        [
-            "Shell backend:",
-            f"- configured: {report['configured']}",
-            f"- selected: {report['selected'] or 'none'}",
-            f"- available: {str(report['available']).lower()}",
-            f"- executable: {report['executable'] or 'none'}",
-            f"- reason: {report['reason']}",
-        ]
-    )
+    return _shell_views._render_shell_backend(config)
 
 
 BASELINE_CAPABILITY_GROUPS: tuple[dict[str, object], ...] = (
@@ -2646,15 +2032,7 @@ def _configure_readonly_agent_for_workspace(config: AgentConfig) -> Agent:
 
 
 def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
-    prefs = _load_model_preferences(agent.config)
-    provider = agent.router.choose_model(command, command, 0)
-    account = prefs.account_for_model(provider) or "none"
-    provider_model = (
-        prefs.variant_for_model(provider)
-        or agent.router.choose_variant(provider, command, command, 0)
-        or "provider-default"
-    )
-    return provider, account, provider_model
+    return _shell_views._planned_shell_route(agent, command)
 
 
 def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
@@ -2671,87 +2049,7 @@ def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
 
 
 def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = None) -> str:
-    handoff = agent.project_handoff
-    view = handoff.stage_view()
-    active = view["active_step"]
-    active_label = "none"
-    if isinstance(active, dict):
-        active_label = f"{active.get('id', 'unknown')} [{active.get('status', 'unknown')}]"
-    git_boundary = view["git_boundary"]
-    route_line = "- route: unknown"
-    if phase == "before" and command is not None:
-        provider, account, provider_model = _planned_shell_route(agent, command)
-        route_line = f"- route: provider={provider} account={account} provider_model={provider_model}"
-    elif phase == "after":
-        latest = agent.memory.latest_attempt()
-        if latest is not None:
-            route_line = (
-                f"- route: provider={latest.model} "
-                f"account={latest.account or 'none'} "
-                f"provider_model={latest.variant or 'provider-default'}"
-            )
-    snapshot_line = None
-    if phase == "after":
-        snapshot = handoff.latest_git_snapshot()
-        if snapshot is not None:
-            snapshot_line = f"- git_snapshot: {snapshot['git_head']} :: {snapshot['summary']}"
-    return "\n".join(
-        [
-            f"Shell progress ({phase}):",
-            f"- active_step: {active_label}",
-            f"- stage_health: {view['stage_health']}",
-            f"- session_state: {view['session_state']}",
-            f"- session_recoverable: {str(bool(view['session_recoverable'])).lower()}",
-            f"- boundary_decision: {view['boundary_decision']}",
-            f"- recovery_state: {view['recovery_state']}",
-            f"- git_head: {git_boundary['current']}",
-            route_line,
-        ]
-        + ([snapshot_line] if snapshot_line else [])
-    )
-
-
-def _render_last_step_outcome(agent: Agent) -> str:
-    latest = agent.memory.latest_attempt()
-    if latest is None:
-        return "Last step outcome:\n- none"
-    latest_tool = agent.memory.latest_tool_event()
-    status = "ok" if latest.success else f"failed:{latest.error_type or 'unknown'}"
-    observation = latest.observation.strip().replace("\n", " ")
-    devil_advocate_status = None
-    if latest_tool is not None and latest_tool.action_type == "devil_advocate_review":
-        review_text = f"{latest_tool.summary}\n{latest_tool.detail}\n{latest.observation}".lower()
-        if latest.error_type == "critic_rejection" or "verdict=block" in review_text or '"verdict":"block"' in review_text or '"verdict": "block"' in review_text:
-            devil_advocate_status = "rejected"
-        elif "verdict=revise" in review_text or '"verdict":"revise"' in review_text or '"verdict": "revise"' in review_text:
-            devil_advocate_status = "needs_revision"
-        elif "devil_advocate_review" in latest_tool.action_type:
-            devil_advocate_status = "approved"
-    elif latest.error_type == "critic_rejection":
-        devil_advocate_status = "rejected"
-    lines = [
-        "Last step outcome:",
-        f"- step: {latest.step_id}",
-        f"- action: {latest.action_type}",
-        f"- status: {status}",
-        (
-            f"- route: provider={latest.model} account={latest.account or 'none'} "
-            f"provider_model={latest.variant or 'provider-default'}"
-        ),
-        (
-            f"- evidence: tool={latest_tool.tool} action={latest_tool.action_type} "
-            f"duration_ms={latest_tool.duration_ms or 0}"
-            if latest_tool is not None
-            else "- evidence: none"
-        ),
-        (
-            f"- devil_advocate: {devil_advocate_status}"
-            if devil_advocate_status is not None
-            else "- devil_advocate: none"
-        ),
-        f"- observation: {observation[:200] or 'none'}",
-    ]
-    return "\n".join(lines)
+    return _shell_views._render_shell_progress(agent, phase=phase, command=command)
 
 
 def _refresh_runtime_permissions(agent: Agent) -> None:
@@ -2765,30 +2063,7 @@ def _prompt_menu_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str | None:
-    if input_stream is None or output_stream is None:
-        return None
-    while True:
-        output_stream.write(f"{title}\n")
-        for index, (_, label) in enumerate(options, start=1):
-            output_stream.write(f"{index}. {label}\n")
-        output_stream.write("Choose a number or value, or `q` to cancel: ")
-        output_stream.flush()
-        response = input_stream.readline()
-        if response == "":
-            return None
-        selected = response.strip()
-        if not selected or selected.lower() in {"q", "quit", "cancel", "exit"}:
-            return None
-        if selected.isdigit():
-            index = int(selected) - 1
-            if 0 <= index < len(options):
-                return options[index][0]
-        else:
-            lowered = selected.lower()
-            for value, label in options:
-                if lowered in {value.lower(), label.lower()}:
-                    return value
-        output_stream.write("Invalid selection. Try again or enter `q` to cancel.\n")
+    return _shell_views._prompt_menu_choice(title=title, options=options, input_stream=input_stream, output_stream=output_stream)
 
 
 def _local_model_profile_from_spec(spec) -> dict[str, object]:
@@ -2819,44 +2094,7 @@ def _local_execution_candidates_report(
     agent: Agent | None = None,
     use_ai: bool = False,
 ) -> dict[str, object]:
-    specs = [spec for spec in provider_model_specs("local") if spec.id != "provider-default"]
-    if not specs:
-        return {
-            "status": "missing",
-            "message": "No local models discovered from Ollama.",
-            "models": [],
-            "candidates": [],
-            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Local discovery unavailable."},
-        }
-    if use_ai and agent is not None:
-        report = _inspect_provider_models(agent, config, provider="local")
-    else:
-        report = {
-            "status": "ok",
-            "provider": "local",
-            "models": [_local_model_profile_from_spec(spec) for spec in specs],
-            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Metadata-only local profile."},
-            "global_recommendation": "Use local models only when runtime-discovered and appropriate for bounded node execution.",
-        }
-    models = [item for item in report.get("models", []) if isinstance(item, dict)]
-    fit_rank = {"high": 0, "medium": 1, "low": 2, "unknown": 3}
-    risk_rank = {"low": 0, "medium": 1, "unknown": 2, "high": 3}
-    candidates = sorted(
-        models,
-        key=lambda item: (
-            fit_rank.get(str(item.get("agentic_fit", "unknown")), 3),
-            risk_rank.get(str(item.get("tool_support_risk", "unknown")), 2),
-            str(item.get("id", "")),
-        ),
-    )
-    return {
-        "status": "ok",
-        "message": report.get("global_recommendation", ""),
-        "models": models,
-        "candidates": candidates[:3],
-        "ai_analysis": report.get("ai_analysis", {}),
-        "catalog_source": report.get("catalog_source", "dynamic local inspection"),
-    }
+    return _project_design_flow._local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
 
 
 def _guided_model_choice(
@@ -2868,72 +2106,14 @@ def _guided_model_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    if input_stream is None or output_stream is None:
-        return "Guided model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `model choose`."
-    providers = list(prefs.enabled_models or []) or list(SUPPORTED_MODELS)
-    output_stream.write(_guided_provider_context(prefs, requested_model if requested_model in SUPPORTED_MODELS else None) + "\n")
-    model = requested_model
-    if model is None:
-        model = _prompt_menu_choice(
-            title="Choose provider:",
-            options=[(item, item) for item in providers],
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if model is None:
-            return "Guided model selection cancelled."
-    if model not in SUPPORTED_MODELS:
-        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
-    if model not in prefs.enabled_models:
-        prefs.enabled_models.append(model)
-    output_stream.write(_guided_provider_context(prefs, model) + "\n")
-    catalog = load_ai_models_catalog()
-    specs = list(provider_model_specs(model))
-    provider_model = _prompt_menu_choice(
-        title=f"Choose provider-model for {model}:",
-        options=[
-            (spec.id, f"{spec.id} | {spec.label}{_catalog_option_suffix(catalog_entry_for_provider_model(model, spec.id, catalog))}")
-            for spec in specs
-        ],
+    return _model_views._guided_model_choice(
+        requested_model=requested_model,
+        prefs=prefs,
+        agent=agent,
+        config=config,
         input_stream=input_stream,
         output_stream=output_stream,
     )
-    if provider_model is None:
-        return "Guided model selection cancelled."
-    spec = provider_model_spec(model, provider_model)
-    reasoning_value = None
-    if spec is not None and spec.reasoning_efforts:
-        current_reasoning = prefs.params_for_model(model).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
-        if provider_model == "gpt-5.3-codex":
-            reasoning_options = [
-                ("medium", "medium"),
-                ("high", f"high{' (default)' if current_reasoning == 'high' else ''}"),
-                ("high", "high"),
-            ]
-        else:
-            ordered_reasoning_efforts = list(spec.reasoning_efforts)
-            if provider_model and "mini" not in provider_model.lower():
-                ordered_reasoning_efforts = list(reversed(ordered_reasoning_efforts))
-            reasoning_options = [
-                (effort, f"{effort}{' (default)' if effort == current_reasoning else ''}")
-                for effort in ordered_reasoning_efforts
-            ]
-        reasoning_value = _prompt_menu_choice(
-            title=f"Choose reasoning_effort for {model}:{provider_model}:",
-            options=reasoning_options,
-            input_stream=input_stream,
-            output_stream=output_stream,
-        )
-        if reasoning_value is None:
-            return "Guided model selection cancelled."
-    prefs.preferred_model = model
-    prefs.set_variant(model, provider_model)
-    if reasoning_value is not None:
-        prefs.set_model_param(model, "reasoning_effort", reasoning_value)
-    _save_model_preferences(config, prefs)
-    _apply_model_preferences(agent, config)
-    params_text = f" reasoning_effort={reasoning_value}" if reasoning_value is not None else ""
-    return f"Guided selection applied: provider={model} provider_model={provider_model}{params_text}."
 
 
 def _handle_model_command(
@@ -2965,32 +2145,15 @@ def _model_usage() -> str:
 
 
 def _catalog_usage() -> str:
-    return "Usage: catalog status | catalog refresh [--aa] | catalog search <query> [provider=<provider>] [feature=<feature>]"
+    return _model_views._catalog_usage()
 
 
 def _parse_catalog_refresh_flags(parts: list[str]) -> bool:
-    include_artificial_analysis = False
-    for token in parts:
-        if token == "--aa":
-            include_artificial_analysis = True
-            continue
-        raise ValueError(_catalog_usage())
-    return include_artificial_analysis
+    return _model_views._parse_catalog_refresh_flags(parts)
 
 
 def _catalog_status_report() -> dict[str, object]:
-    catalog = load_ai_models_catalog()
-    models = catalog.get("models", []) if isinstance(catalog, dict) else []
-    model_count = len(models) if isinstance(models, list) else 0
-    return {
-        "command": "catalog status",
-        "schema": json_schema("catalog status"),
-        "ok": bool(catalog),
-        "path": str(catalog_path()),
-        "generated_at": catalog.get("generated_at") if isinstance(catalog, dict) else None,
-        "model_count": model_count,
-        "source_urls": catalog.get("source_urls", {}) if isinstance(catalog, dict) else {},
-    }
+    return _model_views._catalog_status_report()
 
 
 def _catalog_search_report(
@@ -3000,32 +2163,11 @@ def _catalog_search_report(
     feature: str | None = None,
     limit: int = 10,
 ) -> dict[str, object]:
-    catalog = load_ai_models_catalog()
-    results = search_ai_models_catalog(query, provider=provider, feature=feature, catalog=catalog, limit=limit)
-    return {
-        "command": "catalog search",
-        "schema": json_schema("catalog search"),
-        "query": query,
-        "provider": provider,
-        "feature": feature,
-        "path": str(catalog_path()),
-        "model_count": len(catalog.get("models", [])) if isinstance(catalog, dict) and isinstance(catalog.get("models", []), list) else 0,
-        "results": results,
-    }
+    return _model_views._catalog_search_report(query, provider, feature=feature, limit=limit)
 
 
 def _catalog_refresh_report(catalog: dict[str, object]) -> dict[str, object]:
-    return {
-        "command": "catalog refresh",
-        "schema": json_schema("catalog refresh"),
-        "ok": True,
-        "include_artificial_analysis": bool(catalog.get("include_artificial_analysis", False)),
-        "pricing_source": "artificial_analysis" if bool(catalog.get("include_artificial_analysis", False)) else "openrouter",
-        "path": str(catalog_path()),
-        "generated_at": catalog.get("generated_at"),
-        "model_count": len(catalog.get("models", [])) if isinstance(catalog.get("models", []), list) else 0,
-        "source_urls": catalog.get("source_urls", {}),
-    }
+    return _model_views._catalog_refresh_report(catalog)
 
 
 def _handle_account_command(
@@ -3146,434 +2288,16 @@ def _default_ljson_decode_path(source: Path) -> Path:
     return source.with_suffix(".json")
 
 
-def _workspace_relative_candidates(config: AgentConfig, partial: str) -> list[str]:
-    workspace = config.workspace_root.resolve()
-    partial = partial.strip()
-    candidate = workspace / partial if partial else workspace
-    parent = candidate.parent if partial and not partial.endswith("/") else candidate
-    if not parent.exists() or not parent.is_dir():
-        return []
-    base_prefix = candidate.name if partial and not partial.endswith("/") else ""
-    suggestions: list[str] = []
-    for item in sorted(parent.iterdir(), key=lambda path: path.name.lower()):
-        if base_prefix and not item.name.lower().startswith(base_prefix.lower()):
-            continue
-        try:
-            relative = item.relative_to(workspace)
-        except ValueError:
-            continue
-        text = relative.as_posix()
-        if item.is_dir():
-            text += "/"
-        suggestions.append(text)
-    return suggestions
-
-
-def _prefixed_candidates(prefix: str, options: list[str], partial: str) -> list[str]:
-    lowered = partial.strip().lower()
-    matches = [option for option in options if option.lower().startswith(lowered)]
-    return [f"{INTERACTIVE_COMMAND_PREFIX}{prefix}{item}" for item in matches]
-
-
-def _provider_model_candidates(provider: str, partial: str) -> list[str]:
-    try:
-        specs = provider_model_specs(provider)
-    except ValueError:
-        return []
-    lowered = partial.strip().lower()
-    return [spec.id for spec in specs if spec.id.lower().startswith(lowered)]
-
-
-def _reasoning_effort_candidates(provider: str, provider_model: str, partial: str) -> list[str]:
-    spec = provider_model_spec(provider, provider_model)
-    if spec is None:
-        return []
-    lowered = partial.strip().lower()
-    return [effort for effort in spec.reasoning_efforts if effort.lower().startswith(lowered)]
-
-
-def _account_name_candidates(config: AgentConfig, provider: str, partial: str) -> list[str]:
-    try:
-        prefs = _load_model_preferences(config)
-    except OSError:
-        return []
-    accounts = list((prefs.accounts_by_model or {}).get(provider, []))
-    return _prefixed_candidates(f"account use {provider} ", accounts, partial)
-
-
-def _interactive_contextual_candidates(normalized: str, config: AgentConfig) -> list[str]:
-    lowered = normalized.lower()
-    provider_options = list(SUPPORTED_MODELS)
-    role_options = list(PRINCE2_ROLE_IDS)
-    backend_options = ["auto", "bash", "zsh", "powershell", "cmd"]
-    if lowered.startswith("model variant "):
-        parts = normalized.split()
-        if len(parts) >= 3:
-            provider = parts[2].strip().lower()
-            if provider in SUPPORTED_MODELS:
-                typed_after_provider = normalized.split(None, 3)
-                partial = typed_after_provider[3] if len(typed_after_provider) > 3 else ""
-                return _prefixed_candidates(
-                    f"model variant {provider} ",
-                    _provider_model_candidates(provider, partial),
-                    partial,
-                )
-    if lowered.startswith("model param set "):
-        parts = normalized.split()
-        if len(parts) == 4:
-            provider = parts[3].strip().lower()
-            if provider in SUPPORTED_MODELS:
-                return [f"{INTERACTIVE_COMMAND_PREFIX}model param set {provider} reasoning_effort "]
-        if len(parts) >= 5:
-            provider = parts[3].strip().lower()
-            key = parts[4].strip().lower()
-            if provider in SUPPORTED_MODELS and key == "reasoning_effort":
-                prefs = _load_model_preferences(config)
-                provider_model = prefs.variant_for_model(provider) or provider_capability(provider).default_model
-                typed_after_key = normalized.split(None, 5)
-                partial = typed_after_key[5] if len(typed_after_key) > 5 else ""
-                return _prefixed_candidates(
-                    f"model param set {provider} reasoning_effort ",
-                    _reasoning_effort_candidates(provider, provider_model, partial),
-                    partial,
-                )
-    for prefix in ("account use ", "account logout ", "account remove ", "account block ", "account unblock ", "account limit-record ", "account limit-clear "):
-        if lowered.startswith(prefix):
-            parts = normalized.split()
-            if len(parts) >= 3:
-                provider = parts[2].strip().lower()
-                if provider in SUPPORTED_MODELS:
-                    typed_after_provider = normalized.split(None, 3)
-                    partial = typed_after_provider[3] if len(typed_after_provider) > 3 else ""
-                    return _prefixed_candidates(f"{prefix}{provider} ", list((_load_model_preferences(config).accounts_by_model or {}).get(provider, [])), partial)
-    prefix_map = (
-        ("model use ", provider_options),
-        ("model choose ", provider_options),
-        ("model preset ", provider_options),
-        ("model add ", provider_options),
-        ("model remove ", provider_options),
-        ("model list ", provider_options),
-        ("model params ", provider_options),
-        ("model variant ", provider_options),
-        ("model variant-clear ", provider_options),
-        ("model block ", provider_options),
-        ("model unblock ", provider_options),
-        ("model limit-record ", provider_options),
-        ("model limit-clear ", provider_options),
-        ("model param set ", provider_options),
-        ("model param clear ", provider_options),
-        ("account add ", provider_options),
-        ("account choose ", provider_options),
-        ("account login ", provider_options),
-        ("account login-device ", ["chatgpt", "openai"]),
-        ("account import ", provider_options),
-        ("account env ", provider_options),
-        ("account use ", provider_options),
-        ("account logout ", provider_options),
-        ("account remove ", provider_options),
-        ("account block ", provider_options),
-        ("account unblock ", provider_options),
-        ("account limit-record ", provider_options),
-        ("account limit-clear ", provider_options),
-        ("account clear ", provider_options),
-        ("role configure ", role_options),
-        ("role clear ", role_options),
-        ("shell backend use ", backend_options),
-    )
-    for prefix, options in prefix_map:
-        if lowered.startswith(prefix):
-            partial = normalized[len(prefix) :]
-            return _prefixed_candidates(prefix, options, partial)
-    return []
-
-
-def _ranked_command_phrase_matches(lowered: str) -> list[str]:
-    exact: list[str] = []
-    word_boundary: list[str] = []
-    contains: list[str] = []
-    for phrase in INTERACTIVE_COMMAND_PHRASES:
-        candidate = phrase.lower()
-        if candidate == lowered:
-            exact.append(phrase)
-        elif candidate.startswith(lowered):
-            exact.append(phrase)
-        elif any(part.startswith(lowered) for part in candidate.split()):
-            word_boundary.append(phrase)
-        elif lowered and lowered in candidate:
-            contains.append(phrase)
-    ordered = exact + word_boundary + contains
-    unique: list[str] = []
-    seen: set[str] = set()
-    for item in ordered:
-        if item not in seen:
-            seen.add(item)
-            unique.append(item)
-    if not unique and lowered:
-        unique = [spec.name for spec in command_specs_by_query(lowered)[:20]]
-    return [f"{INTERACTIVE_COMMAND_PREFIX}{phrase}" for phrase in unique]
+def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
+    return _shell_views._rewrite_shell_command(command, agent)
 
 
 def _interactive_completion_candidates(text: str, config: AgentConfig) -> list[str]:
-    normalized = text.lstrip()
-    if not normalized.startswith(INTERACTIVE_COMMAND_PREFIX):
-        return []
-    normalized = normalized[len(INTERACTIVE_COMMAND_PREFIX) :]
-    lowered = normalized.lower()
-    path_prefixes = (
-        "git history ",
-        "patch preview ",
-        "session create ",
-        "file inspect ",
-        "file stat ",
-        "file delete ",
-        "file chmod ",
-        "file chown ",
-    )
-    for prefix in path_prefixes:
-        if lowered.startswith(prefix):
-            partial = normalized[len(prefix) :]
-            return [f"{INTERACTIVE_COMMAND_PREFIX}{prefix}{entry}" for entry in _workspace_relative_candidates(config, partial)]
-    contextual = _interactive_contextual_candidates(normalized, config)
-    if contextual:
-        return contextual
-    if lowered.startswith("git show "):
-        return [
-            f"{INTERACTIVE_COMMAND_PREFIX}{item}"
-            for item in ("git show HEAD", "git show --stat HEAD")
-            if item.startswith(lowered)
-        ]
-    return _ranked_command_phrase_matches(lowered)
-
-
-def _configure_readline(config: AgentConfig) -> bool:
-    if readline is None:
-        return False
-    history_path = config.history_path
-    try:
-        readline.set_history_length(1000)
-        readline.set_completer_delims(" \t\n")
-        readline.parse_and_bind("tab: complete")
-        if history_path.exists():
-            readline.read_history_file(str(history_path))
-
-        def completer(text: str, state: int) -> str | None:
-            buffer = readline.get_line_buffer()
-            candidates = _interactive_completion_candidates(buffer, config)
-            if state < len(candidates):
-                return candidates[state]
-            return None
-
-        readline.set_completer(completer)
-
-        def save_history() -> None:
-            try:
-                readline.write_history_file(str(history_path))
-            except OSError:
-                pass
-
-        atexit.register(save_history)
-        return True
-    except Exception:
-        return False
-
-
-def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
-    lowered = command.lower().strip()
-    if lowered == "help":
-        return None, interactive_help_text()
-    if lowered in {"help topics", "help topics --json", "help --json"}:
-        return None, dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2) if lowered.endswith("--json") else interactive_help_text()
-    if lowered == "slash choose":
-        return None, _render_slash_choice_candidates(agent.config)
-    if lowered.startswith("slash choose "):
-        query = command.split(maxsplit=2)[2]
-        return None, _render_slash_choice_candidates(agent.config, query)
-    if lowered == "slash":
-        return None, _render_slash_palette(agent.config)
-    if lowered == "slash --json":
-        return None, dumps_ascii(_with_json_schema("slash", _slash_palette_report(agent.config)), indent=2)
-    if lowered.startswith("slash "):
-        prefix = command.split(maxsplit=1)[1]
-        if prefix.endswith(" --json"):
-            prefix = prefix[: -len(" --json")].strip()
-            return None, dumps_ascii(_with_json_schema("slash", _slash_palette_report(agent.config, prefix)), indent=2)
-        return None, _render_slash_palette(agent.config, prefix)
-    if lowered == "commands":
-        return None, render_command_catalog()
-    if lowered == "commands --json":
-        return None, dumps_ascii(_with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2)
-    if lowered.startswith("help "):
-        topic = command.split(maxsplit=1)[1]
-        if topic.lower().strip() == "--json":
-            return None, dumps_ascii(_with_json_schema("help", _help_json_report()), indent=2)
-        if topic.lower().strip() == "caveman":
-            return None, agent.caveman.help_text()
-        if topic.lower().strip() == "topics":
-            return None, interactive_help_text()
-        if topic.lower().strip().endswith(" --json"):
-            raw_topic = topic[: -len(" --json")].strip()
-            if raw_topic.lower() == "caveman":
-                return None, dumps_ascii(_with_json_schema("help", {"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}), indent=2)
-            return None, dumps_ascii(_with_json_schema("help", _help_json_report(raw_topic)), indent=2)
-        return None, interactive_help_text(topic)
-    if lowered.startswith("commands "):
-        topic = command.split(maxsplit=1)[1]
-        if topic.lower().strip() == "--json":
-            return None, dumps_ascii(_with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2)
-        return None, interactive_help_text(topic)
-    if lowered in {"caveman help", "help caveman"}:
-        return None, agent.caveman.help_text()
-    if lowered.startswith("caveman on"):
-        parts = command.split(maxsplit=2)
-        level = parts[2] if len(parts) == 3 else "full"
-        return f"/caveman {level}", None
-    if lowered in {"caveman off", "stop caveman", "normal mode"}:
-        return "stop caveman", None
-    if lowered == "caveman commit":
-        return "/caveman commit", None
-    if lowered == "caveman review":
-        return "/caveman review", None
-    if lowered.startswith("caveman compress "):
-        return f"/caveman compress {command.split(maxsplit=2)[2]}", None
-    return command, None
+    return _shell_views._interactive_completion_candidates(text, config)
 
 
 def _is_known_interactive_command(command: str) -> bool:
-    normalized = command.strip().lower()
-    if not normalized:
-        return False
-    if normalized in INTERACTIVE_COMMAND_PHRASES:
-        return True
-    prefixes = (
-        "help ",
-        "commands ",
-        "catalog ",
-        "auth status ",
-        "model ",
-        "account ",
-        "goal ",
-        "budget ",
-        "question ",
-        "answer ",
-        "roles ",
-        "role ",
-        "project ",
-        "sources ",
-        "permission ",
-        "mode ",
-        "caveman ",
-        "git ",
-        "file ",
-        "session ",
-        "patch preview ",
-        "resume ",
-        "handoff ",
-    )
-    return any(normalized.startswith(prefix) for prefix in prefixes)
-
-
-def _permission_rule_from_decision(capability: str, detail: str, source: str) -> str:
-    if source.startswith("ask:"):
-        rule = source.split(":", 1)[1].strip()
-        if rule:
-            return rule
-    family = capability.split(":", 1)[0]
-    return f"{family}:{detail.strip()}" if detail.strip() else capability
-
-
-def _remove_rule(items: list[str], rule: str) -> list[str]:
-    normalized = rule.strip().lower()
-    return [item for item in items if item.strip().lower() != normalized]
-
-
-def _make_permission_approver(
-    *,
-    config: AgentConfig,
-    input_stream: TextIO,
-    output_stream: TextIO,
-    get_agent: Callable[[], Agent],
-) -> Callable[[str, str, object], bool]:
-    def approve(capability: str, detail: str, decision: object) -> bool:
-        source = getattr(decision, "source", "")
-        rule = _permission_rule_from_decision(capability, detail, str(source))
-        output_stream.write(
-            "Permission approval required:\n"
-            f"- capability: {capability}\n"
-            f"- target: {detail or '-'}\n"
-            f"- rule: {rule}\n"
-            "Approve? [y/n/always/session/deny] "
-        )
-        output_stream.flush()
-        answer = input_stream.readline()
-        if answer == "":
-            output_stream.write("\nPermission denied: no approval input.\n")
-            output_stream.flush()
-            return False
-        choice = answer.strip().lower()
-        if choice in {"y", "yes"}:
-            output_stream.write("Permission approved once.\n")
-            output_stream.flush()
-            return True
-        if choice in {"session", "s"}:
-            session = config.session_permission_settings or PermissionSettings()
-            if rule not in session.allow:
-                session.allow.append(rule)
-            config.session_permission_settings = session.normalize()
-            agent = get_agent()
-            agent.refresh_permissions()
-            output_stream.write(f"Permission approved for this session: {rule}\n")
-            output_stream.flush()
-            return True
-        if choice in {"always", "a"}:
-            settings = PermissionSettings.load(config.settings_path)
-            if rule not in settings.allow:
-                settings.allow.append(rule)
-            settings.ask = _remove_rule(settings.ask, rule)
-            settings.normalize().save(config.settings_path)
-            agent = get_agent()
-            agent.refresh_permissions()
-            output_stream.write(f"Permission persisted as allow rule: {rule}\n")
-            output_stream.flush()
-            return True
-        if choice in {"deny", "d"}:
-            settings = PermissionSettings.load(config.settings_path)
-            if rule not in settings.deny:
-                settings.deny.append(rule)
-            settings.normalize().save(config.settings_path)
-            agent = get_agent()
-            agent.refresh_permissions()
-            output_stream.write(f"Permission persisted as deny rule: {rule}\n")
-            output_stream.flush()
-            return False
-        output_stream.write("Permission denied.\n")
-        output_stream.flush()
-        return False
-
-    return approve
-
-
-def _make_rate_limit_decider(*, input_stream: TextIO, output_stream: TextIO) -> Callable[[str, str | None, list[str]], str]:
-    def decide(provider: str, blocked_until: str | None, alternatives: list[str]) -> str:
-        if alternatives:
-            choice = alternatives[0]
-            output_stream.write(
-                f"Provider {provider} is rate-limited"
-                f"{' until ' + blocked_until if blocked_until else ''}. "
-                f"Automatically switching to {choice}.\n"
-            )
-            output_stream.flush()
-            return choice
-        output_stream.write(
-            f"Provider {provider} is rate-limited"
-            f"{' until ' + blocked_until if blocked_until else ''} and no alternative provider is available.\n"
-            "Choose `wait` to stop and retry after unlock, or `stop` to fail this step now: "
-        )
-        output_stream.flush()
-        answer = input_stream.readline()
-        if answer == "":
-            return "stop"
-        normalized = answer.strip().lower()
-        return "wait" if normalized in {"wait", "w", "aspetta", "attendi"} else "stop"
+    return _shell_views._is_known_interactive_command(command)
 
 
 def run_interactive_shell(

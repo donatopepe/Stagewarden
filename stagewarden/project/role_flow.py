@@ -10,6 +10,7 @@ from ..modelprefs import (
     ModelPreferences,
     PRINCE2_ROLE_IDS,
     PRINCE2_ROLE_LABELS,
+    canonicalize_model_variant,
     provider_model_spec,
     provider_model_specs,
 )
@@ -111,6 +112,120 @@ def _with_prince2_role_tree_baseline_mutation(
     main._refresh_prince2_role_tree_baseline_checks(baseline, prefs)
     main._persist_prince2_role_tree_baseline(config, prefs, baseline)
     return baseline
+
+
+def _assign_prince2_role_node(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    provider: str,
+    provider_model: str,
+    params: dict[str, str] | None = None,
+    account: str | None = None,
+    pool: str = "primary",
+) -> dict[str, object]:
+    main = _main()
+    clean_pool = str(pool).strip().lower() or "primary"
+    if clean_pool not in {"primary", "reviewer", "fallback"}:
+        raise ValueError("Pool must be primary, reviewer, or fallback.")
+    if provider not in SUPPORTED_MODELS:
+        raise ValueError(f"Unsupported provider '{provider}'. Supported: {', '.join(SUPPORTED_MODELS)}")
+    canonical_model = canonicalize_model_variant(provider, provider_model)
+    if account is not None and account not in (prefs.accounts_by_model or {}).get(provider, []):
+        raise ValueError(f"Account '{account}' is not configured for provider '{provider}'.")
+    baseline = main._ensure_prince2_role_tree_baseline(config, prefs, source="role_assign")
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = list(tree.get("nodes", [])) if isinstance(tree.get("nodes", []), list) else []
+    target = next((node for node in nodes if isinstance(node, dict) and node.get("node_id") == node_id), None)
+    if target is None:
+        raise ValueError(f"Role node '{node_id}' not found.")
+    clean_params: dict[str, str] = {}
+    spec = provider_model_spec(provider, canonical_model)
+    for key, value in (params or {}).items():
+        if key != "reasoning_effort":
+            continue
+        if spec is not None and value in spec.reasoning_efforts:
+            clean_params[key] = value
+    route = {
+        "role": str(target.get("role_type", "")),
+        "node_id": node_id,
+        "label": str(target.get("label", node_id)),
+        "mode": "manual",
+        "provider": provider,
+        "provider_model": canonical_model,
+        "params": clean_params,
+        "account": account,
+        "source": "node_manual",
+    }
+    if clean_pool == "primary":
+        target["assignment"] = route
+        target["fallback_pool"] = [model for model in (prefs.active_models() or prefs.enabled_models) if model != provider]
+        target["readiness"] = "assigned"
+    else:
+        pools = target.get("assignment_pool", {}) if isinstance(target.get("assignment_pool"), dict) else {}
+        routes = [dict(item) for item in pools.get(clean_pool, []) if isinstance(item, dict)] if isinstance(pools.get(clean_pool, []), list) else []
+        routes = [
+            item
+            for item in routes
+            if not (item.get("provider") == provider and item.get("provider_model") == canonical_model and item.get("account") == account)
+        ]
+        route["pool"] = clean_pool
+        routes.append(route)
+        pools[clean_pool] = routes
+        target["assignment_pool"] = pools
+        if target.get("assignment"):
+            target["readiness"] = "assigned"
+        else:
+            target["readiness"] = "reviewer_pool_only" if clean_pool == "reviewer" else "fallback_pool_only"
+    tree["nodes"] = nodes
+    baseline["tree"] = tree
+    baseline["status"] = "approved"
+    baseline["source"] = "role_assign"
+    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
+    main._refresh_prince2_role_tree_baseline_checks(baseline, prefs)
+    main._persist_prince2_role_tree_baseline(config, prefs, baseline)
+    return dict(target)
+
+
+def _remove_prince2_role_node(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    reparent_children: bool = True,
+    source: str = "role_remove",
+) -> dict[str, object]:
+    removed: dict[str, object] = {}
+
+    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
+        nonlocal removed
+        target = next((node for node in nodes if str(node.get("node_id", "")).strip() == node_id), None)
+        if target is None:
+            raise ValueError(f"Role node '{node_id}' not found.")
+        if node_id == "board.executive":
+            raise ValueError("The Project Executive root node cannot be removed.")
+        removed = dict(target)
+        parent_id = str(target.get("parent_id")) if target.get("parent_id") not in {None, ""} else None
+        if reparent_children:
+            for child in nodes:
+                if str(child.get("parent_id", "")).strip() == node_id:
+                    child["parent_id"] = parent_id
+        nodes[:] = [node for node in nodes if str(node.get("node_id", "")).strip() != node_id]
+        flow = baseline.get("flow", {}) if isinstance(baseline.get("flow"), dict) else {}
+        edges = flow.get("edges", []) if isinstance(flow, dict) else []
+        if isinstance(edges, list):
+            flow["edges"] = [
+                edge
+                for edge in edges
+                if isinstance(edge, dict)
+                and str(edge.get("source_node", "")).strip() != node_id
+                and str(edge.get("target_node", "")).strip() != node_id
+            ]
+            baseline["flow"] = flow
+
+    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
+    return removed
 
 
 def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:

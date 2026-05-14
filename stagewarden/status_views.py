@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import os
 import platform
 import shutil
@@ -15,6 +16,7 @@ from .memory import MemoryStore
 from .modelprefs import SUPPORTED_MODELS, account_key, extract_blocked_until, limit_snapshot_from_message
 from . import project_state_views as _project_state_views
 from .project_handoff import ProjectHandoff
+from .textcodec import read_text_utf8
 from .tools.git import GitTool
 from .secrets import SecretStore
 
@@ -23,6 +25,33 @@ def _main():
     from . import main as _main_module
 
     return _main_module
+
+
+def _source_reference_manifest(config: AgentConfig) -> list[dict[str, str]]:
+    manifest_path = config.workspace_root / "docs" / "source_references.md"
+    if not manifest_path.exists():
+        return []
+    rows: list[dict[str, str]] = []
+    for line in read_text_utf8(manifest_path).splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or "`external_sources/" not in stripped:
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        project = cells[0].replace("`", "").strip()
+        path_match = re.search(r"`([^`]+)`", cells[1])
+        upstream_match = re.search(r"`([^`]+)`", cells[2])
+        if not project or path_match is None or upstream_match is None:
+            continue
+        rows.append(
+            {
+                "project": project,
+                "path": path_match.group(1),
+                "upstream": upstream_match.group(1),
+            }
+        )
+    return rows
 
 
 def _provider_limit_snapshot_is_stale(captured_at: object, *, stale_after_minutes: int = 15) -> bool:
@@ -173,6 +202,431 @@ def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[s
         "last_errors": last_errors,
         "routes": routes,
     }
+
+
+def _record_limit_message(
+    config: AgentConfig,
+    prefs,
+    *,
+    model: str,
+    message: str,
+    account: str | None = None,
+) -> str:
+    if model not in SUPPORTED_MODELS:
+        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+    clean_message = message.strip().replace("\n", " ")[:240]
+    if not clean_message:
+        return "Limit message cannot be empty."
+    until = extract_blocked_until(clean_message)
+    snapshot = limit_snapshot_from_message(clean_message, blocked_until=until)
+    if account:
+        if account not in (prefs.accounts_by_model or {}).get(model, []):
+            prefs.add_account(model, account)
+        prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
+        prefs.last_limit_message_by_account[account_key(model, account)] = clean_message
+        prefs.set_account_limit_snapshot(model, account, snapshot)
+        if until:
+            prefs.block_account(model, account, until)
+    else:
+        prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
+        prefs.last_limit_message_by_model[model] = clean_message
+        prefs.set_model_limit_snapshot(model, snapshot)
+        if until:
+            prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
+            prefs.blocked_until_by_model[model] = until
+            if prefs.preferred_model == model:
+                prefs.preferred_model = None
+    prefs.normalize().save(config.settings_path)
+    return f"Recorded limit snapshot for {f'{model}:{account}' if account else model}; {'blocked until ' + until if until else 'no reset time detected.'}"
+
+
+def _clear_limit_snapshot(config: AgentConfig, prefs, *, model: str, account: str | None = None) -> str:
+    if model not in SUPPORTED_MODELS:
+        return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
+    if account:
+        key = account_key(model, account)
+        prefs.blocked_until_by_account = dict(prefs.blocked_until_by_account or {})
+        prefs.blocked_until_by_account.pop(key, None)
+        prefs.last_limit_message_by_account = dict(prefs.last_limit_message_by_account or {})
+        prefs.last_limit_message_by_account.pop(key, None)
+        prefs.provider_limit_snapshot_by_account = dict(prefs.provider_limit_snapshot_by_account or {})
+        prefs.provider_limit_snapshot_by_account.pop(key, None)
+        return f"Cleared limit snapshot for {model}:{account}."
+    prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
+    prefs.blocked_until_by_model.pop(model, None)
+    prefs.last_limit_message_by_model = dict(prefs.last_limit_message_by_model or {})
+    prefs.last_limit_message_by_model.pop(model, None)
+    prefs.provider_limit_snapshot_by_model = dict(prefs.provider_limit_snapshot_by_model or {})
+    prefs.provider_limit_snapshot_by_model.pop(model, None)
+    prefs.normalize().save(config.settings_path)
+    return f"Cleared limit snapshot for {model}."
+
+
+def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
+    main = _main()
+    runtime = main.detect_runtime_capabilities(config.workspace_root)
+    shell_backend = main._shell_backend_report(config)
+    permissions = main._permissions_report(config)
+    return {
+        "workspace": str(config.workspace_root),
+        "os_family": str(runtime.get("os_family", "unknown")),
+        "recommended_shell": str(runtime.get("recommended_shell", "unknown")),
+        "default_shell": str(runtime.get("default_shell") or "none"),
+        "shell_backend": {
+            "configured": shell_backend["configured"],
+            "selected": shell_backend["selected"] or "none",
+            "executable": shell_backend["executable"] or "none",
+        },
+        "permission_mode": permissions["effective"]["mode"],
+        "core_tools": {
+            "shell": True,
+            "files": True,
+            "git": True,
+            "web_research": True,
+            "download": True,
+            "compression": True,
+            "wet_run_required": True,
+        },
+        "model_actions": sorted(main.ALLOWED_MODEL_ACTIONS),
+        "file_operations": [
+            "read_file",
+            "inspect_file",
+            "inspect_metadata_file",
+            "write_file",
+            "apply_patch",
+            "search_replace_file",
+            "insert_text_file",
+            "delete_range_file",
+            "delete_backward_file",
+            "replace_range_file",
+            "convert_encoding_file",
+            "normalize_line_endings_file",
+            "copy_path_file",
+            "move_path_file",
+            "delete_path_file",
+            "chmod_path_file",
+            "chown_path_file",
+            "patch_file",
+            "patch_files",
+            "preview_patch_files",
+            "list_files",
+            "search_files",
+        ],
+        "git_operations": [
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_show",
+            "git_file_history",
+            "git_commit",
+        ],
+        "shell_operations": [
+            "shell",
+            "shell_session_create",
+            "shell_session_send",
+            "shell_session_close",
+        ],
+    }
+
+
+def _sources_status_report(config: AgentConfig, *, strict: bool = False) -> dict[str, object]:
+    main = _main()
+    manifest = main._source_reference_manifest(config)
+    items: list[dict[str, object]] = []
+    for entry in manifest:
+        local_path = config.workspace_root / entry["path"]
+        exists = local_path.exists()
+        is_git = (local_path / ".git").exists()
+        head_ok = False
+        remote_ok = False
+        shallow_ok = False
+        head = None
+        remote = None
+        shallow = None
+        message = "missing"
+        if exists and is_git:
+            head_ok, head = main._git_output(local_path, "rev-parse", "--short", "HEAD")
+            remote_ok, remote = main._git_output(local_path, "remote", "get-url", "origin")
+            shallow_ok, shallow = main._git_output(local_path, "rev-parse", "--is-shallow-repository")
+            message = "ok" if head_ok and remote_ok and main._normalize_git_url(remote) == main._normalize_git_url(entry["upstream"]) else "metadata mismatch"
+        elif exists:
+            message = "path exists but is not a git repository"
+        items.append(
+            {
+                "project": entry["project"],
+                "path": entry["path"],
+                "expected_upstream": entry["upstream"],
+                "exists": exists,
+                "git_repository": is_git,
+                "head": head if head_ok else None,
+                "upstream": remote if remote_ok else None,
+                "upstream_matches": bool(remote_ok and main._normalize_git_url(remote) == main._normalize_git_url(entry["upstream"])),
+                "shallow": (shallow == "true") if shallow_ok else None,
+                "status": "OK" if message == "ok" else ("FAIL" if strict else "WARN"),
+                "message": message,
+            }
+        )
+    ok = bool(items) and all(item["status"] == "OK" for item in items)
+    return {
+        "command": "sources status --strict" if strict else "sources status",
+        "manifest": "docs/source_references.md",
+        "strict": strict,
+        "count": len(items),
+        "ok": ok,
+        "summary": {
+            "ok": sum(1 for item in items if item["status"] == "OK"),
+            "warn": sum(1 for item in items if item["status"] == "WARN"),
+            "fail": sum(1 for item in items if item["status"] == "FAIL"),
+        },
+        "items": items,
+    }
+
+
+def _render_sources_status(config: AgentConfig, *, strict: bool = False) -> str:
+    report = _sources_status_report(config, strict=strict)
+    lines = ["External source references:"]
+    if strict:
+        lines.append("- strict: yes")
+    summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
+    lines.append(
+        f"- summary: ok={summary.get('ok', 0)} warn={summary.get('warn', 0)} fail={summary.get('fail', 0)}"
+    )
+    if not report["items"]:
+        return "\n".join(lines + ["- WARN manifest missing or contains no external source rows."])
+    for item in report["items"]:
+        lines.append(
+            f"- {item['project']}: {item['status']} {item['message']} "
+            f"path={item['path']} head={item['head'] or 'unknown'} "
+            f"upstream={item['upstream'] or 'unknown'} shallow={item['shallow']}"
+        )
+        if not item["upstream_matches"]:
+            lines.append(f"  expected_upstream={item['expected_upstream']}")
+    return "\n".join(lines)
+
+
+def _sources_update_report(config: AgentConfig) -> dict[str, object]:
+    main = _main()
+    status = _sources_status_report(config)
+    items: list[dict[str, object]] = []
+    for item in status["items"]:
+        if not item.get("exists") or not item.get("git_repository"):
+            items.append({**item, "updated": False, "ok": False, "update_message": "missing or not a git repository"})
+            continue
+        if not item.get("upstream_matches"):
+            items.append(
+                {
+                    **item,
+                    "updated": False,
+                    "ok": False,
+                    "before_head": item.get("head"),
+                    "after_head": item.get("head"),
+                    "update_message": "skipped: upstream mismatch",
+                }
+            )
+            continue
+        local_path = config.workspace_root / str(item["path"])
+        before_ok, before = main._git_output(local_path, "rev-parse", "--short", "HEAD")
+        completed = main._git_completed(local_path, "pull", "--ff-only", timeout=30)
+        after_ok, after = main._git_output(local_path, "rev-parse", "--short", "HEAD")
+        output = completed.stdout.strip() or completed.stderr.strip()
+        items.append(
+            {
+                **item,
+                "ok": completed.returncode == 0 and after_ok,
+                "updated": bool(before_ok and after_ok and before != after),
+                "before_head": before if before_ok else None,
+                "after_head": after if after_ok else None,
+                "update_message": output or "already up to date",
+            }
+        )
+    report = {
+        "command": "sources update",
+        "count": len(items),
+        "updated_count": sum(1 for item in items if item.get("updated")),
+        "failed_count": sum(1 for item in items if not item.get("ok")),
+        "ok": bool(items) and all(bool(item.get("ok")) for item in items),
+        "items": items,
+    }
+    main._record_handoff_action(
+        config,
+        phase="sources_update",
+        task="sources update",
+        summary=f"Updated {sum(1 for item in items if item.get('updated'))}/{len(items)} external source repositories.",
+        details=report,
+    )
+    return report
+
+
+def _render_sources_update(config: AgentConfig) -> str:
+    report = _sources_update_report(config)
+    lines = ["External source update:"]
+    lines.append(f"- ok: {str(report['ok']).lower()}")
+    lines.append(f"- summary: updated={report['updated_count']} failed={report['failed_count']} total={report['count']}")
+    for item in report["items"]:
+        lines.append(
+            f"- {item['project']}: {'OK' if item.get('ok') else 'FAIL'} "
+            f"updated={str(bool(item.get('updated'))).lower()} "
+            f"before={item.get('before_head') or item.get('head') or 'unknown'} "
+            f"after={item.get('after_head') or 'unknown'}"
+        )
+        if item.get("update_message"):
+            lines.append(f"  message={item['update_message']}")
+    return "\n".join(lines)
+
+
+def _handle_sources_command(command: str, config: AgentConfig) -> str | None:
+    if command in {"sources", "sources status"}:
+        return _render_sources_status(config)
+    if command == "sources status --strict":
+        return _render_sources_status(config, strict=True)
+    if command == "sources update":
+        return _render_sources_update(config)
+    if command.startswith("sources "):
+        return "Usage: sources | sources status [--strict] | sources update"
+    return None
+
+
+def _update_status_report(config: AgentConfig, *, fetch: bool = False) -> dict[str, object]:
+    main = _main()
+    root = config.workspace_root
+    inside_ok, inside = main._git_output(root, "rev-parse", "--is-inside-work-tree")
+    if not inside_ok or inside != "true":
+        return {
+            "command": "update check" if fetch else "update status",
+            "ok": False,
+            "repository": False,
+            "message": "Workspace is not a git repository.",
+            "update_available": False,
+        }
+    fetch_message = None
+    if fetch:
+        fetched = main._git_completed(root, "fetch", "--quiet", "--prune", timeout=60)
+        fetch_message = fetched.stdout.strip() or fetched.stderr.strip() or "fetch completed"
+        if fetched.returncode != 0:
+            return {
+                "command": "update check",
+                "ok": False,
+                "repository": True,
+                "message": fetch_message,
+                "update_available": False,
+            }
+    branch_ok, branch = main._git_output(root, "branch", "--show-current")
+    head_ok, head = main._git_output(root, "rev-parse", "--short", "HEAD")
+    upstream_ok, upstream = main._git_output(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+    upstream_head_ok, upstream_head = (False, "")
+    ahead = behind = 0
+    if upstream_ok:
+        upstream_head_ok, upstream_head = main._git_output(root, "rev-parse", "--short", upstream)
+        counts_ok, counts = main._git_output(root, "rev-list", "--left-right", "--count", f"HEAD...{upstream}")
+        if counts_ok:
+            parts = counts.split()
+            if len(parts) == 2:
+                ahead, behind = int(parts[0]), int(parts[1])
+    dirty_ok, dirty = main._git_output(root, "status", "--porcelain")
+    remote_ok, remote = main._git_output(root, "remote", "get-url", "origin")
+    ok = bool(branch_ok and head_ok and upstream_ok and upstream_head_ok and dirty_ok)
+    return {
+        "command": "update check" if fetch else "update status",
+        "ok": ok,
+        "repository": True,
+        "branch": branch if branch_ok else None,
+        "head": head if head_ok else None,
+        "upstream": upstream if upstream_ok else None,
+        "upstream_head": upstream_head if upstream_head_ok else None,
+        "remote": remote if remote_ok else None,
+        "ahead": ahead,
+        "behind": behind,
+        "dirty": bool(dirty.strip()) if dirty_ok else None,
+        "update_available": behind > 0,
+        "fetch_message": fetch_message,
+        "message": "ok" if ok else "No upstream configured or git metadata unavailable.",
+    }
+
+
+def _render_update_status(config: AgentConfig, *, fetch: bool = False) -> str:
+    report = _update_status_report(config, fetch=fetch)
+    lines = ["Stagewarden self-update:"]
+    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
+    lines.append(f"- branch: {report.get('branch') or 'unknown'}")
+    lines.append(f"- head: {report.get('head') or 'unknown'}")
+    lines.append(f"- upstream: {report.get('upstream') or 'none'}")
+    lines.append(f"- upstream_head: {report.get('upstream_head') or 'unknown'}")
+    lines.append(f"- ahead: {report.get('ahead', 0)}")
+    lines.append(f"- behind: {report.get('behind', 0)}")
+    lines.append(f"- dirty: {str(report.get('dirty')).lower()}")
+    lines.append(f"- update_available: {str(bool(report.get('update_available'))).lower()}")
+    if report.get("fetch_message"):
+        lines.append(f"- fetch: {report['fetch_message']}")
+    if not report.get("ok"):
+        lines.append(f"- message: {report.get('message')}")
+    return "\n".join(lines)
+
+
+def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dict[str, object]:
+    main = _main()
+    if not confirmed:
+        return {
+            "command": "update apply",
+            "ok": False,
+            "applied": False,
+            "needs_confirmation": True,
+            "message": "Use update apply --yes to confirm fast-forward self-update.",
+        }
+    before = _update_status_report(config, fetch=True)
+    if not before.get("ok"):
+        return {"command": "update apply", "ok": False, "applied": False, "message": before.get("message"), "before": before}
+    if before.get("dirty"):
+        return {"command": "update apply", "ok": False, "applied": False, "message": "Refusing self-update with dirty working tree.", "before": before}
+    if not before.get("update_available"):
+        return {"command": "update apply", "ok": True, "applied": False, "message": "Already up to date.", "before": before, "after": before}
+    pulled = main._git_completed(config.workspace_root, "pull", "--ff-only", timeout=60)
+    after = _update_status_report(config, fetch=False)
+    output = pulled.stdout.strip() or pulled.stderr.strip()
+    report = {
+        "command": "update apply",
+        "ok": pulled.returncode == 0 and bool(after.get("ok")),
+        "applied": pulled.returncode == 0 and before.get("head") != after.get("head"),
+        "message": output or "fast-forward applied",
+        "before": before,
+        "after": after,
+    }
+    main._record_handoff_action(
+        config,
+        phase="update_apply",
+        task="update apply --yes",
+        summary=str(report["message"]),
+        details=report,
+    )
+    return report
+
+
+def _render_update_apply(config: AgentConfig, *, confirmed: bool = False) -> str:
+    report = _update_apply_report(config, confirmed=confirmed)
+    lines = ["Stagewarden self-update apply:"]
+    lines.append(f"- ok: {str(bool(report.get('ok'))).lower()}")
+    lines.append(f"- applied: {str(bool(report.get('applied'))).lower()}")
+    if report.get("needs_confirmation"):
+        lines.append("- needs_confirmation: yes")
+    lines.append(f"- message: {report.get('message')}")
+    before = report.get("before", {}) if isinstance(report.get("before"), dict) else {}
+    after = report.get("after", {}) if isinstance(report.get("after"), dict) else {}
+    if before:
+        lines.append(f"- before_head: {before.get('head') or 'unknown'}")
+    if after:
+        lines.append(f"- after_head: {after.get('head') or 'unknown'}")
+    return "\n".join(lines)
+
+
+def _handle_update_command(command: str, config: AgentConfig) -> str | None:
+    if command == "update status":
+        return _render_update_status(config)
+    if command in {"update check", "update check --json"}:
+        return _render_update_status(config, fetch=True)
+    if command in {"update apply", "update apply --yes"}:
+        return _render_update_apply(config, confirmed=command.endswith(" --yes"))
+    if command.startswith("update "):
+        return "Usage: update status | update check [--json] | update apply --yes"
+    return None
 
 
 def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
