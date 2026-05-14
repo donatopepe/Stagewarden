@@ -125,3 +125,29 @@ def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
     lines.append(f"- project_status: {report['project_context']['project_status']}")
     lines.append(f"- current_step: {report['project_context']['current_step']} [{report['project_context']['current_step_status']}]")
     return "\n".join(lines)
+
+
+def _render_prince2_roles(config: AgentConfig) -> str:
+    main = _main()
+    report = main._prince2_roles_report(config)
+    lines = ["PRINCE2 role assignments:"]
+    for item in report["roles"]:
+        assignment = item["assignment"]
+        if not assignment:
+            lines.append(f"- {item['label']} ({item['role']}): unassigned team={main.prince2_role_team_name(item['role'])} mnemonic={main.prince2_role_mnemonic(item['role'])}")
+            continue
+        params = assignment.get("params", {})
+        params_text = (
+            " params=" + ",".join(f"{key}={value}" for key, value in sorted(params.items()))
+            if isinstance(params, dict) and params
+            else ""
+        )
+        lines.append(
+            f"- {item['label']} ({item['role']}): mnemonic={main.prince2_role_mnemonic(item['role'])} "
+            f"team={main.prince2_role_team_name(item['role'])} mode={assignment.get('mode', 'manual')} "
+            f"provider={assignment.get('provider', 'unknown')} "
+            f"provider_model={assignment.get('provider_model', 'unknown')} "
+            f"account={assignment.get('account') or 'none'}"
+            f"{params_text} source={assignment.get('source', 'manual')}"
+        )
+    return "\n".join(lines)

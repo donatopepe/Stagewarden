@@ -7,6 +7,7 @@ from typing import TextIO
 from .agent import Agent
 from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCodeFlow
 from .config import AgentConfig
+from .json_schema_registry import json_schema
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
 from .provider_registry import provider_capability
 from .secrets import SecretStore
@@ -48,6 +49,31 @@ def _render_accounts(config: AgentConfig) -> str:
     if not found:
         lines.append("- none configured")
     return "\n".join(lines)
+
+
+def _accounts_report(config: AgentConfig) -> dict[str, object]:
+    prefs = _main()._load_model_preferences(config)
+    models: list[dict[str, object]] = []
+    for model in SUPPORTED_MODELS:
+        accounts = []
+        for account in (prefs.accounts_by_model or {}).get(model, []):
+            key = account_key(model, account)
+            accounts.append(
+                {
+                    "name": account,
+                    "active": (prefs.active_account_by_model or {}).get(model) == account,
+                    "blocked_until": (prefs.blocked_until_by_account or {}).get(key),
+                    "env": (prefs.env_var_by_account or {}).get(key),
+                    "token_stored": SecretStore().has_token(model, account),
+                }
+            )
+        if accounts:
+            models.append({"model": model, "accounts": accounts})
+    return {
+        "command": "accounts",
+        "schema": json_schema("accounts"),
+        "models": models,
+    }
 
 
 def _account_usage() -> str:

@@ -140,5 +140,19 @@ def json_schema(command: str) -> dict[str, str]:
     }
 
 
+def with_json_schema(command: str, payload: dict[str, object]) -> dict[str, object]:
+    if "schema" in payload:
+        return payload
+    try:
+        result = dict(payload)
+    except TypeError:
+        return payload
+    try:
+        result["schema"] = json_schema(command)
+    except KeyError:
+        return payload
+    return result
+
+
 def json_schema_commands() -> tuple[str, ...]:
     return tuple(JSON_SCHEMA_REGISTRY)

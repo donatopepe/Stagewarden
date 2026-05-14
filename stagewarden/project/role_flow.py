@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from typing import Callable, TextIO
 
 from ..agent import Agent
@@ -14,16 +15,23 @@ from ..modelprefs import (
     provider_model_spec,
     provider_model_specs,
 )
+from ..prince2 import Prince2AgentPolicy, Prince2ToleranceProfile
 from ..provider_registry import SUPPORTED_MODELS, provider_capability
 from ..role_tree import (
+    ROLE_CONTEXT_RULES,
     STATUS_COLOR_LEGEND,
     PRINCE2_ROLE_AUTOMATION_RULES,
     PRINCE2_ROLE_SCOPE_DESCRIPTIONS,
+    build_prince2_role_flow as _build_prince2_role_flow,
+    build_prince2_role_matrix_payload as _build_prince2_role_matrix_payload,
+    build_prince2_role_tree_with_tolerance as _build_prince2_role_tree_with_tolerance,
+    check_prince2_role_tree_payload as _check_prince2_role_tree_payload,
     prince2_node_description,
     prince2_role_mnemonic,
     prince2_role_team_name,
     prince2_status_color,
 )
+from ..project_handoff import ProjectHandoff
 from . import role_tree_views as _project_role_tree_views
 
 
@@ -39,7 +47,7 @@ def _role_options() -> list[tuple[str, str]]:
 def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
     main = _main()
     prefs = main._load_model_preferences(config)
-    baseline = main._ensure_prince2_role_tree_baseline(config, prefs, source="role_menu")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_menu")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
     options: list[tuple[str, str]] = []
@@ -67,7 +75,7 @@ def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
 def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, object] | None:
     main = _main()
     prefs = main._load_model_preferences(config)
-    baseline = main._ensure_prince2_role_tree_baseline(config, prefs, source="role_node_context")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_node_context")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
     for node in nodes:
@@ -79,7 +87,7 @@ def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, objec
 def _role_tree_nodes_by_parent(config: AgentConfig, parent_id: str | None) -> list[dict[str, object]]:
     main = _main()
     prefs = main._load_model_preferences(config)
-    baseline = main._ensure_prince2_role_tree_baseline(config, prefs, source="role_nodes_by_parent")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_nodes_by_parent")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
     if parent_id is None:
@@ -100,7 +108,7 @@ def _with_prince2_role_tree_baseline_mutation(
     mutator: Callable[[dict[str, object], dict[str, object], list[dict[str, object]]], None],
 ) -> dict[str, object]:
     main = _main()
-    baseline = main._ensure_prince2_role_tree_baseline(config, prefs, source=source)
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source=source)
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
     mutator(baseline, tree, nodes)
@@ -109,9 +117,317 @@ def _with_prince2_role_tree_baseline_mutation(
     baseline["status"] = "approved"
     baseline["source"] = source
     baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
-    main._refresh_prince2_role_tree_baseline_checks(baseline, prefs)
-    main._persist_prince2_role_tree_baseline(config, prefs, baseline)
+    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
+    _persist_prince2_role_tree_baseline(config, prefs, baseline)
     return baseline
+
+
+def _parse_project_tolerance_margin_percent(value: object, default: float = 25.0) -> float:
+    if value is None:
+        return default
+    text = str(value).strip()
+    if not text:
+        return default
+    if text.endswith("%"):
+        text = text[:-1].strip()
+    try:
+        parsed = float(text)
+    except ValueError:
+        return default
+    if parsed <= 0:
+        return default
+    return min(100.0, parsed)
+
+
+def _project_accountable_owner(handoff: ProjectHandoff) -> str:
+    value = handoff.project_brief.get("accountable_project_executive", "user")
+    owner = str(value).strip() if value is not None else "user"
+    return owner or "user"
+
+
+def _project_tolerance_margin_percent(handoff: ProjectHandoff, default: float = 25.0) -> float:
+    return _parse_project_tolerance_margin_percent(handoff.project_brief.get("tolerance_margin_percent"), default=default)
+
+
+def _project_tolerance_profile(handoff: ProjectHandoff, *, task: str | None = None) -> Prince2ToleranceProfile:
+    policy = Prince2AgentPolicy()
+    effective_task = task or handoff.task or str(handoff.project_brief.get("objective", "")).strip() or "PRINCE2 role tree"
+    margin = _project_tolerance_margin_percent(handoff)
+    owner = _project_accountable_owner(handoff)
+    checklist = policy.build_checklist(
+        effective_task,
+        project_brief=handoff.project_brief,
+        base_margin_percent=margin,
+        accountable_owner=owner,
+    )
+    return policy.build_tolerance_profile(
+        effective_task,
+        checklist,
+        project_brief=handoff.project_brief,
+        base_margin_percent=margin,
+        accountable_owner=owner,
+    )
+
+
+def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
+    main = _main()
+    prefs = main._load_model_preferences(config)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    tolerance_profile = _project_tolerance_profile(handoff)
+    local_execution = main._local_execution_candidates_report(config)
+    tree = main._enrich_tree_with_local_execution_candidates(
+        _build_prince2_role_tree_with_tolerance(
+            prefs,
+            tolerance_profile=tolerance_profile,
+            accountable_owner=tolerance_profile.accountable_owner,
+        ),
+        local_execution,
+    )
+    brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
+    joined = " ".join(brief.values()).lower()
+    _decomposition_nodes, decomposition = main._project_tree_decomposition_nodes(
+        proposal_prefs=prefs,
+        active_models=list(prefs.active_models() or prefs.enabled_models),
+        brief=brief,
+        joined=joined,
+        tolerance_profile=tolerance_profile,
+    )
+    adaptation = main._project_tree_adaptation_snapshot(brief=brief, handoff=handoff, local_execution=local_execution)
+    tree["decomposition_policy"] = "Decompose the project into the smallest independently verifiable work packages and keep widening only when evidence justifies it."
+    tree["adaptation_policy"] = "Refresh the tree continuously from the latest brief, tolerance profile, runtime observation, and response-quality signals."
+    tree["decomposition"] = decomposition
+    tree["adaptation"] = adaptation
+    return {
+        "version": "1",
+        "approved_at": datetime.now().isoformat(timespec="seconds"),
+        "source": source,
+        "status": "approved",
+        "tree": tree,
+        "flow": _build_prince2_role_flow(),
+        "check": _check_prince2_role_tree_payload(tree, prefs),
+        "matrix": _build_prince2_role_matrix_payload(tree, prefs),
+        "local_execution": local_execution,
+        "decomposition": decomposition,
+        "adaptation": adaptation,
+    }
+
+
+def _approve_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, *, source: str) -> dict[str, object]:
+    baseline = _build_prince2_role_tree_baseline(config, source=source)
+    prefs.set_prince2_role_tree_baseline(baseline)
+    prefs.normalize().save(config.model_prefs_path)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline or {}))
+    handoff.save(config.handoff_path)
+    return baseline
+
+
+def _refresh_prince2_role_tree_baseline_checks(baseline: dict[str, object], prefs: ModelPreferences) -> dict[str, object]:
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    baseline["check"] = _check_prince2_role_tree_payload(tree, prefs)
+    baseline["matrix"] = _build_prince2_role_matrix_payload(tree, prefs)
+    return baseline
+
+
+def _persist_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, baseline: dict[str, object]) -> None:
+    prefs.set_prince2_role_tree_baseline(baseline)
+    prefs.normalize().save(config.model_prefs_path)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+    handoff.sync_prince2_role_tree_baseline(dict(prefs.prince2_role_tree_baseline or {}))
+    handoff.save(config.handoff_path)
+
+
+def _ensure_prince2_role_tree_baseline(config: AgentConfig, prefs: ModelPreferences, *, source: str) -> dict[str, object]:
+    baseline = dict(prefs.prince2_role_tree_baseline or {})
+    if baseline:
+        return baseline
+    return _build_prince2_role_tree_baseline(config, source=source)
+
+
+def _add_child_prince2_role_node(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    parent_id: str,
+    role_type: str,
+    node_id: str | None = None,
+) -> dict[str, object]:
+    if role_type not in PRINCE2_ROLE_IDS:
+        raise ValueError(f"Unsupported PRINCE2 role '{role_type}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_add_child")
+    tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
+    nodes = list(tree.get("nodes", [])) if isinstance(tree.get("nodes", []), list) else []
+    parent = next((node for node in nodes if isinstance(node, dict) and node.get("node_id") == parent_id), None)
+    if parent is None:
+        raise ValueError(f"Parent role node '{parent_id}' not found.")
+    existing_ids = {str(node.get("node_id")) for node in nodes if isinstance(node, dict)}
+    if node_id is None:
+        base = f"{parent_id}.{role_type}"
+        candidate = base
+        index = 2
+        while candidate in existing_ids:
+            candidate = f"{base}_{index}"
+            index += 1
+        node_id = candidate
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", node_id):
+        raise ValueError("Node id must contain only letters, numbers, dot, dash, and underscore.")
+    if node_id in existing_ids:
+        raise ValueError(f"Role node '{node_id}' already exists.")
+    rule = ROLE_CONTEXT_RULES[role_type].as_dict()
+    child = {
+        "node_id": node_id,
+        "role_type": role_type,
+        "label": f"{PRINCE2_ROLE_LABELS[role_type]} Delegated",
+        "parent_id": parent_id,
+        "level": f"delegated_{parent.get('level', 'node')}",
+        "accountability_boundary": f"delegated {PRINCE2_ROLE_LABELS[role_type]} accountability under {parent.get('label', parent_id)}",
+        "delegated_authority": f"delegated by {parent.get('label', parent_id)}; cannot exceed parent authority or approved tolerances",
+        "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
+        "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
+        "context_rule": rule,
+        "assignment": {},
+        "fallback_pool": list(prefs.active_models() or prefs.enabled_models),
+        "readiness": "unassigned",
+    }
+    nodes.append(child)
+    tree["nodes"] = nodes
+    baseline["tree"] = tree
+    baseline["status"] = "approved"
+    baseline["source"] = "role_add_child"
+    baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
+    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
+    _persist_prince2_role_tree_baseline(config, prefs, baseline)
+    return child
+
+
+def _send_prince2_role_message(
+    config: AgentConfig,
+    *,
+    source_node: str,
+    target_node: str,
+    edge_id: str,
+    payload_scope: list[str],
+    evidence_refs: list[str] | None = None,
+    summary: str | None = None,
+) -> dict[str, object]:
+    main = _main()
+    prefs = main._load_model_preferences(config)
+    main._sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    message = handoff.send_prince2_node_message(
+        source_node=source_node,
+        target_node=target_node,
+        edge_id=edge_id,
+        payload_scope=payload_scope,
+        evidence_refs=evidence_refs,
+        summary=summary,
+    )
+    handoff.save(config.handoff_path)
+    main._record_handoff_action(
+        config,
+        phase="role_message",
+        task=f"role message {source_node} {target_node} {edge_id}",
+        summary=f"Queued governed PRINCE2 node message {message['message_id']}.",
+        details={
+            "source_node": source_node,
+            "target_node": target_node,
+            "edge_id": edge_id,
+            "payload_scope": list(payload_scope),
+            "evidence_refs": list(evidence_refs or []),
+        },
+    )
+    return message
+
+
+def _set_prince2_role_node_waiting(
+    config: AgentConfig,
+    *,
+    node_id: str,
+    reason: str,
+    wake_triggers: list[str] | None = None,
+) -> dict[str, object]:
+    main = _main()
+    prefs = main._load_model_preferences(config)
+    main._sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    node = handoff.set_prince2_node_waiting(node_id=node_id, reason=reason, wake_triggers=wake_triggers)
+    handoff.save(config.handoff_path)
+    main._record_handoff_action(
+        config,
+        phase="role_wait",
+        task=f"role wait {node_id}",
+        summary=f"Node {node_id} moved to waiting state.",
+        details={"node_id": node_id, "reason": reason, "wake_triggers": list(wake_triggers or [])},
+    )
+    return node
+
+
+def _wake_prince2_role_node(
+    config: AgentConfig,
+    *,
+    node_id: str,
+    trigger: str,
+) -> dict[str, object]:
+    main = _main()
+    prefs = main._load_model_preferences(config)
+    main._sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    node = handoff.wake_prince2_node(node_id=node_id, trigger=trigger)
+    handoff.save(config.handoff_path)
+    main._record_handoff_action(
+        config,
+        phase="role_wake",
+        task=f"role wake {node_id}",
+        summary=f"Node {node_id} woke with trigger {trigger}.",
+        details={"node_id": node_id, "trigger": trigger},
+    )
+    return node
+
+
+def _tick_prince2_role_node(
+    config: AgentConfig,
+    *,
+    node_id: str,
+) -> dict[str, object]:
+    main = _main()
+    prefs = main._load_model_preferences(config)
+    main._sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    result = handoff.tick_prince2_node(node_id=node_id)
+    handoff.save(config.handoff_path)
+    main._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
+    main._record_handoff_action(
+        config,
+        phase="role_tick",
+        task=f"role tick {node_id}",
+        summary=f"Node {node_id} advanced to {result.get('state', 'unknown')}.",
+        details=dict(result),
+    )
+    return result
+
+
+def _tick_prince2_role_runtime(
+    config: AgentConfig,
+    *,
+    max_nodes: int | None = None,
+) -> dict[str, object]:
+    main = _main()
+    prefs = main._load_model_preferences(config)
+    main._sync_prince2_roles_to_handoff(config, prefs)
+    handoff = ProjectHandoff.load(config.handoff_path)
+    result = handoff.tick_prince2_runtime(max_nodes=max_nodes)
+    handoff.save(config.handoff_path)
+    main._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
+    main._record_handoff_action(
+        config,
+        phase="roles_tick",
+        task=f"roles tick {max_nodes if max_nodes is not None else ''}".strip(),
+        summary=f"Batch advanced PRINCE2 runtime across {result.get('processed', 0)} node(s).",
+        details=dict(result),
+    )
+    return result
 
 
 def _assign_prince2_role_node(
@@ -134,7 +450,7 @@ def _assign_prince2_role_node(
     canonical_model = canonicalize_model_variant(provider, provider_model)
     if account is not None and account not in (prefs.accounts_by_model or {}).get(provider, []):
         raise ValueError(f"Account '{account}' is not configured for provider '{provider}'.")
-    baseline = main._ensure_prince2_role_tree_baseline(config, prefs, source="role_assign")
+    baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_assign")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = list(tree.get("nodes", [])) if isinstance(tree.get("nodes", []), list) else []
     target = next((node for node in nodes if isinstance(node, dict) and node.get("node_id") == node_id), None)
@@ -183,8 +499,8 @@ def _assign_prince2_role_node(
     baseline["status"] = "approved"
     baseline["source"] = "role_assign"
     baseline["approved_at"] = datetime.now().isoformat(timespec="seconds")
-    main._refresh_prince2_role_tree_baseline_checks(baseline, prefs)
-    main._persist_prince2_role_tree_baseline(config, prefs, baseline)
+    _refresh_prince2_role_tree_baseline_checks(baseline, prefs)
+    _persist_prince2_role_tree_baseline(config, prefs, baseline)
     return dict(target)
 
 
@@ -683,7 +999,7 @@ def _guided_role_add_child(
         return "Role node creation cancelled."
     node_id = response.strip() or None
     try:
-        child = main._add_child_prince2_role_node(config, prefs, parent_id=parent_id, role_type=role_type, node_id=node_id)
+        child = _add_child_prince2_role_node(config, prefs, parent_id=parent_id, role_type=role_type, node_id=node_id)
     except ValueError as exc:
         return str(exc)
     return f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}."
@@ -1246,7 +1562,7 @@ def _guided_role_tree_menu(
             prefs = main._load_model_preferences(config)
             continue
         if action == "approve":
-            main._approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_menu")
+            _approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_menu")
             output_stream.write("Approved PRINCE2 role-tree baseline from menu.\n")
             prefs = main._load_model_preferences(config)
             continue
@@ -1266,7 +1582,7 @@ def _guided_roles_setup(
     if input_stream is None or output_stream is None:
         prefs.apply_prince2_role_proposal()
         main._save_model_preferences(config, prefs)
-        main._approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
+        _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
         return "Applied automatic PRINCE2 role proposal."
     choice = main._prompt_menu_choice(
         title="PRINCE2 role setup:",
@@ -1285,7 +1601,7 @@ def _guided_roles_setup(
     if choice == "auto":
         prefs.apply_prince2_role_proposal()
         main._save_model_preferences(config, prefs)
-        main._approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
+        _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
         return (
             "Applied automatic PRINCE2 role proposal.\n"
             + main._render_prince2_roles(config)
@@ -1333,7 +1649,7 @@ def _guided_roles_setup(
         if preload is None:
             return "Role setup cancelled."
         if preload == "yes":
-            main._approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_manual_local_fallbacks")
+            _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_manual_local_fallbacks")
             return (
                 "Role setup completed with approved baseline and recommended local delivery fallbacks.\n"
                 + main._render_prince2_roles(config)
