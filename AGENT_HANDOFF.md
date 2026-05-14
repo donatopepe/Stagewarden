@@ -28,7 +28,7 @@
 - `stagewarden/executor_quality.py` now centralizes the response-quality scorer so `stagewarden/executor.py` can stay thinner.
 - `stagewarden/project_handoff_state.py` now centralizes the persisted budget, goal, and user-question state helpers that were still living inside `stagewarden/project_handoff.py`.
 - `stagewarden/project_handoff_views.py` now centralizes the handoff/resume/board/register/transcript operational reports that were still living inside `stagewarden/project_handoff.py`.
-- `stagewarden/model_views.py` now owns the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search and model params/preset/variant flows.
+- `stagewarden/model_views.py` now owns the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search and model params/preset/variant flows, and `main.py` now delegates the remaining `model` usage string to that module too.
 - `stagewarden/account_views.py` now owns the account command block that was still living in `main.py`, including account add/login/logout/env/import/use/choose/remove/block/unblock/limit commands and the account report.
 - `stagewarden/command_views.py` now owns the shell/git/file/session/patch command cluster that was still living in `main.py`, while `stagewarden/shell_views.py` now owns the permission approval, rate-limit decision, and interactive completion helpers used by the interactive shell.
 - `stagewarden/report_views.py` now owns the remaining board/boundary/permissions/risks/issues/quality/exception/lessons/todo report helpers that were still living in `main.py`.
@@ -116,7 +116,7 @@
 - `stagewarden/project_handoff_state.py`: extracted the persisted budget, goal, and user-question state helpers out of `project_handoff.py`.
 - `stagewarden/project_handoff.py`: now forwards the state helpers to `project_handoff_state.py` instead of keeping the full bodies inline.
 - `stagewarden/project_handoff_views.py`: extracted the handoff summary and reporting/rendering helpers out of `project_handoff.py`.
-- `stagewarden/model_views.py`: scaffolded the model/catalog/provider-selection extraction target that is still living in `main.py`.
+- `stagewarden/model_views.py`: scaffolded the model/catalog/provider-selection extraction target that is still living in `main.py`, and `main.py` now delegates the remaining `model` usage string to that module too.
 - `stagewarden/command_dispatch.py`: extracted tool parsing/execution for external-io, browser, watch, and system commands out of `main.py`.
 - `stagewarden/tool_reports.py`: extracted tool result formatting and handoff evidence recording for the same tool families.
 - `stagewarden/project_state_views.py`: extracted goal, budget, and question state/report helpers from `main.py`.

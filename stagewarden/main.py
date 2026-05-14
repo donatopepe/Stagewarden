@@ -1624,15 +1624,7 @@ def _handle_model_command(
     )
 
 def _model_usage() -> str:
-    return (
-        "Usage: model use <name> | model choose [name] | model add <name> | model list <name> | model inspect <provider> [provider_model] | "
-        "model params <name> | model variant <name> <variant> | model variant-clear <name> | "
-        "model preset <name> <fast|balanced|deep|plan> | "
-        "model param set <name> <key> <value> | model param clear <name> <key> | "
-        "model remove <name> | model block <name> until YYYY-MM-DDTHH:MM | "
-        "model unblock <name> | model limits | model limit-record <name> <message> | "
-        "model limit-clear <name> | model clear | catalog status | catalog refresh [--aa] | catalog search <query> [provider=<provider>] [feature=<feature>]"
-    )
+    return _model_views._model_usage()
 
 
 def _catalog_usage() -> str:
