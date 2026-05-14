@@ -10,12 +10,12 @@
 - `stagewarden/project_handoff_state.py` now centralizes the persisted budget, goal, and user-question state helpers that were still living inside `stagewarden/project_handoff.py`.
 - `stagewarden/project_handoff_views.py` now centralizes the handoff/resume/board/register/transcript operational reports that were still living inside `stagewarden/project_handoff.py`.
 - `stagewarden/mode_views.py` now centralizes the mode/status/project/report dispatch bridge that was still living in `main.py`.
-- `stagewarden/model_views.py` now centralizes the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search, model params/preset/variant flows, and the guided model-choice flow.
+- `stagewarden/model_views.py` now centralizes the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search, model params/preset/variant flows, and the guided model-choice flow, and `main.py` now only keeps a thin usage wrapper for the model command.
 - `stagewarden/model_views.py` now also owns the model preference load/save/apply helpers and the PRINCE2 role-sync helpers, so `main.py` only keeps thin bridges for those flows.
 - `stagewarden/command_views.py` now owns the shared `parse_limit` helper and `stagewarden/cli_dispatch.py` now owns the LJSON path helpers, so the last utility bodies can stay out of `main.py`.
 - `stagewarden/ui_views.py` now owns `interactive_help_text`, so the remaining help text no longer lives inline in `main.py`.
 - `stagewarden/shell_views.py` now owns the shell backend settings/report helpers, so the last shell-backend bodies can stay out of `main.py`.
-- `stagewarden/model_views.py` now also owns the catalog helper block that was still living in `main.py`, so the CLI can keep `main.py` thinner.
+- `stagewarden/model_views.py` now also owns the catalog helper block that was still living in `main.py`, so the CLI can keep `main.py` thinner, and `main.py` no longer keeps the `model` usage string inline.
 - `stagewarden/shell_views.py` now also owns the permission approval, rate-limit decision, and interactive completion helpers used by the interactive shell, so the shell flow no longer keeps those prompts and completion rules inline in `main.py`.
 - `stagewarden/status_views.py` now also owns the provider limit snapshot record/clear helpers so the status/provider-limit slice owns the persistence path for limit events.
 - `stagewarden/status_views.py` now also owns the agent capability-surface helper used by `roles context`, while `stagewarden/main.py` keeps a thin bridge for compatibility.
@@ -101,7 +101,7 @@
 - `stagewarden/main.py`: restored `_focus_snapshot` after the status cleanup so the battery/resume paths keep working.
 - `stagewarden/main.py`: removed the duplicated legacy `overview/health/preflight/report` bodies after the status split, leaving only the wrapper layer at the end of the file.
 - `stagewarden/main.py`, `stagewarden/project_handoff.py`, `stagewarden/project_handoff_state.py`, `stagewarden/project_handoff_views.py`, `stagewarden/project_handoff_runtime.py`, `stagewarden/prince2.py`, `stagewarden/commands.py`, `stagewarden/json_schema_registry.py`, `tests/test_persistence.py`, `tests/test_prince2.py`, and `tests/test_trace_cli.py` now cover project budget management plus the agent clarification-question flow.
-- `stagewarden/model_views.py`: now owns the model/catalog/provider-selection extraction target that was still living in `main.py`.
+- `stagewarden/model_views.py`: now owns the model/catalog/provider-selection extraction target that was still living in `main.py`, and `main.py` now delegates the last direct `model` usage string to that module too.
 - `stagewarden/main.py` now also shows the next missing `project brief` field after each edit and in the summary view, and it exposes the same signal in JSON.
 - `stagewarden/main.py` now also exposes the next missing field or gap for `project start` and `project tree propose --ai` in JSON.
 - `tests/test_trace_cli.py` now also passes a broader regression batch covering the brief/start/tree flows after the JSON guidance refactor.
