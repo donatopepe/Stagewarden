@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import atexit
 import sys
+from pathlib import Path
 from typing import Callable, TextIO
 
 from .agent import Agent
@@ -10,6 +11,8 @@ from .commands import command_specs_by_query
 from .permissions import PermissionSettings
 from .modelprefs import PRINCE2_ROLE_IDS, SUPPORTED_MODELS
 from .provider_registry import provider_capability, provider_model_spec, provider_model_specs
+from .runtime_env import detect_runtime_capabilities, select_shell_backend
+from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
 try:
     import readline
@@ -24,6 +27,47 @@ def _main():
     from . import main as main_module
 
     return main_module
+
+
+def _workspace_settings_payload(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    payload = loads_text(read_text_utf8(path))
+    return payload if isinstance(payload, dict) else {}
+
+
+def _configured_shell_backend(config: AgentConfig) -> str:
+    payload = _workspace_settings_payload(config.settings_path)
+    shell = payload.get("shell", {}) if isinstance(payload, dict) else {}
+    if isinstance(shell, dict):
+        value = str(shell.get("backend", "auto")).strip().lower()
+        if value in {"auto", "bash", "zsh", "powershell", "cmd"}:
+            return value
+    return "auto"
+
+
+def _save_shell_backend(config: AgentConfig, backend: str) -> None:
+    payload = _workspace_settings_payload(config.settings_path)
+    shell = payload.get("shell", {})
+    if not isinstance(shell, dict):
+        shell = {}
+    shell["backend"] = backend
+    payload["shell"] = shell
+    write_text_utf8(config.settings_path, dumps_ascii(payload, indent=2))
+
+
+def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
+    configured = _configured_shell_backend(config)
+    capabilities = detect_runtime_capabilities(config.workspace_root)
+    selection = select_shell_backend(configured, capabilities)
+    return {
+        "command": "shell backend",
+        "configured": configured,
+        "selected": selection["selected"],
+        "available": selection["available"],
+        "executable": selection["executable"],
+        "reason": selection["reason"],
+    }
 
 
 def _interactive_command_phrases() -> tuple[str, ...]:

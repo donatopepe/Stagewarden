@@ -14,6 +14,7 @@
 - `stagewarden/model_views.py` now also owns the model preference load/save/apply helpers and the PRINCE2 role-sync helpers, so `main.py` only keeps thin bridges for those flows.
 - `stagewarden/command_views.py` now owns the shared `parse_limit` helper and `stagewarden/cli_dispatch.py` now owns the LJSON path helpers, so the last utility bodies can stay out of `main.py`.
 - `stagewarden/ui_views.py` now owns `interactive_help_text`, so the remaining help text no longer lives inline in `main.py`.
+- `stagewarden/shell_views.py` now owns the shell backend settings/report helpers, so the last shell-backend bodies can stay out of `main.py`.
 - `stagewarden/model_views.py` now also owns the catalog helper block that was still living in `main.py`, so the CLI can keep `main.py` thinner.
 - `stagewarden/shell_views.py` now also owns the permission approval, rate-limit decision, and interactive completion helpers used by the interactive shell, so the shell flow no longer keeps those prompts and completion rules inline in `main.py`.
 - `stagewarden/status_views.py` now also owns the provider limit snapshot record/clear helpers so the status/provider-limit slice owns the persistence path for limit events.
