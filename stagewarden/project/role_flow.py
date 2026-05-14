@@ -169,6 +169,60 @@ def _project_tolerance_profile(handoff: ProjectHandoff, *, task: str | None = No
     )
 
 
+def _set_prince2_role_node_tolerance_margin(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    margin_percent: float,
+    source: str = "role_tolerance_set",
+) -> dict[str, object]:
+    clean_margin = max(0.0, min(100.0, float(margin_percent)))
+
+    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
+        for node in nodes:
+            if str(node.get("node_id", "")).strip() != node_id:
+                continue
+            node["tolerance_margin_percent"] = round(clean_margin, 2)
+            tolerance_profile = dict(node.get("tolerance_profile", {})) if isinstance(node.get("tolerance_profile", {}), dict) else {}
+            tolerance_profile["margin_percent"] = round(clean_margin, 2)
+            tolerance_profile["manual_override"] = True
+            node["tolerance_profile"] = tolerance_profile
+            node["autonomy_rule"] = str(node.get("autonomy_rule", "")).strip() or "work autonomously within the margin; escalate when pressure exceeds margin."
+            break
+
+    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
+    return _role_tree_node_record(config, node_id) or {}
+
+
+def _reset_prince2_role_node_tolerance(
+    config: AgentConfig,
+    prefs: ModelPreferences,
+    *,
+    node_id: str,
+    source: str = "role_tolerance_reset",
+) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    tolerance_profile = _project_tolerance_profile(handoff)
+
+    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
+        for node in nodes:
+            if str(node.get("node_id", "")).strip() != node_id:
+                continue
+            role_type = str(node.get("role_type", "")).strip()
+            profile = tolerance_profile.node_profile(role_type)
+            node["accountable_owner"] = profile.get("accountable_owner", tolerance_profile.accountable_owner)
+            node["tolerance_margin_percent"] = profile.get("margin_percent", tolerance_profile.project_margin_percent)
+            node["tolerance_pressure_percent"] = profile.get("pressure_percent", tolerance_profile.project_pressure_percent)
+            node["autonomy_rule"] = profile.get("autonomy_rule", node.get("autonomy_rule", ""))
+            node["escalation_target"] = profile.get("escalation_target", node.get("escalation_target", "board.executive"))
+            node["tolerance_profile"] = profile
+            break
+
+    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
+    return _role_tree_node_record(config, node_id) or {}
+
+
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
     main = _main()
     prefs = main._load_model_preferences(config)
@@ -1318,7 +1372,7 @@ def _guided_role_node_menu(
                 output_stream.write("Invalid margin. Enter a numeric percentage.\n")
                 continue
             try:
-                updated = main._set_prince2_role_node_tolerance_margin(config, prefs, node_id=current, margin_percent=margin)
+                updated = _set_prince2_role_node_tolerance_margin(config, prefs, node_id=current, margin_percent=margin)
             except ValueError as exc:
                 output_stream.write(str(exc) + "\n")
                 continue
@@ -1328,7 +1382,7 @@ def _guided_role_node_menu(
             prefs = main._load_model_preferences(config)
             continue
         if action == "reset-tolerance":
-            updated = main._reset_prince2_role_node_tolerance(config, prefs, node_id=current)
+            updated = _reset_prince2_role_node_tolerance(config, prefs, node_id=current)
             output_stream.write(
                 f"Reset tolerance for {current}: margin={updated.get('tolerance_margin_percent', 'unknown')} pressure={updated.get('tolerance_pressure_percent', 'unknown')}.\n"
             )

@@ -50,6 +50,10 @@
 - `stagewarden/model_views.py` now also owns the cloud-priority model chooser that was still living in `main.py`.
 - `stagewarden/cli_dispatch.py` now persists a project-tree clarification question when `project tree propose --ai` still needs brief clarification, and `stagewarden/project/tree_flow.py` renders that question in the textual output.
 - `stagewarden/json_schema_registry.py` now also owns the shared `with_json_schema()` helper that was still living in `main.py`.
+- `stagewarden/agent_setup_views.py` now owns the agent workspace setup and runtime permission refresh helpers that were still living in `main.py`.
+- `stagewarden/project/role_flow.py` now also owns the PRINCE2 tolerance margin set/reset helpers that were still living in `main.py`.
+- The refactor target is now explicitly MVC-shaped across the module tree, with controller-style dispatch, view modules for rendering/reporting, and model modules for catalog/provider logic.
+- The agent should support controlled recursive command handling and self-instantiation of sub-agents when decomposing work, instead of keeping every command path centralized in one giant entrypoint.
 - `stagewarden/model_views.py` now also owns the provider-model display helpers that were still living in `main.py`.
 - `stagewarden/project/role_views.py` now owns the PRINCE2 role runtime/context report and render helpers that were still living in `main.py`.
 - `stagewarden/project/role_runtime_views.py` now owns the PRINCE2 runtime, active, queues, control, and messages report/render helpers that were still living in `main.py`.

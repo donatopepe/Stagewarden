@@ -74,6 +74,7 @@ from . import command_views as _command_views
 from . import report_views as _report_views
 from . import mode_views as _mode_views
 from . import model_views as _model_views
+from . import agent_setup_views as _agent_setup_views
 from . import extension_views as _extension_views
 from .project import role_views as _project_role_views
 from .project import role_runtime_views as _project_role_runtime_views
@@ -940,60 +941,6 @@ def _guided_role_assign(
     )
 
 
-def _set_prince2_role_node_tolerance_margin(
-    config: AgentConfig,
-    prefs: ModelPreferences,
-    *,
-    node_id: str,
-    margin_percent: float,
-    source: str = "role_tolerance_set",
-) -> dict[str, object]:
-    clean_margin = max(0.0, min(100.0, float(margin_percent)))
-
-    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
-        for node in nodes:
-            if str(node.get("node_id", "")).strip() != node_id:
-                continue
-            node["tolerance_margin_percent"] = round(clean_margin, 2)
-            tolerance_profile = dict(node.get("tolerance_profile", {})) if isinstance(node.get("tolerance_profile", {}), dict) else {}
-            tolerance_profile["margin_percent"] = round(clean_margin, 2)
-            tolerance_profile["manual_override"] = True
-            node["tolerance_profile"] = tolerance_profile
-            node["autonomy_rule"] = str(node.get("autonomy_rule", "")).strip() or "work autonomously within the margin; escalate when pressure exceeds margin."
-            break
-
-    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
-    return _role_tree_node_record(config, node_id) or {}
-
-
-def _reset_prince2_role_node_tolerance(
-    config: AgentConfig,
-    prefs: ModelPreferences,
-    *,
-    node_id: str,
-    source: str = "role_tolerance_reset",
-) -> dict[str, object]:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    tolerance_profile = _project_tolerance_profile(handoff)
-
-    def mutator(baseline: dict[str, object], tree: dict[str, object], nodes: list[dict[str, object]]) -> None:
-        for node in nodes:
-            if str(node.get("node_id", "")).strip() != node_id:
-                continue
-            role_type = str(node.get("role_type", "")).strip()
-            profile = tolerance_profile.node_profile(role_type)
-            node["accountable_owner"] = profile.get("accountable_owner", tolerance_profile.accountable_owner)
-            node["tolerance_margin_percent"] = profile.get("margin_percent", tolerance_profile.project_margin_percent)
-            node["tolerance_pressure_percent"] = profile.get("pressure_percent", tolerance_profile.project_pressure_percent)
-            node["autonomy_rule"] = profile.get("autonomy_rule", node.get("autonomy_rule", ""))
-            node["escalation_target"] = profile.get("escalation_target", node.get("escalation_target", "board.executive"))
-            node["tolerance_profile"] = profile
-            break
-
-    _with_prince2_role_tree_baseline_mutation(config, prefs, source=source, mutator=mutator)
-    return _role_tree_node_record(config, node_id) or {}
-
-
 def _remove_prince2_role_node(
     config: AgentConfig,
     prefs: ModelPreferences,
@@ -1634,17 +1581,11 @@ def _log_error_report(config: AgentConfig, *, limit: int = 20) -> dict[str, obje
 
 
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
-    agent = Agent(config)
-    _apply_model_preferences(agent, config)
-    provider_limits = _provider_limit_status_report(agent, config)
-    return agent
+    return _agent_setup_views._configure_agent_for_workspace(config)
 
 
 def _configure_readonly_agent_for_workspace(config: AgentConfig) -> Agent:
-    readonly_config = replace(config, enforce_git=False, auto_git_commit=False)
-    agent = Agent(readonly_config)
-    _apply_model_preferences(agent, readonly_config)
-    return agent
+    return _agent_setup_views._configure_readonly_agent_for_workspace(config)
 
 
 def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
@@ -1660,7 +1601,7 @@ def _render_shell_progress(agent: Agent, *, phase: str, command: str | None = No
 
 
 def _refresh_runtime_permissions(agent: Agent) -> None:
-    agent.refresh_permissions()
+    _agent_setup_views._refresh_runtime_permissions(agent)
 
 
 def _prompt_menu_choice(
