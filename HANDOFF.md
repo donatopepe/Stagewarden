@@ -15,7 +15,7 @@
 - `stagewarden/command_views.py` now owns the shared `parse_limit` helper and `stagewarden/cli_dispatch.py` now owns the LJSON path helpers, so the last utility bodies can stay out of `main.py`.
 - `stagewarden/ui_views.py` now owns `interactive_help_text`, so the remaining help text no longer lives inline in `main.py`.
 - `stagewarden/shell_views.py` now owns the shell backend settings/report helpers, so the last shell-backend bodies can stay out of `main.py`.
-- `stagewarden/model_views.py` now also owns the catalog helper block that was still living in `main.py`, so the CLI can keep `main.py` thinner, and `main.py` no longer keeps the `model` usage string inline.
+- `stagewarden/model_views.py` now also owns the catalog helper block that was still living in `main.py`, so the CLI can keep `main.py` thinner, `stagewarden/model_catalog_views.py` now centralizes the remaining catalog usage/report helpers, and `main.py` no longer keeps the `model` usage string inline.
 - `stagewarden/shell_views.py` now also owns the permission approval, rate-limit decision, and interactive completion helpers used by the interactive shell, so the shell flow no longer keeps those prompts and completion rules inline in `main.py`.
 - `stagewarden/status_views.py` now also owns the provider limit snapshot record/clear helpers so the status/provider-limit slice owns the persistence path for limit events.
 - `stagewarden/status_views.py` now also owns the agent capability-surface helper used by `roles context`, while `stagewarden/main.py` keeps a thin bridge for compatibility.

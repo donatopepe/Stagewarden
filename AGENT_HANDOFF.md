@@ -60,7 +60,7 @@
 - `stagewarden/status_views.py` now also owns the `sources` / `update` repo-health report helpers, while `stagewarden/main.py` keeps thin bridges for compatibility.
 - `stagewarden/project/design_flow.py` now treats runtime-discovered local execution candidates as valid readiness, so `project start` can proceed in a fresh repo without a pre-approved cloud baseline.
 - `stagewarden/project/role_tree_views.py` now excludes the rollback lane from the active local-fallback count so the readiness report matches the regression contract.
-- `stagewarden/model_views.py` now owns the catalog helper block that was still living in `main.py`, and `main.py` now bridges those helpers through thin wrappers.
+- `stagewarden/model_views.py` now owns the catalog helper block that was still living in `main.py`, and `main.py` now bridges those helpers through thin wrappers; the remaining catalog usage/report bodies now live in `stagewarden/model_catalog_views.py`.
 - `_focus_snapshot` was restored after the status slice cleanup so the battery and resume/status paths keep working.
 - The duplicate legacy `overview/health/preflight/report` bodies were removed from `main.py`; only the thin wrapper definitions remain at the end of the file.
 - The next structure slice should keep grouping related code into subfolders by concern so the module surface stays readable as the repo grows, then continue trimming the remaining status helpers and any other legacy duplicates out of `main.py`.
