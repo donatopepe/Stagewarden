@@ -1,8 +1,22 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from . import extension_views as _extension_views
+
+
+def _default_ljson_encode_path(source: Path, *, gzip_enabled: bool) -> Path:
+    if gzip_enabled:
+        return source.with_suffix(".ljson.gz")
+    return source.with_suffix(".ljson")
+
+
+def _default_ljson_decode_path(source: Path) -> Path:
+    if source.suffix == ".gz":
+        without_gzip = source.with_suffix("")
+        return without_gzip.with_suffix(".json")
+    return source.with_suffix(".json")
 
 
 def _build_parser() -> argparse.ArgumentParser:

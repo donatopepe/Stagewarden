@@ -16,6 +16,15 @@ def _main():
     return _main_module
 
 
+def _parse_limit(raw: str, *, default: int) -> int:
+    if not raw:
+        return default
+    try:
+        return max(1, min(int(raw), 200))
+    except ValueError:
+        return default
+
+
 def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Agent | None = None) -> str:
     settings = PermissionSettings.load(config.settings_path)
     if len(parts) < 2:
@@ -131,13 +140,13 @@ def _handle_git_command(command: str, config: AgentConfig) -> str | None:
         result = tool.status()
         return result.stdout or result.error or "Clean working tree."
     if len(parts) in {2, 3} and parts[1] == "log":
-        limit = _main()._parse_limit(parts[2] if len(parts) == 3 else "", default=20)
+        limit = _parse_limit(parts[2] if len(parts) == 3 else "", default=20)
         result = tool.log(limit=limit)
         return result.stdout or result.error or "No git history."
     if parts[1] == "history":
         if len(parts) not in {3, 4}:
             return "Usage: git history <path> [limit]"
-        limit = _main()._parse_limit(parts[3] if len(parts) == 4 else "", default=20)
+        limit = _parse_limit(parts[3] if len(parts) == 4 else "", default=20)
         result = tool.file_history(parts[2], limit=limit)
         return result.stdout or result.error or "No file history."
     if parts[1] == "show":
@@ -166,7 +175,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
             "lines": result.stdout.splitlines() if result.stdout else [],
         }
     if len(parts) in {2, 3} and parts[1] == "log":
-        limit = _main()._parse_limit(parts[2] if len(parts) == 3 else "", default=20)
+        limit = _parse_limit(parts[2] if len(parts) == 3 else "", default=20)
         result = tool.log(limit=limit)
         return {
             "command": "git log",
@@ -186,7 +195,7 @@ def _git_command_report(command: str, config: AgentConfig) -> dict[str, object] 
                 "ok": False,
                 "error": "Usage: git history <path> [limit]",
             }
-        limit = _main()._parse_limit(parts[3] if len(parts) == 4 else "", default=20)
+        limit = _parse_limit(parts[3] if len(parts) == 4 else "", default=20)
         result = tool.file_history(parts[2], limit=limit)
         return {
             "command": "git history",
