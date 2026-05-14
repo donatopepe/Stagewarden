@@ -97,7 +97,7 @@
 - `stagewarden/executor.py` now verifies mutating file, shell, git-commit, and multi-file patch actions after execution, and it fails when the workspace proof is missing or mismatched.
 - `stagewarden/prince2.py` now explicitly treats refactoring as a permanent cyclic phase across nodes, roles, stages, and microtasks inside the PRINCE2 checklist policy.
 - `stagewarden/project/role_flow.py` and `stagewarden/project_handoff_runtime.py` restored the PRINCE2 role shell contract expected by the battery and exposed `threat_count` in antagonist decision KPIs.
-- `stagewarden/status_views.py`: extracted the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status helper slice, while `stagewarden/main.py` shadows the old bodies with wrappers into that module.
+- `stagewarden/status_views.py`: extracted the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status helper slice, while `stagewarden/main.py` shadows the old bodies with wrappers into that module; `stagewarden/status_dashboard_views.py` now carries the public dashboard/report bridge.
 - `stagewarden/main.py`: restored `_focus_snapshot` after the status cleanup so the battery/resume paths keep working.
 - `stagewarden/main.py`: removed the duplicated legacy `overview/health/preflight/report` bodies after the status split, leaving only the wrapper layer at the end of the file.
 - `stagewarden/main.py`, `stagewarden/project_handoff.py`, `stagewarden/project_handoff_state.py`, `stagewarden/project_handoff_views.py`, `stagewarden/project_handoff_runtime.py`, `stagewarden/prince2.py`, `stagewarden/commands.py`, `stagewarden/json_schema_registry.py`, `tests/test_persistence.py`, `tests/test_prince2.py`, and `tests/test_trace_cli.py` now cover project budget management plus the agent clarification-question flow.
@@ -163,7 +163,7 @@
 - Node visibility now includes mnemonic and team membership in the main role/runtime/message views.
 - The status shell now exposes the cost sidebar with model usage and top cost nodes.
 - The full status shell now shows every node with cost, tokens, provider, and team metadata.
-- `stagewarden/status_views.py` now also owns the overview, health, and remediations render helpers, so the remaining dashboard bodies no longer live in `main.py`.
+- `stagewarden/status_views.py` now also owns the overview, health, and remediations render helpers, while `stagewarden/status_dashboard_views.py` now centralizes the public statusline/overview/health/preflight/report/doctor bridge and `main.py` delegates those public reports there.
 - `stagewarden/project/role_views.py` now also owns the PRINCE2 role assignments render helper, so the role assignment lines no longer live in `main.py`.
 - `stagewarden/project/role_flow.py` now also owns the project tolerance profile plus the role tolerance margin set/reset helpers, so the tolerance-specific PRINCE2 bodies no longer live in `main.py`.
 - `stagewarden/cli_dispatch.py` now owns the parser builder, so the CLI option surface no longer lives inline in `main.py`.
