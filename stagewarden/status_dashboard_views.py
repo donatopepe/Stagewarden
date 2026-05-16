@@ -12,6 +12,8 @@ from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .memory import MemoryStore
 from .project_handoff import ProjectHandoff
+from .project import role_tree_views as _project_role_tree_views
+from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .tools.git import GitTool
 
 
@@ -25,6 +27,19 @@ def _main():
     from . import main as _main_module
 
     return _main_module
+
+
+def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
+    configured = str(getattr(config, "shell_backend", "auto") or "auto")
+    selection = select_shell_backend(configured, detect_runtime_capabilities(config.workspace_root))
+    return {
+        "command": "shell backend",
+        "configured": configured,
+        "selected": selection["selected"],
+        "available": selection["available"],
+        "executable": selection["executable"],
+        "reason": selection["reason"],
+    }
 
 
 def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
@@ -224,10 +239,10 @@ def _status_remediation_report(
     items = _preflight_remediations(
         doctor={"python": {"ok": True}, "git": {"ok": True}},
         runtime=main.detect_runtime_capabilities(config.workspace_root),
-        shell_backend=main._shell_backend_report(config),
+        shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
-        role_check=main._prince2_role_check_report(config),
+        role_check=_project_role_tree_views._prince2_role_check_report(config),
         provider_limits=provider_limits,
         sources=main._sources_status_report(config),
         stage_view=stage_view,
@@ -267,7 +282,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     git_status = git.status()
     git_head = git.head()
     git_dirty = git.status_porcelain()
-    role_check = main._prince2_role_check_report(config)
+    role_check = _project_role_tree_views._prince2_role_check_report(config)
     provider_limits = views._provider_limit_status_report(agent, config)
     sources = main._sources_status_report(config)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -276,7 +291,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     remediations = _preflight_remediations(
         doctor=doctor,
         runtime=doctor["runtime"],
-        shell_backend=main._shell_backend_report(config),
+        shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
         role_check=role_check,
@@ -293,7 +308,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "ready": ready,
         "doctor": doctor,
         "runtime": doctor["runtime"],
-        "shell_backend": main._shell_backend_report(config),
+        "shell_backend": _shell_backend_report(config),
         "git": {
             "ok": git_status.ok,
             "head": git_head.stdout.strip() if git_head.ok else None,
@@ -303,7 +318,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "roles_check": role_check,
         "provider_limits": provider_limits,
-        "baseline": main._agent_baseline_report(config),
+        "baseline": views._agent_baseline_report(config),
         "sources": sources,
         "permissions": views._permissions_report(config),
         "handoff": {
@@ -452,7 +467,7 @@ def _render_doctor(config: AgentConfig) -> str:
     path_info = report["path_launcher"]
     repo_info = report["repository"]
     runtime_info = report["runtime"]
-    shell_backend = _main()._shell_backend_report(config)
+    shell_backend = _shell_backend_report(config)
     providers = report["providers"]
     lines = [
         "Doctor:",

@@ -11,6 +11,7 @@ from .model_catalog import catalog_entry_for_provider_model, catalog_path, load_
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, provider_model_spec, provider_model_specs
 from .provider_registry import provider_capability, provider_model_preset
 from . import model_catalog_views as _model_catalog_views
+from . import model_inspection_views as _model_inspection_views
 
 
 def _main():
@@ -65,6 +66,10 @@ def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None 
     }
 
 
+def _local_model_profile_from_spec(spec) -> dict[str, object]:
+    return _model_inspection_views._local_model_profile_from_spec(spec)
+
+
 def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
     return _main()._catalog_power_score(entry)
 
@@ -98,11 +103,11 @@ def _inspect_provider_models(
     provider: str,
     provider_model: str | None = None,
 ) -> dict[str, object]:
-    return _main()._inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
+    return _model_inspection_views._inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
 
 
 def _render_provider_model_inspection(report: dict[str, object]) -> str:
-    return _main()._render_provider_model_inspection(report)
+    return _model_inspection_views._render_provider_model_inspection(report)
 
 
 def _local_execution_candidates_report(
@@ -111,7 +116,44 @@ def _local_execution_candidates_report(
     agent: Agent | None = None,
     use_ai: bool = False,
 ) -> dict[str, object]:
-    return _main()._local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
+    specs = [spec for spec in provider_model_specs("local") if spec.id != "provider-default"]
+    if not specs:
+        return {
+            "status": "missing",
+            "message": "No local models discovered from Ollama.",
+            "models": [],
+            "candidates": [],
+            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Local discovery unavailable."},
+        }
+    if use_ai and agent is not None:
+        report = _model_inspection_views._inspect_provider_models(agent, config, provider="local")
+    else:
+        report = {
+            "status": "ok",
+            "provider": "local",
+            "models": [_model_inspection_views._local_model_profile_from_spec(spec) for spec in specs],
+            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Metadata-only local profile."},
+            "global_recommendation": "Use local models only when runtime-discovered and appropriate for bounded node execution.",
+        }
+    models = [item for item in report.get("models", []) if isinstance(item, dict)]
+    fit_rank = {"high": 0, "medium": 1, "low": 2, "unknown": 3}
+    risk_rank = {"low": 0, "medium": 1, "unknown": 2, "high": 3}
+    candidates = sorted(
+        models,
+        key=lambda item: (
+            fit_rank.get(str(item.get("agentic_fit", "unknown")), 3),
+            risk_rank.get(str(item.get("tool_support_risk", "unknown")), 2),
+            str(item.get("id", "")),
+        ),
+    )
+    return {
+        "status": "ok",
+        "message": report.get("global_recommendation", ""),
+        "models": models,
+        "candidates": candidates[:3],
+        "ai_analysis": report.get("ai_analysis", {}),
+        "catalog_source": report.get("catalog_source", "dynamic local inspection"),
+    }
 
 
 def _choose_cloud_priority_model(agent: Agent, prefs: ModelPreferences) -> str:
@@ -254,7 +296,7 @@ def _guided_model_choice(
 
 
 def _render_model_params(config: AgentConfig, model: str) -> str:
-    prefs = _main()._load_model_preferences(config)
+    prefs = _load_model_preferences(config)
     provider_model = prefs.variant_for_model(model) or "provider-default"
     spec = provider_model_spec(model, provider_model)
     params = prefs.params_for_model(model)
@@ -401,7 +443,7 @@ def _handle_model_command(
         return None
     if len(parts) < 2:
         return _model_usage()
-    prefs = _main()._load_model_preferences(config)
+    prefs = _load_model_preferences(config)
     if command.startswith("model limit-record "):
         fields = command[len("model limit-record ") :].split(maxsplit=1)
         if len(fields) != 2:
@@ -454,15 +496,15 @@ def _handle_model_command(
             capability = provider_capability(model)
             specs = provider_model_specs(model)
             catalog = load_ai_models_catalog()
-            lines = [f"Models for {model}:"]
-            lines.append(f"- provider: {capability.provider}")
-            lines.append(f"- source: {capability.source}")
-            lines.append(f"- feature: {capability.feature or 'unknown'}")
-            lines.append(f"- reason: {capability.reason or 'unknown'}")
+            lines = [f"Provider-model catalog for {model}:"]
             for spec in specs:
                 entry = catalog_entry_for_provider_model(model, spec.id, catalog)
                 display = _catalog_entry_display(entry, spec)
-                lines.append(f"- {spec.id}: {display.get('label', spec.label)}")
+                reasoning_effort = f"[{','.join(spec.reasoning_efforts)}]" if spec.reasoning_efforts else "[none]"
+                catalog_source = display.get("catalog_source") or spec.source or "unknown"
+                lines.append(
+                    f"- {spec.id}: {display.get('model_name') or spec.label} reasoning_effort={reasoning_effort} catalog={catalog_source}"
+                )
             return "\n".join(lines)
         if action == "inspect":
             if len(parts) not in {3, 4}:

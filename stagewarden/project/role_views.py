@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from ..config import AgentConfig
+from .. import model_views as _model_views
+from . import model_recommendation as _project_model_recommendation
+from ..modelprefs import PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS
 from ..project_handoff import ProjectHandoff
-from ..role_tree import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
+from ..roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
+from ..role_tree import prince2_role_mnemonic, prince2_role_team_name
 
 
 def _main():
@@ -10,10 +14,34 @@ def _main():
     return _main_module
 
 
+def _status_views():
+    from .. import status_views as status_views_module
+
+    return status_views_module
+
+
+def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
+    main = _main()
+    prefs = _model_views._load_model_preferences(config)
+    return {
+        "command": "roles",
+        "roles": [
+            {
+                "role": role,
+                "label": PRINCE2_ROLE_LABELS[role],
+                "mnemonic": prince2_role_mnemonic(role),
+                "team_name": prince2_role_team_name(role),
+                "assignment": dict((prefs.prince2_roles or {}).get(role, {})),
+            }
+            for role in PRINCE2_ROLE_IDS
+        ],
+    }
+
+
 def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    main._sync_prince2_roles_to_handoff(config, prefs)
+    prefs = _model_views._load_model_preferences(config)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     runtime_report = handoff.prince2_node_runtime_report()
     runtime = runtime_report.get("runtime", {}) if isinstance(runtime_report.get("runtime"), dict) else {}
@@ -72,7 +100,7 @@ def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str,
                 "roles tick [max_nodes]",
             ],
         },
-        "agent_capabilities": main._agent_capability_surface_for_node(config),
+        "agent_capabilities": _status_views()._agent_capability_surface_for_node(config),
         "project_context": {
             "task": handoff.task or "none",
             "project_status": handoff.status or "idle",
@@ -111,7 +139,7 @@ def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
         f"- agent_tools: {', '.join(caps['shell_operations'] + caps['git_operations'][:2] + ['...'])}",
         f"- file_ops: {', '.join(caps['file_operations'][:6])}, ...",
     ]
-    recommendation = main._node_model_recommendation(config, main._role_tree_node_record(config, node_id) or {})
+    recommendation = _project_model_recommendation._node_model_recommendation(config, main._role_tree_node_record(config, node_id) or {})
     suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
     lines.append(
         f"- model_recommendation: direction={recommendation.get('direction', 'hold')} "
@@ -128,13 +156,12 @@ def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
 
 
 def _render_prince2_roles(config: AgentConfig) -> str:
-    main = _main()
-    report = main._prince2_roles_report(config)
+    report = _prince2_roles_report(config)
     lines = ["PRINCE2 role assignments:"]
     for item in report["roles"]:
         assignment = item["assignment"]
         if not assignment:
-            lines.append(f"- {item['label']} ({item['role']}): unassigned team={main.prince2_role_team_name(item['role'])} mnemonic={main.prince2_role_mnemonic(item['role'])}")
+            lines.append(f"- {item['label']} ({item['role']}): unassigned team={item['team_name']} mnemonic={item['mnemonic']}")
             continue
         params = assignment.get("params", {})
         params_text = (
@@ -143,8 +170,8 @@ def _render_prince2_roles(config: AgentConfig) -> str:
             else ""
         )
         lines.append(
-            f"- {item['label']} ({item['role']}): mnemonic={main.prince2_role_mnemonic(item['role'])} "
-            f"team={main.prince2_role_team_name(item['role'])} mode={assignment.get('mode', 'manual')} "
+            f"- {item['label']} ({item['role']}): mnemonic={item['mnemonic']} "
+            f"team={item['team_name']} mode={assignment.get('mode', 'manual')} "
             f"provider={assignment.get('provider', 'unknown')} "
             f"provider_model={assignment.get('provider_model', 'unknown')} "
             f"account={assignment.get('account') or 'none'}"

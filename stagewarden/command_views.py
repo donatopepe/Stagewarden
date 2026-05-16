@@ -8,6 +8,7 @@ from .tools.git import GitTool
 from .json_schema_registry import json_schema
 from .permissions import PermissionSettings, VALID_PERMISSION_MODES
 from .tools.files import FileTool
+from . import shell_views as _shell_views
 
 
 def _main():
@@ -106,14 +107,14 @@ def _handle_shell_command(parts: list[str], config: AgentConfig) -> str | None:
         return None
     if len(parts) >= 2 and parts[1] == "backend":
         if len(parts) == 2:
-            return _main()._render_shell_backend(config)
+            return _shell_views._render_shell_backend(config)
         if len(parts) == 4 and parts[2] == "use":
             backend = parts[3].strip().lower()
             if backend not in {"auto", "bash", "zsh", "powershell", "cmd"}:
                 return "Usage: shell backend use <auto|bash|zsh|powershell|cmd>"
-            _main()._save_shell_backend(config, backend)
+            _shell_views._save_shell_backend(config, backend)
             config.shell_backend = backend
-            return f"Shell backend set to {backend}.\n{_main()._render_shell_backend(config)}"
+            return f"Shell backend set to {backend}.\n{_shell_views._render_shell_backend(config)}"
     return "Usage: shell backend | shell backend use <auto|bash|zsh|powershell|cmd>"
 
 

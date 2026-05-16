@@ -8,6 +8,7 @@ from typing import Any
 from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .memory import MemoryStore
+from .tools.git import GitTool
 from .textcodec import read_text_utf8, write_text_utf8
 
 from .role_tree import prince2_role_mnemonic, prince2_role_team_name
@@ -22,6 +23,18 @@ def _project_handoff_cls():
     return ProjectHandoff
 
 
+def _status_views():
+    from . import status_views as status_views_module
+
+    return status_views_module
+
+
+def _model_views():
+    from . import model_views as model_views_module
+
+    return model_views_module
+
+
 class _ProjectHandoffProxy:
     def __call__(self, *args: object, **kwargs: object) -> object:
         return _project_handoff_cls()(*args, **kwargs)
@@ -31,6 +44,30 @@ class _ProjectHandoffProxy:
 
 
 ProjectHandoff = _ProjectHandoffProxy()
+
+
+def _current_git_head(config: AgentConfig) -> str | None:
+    result = GitTool(config).head()
+    return result.stdout.strip() if result.ok and result.stdout.strip() else None
+
+
+def _record_handoff_action(
+    config: AgentConfig,
+    *,
+    phase: str,
+    summary: str,
+    task: str = "",
+    details: dict[str, object] | None = None,
+) -> None:
+    handoff = _project_handoff_cls().load(config.handoff_path)
+    handoff.record_action(
+        phase=phase,
+        summary=summary,
+        task=task,
+        git_head=_current_git_head(config),
+        details=dict(details or {}),
+    )
+    handoff.save(config.handoff_path)
 
 
 def summary(handoff: Any, limit: int = 6) -> str:
@@ -1036,12 +1073,12 @@ def _latest_handoff_action(config: AgentConfig) -> dict[str, object] | None:
 
 
 def _focus_snapshot(agent: Any, config: AgentConfig) -> dict[str, object]:
+    handoff = ProjectHandoff.load(config.handoff_path)
     from . import main as _main
 
-    handoff = ProjectHandoff.load(config.handoff_path)
-    prefs = _main._load_model_preferences(config)
+    prefs = _model_views()._load_model_preferences(config)
     memory = MemoryStore.load(config.memory_path)
-    model_report = _main._model_status_report(agent, config)
+    model_report = _status_views()._model_status_report(agent, config)
     active_model = next((item for item in model_report["models"] if item["preferred"]), None)
     if active_model is None:
         active_model = next((item for item in model_report["models"] if item["active"]), None)

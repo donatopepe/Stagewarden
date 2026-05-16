@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from ..config import AgentConfig
+from .. import model_views as _model_views
 from ..modelprefs import PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS
 from ..project_handoff import ProjectHandoff
+from . import role_flow as _project_role_flow
 from ..role_tree import (
     PRINCE2_ROLE_AUTOMATION_RULES,
     PRINCE2_ROLE_SCOPE_DESCRIPTIONS,
@@ -53,11 +55,10 @@ def _render_prince2_role_domains() -> str:
 
 
 def _prince2_role_tree_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     handoff = ProjectHandoff.load(config.handoff_path)
-    tolerance_profile = main._project_tolerance_profile(handoff)
+    tolerance_profile = _project_role_flow._project_tolerance_profile(handoff)
     return _build_prince2_role_tree_with_tolerance(
-        main._load_model_preferences(config),
+        _model_views._load_model_preferences(config),
         tolerance_profile=tolerance_profile,
         accountable_owner=tolerance_profile.accountable_owner,
     )
@@ -68,8 +69,7 @@ def _render_prince2_role_tree(config: AgentConfig) -> str:
 
 
 def _prince2_role_check_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
-    return _check_prince2_role_tree(main._load_model_preferences(config))
+    return _check_prince2_role_tree(_model_views._load_model_preferences(config))
 
 
 def _render_prince2_role_check(config: AgentConfig) -> str:
@@ -86,9 +86,9 @@ def _render_prince2_role_flow() -> str:
 
 def _prince2_role_matrix_report(config: AgentConfig) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     handoff = ProjectHandoff.load(config.handoff_path)
-    tolerance_profile = main._project_tolerance_profile(handoff)
+    tolerance_profile = _project_role_flow._project_tolerance_profile(handoff)
     tree = _build_prince2_role_tree_with_tolerance(
         prefs,
         tolerance_profile=tolerance_profile,
@@ -103,7 +103,7 @@ def _render_prince2_role_matrix(config: AgentConfig) -> str:
 
 def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     baseline = dict(prefs.prince2_role_tree_baseline or {})
     return {
         "command": "roles baseline",
@@ -240,7 +240,7 @@ def _render_prince2_role_tree_baseline_matrix(config: AgentConfig) -> str:
 
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
     tree_baseline = "approved" if prefs.prince2_role_tree_baseline else "missing"
     if configured == len(PRINCE2_ROLE_IDS):

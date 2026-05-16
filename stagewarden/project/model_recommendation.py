@@ -4,6 +4,7 @@ from typing import Any
 
 from ..config import AgentConfig
 from ..model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
+from .. import model_views as _model_views
 from ..provider_registry import SUPPORTED_MODELS
 from ..modelprefs import provider_model_specs
 
@@ -65,7 +66,7 @@ def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
 
 def _node_model_recommendation(config: AgentConfig, node: dict[str, object]) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     catalog = load_ai_models_catalog()
     assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
     current_provider = str(assignment.get("provider", "")).strip()
