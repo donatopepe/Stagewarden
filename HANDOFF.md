@@ -32,6 +32,7 @@
 - `stagewarden/report_views.py` now centralizes the remaining board/boundary/permissions/risks/issues/quality/exception/lessons/todo report helpers that were still living in `main.py`.
 - `stagewarden/account_views.py` now also owns the accounts report helper so the account summary no longer lives inline in `main.py`.
 - `stagewarden/status_views.py` now also owns the permissions and runtime-status helpers, and `stagewarden/status_views.py` also owns the provider-limit summary helper so the status slice keeps the last report bodies out of `main.py`.
+- `stagewarden/status_limits_views.py` now owns the provider-limit extraction slice completely, and `stagewarden/status_views.py` delegates the provider-limit report/render helpers to it.
 - `stagewarden/project_handoff_runtime.py` now centralizes the PRINCE2 runtime, message-flow, persistence, and node-token/cost helpers that were still living inside `stagewarden/project_handoff.py`.
 - The remaining legacy method bodies were removed from `stagewarden/project_handoff.py`; it now stays as a thin wrapper around the runtime module and the view/state split.
 - `stagewarden/executor_prompting.py` now centralizes the prompt, packet, schema, and role-context helpers that were still living inside `stagewarden/executor.py`.
