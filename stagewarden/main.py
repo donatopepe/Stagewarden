@@ -151,12 +151,10 @@ from .role_tree import (
     render_prince2_role_tree,
 )
 from .project_handoff import HandoffEntry, ProjectHandoff
-from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .secrets import SecretStore
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from .tools.files import FileTool
-from .tools.git import GitTool
 from .tools.external_io import ExternalIOResult
 from .tools.browser import BrowserResult
 from .tools.system import SystemResult
@@ -368,34 +366,6 @@ def _interactive_help_topic(topic: str) -> str:
     return _ui_views._interactive_help_topic(topic)
 
 
-def _load_model_preferences(config: AgentConfig) -> ModelPreferences:
-    return _model_views._load_model_preferences(config)
-
-
-def _save_model_preferences(config: AgentConfig, prefs: ModelPreferences) -> None:
-    _model_views._save_model_preferences(config, prefs)
-
-
-def _sync_handoff_preferences(agent: Agent, prefs: ModelPreferences) -> None:
-    _model_views._sync_handoff_preferences(agent, prefs)
-
-
-def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferences:
-    return _model_views._apply_model_preferences(agent, config)
-
-
-def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str, str, str]:
-    return _model_views._provider_model_display(prefs, provider)
-
-
-def _provider_model_params_display(prefs: ModelPreferences, provider: str) -> dict[str, str]:
-    return _model_views._provider_model_params_display(prefs, provider)
-
-
-def _render_model_status(agent: Agent, config: AgentConfig) -> str:
-    return _status_views._render_model_status(agent, config)
-
-
 def _render_model_params(config: AgentConfig, model: str) -> str:
     return _model_views._render_model_params(config, model)
 
@@ -408,131 +378,6 @@ def _apply_model_preset(
     preset: str,
 ) -> tuple[str, dict[str, str]]:
     return _model_views._apply_model_preset(config, prefs, model=model, preset=preset)
-
-
-def _catalog_entry_display(entry: dict[str, object] | None, spec: object | None = None) -> dict[str, object]:
-    return _model_views._catalog_entry_display(entry, spec)
-
-
-def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
-    return _model_views._catalog_option_suffix(entry)
-
-
-def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
-    return _account_views._render_account_lines(prefs, model)
-
-
-def _sync_prince2_roles_to_handoff(config: AgentConfig, prefs: ModelPreferences) -> None:
-    _model_views._sync_prince2_roles_to_handoff(config, prefs)
-
-
-def _sync_prince2_role_tree_baseline_back_to_preferences(
-    config: AgentConfig,
-    prefs: ModelPreferences,
-    handoff: ProjectHandoff,
-) -> None:
-    _model_views._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
-
-
-def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _load_model_preferences(config)
-    return {
-        "command": "roles",
-        "roles": [
-            {
-                "role": role,
-                "label": PRINCE2_ROLE_LABELS[role],
-                "mnemonic": prince2_role_mnemonic(role),
-                "team_name": prince2_role_team_name(role),
-                "assignment": dict((prefs.prince2_roles or {}).get(role, {})),
-            }
-            for role in PRINCE2_ROLE_IDS
-        ],
-    }
-
-
-def _render_prince2_roles(config: AgentConfig) -> str:
-    return _project_role_views._render_prince2_roles(config)
-
-
-def _render_prince2_role_domains() -> str:
-    return _project_role_tree_views._render_prince2_role_domains()
-
-
-def _prince2_role_domains_report() -> dict[str, object]:
-    return _project_role_tree_views._prince2_role_domains_report()
-
-
-def _prince2_role_tree_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_tree_views._prince2_role_tree_report(config)
-
-
-def _render_prince2_role_tree(config: AgentConfig) -> str:
-    return _project_role_tree_views._render_prince2_role_tree(config)
-
-
-def _prince2_role_check_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_tree_views._prince2_role_check_report(config)
-
-
-def _render_prince2_role_check(config: AgentConfig) -> str:
-    return _project_role_tree_views._render_prince2_role_check(config)
-
-
-def _prince2_role_flow_report() -> dict[str, object]:
-    return _project_role_tree_views._prince2_role_flow_report()
-
-
-def _render_prince2_role_flow() -> str:
-    return _project_role_tree_views._render_prince2_role_flow()
-
-
-def _prince2_role_matrix_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_tree_views._prince2_role_matrix_report(config)
-
-
-def _render_prince2_role_matrix(config: AgentConfig) -> str:
-    return _project_role_tree_views._render_prince2_role_matrix(config)
-
-
-def _current_git_head(config: AgentConfig) -> str | None:
-    result = GitTool(config).head()
-    return result.stdout.strip() if result.ok and result.stdout.strip() else None
-
-
-def _record_handoff_action(
-    config: AgentConfig,
-    *,
-    phase: str,
-    summary: str,
-    task: str = "",
-    details: dict[str, object] | None = None,
-) -> None:
-    handoff = ProjectHandoff.load(config.handoff_path)
-    handoff.record_action(
-        phase=phase,
-        summary=summary,
-        task=task,
-        git_head=_current_git_head(config),
-        details=dict(details or {}),
-    )
-    handoff.save(config.handoff_path)
-
-
-def _parse_project_tolerance_margin_percent(value: object, default: float = 25.0) -> float:
-    return _project_role_flow._parse_project_tolerance_margin_percent(value, default=default)
-
-
-def _project_accountable_owner(handoff: ProjectHandoff) -> str:
-    return _project_role_flow._project_accountable_owner(handoff)
-
-
-def _project_tolerance_margin_percent(handoff: ProjectHandoff, default: float = 25.0) -> float:
-    return _project_role_flow._project_tolerance_margin_percent(handoff, default=default)
-
-
-def _project_tolerance_profile(handoff: ProjectHandoff, *, task: str | None = None) -> Prince2ToleranceProfile:
-    return _project_role_flow._project_tolerance_profile(handoff, task=task)
 
 
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
@@ -595,72 +440,8 @@ def _assign_prince2_role_node(
     )
 
 
-def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_tree_views._prince2_role_tree_baseline_report(config)
-
-
-def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
-    return _project_role_tree_views._render_prince2_role_tree_baseline(config)
-
-
 def _delivery_local_fallback_report(config: AgentConfig) -> dict[str, object]:
     return _project_role_tree_views._delivery_local_fallback_report(config)
-
-
-def _prince2_role_tree_baseline_matrix_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_tree_views._prince2_role_tree_baseline_matrix_report(config)
-
-
-def _prince2_role_runtime_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_runtime_views._prince2_role_runtime_report(config)
-
-
-def _render_prince2_role_runtime(config: AgentConfig) -> str:
-    return _project_role_runtime_views._render_prince2_role_runtime(config)
-
-
-def _prince2_role_active_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_runtime_views._prince2_role_active_report(config)
-
-
-def _render_prince2_role_active(config: AgentConfig) -> str:
-    return _project_role_runtime_views._render_prince2_role_active(config)
-
-
-def _prince2_role_queue_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_runtime_views._prince2_role_queue_report(config)
-
-
-def _render_prince2_role_queues(config: AgentConfig) -> str:
-    return _project_role_runtime_views._render_prince2_role_queues(config)
-
-
-def _prince2_role_control_report(config: AgentConfig) -> dict[str, object]:
-    return _project_role_runtime_views._prince2_role_control_report(config)
-
-
-def _render_prince2_role_control(config: AgentConfig) -> str:
-    return _project_role_runtime_views._render_prince2_role_control(config)
-
-
-def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = None) -> dict[str, object]:
-    return _project_role_runtime_views._prince2_role_messages_report(config, node_id=node_id)
-
-
-def _render_prince2_role_messages(config: AgentConfig, node_id: str | None = None) -> str:
-    return _project_role_runtime_views._render_prince2_role_messages(config, node_id=node_id)
-
-
-def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
-    return _status_views._agent_capability_surface_for_node(config)
-
-
-def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str, object]:
-    return _project_role_views._prince2_role_context_report(config, node_id)
-
-
-def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
-    return _project_role_views._render_prince2_role_context(config, node_id)
 
 
 def _send_prince2_role_message(
@@ -706,38 +487,6 @@ def _wake_prince2_role_node(
     trigger: str,
 ) -> dict[str, object]:
     return _project_role_flow._wake_prince2_role_node(config, node_id=node_id, trigger=trigger)
-
-
-def _tick_prince2_role_node(
-    config: AgentConfig,
-    *,
-    node_id: str,
-) -> dict[str, object]:
-    return _project_role_flow._tick_prince2_role_node(config, node_id=node_id)
-
-
-def _tick_prince2_role_runtime(
-    config: AgentConfig,
-    *,
-    max_nodes: int | None = None,
-) -> dict[str, object]:
-    return _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
-
-
-def _render_prince2_role_tree_baseline_matrix(config: AgentConfig) -> str:
-    return _project_role_tree_views._render_prince2_role_tree_baseline_matrix(config)
-
-
-def _render_prince2_role_status_hint(config: AgentConfig) -> str:
-    return _project_role_tree_views._render_prince2_role_status_hint(config)
-
-
-def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _project_design_flow._project_design_report(agent, config)
-
-
-def _render_project_design(agent: Agent, config: AgentConfig) -> str:
-    return _project_design_flow._render_project_design(agent, config)
 
 
 def _project_tree_ai_needed(design: dict[str, object], proposal: dict[str, object]) -> bool:
@@ -817,18 +566,6 @@ def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool
 
 def _role_tree_node_navigation(config: AgentConfig, node_id: str) -> dict[str, object]:
     return _project_role_flow._role_tree_node_navigation(config, node_id)
-
-
-def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
-    return _project_role_flow._render_prince2_role_node_detail(config, node_id)
-
-
-def _render_prince2_role_node_shell(config: AgentConfig, node_id: str) -> str:
-    return _project_role_flow._render_prince2_role_node_shell(config, node_id)
-
-
-def _node_model_choice_options(config: AgentConfig, node_id: str) -> list[tuple[str, str]]:
-    return _project_role_flow._node_model_choice_options(config, node_id)
 
 
 def _guided_provider_options_for_node(
@@ -1228,10 +965,6 @@ def _auth_status_report(provider: str) -> dict[str, object]:
 def _render_auth_status(provider: str) -> str:
     return _auth_views._render_auth_status(provider)
 
-def _render_status(agent: Agent, config: AgentConfig) -> str:
-    return _status_views._render_status(agent, config)
-
-
 def _render_remediations(remediations: object) -> str:
     return _status_views._render_remediations(remediations)
 
@@ -1242,26 +975,6 @@ def _render_runtime_status(config: AgentConfig) -> str:
 
 def _permissions_report(config: AgentConfig) -> dict[str, object]:
     return _status_views._permissions_report(config)
-
-
-def _workspace_settings_payload(path: Path) -> dict[str, object]:
-    return _shell_views._workspace_settings_payload(path)
-
-
-def _configured_shell_backend(config: AgentConfig) -> str:
-    return _shell_views._configured_shell_backend(config)
-
-
-def _save_shell_backend(config: AgentConfig, backend: str) -> None:
-    _shell_views._save_shell_backend(config, backend)
-
-
-def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
-    return _shell_views._shell_backend_report(config)
-
-
-def _render_shell_backend(config: AgentConfig) -> str:
-    return _shell_views._render_shell_backend(config)
 
 
 BASELINE_CAPABILITY_GROUPS: tuple[dict[str, object], ...] = (
@@ -1328,32 +1041,8 @@ BASELINE_REMEDIATION_BY_GROUP: dict[str, str] = {
 }
 
 
-def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
-    return _status_views._agent_baseline_report(config)
-
-
-def _render_agent_baseline(config: AgentConfig) -> str:
-    return _status_views._render_agent_baseline(config)
-
-
-def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._model_status_report(agent, config)
-
-
 def _selected_model_report(model_report: dict[str, object]) -> dict[str, object] | None:
     return _status_views._selected_model_report(model_report)
-
-
-def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._status_report(agent, config)
-
-
-def _render_overview(agent: Agent, config: AgentConfig) -> str:
-    return _status_views._render_overview(agent, config)
-
-
-def _render_health(agent: Agent, config: AgentConfig) -> str:
-    return _status_views._render_health(agent, config)
 
 
 def _render_handoff(config: AgentConfig) -> str:
@@ -1402,10 +1091,6 @@ def _archive_and_clear_handoff(config: AgentConfig) -> str:
 
 def _archive_and_clear_handoff_report(config: AgentConfig) -> dict[str, object]:
     return _project_handoff_views._archive_and_clear_handoff_report(config)
-
-
-def _load_handoff_into_agent(agent: Agent, config: AgentConfig) -> ProjectHandoff:
-    return _project_handoff_views._load_handoff_into_agent(agent, config)
 
 
 def _handle_resume_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
@@ -1558,35 +1243,12 @@ def _prompt_menu_choice(
     return _shell_views._prompt_menu_choice(title=title, options=options, input_stream=input_stream, output_stream=output_stream)
 
 
-def _local_model_profile_from_spec(spec) -> dict[str, object]:
-    return _model_inspection_views._local_model_profile_from_spec(spec)
-
-
 def _local_model_inspection_prompt(catalog: list[dict[str, object]], selected_model: str | None) -> str:
     return _model_inspection_views._local_model_inspection_prompt(catalog, selected_model)
 
 
-def _inspect_provider_models(
-    agent: Agent,
-    config: AgentConfig,
-    *,
-    provider: str,
-    provider_model: str | None = None,
-) -> dict[str, object]:
-    return _model_inspection_views._inspect_provider_models(agent, config, provider=provider, provider_model=provider_model)
-
-
 def _render_provider_model_inspection(report: dict[str, object]) -> str:
     return _model_inspection_views._render_provider_model_inspection(report)
-
-
-def _local_execution_candidates_report(
-    config: AgentConfig,
-    *,
-    agent: Agent | None = None,
-    use_ai: bool = False,
-) -> dict[str, object]:
-    return _project_design_flow._local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
 
 
 def _guided_model_choice(
@@ -1768,47 +1430,6 @@ def run_interactive_shell(
 def main() -> int:
     return _cli_dispatch.run_cli()
 
-def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = None, use_ai: bool = False) -> dict[str, object]:
-    return _project_tree_flow._project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
-
-
-def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, object]) -> str:
-    return _project_tree_flow._project_tree_ai_prompt(design, local_report)
-
-
-def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_report: dict[str, object]) -> dict[str, object]:
-    return _project_tree_flow._merge_ai_project_tree_proposal(agent, config, local_report)
-
-
-def _render_project_tree_proposal(config: AgentConfig) -> str:
-    return _project_tree_flow._render_project_tree_proposal(config)
-
-
-def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
-    return _project_tree_flow._render_project_tree_proposal_report(report)
-
-
-def _record_project_tree_proposal_action(config: AgentConfig, report: dict[str, object], *, task: str) -> None:
-    return _project_tree_flow._record_project_tree_proposal_action(config, report, task=task)
-
-
-def _approve_project_tree_proposal(
-    config: AgentConfig,
-    *,
-    force: bool = False,
-    proposal_report: dict[str, object] | None = None,
-) -> dict[str, object]:
-    return _project_tree_flow._approve_project_tree_proposal(config, force=force, proposal_report=proposal_report)
-
-
-def _render_project_tree_approval_report(report: dict[str, object], config: AgentConfig) -> str:
-    return _project_tree_flow._render_project_tree_approval_report(report, config)
-
-
-def _render_project_tree_approval(config: AgentConfig, *, force: bool = False) -> str:
-    return _project_tree_flow._render_project_tree_approval(config, force=force)
-
-
 def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:
     return _project_model_recommendation._node_local_fallback_candidates(node)
 
@@ -1825,24 +1446,8 @@ def _parse_catalog_model_choice(choice: str) -> tuple[str, str] | None:
     return _project_model_recommendation._parse_catalog_model_choice(choice)
 
 
-def _node_model_recommendation(config: AgentConfig, node: dict[str, object]) -> dict[str, object]:
-    return _project_model_recommendation._node_model_recommendation(config, node)
-
-
 def _status_pricing_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     return _status_views._status_pricing_report(agent, config)
-
-
-def _status_cost_sidebar_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._status_cost_sidebar_report(agent, config)
-
-
-def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._status_report(agent, config)
-
-
-def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_views._status_dashboard_report(agent, config)
 
 
 def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
@@ -1859,18 +1464,6 @@ def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[s
 
 def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
     return _status_views._render_provider_limit_status(agent, config)
-
-
-def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_dashboard_views._statusline_report(agent, config)
-
-
-def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_dashboard_views._overview_report(agent, config)
-
-
-def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_dashboard_views._health_report(agent, config)
 
 
 def _preflight_remediations(
@@ -1911,38 +1504,6 @@ def _status_remediation_report(
         stage_view=stage_view,
         config=config,
     )
-
-
-def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_dashboard_views._preflight_report(agent, config)
-
-
-def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    return _status_dashboard_views._report_report(agent, config)
-
-
-def _doctor_report(config: AgentConfig) -> dict[str, object]:
-    return _status_dashboard_views._doctor_report(config)
-
-
-def _doctor_ok(rendered: str) -> bool:
-    return _status_dashboard_views._doctor_ok(rendered)
-
-
-def _render_preflight(agent: Agent, config: AgentConfig) -> str:
-    return _status_dashboard_views._render_preflight(agent, config)
-
-
-def _render_report(agent: Agent, config: AgentConfig) -> str:
-    return _status_dashboard_views._render_report(agent, config)
-
-
-def _render_doctor(config: AgentConfig) -> str:
-    return _status_dashboard_views._render_doctor(config)
-
-
-def _render_status_full(agent: Agent, config: AgentConfig) -> str:
-    return _status_views._render_status_full(agent, config)
 
 
 def _render_model_usage(config: AgentConfig) -> str:

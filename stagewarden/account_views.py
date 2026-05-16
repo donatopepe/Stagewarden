@@ -9,6 +9,7 @@ from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCod
 from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
+from . import model_views as _model_views
 from .provider_registry import provider_capability
 from .secrets import SecretStore
 from .textcodec import read_text_utf8
@@ -37,7 +38,7 @@ def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
 
 
 def _render_accounts(config: AgentConfig) -> str:
-    prefs = _main()._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     lines = ["Account profiles:"]
     found = False
     for model in SUPPORTED_MODELS:
@@ -52,7 +53,7 @@ def _render_accounts(config: AgentConfig) -> str:
 
 
 def _accounts_report(config: AgentConfig) -> dict[str, object]:
-    prefs = _main()._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     models: list[dict[str, object]] = []
     for model in SUPPORTED_MODELS:
         accounts = []
@@ -159,7 +160,7 @@ def _handle_account_command(
         return _account_usage()
 
     action = parts[1]
-    prefs = _main()._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     try:
         if action == "limit-record":
             fields = command[len("account limit-record ") :].split(maxsplit=2)
@@ -167,7 +168,7 @@ def _handle_account_command(
                 return "Usage: account limit-record <model> <name> <provider message>"
             model, name, message = fields
             result = _main()._record_limit_message(config, prefs, model=model, account=name, message=message)
-            _main()._apply_model_preferences(agent, config)
+            _model_views._apply_model_preferences(agent, config)
             return result
         if action == "limit-clear":
             fields = command[len("account limit-clear ") :].split(maxsplit=1)
@@ -175,7 +176,7 @@ def _handle_account_command(
                 return "Usage: account limit-clear <model> <name>"
             model, name = fields
             result = _main()._clear_limit_snapshot(config, prefs, model=model, account=name)
-            _main()._apply_model_preferences(agent, config)
+            _model_views._apply_model_preferences(agent, config)
             return result
         if action == "add":
             if len(parts) not in {4, 5}:
@@ -185,7 +186,7 @@ def _handle_account_command(
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
             _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _model_views._apply_model_preferences(agent, config)
             return f"Added account {model}:{name}."
         if action == "login":
             if len(parts) != 4:
@@ -215,7 +216,7 @@ def _handle_account_command(
                     return saved.message
             prefs.set_active_account(model, name)
             _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _model_views._apply_model_preferences(agent, config)
             if result.secret_payload or result.token:
                 return f"{result.message}\nSaved token for {model}:{name}."
             return result.message
@@ -277,7 +278,7 @@ def _handle_account_command(
                 return saved.message
             prefs.set_active_account(model, name)
             _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _model_views._apply_model_preferences(agent, config)
             return f"Imported credentials for {model}:{name} from {path}."
         if action == "use":
             if len(parts) != 4:

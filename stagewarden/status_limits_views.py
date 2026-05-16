@@ -7,6 +7,7 @@ from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .memory import MemoryStore
 from .modelprefs import account_key, limit_snapshot_from_message
+from . import model_views as _model_views
 from .tools.git import GitTool
 
 
@@ -168,8 +169,8 @@ def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[s
 
 def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    main._apply_model_preferences(agent, config)
+    prefs = _model_views._load_model_preferences(config)
+    _model_views._apply_model_preferences(agent, config)
     capabilities = main.detect_runtime_capabilities(config.workspace_root)
     memory = MemoryStore.load(config.memory_path)
     providers = []
@@ -281,7 +282,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
 def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
     report = _provider_limit_status_report(agent, config)
     summary = _provider_limit_summary_report(report)
-    lines = ["Provider/model limits:"]
+    lines = ["Provider limit status:"]
     lines.append(
         "- summary: "
         f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'} "

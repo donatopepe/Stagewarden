@@ -10,6 +10,9 @@ from .config import AgentConfig
 from .memory import MemoryStore
 from .modelprefs import ModelPreferences, account_key, limit_snapshot_from_message
 from .project_handoff import ProjectHandoff
+from .project import role_flow as _project_role_flow
+from .project import role_runtime_views as _project_role_runtime_views
+from . import status_dashboard_views as _status_dashboard_views
 from .textcodec import dumps_ascii
 
 
@@ -485,7 +488,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
             root = Path(tmp_dir)
             config = AgentConfig(workspace_root=root, max_steps=1)
             _seed_role_runtime(config)
-            rendered = main._render_prince2_role_node_shell(config, "management.project_manager")
+            rendered = _project_role_flow._render_prince2_role_node_shell(config, "management.project_manager")
             ok = (
                 "PRINCE2 node shell:" in rendered
                 and "description=" in rendered
@@ -762,7 +765,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
             prefs.save(config.model_prefs_path)
             handoff = ProjectHandoff.load(config.handoff_path)
             handoff.sync_prince2_role_tree_baseline(baseline)
-            rendered = main._render_prince2_role_runtime(config)
+            rendered = _project_role_runtime_views._render_prince2_role_runtime(config)
             ok = "Project Assurance" in rendered and "openai" in rendered
             return {
                 "ok": ok,
@@ -878,7 +881,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                 error_type="runtime_error",
             )
             memory.save(config.memory_path)
-            report = main._health_report(agent, config)
+            report = _status_dashboard_views._health_report(agent, config)
             ok = not report["ready"] and int(report.get("log_errors", {}).get("count", 0) or 0) >= 2
             return {
                 "ok": ok,
@@ -903,7 +906,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                 error_type="runtime_error",
             )
             memory.save(config.memory_path)
-            report = main._preflight_report(agent, config)
+            report = _status_dashboard_views._preflight_report(agent, config)
             remediation_codes = {str(item.get("code")) for item in report.get("remediations", []) if isinstance(item, dict)}
             ok = not report["ready"] and "log_errors" in remediation_codes
             return {

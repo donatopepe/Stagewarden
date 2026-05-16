@@ -5,6 +5,11 @@ from typing import TextIO
 from ..agent import Agent
 from ..config import AgentConfig
 from ..modelprefs import ModelPreferences
+from .. import model_views as _model_views
+from .. import project_handoff_views as _project_handoff_views
+from . import role_runtime_views as _project_role_runtime_views
+from . import role_views as _project_role_views
+from . import role_tree_views as _project_role_tree_views
 
 
 def _main():
@@ -27,39 +32,39 @@ def _handle_project_and_roles_command(
     if parts[0] == "project" and parts[1:2] == ["start"] and len(parts) in {2, 3}:
         if len(parts) == 3 and parts[2] != "--ai":
             return "Usage: project start [--ai]"
-        prefs = _main()._load_model_preferences(config)
+        prefs = _model_views._load_model_preferences(config)
         return _main()._render_project_start(agent, config, prefs, force_ai=len(parts) == 3)
     if parts[0] != "roles":
         return None
 
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     if len(parts) == 1:
-        main._sync_prince2_roles_to_handoff(config, prefs)
-        return main._render_prince2_roles(config)
+        _model_views._sync_prince2_roles_to_handoff(config, prefs)
+        return _project_role_views._render_prince2_roles(config)
     if len(parts) == 2 and parts[1] == "domains":
-        return main._render_prince2_role_domains()
+        return _project_role_tree_views._render_prince2_role_domains()
     if len(parts) == 3 and parts[1] == "context":
-        return main._render_prince2_role_context(config, parts[2])
+        return _project_role_views._render_prince2_role_context(config, parts[2])
     if len(parts) == 2 and parts[1] == "tree":
-        return main._render_prince2_role_tree(config)
+        return _project_role_tree_views._render_prince2_role_tree(config)
     if len(parts) == 3 and parts[1] == "tree" and parts[2] == "approve":
         main._approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_approve")
-        return "Approved PRINCE2 role-tree baseline.\n" + main._render_prince2_role_tree_baseline(config)
+        return "Approved PRINCE2 role-tree baseline.\n" + _project_role_tree_views._render_prince2_role_tree_baseline(config)
     if len(parts) == 2 and parts[1] == "baseline":
-        return main._render_prince2_role_tree_baseline(config)
+        return _project_role_tree_views._render_prince2_role_tree_baseline(config)
     if len(parts) == 3 and parts[1] == "baseline" and parts[2] == "matrix":
-        return main._render_prince2_role_tree_baseline_matrix(config)
+        return _project_role_tree_views._render_prince2_role_tree_baseline_matrix(config)
     if len(parts) in {2, 3} and parts[1] == "messages":
-        return main._render_prince2_role_messages(config, node_id=parts[2] if len(parts) == 3 else None)
+        return _project_role_runtime_views._render_prince2_role_messages(config, node_id=parts[2] if len(parts) == 3 else None)
     if len(parts) == 2 and parts[1] == "runtime":
-        return main._render_prince2_role_runtime(config)
+        return _project_role_runtime_views._render_prince2_role_runtime(config)
     if len(parts) == 2 and parts[1] == "active":
-        return main._render_prince2_role_active(config)
+        return _project_role_runtime_views._render_prince2_role_active(config)
     if len(parts) == 2 and parts[1] == "control":
-        return main._render_prince2_role_control(config)
+        return _project_role_runtime_views._render_prince2_role_control(config)
     if len(parts) == 2 and parts[1] == "queues":
-        return main._render_prince2_role_queues(config)
+        return _project_role_runtime_views._render_prince2_role_queues(config)
     if len(parts) in {2, 3} and parts[1] == "tick":
         max_nodes = None
         if len(parts) == 3:
@@ -67,28 +72,28 @@ def _handle_project_and_roles_command(
                 max_nodes = int(parts[2])
             except ValueError:
                 return "Usage: roles tick [max_nodes]"
-        result = main._tick_prince2_role_runtime(config, max_nodes=max_nodes)
+        result = _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
         return (
             f"Batch advanced PRINCE2 runtime: processed={result.get('processed')} "
             f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')}.\n"
-            + main._render_prince2_role_runtime(config)
+            + _project_role_runtime_views._render_prince2_role_runtime(config)
         )
     if len(parts) == 2 and parts[1] == "check":
-        return main._render_prince2_role_check(config)
+        return _project_role_tree_views._render_prince2_role_check(config)
     if len(parts) == 2 and parts[1] == "flow":
-        return main._render_prince2_role_flow()
+        return _project_role_tree_views._render_prince2_role_flow()
     if len(parts) == 2 and parts[1] == "matrix":
-        return main._render_prince2_role_matrix(config)
+        return _project_role_tree_views._render_prince2_role_matrix(config)
     if len(parts) == 2 and parts[1] == "propose":
         prefs.apply_prince2_role_proposal()
-        main._save_model_preferences(config, prefs)
+        _model_views._save_model_preferences(config, prefs)
         main._approve_prince2_role_tree_baseline(config, prefs, source="roles_propose")
-        main._apply_model_preferences(agent, config)
+        _model_views._apply_model_preferences(agent, config)
         return (
             "Applied automatic PRINCE2 role proposal.\n"
-            + main._render_prince2_roles(config)
+            + _project_role_views._render_prince2_roles(config)
             + "\n"
-            + main._render_prince2_role_tree_baseline(config)
+            + _project_role_tree_views._render_prince2_role_tree_baseline(config)
         )
     if len(parts) == 2 and parts[1] == "setup":
         return main._guided_roles_setup(
@@ -142,7 +147,7 @@ def _handle_role_command(
         return None
     if parts[0] != "role":
         return None
-        prefs = main._load_model_preferences(config)
+        prefs = _model_views._load_model_preferences(config)
         if len(parts) == 2 and parts[1] == "menu":
             return main._guided_role_tree_menu(
                 prefs=prefs,
@@ -194,7 +199,7 @@ def _handle_role_command(
                 return str(exc)
             return (
                 f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}.\n"
-                + main._render_prince2_role_tree_baseline(config)
+                + _project_role_tree_views._render_prince2_role_tree_baseline(config)
             )
         if len(parts) == 2 and parts[1] == "add-child":
             return main._guided_role_add_child(
@@ -285,7 +290,7 @@ def _handle_role_command(
                 return str(exc)
             return (
                 f"Removed PRINCE2 role node {removed.get('node_id', parts[2])}.\n"
-                + main._render_prince2_role_tree_baseline(config)
+                + _project_role_tree_views._render_prince2_role_tree_baseline(config)
             )
         if len(parts) >= 5 and parts[1] == "assign":
             extra_params: dict[str, str] = {}
@@ -361,7 +366,7 @@ def _handle_role_command(
                     summary=summary,
                 )
             except ValueError as exc:
-                main._record_handoff_action(
+                _project_handoff_views._record_handoff_action(
                     config,
                     phase="role_message_blocked",
                     task=f"role message {parts[2]} {parts[3]} {parts[4]}",
@@ -377,7 +382,7 @@ def _handle_role_command(
             return (
                 f"Queued PRINCE2 node message {message.get('message_id')} "
                 f"{parts[2]} -> {parts[3]} edge={parts[4]}.\n"
-                + main._render_prince2_role_messages(config, node_id=parts[3])
+                + _project_role_runtime_views._render_prince2_role_messages(config, node_id=parts[3])
             )
         if len(parts) >= 4 and parts[1] == "wait":
             reason = None
@@ -403,7 +408,7 @@ def _handle_role_command(
                 return str(exc)
             return (
                 f"Node {node.get('node_id')} is now waiting.\n"
-                + main._render_prince2_role_runtime(config)
+                + _project_role_runtime_views._render_prince2_role_runtime(config)
             )
         if len(parts) >= 4 and parts[1] == "wake":
             trigger = None
@@ -425,16 +430,16 @@ def _handle_role_command(
                 return str(exc)
             return (
                 f"Node {node.get('node_id')} woke with trigger {trigger}.\n"
-                + main._render_prince2_role_runtime(config)
+                + _project_role_runtime_views._render_prince2_role_runtime(config)
             )
         if len(parts) == 3 and parts[1] == "tick":
             try:
-                result = main._tick_prince2_role_node(config, node_id=parts[2])
+                result = _project_role_flow._tick_prince2_role_node(config, node_id=parts[2])
             except ValueError as exc:
                 return str(exc)
             return (
                 f"Node {result.get('node_id')} advanced to {result.get('state')}.\n"
-                + main._render_prince2_role_messages(config, node_id=parts[2])
+                + _project_role_runtime_views._render_prince2_role_messages(config, node_id=parts[2])
             )
         if len(parts) >= 2 and parts[1] == "configure":
             if len(parts) > 3:
@@ -452,8 +457,8 @@ def _handle_role_command(
             if role not in PRINCE2_ROLE_IDS:
                 return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
             prefs.clear_prince2_role_assignment(role)
-            main._save_model_preferences(config, prefs)
-            main._sync_prince2_roles_to_handoff(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
+            _model_views._sync_prince2_roles_to_handoff(config, prefs)
             return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
         return "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | role menu [node_id] | role shell [node_id] | role model <node_id> [provider provider_model] [reasoning_effort=<value>] [account=<name>] | role tolerance set <node_id> <percent> | role tolerance reset <node_id> | role remove <node_id> [reparent_children=<yes|no>] | role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>] | role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>] | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]"
     return None
@@ -474,7 +479,7 @@ def _handle_role_command(
     if parts[0] != "role":
         return None
 
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     if len(parts) == 2 and parts[1] == "menu":
         return main._guided_role_tree_menu(
             prefs=prefs,
@@ -526,7 +531,7 @@ def _handle_role_command(
             return str(exc)
         return (
             f"Added delegated PRINCE2 role node {child.get('node_id')} under {child.get('parent_id')}.\n"
-            + main._render_prince2_role_tree_baseline(config)
+            + _project_role_tree_views._render_prince2_role_tree_baseline(config)
         )
     if len(parts) == 2 and parts[1] == "add-child":
         return main._guided_role_add_child(
@@ -621,7 +626,7 @@ def _handle_role_command(
             return str(exc)
         return (
             f"Removed PRINCE2 role node {removed.get('node_id', parts[2])}.\n"
-            + main._render_prince2_role_tree_baseline(config)
+            + _project_role_tree_views._render_prince2_role_tree_baseline(config)
         )
     if len(parts) >= 5 and parts[1] == "assign":
         extra_params: dict[str, str] = {}
@@ -697,7 +702,7 @@ def _handle_role_command(
                 summary=summary,
             )
         except ValueError as exc:
-            main._record_handoff_action(
+            _project_handoff_views._record_handoff_action(
                 config,
                 phase="role_message_blocked",
                 task=f"role message {parts[2]} {parts[3]} {parts[4]}",
@@ -713,7 +718,7 @@ def _handle_role_command(
         return (
             f"Queued PRINCE2 node message {message.get('message_id')} "
             f"{parts[2]} -> {parts[3]} edge={parts[4]}.\n"
-            + main._render_prince2_role_messages(config, node_id=parts[3])
+            + _project_role_runtime_views._render_prince2_role_messages(config, node_id=parts[3])
         )
     if len(parts) >= 4 and parts[1] == "wait":
         reason = None
@@ -739,7 +744,7 @@ def _handle_role_command(
             return str(exc)
         return (
             f"Node {node.get('node_id')} is now waiting.\n"
-            + main._render_prince2_role_runtime(config)
+            + _project_role_runtime_views._render_prince2_role_runtime(config)
         )
     if len(parts) >= 4 and parts[1] == "wake":
         trigger = None
@@ -761,16 +766,16 @@ def _handle_role_command(
             return str(exc)
         return (
             f"Node {node.get('node_id')} woke with trigger {trigger}.\n"
-            + main._render_prince2_role_runtime(config)
+            + _project_role_runtime_views._render_prince2_role_runtime(config)
         )
     if len(parts) == 3 and parts[1] == "tick":
         try:
-            result = main._tick_prince2_role_node(config, node_id=parts[2])
+            result = _project_role_flow._tick_prince2_role_node(config, node_id=parts[2])
         except ValueError as exc:
             return str(exc)
         return (
             f"Node {result.get('node_id')} advanced to {result.get('state')}.\n"
-            + main._render_prince2_role_messages(config, node_id=parts[2])
+            + _project_role_runtime_views._render_prince2_role_messages(config, node_id=parts[2])
         )
     if len(parts) >= 2 and parts[1] == "configure":
         if len(parts) > 3:
@@ -788,8 +793,8 @@ def _handle_role_command(
         if role not in PRINCE2_ROLE_IDS:
             return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
         prefs.clear_prince2_role_assignment(role)
-        main._save_model_preferences(config, prefs)
-        main._sync_prince2_roles_to_handoff(config, prefs)
+        _model_views._save_model_preferences(config, prefs)
+        _model_views._sync_prince2_roles_to_handoff(config, prefs)
         return f"Cleared PRINCE2 role assignment for {PRINCE2_ROLE_LABELS[role]}."
     return (
         "Usage: role configure [role] | role clear <role> | role add-child <parent_node> <role_type> [node_id] | "

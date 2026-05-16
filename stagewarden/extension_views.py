@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from .config import AgentConfig
 from .extensions import discover_extensions, scaffold_extension
-
-
-def _main():
-    from . import main as main_module
-
-    return main_module
+from . import project_handoff_views as _project_handoff_views
 
 
 def _render_extensions_report(report: dict[str, object]) -> str:
@@ -49,7 +44,7 @@ def _handle_extension_command(command: str, config: AgentConfig) -> str | None:
             report = scaffold_extension(config.workspace_root, name)
         except ValueError as exc:
             return f"Extension scaffold failed: {exc}"
-        _main()._record_handoff_action(
+        _project_handoff_views._record_handoff_action(
             config,
             phase="extension_scaffold",
             task=command,

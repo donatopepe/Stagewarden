@@ -4,6 +4,13 @@ import argparse
 from pathlib import Path
 
 from . import extension_views as _extension_views
+from . import model_views as _model_views
+from . import project_handoff_views as _project_handoff_views
+from . import project_state_views as _project_state_views
+from .project import tree_flow as _project_tree_flow
+from . import shell_views as _shell_views
+from . import status_dashboard_views as _status_dashboard_views
+from . import status_views as _status_views
 
 
 def _default_ljson_encode_path(source: Path, *, gzip_enabled: bool) -> Path:
@@ -59,7 +66,7 @@ def run_cli() -> int:
         verbose=args.verbose,
         strict_ascii_output=args.strict_ascii_output,
     )
-    config.shell_backend = _configured_shell_backend(config)
+    config.shell_backend = _shell_views._configured_shell_backend(config)
 
     if args.ljson_encode:
         source = Path(args.ljson_encode)
@@ -200,26 +207,26 @@ def run_cli() -> int:
             print(_render_slash_palette(config, prefix))
         return 0
     if task == "doctor":
-        report = _doctor_report(config)
-        rendered = _render_doctor(config)
+        report = _status_dashboard_views._doctor_report(config)
+        rendered = _status_dashboard_views._render_doctor(config)
         if args.json:
             print(dumps_ascii(_with_json_schema("doctor", report), indent=2))
         else:
             print(rendered)
-        return 0 if _doctor_ok(rendered) else 1
+        return 0 if _status_dashboard_views._doctor_ok(rendered) else 1
     if task == "status":
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_with_json_schema("status", _status_dashboard_report(agent, config) if args.full else _status_report(agent, config)), indent=2))
+            print(dumps_ascii(_with_json_schema("status", _status_dashboard_views._status_dashboard_report(agent, config) if args.full else _status_views._status_report(agent, config)), indent=2))
         else:
-            print(_render_status_full(agent, config) if args.full else _render_status(agent, config))
+            print(_status_views._render_status_full(agent, config) if args.full else _status_views._render_status(agent, config))
         return 0
     if task in {"status full", "status --full"}:
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_with_json_schema("status", _status_dashboard_report(agent, config)), indent=2))
+            print(dumps_ascii(_with_json_schema("status", _status_dashboard_views._status_dashboard_report(agent, config)), indent=2))
         else:
-            print(_render_status_full(agent, config))
+            print(_status_views._render_status_full(agent, config))
         return 0
     if task == "prince2 benchmark":
         report = run_prince2_benchmark()
@@ -228,36 +235,36 @@ def run_cli() -> int:
         return 0 if report.get("overall", {}).get("passed") else 1
     if task == "statusline":
         agent = _configure_readonly_agent_for_workspace(config)
-        print(dumps_ascii(_with_json_schema("statusline", _statusline_report(agent, config)), indent=2))
+        print(dumps_ascii(_with_json_schema("statusline", _status_dashboard_views._statusline_report(agent, config)), indent=2))
         return 0
     if task == "baseline":
         if args.json:
-            print(dumps_ascii(_with_json_schema("baseline", _agent_baseline_report(config)), indent=2))
+            print(dumps_ascii(_with_json_schema("baseline", _status_views._agent_baseline_report(config)), indent=2))
         else:
-            print(_render_agent_baseline(config))
+            print(_status_views._render_agent_baseline(config))
         return 0
     if task == "battery":
         if args.json:
-            print(dumps_ascii(_with_json_schema("battery", _battery_report(config)), indent=2))
+            print(dumps_ascii(_with_json_schema("battery", _battery_views()._battery_report(config)), indent=2))
         else:
-            print(_render_battery(config))
+            print(_battery_views()._render_battery(config))
         return 0
     if task == "preflight":
         agent = _configure_readonly_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_with_json_schema("preflight", _preflight_report(agent, config)), indent=2))
+            print(dumps_ascii(_with_json_schema("preflight", _status_dashboard_views._preflight_report(agent, config)), indent=2))
         else:
-            print(_render_preflight(agent, config))
+            print(_status_dashboard_views._render_preflight(agent, config))
         return 0
     if task == "shell backend":
         if args.json:
-            print(dumps_ascii(_with_json_schema("shell backend", _shell_backend_report(config)), indent=2))
+            print(dumps_ascii(_with_json_schema("shell backend", _shell_views._shell_backend_report(config)), indent=2))
         else:
-            print(_render_shell_backend(config))
+            print(_shell_views._render_shell_backend(config))
         return 0
     if task.startswith("shell backend use "):
         response = _handle_shell_command(task.split(), config)
-        payload = _with_json_schema("shell backend use", {"command": "shell backend use", "message": response, "report": _shell_backend_report(config)})
+        payload = _with_json_schema("shell backend use", {"command": "shell backend use", "message": response, "report": _shell_views._shell_backend_report(config)})
         if args.json:
             print(dumps_ascii(_with_json_schema("shell backend use", payload), indent=2))
         else:
@@ -273,30 +280,30 @@ def run_cli() -> int:
     if task == "overview":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_with_json_schema("overview", _overview_report(agent, config)), indent=2))
+            print(dumps_ascii(_with_json_schema("overview", _status_views._overview_report(agent, config)), indent=2))
         else:
-            print(_render_overview(agent, config))
+            print(_status_views._render_overview(agent, config))
         return 0
     if task == "health":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_with_json_schema("health", _health_report(agent, config)), indent=2))
+            print(dumps_ascii(_with_json_schema("health", _status_views._health_report(agent, config)), indent=2))
         else:
-            print(_render_health(agent, config))
+            print(_status_views._render_health(agent, config))
         return 0
     if task == "report":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_with_json_schema("report", _report_report(agent, config)), indent=2))
+            print(dumps_ascii(_with_json_schema("report", _status_dashboard_views._report_report(agent, config)), indent=2))
         else:
-            print(_render_report(agent, config))
+            print(_status_dashboard_views._render_report(agent, config))
         return 0
     if task == "models":
         agent = _configure_agent_for_workspace(config)
         if args.json:
-            print(dumps_ascii(_with_json_schema("models", _model_status_report(agent, config)), indent=2))
+            print(dumps_ascii(_with_json_schema("models", _status_views._model_status_report(agent, config)), indent=2))
         else:
-            print(_render_model_status(agent, config))
+            print(_status_views._render_model_status(agent, config))
         return 0
     if task in {"model limits", "models limits"}:
         agent = _configure_readonly_agent_for_workspace(config)
@@ -432,25 +439,25 @@ def run_cli() -> int:
     if task in {"project tree propose", "project tree propose --ai"}:
         use_ai = task.endswith(" --ai")
         agent = _configure_readonly_agent_for_workspace(config) if use_ai else None
-        report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
+        report = _project_tree_flow._project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
         if use_ai and report.get("status") == "needs_clarification":
-            report["clarification_question"] = _project_tree_clarification_record(
+            report["clarification_question"] = _project_tree_flow._project_tree_clarification_record(
                 config,
                 gaps=list(report.get("clarification_gaps", [])) if isinstance(report.get("clarification_gaps"), list) else [],
             )
-        _record_project_tree_proposal_action(config, report, task=task)
+        _project_tree_flow._record_project_tree_proposal_action(config, report, task=task)
         if args.json:
             print(dumps_ascii(_with_json_schema("project tree propose", report), indent=2))
         else:
-            print(_render_project_tree_proposal_report(report))
+            print(_project_tree_flow._render_project_tree_proposal_report(report))
         return 0
     if task in {"project tree approve", "project tree approve --force"}:
         force = task.endswith(" --force")
-        report = _approve_project_tree_proposal(config, force=force)
+        report = _project_tree_flow._approve_project_tree_proposal(config, force=force)
         if args.json:
             print(dumps_ascii(_with_json_schema("project tree approve", report), indent=2))
         else:
-            print(_render_project_tree_approval_report(report, config))
+            print(_project_tree_flow._render_project_tree_approval_report(report, config))
         return 0 if report["status"] == "approved" else 1
     if task == "roles domains":
         if args.json:
@@ -498,14 +505,14 @@ def run_cli() -> int:
             print(_render_prince2_role_active(config))
         return 0
     if task == "goal" or task.startswith("goal "):
-        report = _goal_command_report(task, config)
+        report = _project_state_views.goal_command_report(task, config)
         if args.json:
             print(dumps_ascii(_with_json_schema("goal", report), indent=2))
         else:
             if report.get("ok") is False:
                 print(report.get("error", "Goal command failed."))
             elif task == "goal":
-                print(_render_goal_report(config))
+                print(_project_state_views.render_goal_report(config))
             else:
                 goal = report.get("goal", {})
                 if isinstance(goal, dict):
@@ -605,7 +612,7 @@ def run_cli() -> int:
         return 0
     if task in {"project start", "project start --ai"}:
         agent = _configure_readonly_agent_for_workspace(config)
-        prefs = _load_model_preferences(config)
+        prefs = _model_views._load_model_preferences(config)
         report = _project_start_report(agent, config, prefs, force_ai=task.endswith("--ai"))
         if args.json:
             print(dumps_ascii(_with_json_schema("project start", report), indent=2))
@@ -719,7 +726,7 @@ def run_cli() -> int:
             elif task.startswith("extension scaffold "):
                 try:
                     report = _with_json_schema("extensions", _extension_views.scaffold_extension(config.workspace_root, task.split(maxsplit=2)[2]))
-                    _record_handoff_action(
+                    _project_handoff_views._record_handoff_action(
                         config,
                         phase="extension_scaffold",
                         task=task,
@@ -760,13 +767,23 @@ def run_cli() -> int:
         or task in {"download", "checksum", "compress", "archive", "web"}
     ):
         if args.json:
-            report = _external_io_report(task, config)
+            report = _external_io_report(
+                task,
+                config,
+                execute_external_io_command=_external_io_execute,
+                record_handoff_action=_project_handoff_views._record_handoff_action,
+            )
             schema_command = (report or {}).get("command", "external_io")
             if schema_command not in {"web search", "download", "checksum", "compress", "archive verify"}:
                 schema_command = "external_io"
             print(dumps_ascii(_with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported external IO command"}), indent=2))
             return 0 if report and report.get("ok") else 1
-        response = _handle_external_io_command(task, config)
+        response = _handle_external_io_command(
+            task,
+            config,
+            execute_external_io_command=_external_io_execute,
+            record_handoff_action=_project_handoff_views._record_handoff_action,
+        )
         print(response or "Usage: web search <query> | download <url> [path] [--max-bytes N] | checksum <path> | compress <path> [target.gz] | archive verify <path.gz>")
         return 0 if response and ": OK " in response else 1
     if task == "permissions":

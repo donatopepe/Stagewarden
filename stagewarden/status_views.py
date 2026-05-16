@@ -15,8 +15,14 @@ from .json_schema_registry import json_schema
 from .memory import MemoryStore
 from .modelprefs import SUPPORTED_MODELS, account_key, extract_blocked_until, limit_snapshot_from_message
 from .permissions import PermissionSettings
+from . import account_views as _account_views
+from . import model_views as _model_views
 from . import project_state_views as _project_state_views
+from . import project_handoff_views as _project_handoff_views
+from .project import role_tree_views as _role_tree_views
+from .project import role_views as _role_views
 from .project_handoff import ProjectHandoff
+from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .textcodec import read_text_utf8
 from .tools.git import GitTool
 from .secrets import SecretStore
@@ -32,6 +38,39 @@ def _limits():
     from . import status_limits_views as _status_limits_views_module
 
     return _status_limits_views_module
+
+
+def _roles():
+    from . import project as _project_module
+
+    return _project_module.role_views
+
+
+def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
+    configured = str(getattr(config, "shell_backend", "auto") or "auto")
+    selection = select_shell_backend(configured, detect_runtime_capabilities(config.workspace_root))
+    return {
+        "command": "shell backend",
+        "configured": configured,
+        "selected": selection["selected"],
+        "available": selection["available"],
+        "executable": selection["executable"],
+        "reason": selection["reason"],
+    }
+
+
+def _render_shell_backend(config: AgentConfig) -> str:
+    report = _shell_backend_report(config)
+    return "\n".join(
+        [
+            "Shell backend:",
+            f"- configured: {report['configured']}",
+            f"- selected: {report['selected'] or 'none'}",
+            f"- available: {str(report['available']).lower()}",
+            f"- executable: {report['executable'] or 'none'}",
+            f"- reason: {report['reason']}",
+        ]
+    )
 
 
 def _source_reference_manifest(config: AgentConfig) -> list[dict[str, str]]:
@@ -203,7 +242,7 @@ def _render_runtime_status(config: AgentConfig) -> str:
 def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
     main = _main()
     runtime = main.detect_runtime_capabilities(config.workspace_root)
-    shell_backend = main._shell_backend_report(config)
+    shell_backend = _shell_backend_report(config)
     permissions = _permissions_report(config)
     return {
         "workspace": str(config.workspace_root),
@@ -385,7 +424,7 @@ def _sources_update_report(config: AgentConfig) -> dict[str, object]:
         "ok": bool(items) and all(bool(item.get("ok")) for item in items),
         "items": items,
     }
-    main._record_handoff_action(
+    _project_handoff_views._record_handoff_action(
         config,
         phase="sources_update",
         task="sources update",
@@ -528,7 +567,7 @@ def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dic
         "before": before,
         "after": after,
     }
-    main._record_handoff_action(
+    _project_handoff_views._record_handoff_action(
         config,
         phase="update_apply",
         task="update apply --yes",
@@ -577,7 +616,7 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
 
 def _render_model_status(agent: Agent, config: AgentConfig) -> str:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     status = agent.router.status()
     lines = ["Provider configuration:"]
     for provider in SUPPORTED_MODELS:
@@ -588,8 +627,9 @@ def _render_model_status(agent: Agent, config: AgentConfig) -> str:
         blocked = f" blocked-until={blocked_until}" if blocked_until else ""
         active = " active" if provider in status["active_models"] else " inactive"
         preferred = " preferred-provider" if status["preferred_model"] == provider else ""
-        provider_model, selection_mode, default_model = main._provider_model_display(prefs, provider)
-        params = main._provider_model_params_display(prefs, provider)
+        provider_model, selection_mode, default_model = _model_views._provider_model_display(prefs, provider)
+        params = _model_views._provider_model_params_display(prefs, provider)
+        active_account = (prefs.active_account_by_model or {}).get(provider) or "none"
         auth = capability.auth_type
         profiles = "profiles=yes" if capability.supports_account_profiles else "profiles=no"
         params_text = (
@@ -599,11 +639,19 @@ def _render_model_status(agent: Agent, config: AgentConfig) -> str:
         )
         lines.append(
             f"- {provider}: {enabled}{active}{preferred}{blocked} "
-            f"provider_model={provider_model} selection={selection_mode} default_model={default_model} "
+            f"provider_model={provider_model} selection={selection_mode} active_account={active_account} default_model={default_model} "
             f"auth={auth} {profiles}{params_text} ({backend})"
         )
-        account_lines = main._render_account_lines(prefs, provider)
+        account_lines = _account_views._render_account_lines(prefs, provider)
         lines.extend(account_lines)
+    latest_attempt = agent.memory.latest_attempt()
+    if latest_attempt is not None:
+        status_text = "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}"
+        lines.append(
+            f"- last_attempt: step={latest_attempt.step_id} "
+            f"status={status_text} "
+            f"account={latest_attempt.account or 'none'} provider_model={latest_attempt.variant or 'provider-default'}"
+        )
     if status["preferred_model"] is None:
         lines.append("- preferred_provider: automatic routing")
     else:
@@ -623,7 +671,7 @@ def _selected_model_report(model_report: dict[str, object]) -> dict[str, object]
 
 def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     status = agent.router.status()
     catalog = main.load_ai_models_catalog()
     models: list[dict[str, object]] = []
@@ -631,8 +679,8 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
         capability = main.provider_capability(model)
         provider_catalog = main.catalog_entries_for_provider(model, catalog)
         provider_default_entry = next((item for item in provider_catalog if str(item.get("model_id")) == "provider-default"), None)
-        provider_model, selection_mode, default_model = main._provider_model_display(prefs, model)
-        params = main._provider_model_params_display(prefs, model)
+        provider_model, selection_mode, default_model = _model_views._provider_model_display(prefs, model)
+        params = _model_views._provider_model_params_display(prefs, model)
         catalog_entry = main.catalog_entry_for_provider_model(model, provider_model, catalog)
         models.append(
             {
@@ -650,7 +698,7 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
                 "auth": capability.auth_type,
                 "profiles": capability.supports_account_profiles,
                 "backend": main.MODEL_BACKENDS[model]["label"],
-                "catalog": main._catalog_entry_display(catalog_entry, None),
+                "catalog": _model_views._catalog_entry_display(catalog_entry, None),
                 "catalog_source": (catalog_entry or provider_default_entry or {}).get("source") if (catalog_entry or provider_default_entry) else None,
                 "pricing_source": (catalog_entry or provider_default_entry or {}).get("pricing_source")
                 if (catalog_entry or provider_default_entry)
@@ -756,8 +804,8 @@ def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
     if isinstance(latest_attempt, dict):
         lines.append(
             f"- latest_model_attempt: step={latest_attempt['step']} action={latest_attempt['action']} "
-            f"status={latest_attempt['status']} provider={latest_attempt['provider']} "
-            f"provider_model={latest_attempt['provider_model']}"
+            f"status={latest_attempt['status']} account={latest_attempt.get('account', 'none')} "
+            f"provider_model={latest_attempt['provider_model']} provider={latest_attempt['provider']}"
         )
     else:
         lines.append("- latest_model_attempt: none")
@@ -815,7 +863,16 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
             }
         )
     runtime = main.detect_runtime_capabilities(config.workspace_root)
-    shell = main._shell_backend_report(config)
+    configured_shell = str(getattr(config, "shell_backend", "auto") or "auto")
+    shell_selection = select_shell_backend(configured_shell, detect_runtime_capabilities(config.workspace_root))
+    shell = {
+        "command": "shell backend",
+        "configured": configured_shell,
+        "selected": shell_selection["selected"],
+        "available": shell_selection["available"],
+        "executable": shell_selection["executable"],
+        "reason": shell_selection["reason"],
+    }
     environment = {
         "git_available": shutil.which("git") is not None,
         "shell_available": bool(shell["available"]),
@@ -892,12 +949,12 @@ def _render_agent_baseline(config: AgentConfig) -> str:
 def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
     main = _main()
     handoff = ProjectHandoff.load(config.handoff_path)
-    active_model = _selected_model_report(main._model_status_report(agent, config))
+    active_model = _selected_model_report(_model_status_report(agent, config))
     latest_attempt = agent.memory.latest_attempt()
     latest_tool = agent.memory.latest_tool_event()
     latest_limit = None
     if active_model:
-        prefs = main._load_model_preferences(config)
+        prefs = _model_views._load_model_preferences(config)
         latest_limit = dict(prefs.provider_limit_snapshot_by_model or {}).get(str(active_model["provider"]))
     latest_handoff_action = None
     if getattr(handoff, "entries", None):
@@ -921,7 +978,7 @@ def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "active_provider_model": None if active_model is None else active_model["provider_model"],
         "active_account": "none"
         if active_model is None
-        else ((main._load_model_preferences(config).active_account_by_model or {}).get(str(active_model["provider"])) or "none"),
+        else ((_model_views._load_model_preferences(config).active_account_by_model or {}).get(str(active_model["provider"])) or "none"),
         "active_provider_model_params": {} if active_model is None else dict(active_model["provider_model_params"]),
         "latest_model_attempt": None
         if latest_attempt is None
@@ -929,6 +986,7 @@ def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "step": latest_attempt.step_id,
             "action": latest_attempt.action_type,
             "status": "ok" if latest_attempt.success else f"failed:{latest_attempt.error_type or 'unknown'}",
+            "account": latest_attempt.account or "none",
             "provider": latest_attempt.model,
             "provider_model": latest_attempt.variant or "provider-default",
         },
@@ -954,8 +1012,8 @@ def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 def _status_pricing_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    model_report = main._model_status_report(agent, config)
+    prefs = _model_views._load_model_preferences(config)
+    model_report = _model_status_report(agent, config)
     selected = _selected_model_report(model_report)
     analysis_model = main._choose_cloud_priority_model(agent, prefs)
     if isinstance(model_report, dict):
@@ -1094,7 +1152,7 @@ def _render_cost_sidebar(agent: Agent, config: AgentConfig) -> str:
 
 def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     main = _main()
-    main._apply_model_preferences(agent, config)
+    _model_views._apply_model_preferences(agent, config)
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -1115,14 +1173,21 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "model_config": config.model_prefs_path.name,
         },
         "models": _model_status_report(agent, config),
-        "baseline": main._agent_baseline_report(config),
+        "baseline": _agent_baseline_report(config),
         "goal": handoff.goal_view(),
         "provider_limits": provider_limits,
         "limits_summary": _provider_limit_summary_report(provider_limits),
         "runtime": main.detect_runtime_capabilities(config.workspace_root),
-        "shell_backend": main._shell_backend_report(config),
+        "shell_backend": {
+            "command": "shell backend",
+            "configured": str(getattr(config, "shell_backend", "auto") or "auto"),
+            "selected": select_shell_backend(str(getattr(config, "shell_backend", "auto") or "auto"), detect_runtime_capabilities(config.workspace_root))["selected"],
+            "available": select_shell_backend(str(getattr(config, "shell_backend", "auto") or "auto"), detect_runtime_capabilities(config.workspace_root))["available"],
+            "executable": select_shell_backend(str(getattr(config, "shell_backend", "auto") or "auto"), detect_runtime_capabilities(config.workspace_root))["executable"],
+            "reason": select_shell_backend(str(getattr(config, "shell_backend", "auto") or "auto"), detect_runtime_capabilities(config.workspace_root))["reason"],
+        },
         "focus": _focus_snapshot(agent, config),
-        "roles": main._prince2_roles_report(config),
+        "roles": _roles()._prince2_roles_report(config),
         "permissions": permissions,
         "pricing": pricing,
         "handoff": {
@@ -1234,7 +1299,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
 
 def _render_status(agent: Agent, config: AgentConfig) -> str:
     main = _main()
-    main._apply_model_preferences(agent, config)
+    _model_views._apply_model_preferences(agent, config)
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -1261,15 +1326,15 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_cost_sidebar(agent, config),
         _render_provider_limit_status(agent, config),
         _render_runtime_status(config),
-        main._render_shell_backend(config),
+        _render_shell_backend(config),
         main._render_resume_context(config),
         _project_state_views.render_goal_report(config),
         _project_state_views.render_budget_report(config),
         _project_state_views.render_question_report(config),
         main._render_permissions(config),
         "PRINCE2 roles:",
-        main._render_prince2_role_status_hint(config),
-        main._render_prince2_roles(config),
+        _role_tree_views._render_prince2_role_status_hint(config),
+        _role_views._render_prince2_roles(config),
         "Handoff summary:",
         handoff.summary(),
         handoff.rendered_operational_posture(),
@@ -1635,10 +1700,10 @@ def _status_remediation_report(
     items = _preflight_remediations(
         doctor={"python": {"ok": True}, "git": {"ok": True}},
         runtime=main.detect_runtime_capabilities(config.workspace_root),
-        shell_backend=main._shell_backend_report(config),
+        shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
-        role_check=main._prince2_role_check_report(config),
+        role_check=_role_tree_views._prince2_role_check_report(config),
         provider_limits=provider_limits,
         sources=main._sources_status_report(config),
         stage_view=stage_view,
@@ -1677,7 +1742,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     git_status = git.status()
     git_head = git.head()
     git_dirty = git.status_porcelain()
-    role_check = main._prince2_role_check_report(config)
+    role_check = _role_tree_views._prince2_role_check_report(config)
     provider_limits = _provider_limit_status_report(agent, config)
     sources = main._sources_status_report(config)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -1686,7 +1751,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     remediations = _preflight_remediations(
         doctor=doctor,
         runtime=doctor["runtime"],
-        shell_backend=main._shell_backend_report(config),
+        shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
         role_check=role_check,
@@ -1703,7 +1768,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "ready": ready,
         "doctor": doctor,
         "runtime": doctor["runtime"],
-        "shell_backend": main._shell_backend_report(config),
+        "shell_backend": _shell_backend_report(config),
         "git": {
             "ok": git_status.ok,
             "head": git_head.stdout.strip() if git_head.ok else None,
@@ -1713,7 +1778,7 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         },
         "roles_check": role_check,
         "provider_limits": provider_limits,
-        "baseline": main._agent_baseline_report(config),
+        "baseline": _agent_baseline_report(config),
         "sources": sources,
         "permissions": _permissions_report(config),
         "handoff": {
@@ -1940,7 +2005,7 @@ def _render_doctor(config: AgentConfig) -> str:
     path_info = report["path_launcher"]
     repo_info = report["repository"]
     runtime_info = report["runtime"]
-    shell_backend = _main()._shell_backend_report(config)
+    shell_backend = _shell_backend_report(config)
     providers = report["providers"]
     policy_info = report["policy"]
     baseline_info = report["baseline"]

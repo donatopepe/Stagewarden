@@ -10,6 +10,8 @@ from .config import AgentConfig
 from .commands import command_specs_by_query
 from .permissions import PermissionSettings
 from .modelprefs import PRINCE2_ROLE_IDS, SUPPORTED_MODELS
+from . import model_views as _model_views
+from . import project_handoff_views as _project_handoff_views
 from .provider_registry import provider_capability, provider_model_spec, provider_model_specs
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
@@ -95,9 +97,7 @@ def _reasoning_effort_candidates(provider: str, provider_model: str, partial: st
 
 def _account_name_candidates(config: AgentConfig, provider: str, partial: str) -> list[str]:
     try:
-        from . import main as main_module
-
-        prefs = main_module._load_model_preferences(config)
+        prefs = _model_views._load_model_preferences(config)
     except OSError:
         return []
     accounts = list((prefs.accounts_by_model or {}).get(provider, []))
@@ -159,9 +159,7 @@ def _interactive_contextual_candidates(normalized: str, config: AgentConfig) -> 
             provider = parts[3].strip().lower()
             key = parts[4].strip().lower()
             if provider in SUPPORTED_MODELS and key == "reasoning_effort":
-                from . import main as main_module
-
-                prefs = main_module._load_model_preferences(config)
+                prefs = _model_views._load_model_preferences(config)
                 provider_model = prefs.variant_for_model(provider) or provider_capability(provider).default_model  # type: ignore[name-defined]
                 typed_after_key = normalized.split(None, 5)
                 partial = typed_after_key[5] if len(typed_after_key) > 5 else ""
@@ -178,9 +176,7 @@ def _interactive_contextual_candidates(normalized: str, config: AgentConfig) -> 
                 if provider in SUPPORTED_MODELS:
                     typed_after_provider = normalized.split(None, 3)
                     partial = typed_after_provider[3] if len(typed_after_provider) > 3 else ""
-                    from . import main as main_module
-
-                    prefs = main_module._load_model_preferences(config)
+                    prefs = _model_views._load_model_preferences(config)
                     return _prefixed_candidates(f"{prefix}{provider} ", list((prefs.accounts_by_model or {}).get(provider, [])), partial)
     prefix_map = (
         ("model use ", provider_options),
@@ -326,8 +322,7 @@ def _planned_shell_route(agent: Agent, command: str) -> tuple[str, str, str]:
 
 
 def _render_shell_backend(config: AgentConfig) -> str:
-    main = _main()
-    report = main._shell_backend_report(config)
+    report = _shell_backend_report(config)
     return "\n".join(
         [
             "Shell backend:",
@@ -873,7 +868,7 @@ def _run_interactive_shell_impl(
             shell_command,
             config,
             execute_external_io_command=_external_io_execute,
-            record_handoff_action=_record_handoff_action,
+            record_handoff_action=_project_handoff_views._record_handoff_action,
         )
         if external_io_message is not None:
             sink.write(f"{external_io_message}\n")
@@ -883,7 +878,7 @@ def _run_interactive_shell_impl(
             shell_command,
             config,
             execute_system_command=_system_execute,
-            record_handoff_action=_record_handoff_action,
+            record_handoff_action=_project_handoff_views._record_handoff_action,
         )
         if system_message is not None:
             sink.write(f"{system_message}\n")

@@ -6,6 +6,7 @@ from .agent import Agent
 from .config import AgentConfig
 from .handoff import format_run_model
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS
+from . import model_views as _model_views
 from .provider_registry import provider_capability, provider_model_specs
 from .textcodec import dumps_ascii, loads_text
 
@@ -150,8 +151,8 @@ def _inspect_provider_models(
     if provider != "local" or not catalog:
         return report
     main = _main()
-    main._apply_model_preferences(agent, config)
-    prefs = main._load_model_preferences(config)
+    _model_views._apply_model_preferences(agent, config)
+    prefs = _model_views._load_model_preferences(config)
     analysis_model = main._choose_cloud_priority_model(agent, prefs)
     account = prefs.account_for_model(analysis_model)
     result = agent.handoff.execute(format_run_model(analysis_model, _local_model_inspection_prompt(catalog, provider_model), account=account))

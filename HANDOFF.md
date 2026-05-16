@@ -11,7 +11,38 @@
 - `stagewarden/project_handoff_views.py` now centralizes the handoff/resume/board/register/transcript operational reports that were still living inside `stagewarden/project_handoff.py`.
 - `stagewarden/mode_views.py` now centralizes the mode/status/project/report dispatch bridge that was still living in `main.py`.
 - `stagewarden/model_views.py` now centralizes the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search, model params/preset/variant flows, and the guided model-choice flow, and `main.py` now only keeps a thin usage wrapper for the model command.
+- `stagewarden/model_views.py` now also owns the provider-model catalog render used by `model list <provider>`, so that CLI output no longer depends on the old `main.py` bridge.
 - `stagewarden/model_views.py` now also owns the model preference load/save/apply helpers and the PRINCE2 role-sync helpers, so `main.py` only keeps thin bridges for those flows.
+- `stagewarden/model_views.py` now also owns the model preference apply helper directly, so the workspace-configure path no longer depends on the old `main.py` bridge.
+- `stagewarden/model_views.py` now also owns the PRINCE2 role-sync helper directly, so the role/runtime paths no longer depend on the old `main.py` bridge.
+- `stagewarden/model_views.py` now also owns the PRINCE2 role-tree-baseline back-sync helper directly, so the role-flow path no longer depends on the old `main.py` bridge.
+- `stagewarden/model_views.py` now also owns the model preference save and handoff-preference sync helpers directly, so those flows no longer depend on the old `main.py` bridge.
+- `stagewarden/status_views.py` now also uses `stagewarden/model_views.py` directly for the provider-model display helpers, so the status rendering path no longer depends on the old `main.py` bridge.
+- `stagewarden/status_views.py` now also uses `stagewarden/model_views.py` directly for the catalog entry display helper.
+- `stagewarden/main.py` no longer keeps the catalog option suffix helper as a compatibility bridge.
+- `stagewarden/project/role_tree_views.py` and `stagewarden/project/tree_flow.py` now call `stagewarden/project/role_flow.py` directly for the tolerance profile helper.
+- `stagewarden/main.py` no longer keeps the handoff loader helper as a compatibility bridge.
+- `stagewarden/status_views.py` now also uses `stagewarden/account_views.py` directly for account line rendering.
+- `stagewarden/project/role_command_flow.py` and `stagewarden/project/role_flow.py` now call `stagewarden/project/role_tree_views.py` directly for the role tree/check render helpers.
+- `stagewarden/project/role_command_flow.py`, `stagewarden/project/role_flow.py`, `stagewarden/project/start_flow.py`, and `stagewarden/status_views.py` now call `stagewarden/project/role_views.py` directly for the roles render helper.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_tree_views.py` directly for the roles domains and flow helpers.
+- `stagewarden/main.py` no longer keeps the PRINCE2 roles domains report helper as a compatibility bridge.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_tree_views.py` directly for the roles matrix helper.
+- `stagewarden/main.py` no longer keeps the PRINCE2 role matrix report helper as a compatibility bridge.
+- `stagewarden/main.py` no longer keeps the PRINCE2 role tree baseline report/render helpers as compatibility bridges.
+- `stagewarden/main.py` no longer keeps the PRINCE2 role status hint helper as a compatibility bridge.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_runtime_views.py` directly for the roles runtime/messages helpers.
+- `stagewarden/status_views.py`, `stagewarden/status_dashboard_views.py`, and `stagewarden/project/design_flow.py` now call `stagewarden/project/role_tree_views.py` directly for the roles check helper.
+- `stagewarden/project/role_command_flow.py`, `stagewarden/battery_views.py`, and `stagewarden/project/role_runtime_views.py` now call `stagewarden/project/role_runtime_views.py` directly for the roles runtime/messages helper family.
+- `stagewarden/project/role_command_flow.py`, `stagewarden/project/role_flow.py`, `stagewarden/project/tree_flow.py`, `stagewarden/project/role_tree_views.py`, `stagewarden/project/role_views.py`, `stagewarden/project/role_runtime_views.py`, `stagewarden/status_views.py`, `stagewarden/status_limits_views.py`, `stagewarden/project_handoff_views.py`, `stagewarden/ui_views.py`, `stagewarden/model_inspection_views.py`, and `stagewarden/project/model_recommendation.py` now call `stagewarden/model_views.py` directly for `load_model_preferences`.
+- `stagewarden/project/role_command_flow.py` and `stagewarden/project/role_flow.py` now call `stagewarden/project/role_views.py` directly for the roles context helper.
+- `stagewarden/project/role_views.py` now calls `stagewarden/status_views.py` directly for the agent capability surface helper.
+- `stagewarden/project/role_views.py`, `stagewarden/project/role_flow.py`, and `stagewarden/project/role_runtime_views.py` now call `stagewarden/project/model_recommendation.py` directly for node recommendations, and `stagewarden/main.py` no longer keeps that bridge.
+- `stagewarden/project/tree_flow.py`, `stagewarden/project/start_flow.py`, `stagewarden/cli_dispatch.py`, and `stagewarden/shell_views.py` now call project-tree and model helpers directly, `stagewarden/main.py` no longer keeps those project-tree bridges, and `stagewarden/project/tree.py` now emits `assurance.validation_assurance` to match the trace contract.
+- `stagewarden/model_views.py` and `stagewarden/project/design_flow.py` now own the local-execution model discovery path directly, and `stagewarden/main.py` no longer keeps that bridge.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_runtime_views.py` directly for the roles active/control/queues helpers.
+- `stagewarden/battery_views.py` now calls `stagewarden/project/role_flow.py` directly for the node-shell helper.
+- `stagewarden/battery_views.py` and `stagewarden/project/role_flow.py` now call `stagewarden/project/role_flow.py` directly for the node-detail helper.
 - `stagewarden/command_views.py` now owns the shared `parse_limit` helper and `stagewarden/cli_dispatch.py` now owns the LJSON path helpers, so the last utility bodies can stay out of `main.py`.
 - `stagewarden/ui_views.py` now owns `interactive_help_text`, so the remaining help text no longer lives inline in `main.py`.
 - `stagewarden/shell_views.py` now owns the shell backend settings/report helpers, so the last shell-backend bodies can stay out of `main.py`.
@@ -19,6 +50,8 @@
 - `stagewarden/shell_views.py` now also owns the permission approval, rate-limit decision, and interactive completion helpers used by the interactive shell, so the shell flow no longer keeps those prompts and completion rules inline in `main.py`.
 - `stagewarden/status_views.py` now also owns the provider limit snapshot record/clear helpers so the status/provider-limit slice owns the persistence path for limit events.
 - `stagewarden/status_views.py` now also owns the agent capability-surface helper used by `roles context`, while `stagewarden/main.py` keeps a thin bridge for compatibility.
+- `stagewarden/status_views.py` now calls `stagewarden/project/role_views.py` directly for the `roles` report, so `main.py` no longer keeps that compatibility bridge.
+- `stagewarden/status_views.py` and `stagewarden/status_dashboard_views.py` now use the local agent-baseline helper directly, and `stagewarden/main.py` no longer keeps the obsolete agent-baseline bridge.
 - `stagewarden/shell_views.py` now also owns the shell backend, shell progress, prompt menu, and interactive command checks, while `stagewarden/main.py` keeps only thin bridges for compatibility.
 - `stagewarden/shell_views.py` now also owns the shell command rewrite helper, while `stagewarden/main.py` keeps only thin bridges for compatibility.
 - `stagewarden/project/role_flow.py` now also owns the PRINCE2 role assignment helper that was still living in `main.py`, and the focused role-assignment regression batch is green again.
@@ -33,6 +66,9 @@
 - `stagewarden/account_views.py` now also owns the accounts report helper so the account summary no longer lives inline in `main.py`.
 - `stagewarden/status_views.py` now also owns the permissions and runtime-status helpers, and `stagewarden/status_views.py` also owns the provider-limit summary helper so the status slice keeps the last report bodies out of `main.py`.
 - `stagewarden/status_limits_views.py` now owns the provider-limit extraction slice completely, and `stagewarden/status_views.py` delegates the provider-limit report/render helpers to it.
+- `stagewarden/project/role_views.py` now also owns the PRINCE2 roles summary report, and `stagewarden/main.py` keeps only a thin bridge for that slice.
+- `stagewarden/status_views.py`, `stagewarden/status_dashboard_views.py`, and `stagewarden/status_limits_views.py` now keep the interactive status path out of the shell-backend recursion, restore the `Provider limit status:` header, and preserve the expected `last_attempt` / provider configuration strings for the focused CLI regression batch.
+- `stagewarden/cli_dispatch.py` now routes `goal` directly through `stagewarden/project_state_views.py`, so `main.py` stays thinner again.
 - `stagewarden/project_handoff_runtime.py` now centralizes the PRINCE2 runtime, message-flow, persistence, and node-token/cost helpers that were still living inside `stagewarden/project_handoff.py`.
 - The remaining legacy method bodies were removed from `stagewarden/project_handoff.py`; it now stays as a thin wrapper around the runtime module and the view/state split.
 - `stagewarden/executor_prompting.py` now centralizes the prompt, packet, schema, and role-context helpers that were still living inside `stagewarden/executor.py`.
@@ -50,6 +86,9 @@
 - `stagewarden/project/role_flow.py` now also owns the PRINCE2 role baseline builder and node mutation helpers that were still living in `main.py`.
 - `stagewarden/extension_views.py` now also owns the extension discovery/report helpers that were still living in `main.py`.
 - `stagewarden/cli_dispatch.py` now routes `extensions` through `stagewarden/extension_views.py` instead of the `main.py` namespace.
+- `stagewarden/project_handoff_views.py` now owns the shared handoff-action recorder that was still living in `main.py`.
+- `stagewarden/project/role_views.py`, `stagewarden/project/role_runtime_views.py`, `stagewarden/project/role_flow.py`, and `stagewarden/project/role_command_flow.py` now call `stagewarden/model_views.py` directly for PRINCE2 role-sync, so `main.py` no longer keeps that compatibility bridge.
+- `stagewarden/project/role_flow.py` now also calls `stagewarden/model_views.py` directly for the PRINCE2 role-tree baseline back-sync helper.
 - `stagewarden/status_views.py` now also owns the source reference manifest helper that was still living in `main.py`.
 - `stagewarden/status_views.py` now also owns the agent baseline render helper that was still living in `main.py`.
 - `stagewarden/model_views.py` now also owns the cloud-priority model chooser that was still living in `main.py`.
@@ -103,6 +142,7 @@
 - `stagewarden/main.py`: removed the duplicated legacy `overview/health/preflight/report` bodies after the status split, leaving only the wrapper layer at the end of the file.
 - `stagewarden/main.py`, `stagewarden/project_handoff.py`, `stagewarden/project_handoff_state.py`, `stagewarden/project_handoff_views.py`, `stagewarden/project_handoff_runtime.py`, `stagewarden/prince2.py`, `stagewarden/commands.py`, `stagewarden/json_schema_registry.py`, `tests/test_persistence.py`, `tests/test_prince2.py`, and `tests/test_trace_cli.py` now cover project budget management plus the agent clarification-question flow.
 - `stagewarden/model_views.py`: now owns the model/catalog/provider-selection extraction target that was still living in `main.py`, and `main.py` now delegates the last direct `model` usage string to that module too.
+- `stagewarden/model_views.py`: now also owns the provider-model catalog render for `model list <provider>`.
 - `stagewarden/main.py` now also shows the next missing `project brief` field after each edit and in the summary view, and it exposes the same signal in JSON.
 - `stagewarden/main.py` now also exposes the next missing field or gap for `project start` and `project tree propose --ai` in JSON.
 - `tests/test_trace_cli.py` now also passes a broader regression batch covering the brief/start/tree flows after the JSON guidance refactor.

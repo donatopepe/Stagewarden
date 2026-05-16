@@ -3,7 +3,13 @@ from __future__ import annotations
 from ..agent import Agent
 from ..config import AgentConfig
 from ..modelprefs import ModelPreferences
+from .. import model_views as _model_views
 from ..project_handoff import ProjectHandoff
+from .. import project_handoff_views as _project_handoff_views
+from . import design_flow as _project_design_flow
+from . import flow as _project_flow
+from . import tree_flow as _project_tree_flow
+from . import role_views as _project_role_views
 from . import role_tree_views as _project_role_tree_views
 
 
@@ -71,7 +77,7 @@ def _project_start_clarification_record(
         },
     )
     handoff.save(config.handoff_path)
-    main._record_handoff_action(
+    _project_handoff_views._record_handoff_action(
         config,
         phase="project_start_clarification_requested",
         summary=f"Project startup asked for clarification: {question[:120]}",
@@ -117,7 +123,7 @@ def _project_tree_clarification_record(
         },
     )
     handoff.save(config.handoff_path)
-    main._record_handoff_action(
+    _project_handoff_views._record_handoff_action(
         config,
         phase="project_tree_clarification_requested",
         summary=f"Project tree proposal asked for clarification: {question[:120]}",
@@ -132,10 +138,10 @@ def _project_tree_clarification_record(
 
 def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPreferences, *, force_ai: bool = False) -> dict[str, object]:
     main = _main()
-    design = main._project_design_report(agent, config)
-    local_proposal = main._project_tree_proposal_report(config)
+    design = _project_design_flow._project_design_report(agent, config)
+    local_proposal = _project_tree_flow._project_tree_proposal_report(config)
     use_ai = force_ai or _project_tree_ai_needed(design, local_proposal)
-    proposal = main._project_tree_proposal_report(config, agent=agent, use_ai=True) if use_ai else local_proposal
+    proposal = _project_tree_flow._project_tree_proposal_report(config, agent=agent, use_ai=True) if use_ai else local_proposal
     ignored_startup_design_gaps = {"role_tree_not_ready", "missing_role_tree_baseline"}
     raw_design_gaps = design.get("clarification_gaps", [])
     design_gaps = [
@@ -150,7 +156,7 @@ def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPrefere
         next_gap = design_gaps[0]
     elif isinstance(proposal_gaps, list) and proposal_gaps:
         next_gap = proposal_gaps[0] if isinstance(proposal_gaps[0], dict) else None
-    next_missing_field = main._project_gap_to_brief_field(str(next_gap.get("code", "")).strip()) if isinstance(next_gap, dict) else None
+    next_missing_field = _project_flow._project_gap_to_brief_field(str(next_gap.get("code", "")).strip()) if isinstance(next_gap, dict) else None
     report: dict[str, object] = {
         "command": "project start",
         "status": "blocked" if has_gaps or proposal.get("status") != "ready_for_review" else "approved",
@@ -171,7 +177,7 @@ def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPrefere
         )
         if isinstance(clarification, dict) and clarification.get("question"):
             report["clarification_question"] = clarification
-        main._record_handoff_action(
+        _project_handoff_views._record_handoff_action(
             config,
             phase="project_start_blocked",
             summary="Project startup blocked by unresolved design/proposal clarification gaps.",
@@ -186,9 +192,9 @@ def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPrefere
             },
         )
         return report
-    approval = main._approve_project_tree_proposal(config, force=False, proposal_report=proposal)
-    main._apply_model_preferences(agent, config)
-    main._record_handoff_action(
+    approval = _project_tree_flow._approve_project_tree_proposal(config, force=False, proposal_report=proposal)
+    _model_views._apply_model_preferences(agent, config)
+    _project_handoff_views._record_handoff_action(
         config,
         phase="project_start_approved",
         summary="Project startup approved through controlled project-tree proposal path.",
@@ -222,8 +228,8 @@ def _render_project_start_report(report: dict[str, object], agent: Agent, config
     main = _main()
     sections = [
         "Project startup design gate:",
-        main._render_project_design(agent, config),
-        main._render_project_tree_proposal_report(report.get("proposal", {}) if isinstance(report.get("proposal"), dict) else main._project_tree_proposal_report(config)),
+        _project_design_flow._render_project_design(agent, config),
+        _project_tree_flow._render_project_tree_proposal_report(report.get("proposal", {}) if isinstance(report.get("proposal"), dict) else _project_tree_flow._project_tree_proposal_report(config)),
     ]
     if report.get("status") == "blocked":
         lines = [
@@ -250,13 +256,13 @@ def _render_project_start_report(report: dict[str, object], agent: Agent, config
     else:
         approval = report.get("approval") if isinstance(report.get("approval"), dict) else None
         if approval:
-            sections.append(main._render_project_tree_approval_report(approval, config))
+            sections.append(_project_tree_flow._render_project_tree_approval_report(approval, config))
         local_fallback = report.get("local_fallback_preload")
         if isinstance(local_fallback, list) and local_fallback:
             sections.append("\n".join(local_fallback))
         sections.extend(
         [
-            main._render_prince2_roles(config),
+            _project_role_views._render_prince2_roles(config),
             _project_role_tree_views._render_prince2_role_tree_baseline(config),
         ]
     )

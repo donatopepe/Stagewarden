@@ -4,23 +4,22 @@ from dataclasses import replace
 
 from .agent import Agent
 from .config import AgentConfig
+from . import model_views as _model_views
 
 
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
-    from .main import _apply_model_preferences, _provider_limit_status_report
+    from .main import _provider_limit_status_report
 
     agent = Agent(config)
-    _apply_model_preferences(agent, config)
+    _model_views._apply_model_preferences(agent, config)
     _provider_limit_status_report(agent, config)
     return agent
 
 
 def _configure_readonly_agent_for_workspace(config: AgentConfig) -> Agent:
-    from .main import _apply_model_preferences
-
     readonly_config = replace(config, enforce_git=False, auto_git_commit=False)
     agent = Agent(readonly_config)
-    _apply_model_preferences(agent, readonly_config)
+    _model_views._apply_model_preferences(agent, readonly_config)
     return agent
 
 

@@ -7,6 +7,7 @@ from .commands import command_specs_by_query, help_topic_catalog, help_topic_lin
 from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .modelprefs import PRINCE2_ROLE_IDS
+from . import model_views as _model_views
 from .provider_registry import provider_model_specs
 
 
@@ -157,7 +158,7 @@ def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, ob
     main = _main()
     lowered = prefix.strip().lower()
     specs = command_specs_by_query(lowered)
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     enabled = ", ".join(prefs.enabled_models or []) or "none"
     active_accounts: list[str] = []
     for provider in prefs.enabled_models or []:

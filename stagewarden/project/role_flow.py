@@ -6,6 +6,7 @@ from typing import Callable, TextIO
 
 from ..agent import Agent
 from ..config import AgentConfig
+from .. import model_views as _model_views
 from ..model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
 from ..modelprefs import (
     ModelPreferences,
@@ -32,6 +33,9 @@ from ..role_tree import (
     prince2_status_color,
 )
 from ..project_handoff import ProjectHandoff
+from .. import project_handoff_views as _project_handoff_views
+from . import model_recommendation as _project_model_recommendation
+from . import role_views as _project_role_views
 from . import role_tree_views as _project_role_tree_views
 
 
@@ -46,7 +50,7 @@ def _role_options() -> list[tuple[str, str]]:
 
 def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_menu")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
@@ -74,7 +78,7 @@ def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
 
 def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, object] | None:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_node_context")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
@@ -86,7 +90,7 @@ def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, objec
 
 def _role_tree_nodes_by_parent(config: AgentConfig, parent_id: str | None) -> list[dict[str, object]]:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_nodes_by_parent")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = tree.get("nodes", []) if isinstance(tree, dict) else []
@@ -225,10 +229,10 @@ def _reset_prince2_role_node_tolerance(
 
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
+    prefs = _model_views._load_model_preferences(config)
     handoff = ProjectHandoff.load(config.handoff_path)
     tolerance_profile = _project_tolerance_profile(handoff)
-    local_execution = main._local_execution_candidates_report(config)
+    local_execution = _model_views._local_execution_candidates_report(config)
     tree = main._enrich_tree_with_local_execution_candidates(
         _build_prince2_role_tree_with_tolerance(
             prefs,
@@ -367,8 +371,8 @@ def _send_prince2_role_message(
     summary: str | None = None,
 ) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    main._sync_prince2_roles_to_handoff(config, prefs)
+    prefs = _model_views._load_model_preferences(config)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     message = handoff.send_prince2_node_message(
         source_node=source_node,
@@ -379,7 +383,7 @@ def _send_prince2_role_message(
         summary=summary,
     )
     handoff.save(config.handoff_path)
-    main._record_handoff_action(
+    _project_handoff_views._record_handoff_action(
         config,
         phase="role_message",
         task=f"role message {source_node} {target_node} {edge_id}",
@@ -403,12 +407,12 @@ def _set_prince2_role_node_waiting(
     wake_triggers: list[str] | None = None,
 ) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    main._sync_prince2_roles_to_handoff(config, prefs)
+    prefs = _model_views._load_model_preferences(config)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     node = handoff.set_prince2_node_waiting(node_id=node_id, reason=reason, wake_triggers=wake_triggers)
     handoff.save(config.handoff_path)
-    main._record_handoff_action(
+    _project_handoff_views._record_handoff_action(
         config,
         phase="role_wait",
         task=f"role wait {node_id}",
@@ -425,12 +429,12 @@ def _wake_prince2_role_node(
     trigger: str,
 ) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    main._sync_prince2_roles_to_handoff(config, prefs)
+    prefs = _model_views._load_model_preferences(config)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     node = handoff.wake_prince2_node(node_id=node_id, trigger=trigger)
     handoff.save(config.handoff_path)
-    main._record_handoff_action(
+    _project_handoff_views._record_handoff_action(
         config,
         phase="role_wake",
         task=f"role wake {node_id}",
@@ -446,13 +450,13 @@ def _tick_prince2_role_node(
     node_id: str,
 ) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    main._sync_prince2_roles_to_handoff(config, prefs)
+    prefs = _model_views._load_model_preferences(config)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     result = handoff.tick_prince2_node(node_id=node_id)
     handoff.save(config.handoff_path)
-    main._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
-    main._record_handoff_action(
+    _model_views._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
+    _project_handoff_views._record_handoff_action(
         config,
         phase="role_tick",
         task=f"role tick {node_id}",
@@ -468,13 +472,13 @@ def _tick_prince2_role_runtime(
     max_nodes: int | None = None,
 ) -> dict[str, object]:
     main = _main()
-    prefs = main._load_model_preferences(config)
-    main._sync_prince2_roles_to_handoff(config, prefs)
+    prefs = _model_views._load_model_preferences(config)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     result = handoff.tick_prince2_runtime(max_nodes=max_nodes)
     handoff.save(config.handoff_path)
-    main._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
-    main._record_handoff_action(
+    _model_views._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
+    _project_handoff_views._record_handoff_action(
         config,
         phase="roles_tick",
         task=f"roles tick {max_nodes if max_nodes is not None else ''}".strip(),
@@ -656,7 +660,7 @@ def _role_tree_node_navigation(config: AgentConfig, node_id: str) -> dict[str, o
 
 def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
     main = _main()
-    report = main._prince2_role_context_report(config, node_id)
+    report = _project_role_views._prince2_role_context_report(config, node_id)
     if report.get("status") != "ok":
         return str(report.get("message", "PRINCE2 role context unavailable."))
     runtime_state = report["runtime_state"]
@@ -684,7 +688,7 @@ def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
         f"- agent_tools: {', '.join(caps['shell_operations'] + caps['git_operations'][:2] + ['...'])}",
         f"- file_ops: {', '.join(caps['file_operations'][:6])}, ...",
     ]
-    recommendation = main._node_model_recommendation(config, _role_tree_node_record(config, node_id) or {})
+    recommendation = _project_model_recommendation._node_model_recommendation(config, _role_tree_node_record(config, node_id) or {})
     suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
     lines.append(
         f"- model_recommendation: direction={recommendation.get('direction', 'hold')} "
@@ -710,7 +714,7 @@ def _render_prince2_role_node_shell(config: AgentConfig, node_id: str) -> str:
     parent_id = navigation.get("parent_id") or "none"
     siblings = navigation.get("siblings", [])
     children = navigation.get("children", [])
-    recommendation = main._node_model_recommendation(config, node)
+    recommendation = _project_model_recommendation._node_model_recommendation(config, node)
     suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
     lines = [
         "PRINCE2 node shell:",
@@ -751,7 +755,7 @@ def _node_model_choice_options(config: AgentConfig, node_id: str) -> list[tuple[
     node = _role_tree_node_record(config, node_id)
     if not node:
         return []
-    recommendation = main._node_model_recommendation(config, node)
+    recommendation = _project_model_recommendation._node_model_recommendation(config, node)
     current = recommendation.get("current", {}) if isinstance(recommendation.get("current"), dict) else {}
     current_key = main._catalog_model_choice_key(
         str(current.get("provider", "")).strip(),
@@ -951,8 +955,8 @@ def _guided_role_configure(
             account=assignment.get("account"),
             source="auto_proposal",
         )
-        main._save_model_preferences(config, prefs)
-        main._sync_prince2_roles_to_handoff(config, prefs)
+        _model_views._save_model_preferences(config, prefs)
+        _model_views._sync_prince2_roles_to_handoff(config, prefs)
         return f"Assigned {PRINCE2_ROLE_LABELS[role]} automatically."
     provider = main._prompt_menu_choice(
         title=f"Choose provider for {PRINCE2_ROLE_LABELS[role]}:",
@@ -1007,8 +1011,8 @@ def _guided_role_configure(
         account=account or None,
         source="manual_menu" if assignment_mode == "manual" else "manual_min_menu" if assignment_mode == "manual_min" else "blocked_menu",
     )
-    main._save_model_preferences(config, prefs)
-    main._sync_prince2_roles_to_handoff(config, prefs)
+    _model_views._save_model_preferences(config, prefs)
+    _model_views._sync_prince2_roles_to_handoff(config, prefs)
     params_text = " ".join(f"{key}={value}" for key, value in sorted(params.items()))
     return (
         f"{'Blocked' if assignment_mode == 'blocked' else 'Assigned'} {PRINCE2_ROLE_LABELS[role]}: provider={provider} "
@@ -1252,7 +1256,7 @@ def _guided_role_node_switch_agent(
     node = _role_tree_node_record(config, node_id)
     if not node:
         return f"PRINCE2 node '{node_id}' not found."
-    recommendation = main._node_model_recommendation(config, node)
+    recommendation = _project_model_recommendation._node_model_recommendation(config, node)
     current = recommendation.get("current", {}) if isinstance(recommendation.get("current"), dict) else {}
     suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
     output_stream.write("KiloCode-style switch agent:\n")
@@ -1315,18 +1319,18 @@ def _guided_role_node_menu(
             continue
         if action == "shell":
             output_stream.write(_guided_role_node_shell(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "switch-agent":
             output_stream.write(_guided_role_node_switch_agent(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "model":
             output_stream.write(_guided_role_node_model_choice(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "auto-model":
-            recommendation = main._node_model_recommendation(config, node)
+            recommendation = _project_model_recommendation._node_model_recommendation(config, node)
             suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
             provider = str(suggested.get("provider", "")).strip()
             provider_model = str(suggested.get("provider_model", "")).strip()
@@ -1358,7 +1362,7 @@ def _guided_role_node_menu(
                 f"Auto model switch applied: provider={updated.get('assignment', {}).get('provider')} "
                 f"provider_model={updated.get('assignment', {}).get('provider_model')}\n"
             )
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "tolerance":
             output_stream.write("Set new tolerance margin percent: ")
@@ -1379,18 +1383,18 @@ def _guided_role_node_menu(
             output_stream.write(
                 f"Updated tolerance margin for {current}: margin={updated.get('tolerance_margin_percent', 'unknown')}.\n"
             )
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "reset-tolerance":
             updated = _reset_prince2_role_node_tolerance(config, prefs, node_id=current)
             output_stream.write(
                 f"Reset tolerance for {current}: margin={updated.get('tolerance_margin_percent', 'unknown')} pressure={updated.get('tolerance_pressure_percent', 'unknown')}.\n"
             )
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "add-child":
             output_stream.write(_guided_role_add_child(prefs=prefs, config=config, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "remove":
             output_stream.write("Reparent direct children to the parent of this node? [yes/no]: ")
@@ -1407,7 +1411,7 @@ def _guided_role_node_menu(
             output_stream.write(
                 f"Removed PRINCE2 role node {removed.get('node_id', current)}.\n"
             )
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             return f"Removed PRINCE2 role node {current}."
 
 
@@ -1476,15 +1480,15 @@ def _guided_role_node_shell(
         if action is None or action == "back":
             return f"Closed node shell for {current}."
         if action == "tree":
-            output_stream.write(main._render_prince2_role_tree(config) + "\n")
+            output_stream.write(_project_role_tree_views._render_prince2_role_tree(config) + "\n")
             continue
         if action == "menu":
             output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "switch":
             output_stream.write(_guided_role_node_switch_agent(prefs=prefs, config=config, node_id=current, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "jump":
             next_node = main._prompt_menu_choice(
@@ -1547,7 +1551,7 @@ def _guided_role_tree_menu(
     if input_stream is None or output_stream is None:
         return "Guided PRINCE2 tree menu is available in the interactive shell. Run `python3 -m stagewarden.main` and use `roles menu`."
     while True:
-        output_stream.write(main._render_prince2_role_tree(config) + "\n")
+        output_stream.write(_project_role_tree_views._render_prince2_role_tree(config) + "\n")
         action = main._prompt_menu_choice(
             title="PRINCE2 tree menu:",
             options=[
@@ -1574,7 +1578,7 @@ def _guided_role_tree_menu(
             if node_id is None:
                 continue
             output_stream.write(_guided_role_node_menu(prefs=prefs, config=config, node_id=node_id, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "shell":
             node_id = main._prompt_menu_choice(
@@ -1586,11 +1590,11 @@ def _guided_role_tree_menu(
             if node_id is None:
                 continue
             output_stream.write(_guided_role_node_shell(prefs=prefs, config=config, node_id=node_id, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "add-child":
             output_stream.write(_guided_role_add_child(prefs=prefs, config=config, input_stream=input_stream, output_stream=output_stream) + "\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "remove":
             node_id = main._prompt_menu_choice(
@@ -1613,15 +1617,15 @@ def _guided_role_tree_menu(
                 output_stream.write(str(exc) + "\n")
                 continue
             output_stream.write(f"Removed PRINCE2 role node {node_id}.\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "approve":
             _approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_menu")
             output_stream.write("Approved PRINCE2 role-tree baseline from menu.\n")
-            prefs = main._load_model_preferences(config)
+            prefs = _model_views._load_model_preferences(config)
             continue
         if action == "refresh":
-            output_stream.write(main._render_prince2_role_tree(config) + "\n")
+            output_stream.write(_project_role_tree_views._render_prince2_role_tree(config) + "\n")
             continue
 
 
@@ -1635,7 +1639,7 @@ def _guided_roles_setup(
     main = _main()
     if input_stream is None or output_stream is None:
         prefs.apply_prince2_role_proposal()
-        main._save_model_preferences(config, prefs)
+        _model_views._save_model_preferences(config, prefs)
         _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
         return "Applied automatic PRINCE2 role proposal."
     choice = main._prompt_menu_choice(
@@ -1651,14 +1655,14 @@ def _guided_roles_setup(
     if choice is None:
         return "Role setup cancelled."
     if choice == "show":
-        return main._render_prince2_roles(config)
+        return _project_role_views._render_prince2_roles(config)
     if choice == "auto":
         prefs.apply_prince2_role_proposal()
-        main._save_model_preferences(config, prefs)
+        _model_views._save_model_preferences(config, prefs)
         _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
         return (
             "Applied automatic PRINCE2 role proposal.\n"
-            + main._render_prince2_roles(config)
+            + _project_role_views._render_prince2_roles(config)
             + "\n"
             + _project_role_tree_views._render_prince2_role_tree_baseline(config)
         )
@@ -1682,8 +1686,8 @@ def _guided_roles_setup(
             + "\n"
         )
         output_stream.flush()
-        prefs = main._load_model_preferences(config)
-    local_execution = main._local_execution_candidates_report(config)
+        prefs = _model_views._load_model_preferences(config)
+    local_execution = _model_views._local_execution_candidates_report(config)
     candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
     if candidates:
         output_stream.write(
@@ -1706,8 +1710,8 @@ def _guided_roles_setup(
             _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_manual_local_fallbacks")
             return (
                 "Role setup completed with approved baseline and recommended local delivery fallbacks.\n"
-                + main._render_prince2_roles(config)
+                + _project_role_views._render_prince2_roles(config)
                 + "\n"
                 + _project_role_tree_views._render_prince2_role_tree_baseline(config)
             )
-    return "Role setup completed.\n" + main._render_prince2_roles(config)
+    return "Role setup completed.\n" + _project_role_views._render_prince2_roles(config)

@@ -7,6 +7,8 @@ from . import project_state_views as _project_state_views
 from . import account_views as _account_views
 from . import command_views as _command_views
 from . import report_views as _report_views
+from . import status_dashboard_views as _status_dashboard_views
+from . import status_views as _status_views
 
 
 def _main():
@@ -21,8 +23,8 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return None
     if parts[0] == "status":
         if len(parts) == 2 and parts[1] == "full":
-            return _main()._render_status_full(agent, config)
-        return _main()._render_status(agent, config)
+            return _status_views._render_status_full(agent, config)
+        return _status_views._render_status(agent, config)
     if parts[0] == "goal" or command.startswith("goal "):
         report = _project_state_views.goal_command_report(command, config)
         if report.get("ok") is False:
@@ -65,21 +67,21 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
             return f"Question answered: {question.get('question', 'none')}"
         return "Question answered."
     if parts[0] == "statusline":
-        return _main().dumps_ascii(_main()._with_json_schema("statusline", _main()._statusline_report(agent, config)), indent=2)
+        return _main().dumps_ascii(_main()._with_json_schema("statusline", _status_dashboard_views._statusline_report(agent, config)), indent=2)
     if parts[0] == "preflight":
-        return _main()._render_preflight(agent, config)
+        return _status_dashboard_views._render_preflight(agent, config)
     if parts[0] == "battery":
         return _main()._render_battery(config)
     if len(parts) == 3 and parts[0] == "auth" and parts[1] == "status":
         return _main()._render_auth_status(parts[2])
     if parts[0] == "overview":
-        return _main()._render_overview(agent, config)
+        return _status_views._render_overview(agent, config)
     if parts[0] == "health":
-        return _main()._render_health(agent, config)
+        return _status_views._render_health(agent, config)
     if parts[0] == "report":
-        return _main()._render_report(agent, config)
+        return _status_dashboard_views._render_report(agent, config)
     if parts[0] == "doctor":
-        return _main()._render_doctor(config)
+        return _status_dashboard_views._render_doctor(config)
     if parts[0] == "handoff":
         if len(parts) == 2 and parts[1] in {"md", "export"}:
             return _main()._export_handoff_markdown(config)

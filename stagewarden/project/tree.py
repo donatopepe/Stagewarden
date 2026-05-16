@@ -218,9 +218,9 @@ def project_tree_decomposition_nodes(
     )
     if score >= 2:
         add_node(
-            node_id="assurance.validation_gate",
+            node_id="assurance.validation_assurance",
             role_type="project_assurance",
-            label="Validation Gate",
+            label="Validation Assurance",
             parent_id="board.executive",
             level="assurance",
             accountability_boundary="independent validation of the smallest deliverable before broader work continues",
