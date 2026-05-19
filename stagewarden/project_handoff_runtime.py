@@ -973,7 +973,8 @@ def _node_antagonist_profile(handoff: Any, node: dict[str, Any]) -> dict[str, An
     }
     devil_advocate = (
         f"Assume {label} overstates control and underestimates antagonist pressure; "
-        f"challenge {owner} on whether {role} can still deliver within its margin."
+        f"challenge {owner} on whether {role} can still deliver within its margin. "
+        "Apply retrospettiva prospettica: assume this plan already failed and explain why before it starts."
     )
     return {
         "antagonist_name": f"{label} Antagonist",
@@ -991,11 +992,13 @@ def _node_antagonist_profile(handoff: Any, node: dict[str, Any]) -> dict[str, An
             f"What log evidence contradicts the optimistic reading of {label}?",
             "Which queued messages or transcript refs still lack closure?",
             "What is the cheapest failure path if this node keeps assuming success?",
+            "If the plan had already failed, what would be the first reason and where would the evidence appear?",
         ],
         "decision_process": (
             "Treat risks, anti-benefits, and wet-run log evidence as first-class inputs. "
             "Always play devil's advocate against the current plan using runtime signals, "
-            "queued messages, transcript refs, and role-specific failure modes. "
+            "and also run retrospettiva prospettica by assuming the plan already failed and explaining why. "
+            "Use queued messages, transcript refs, and role-specific failure modes as evidence. "
             "Spawned recovery children start with attenuated antagonist pressure; "
             "if pressure exceeds tolerance, escalate and spawn recovery work."
         ),

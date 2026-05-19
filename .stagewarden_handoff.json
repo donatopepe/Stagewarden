@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "model_views and project/design_flow now own local-execution discovery directly; project/tree_flow, project/start_flow, and project/role_flow call those helpers without main.py; and the focused project-tree/project-start regression slice is green.",
+  "latest_observation": "shell_views.py eliminated globals().update(main_module.__dict__) and all main_module lazy imports; INTERACTIVE_COMMAND_PHRASES moved to shell_views.py, BASELINE_CAPABILITY_GROUPS moved to status_dashboard_views.py, all callers updated to direct imports, test_trace_cli.py imports from owner modules, cli_dispatch.py added _auth_views import. All focused trace CLI batches pass.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "a38597f7a16300f031def40c42297f554018de08",
   "git_head_baseline": "a38597f",
@@ -176,8 +176,468 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-16T20:52:06Z",
+  "updated_at": "2026-05-19T02:30:00Z",
   "entries": [
+    {
+      "timestamp": "2026-05-19T02:30:00Z",
+      "phase": "finish",
+      "iteration": 36,
+      "task": "agent-refactor-slice",
+      "summary": "Eliminated globals().update(main_module.__dict__) from shell_views.py, moved INTERACTIVE_COMMAND_PHRASES to shell_views.py, moved BASELINE_CAPABILITY_GROUPS to status_dashboard_views.py, updated all callers to direct imports, and updated test_trace_cli.py imports.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_preflight_reports_windows_shell_readiness_warning tests.test_trace_cli.TraceAndCliTests.test_auth_status_chatgpt_uses_codex_without_token_output tests.test_trace_cli.TraceAndCliTests.test_auth_status_claude_uses_json_status_without_token_output tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_status_full_cli_renders_remediations tests.test_trace_cli.TraceAndCliTests.test_project_tree_propose_builds_proportional_review_proposal_from_brief tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_model_list_shows_provider_model_reasoning_catalog tests.test_trace_cli.TraceAndCliTests.test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis tests.test_executor.ExecutorTests.test_executor_runs_devil_advocate_review_before_accepting_response tests.test_agent_integration.AgentIntegrationTests.test_agent_closes_recovery_gate_after_recovery_lane_wet_run"
+      }
+    },
+      "task": "agent-refactor-slice",
+      "summary": "Moved sources/update routing to stagewarden.status_views and removed the corresponding main.py report bridges.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_reports_external_reference_metadata tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable"
+      }
+    },
+    {
+      "timestamp": "2026-05-19T01:15:00Z",
+      "phase": "finish",
+      "iteration": 34,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the remaining guided role wrappers from stagewarden.main and repointed role CLI call sites to stagewarden.project.role_flow.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_expand_workspace_paths tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_for_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_can_select_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_slash_palette tests.test_trace_cli.TraceAndCliTests.test_interactive_slash_choose_returns_selected_command_without_execution tests.test_trace_cli.TraceAndCliTests.test_cli_slash_choose_renders_candidates_and_json; python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_tree_renders_color_legend_and_shell_hint tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_shell_navigates_between_nodes"
+      }
+    },
+    {
+      "timestamp": "2026-05-19T00:45:00Z",
+      "phase": "finish",
+      "iteration": 33,
+      "task": "agent-refactor-slice",
+      "summary": "Repointed prompt selection and role-tree CLI paths to owner modules and removed the remaining prompt bridge from stagewarden.main.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_expand_workspace_paths tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_for_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_can_select_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_slash_palette tests.test_trace_cli.TraceAndCliTests.test_interactive_slash_choose_returns_selected_command_without_execution tests.test_trace_cli.TraceAndCliTests.test_cli_slash_choose_renders_candidates_and_json; python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_tree_renders_color_legend_and_shell_hint tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_shell_navigates_between_nodes"
+      }
+    },
+    {
+      "timestamp": "2026-05-19T00:00:00Z",
+      "phase": "finish",
+      "iteration": 32,
+      "task": "agent-refactor-slice",
+      "summary": "Adjusted the test success stub to emit stronger validation evidence so the recovery-gate integration test passes again.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_closes_recovery_gate_after_recovery_lane_wet_run"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T07:00:00Z",
+      "phase": "finish",
+      "iteration": 31,
+      "task": "agent-refactor-slice",
+      "summary": "Added the retrospettiva-prospettica control rule alongside devil's advocate in executor, PRINCE2, and runtime guidance, and updated the relevant prompt mocks/tests.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_runs_devil_advocate_review_before_accepting_response tests.test_executor.ExecutorTests.test_executor_blocks_when_devil_advocate_output_is_invalid tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_permissions_cli_json_output_is_machine_readable"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T06:30:00Z",
+      "phase": "finish",
+      "iteration": 30,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the _handle_mode_command bridge from stagewarden/main.py and moved shell mode routing directly to stagewarden.mode_views.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_permissions_cli_json_output_is_machine_readable"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T06:00:00Z",
+      "phase": "finish",
+      "iteration": 29,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the _refresh_runtime_permissions bridge from stagewarden/main.py and moved permission refresh callers in command/mode views directly to agent_setup_views.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_permissions_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T05:30:00Z",
+      "phase": "finish",
+      "iteration": 28,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the last model_status bridge from stagewarden/main.py and moved the pricing test patch target to stagewarden.status_views.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_model_usage_and_cost_alias tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T05:00:00Z",
+      "phase": "finish",
+      "iteration": 27,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the readonly agent setup bridge from stagewarden/main.py and moved CLI project-start setup calls directly to agent_setup_views.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_start_approves_ready_project_tree_proposal tests.test_trace_cli.TraceAndCliTests.test_project_start_blocks_when_design_or_brief_has_gaps tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T04:30:00Z",
+      "phase": "finish",
+      "iteration": 26,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the sources/update handler bridge wrappers from stagewarden/main.py and moved CLI/shell sources/update handling to status_views directly.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T04:00:00Z",
+      "phase": "finish",
+      "iteration": 25,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the extension report/handler bridge wrappers from stagewarden/main.py and moved extension handling to extension_views directly from CLI and shell paths.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_interactive_help_overview_uses_topic_catalog"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T03:30:00Z",
+      "phase": "finish",
+      "iteration": 24,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the help/slash palette bridge wrappers from stagewarden/main.py, moved shell/CLI help and slash rendering to ui_views directly, and kept the focused help/slash tests green.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_interactive_help_overview_uses_topic_catalog tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T03:00:00Z",
+      "phase": "finish",
+      "iteration": 23,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the provider_limit_summary bridge from stagewarden/main.py, moved the dashboard to status_views directly, and verified the status/report/limit regressions after the fix.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_status_full_cli_renders_remediations tests.test_trace_cli.TraceAndCliTests.test_status_full_cli_json_exposes_dashboard_sections tests.test_trace_cli.TraceAndCliTests.test_model_limits_cli_json_outputs_persisted_snapshots tests.test_trace_cli.TraceAndCliTests.test_account_limit_record_cli_persists_sanitized_snapshot"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T02:30:00Z",
+      "phase": "finish",
+      "iteration": 22,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the pure boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges, moved cli_dispatch to the owner modules directly, and fixed model/account limit snapshot persistence to use model_prefs_path.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_actions_renders_action_entries_and_json tests.test_model_limits_cli_json_outputs_persisted_snapshots tests.test_trace_cli.TraceAndCliTests.test_model_limit_record_cli_persists_sanitized_snapshot tests.test_trace_cli.TraceAndCliTests.test_account_limit_record_cli_persists_sanitized_snapshot tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_handoff_export_cli_json_output_is_machine_readable"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T02:00:00Z",
+      "phase": "finish",
+      "iteration": 21,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the pure boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges from stagewarden/main.py and moved cli_dispatch to the owner modules directly.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_actions_renders_action_entries_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_handoff_export_cli_json_output_is_machine_readable"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T01:30:00Z",
+      "phase": "finish",
+      "iteration": 20,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the pure sources/update render wrappers from stagewarden/main.py, then restored the small handler/report bridges still used by cli_dispatch and shell_views after validation.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T01:00:00Z",
+      "phase": "finish",
+      "iteration": 19,
+      "task": "agent-refactor-slice",
+      "summary": "Moved agent setup, auth status, account rendering, and catalog/model helper call sites onto their owning modules and removed the matching stagewarden/main.py bridges.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_auth_status_chatgpt_uses_codex_without_token_output tests.test_trace_cli.TraceAndCliTests.test_model_list_shows_provider_model_reasoning_catalog tests.test_trace_cli.TraceAndCliTests.test_interactive_help_overview_uses_topic_catalog tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_logs_in_account_and_saves_token tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_logs_in_chatgpt_account_and_saves_session_token tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_logs_in_openai_account_with_device_code tests.test_trace_cli.TraceAndCliTests.test_battery_cli_runs_simulated_agent_scenarios"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T00:10:00Z",
+      "phase": "finish",
+      "iteration": 18,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the thin parser/help/model preset wrappers from stagewarden/main.py after confirming no remaining call sites.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_persists_provider_model_param"
+      }
+    },
+    {
+      "timestamp": "2026-05-18T00:00:00Z",
+      "phase": "finish",
+      "iteration": 17,
+      "task": "agent-refactor-slice",
+      "summary": "Removed the provider-model inspection wrappers from stagewarden/main.py and moved the CLI render import to stagewarden.model_inspection_views.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis"
+      }
+    },
+    {
+      "timestamp": "2026-05-17T17:00:00Z",
+      "phase": "finish",
+      "iteration": 16,
+      "task": "agent-refactor-slice",
+      "summary": "Moved the remaining readonly-agent setup call onto the owning module and fixed the resulting circular import with a lazy import in project_handoff_views.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-17T16:36:27Z",
+      "phase": "finish",
+      "iteration": 15,
+      "task": "agent-refactor-slice",
+      "summary": "Moved the model inspection and cloud-priority selection path onto the owning modules and removed the matching stagewarden/main.py wrapper.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-17T05:28:26Z",
+      "phase": "finish",
+      "iteration": 14,
+      "task": "agent-refactor-slice",
+      "summary": "Moved the status-remediation path onto stagewarden.status_dashboard_views and removed the matching stagewarden/main.py wrapper.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-17T05:01:04Z",
+      "phase": "finish",
+      "iteration": 13,
+      "task": "agent-refactor-slice",
+      "summary": "Moved the resume-context and permissions rendering paths onto the owning modules and removed the matching stagewarden/main.py wrappers.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-16T21:45:10Z",
+      "phase": "finish",
+      "iteration": 12,
+      "task": "agent-refactor-slice",
+      "summary": "Moved the board/transcript/log-error/report path onto the owning modules and fixed the status dashboard JSON dispatch.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-16T21:39:33Z",
+      "phase": "finish",
+      "iteration": 11,
+      "task": "agent-refactor-slice",
+      "summary": "Moved the source-reference manifest and git helper logic into stagewarden/status_views.py and removed the matching stagewarden/main.py wrappers.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-16T21:30:28Z",
+      "phase": "finish",
+      "iteration": 10,
+      "task": "agent-refactor-slice",
+      "summary": "Restored the status/model compatibility seams in stagewarden/main.py and routed status pricing back through stagewarden.main._model_status_report so the existing test patch works.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-16T21:22:25Z",
+      "phase": "finish",
+      "iteration": 9,
+      "task": "agent-refactor-slice",
+      "summary": "Moved project/design_flow onto stagewarden/status_views.py for provider-limit reporting and restored the thin status wrappers in stagewarden/main.py for test compatibility.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
+    {
+      "timestamp": "2026-05-16T21:07:02Z",
+      "phase": "finish",
+      "iteration": 8,
+      "task": "agent-refactor-slice",
+      "summary": "Moved the catalog-choice helpers into stagewarden/model_views.py and switched the roles baseline command path to stagewarden/project/role_tree_views.py directly.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
+      }
+    },
     {
       "timestamp": "2026-05-16T20:52:06Z",
       "phase": "finish",

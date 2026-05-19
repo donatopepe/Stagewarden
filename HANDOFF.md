@@ -2,6 +2,12 @@
 
 ## Current State
 
+- `stagewarden/main.py` had the boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges trimmed, `stagewarden/cli_dispatch.py` now calls `report_views.py` and `project_handoff_views.py` directly for those paths, `stagewarden/status_dashboard_views.py` now calls `stagewarden/status_views.py` directly for provider-limit summary, the help/slash palette helpers now live on `ui_views.py`, extension handling now lives on `extension_views.py`, the sources/update handlers now live on `status_views.py`, readonly agent setup now lives on `agent_setup_views.py`, the last `model_status` bridge is gone, permission refresh callers now use `agent_setup_views.py` directly, the mode handler now lives on `mode_views.py`, and the new retrospettiva-prospettica control rule is wired into executor/PRINCE2/runtime behavior. The recovery-gate integration test now passes again under `python3 -m unittest`, and the prompt-choice plus guided role, role-tree, and sources/update CLI paths were repointed directly at their owner modules.
+- `stagewarden/status_views.py` now persists model/account limit snapshots through `model_prefs_path` and saves account clears too.
+- `stagewarden/main.py` no longer carries the thin provider-model inspection wrappers, and `stagewarden/cli_dispatch.py` now imports the render helper directly from `stagewarden/model_inspection_views`.
+- `stagewarden/main.py` also dropped the thin parser/help/model-preset wrappers that had no remaining call sites.
+- `stagewarden/main.py` also dropped the agent setup, auth status, account render/report, and battery report bridges; `cli_dispatch.py`, `mode_views.py`, `shell_views.py`, `account_views.py`, and `model_views.py` now call the owner modules directly where needed.
+- `test_battery_cli_runs_simulated_agent_scenarios` currently reports `payload["ready"] == False` and needs follow-up.
 - The executor now verifies mutating actions after execution instead of trusting tool success blindly.
 - The repo now includes a broader cross-platform utility surface: `stagewarden/tools/system.py` handles info, disk usage, process listing, process kill, port check, clipboard, and URL opening, while `stagewarden/tools/external_io.py` now covers generic hashing plus archive listing/extraction/creation.
 - `stagewarden/command_dispatch.py` now centralizes the parsing and execution of the common tool families, and `stagewarden/tool_reports.py` centralizes the related text/report/evidence helpers so `stagewarden/main.py` can stay thinner.
@@ -40,6 +46,14 @@
 - `stagewarden/project/role_views.py`, `stagewarden/project/role_flow.py`, and `stagewarden/project/role_runtime_views.py` now call `stagewarden/project/model_recommendation.py` directly for node recommendations, and `stagewarden/main.py` no longer keeps that bridge.
 - `stagewarden/project/tree_flow.py`, `stagewarden/project/start_flow.py`, `stagewarden/cli_dispatch.py`, and `stagewarden/shell_views.py` now call project-tree and model helpers directly, `stagewarden/main.py` no longer keeps those project-tree bridges, and `stagewarden/project/tree.py` now emits `assurance.validation_assurance` to match the trace contract.
 - `stagewarden/model_views.py` and `stagewarden/project/design_flow.py` now own the local-execution model discovery path directly, and `stagewarden/main.py` no longer keeps that bridge.
+- `stagewarden/model_views.py`, `stagewarden/project/role_flow.py`, and `stagewarden/cli_dispatch.py` now own the catalog-choice and roles-baseline calls directly, and `stagewarden/main.py` no longer keeps those bridges.
+- `stagewarden/project/design_flow.py` now calls `stagewarden/status_views.py` directly for provider-limit reporting, while `stagewarden/main.py` keeps the thin status wrappers needed by the test import surface.
+- `stagewarden/status_views.py` now routes `_status_pricing_report` through `stagewarden.main._model_status_report` again so the existing pricing-source patch test remains valid, and `stagewarden/main.py` keeps the thin model/status wrappers needed by the test import surface.
+- `stagewarden/status_views.py` now also owns the source-reference manifest and git helper logic used by sources/update handling, and `stagewarden/main.py` no longer keeps those wrappers.
+- `stagewarden.status_views._status_dashboard_report` is now called directly by `cli_dispatch`, and the board/transcript/handoff/log-error helpers now resolve through the owning modules instead of `main.py`.
+- `stagewarden.status_views` now also resolves the resume-context and permissions render paths through `project_handoff_views` and `report_views` directly, and `stagewarden.main` no longer keeps those wrappers.
+- `stagewarden.status_views` now routes `status_remediation_report` through `stagewarden.status_dashboard_views` directly, and `stagewarden.main` no longer keeps that wrapper.
+- `stagewarden.model_views`, `stagewarden.model_inspection_views`, `stagewarden.project.tree_flow`, `stagewarden.status_views`, and `stagewarden.cli_dispatch` now own the model-inspect and model-selection helpers directly, and `stagewarden.main` no longer keeps the `choose_cloud_priority_model` wrapper.
 - `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_runtime_views.py` directly for the roles active/control/queues helpers.
 - `stagewarden/battery_views.py` now calls `stagewarden/project/role_flow.py` directly for the node-shell helper.
 - `stagewarden/battery_views.py` and `stagewarden/project/role_flow.py` now call `stagewarden/project/role_flow.py` directly for the node-detail helper.
@@ -92,6 +106,7 @@
 - `stagewarden/status_views.py` now also owns the source reference manifest helper that was still living in `main.py`.
 - `stagewarden/status_views.py` now also owns the agent baseline render helper that was still living in `main.py`.
 - `stagewarden/model_views.py` now also owns the cloud-priority model chooser that was still living in `main.py`.
+- `stagewarden/project/tree_flow.py` now calls `stagewarden/agent_setup_views.py` directly for readonly-agent setup, and `stagewarden/project_handoff_views.py` uses a lazy import there to avoid a circular import.
 - `stagewarden/cli_dispatch.py` now persists a project-tree clarification question when `project tree propose --ai` still needs brief clarification, and `stagewarden/project/tree_flow.py` renders that question in the textual output.
 - `stagewarden/json_schema_registry.py` now also owns the shared `with_json_schema()` helper that was still living in `main.py`.
 - `stagewarden/agent_setup_views.py` now owns the agent workspace setup and runtime permission refresh helpers that were still living in `main.py`.
@@ -171,6 +186,47 @@
 
 ## Recent Work
 
+- `stagewarden/shell_views.py`: eliminated `globals().update(main_module.__dict__)` and all `main_module` lazy imports; added direct imports for `INTERACTIVE_COMMAND_PHRASES`, `command_catalog`, `command_phrases`, `render_command_catalog`, `json_schema_registry`, `account_views`, `command_views`, `tool_reports`, `project.flow`, `project.role_command_flow`, `project.tree_flow`, and `command_dispatch` helpers. All interactive shell command handlers now call their owner modules directly.
+- `stagewarden/status_dashboard_views.py`: added `BASELINE_CAPABILITY_GROUPS` and `BASELINE_REMEDIATION_BY_GROUP` constants.
+- `stagewarden/status_views.py`: imports baseline constants from `status_dashboard_views` instead of `main`.
+- `stagewarden/main.py`: removed `INTERACTIVE_COMMAND_PHRASES`, `INTERACTIVE_COMMAND_PREFIX`, `BASELINE_CAPABILITY_GROUPS`, and `BASELINE_REMEDIATION_BY_GROUP` definitions; imports baseline constants from `status_dashboard_views`.
+- `stagewarden/project/role_views.py` and `stagewarden/project/role_runtime_views.py`: call `_project_role_flow._role_tree_node_record` directly.
+- `stagewarden/cli_dispatch.py`: added missing `_auth_views` import.
+- `tests/test_trace_cli.py`: imports `_handle_model_command` from `model_views`, `run_interactive_shell` from `shell_views`, `_handle_role_command` wrapper from `project.role_command_flow`, `_configure_readonly_agent_for_workspace` from `agent_setup_views`, and `_preflight_report` from `status_dashboard_views`.
+- Validation: all focused trace CLI batches pass (shell, status, auth, permission, project, roles, sources, boundary, handoff, completion, help, executor, agent integration).
+- `stagewarden/main.py`: removed the `_handle_mode_command` bridge.
+- `tests/test_trace_cli.py`: reran `test_interactive_shell_status_and_mode_commands`, `test_interactive_shell_guided_account_choice`, and `test_permissions_cli_json_output_is_machine_readable`; all pass.
+- `stagewarden/command_views.py` and `stagewarden/mode_views.py`: now call `stagewarden.agent_setup_views` directly for permission refresh instead of going through `main.py`.
+- `stagewarden/main.py`: removed the `_refresh_runtime_permissions` bridge.
+- `tests/test_trace_cli.py`: reran `test_permissions_cli_json_output_is_machine_readable`, `test_interactive_shell_status_and_mode_commands`, and `test_interactive_shell_guided_account_choice`; all pass.
+- `stagewarden/main.py`: removed the last `model_status` bridge after moving the test patch target to `stagewarden.status_views`.
+- `tests/test_trace_cli.py`: reran `test_status_pricing_report_exposes_pricing_source`, `test_interactive_shell_renders_model_usage_and_cost_alias`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the readonly agent setup bridge after moving the call sites to `agent_setup_views.py`.
+- `stagewarden/cli_dispatch.py`: now calls `stagewarden.agent_setup_views` directly for readonly agent setup.
+- `tests/test_trace_cli.py`: reran `test_project_start_approves_ready_project_tree_proposal`, `test_project_start_blocks_when_design_or_brief_has_gaps`, `test_interactive_shell_status_and_mode_commands`, `test_interactive_shell_guided_account_choice`, and `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`; all pass.
+- `stagewarden/main.py`: removed the sources/update handler bridge wrappers after moving the call sites to `status_views.py`.
+- `stagewarden/cli_dispatch.py` and `stagewarden/shell_views.py`: now call `stagewarden.status_views` directly for sources/update handling.
+- `tests/test_trace_cli.py`: reran `test_sources_status_strict_and_update_fast_forward`, `test_update_status_check_and_apply_fast_forward`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the extension report/handler bridge wrappers after moving the call sites to `extension_views.py`.
+- `stagewarden/cli_dispatch.py` and `stagewarden/shell_views.py`: now call `stagewarden.extension_views` directly for extension handling.
+- `tests/test_trace_cli.py`: reran `test_interactive_shell_status_and_mode_commands`, `test_commands_catalog_cli_and_json`, `test_interactive_help_topics_use_registry_metadata_and_aliases`, and `test_interactive_help_overview_uses_topic_catalog`; all pass.
+- `stagewarden/main.py`: removed the help/slash palette bridge wrappers after moving the call sites to `ui_views.py`.
+- `stagewarden/cli_dispatch.py` and `stagewarden/shell_views.py`: now call `stagewarden.ui_views` directly for help/slash rendering and JSON help reports.
+- `tests/test_trace_cli.py`: reran `test_interactive_help_topics_use_registry_metadata_and_aliases`, `test_interactive_help_overview_uses_topic_catalog`, `test_commands_catalog_cli_and_json`, and `test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values`; all pass.
+- `stagewarden/status_dashboard_views.py`: now calls `status_views.py` directly for provider-limit summary instead of going through `main.py`.
+- `stagewarden/main.py`: removed the `provider_limit_summary` bridge.
+- `tests/test_trace_cli.py`: reran `test_status_full_cli_renders_remediations`, `test_status_full_cli_json_exposes_dashboard_sections`, `test_model_limits_cli_json_outputs_persisted_snapshots`, and `test_account_limit_record_cli_persists_sanitized_snapshot`; all pass.
+- `stagewarden/status_views.py`: fixed model/account limit snapshot persistence to use `model_prefs_path` and save account clears too.
+- `tests/test_trace_cli.py`: reran `test_model_limits_cli_json_outputs_persisted_snapshots`, `test_model_limit_record_cli_persists_sanitized_snapshot`, `test_account_limit_record_cli_persists_sanitized_snapshot`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the pure boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges.
+- `stagewarden/cli_dispatch.py`: now calls `report_views.py` and `project_handoff_views.py` directly for those report paths.
+- `tests/test_trace_cli.py`: reran `test_boundary_cli_json_output_is_machine_readable`, `test_handoff_cli_json_output_is_machine_readable`, `test_handoff_actions_renders_action_entries_and_json`, `test_interactive_shell_status_and_mode_commands`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, `test_commands_catalog_cli_and_json`, `test_interactive_help_topics_use_registry_metadata_and_aliases`, and `test_handoff_export_cli_json_output_is_machine_readable`; all pass.
+- `stagewarden/main.py`: removed the pure `sources/update` render wrappers, then restored the small handler/report bridges still used by `cli_dispatch.py` and `shell_views.py`.
+- `tests/test_trace_cli.py`: reran `test_sources_status_strict_and_update_fast_forward`, `test_update_status_check_and_apply_fast_forward`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the provider-model inspection wrappers, and `stagewarden/cli_dispatch.py` now imports the render helper directly from `stagewarden/model_inspection_views`.
+- `tests/test_trace_cli.py`: reran `test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis` after the extraction and the import fix; it passes.
+- `stagewarden/main.py`: removed the thin parser/help/model preset wrappers with no remaining call sites.
+- `tests/test_trace_cli.py`: reran `test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis` and `test_interactive_shell_persists_provider_model_param`; both pass.
 - `stagewarden/executor.py`: added post-action verification for mutating file, shell, git-commit, and multi-file patch actions.
 - `tests/test_executor.py`: added regression coverage for file read-back verification, verification failure on mismatched read-back, shell status-change verification, and git commit HEAD advancement.
 - `stagewarden/main.py`: added live tree decomposition nodes, continuous adaptation metadata, and richer project-tree reporting.
@@ -216,3 +272,18 @@
 - `./scripts/test_chatgpt_flow.sh`
 - `python3 -m unittest discover -s tests`
 - `python3 -m stagewarden.main --prince2-benchmark`
+- `stagewarden/executor.py`: added the "Retrospettiva prospettica" prompt section to the devil-advocate review.
+- `stagewarden/prince2.py` and `stagewarden/project_handoff_runtime.py`: documented the new retrospettiva-prospettica control rule in project controls, stage-boundary review, and antagonist guidance.
+- `tests/test_executor.py`, `tests/test_agent_integration.py`, `tests/test_trace_cli.py`, `stagewarden/prince2_benchmark.py`, and `stagewarden/battery_views.py`: updated prompt mocks to recognize the new phrasing.
+- `tests/test_agent_integration.py`: made the success stub emit stronger validation evidence so the recovery-gate quality check passes.
+- Validation: `python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_closes_recovery_gate_after_recovery_lane_wet_run` passes.
+- `stagewarden/account_views.py`, `stagewarden/model_views.py`, `stagewarden/ui_views.py`, and `stagewarden/project/role_flow.py`: now call `stagewarden.shell_views` directly for prompt selection.
+- `stagewarden/cli_dispatch.py`: now calls role-tree, role-context, and role-active render/report helpers directly from owner modules.
+- `stagewarden/project/role_command_flow.py`: now calls role add/assign/remove helpers directly from `stagewarden.project.role_flow`.
+- `stagewarden/main.py`: removed the guided role wrappers and the direct role-node removal bridge after the call sites moved to `stagewarden.project.role_flow`.
+- `stagewarden/cli_dispatch.py`: now calls the sources/update report helpers directly from `stagewarden.status_views`.
+- `stagewarden/main.py`: removed the sources/update report bridges after the call sites moved to `stagewarden.status_views`.
+- Validation: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_expand_workspace_paths tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_for_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_can_select_provider tests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_slash_palette tests.test_trace_cli.TraceAndCliTests.test_interactive_slash_choose_returns_selected_command_without_execution tests.test_trace_cli.TraceAndCliTests.test_cli_slash_choose_renders_candidates_and_json` passes.
+- Validation: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_tree_renders_color_legend_and_shell_hint tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_shell_navigates_between_nodes` passes.
+- Validation: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_reports_external_reference_metadata tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable` passes.
+- `tests/test_executor.py`, `tests/test_trace_cli.py`: reran the focused critic/CLI regressions; they pass.

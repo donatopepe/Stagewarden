@@ -9,11 +9,6 @@ from ..provider_registry import SUPPORTED_MODELS
 from ..modelprefs import provider_model_specs
 
 
-def _main():
-    from .. import main as _main_module
-    return _main_module
-
-
 def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
     if not isinstance(entry, dict) or not entry:
         return None
@@ -65,7 +60,6 @@ def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
 
 
 def _node_model_recommendation(config: AgentConfig, node: dict[str, object]) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     catalog = load_ai_models_catalog()
     assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}

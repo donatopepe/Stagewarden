@@ -17,30 +17,32 @@ from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
-from stagewarden.main import (
-    _catalog_status_report,
-    _catalog_refresh_report,
-    _guided_role_node_menu,
-    _guided_role_node_shell,
-    _guided_role_tree_menu,
-    _handle_model_command,
-    _handle_role_command,
-    _interactive_completion_candidates,
-    _render_boundary,
-    _render_handoff,
-    _status_pricing_report,
-    run_interactive_shell,
-)
+from stagewarden.model_views import _handle_model_command
+from stagewarden.shell_views import run_interactive_shell
+from stagewarden.project.role_command_flow import _handle_project_and_roles_command, _handle_role_command as _handle_role_command_direct
+from stagewarden.model_views import _catalog_refresh_report, _catalog_status_report
 from stagewarden.openrouter_benchmark import _compare_openrouter_benchmark_snapshots
 from stagewarden.modelprefs import ModelPreferences
+from stagewarden.project_handoff_views import _render_handoff
 from stagewarden.project_handoff import ProjectHandoff
+from stagewarden.project.role_flow import _guided_role_node_menu, _guided_role_node_shell, _guided_role_tree_menu
+from stagewarden.report_views import _render_boundary
 from stagewarden.secrets import SecretStore
 from stagewarden.provider_registry import model_token_env
+from stagewarden.shell_views import _interactive_completion_candidates
+from stagewarden.status_views import _status_pricing_report
 from tests.test_agent_integration import write_resume_network_stub
 
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXED_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview"
+
+
+def _handle_role_command(command, agent, config, *, input_stream=None, output_stream=None):
+    roles_result = _handle_project_and_roles_command(command, agent, config, input_stream=input_stream, output_stream=output_stream)
+    if roles_result is not None:
+        return roles_result
+    return _handle_role_command_direct(command, agent, config, input_stream=input_stream, output_stream=output_stream)
 
 
 def write_success_stub(root: Path) -> Path:
@@ -71,7 +73,7 @@ def write_success_stub(root: Path) -> Path:
                 "    instruction = extract(prompt, 'instruction').lower()",
                 "    task_match = re.search(r'Task:\\n(.+?)\\n\\nImplicit project handoff context:', prompt, re.DOTALL)",
                 "    task = task_match.group(1).strip() if task_match else ''",
-                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower:",
+                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower or ('retrospettiva prospettica' in prompt_lower and 'primary model response' in prompt_lower):",
                 "        print(json.dumps({'summary': 'devil advocate review', 'verdict': 'accept', 'contradictions': [], 'missing_evidence': [], 'counter_argument': 'No contradiction found.', 'must_escalate': False, 'confidence': 0.9}))",
                 "        return 0",
                 "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
@@ -865,7 +867,7 @@ class TraceAndCliTests(unittest.TestCase):
                 ]
             }
 
-            with patch("stagewarden.main._model_status_report", return_value=model_report):
+            with patch("stagewarden.status_views._model_status_report", return_value=model_report):
                 report = _status_pricing_report(agent, config)
 
             self.assertEqual(report["source"], "artificial_analysis")
@@ -907,7 +909,8 @@ class TraceAndCliTests(unittest.TestCase):
 
     def test_preflight_reports_windows_shell_readiness_warning(self) -> None:
         from unittest.mock import patch
-        from stagewarden.main import _configure_readonly_agent_for_workspace, _preflight_report
+        from stagewarden.agent_setup_views import _configure_readonly_agent_for_workspace
+        from stagewarden.status_dashboard_views import _preflight_report
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

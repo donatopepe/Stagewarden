@@ -5,22 +5,23 @@ from .config import AgentConfig
 from .project_handoff import ProjectHandoff
 from .json_schema_registry import json_schema
 from .permissions import PermissionSettings
+from . import project_handoff_views as _project_handoff_views
 
 
 def _render_boundary(config: AgentConfig) -> str:
-    return _main()._project_handoff_views._render_boundary(config)
+    return _project_handoff_views._render_boundary(config)
 
 
 def _boundary_report(config: AgentConfig) -> dict[str, object]:
-    return _main()._project_handoff_views._boundary_report(config)
+    return _project_handoff_views._boundary_report(config)
 
 
 def _board_report(config: AgentConfig) -> dict[str, object]:
-    return _main()._project_handoff_views._board_report(config)
+    return _project_handoff_views._board_report(config)
 
 
 def _render_board(config: AgentConfig) -> str:
-    return _main()._project_handoff_views._render_board(config)
+    return _project_handoff_views._render_board(config)
 
 
 def _render_permissions(config: AgentConfig) -> str:
@@ -242,8 +243,3 @@ def _todo_report(config: AgentConfig) -> dict[str, object]:
         "items": list(handoff.implementation_backlog),
     }
 
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module

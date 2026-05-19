@@ -1206,6 +1206,19 @@ class Executor:
                 ),
             ),
             PromptSection(
+                "Retrospettiva prospettica",
+                "\n".join(
+                    [
+                        "Assume the plan already failed: say why it failed before execution.",
+                        "Work backward from the failure and identify the earliest missing evidence, assumptions, or control gaps.",
+                        "Treat this as a forward-looking postmortem, not a reassurance pass.",
+                        "Return strict JSON only.",
+                        "Required keys: verdict, contradictions, missing_evidence, counter_argument, must_escalate, confidence.",
+                        "Allowed verdict values: accept, revise, block.",
+                    ]
+                ),
+            ),
+            PromptSection(
                 "Primary model response",
                 "\n".join(
                     [

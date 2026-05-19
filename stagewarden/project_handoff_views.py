@@ -35,6 +35,12 @@ def _model_views():
     return model_views_module
 
 
+def _agent_setup_views():
+    from . import agent_setup_views as agent_setup_views_module
+
+    return agent_setup_views_module
+
+
 class _ProjectHandoffProxy:
     def __call__(self, *args: object, **kwargs: object) -> object:
         return _project_handoff_cls()(*args, **kwargs)
@@ -1074,8 +1080,6 @@ def _latest_handoff_action(config: AgentConfig) -> dict[str, object] | None:
 
 def _focus_snapshot(agent: Any, config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
-    from . import main as _main
-
     prefs = _model_views()._load_model_preferences(config)
     memory = MemoryStore.load(config.memory_path)
     model_report = _status_views()._model_status_report(agent, config)
@@ -1178,9 +1182,9 @@ def _parse_optional_limit(parts: list[str], *, default: int = 20) -> int:
 
 def _render_resume_show(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
-    from . import main as _main
+    from . import agent_setup_views as _agent_setup_views
 
-    agent = _main._configure_readonly_agent_for_workspace(config)
+    agent = _agent_setup_views._configure_readonly_agent_for_workspace(config)
     focus = _focus_snapshot(agent, config)
     lines = [
         "Resume target:",
@@ -1200,9 +1204,7 @@ def _render_resume_show(config: AgentConfig) -> str:
 def _resume_context_payload(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     memory = MemoryStore.load(config.memory_path)
-    from . import main as _main
-
-    agent = _main._configure_readonly_agent_for_workspace(config)
+    agent = _agent_setup_views()._configure_readonly_agent_for_workspace(config)
     focus = _focus_snapshot(agent, config)
     latest_attempt = memory.latest_attempt()
     latest_tool = memory.latest_tool_event()
@@ -1320,9 +1322,9 @@ def _render_resume_context(config: AgentConfig) -> str:
 
 def _resume_show_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
-    from . import main as _main
+    from . import agent_setup_views as _agent_setup_views
 
-    agent = _main._configure_readonly_agent_for_workspace(config)
+    agent = _agent_setup_views._configure_readonly_agent_for_workspace(config)
     return {
         "command": "resume --show",
         "schema": json_schema("resume --show"),

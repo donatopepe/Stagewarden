@@ -33,15 +33,12 @@ from ..role_tree import (
     prince2_status_color,
 )
 from ..project_handoff import ProjectHandoff
+from .. import shell_views as _shell_views
 from .. import project_handoff_views as _project_handoff_views
 from . import model_recommendation as _project_model_recommendation
 from . import role_views as _project_role_views
 from . import role_tree_views as _project_role_tree_views
-
-
-def _main():
-    from .. import main as _main_module
-    return _main_module
+from . import flow as _project_flow
 
 
 def _role_options() -> list[tuple[str, str]]:
@@ -49,7 +46,6 @@ def _role_options() -> list[tuple[str, str]]:
 
 
 def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_menu")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
@@ -77,7 +73,6 @@ def _role_tree_node_options(config: AgentConfig) -> list[tuple[str, str]]:
 
 
 def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, object] | None:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_node_context")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
@@ -89,7 +84,6 @@ def _role_tree_node_record(config: AgentConfig, node_id: str) -> dict[str, objec
 
 
 def _role_tree_nodes_by_parent(config: AgentConfig, parent_id: str | None) -> list[dict[str, object]]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     baseline = _ensure_prince2_role_tree_baseline(config, prefs, source="role_nodes_by_parent")
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
@@ -111,7 +105,6 @@ def _with_prince2_role_tree_baseline_mutation(
     source: str,
     mutator: Callable[[dict[str, object], dict[str, object], list[dict[str, object]]], None],
 ) -> dict[str, object]:
-    main = _main()
     baseline = _ensure_prince2_role_tree_baseline(config, prefs, source=source)
     tree = baseline.get("tree", {}) if isinstance(baseline.get("tree"), dict) else {}
     nodes = [node for node in tree.get("nodes", []) if isinstance(node, dict)]
@@ -228,12 +221,11 @@ def _reset_prince2_role_node_tolerance(
 
 
 def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     handoff = ProjectHandoff.load(config.handoff_path)
     tolerance_profile = _project_tolerance_profile(handoff)
     local_execution = _model_views._local_execution_candidates_report(config)
-    tree = main._enrich_tree_with_local_execution_candidates(
+    tree = _project_flow._enrich_tree_with_local_execution_candidates(
         _build_prince2_role_tree_with_tolerance(
             prefs,
             tolerance_profile=tolerance_profile,
@@ -243,14 +235,14 @@ def _build_prince2_role_tree_baseline(config: AgentConfig, *, source: str) -> di
     )
     brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
     joined = " ".join(brief.values()).lower()
-    _decomposition_nodes, decomposition = main._project_tree_decomposition_nodes(
+    _decomposition_nodes, decomposition = _project_flow._project_tree_decomposition_nodes(
         proposal_prefs=prefs,
         active_models=list(prefs.active_models() or prefs.enabled_models),
         brief=brief,
         joined=joined,
         tolerance_profile=tolerance_profile,
     )
-    adaptation = main._project_tree_adaptation_snapshot(brief=brief, handoff=handoff, local_execution=local_execution)
+    adaptation = _project_flow._project_tree_adaptation_snapshot(brief=brief, handoff=handoff, local_execution=local_execution)
     tree["decomposition_policy"] = "Decompose the project into the smallest independently verifiable work packages and keep widening only when evidence justifies it."
     tree["adaptation_policy"] = "Refresh the tree continuously from the latest brief, tolerance profile, runtime observation, and response-quality signals."
     tree["decomposition"] = decomposition
@@ -370,7 +362,6 @@ def _send_prince2_role_message(
     evidence_refs: list[str] | None = None,
     summary: str | None = None,
 ) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -406,7 +397,6 @@ def _set_prince2_role_node_waiting(
     reason: str,
     wake_triggers: list[str] | None = None,
 ) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -428,7 +418,6 @@ def _wake_prince2_role_node(
     node_id: str,
     trigger: str,
 ) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -449,7 +438,6 @@ def _tick_prince2_role_node(
     *,
     node_id: str,
 ) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -471,7 +459,6 @@ def _tick_prince2_role_runtime(
     *,
     max_nodes: int | None = None,
 ) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -499,7 +486,6 @@ def _assign_prince2_role_node(
     account: str | None = None,
     pool: str = "primary",
 ) -> dict[str, object]:
-    main = _main()
     clean_pool = str(pool).strip().lower() or "primary"
     if clean_pool not in {"primary", "reviewer", "fallback"}:
         raise ValueError("Pool must be primary, reviewer, or fallback.")
@@ -659,7 +645,6 @@ def _role_tree_node_navigation(config: AgentConfig, node_id: str) -> dict[str, o
 
 
 def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
-    main = _main()
     report = _project_role_views._prince2_role_context_report(config, node_id)
     if report.get("status") != "ok":
         return str(report.get("message", "PRINCE2 role context unavailable."))
@@ -705,7 +690,6 @@ def _render_prince2_role_node_detail(config: AgentConfig, node_id: str) -> str:
 
 
 def _render_prince2_role_node_shell(config: AgentConfig, node_id: str) -> str:
-    main = _main()
     node = _role_tree_node_record(config, node_id)
     if not node:
         return f"PRINCE2 node '{node_id}' not found."
@@ -751,13 +735,12 @@ def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
 
 
 def _node_model_choice_options(config: AgentConfig, node_id: str) -> list[tuple[str, str]]:
-    main = _main()
     node = _role_tree_node_record(config, node_id)
     if not node:
         return []
     recommendation = _project_model_recommendation._node_model_recommendation(config, node)
     current = recommendation.get("current", {}) if isinstance(recommendation.get("current"), dict) else {}
-    current_key = main._catalog_model_choice_key(
+    current_key = _model_views._catalog_model_choice_key(
         str(current.get("provider", "")).strip(),
         str(current.get("provider_model", "")).strip(),
     )
@@ -771,7 +754,7 @@ def _node_model_choice_options(config: AgentConfig, node_id: str) -> list[tuple[
             provider_model = str(item.get("provider_model", "")).strip()
             if not provider or not provider_model:
                 continue
-            key = main._catalog_model_choice_key(provider, provider_model)
+            key = _model_views._catalog_model_choice_key(provider, provider_model)
             if key in seen:
                 continue
             seen.add(key)
@@ -914,12 +897,11 @@ def _guided_role_configure(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided role configuration is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role configure`."
     role = requested_role
     if role is None:
-        role = main._prompt_menu_choice(
+        role = _shell_views._prompt_menu_choice(
             title="Choose PRINCE2 role:",
             options=_role_options(),
             input_stream=input_stream,
@@ -931,7 +913,7 @@ def _guided_role_configure(
         return f"Unsupported PRINCE2 role '{role}'. Supported: {', '.join(PRINCE2_ROLE_IDS)}"
     output_stream.write(_guided_role_context(role) + "\n")
     output_stream.write(_guided_provider_context(prefs) + "\n")
-    mode = main._prompt_menu_choice(
+    mode = _shell_views._prompt_menu_choice(
         title=f"Configure {PRINCE2_ROLE_LABELS[role]}:",
         options=[
             ("auto", "Automatic proposal for this role"),
@@ -958,7 +940,7 @@ def _guided_role_configure(
         _model_views._save_model_preferences(config, prefs)
         _model_views._sync_prince2_roles_to_handoff(config, prefs)
         return f"Assigned {PRINCE2_ROLE_LABELS[role]} automatically."
-    provider = main._prompt_menu_choice(
+    provider = _shell_views._prompt_menu_choice(
         title=f"Choose provider for {PRINCE2_ROLE_LABELS[role]}:",
         options=[(provider, provider) for provider in (prefs.enabled_models or list(SUPPORTED_MODELS))],
         input_stream=input_stream,
@@ -968,7 +950,7 @@ def _guided_role_configure(
         return "Role configuration cancelled."
     output_stream.write(_guided_provider_context(prefs, provider) + "\n")
     specs = list(provider_model_specs(provider))
-    provider_model = main._prompt_menu_choice(
+    provider_model = _shell_views._prompt_menu_choice(
         title=f"Choose provider-model for {provider}:",
         options=[(spec.id, f"{spec.id} | {spec.label}") for spec in specs],
         input_stream=input_stream,
@@ -979,7 +961,7 @@ def _guided_role_configure(
     spec = provider_model_spec(provider, provider_model)
     params: dict[str, str] = {}
     if spec is not None and spec.reasoning_efforts:
-        reasoning = main._prompt_menu_choice(
+        reasoning = _shell_views._prompt_menu_choice(
             title=f"Choose reasoning_effort for {provider}:{provider_model}:",
             options=[
                 (effort, f"{effort}{' (default)' if effort == spec.reasoning_default else ''}")
@@ -993,7 +975,7 @@ def _guided_role_configure(
         params["reasoning_effort"] = reasoning
     account_options = [("", "none")]
     account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
-    account = main._prompt_menu_choice(
+    account = _shell_views._prompt_menu_choice(
         title=f"Choose account for {provider}:",
         options=account_options,
         input_stream=input_stream,
@@ -1029,12 +1011,11 @@ def _guided_role_add_child(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided role node creation is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role add-child`."
     output_stream.write("PRINCE2 delegated node setup:\n")
     output_stream.write("- rule: delegated nodes inherit PRINCE2 role context but remain under parent accountability.\n")
-    parent_id = main._prompt_menu_choice(
+    parent_id = _shell_views._prompt_menu_choice(
         title="Choose parent role-tree node:",
         options=_role_tree_node_options(config),
         input_stream=input_stream,
@@ -1042,7 +1023,7 @@ def _guided_role_add_child(
     )
     if parent_id is None:
         return "Role node creation cancelled."
-    role_type = main._prompt_menu_choice(
+    role_type = _shell_views._prompt_menu_choice(
         title="Choose delegated PRINCE2 role type:",
         options=_role_options(),
         input_stream=input_stream,
@@ -1070,12 +1051,11 @@ def _guided_role_assign(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided role node assignment is available in the interactive shell. Run `python3 -m stagewarden.main` and use `/role assign`."
     output_stream.write("PRINCE2 role-tree node assignment:\n")
     output_stream.write("- rule: choose a specific node so provider fallback does not widen context.\n")
-    node_id = main._prompt_menu_choice(
+    node_id = _shell_views._prompt_menu_choice(
         title="Choose role-tree node:",
         options=_role_tree_node_options(config),
         input_stream=input_stream,
@@ -1083,7 +1063,7 @@ def _guided_role_assign(
     )
     if node_id is None:
         return "Role node assignment cancelled."
-    pool = main._prompt_menu_choice(
+    pool = _shell_views._prompt_menu_choice(
         title=f"Choose assignment pool for {node_id}:",
         options=_route_pool_options(),
         input_stream=input_stream,
@@ -1093,7 +1073,7 @@ def _guided_role_assign(
         return "Role node assignment cancelled."
     output_stream.write(_guided_role_node_assignment_context(config, node_id, pool) + "\n")
     output_stream.write(_guided_provider_context(prefs) + "\n")
-    provider = main._prompt_menu_choice(
+    provider = _shell_views._prompt_menu_choice(
         title=f"Choose provider for {node_id}:",
         options=_guided_provider_options_for_node(config, prefs, node_id=node_id, pool=pool),
         input_stream=input_stream,
@@ -1102,7 +1082,7 @@ def _guided_role_assign(
     if provider is None:
         return "Role node assignment cancelled."
     output_stream.write(_guided_provider_context(prefs, provider) + "\n")
-    provider_model = main._prompt_menu_choice(
+    provider_model = _shell_views._prompt_menu_choice(
         title=f"Choose provider-model for {provider}:",
         options=_guided_provider_model_options_for_node(config, provider=provider, node_id=node_id, pool=pool),
         input_stream=input_stream,
@@ -1113,7 +1093,7 @@ def _guided_role_assign(
     spec = provider_model_spec(provider, provider_model)
     params: dict[str, str] = {}
     if spec is not None and spec.reasoning_efforts:
-        reasoning = main._prompt_menu_choice(
+        reasoning = _shell_views._prompt_menu_choice(
             title=f"Choose reasoning_effort for {provider}:{provider_model}:",
             options=[
                 (effort, f"{effort}{' (default)' if effort == spec.reasoning_default else ''}")
@@ -1127,7 +1107,7 @@ def _guided_role_assign(
         params["reasoning_effort"] = reasoning
     account_options = [("", "none")]
     account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
-    account = main._prompt_menu_choice(
+    account = _shell_views._prompt_menu_choice(
         title=f"Choose account for {provider}:",
         options=account_options,
         input_stream=input_stream,
@@ -1136,7 +1116,7 @@ def _guided_role_assign(
     if account is None:
         return "Role node assignment cancelled."
     try:
-        node = main._assign_prince2_role_node(
+        node = _assign_prince2_role_node(
             config,
             prefs,
             node_id=node_id,
@@ -1178,7 +1158,6 @@ def _guided_role_node_model_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided PRINCE2 node model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu` or `role model`."
     node = _role_tree_node_record(config, node_id)
@@ -1187,7 +1166,7 @@ def _guided_role_node_model_choice(
     output_stream.write(_render_prince2_role_node_detail(config, node_id) + "\n")
     output_stream.write(_guided_role_node_assignment_context(config, node_id, "primary") + "\n")
     output_stream.write(_guided_provider_context(prefs) + "\n")
-    choice = main._prompt_menu_choice(
+    choice = _shell_views._prompt_menu_choice(
         title=f"Choose provider-model for {node_id}:",
         options=_node_model_choice_options(config, node_id),
         input_stream=input_stream,
@@ -1195,7 +1174,7 @@ def _guided_role_node_model_choice(
     )
     if choice is None:
         return "Role node model selection cancelled."
-    parsed = main._parse_catalog_model_choice(choice)
+    parsed = _model_views._parse_catalog_model_choice(choice)
     if parsed is None:
         return f"Invalid provider-model choice '{choice}'."
     provider, provider_model = parsed
@@ -1203,7 +1182,7 @@ def _guided_role_node_model_choice(
     params: dict[str, str] = {}
     if spec is not None and spec.reasoning_efforts:
         current_reasoning = prefs.params_for_model(provider).get("reasoning_effort") or spec.reasoning_default or spec.reasoning_efforts[0]
-        reasoning = main._prompt_menu_choice(
+        reasoning = _shell_views._prompt_menu_choice(
             title=f"Choose reasoning_effort for {provider}:{provider_model}:",
             options=[(effort, f"{effort}{' (default)' if effort == current_reasoning else ''}") for effort in spec.reasoning_efforts],
             input_stream=input_stream,
@@ -1214,7 +1193,7 @@ def _guided_role_node_model_choice(
         params["reasoning_effort"] = reasoning
     account_options = [("", "none")]
     account_options.extend((account, account) for account in (prefs.accounts_by_model or {}).get(provider, []))
-    account = main._prompt_menu_choice(
+    account = _shell_views._prompt_menu_choice(
         title=f"Choose account for {provider}:",
         options=account_options,
         input_stream=input_stream,
@@ -1223,7 +1202,7 @@ def _guided_role_node_model_choice(
     if account is None:
         return "Role node model selection cancelled."
     try:
-        node = main._assign_prince2_role_node_model(
+        node = _assign_prince2_role_node(
             config,
             prefs,
             node_id=node_id,
@@ -1250,7 +1229,6 @@ def _guided_role_node_switch_agent(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided PRINCE2 node agent switching is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu`, `role shell`, or `role switch`."
     node = _role_tree_node_record(config, node_id)
@@ -1286,7 +1264,6 @@ def _guided_role_node_menu(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided PRINCE2 node menu is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role menu`."
     current = node_id
@@ -1295,7 +1272,7 @@ def _guided_role_node_menu(
         if not node:
             return f"PRINCE2 node '{current}' not found."
         output_stream.write(_render_prince2_role_node_detail(config, current) + "\n")
-        action = main._prompt_menu_choice(
+        action = _shell_views._prompt_menu_choice(
             title=f"Node menu for {current}:",
             options=[
                 ("view", "View node detail again"),
@@ -1345,7 +1322,7 @@ def _guided_role_node_menu(
                     preferred = spec.reasoning_default or spec.reasoning_efforts[0]
                 params["reasoning_effort"] = preferred
             try:
-                updated = main._assign_prince2_role_node_model(
+                updated = _assign_prince2_role_node(
                     config,
                     prefs,
                     node_id=current,
@@ -1404,7 +1381,7 @@ def _guided_role_node_menu(
                 return "Node menu cancelled."
             reparent = response.strip().lower() in {"y", "yes", "true", "1"}
             try:
-                removed = main._remove_prince2_role_node(config, prefs, node_id=current, reparent_children=reparent)
+                removed = _remove_prince2_role_node(config, prefs, node_id=current, reparent_children=reparent)
             except ValueError as exc:
                 output_stream.write(str(exc) + "\n")
                 continue
@@ -1422,12 +1399,11 @@ def _guided_role_shell(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided PRINCE2 role shell navigation is available in the interactive shell. Run `python3 -m stagewarden.main` and use `roles shell`."
     output_stream.write("PRINCE2 node shell navigator:\n")
     output_stream.write("- rule: choose a node and move with parent, sibling, or child hops.\n")
-    node_id = main._prompt_menu_choice(
+    node_id = _shell_views._prompt_menu_choice(
         title="Choose starting node:",
         options=_role_tree_node_options(config),
         input_stream=input_stream,
@@ -1452,7 +1428,6 @@ def _guided_role_node_shell(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided PRINCE2 node shell is available in the interactive shell. Run `python3 -m stagewarden.main` and use `role shell`."
     current = node_id
@@ -1461,7 +1436,7 @@ def _guided_role_node_shell(
         if not node:
             return f"PRINCE2 node '{current}' not found."
         output_stream.write(_render_prince2_role_node_shell(config, current) + "\n")
-        action = main._prompt_menu_choice(
+        action = _shell_views._prompt_menu_choice(
             title=f"Node shell for {current}:",
             options=[
                 ("parent", "Go to parent node"),
@@ -1491,7 +1466,7 @@ def _guided_role_node_shell(
             prefs = _model_views._load_model_preferences(config)
             continue
         if action == "jump":
-            next_node = main._prompt_menu_choice(
+            next_node = _shell_views._prompt_menu_choice(
                 title="Jump to node:",
                 options=_role_tree_node_options(config),
                 input_stream=input_stream,
@@ -1528,7 +1503,7 @@ def _guided_role_node_shell(
             if not children:
                 output_stream.write("Current node has no children.\n")
                 continue
-            child_choice = main._prompt_menu_choice(
+            child_choice = _shell_views._prompt_menu_choice(
                 title=f"Choose child of {current}:",
                 options=[(str(item.get("node_id")), f"{item.get('label')} [{item.get('node_id')}]") for item in children if str(item.get("node_id", "")).strip()],
                 input_stream=input_stream,
@@ -1547,12 +1522,11 @@ def _guided_role_tree_menu(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Guided PRINCE2 tree menu is available in the interactive shell. Run `python3 -m stagewarden.main` and use `roles menu`."
     while True:
         output_stream.write(_project_role_tree_views._render_prince2_role_tree(config) + "\n")
-        action = main._prompt_menu_choice(
+        action = _shell_views._prompt_menu_choice(
             title="PRINCE2 tree menu:",
             options=[
                 ("node", "Open a node menu"),
@@ -1569,7 +1543,7 @@ def _guided_role_tree_menu(
         if action is None or action == "back":
             return "PRINCE2 tree menu closed."
         if action == "node":
-            node_id = main._prompt_menu_choice(
+            node_id = _shell_views._prompt_menu_choice(
                 title="Choose role-tree node:",
                 options=_role_tree_node_options(config),
                 input_stream=input_stream,
@@ -1581,7 +1555,7 @@ def _guided_role_tree_menu(
             prefs = _model_views._load_model_preferences(config)
             continue
         if action == "shell":
-            node_id = main._prompt_menu_choice(
+            node_id = _shell_views._prompt_menu_choice(
                 title="Choose role-tree node:",
                 options=_role_tree_node_options(config),
                 input_stream=input_stream,
@@ -1597,7 +1571,7 @@ def _guided_role_tree_menu(
             prefs = _model_views._load_model_preferences(config)
             continue
         if action == "remove":
-            node_id = main._prompt_menu_choice(
+            node_id = _shell_views._prompt_menu_choice(
                 title="Choose role-tree node to remove:",
                 options=_role_tree_node_options(config),
                 input_stream=input_stream,
@@ -1612,7 +1586,7 @@ def _guided_role_tree_menu(
                 return "PRINCE2 tree menu cancelled."
             reparent = response.strip().lower() in {"y", "yes", "true", "1"}
             try:
-                main._remove_prince2_role_node(config, prefs, node_id=node_id, reparent_children=reparent)
+                _remove_prince2_role_node(config, prefs, node_id=node_id, reparent_children=reparent)
             except ValueError as exc:
                 output_stream.write(str(exc) + "\n")
                 continue
@@ -1636,13 +1610,12 @@ def _guided_roles_setup(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         prefs.apply_prince2_role_proposal()
         _model_views._save_model_preferences(config, prefs)
         _approve_prince2_role_tree_baseline(config, prefs, source="roles_setup_auto")
         return "Applied automatic PRINCE2 role proposal."
-    choice = main._prompt_menu_choice(
+    choice = _shell_views._prompt_menu_choice(
         title="PRINCE2 role setup:",
         options=[
             ("auto", "Automatic proposal based on available providers/accounts/models"),
@@ -1667,7 +1640,7 @@ def _guided_roles_setup(
             + _project_role_tree_views._render_prince2_role_tree_baseline(config)
         )
     while True:
-        role = main._prompt_menu_choice(
+        role = _shell_views._prompt_menu_choice(
             title="Choose role to configure, or `done`:",
             options=[("done", "done")] + _role_options(),
             input_stream=input_stream,
@@ -1695,7 +1668,7 @@ def _guided_roles_setup(
             + ", ".join(str(item.get("id", "")) for item in candidates if str(item.get("id", "")).strip())
             + "\n"
         )
-        preload = main._prompt_menu_choice(
+        preload = _shell_views._prompt_menu_choice(
             title="Approve baseline with recommended local delivery fallbacks now?",
             options=[
                 ("yes", "Yes - approve baseline and preload recommended local fallback routes"),

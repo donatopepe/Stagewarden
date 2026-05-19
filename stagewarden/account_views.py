@@ -9,16 +9,12 @@ from .auth import CodexBrowserLoginFlow, CodexBrowserLogoutFlow, OpenAIDeviceCod
 from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, account_key
+from . import shell_views as _shell_views
 from . import model_views as _model_views
+from . import status_views as _status_views
 from .provider_registry import provider_capability
 from .secrets import SecretStore
 from .textcodec import read_text_utf8
-
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module
 
 
 def _render_account_lines(prefs: ModelPreferences, model: str) -> list[str]:
@@ -117,7 +113,7 @@ def _guided_account_choice(
         return "No configured account profiles are available."
     model = requested_model
     if model is None:
-        model = _main()._prompt_menu_choice(
+        model = _shell_views._prompt_menu_choice(
             title="Choose provider for account:",
             options=[(item, item) for item in models_with_accounts],
             input_stream=input_stream,
@@ -128,7 +124,7 @@ def _guided_account_choice(
     accounts = list((prefs.accounts_by_model or {}).get(model, []))
     if not accounts:
         return f"No configured account profiles for {model}."
-    chosen_account = _main()._prompt_menu_choice(
+    chosen_account = _shell_views._prompt_menu_choice(
         title=f"Choose account for {model}:",
         options=[(name, name) for name in accounts],
         input_stream=input_stream,
@@ -137,7 +133,7 @@ def _guided_account_choice(
     if chosen_account is None:
         return "Guided account selection cancelled."
     prefs.set_active_account(model, chosen_account)
-    _main()._save_model_preferences(config, prefs)
+    _model_views._save_model_preferences(config, prefs)
     return f"Active account for {model} set to {chosen_account}."
 
 
@@ -167,7 +163,7 @@ def _handle_account_command(
             if len(fields) != 3:
                 return "Usage: account limit-record <model> <name> <provider message>"
             model, name, message = fields
-            result = _main()._record_limit_message(config, prefs, model=model, account=name, message=message)
+            result = _status_views._record_limit_message(config, prefs, model=model, account=name, message=message)
             _model_views._apply_model_preferences(agent, config)
             return result
         if action == "limit-clear":
@@ -175,7 +171,7 @@ def _handle_account_command(
             if len(fields) != 2:
                 return "Usage: account limit-clear <model> <name>"
             model, name = fields
-            result = _main()._clear_limit_snapshot(config, prefs, model=model, account=name)
+            result = _status_views._clear_limit_snapshot(config, prefs, model=model, account=name)
             _model_views._apply_model_preferences(agent, config)
             return result
         if action == "add":
@@ -185,7 +181,7 @@ def _handle_account_command(
             prefs.add_account(model, name, env_var=parts[4] if len(parts) == 5 else None)
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             _model_views._apply_model_preferences(agent, config)
             return f"Added account {model}:{name}."
         if action == "login":
@@ -215,7 +211,7 @@ def _handle_account_command(
                 if not saved.ok:
                     return saved.message
             prefs.set_active_account(model, name)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             _model_views._apply_model_preferences(agent, config)
             if result.secret_payload or result.token:
                 return f"{result.message}\nSaved token for {model}:{name}."
@@ -254,7 +250,7 @@ def _handle_account_command(
             if name not in (prefs.accounts_by_model or {}).get(model, []):
                 prefs.add_account(model, name)
             prefs.set_account_env(model, name, env_var)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             return f"Set token env for {model}:{name} to {env_var}."
         if action == "import":
             if len(parts) not in {4, 5}:
@@ -277,7 +273,7 @@ def _handle_account_command(
             if not saved.ok:
                 return saved.message
             prefs.set_active_account(model, name)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             _model_views._apply_model_preferences(agent, config)
             return f"Imported credentials for {model}:{name} from {path}."
         if action == "use":
@@ -285,7 +281,7 @@ def _handle_account_command(
                 return "Usage: account use <model> <name>"
             model, name = parts[2], parts[3]
             prefs.set_active_account(model, name)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             return f"Active account for {model} set to {name}."
         if action == "choose":
             if len(parts) > 3:
@@ -303,27 +299,27 @@ def _handle_account_command(
                 return "Usage: account remove <model> <name>"
             model, name = parts[2], parts[3]
             prefs.remove_account(model, name)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             return f"Removed account {model}:{name}."
         if action == "block":
             if len(parts) != 6 or parts[4] != "until":
                 return "Usage: account block <model> <name> until YYYY-MM-DDTHH:MM"
             model, name, until = parts[2], parts[3], parts[5]
             prefs.block_account(model, name, until)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             return f"Blocked account {model}:{name} until {until}."
         if action == "unblock":
             if len(parts) != 4:
                 return "Usage: account unblock <model> <name>"
             model, name = parts[2], parts[3]
             prefs.unblock_account(model, name)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             return f"Unblocked account {model}:{name}."
         if action == "clear":
             if len(parts) != 3:
                 return "Usage: account clear <model>"
             prefs.set_active_account(parts[2], None)
-            _main()._save_model_preferences(config, prefs)
+            _model_views._save_model_preferences(config, prefs)
             return f"Cleared active account for {parts[2]}."
     except ValueError as exc:
         return str(exc)

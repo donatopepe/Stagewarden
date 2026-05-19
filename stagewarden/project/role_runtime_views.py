@@ -5,15 +5,10 @@ from .. import model_views as _model_views
 from ..project_handoff import ProjectHandoff
 from . import role_tree_views as _project_role_tree_views
 from . import model_recommendation as _project_model_recommendation
-
-
-def _main():
-    from .. import main as _main_module
-    return _main_module
+from . import role_flow as _project_role_flow
 
 
 def _prince2_role_runtime_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -21,7 +16,6 @@ def _prince2_role_runtime_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_prince2_role_runtime(config: AgentConfig) -> str:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -29,7 +23,6 @@ def _render_prince2_role_runtime(config: AgentConfig) -> str:
 
 
 def _prince2_role_active_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -37,7 +30,6 @@ def _prince2_role_active_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_prince2_role_active(config: AgentConfig) -> str:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -45,7 +37,6 @@ def _render_prince2_role_active(config: AgentConfig) -> str:
 
 
 def _prince2_role_queue_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -53,7 +44,6 @@ def _prince2_role_queue_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_prince2_role_queues(config: AgentConfig) -> str:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -61,7 +51,6 @@ def _render_prince2_role_queues(config: AgentConfig) -> str:
 
 
 def _prince2_role_control_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -71,7 +60,6 @@ def _prince2_role_control_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_prince2_role_control(config: AgentConfig) -> str:
-    main = _main()
     report = _prince2_role_control_report(config)
     if report["status"] == "missing":
         return "PRINCE2 control view: missing\n- action: run /project start, /roles tree approve, or /project tree approve first."
@@ -103,7 +91,7 @@ def _render_prince2_role_control(config: AgentConfig) -> str:
                 f"inbox={node.get('inbox_count')} outbox={node.get('outbox_count')} "
                 f"reasons={'; '.join(str(item) for item in node.get('reasons', []))}"
             )
-            node_record = main._role_tree_node_record(config, str(node.get("node_id", "")))
+            node_record = _project_role_flow._role_tree_node_record(config, str(node.get("node_id", "")))
             if node_record:
                 recommendation = _project_model_recommendation._node_model_recommendation(config, node_record)
                 suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
@@ -119,7 +107,6 @@ def _render_prince2_role_control(config: AgentConfig) -> str:
 
 
 def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = None) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -127,7 +114,6 @@ def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = Non
 
 
 def _render_prince2_role_messages(config: AgentConfig, node_id: str | None = None) -> str:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)

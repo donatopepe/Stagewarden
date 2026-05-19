@@ -3,15 +3,11 @@ from __future__ import annotations
 from ..config import AgentConfig
 from .. import model_views as _model_views
 from . import model_recommendation as _project_model_recommendation
+from . import role_flow as _project_role_flow
 from ..modelprefs import PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS
 from ..project_handoff import ProjectHandoff
 from ..roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
 from ..role_tree import prince2_role_mnemonic, prince2_role_team_name
-
-
-def _main():
-    from .. import main as _main_module
-    return _main_module
 
 
 def _status_views():
@@ -21,7 +17,6 @@ def _status_views():
 
 
 def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     return {
         "command": "roles",
@@ -39,7 +34,6 @@ def _prince2_roles_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -111,7 +105,6 @@ def _prince2_role_context_report(config: AgentConfig, node_id: str) -> dict[str,
 
 
 def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
-    main = _main()
     report = _prince2_role_context_report(config, node_id)
     if report.get("status") != "ok":
         return str(report.get("message", "PRINCE2 role context unavailable."))
@@ -139,7 +132,7 @@ def _render_prince2_role_context(config: AgentConfig, node_id: str) -> str:
         f"- agent_tools: {', '.join(caps['shell_operations'] + caps['git_operations'][:2] + ['...'])}",
         f"- file_ops: {', '.join(caps['file_operations'][:6])}, ...",
     ]
-    recommendation = _project_model_recommendation._node_model_recommendation(config, main._role_tree_node_record(config, node_id) or {})
+    recommendation = _project_model_recommendation._node_model_recommendation(config, _project_role_flow._role_tree_node_record(config, node_id) or {})
     suggested = recommendation.get("suggested", {}) if isinstance(recommendation.get("suggested"), dict) else {}
     lines.append(
         f"- model_recommendation: direction={recommendation.get('direction', 'hold')} "

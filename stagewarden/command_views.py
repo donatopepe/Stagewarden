@@ -8,15 +8,8 @@ from .tools.git import GitTool
 from .json_schema_registry import json_schema
 from .permissions import PermissionSettings, VALID_PERMISSION_MODES
 from .tools.files import FileTool
+from . import agent_setup_views as _agent_setup_views
 from . import shell_views as _shell_views
-
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module
-
-
 def _parse_limit(raw: str, *, default: int) -> int:
     if not raw:
         return default
@@ -48,7 +41,7 @@ def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Age
             session.default_mode = mode
             config.session_permission_settings = session.normalize()
             if agent is not None:
-                _main()._refresh_runtime_permissions(agent)
+                _agent_setup_views._refresh_runtime_permissions(agent)
             return f"Session permission mode set to {mode}."
         if session_action in {"allow", "ask", "deny"}:
             if len(parts) < 4:
@@ -59,12 +52,12 @@ def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Age
                 target.append(rule)
             config.session_permission_settings = session.normalize()
             if agent is not None:
-                _main()._refresh_runtime_permissions(agent)
+                _agent_setup_views._refresh_runtime_permissions(agent)
             return f"Added session {session_action} rule: {rule}"
         if session_action == "reset":
             config.session_permission_settings = None
             if agent is not None:
-                _main()._refresh_runtime_permissions(agent)
+                _agent_setup_views._refresh_runtime_permissions(agent)
             return "Session permission settings reset."
         return "Usage: permission session mode <mode> | permission session allow <rule> | permission session ask <rule> | permission session deny <rule> | permission session reset"
     action = parts[1]
@@ -77,7 +70,7 @@ def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Age
         settings.default_mode = mode
         settings.normalize().save(config.settings_path)
         if agent is not None:
-            _main()._refresh_runtime_permissions(agent)
+            _agent_setup_views._refresh_runtime_permissions(agent)
         return f"Permission mode set to {mode}."
     if action in {"allow", "ask", "deny"}:
         if len(parts) < 3:
@@ -88,12 +81,12 @@ def _handle_permission_command(parts: list[str], config: AgentConfig, agent: Age
             target.append(rule)
         settings.normalize().save(config.settings_path)
         if agent is not None:
-            _main()._refresh_runtime_permissions(agent)
+            _agent_setup_views._refresh_runtime_permissions(agent)
         return f"Added {action} rule: {rule}"
     if action == "reset":
         PermissionSettings().save(config.settings_path)
         if agent is not None:
-            _main()._refresh_runtime_permissions(agent)
+            _agent_setup_views._refresh_runtime_permissions(agent)
         return "Permission settings reset."
     return (
         "Usage: permissions | permission mode <mode> | permission allow <rule> | "

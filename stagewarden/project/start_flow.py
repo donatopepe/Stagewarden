@@ -13,11 +13,6 @@ from . import role_views as _project_role_views
 from . import role_tree_views as _project_role_tree_views
 
 
-def _main():
-    from .. import main as _main_module
-    return _main_module
-
-
 def _project_tree_ai_needed(design: dict[str, object], proposal: dict[str, object]) -> bool:
     if proposal.get("status") != "ready_for_review":
         return False
@@ -48,7 +43,6 @@ def _project_start_clarification_record(
     design_gaps: list[dict[str, str]],
     proposal_gaps: list[dict[str, str]],
 ) -> dict[str, object] | None:
-    main = _main()
     question_sources = [item for item in design_gaps + proposal_gaps if isinstance(item, dict)]
     if not question_sources:
         return None
@@ -96,7 +90,6 @@ def _project_tree_clarification_record(
     *,
     gaps: list[dict[str, str]],
 ) -> dict[str, object] | None:
-    main = _main()
     question_sources = [item for item in gaps if isinstance(item, dict)]
     if not question_sources:
         return None
@@ -137,7 +130,6 @@ def _project_tree_clarification_record(
 
 
 def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPreferences, *, force_ai: bool = False) -> dict[str, object]:
-    main = _main()
     design = _project_design_flow._project_design_report(agent, config)
     local_proposal = _project_tree_flow._project_tree_proposal_report(config)
     use_ai = force_ai or _project_tree_ai_needed(design, local_proposal)
@@ -225,7 +217,6 @@ def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPrefere
 
 
 def _render_project_start_report(report: dict[str, object], agent: Agent, config: AgentConfig, prefs: ModelPreferences) -> str:
-    main = _main()
     sections = [
         "Project startup design gate:",
         _project_design_flow._render_project_design(agent, config),

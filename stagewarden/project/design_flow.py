@@ -6,13 +6,9 @@ from ..project_handoff import ProjectHandoff
 from ..provider_registry import provider_model_specs
 from .. import model_views as _model_views
 from .. import shell_views as _shell_views
+from .. import status_views as _status_views
+from ..runtime_env import detect_runtime_capabilities
 from . import role_tree_views as _project_role_tree_views
-
-
-def _main():
-    from .. import main as _main_module
-
-    return _main_module
 
 
 def _local_execution_candidates_report(
@@ -21,7 +17,6 @@ def _local_execution_candidates_report(
     agent: Agent | None = None,
     use_ai: bool = False,
 ) -> dict[str, object]:
-    main = _main()
     specs = [spec for spec in provider_model_specs("local") if spec.id != "provider-default"]
     if not specs:
         return {
@@ -63,18 +58,17 @@ def _local_execution_candidates_report(
 
 
 def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     handoff = ProjectHandoff.load(config.handoff_path)
     prefs = _model_views._load_model_preferences(config)
-    runtime = main.detect_runtime_capabilities()
+    runtime = detect_runtime_capabilities()
     shell_backend = _shell_views._shell_backend_report(config)
-    provider_limits = main._provider_limit_status_report(agent, config)
-    permissions = main._permissions_report(config)
+    provider_limits = _status_views._provider_limit_status_report(agent, config)
+    permissions = _status_views._permissions_report(config)
     role_check = _project_role_tree_views._prince2_role_check_report(config)
     baseline = _project_role_tree_views._prince2_role_tree_baseline_report(config)
-    local_fallback = main._delivery_local_fallback_report(config)
+    local_fallback = _project_role_tree_views._delivery_local_fallback_report(config)
     local_execution = _model_views._local_execution_candidates_report(config, agent=agent, use_ai=False)
-    focus = main._focus_snapshot(agent, config)
+    focus = _status_views._focus_snapshot(agent, config)
 
     enabled_providers = [item["provider"] for item in provider_limits["providers"] if item["enabled"]]
     proposal_local_candidates = [

@@ -7,14 +7,33 @@ from typing import Callable, TextIO
 
 from .agent import Agent
 from .config import AgentConfig
-from .commands import command_specs_by_query
+from . import agent_setup_views as _agent_setup_views
+from . import extension_views as _extension_views
+from . import mode_views as _mode_views
+from .commands import command_catalog, command_phrases, command_specs_by_query, render_command_catalog
 from .permissions import PermissionSettings
 from .modelprefs import PRINCE2_ROLE_IDS, SUPPORTED_MODELS
 from . import model_views as _model_views
 from . import project_handoff_views as _project_handoff_views
+from . import ui_views as _ui_views
+from .ui_views import _guided_slash_choice
+from . import status_views as _status_views
 from .provider_registry import provider_capability, provider_model_spec, provider_model_specs
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
+from .command_dispatch import (
+    execute_browser_command as _browser_execute,
+    execute_external_io_command as _external_io_execute,
+    execute_system_command as _system_execute,
+    execute_watch_command as _watch_execute,
+)
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
+from . import json_schema_registry as _json_schema_registry
+from . import account_views as _account_views
+from . import command_views as _command_views
+from . import tool_reports as _tool_reports
+from .project import flow as _project_flow
+from .project import role_command_flow as _project_role_command_flow
+from .project import tree_flow as _project_tree_flow
 
 try:
     import readline
@@ -24,11 +43,136 @@ except ImportError:  # pragma: no cover - platform dependent
 
 INTERACTIVE_COMMAND_PREFIX = "/"
 
-
-def _main():
-    from . import main as main_module
-
-    return main_module
+INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
+    *command_phrases(),
+    "help",
+    "help core",
+    "help models",
+    "help accounts",
+    "help permissions",
+    "help handoff",
+    "help git",
+    "help caveman",
+    "help ljson",
+    "slash",
+    "exit",
+    "quit",
+    "reset",
+    "overview",
+    "health",
+    "report",
+    "status",
+    "status full",
+    "statusline",
+    "preflight",
+    "shell backend",
+    "stream on",
+    "stream off",
+    "stream status",
+    "doctor",
+    "handoff",
+    "handoff export",
+    "handoff md",
+    "board",
+    "stage review",
+    "resume",
+    "resume --show",
+    "resume context",
+    "resume --clear",
+    "boundary",
+    "risks",
+    "issues",
+    "quality",
+    "exception",
+    "lessons",
+    "transcript",
+    "trace",
+    "todo",
+    "models",
+    "models usage",
+    "models limits",
+    "cost",
+    "accounts",
+    "roles",
+    "roles setup",
+    "roles menu",
+    "roles tree menu",
+    "roles propose",
+    "roles domains",
+    "roles context",
+    "roles messages",
+    "roles runtime",
+    "project start",
+    "auth status",
+    "permissions",
+    "sessions",
+    "session list",
+    "session create",
+    "session send last",
+    "session close last",
+    "patch preview",
+    "git status",
+    "git log",
+    "git history",
+    "git show",
+    "git show --stat",
+    "model use",
+    "model choose",
+    "model preset",
+    "model add",
+    "model remove",
+    "model list",
+    "model limits",
+    "model variant",
+    "model variant-clear",
+    "model block",
+    "model unblock",
+    "model limit-record",
+    "model limit-clear",
+    "model clear",
+    "account add",
+    "account choose",
+    "account login",
+    "account login-device",
+    "account import",
+    "account env",
+    "account use",
+    "account logout",
+    "account remove",
+    "account block",
+    "account unblock",
+    "account limit-record",
+    "account limit-clear",
+    "account clear",
+    "role configure",
+    "role clear",
+    "role menu",
+    "role model",
+    "role tolerance",
+    "role remove",
+    "sources",
+    "sources status",
+    "permission mode",
+    "permission allow",
+    "permission ask",
+    "permission deny",
+    "permission reset",
+    "permission session mode",
+    "permission session allow",
+    "permission session ask",
+    "permission session deny",
+    "permission session reset",
+    "mode normal",
+    "mode caveman",
+    "mode plan",
+    "mode auto",
+    "mode accept-edits",
+    "mode dont-ask",
+    "mode default",
+    "caveman help",
+    "caveman on",
+    "caveman off",
+)))
 
 
 def _workspace_settings_payload(path: Path) -> dict[str, object]:
@@ -73,9 +217,7 @@ def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _interactive_command_phrases() -> tuple[str, ...]:
-    from . import main as main_module
-
-    return main_module.INTERACTIVE_COMMAND_PHRASES
+    return INTERACTIVE_COMMAND_PHRASES
 
 
 def _provider_model_candidates(provider: str, partial: str) -> list[str]:
@@ -453,12 +595,10 @@ def _prompt_menu_choice(
 
 
 def _is_known_interactive_command(command: str) -> bool:
-    from . import main as main_module
-
     normalized = command.strip().lower()
     if not normalized:
         return False
-    if normalized in main_module.INTERACTIVE_COMMAND_PHRASES:
+    if normalized in INTERACTIVE_COMMAND_PHRASES:
         return True
     prefixes = (
         "help ",
@@ -489,51 +629,49 @@ def _is_known_interactive_command(command: str) -> bool:
 
 
 def _rewrite_shell_command(command: str, agent: Agent) -> tuple[str | None, str | None]:
-    from . import main as main_module
-
     lowered = command.lower().strip()
     if lowered == "help":
-        return None, main_module.interactive_help_text()
+        return None, _ui_views.interactive_help_text()
     if lowered in {"help topics", "help topics --json", "help --json"}:
-        return None, main_module.dumps_ascii(main_module._with_json_schema("help", main_module._help_json_report()), indent=2) if lowered.endswith("--json") else main_module.interactive_help_text()
+        return None, _ui_views.interactive_help_text() if not lowered.endswith("--json") else dumps_ascii(_json_schema_registry.with_json_schema("help", _ui_views._help_json_report()), indent=2)
     if lowered == "slash choose":
-        return None, main_module._render_slash_choice_candidates(agent.config)
+        return None, _ui_views._render_slash_choice_candidates(agent.config)
     if lowered.startswith("slash choose "):
         query = command.split(maxsplit=2)[2]
-        return None, main_module._render_slash_choice_candidates(agent.config, query)
+        return None, _ui_views._render_slash_choice_candidates(agent.config, query)
     if lowered == "slash":
-        return None, main_module._render_slash_palette(agent.config)
+        return None, _ui_views._render_slash_palette(agent.config)
     if lowered == "slash --json":
-        return None, main_module.dumps_ascii(main_module._with_json_schema("slash", main_module._slash_palette_report(agent.config)), indent=2)
+        return None, dumps_ascii(_json_schema_registry.with_json_schema("slash", _ui_views._slash_palette_report(agent.config)), indent=2)
     if lowered.startswith("slash "):
         prefix = command.split(maxsplit=1)[1]
         if prefix.endswith(" --json"):
             prefix = prefix[: -len(" --json")].strip()
-            return None, main_module.dumps_ascii(main_module._with_json_schema("slash", main_module._slash_palette_report(agent.config, prefix)), indent=2)
-        return None, main_module._render_slash_palette(agent.config, prefix)
+            return None, dumps_ascii(_json_schema_registry.with_json_schema("slash", _ui_views._slash_palette_report(agent.config, prefix)), indent=2)
+        return None, _ui_views._render_slash_palette(agent.config, prefix)
     if lowered == "commands":
-        return None, main_module.render_command_catalog()
+        return None, render_command_catalog()
     if lowered == "commands --json":
-        return None, main_module.dumps_ascii(main_module._with_json_schema("commands", {"command": "commands", "commands": main_module.command_catalog()}), indent=2)
+        return None, dumps_ascii(_json_schema_registry.with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2)
     if lowered.startswith("help "):
         topic = command.split(maxsplit=1)[1]
         if topic.lower().strip() == "--json":
-            return None, main_module.dumps_ascii(main_module._with_json_schema("help", main_module._help_json_report()), indent=2)
+            return None, dumps_ascii(_json_schema_registry.with_json_schema("help", _ui_views._help_json_report()), indent=2)
         if topic.lower().strip() == "caveman":
             return None, agent.caveman.help_text()
         if topic.lower().strip() == "topics":
-            return None, main_module.interactive_help_text()
+            return None, _ui_views.interactive_help_text()
         if topic.lower().strip().endswith(" --json"):
             raw_topic = topic[: -len(" --json")].strip()
             if raw_topic.lower() == "caveman":
-                return None, main_module.dumps_ascii(main_module._with_json_schema("help", {"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}), indent=2)
-            return None, main_module.dumps_ascii(main_module._with_json_schema("help", main_module._help_json_report(raw_topic)), indent=2)
-        return None, main_module.interactive_help_text(topic)
+                return None, dumps_ascii(_json_schema_registry.with_json_schema("help", {"command": "help", "ok": True, "topic": "caveman", "title": "Caveman", "message": "Use `help caveman` for the rich caveman help surface."}), indent=2)
+            return None, dumps_ascii(_json_schema_registry.with_json_schema("help", _ui_views._help_json_report(raw_topic)), indent=2)
+        return None, _ui_views.interactive_help_text(topic)
     if lowered.startswith("commands "):
         topic = command.split(maxsplit=1)[1]
         if topic.lower().strip() == "--json":
-            return None, main_module.dumps_ascii(main_module._with_json_schema("commands", {"command": "commands", "commands": main_module.command_catalog()}), indent=2)
-        return None, main_module.interactive_help_text(topic)
+            return None, dumps_ascii(_json_schema_registry.with_json_schema("commands", {"command": "commands", "commands": command_catalog()}), indent=2)
+        return None, _ui_views.interactive_help_text(topic)
     if lowered in {"caveman help", "help caveman"}:
         return None, agent.caveman.help_text()
     if lowered.startswith("caveman on"):
@@ -664,8 +802,6 @@ def _run_interactive_shell_impl(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
 ) -> int:
-    from . import main as main_module
-
     shell_exports = {
         "_interactive_command_phrases": _interactive_command_phrases,
         "_provider_model_candidates": _provider_model_candidates,
@@ -690,12 +826,11 @@ def _run_interactive_shell_impl(
         "_make_rate_limit_decider": _make_rate_limit_decider,
         "INTERACTIVE_COMMAND_PREFIX": INTERACTIVE_COMMAND_PREFIX,
     }
-    globals().update(main_module.__dict__)
     globals().update(shell_exports)
     source = input_stream or sys.stdin
     sink = output_stream or sys.stdout
-    agent = _configure_agent_for_workspace(config)
-    provider_limits = _provider_limit_status_report(agent, config)
+    agent = _agent_setup_views._configure_agent_for_workspace(config)
+    provider_limits = _status_views._provider_limit_status_report(agent, config)
     stream_enabled = True
 
     def apply_stream_callback(current_agent: Agent) -> None:
@@ -786,7 +921,7 @@ def _run_interactive_shell_impl(
             return 0
         if shell_command == "reset":
             config.session_permission_settings = None
-            agent = _configure_agent_for_workspace(config)
+            agent = _agent_setup_views._configure_agent_for_workspace(config)
             apply_stream_callback(agent)
             config.permission_approver = _make_permission_approver(
                 config=config,
@@ -823,48 +958,50 @@ def _run_interactive_shell_impl(
             sink.write(f"{model_message}\n")
             sink.flush()
             continue
-        account_message = _handle_account_command(shell_command, agent, config, input_stream=source, output_stream=sink)
+        account_message = _account_views._handle_account_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if account_message is not None:
             sink.write(f"{account_message}\n")
             sink.flush()
             continue
-        project_brief_message = _handle_project_brief_command(shell_command, config)
+        project_brief_message = _project_flow._handle_project_brief_command(shell_command, config)
         if project_brief_message is not None:
             sink.write(f"{project_brief_message}\n")
             sink.flush()
             continue
         if shell_command in {"project tree propose", "project tree propose --ai"}:
             use_ai = shell_command.endswith(" --ai")
-            report = _project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
-            _record_project_tree_proposal_action(config, report, task=shell_command)
-            sink.write(f"{_render_project_tree_proposal_report(report)}\n")
+            report = _project_tree_flow._project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
+            _project_tree_flow._record_project_tree_proposal_action(config, report, task=shell_command)
+            sink.write(f"{_project_tree_flow._render_project_tree_proposal_report(report)}\n")
             sink.flush()
             continue
         if shell_command in {"project tree approve", "project tree approve --force"}:
-            sink.write(f"{_render_project_tree_approval(config, force=shell_command.endswith(' --force'))}\n")
+            sink.write(f"{_project_tree_flow._render_project_tree_approval(config, force=shell_command.endswith(' --force'))}\n")
             sink.flush()
             continue
-        role_message = _handle_role_command(shell_command, agent, config, input_stream=source, output_stream=sink)
+        role_message = _project_role_command_flow._handle_project_and_roles_command(shell_command, agent, config, input_stream=source, output_stream=sink)
+        if role_message is None:
+            role_message = _project_role_command_flow._handle_role_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if role_message is not None:
             sink.write(f"{role_message}\n")
             sink.flush()
             continue
-        sources_message = _handle_sources_command(shell_command, config)
+        sources_message = _status_views._handle_sources_command(shell_command, config)
         if sources_message is not None:
             sink.write(f"{sources_message}\n")
             sink.flush()
             continue
-        update_message = _handle_update_command(shell_command, config)
+        update_message = _status_views._handle_update_command(shell_command, config)
         if update_message is not None:
             sink.write(f"{update_message}\n")
             sink.flush()
             continue
-        extension_message = _handle_extension_command(shell_command, config)
+        extension_message = _extension_views._handle_extension_command(shell_command, config)
         if extension_message is not None:
             sink.write(f"{extension_message}\n")
             sink.flush()
             continue
-        external_io_message = _handle_external_io_command(
+        external_io_message = _tool_reports.handle_external_io_command(
             shell_command,
             config,
             execute_external_io_command=_external_io_execute,
@@ -874,7 +1011,7 @@ def _run_interactive_shell_impl(
             sink.write(f"{external_io_message}\n")
             sink.flush()
             continue
-        system_message = _handle_system_command(
+        system_message = _tool_reports.handle_system_command(
             shell_command,
             config,
             execute_system_command=_system_execute,
@@ -884,32 +1021,32 @@ def _run_interactive_shell_impl(
             sink.write(f"{system_message}\n")
             sink.flush()
             continue
-        mode_message = _handle_mode_command(shell_command, agent, config)
+        mode_message = _mode_views._handle_mode_command(shell_command, agent, config)
         if mode_message is not None:
             sink.write(f"{mode_message}\n")
             sink.flush()
             continue
-        resume_message = _handle_resume_command(shell_command, agent, config)
+        resume_message = _project_handoff_views._handle_resume_command(shell_command, agent, config)
         if resume_message is not None:
             sink.write(f"{resume_message}\n")
             sink.flush()
             continue
-        git_message = _handle_git_command(shell_command, config)
+        git_message = _command_views._handle_git_command(shell_command, config)
         if git_message is not None:
             sink.write(f"{git_message}\n")
             sink.flush()
             continue
-        file_message = _handle_file_command(shell_command, config)
+        file_message = _command_views._handle_file_command(shell_command, config)
         if file_message is not None:
             sink.write(f"{file_message}\n")
             sink.flush()
             continue
-        shell_session_message = _handle_shell_session_command(shell_command, agent)
+        shell_session_message = _command_views._handle_shell_session_command(shell_command, agent)
         if shell_session_message is not None:
             sink.write(f"{shell_session_message}\n")
             sink.flush()
             continue
-        patch_message = _handle_patch_command(shell_command, agent)
+        patch_message = _command_views._handle_patch_command(shell_command, agent)
         if patch_message is not None:
             sink.write(f"{patch_message}\n")
             sink.flush()
@@ -925,7 +1062,4 @@ def run_interactive_shell(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
 ) -> int:
-    from . import main as main_module
-
-    globals().update(main_module.__dict__)
     return _run_interactive_shell_impl(config, input_stream=input_stream, output_stream=output_stream)

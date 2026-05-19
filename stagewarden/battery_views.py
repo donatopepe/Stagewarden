@@ -13,17 +13,11 @@ from .project_handoff import ProjectHandoff
 from .project import role_flow as _project_role_flow
 from .project import role_runtime_views as _project_role_runtime_views
 from . import status_dashboard_views as _status_dashboard_views
+from .planner import PlanStep
 from .textcodec import dumps_ascii
 
 
-def _main():
-    from . import main as main_module
-
-    return main_module
-
-
 def _battery_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
 
     class _BatteryHandoffStub:
         def __init__(self, outputs: list[dict[str, object]]) -> None:
@@ -40,6 +34,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                 "required keys: verdict" in command_lower
                 or "allowed verdict values: accept, revise, block" in command_lower
                 or "you are the devil's advocate / project assurance critic" in command_lower
+                or ("retrospettiva prospettica" in command_lower and "primary model response" in command_lower)
             ) and not self.outputs:
                 payload = {
                     "ok": True,
@@ -130,7 +125,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                     }
                 ]
             )
-            step = main.PlanStep(
+            step = PlanStep(
                 id="battery.write",
                 title="Write battery file",
                 instruction="create a file named battery.txt",
@@ -509,7 +504,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
             prefs = ModelPreferences.load(config.model_prefs_path)
             input_stream = io.StringIO("q\n")
             output_stream = io.StringIO()
-            message = main._guided_role_node_switch_agent(
+            message = _project_role_flow._guided_role_node_switch_agent(
                 prefs=prefs,
                 config=config,
                 node_id="management.project_manager",
@@ -942,7 +937,7 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                 error_type="runtime_error",
             )
             memory.save(config.memory_path)
-            report = main._log_error_report(config)
+            report = _project_handoff_views._log_error_report(config)
             ok = int(report.get("count", 0) or 0) >= 2
             return {
                 "ok": ok,

@@ -7,16 +7,26 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from .agent import Agent
 from .config import AgentConfig
 from .commands import command_catalog
+from .executor import ALLOWED_MODEL_ACTIONS
+from .handoff import MODEL_BACKENDS
 from .json_schema_registry import json_schema
 from .memory import MemoryStore
+from .model_catalog import catalog_entries_for_provider, catalog_entry_for_provider_model, load_ai_models_catalog
 from .modelprefs import SUPPORTED_MODELS, account_key, extract_blocked_until, limit_snapshot_from_message
 from .permissions import PermissionSettings
+from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
 from . import account_views as _account_views
 from . import model_views as _model_views
+from . import report_views as _report_views
+from . import status_dashboard_views as _status_dashboard_views
+from . import main as _main_module
+BASELINE_CAPABILITY_GROUPS = _main_module.BASELINE_CAPABILITY_GROUPS
+BASELINE_REMEDIATION_BY_GROUP = _main_module.BASELINE_REMEDIATION_BY_GROUP
 from . import project_state_views as _project_state_views
 from . import project_handoff_views as _project_handoff_views
 from .project import role_tree_views as _role_tree_views
@@ -28,16 +38,61 @@ from .tools.git import GitTool
 from .secrets import SecretStore
 
 
-def _main():
-    from . import main as _main_module
-
-    return _main_module
-
-
 def _limits():
     from . import status_limits_views as _status_limits_views_module
 
     return _status_limits_views_module
+
+
+def _source_reference_manifest(config: AgentConfig) -> list[dict[str, str]]:
+    return [
+        {
+            "project": "Stagewarden",
+            "path": ".",
+            "upstream": "https://github.com/donatopepe/Stagewarden.git",
+        },
+        {
+            "project": "Docs",
+            "path": "docs",
+            "upstream": "https://github.com/donatopepe/Stagewarden-docs.git",
+        },
+        {
+            "project": "Tests",
+            "path": "tests",
+            "upstream": "https://github.com/donatopepe/Stagewarden-tests.git",
+        },
+    ]
+
+
+def _git_output(cwd: Path, *args: str) -> tuple[bool, str]:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    output = completed.stdout.strip() or completed.stderr.strip()
+    return completed.returncode == 0, output
+
+
+def _git_completed(cwd: Path, *args: str, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+def _normalize_git_url(url: str | None) -> str:
+    clean = str(url or "").strip().rstrip("/")
+    if clean.endswith(".git"):
+        clean = clean[:-4]
+    return clean
 
 
 def _roles():
@@ -164,7 +219,7 @@ def _record_limit_message(
             prefs.blocked_until_by_model[model] = until
             if prefs.preferred_model == model:
                 prefs.preferred_model = None
-    prefs.normalize().save(config.settings_path)
+    prefs.normalize().save(config.model_prefs_path)
     return f"Recorded limit snapshot for {f'{model}:{account}' if account else model}; {'blocked until ' + until if until else 'no reset time detected.'}"
 
 
@@ -179,6 +234,7 @@ def _clear_limit_snapshot(config: AgentConfig, prefs, *, model: str, account: st
         prefs.last_limit_message_by_account.pop(key, None)
         prefs.provider_limit_snapshot_by_account = dict(prefs.provider_limit_snapshot_by_account or {})
         prefs.provider_limit_snapshot_by_account.pop(key, None)
+        prefs.normalize().save(config.model_prefs_path)
         return f"Cleared limit snapshot for {model}:{account}."
     prefs.blocked_until_by_model = dict(prefs.blocked_until_by_model or {})
     prefs.blocked_until_by_model.pop(model, None)
@@ -186,7 +242,7 @@ def _clear_limit_snapshot(config: AgentConfig, prefs, *, model: str, account: st
     prefs.last_limit_message_by_model.pop(model, None)
     prefs.provider_limit_snapshot_by_model = dict(prefs.provider_limit_snapshot_by_model or {})
     prefs.provider_limit_snapshot_by_model.pop(model, None)
-    prefs.normalize().save(config.settings_path)
+    prefs.normalize().save(config.model_prefs_path)
     return f"Cleared limit snapshot for {model}."
 
 
@@ -219,7 +275,7 @@ def _permissions_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_runtime_status(config: AgentConfig) -> str:
-    runtime = _main().detect_runtime_capabilities(config.workspace_root)
+    runtime = detect_runtime_capabilities(config.workspace_root)
     shells = runtime["shells"]
     lines = [
         "Runtime:",
@@ -240,8 +296,7 @@ def _render_runtime_status(config: AgentConfig) -> str:
 
 
 def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]:
-    main = _main()
-    runtime = main.detect_runtime_capabilities(config.workspace_root)
+    runtime = detect_runtime_capabilities(config.workspace_root)
     shell_backend = _shell_backend_report(config)
     permissions = _permissions_report(config)
     return {
@@ -264,7 +319,7 @@ def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]
             "compression": True,
             "wet_run_required": True,
         },
-        "model_actions": sorted(main.ALLOWED_MODEL_ACTIONS),
+        "model_actions": sorted(ALLOWED_MODEL_ACTIONS),
         "file_operations": [
             "read_file",
             "inspect_file",
@@ -307,8 +362,7 @@ def _agent_capability_surface_for_node(config: AgentConfig) -> dict[str, object]
 
 
 def _sources_status_report(config: AgentConfig, *, strict: bool = False) -> dict[str, object]:
-    main = _main()
-    manifest = main._source_reference_manifest(config)
+    manifest = _source_reference_manifest(config)
     items: list[dict[str, object]] = []
     for entry in manifest:
         local_path = config.workspace_root / entry["path"]
@@ -322,10 +376,10 @@ def _sources_status_report(config: AgentConfig, *, strict: bool = False) -> dict
         shallow = None
         message = "missing"
         if exists and is_git:
-            head_ok, head = main._git_output(local_path, "rev-parse", "--short", "HEAD")
-            remote_ok, remote = main._git_output(local_path, "remote", "get-url", "origin")
-            shallow_ok, shallow = main._git_output(local_path, "rev-parse", "--is-shallow-repository")
-            message = "ok" if head_ok and remote_ok and main._normalize_git_url(remote) == main._normalize_git_url(entry["upstream"]) else "metadata mismatch"
+            head_ok, head = _git_output(local_path, "rev-parse", "--short", "HEAD")
+            remote_ok, remote = _git_output(local_path, "remote", "get-url", "origin")
+            shallow_ok, shallow = _git_output(local_path, "rev-parse", "--is-shallow-repository")
+            message = "ok" if head_ok and remote_ok and _normalize_git_url(remote) == _normalize_git_url(entry["upstream"]) else "metadata mismatch"
         elif exists:
             message = "path exists but is not a git repository"
         items.append(
@@ -337,7 +391,7 @@ def _sources_status_report(config: AgentConfig, *, strict: bool = False) -> dict
                 "git_repository": is_git,
                 "head": head if head_ok else None,
                 "upstream": remote if remote_ok else None,
-                "upstream_matches": bool(remote_ok and main._normalize_git_url(remote) == main._normalize_git_url(entry["upstream"])),
+                "upstream_matches": bool(remote_ok and _normalize_git_url(remote) == _normalize_git_url(entry["upstream"])),
                 "shallow": (shallow == "true") if shallow_ok else None,
                 "status": "OK" if message == "ok" else ("FAIL" if strict else "WARN"),
                 "message": message,
@@ -382,7 +436,6 @@ def _render_sources_status(config: AgentConfig, *, strict: bool = False) -> str:
 
 
 def _sources_update_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     status = _sources_status_report(config)
     items: list[dict[str, object]] = []
     for item in status["items"]:
@@ -402,9 +455,9 @@ def _sources_update_report(config: AgentConfig) -> dict[str, object]:
             )
             continue
         local_path = config.workspace_root / str(item["path"])
-        before_ok, before = main._git_output(local_path, "rev-parse", "--short", "HEAD")
-        completed = main._git_completed(local_path, "pull", "--ff-only", timeout=30)
-        after_ok, after = main._git_output(local_path, "rev-parse", "--short", "HEAD")
+        before_ok, before = _git_output(local_path, "rev-parse", "--short", "HEAD")
+        completed = _git_completed(local_path, "pull", "--ff-only", timeout=30)
+        after_ok, after = _git_output(local_path, "rev-parse", "--short", "HEAD")
         output = completed.stdout.strip() or completed.stderr.strip()
         items.append(
             {
@@ -464,9 +517,8 @@ def _handle_sources_command(command: str, config: AgentConfig) -> str | None:
 
 
 def _update_status_report(config: AgentConfig, *, fetch: bool = False) -> dict[str, object]:
-    main = _main()
     root = config.workspace_root
-    inside_ok, inside = main._git_output(root, "rev-parse", "--is-inside-work-tree")
+    inside_ok, inside = _git_output(root, "rev-parse", "--is-inside-work-tree")
     if not inside_ok or inside != "true":
         return {
             "command": "update check" if fetch else "update status",
@@ -477,7 +529,7 @@ def _update_status_report(config: AgentConfig, *, fetch: bool = False) -> dict[s
         }
     fetch_message = None
     if fetch:
-        fetched = main._git_completed(root, "fetch", "--quiet", "--prune", timeout=60)
+        fetched = _git_completed(root, "fetch", "--quiet", "--prune", timeout=60)
         fetch_message = fetched.stdout.strip() or fetched.stderr.strip() or "fetch completed"
         if fetched.returncode != 0:
             return {
@@ -487,20 +539,20 @@ def _update_status_report(config: AgentConfig, *, fetch: bool = False) -> dict[s
                 "message": fetch_message,
                 "update_available": False,
             }
-    branch_ok, branch = main._git_output(root, "branch", "--show-current")
-    head_ok, head = main._git_output(root, "rev-parse", "--short", "HEAD")
-    upstream_ok, upstream = main._git_output(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+    branch_ok, branch = _git_output(root, "branch", "--show-current")
+    head_ok, head = _git_output(root, "rev-parse", "--short", "HEAD")
+    upstream_ok, upstream = _git_output(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
     upstream_head_ok, upstream_head = (False, "")
     ahead = behind = 0
     if upstream_ok:
-        upstream_head_ok, upstream_head = main._git_output(root, "rev-parse", "--short", upstream)
-        counts_ok, counts = main._git_output(root, "rev-list", "--left-right", "--count", f"HEAD...{upstream}")
+        upstream_head_ok, upstream_head = _git_output(root, "rev-parse", "--short", upstream)
+        counts_ok, counts = _git_output(root, "rev-list", "--left-right", "--count", f"HEAD...{upstream}")
         if counts_ok:
             parts = counts.split()
             if len(parts) == 2:
                 ahead, behind = int(parts[0]), int(parts[1])
-    dirty_ok, dirty = main._git_output(root, "status", "--porcelain")
-    remote_ok, remote = main._git_output(root, "remote", "get-url", "origin")
+    dirty_ok, dirty = _git_output(root, "status", "--porcelain")
+    remote_ok, remote = _git_output(root, "remote", "get-url", "origin")
     ok = bool(branch_ok and head_ok and upstream_ok and upstream_head_ok and dirty_ok)
     return {
         "command": "update check" if fetch else "update status",
@@ -540,7 +592,6 @@ def _render_update_status(config: AgentConfig, *, fetch: bool = False) -> str:
 
 
 def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dict[str, object]:
-    main = _main()
     if not confirmed:
         return {
             "command": "update apply",
@@ -556,7 +607,7 @@ def _update_apply_report(config: AgentConfig, *, confirmed: bool = False) -> dic
         return {"command": "update apply", "ok": False, "applied": False, "message": "Refusing self-update with dirty working tree.", "before": before}
     if not before.get("update_available"):
         return {"command": "update apply", "ok": True, "applied": False, "message": "Already up to date.", "before": before, "after": before}
-    pulled = main._git_completed(config.workspace_root, "pull", "--ff-only", timeout=60)
+    pulled = _git_completed(config.workspace_root, "pull", "--ff-only", timeout=60)
     after = _update_status_report(config, fetch=False)
     output = pulled.stdout.strip() or pulled.stderr.strip()
     report = {
@@ -615,13 +666,12 @@ def _render_provider_limit_status(agent: Agent, config: AgentConfig) -> str:
 
 
 def _render_model_status(agent: Agent, config: AgentConfig) -> str:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     status = agent.router.status()
     lines = ["Provider configuration:"]
     for provider in SUPPORTED_MODELS:
-        backend = main.MODEL_BACKENDS[provider]["label"]
-        capability = main.provider_capability(provider)
+        backend = MODEL_BACKENDS[provider]["label"]
+        capability = provider_capability(provider)
         enabled = "enabled" if provider in status["enabled_models"] else "disabled"
         blocked_until = status["blocked_until_by_model"].get(provider)
         blocked = f" blocked-until={blocked_until}" if blocked_until else ""
@@ -670,18 +720,17 @@ def _selected_model_report(model_report: dict[str, object]) -> dict[str, object]
 
 
 def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     status = agent.router.status()
-    catalog = main.load_ai_models_catalog()
+    catalog = load_ai_models_catalog()
     models: list[dict[str, object]] = []
     for model in SUPPORTED_MODELS:
-        capability = main.provider_capability(model)
-        provider_catalog = main.catalog_entries_for_provider(model, catalog)
+        capability = provider_capability(model)
+        provider_catalog = catalog_entries_for_provider(model, catalog)
         provider_default_entry = next((item for item in provider_catalog if str(item.get("model_id")) == "provider-default"), None)
         provider_model, selection_mode, default_model = _model_views._provider_model_display(prefs, model)
         params = _model_views._provider_model_params_display(prefs, model)
-        catalog_entry = main.catalog_entry_for_provider_model(model, provider_model, catalog)
+        catalog_entry = catalog_entry_for_provider_model(model, provider_model, catalog)
         models.append(
             {
                 "model": model,
@@ -697,7 +746,7 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
                 "provider_model_params": params,
                 "auth": capability.auth_type,
                 "profiles": capability.supports_account_profiles,
-                "backend": main.MODEL_BACKENDS[model]["label"],
+                "backend": MODEL_BACKENDS[model]["label"],
                 "catalog": _model_views._catalog_entry_display(catalog_entry, None),
                 "catalog_source": (catalog_entry or provider_default_entry or {}).get("source") if (catalog_entry or provider_default_entry) else None,
                 "pricing_source": (catalog_entry or provider_default_entry or {}).get("pricing_source")
@@ -837,7 +886,6 @@ def _render_focus_snapshot(snapshot: dict[str, object]) -> str:
 
 
 def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     catalog = command_catalog()
     available: set[str] = set()
     for item in catalog:
@@ -847,7 +895,7 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
                 available.add(str(value).strip())
     groups: list[dict[str, object]] = []
     missing_total: list[str] = []
-    for group in main.BASELINE_CAPABILITY_GROUPS:
+    for group in BASELINE_CAPABILITY_GROUPS:
         required = [str(item) for item in group["required_commands"]]
         missing = [item for item in required if item not in available]
         missing_total.extend(f"{group['id']}:{item}" for item in missing)
@@ -859,10 +907,10 @@ def _agent_baseline_report(config: AgentConfig) -> dict[str, object]:
                 "required_commands": required,
                 "missing_commands": missing,
                 "status": "ok" if not missing else "missing",
-                "remediation": "none" if not missing else main.BASELINE_REMEDIATION_BY_GROUP.get(str(group["id"]), "Restore missing command surfaces."),
+                "remediation": "none" if not missing else BASELINE_REMEDIATION_BY_GROUP.get(str(group["id"]), "Restore missing command surfaces."),
             }
         )
-    runtime = main.detect_runtime_capabilities(config.workspace_root)
+    runtime = detect_runtime_capabilities(config.workspace_root)
     configured_shell = str(getattr(config, "shell_backend", "auto") or "auto")
     shell_selection = select_shell_backend(configured_shell, detect_runtime_capabilities(config.workspace_root))
     shell = {
@@ -947,7 +995,6 @@ def _render_agent_baseline(config: AgentConfig) -> str:
 
 
 def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     handoff = ProjectHandoff.load(config.handoff_path)
     active_model = _selected_model_report(_model_status_report(agent, config))
     latest_attempt = agent.memory.latest_attempt()
@@ -1011,11 +1058,10 @@ def _focus_snapshot(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 
 def _status_pricing_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     model_report = _model_status_report(agent, config)
     selected = _selected_model_report(model_report)
-    analysis_model = main._choose_cloud_priority_model(agent, prefs)
+    analysis_model = _model_views._choose_cloud_priority_model(agent, prefs)
     if isinstance(model_report, dict):
         models = model_report.get("models", [])
         if isinstance(models, list):
@@ -1151,7 +1197,6 @@ def _render_cost_sidebar(agent: Agent, config: AgentConfig) -> str:
 
 
 def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     _model_views._apply_model_preferences(agent, config)
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
@@ -1159,7 +1204,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     provider_limits = _provider_limit_status_report(agent, config)
     permissions = _permissions_report(config)
     stage_view = handoff.stage_view()
-    local_fallback = main._delivery_local_fallback_report(config)
+    local_fallback = _role_tree_views._delivery_local_fallback_report(config)
     pricing = _status_pricing_report(agent, config)
     return {
         "command": "status",
@@ -1177,7 +1222,7 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
         "goal": handoff.goal_view(),
         "provider_limits": provider_limits,
         "limits_summary": _provider_limit_summary_report(provider_limits),
-        "runtime": main.detect_runtime_capabilities(config.workspace_root),
+        "runtime": detect_runtime_capabilities(config.workspace_root),
         "shell_backend": {
             "command": "shell backend",
             "configured": str(getattr(config, "shell_backend", "auto") or "auto"),
@@ -1196,12 +1241,11 @@ def _status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
             "stage_view": stage_view,
         },
         "local_fallback": local_fallback,
-        "remediations": main._status_remediation_report(provider_limits=provider_limits, stage_view=stage_view, config=config),
+        "remediations": _status_dashboard_views._status_remediation_report(provider_limits=provider_limits, stage_view=stage_view, config=config),
     }
 
 
 def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     status = _status_report(agent, config)
     provider_limits = status["provider_limits"]
     model_report = status["models"]
@@ -1298,7 +1342,6 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
 
 
 def _render_status(agent: Agent, config: AgentConfig) -> str:
-    main = _main()
     _model_views._apply_model_preferences(agent, config)
     caveman_state = agent.caveman.load_state(config)
     mode = f"caveman {caveman_state.level}" if caveman_state.active else "normal"
@@ -1327,11 +1370,11 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
         _render_provider_limit_status(agent, config),
         _render_runtime_status(config),
         _render_shell_backend(config),
-        main._render_resume_context(config),
+        _project_handoff_views._render_resume_context(config),
         _project_state_views.render_goal_report(config),
         _project_state_views.render_budget_report(config),
         _project_state_views.render_question_report(config),
-        main._render_permissions(config),
+        _report_views._render_permissions(config),
         "PRINCE2 roles:",
         _role_tree_views._render_prince2_role_status_hint(config),
         _role_views._render_prince2_roles(config),
@@ -1350,7 +1393,6 @@ def _render_status(agent: Agent, config: AgentConfig) -> str:
 
 
 def _render_status_full(agent: Agent, config: AgentConfig) -> str:
-    main = _main()
     report = _status_dashboard_report(agent, config)
     model = report["model"] if isinstance(report.get("model"), dict) else {}
     account = report["account"] if isinstance(report.get("account"), dict) else {}
@@ -1480,7 +1522,6 @@ def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
 
 
 def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     status = _status_report(agent, config)
     usage = _model_usage_report(config)["report"]
     memory = MemoryStore.load(config.memory_path)
@@ -1529,26 +1570,24 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 
 def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     return {
         "command": "overview",
         "schema": json_schema("overview"),
         "status": _status_report(agent, config),
-        "board": main._board_report(config),
+        "board": _report_views._board_report(config),
         "model_usage": _model_usage_report(config),
         "provider_limits": _provider_limit_status_report(agent, config),
-        "transcript": main._transcript_report(config),
-        "handoff": main._handoff_report(config),
+        "transcript": _project_handoff_views._transcript_report(config),
+        "handoff": _project_handoff_views._handoff_report(config),
     }
 
 
 def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
-    board = main._board_report(config)
+    board = _report_views._board_report(config)
     status = _status_report(agent, config)
     usage = _model_usage_report(config)["report"]
-    transcript = main._transcript_report(config)["report"]
-    log_errors = main._log_error_report(config)
+    transcript = _project_handoff_views._transcript_report(config)["report"]
+    log_errors = _project_handoff_views._log_error_report(config)
     ready = (
         board["recommended_authorization"] in {"continue", "close"}
         and board["open_issues"] == 0
@@ -1588,7 +1627,6 @@ def _preflight_remediations(
     stage_view: dict[str, object],
     log_errors: dict[str, object],
 ) -> list[dict[str, str]]:
-    main = _main()
     items: list[dict[str, str]] = []
     if not doctor.get("python", {}).get("ok"):  # type: ignore[union-attr]
         items.append({"severity": "blocker", "code": "python", "action": "Install Python 3.11+ and rerun `/preflight`."})
@@ -1693,23 +1731,22 @@ def _status_remediation_report(
     stage_view: dict[str, object],
     config: AgentConfig,
 ) -> list[dict[str, str]]:
-    main = _main()
     git = GitTool(config)
     git_status = git.status()
     git_dirty = git.status_porcelain()
     items = _preflight_remediations(
         doctor={"python": {"ok": True}, "git": {"ok": True}},
-        runtime=main.detect_runtime_capabilities(config.workspace_root),
+        runtime=detect_runtime_capabilities(config.workspace_root),
         shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
         role_check=_role_tree_views._prince2_role_check_report(config),
         provider_limits=provider_limits,
-        sources=main._sources_status_report(config),
+        sources=_sources_status_report(config),
         stage_view=stage_view,
-        log_errors=main._log_error_report(config),
+        log_errors=_project_handoff_views._log_error_report(config),
     )
-    local_fallback = main._delivery_local_fallback_report(config)
+    local_fallback = _role_tree_views._delivery_local_fallback_report(config)
     if local_fallback["status"] == "available":
         items.append(
             {
@@ -1736,7 +1773,6 @@ def _status_remediation_report(
 
 
 def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     doctor = _doctor_report(config)
     git = GitTool(config)
     git_status = git.status()
@@ -1744,9 +1780,9 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     git_dirty = git.status_porcelain()
     role_check = _role_tree_views._prince2_role_check_report(config)
     provider_limits = _provider_limit_status_report(agent, config)
-    sources = main._sources_status_report(config)
+    sources = _sources_status_report(config)
     handoff = ProjectHandoff.load(config.handoff_path)
-    log_errors = main._log_error_report(config)
+    log_errors = _project_handoff_views._log_error_report(config)
     stage_view = handoff.stage_view()
     remediations = _preflight_remediations(
         doctor=doctor,
@@ -1791,11 +1827,10 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 
 def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     handoff = ProjectHandoff.load(config.handoff_path)
-    board = main._board_report(config)
+    board = _report_views._board_report(config)
     usage = _model_usage_report(config)["report"]
-    transcript = main._transcript_report(config)["report"]
+    transcript = _project_handoff_views._transcript_report(config)["report"]
     stage_view = handoff.stage_view()
     register_statuses = stage_view["register_statuses"]
     governance_status = (
@@ -1855,7 +1890,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "path_launcher": {},
         "repository": {},
         "runtime": _main().detect_runtime_capabilities(config.workspace_root),
-        "baseline": _main()._agent_baseline_report(config),
+        "baseline": _agent_baseline_report(config),
         "providers": [],
         "policy": {
             "silent_install": False,
@@ -1920,9 +1955,8 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         }
 
     providers: list[dict[str, object]] = []
-    main = _main()
-    for model in main.REGISTRY_MODELS:
-        capability = main.provider_capability(model)
+    for model in REGISTRY_MODELS:
+        capability = provider_capability(model)
         token_state = "n/a"
         if capability.token_env:
             token_state = "set" if os.environ.get(capability.token_env) else f"missing:{capability.token_env}"
