@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import shlex
-from typing import Any
 
 from .config import AgentConfig
 from .tools.browser import BrowserResult, BrowserTool

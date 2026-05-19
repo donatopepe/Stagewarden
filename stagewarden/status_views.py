@@ -1239,7 +1239,7 @@ def _status_dashboard_report(agent: Agent, config: AgentConfig) -> dict[str, obj
     if active_model is None:
         active_model = next((item for item in model_report["models"] if item["active"]), None)
     providers = provider_limits["providers"]
-    focus = _focus_snapshot(agent, config)
+    focus = status["focus"]
     budget = _project_state_views.budget_report(config)["budget"]
     question = _project_state_views.question_report(config)["user_question"]
     return {
