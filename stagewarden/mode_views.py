@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from .agent import Agent
 from .config import AgentConfig
-from .permissions import VALID_PERMISSION_MODES
+from .json_schema_registry import with_json_schema
+from .permissions import VALID_PERMISSION_MODES, PermissionSettings
+from .textcodec import dumps_ascii
 from . import battery_views as _battery_views
 from . import project_handoff_views as _project_handoff_views
 from . import project_state_views as _project_state_views
@@ -64,7 +66,7 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
             return f"Question answered: {question.get('question', 'none')}"
         return "Question answered."
     if parts[0] == "statusline":
-        return _main().dumps_ascii(_main()._with_json_schema("statusline", _status_dashboard_views._statusline_report(agent, config)), indent=2)
+        return dumps_ascii(with_json_schema("statusline", _status_dashboard_views._statusline_report(agent, config)), indent=2)
     if parts[0] == "preflight":
         return _status_dashboard_views._render_preflight(agent, config)
     if parts[0] == "battery":
@@ -117,7 +119,7 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     if len(parts) == 2:
         mode = parts[1].strip().lower().replace("-", "_")
         if mode in VALID_PERMISSION_MODES:
-            settings = _main().PermissionSettings.load(config.settings_path)
+            settings = PermissionSettings.load(config.settings_path)
             settings.default_mode = mode
             settings.normalize().save(config.settings_path)
             _agent_setup_views._refresh_runtime_permissions(agent)
