@@ -1889,7 +1889,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "git": {},
         "path_launcher": {},
         "repository": {},
-        "runtime": _main().detect_runtime_capabilities(config.workspace_root),
+        "runtime": detect_runtime_capabilities(config.workspace_root),
         "baseline": _agent_baseline_report(config),
         "providers": [],
         "policy": {
