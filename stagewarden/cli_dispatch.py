@@ -966,8 +966,7 @@ def run_cli() -> int:
         else:
             print(_status_views._render_model_usage(config))
         return 0
-
-        agent = _agent_setup_views._configure_agent_for_workspace(config)
+    agent = _agent_setup_views._configure_agent_for_workspace(config)
     result = agent.run(task)
     print(result.message)
     return 0 if result.ok else 1

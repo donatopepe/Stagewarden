@@ -44,26 +44,6 @@ def _limits():
     return _status_limits_views_module
 
 
-def _source_reference_manifest(config: AgentConfig) -> list[dict[str, str]]:
-    return [
-        {
-            "project": "Stagewarden",
-            "path": ".",
-            "upstream": "https://github.com/donatopepe/Stagewarden.git",
-        },
-        {
-            "project": "Docs",
-            "path": "docs",
-            "upstream": "https://github.com/donatopepe/Stagewarden-docs.git",
-        },
-        {
-            "project": "Tests",
-            "path": "tests",
-            "upstream": "https://github.com/donatopepe/Stagewarden-tests.git",
-        },
-    ]
-
-
 def _git_output(cwd: Path, *args: str) -> tuple[bool, str]:
     completed = subprocess.run(
         ["git", *args],
@@ -1455,9 +1435,9 @@ def _render_remediations(remediations: object) -> str:
 
 
 def _render_overview(agent: Agent, config: AgentConfig) -> str:
-    board = _board_report(config)
+    board = _report_views._board_report(config)
     usage = _model_usage_report(config)["report"]
-    transcript = _transcript_report(config)["report"]
+    transcript = _project_handoff_views._transcript_report(config)["report"]
     status = _status_report(agent, config)
     lines = [
         "Workspace overview:",

@@ -459,18 +459,44 @@ def _render_doctor(config: AgentConfig) -> str:
     runtime_info = report["runtime"]
     shell_backend = _shell_backend_report(config)
     providers = report["providers"]
-    lines = [
-        "Doctor:",
-        f"- Python: {python_info['status']} {python_info['version']}",
-        f"- Git: {git_info['status']} {git_info.get('message', '')}",
-        f"- Path launcher: {path_info['status']} {path_info.get('message', '')}",
-        f"- Repository: {repo_info['status']} {repo_info.get('message', '')}",
-        f"- Runtime: {runtime_info['os_family']} / {runtime_info['recommended_shell']}",
-        f"- Shell backend: {shell_backend['selected'] or 'none'}",
-        "Providers:",
-    ]
+    policy_info = report["policy"]
+    baseline_info = report["baseline"]
+    lines = ["Stagewarden doctor:"]
+    lines.append(
+        f"- Python: {python_info['status']} {python_info['version']} "
+        f"(required {python_info['required']}, executable={python_info['executable']})"
+    )
+    if git_info.get("ok"):
+        lines.append(f"- Git: OK {git_info['message']} ({git_info['path']})")
+    else:
+        lines.append(f"- Git: FAIL {git_info['message']}")
+    if path_info.get("ok"):
+        lines.append(f"- PATH launcher: OK {path_info['message']}")
+    else:
+        lines.append(f"- PATH launcher: WARN {path_info['message']}")
+    lines.append(f"- Repository: {repo_info['status']} {repo_info['message']}")
+    lines.append(
+        f"- Runtime: os={runtime_info['os_family']} shell={runtime_info['recommended_shell']} "
+        f"default={runtime_info['default_shell'] or 'none'} line_ending={runtime_info['line_ending']}"
+    )
+    lines.append(
+        f"- Shell backend: configured={shell_backend['configured']} selected={shell_backend['selected'] or 'none'} "
+        f"available={str(shell_backend['available']).lower()}"
+    )
+    lines.append(
+        f"- Baseline: {baseline_info['status']} "
+        f"missing={len(baseline_info['missing'])} groups={len(baseline_info['groups'])}"
+    )
+    if baseline_info["remediations"]:
+        lines.append("Baseline remediations:")
+        for item in baseline_info["remediations"]:
+            lines.append(f"- {item['code']}: {item['action']}")
+    lines.append("Provider capabilities:")
     for item in providers:
         lines.append(
-            f"- {item['provider']}: auth={item['auth']} profiles={str(item['profiles']).lower()} browser_login={str(item['browser_login']).lower()} api_key={str(item['api_key']).lower()} token_env={item['token_env']} default={item['default_model']}"
+            f"- {item['provider']}: auth={item['auth']} profiles={'yes' if item['profiles'] else 'no'} "
+            f"browser_login={'yes' if item['browser_login'] else 'no'} api_key={'yes' if item['api_key'] else 'no'} "
+            f"token_env={item['token_env']} default={item['default_model']}"
         )
+    lines.append(policy_info.get("note", ""))
     return "\n".join(lines)
