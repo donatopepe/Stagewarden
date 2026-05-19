@@ -14,6 +14,7 @@ from . import report_views as _report_views
 from . import status_dashboard_views as _status_dashboard_views
 from . import status_views as _status_views
 from . import agent_setup_views as _agent_setup_views
+from . import auth_views as _auth_views
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
