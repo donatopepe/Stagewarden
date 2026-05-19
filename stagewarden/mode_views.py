@@ -3,18 +3,15 @@ from __future__ import annotations
 from .agent import Agent
 from .config import AgentConfig
 from .permissions import VALID_PERMISSION_MODES
+from . import battery_views as _battery_views
+from . import project_handoff_views as _project_handoff_views
 from . import project_state_views as _project_state_views
 from . import account_views as _account_views
 from . import command_views as _command_views
 from . import report_views as _report_views
 from . import status_dashboard_views as _status_dashboard_views
 from . import status_views as _status_views
-
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module
+from . import agent_setup_views as _agent_setup_views
 
 
 def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str | None:
@@ -71,9 +68,9 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     if parts[0] == "preflight":
         return _status_dashboard_views._render_preflight(agent, config)
     if parts[0] == "battery":
-        return _main()._render_battery(config)
+        return _battery_views._render_battery(config)
     if len(parts) == 3 and parts[0] == "auth" and parts[1] == "status":
-        return _main()._render_auth_status(parts[2])
+        return _auth_views._render_auth_status(parts[2])
     if parts[0] == "overview":
         return _status_views._render_overview(agent, config)
     if parts[0] == "health":
@@ -84,10 +81,10 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
         return _status_dashboard_views._render_doctor(config)
     if parts[0] == "handoff":
         if len(parts) == 2 and parts[1] in {"md", "export"}:
-            return _main()._export_handoff_markdown(config)
+            return _project_handoff_views._export_handoff_markdown(config)
         if len(parts) >= 2 and parts[1] == "actions":
-            return _main()._render_handoff_actions(config, limit=_main()._parse_optional_limit(parts))
-        return _main()._render_handoff(config)
+            return _project_handoff_views._render_handoff_actions(config, limit=_project_handoff_views._parse_optional_limit(parts))
+        return _project_handoff_views._render_handoff(config)
     if parts[0] == "board" or command == "stage review":
         return _report_views._render_board(config)
     if parts[0] == "boundary":
@@ -106,7 +103,7 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
     if parts[0] == "lessons":
         return _report_views._render_lessons(config)
     if parts[0] in {"transcript", "trace"}:
-        return _main()._render_transcript(config)
+        return _project_handoff_views._render_transcript(config)
     if parts[0] == "todo":
         return _report_views._render_todo(config)
     if parts[0] == "permissions":
@@ -123,7 +120,7 @@ def _handle_mode_command(command: str, agent: Agent, config: AgentConfig) -> str
             settings = _main().PermissionSettings.load(config.settings_path)
             settings.default_mode = mode
             settings.normalize().save(config.settings_path)
-            _main()._refresh_runtime_permissions(agent)
+            _agent_setup_views._refresh_runtime_permissions(agent)
             return f"Permission mode set to {mode}."
     if len(parts) == 2 and parts[1] == "normal":
         result = agent.run("normal mode")

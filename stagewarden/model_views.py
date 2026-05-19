@@ -12,12 +12,9 @@ from .modelprefs import ModelPreferences, SUPPORTED_MODELS, provider_model_spec,
 from .provider_registry import provider_capability, provider_model_preset
 from . import model_catalog_views as _model_catalog_views
 from . import model_inspection_views as _model_inspection_views
-
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module
+from . import shell_views as _shell_views
+from . import status_views as _status_views
+from .project.role_flow import _guided_provider_context
 
 
 def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
@@ -71,7 +68,15 @@ def _local_model_profile_from_spec(spec) -> dict[str, object]:
 
 
 def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
-    return _main()._catalog_power_score(entry)
+    if not isinstance(entry, dict) or not entry:
+        return None
+    intelligence = entry.get("intelligence_rank")
+    if isinstance(intelligence, (int, float)):
+        return float(intelligence)
+    speed = entry.get("speed_rank")
+    if isinstance(speed, (int, float)):
+        return float(speed)
+    return None
 
 
 def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str, str, str]:
@@ -89,11 +94,18 @@ def _provider_model_params_display(prefs: ModelPreferences, provider: str) -> di
 
 
 def _catalog_model_choice_key(provider: str, provider_model: str) -> str:
-    return _main()._catalog_model_choice_key(provider, provider_model)
+    return f"{provider}:{provider_model}"
 
 
 def _parse_catalog_model_choice(choice: str) -> tuple[str, str] | None:
-    return _main()._parse_catalog_model_choice(choice)
+    provider, separator, provider_model = str(choice).partition(":")
+    if not separator:
+        return None
+    provider = provider.strip()
+    provider_model = provider_model.strip()
+    if not provider or not provider_model:
+        return None
+    return provider, provider_model
 
 
 def _inspect_provider_models(
@@ -227,13 +239,11 @@ def _guided_model_choice(
     ) -> str:
     if input_stream is None or output_stream is None:
         return "Guided model selection is available in the interactive shell. Run `python3 -m stagewarden.main` and use `model choose`."
-    from .main import _guided_provider_context, _prompt_menu_choice, _save_model_preferences, _apply_model_preferences
-
     providers = list(prefs.enabled_models or []) or list(SUPPORTED_MODELS)
     output_stream.write(_guided_provider_context(prefs, requested_model if requested_model in SUPPORTED_MODELS else None) + "\n")
     model = requested_model
     if model is None:
-        model = _prompt_menu_choice(
+        model = _shell_views._prompt_menu_choice(
             title="Choose provider:",
             options=[(item, item) for item in providers],
             input_stream=input_stream,
@@ -248,7 +258,7 @@ def _guided_model_choice(
     output_stream.write(_guided_provider_context(prefs, model) + "\n")
     catalog = load_ai_models_catalog()
     specs = list(provider_model_specs(model))
-    provider_model = _prompt_menu_choice(
+    provider_model = _shell_views._prompt_menu_choice(
         title=f"Choose provider-model for {model}:",
         options=[
             (spec.id, f"{spec.id} | {spec.label}{_catalog_option_suffix(catalog_entry_for_provider_model(model, spec.id, catalog))}")
@@ -277,7 +287,7 @@ def _guided_model_choice(
                 (effort, f"{effort}{' (default)' if effort == current_reasoning else ''}")
                 for effort in ordered_reasoning_efforts
             ]
-        reasoning_value = _prompt_menu_choice(
+        reasoning_value = _shell_views._prompt_menu_choice(
             title=f"Choose reasoning_effort for {model}:{provider_model}:",
             options=reasoning_options,
             input_stream=input_stream,
@@ -427,18 +437,18 @@ def _handle_model_command(
         return _catalog_usage()
     if parts[0] == "cost":
         if len(parts) == 2 and parts[1] == "sidebar":
-            return _main()._render_cost_sidebar(agent, config)
-        return _main()._render_model_usage(config)
+            return _status_views._render_cost_sidebar(agent, config)
+        return _status_views._render_model_usage(config)
     if parts[0] == "models":
         if len(parts) == 2 and parts[1] == "usage":
-            return _main()._render_model_usage(config)
+            return _status_views._render_model_usage(config)
         if len(parts) == 2 and parts[1] == "limits":
-            _main()._apply_model_preferences(agent, config)
-            return _main()._render_model_limits(agent, config)
+            _apply_model_preferences(agent, config)
+            return _status_views._render_model_limits(agent, config)
         if len(parts) != 1:
             return "Usage: models | models usage | models limits"
-        _main()._apply_model_preferences(agent, config)
-        return _main()._render_model_status(agent, config)
+        _apply_model_preferences(agent, config)
+        return _status_views._render_model_status(agent, config)
     if parts[0] != "model":
         return None
     if len(parts) < 2:
@@ -449,15 +459,15 @@ def _handle_model_command(
         if len(fields) != 2:
             return "Usage: model limit-record <model> <provider message>"
         model, message = fields
-        result = _main()._record_limit_message(config, prefs, model=model, message=message)
-        _main()._apply_model_preferences(agent, config)
+        result = _status_views._record_limit_message(config, prefs, model=model, message=message)
+        _apply_model_preferences(agent, config)
         return result
     if command.startswith("model limit-clear "):
         fields = command[len("model limit-clear ") :].split(maxsplit=1)
         if len(fields) != 1:
             return "Usage: model limit-clear <model>"
-        result = _main()._clear_limit_snapshot(config, prefs, model=fields[0])
-        _main()._apply_model_preferences(agent, config)
+        result = _status_views._clear_limit_snapshot(config, prefs, model=fields[0])
+        _apply_model_preferences(agent, config)
         return result
 
     action = parts[1]
@@ -483,8 +493,8 @@ def _handle_model_command(
             if model not in prefs.enabled_models:
                 prefs.enabled_models.append(model)
             prefs.preferred_model = model
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             provider_model = prefs.variant_for_model(model) or "automatic-by-task"
             return f"Preferred provider set to {model}. Current provider_model={provider_model}."
         if action == "list":
@@ -528,16 +538,16 @@ def _handle_model_command(
             if model not in SUPPORTED_MODELS:
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
             prefs.set_variant(model, variant)
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             return f"Variant for {model} set to {variant}."
         if action == "variant-clear":
             if len(parts) != 3:
                 return "Usage: model variant-clear <name>"
             model = parts[2]
             prefs.clear_variant(model)
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             return f"Variant cleared for {model}."
         if action == "preset":
             if len(parts) == 3:
@@ -556,8 +566,8 @@ def _handle_model_command(
             if model not in SUPPORTED_MODELS:
                 return f"Unsupported model '{model}'. Supported: {', '.join(SUPPORTED_MODELS)}"
             provider_model, params = _apply_model_preset(config, prefs, model=model, preset=preset)
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             params_text = ", ".join(f"{key}={value}" for key, value in sorted(params.items())) or "none"
             return f"Applied preset {preset} to {model}: provider_model={provider_model} params={params_text}."
         if action == "param":
@@ -573,24 +583,24 @@ def _handle_model_command(
                 key = parts[4]
                 value = " ".join(parts[5:])
                 prefs.set_model_param(model, key, value)
-                _main()._save_model_preferences(config, prefs)
-                _main()._apply_model_preferences(agent, config)
+                _save_model_preferences(config, prefs)
+                _apply_model_preferences(agent, config)
                 return f"Set {key}={value} for {model}."
             if sub_action == "clear":
                 if len(parts) != 5:
                     return "Usage: model param clear <name> <key>"
                 key = parts[4]
                 prefs.clear_model_param(model, key)
-                _main()._save_model_preferences(config, prefs)
-                _main()._apply_model_preferences(agent, config)
+                _save_model_preferences(config, prefs)
+                _apply_model_preferences(agent, config)
                 return f"Cleared {key} for {model}."
         if action == "remove":
             if len(parts) != 3:
                 return "Usage: model remove <name>"
             model = parts[2]
             prefs.remove_model(model)
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             return f"Removed {model}."
         if action == "block":
             if len(parts) != 5 or parts[3] != "until":
@@ -608,8 +618,8 @@ def _handle_model_command(
             prefs.blocked_until_by_model[model] = until
             if prefs.preferred_model == model:
                 prefs.preferred_model = None
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             return f"Blocked model {model} until {until}."
         if action == "unblock":
             if len(parts) != 3:
@@ -621,13 +631,13 @@ def _handle_model_command(
             if model not in prefs.blocked_until_by_model:
                 return f"Model {model} is not blocked."
             prefs.blocked_until_by_model.pop(model, None)
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             return f"Unblocked model {model}."
         if action == "clear":
             prefs.preferred_model = None
-            _main()._save_model_preferences(config, prefs)
-            _main()._apply_model_preferences(agent, config)
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
             return "Preferred provider cleared. Automatic routing restored."
     except ValueError as exc:
         return str(exc)

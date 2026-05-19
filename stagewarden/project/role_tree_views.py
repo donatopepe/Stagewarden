@@ -19,12 +19,6 @@ from ..role_tree import (
 )
 
 
-def _main():
-    from .. import main as _main_module
-
-    return _main_module
-
-
 def _prince2_role_domains_report() -> dict[str, object]:
     return {
         "command": "roles domains",
@@ -85,7 +79,6 @@ def _render_prince2_role_flow() -> str:
 
 
 def _prince2_role_matrix_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     handoff = ProjectHandoff.load(config.handoff_path)
     tolerance_profile = _project_role_flow._project_tolerance_profile(handoff)
@@ -102,7 +95,6 @@ def _render_prince2_role_matrix(config: AgentConfig) -> str:
 
 
 def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     baseline = dict(prefs.prince2_role_tree_baseline or {})
     return {
@@ -239,7 +231,6 @@ def _render_prince2_role_tree_baseline_matrix(config: AgentConfig) -> str:
 
 
 def _render_prince2_role_status_hint(config: AgentConfig) -> str:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     configured = len(prefs.prince2_roles or {})
     tree_baseline = "approved" if prefs.prince2_role_tree_baseline else "missing"

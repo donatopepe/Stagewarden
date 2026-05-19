@@ -9,29 +9,26 @@ from typing import Any
 from ..agent import Agent
 from ..config import AgentConfig
 from ..handoff import format_run_model
-from ..modelprefs import ModelPreferences, PRINCE2_ROLE_LABELS, provider_model_specs
+from ..modelprefs import ModelPreferences, PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS, provider_model_specs
+from .. import agent_setup_views as _agent_setup_views
 from .. import model_views as _model_views
 from ..prince2 import Prince2ToleranceProfile
 from ..project_handoff import ProjectHandoff
 from .. import project_handoff_views as _project_handoff_views
 from . import design_flow as _project_design_flow
 from . import role_flow as _project_role_flow
+from . import flow as _project_flow
 from ..role_tree import (
     build_prince2_role_flow,
     build_prince2_role_matrix_payload,
+    build_prince2_role_tree_with_tolerance,
     check_prince2_role_tree_payload,
 )
 from . import role_tree_views as _project_role_tree_views
 from ..textcodec import dumps_ascii, loads_text
 
 
-def _main():
-    from .. import main as _main_module
-    return _main_module
-
-
 def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = None, use_ai: bool = False) -> dict[str, object]:
-    main = _main()
     handoff = ProjectHandoff.load(config.handoff_path)
     prefs = _model_views._load_model_preferences(config)
     proposed_roles = prefs.propose_prince2_roles()
@@ -43,14 +40,14 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     joined = " ".join(value.lower() for value in brief.values())
     tolerance_profile = _project_role_flow._project_tolerance_profile(handoff, task=handoff.task or None)
     local_execution = _project_design_flow._local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
-    decomposition_nodes, decomposition = main._project_tree_decomposition_nodes(
+    decomposition_nodes, decomposition = _project_flow._project_tree_decomposition_nodes(
         proposal_prefs=proposal_prefs,
         active_models=active_models,
         brief=brief,
         joined=joined,
         tolerance_profile=tolerance_profile,
     )
-    base_tree = main.build_prince2_role_tree_with_tolerance(
+    base_tree = build_prince2_role_tree_with_tolerance(
         proposal_prefs,
         tolerance_profile=tolerance_profile,
         accountable_owner=tolerance_profile.accountable_owner,
@@ -69,7 +66,7 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     if complex_delivery:
         node_id = "delivery.implementation_team"
         nodes.append(
-            main._role_node_from_template(
+            _project_flow._role_node_from_template(
                 node_id=node_id,
                 role_type="team_manager",
                 label="Implementation Team Manager",
@@ -77,7 +74,7 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
                 level="delivery",
                 accountability_boundary="delegated delivery of implementation work packages within agreed tolerances",
                 delegated_authority="executes implementation work packages and escalates forecast tolerance breaches",
-                assignment=main._assignment_for_role(proposal_prefs, "team_manager"),
+                assignment=_project_flow._assignment_for_role(proposal_prefs, "team_manager"),
                 active_models=active_models,
                 tolerance_profile=tolerance_profile,
                 accountable_owner=tolerance_profile.accountable_owner,
@@ -93,8 +90,8 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     tree["decomposition_policy"] = "Decompose the project into the smallest independently verifiable work packages and keep widening only when evidence justifies it."
     tree["adaptation_policy"] = "Refresh the tree continuously from the latest brief, tolerance profile, runtime observation, and response-quality signals."
     tree["decomposition"] = decomposition
-    tree["adaptation"] = main._project_tree_adaptation_snapshot(brief=brief, handoff=handoff, local_execution=local_execution)
-    tree = main._enrich_tree_with_local_execution_candidates(tree, local_execution)
+    tree["adaptation"] = _project_flow._project_tree_adaptation_snapshot(brief=brief, handoff=handoff, local_execution=local_execution)
+    tree = _project_flow._enrich_tree_with_local_execution_candidates(tree, local_execution)
     check = check_prince2_role_tree_payload(tree, proposal_prefs)
     matrix = build_prince2_role_matrix_payload(tree, proposal_prefs)
     gaps: list[dict[str, str]] = []
@@ -126,17 +123,16 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
         "matrix": matrix,
         "clarification_gaps": gaps,
         "next_missing_gap": gaps[0] if gaps else None,
-        "next_missing_field": main._project_gap_to_brief_field(str(gaps[0].get("code", "")).strip()) if gaps and isinstance(gaps[0], dict) else None,
+        "next_missing_field": _project_flow._project_gap_to_brief_field(str(gaps[0].get("code", "")).strip()) if gaps and isinstance(gaps[0], dict) else None,
         "approval_rule": "proposal only; user or Project Board must approve before persistence",
     }
     if use_ai and not gaps:
-        active_agent = agent or main._configure_readonly_agent_for_workspace(config)
+        active_agent = agent or _agent_setup_views._configure_readonly_agent_for_workspace(config)
         report = _merge_ai_project_tree_proposal(active_agent, config, report)
     return report
 
 
 def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, object]) -> str:
-    main = _main()
     packet = {
         "purpose": "Design a proportional PRINCE2 role-tree proposal for Stagewarden.",
         "rules": [
@@ -145,7 +141,7 @@ def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, o
             "Suggest only additional nodes that are justified by the project brief.",
             "Prefer the smallest independently verifiable work packages possible; do not widen the tree unless the brief or evidence requires it.",
             "Each node must have node_id, role_type, label, parent_id, level, accountability_boundary, and delegated_authority.",
-            "Allowed role_type values: " + ", ".join(main.PRINCE2_ROLE_IDS),
+            "Allowed role_type values: " + ", ".join(PRINCE2_ROLE_IDS),
             "Respect PRINCE2 accountability boundaries and keep each node context limited to its responsibility domain.",
             "If you propose custom context slices, include context_include/context_exclude and do not widen beyond the node domain.",
             "Include tolerance_boundary, validation_condition, and open_questions when useful for review.",
@@ -182,7 +178,6 @@ def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, o
 
 
 def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_report: dict[str, object]) -> dict[str, object]:
-    main = _main()
     report = copy.deepcopy(local_report)
     design = _project_design_flow._project_design_report(agent, config)
     prompt = _project_tree_ai_prompt(design, local_report)
@@ -190,7 +185,7 @@ def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_rep
     handoff = ProjectHandoff.load(config.handoff_path)
     tolerance_profile = _project_role_flow._project_tolerance_profile(handoff, task=handoff.task or None)
     prefs = _model_views._load_model_preferences(config)
-    model = main._choose_cloud_priority_model(agent, prefs)
+    model = _model_views._choose_cloud_priority_model(agent, prefs)
     account = prefs.account_for_model(model)
     result = agent.handoff.execute(format_run_model(model, prompt, account=account))
     assistance: dict[str, object] = {
@@ -246,11 +241,11 @@ def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_rep
         if node_id in existing:
             rejected.append({"node_id": node_id, "reason": "duplicate node_id"})
             continue
-        if role_type not in main.PRINCE2_ROLE_IDS:
+        if role_type not in PRINCE2_ROLE_IDS:
             rejected.append({"node_id": node_id, "reason": "unsupported role_type"})
             continue
         parent_id = str(raw_patch.get("parent_id") or "management.project_manager").strip()
-        node = main._role_node_from_template(
+        node = _project_flow._role_node_from_template(
             node_id=node_id,
             role_type=role_type,
             label=str(raw_patch.get("label") or PRINCE2_ROLE_LABELS.get(role_type, role_type)).strip(),
@@ -258,7 +253,7 @@ def _merge_ai_project_tree_proposal(agent: Agent, config: AgentConfig, local_rep
             level=str(raw_patch.get("level") or "delegated").strip(),
             accountability_boundary=str(raw_patch.get("accountability_boundary") or "delegated PRINCE2 accountability within agreed tolerances").strip(),
             delegated_authority=str(raw_patch.get("delegated_authority") or "executes delegated work and escalates tolerance breaches").strip(),
-            assignment=main._assignment_for_role(proposal_prefs, role_type),
+            assignment=_project_flow._assignment_for_role(proposal_prefs, role_type),
             active_models=active_models,
             tolerance_profile=tolerance_profile,
             accountable_owner=tolerance_profile.accountable_owner,
@@ -436,7 +431,6 @@ def _render_project_tree_proposal_report(report: dict[str, object]) -> str:
 
 
 def _record_project_tree_proposal_action(config: AgentConfig, report: dict[str, object], *, task: str) -> None:
-    main = _main()
     _project_handoff_views._record_handoff_action(
         config,
         phase="project_tree_proposal_ai" if report.get("ai_requested") else "project_tree_proposal",
@@ -462,7 +456,6 @@ def _approve_project_tree_proposal(
     force: bool = False,
     proposal_report: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    main = _main()
     report = proposal_report or _project_tree_proposal_report(config)
     gaps = report.get("clarification_gaps", [])
     if isinstance(gaps, list) and gaps and not force:
@@ -493,7 +486,7 @@ def _approve_project_tree_proposal(
         "approved_at": datetime.now().isoformat(timespec="seconds"),
         "source": "project_tree_approve_force" if force else "project_tree_approve",
         "status": "approved",
-        "tree": main._enrich_tree_with_local_execution_candidates(
+        "tree": _project_flow._enrich_tree_with_local_execution_candidates(
             dict(report["tree"]) if isinstance(report.get("tree"), dict) else {},
             dict(report.get("local_execution", {})) if isinstance(report.get("local_execution"), dict) else {},
         ),
@@ -512,8 +505,8 @@ def _approve_project_tree_proposal(
             "forced": force,
         },
     }
-    main._refresh_prince2_role_tree_baseline_checks(baseline, proposal_prefs)
-    main._persist_prince2_role_tree_baseline(config, proposal_prefs, baseline)
+    _project_role_flow._refresh_prince2_role_tree_baseline_checks(baseline, proposal_prefs)
+    _project_role_flow._persist_prince2_role_tree_baseline(config, proposal_prefs, baseline)
     _project_handoff_views._record_handoff_action(
         config,
         phase="project_tree_approval",
@@ -537,7 +530,6 @@ def _approve_project_tree_proposal(
 
 
 def _render_project_tree_approval_report(report: dict[str, object], config: AgentConfig) -> str:
-    main = _main()
     lines = ["Project tree approval:"]
     lines.append(f"- status: {report['status']}")
     lines.append(f"- message: {report['message']}")

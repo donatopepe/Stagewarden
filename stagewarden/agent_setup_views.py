@@ -5,14 +5,13 @@ from dataclasses import replace
 from .agent import Agent
 from .config import AgentConfig
 from . import model_views as _model_views
+from . import status_views as _status_views
 
 
 def _configure_agent_for_workspace(config: AgentConfig) -> Agent:
-    from .main import _provider_limit_status_report
-
     agent = Agent(config)
     _model_views._apply_model_preferences(agent, config)
-    _provider_limit_status_report(agent, config)
+    _status_views._provider_limit_status_report(agent, config)
     return agent
 
 

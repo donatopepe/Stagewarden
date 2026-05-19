@@ -1020,7 +1020,7 @@ def _executor_case_accept(case: Prince2BenchmarkCase) -> dict[str, Any]:
     passed = (
         outcome.ok
         and len(handoff.calls) == 2
-        and "You are the devil's advocate / Project Assurance critic." in review_prompt
+        and ("You are the devil's advocate / Project Assurance critic." in review_prompt or "Retrospettiva prospettica" in review_prompt)
         and "Required keys: verdict, contradictions, missing_evidence, counter_argument, must_escalate, confidence." in review_prompt
     )
     return {
@@ -1268,7 +1268,7 @@ def _write_agent_success_stub(root: Path) -> Path:
                 "    prompt = sys.argv[2]",
                 "    prompt_lower = prompt.lower()",
                 "    instruction = extract(prompt, 'instruction').lower()",
-                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower:",
+                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower or ('retrospettiva prospettica' in prompt_lower and 'primary model response' in prompt_lower):",
                 '        print(json.dumps({"summary": "devil advocate review", "verdict": "accept", "contradictions": [], "missing_evidence": [], "counter_argument": "No issue detected.", "must_escalate": False, "confidence": 0.9}))',
                 "        return 0",
                 "    if 'recovery' in prompt_lower or 'exception plan' in prompt_lower or 'board' in prompt_lower:",

@@ -29,7 +29,7 @@ class FakeHandoff:
     def execute(self, command: str):  # noqa: ANN001
         self.calls.append(command)
         command_lower = command.lower()
-        wants_review = "devil advocate mission" in command_lower or "project assurance critic" in command_lower
+        wants_review = "devil advocate mission" in command_lower or "project assurance critic" in command_lower or "retrospettiva prospettica" in command_lower
         if self.outputs:
             next_payload = self.outputs[0]
             next_output = str(next_payload.get("output", "")) if isinstance(next_payload, dict) else ""
@@ -1451,6 +1451,7 @@ class ExecutorTests(unittest.TestCase):
             self.assertFalse(outcome.ok)
             self.assertEqual(outcome.error_type, "critic_rejection")
             self.assertIn("Devil advocate verdict=block", outcome.observation)
+            self.assertTrue(any("retrospettiva prospettica" in call.lower() for call in handoff.calls))
             self.assertTrue(any(item.action_type == "devil_advocate_review" for item in memory.tool_transcript))
             self.assertGreaterEqual(len(handoff.calls), 2)
 

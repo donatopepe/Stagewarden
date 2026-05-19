@@ -11,11 +11,6 @@ from .provider_registry import provider_capability, provider_model_specs
 from .textcodec import dumps_ascii, loads_text
 
 
-def _main():
-    from . import main as _main_module
-
-    return _main_module
-
 def _local_model_profile_from_spec(spec) -> dict[str, object]:
     agentic_fit = "medium"
     tool_support_risk = "unknown"
@@ -150,10 +145,9 @@ def _inspect_provider_models(
     }
     if provider != "local" or not catalog:
         return report
-    main = _main()
     _model_views._apply_model_preferences(agent, config)
     prefs = _model_views._load_model_preferences(config)
-    analysis_model = main._choose_cloud_priority_model(agent, prefs)
+    analysis_model = _model_views._choose_cloud_priority_model(agent, prefs)
     account = prefs.account_for_model(analysis_model)
     result = agent.handoff.execute(format_run_model(analysis_model, _local_model_inspection_prompt(catalog, provider_model), account=account))
     ai_analysis = {

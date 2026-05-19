@@ -461,6 +461,7 @@ class Prince2AgentPolicy:
             "Work stage-by-stage.",
             "Break work into the smallest reviewable work packages before execution.",
             "Use management by exception.",
+            "Run both devil's advocate and retrospettiva prospettica checks before accepting a plan: assume it already failed and explain why before execution.",
             "For small tasks, keep documentation and controls minimal but explicit.",
             "For complex or risky tasks, increase formal controls, evidence, and boundary checks.",
             "Refactor the organizational tree cyclically so nodes, roles, stages, and microtasks stay readable and proportionate.",
@@ -475,7 +476,7 @@ class Prince2AgentPolicy:
         lessons_policy = "Use prior attempts and failures to adjust the next step."
         stage_boundary_review = (
             "At each stage boundary, re-check business case, risks, quality, whether the work is still decomposed into the smallest practical tasks, "
-            "and whether the tree should be refreshed before continuing."
+            "whether the plan would already have failed if assumptions were wrong, and whether the tree should be refreshed before continuing."
         )
         tolerance_profile = self.build_tolerance_profile(
             task,

@@ -8,13 +8,10 @@ from .json_schema_registry import json_schema
 from .memory import MemoryStore
 from .modelprefs import account_key, limit_snapshot_from_message
 from . import model_views as _model_views
+from .runtime_env import detect_runtime_capabilities
+from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
+from .handoff import MODEL_BACKENDS
 from .tools.git import GitTool
-
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module
 
 
 def _provider_limit_snapshot_is_stale(captured_at: object, *, stale_after_minutes: int = 15) -> bool:
@@ -168,18 +165,17 @@ def _provider_limit_summary_report(provider_limits: dict[str, object]) -> dict[s
 
 
 def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     _model_views._apply_model_preferences(agent, config)
-    capabilities = main.detect_runtime_capabilities(config.workspace_root)
+    capabilities = detect_runtime_capabilities(config.workspace_root)
     memory = MemoryStore.load(config.memory_path)
     providers = []
-    for provider in main.REGISTRY_MODELS:
-        provider_capability = main.provider_capability(provider)
+    for provider in REGISTRY_MODELS:
+        capability = provider_capability(provider)
         active_account = (prefs.active_account_by_model or {}).get(provider)
         if active_account and (prefs.blocked_until_by_account or {}).get(account_key(provider, active_account)):
             active_account = None
-        provider_model = provider_capability.default_model
+        provider_model = capability.default_model
         snapshot = (prefs.provider_limit_snapshot_by_model or {}).get(provider)
         provider_accounts: set[str] = set((prefs.accounts_by_model or {}).get(provider, []))
         for key in (prefs.blocked_until_by_account or {}).keys():
@@ -193,7 +189,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 provider_accounts.add(key.split(":", 1)[1])
         blocked_accounts = []
         for account in sorted(provider_accounts):
-            key = main.account_key(provider, account)
+            key = account_key(provider, account)
             blocked_until = (prefs.blocked_until_by_account or {}).get(key)
             limit_snapshot = (prefs.provider_limit_snapshot_by_account or {}).get(key) or {}
             blocked_accounts.append(
@@ -232,7 +228,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
         providers.append(
             {
                 "provider": provider,
-                "variant": provider_capability.default_model,
+                "variant": capability.default_model,
                 "provider_model": provider_model,
                 "provider_model_selection": "dynamic",
                 "provider_model_params": {},
@@ -266,9 +262,9 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 },
                 "limit_snapshot": snapshot,
                 "blocked_accounts": blocked_accounts,
-                "auth": provider_capability.auth_type,
-                "profiles": provider_capability.supports_account_profiles,
-                "backend": main.MODEL_BACKENDS[provider]["label"],
+                "auth": capability.auth_type,
+                "profiles": capability.supports_account_profiles,
+                "backend": MODEL_BACKENDS[provider]["label"],
                 "enabled": provider in capabilities.get("providers", []),
             }
         )

@@ -7,15 +7,11 @@ from ..config import AgentConfig
 from ..modelprefs import ModelPreferences
 from .. import model_views as _model_views
 from .. import project_handoff_views as _project_handoff_views
+from . import role_flow as _project_role_flow
 from . import role_runtime_views as _project_role_runtime_views
 from . import role_views as _project_role_views
 from . import role_tree_views as _project_role_tree_views
-
-
-def _main():
-    from .. import main as _main_module
-
-    return _main_module
+from . import start_flow as _project_start_flow
 
 
 def _handle_project_and_roles_command(
@@ -33,11 +29,10 @@ def _handle_project_and_roles_command(
         if len(parts) == 3 and parts[2] != "--ai":
             return "Usage: project start [--ai]"
         prefs = _model_views._load_model_preferences(config)
-        return _main()._render_project_start(agent, config, prefs, force_ai=len(parts) == 3)
+        return _project_start_flow._render_project_start(agent, config, prefs, force_ai=len(parts) == 3)
     if parts[0] != "roles":
         return None
 
-    main = _main()
     prefs = _model_views._load_model_preferences(config)
     if len(parts) == 1:
         _model_views._sync_prince2_roles_to_handoff(config, prefs)
@@ -49,7 +44,7 @@ def _handle_project_and_roles_command(
     if len(parts) == 2 and parts[1] == "tree":
         return _project_role_tree_views._render_prince2_role_tree(config)
     if len(parts) == 3 and parts[1] == "tree" and parts[2] == "approve":
-        main._approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_approve")
+        _project_role_flow._approve_prince2_role_tree_baseline(config, prefs, source="roles_tree_approve")
         return "Approved PRINCE2 role-tree baseline.\n" + _project_role_tree_views._render_prince2_role_tree_baseline(config)
     if len(parts) == 2 and parts[1] == "baseline":
         return _project_role_tree_views._render_prince2_role_tree_baseline(config)
@@ -87,7 +82,7 @@ def _handle_project_and_roles_command(
     if len(parts) == 2 and parts[1] == "propose":
         prefs.apply_prince2_role_proposal()
         _model_views._save_model_preferences(config, prefs)
-        main._approve_prince2_role_tree_baseline(config, prefs, source="roles_propose")
+        _project_role_flow._approve_prince2_role_tree_baseline(config, prefs, source="roles_propose")
         _model_views._apply_model_preferences(agent, config)
         return (
             "Applied automatic PRINCE2 role proposal.\n"
@@ -96,21 +91,21 @@ def _handle_project_and_roles_command(
             + _project_role_tree_views._render_prince2_role_tree_baseline(config)
         )
     if len(parts) == 2 and parts[1] == "setup":
-        return main._guided_roles_setup(
+        return _project_role_flow._guided_roles_setup(
             prefs=prefs,
             config=config,
             input_stream=input_stream,
             output_stream=output_stream,
         )
     if len(parts) == 2 and parts[1] == "shell":
-        return main._guided_role_shell(
+        return _project_role_flow._guided_role_shell(
             prefs=prefs,
             config=config,
             input_stream=input_stream,
             output_stream=output_stream,
         )
     if len(parts) == 3 and parts[1] == "shell":
-        return main._guided_role_node_shell(
+        return _project_role_flow._guided_role_node_shell(
             prefs=prefs,
             config=config,
             node_id=parts[2],
@@ -118,7 +113,7 @@ def _handle_project_and_roles_command(
             output_stream=output_stream,
         )
     if len(parts) == 3 and parts[1] == "switch":
-        return main._guided_role_node_switch_agent(
+        return _project_role_flow._guided_role_node_switch_agent(
             prefs=prefs,
             config=config,
             node_id=parts[2],
@@ -141,7 +136,6 @@ def _handle_role_command(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
 ) -> str | None:
-    main = _main()
     parts = command.split()
     if not parts:
         return None
@@ -149,21 +143,21 @@ def _handle_role_command(
         return None
         prefs = _model_views._load_model_preferences(config)
         if len(parts) == 2 and parts[1] == "menu":
-            return main._guided_role_tree_menu(
+            return _project_role_flow._guided_role_tree_menu(
                 prefs=prefs,
                 config=config,
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
         if len(parts) == 2 and parts[1] == "shell":
-            return main._guided_role_shell(
+            return _project_role_flow._guided_role_shell(
                 prefs=prefs,
                 config=config,
                 input_stream=input_stream,
                 output_stream=output_stream,
             )
         if len(parts) == 3 and parts[1] == "shell":
-            return main._guided_role_node_shell(
+            return _project_role_flow._guided_role_node_shell(
                 prefs=prefs,
                 config=config,
                 node_id=parts[2],
@@ -171,7 +165,7 @@ def _handle_role_command(
                 output_stream=output_stream,
             )
         if len(parts) == 3 and parts[1] == "switch":
-            return main._guided_role_node_switch_agent(
+            return _project_role_flow._guided_role_node_switch_agent(
                 prefs=prefs,
                 config=config,
                 node_id=parts[2],
@@ -179,7 +173,7 @@ def _handle_role_command(
                 output_stream=output_stream,
             )
         if len(parts) == 3 and parts[1] == "menu":
-            return main._guided_role_node_menu(
+            return _project_role_flow._guided_role_node_menu(
                 prefs=prefs,
                 config=config,
                 node_id=parts[2],
@@ -188,7 +182,7 @@ def _handle_role_command(
             )
         if len(parts) in {4, 5} and parts[1] == "add-child":
             try:
-                child = main._add_child_prince2_role_node(
+                child = _project_role_flow._add_child_prince2_role_node(
                     config,
                     prefs,
                     parent_id=parts[2],
@@ -202,7 +196,7 @@ def _handle_role_command(
                 + _project_role_tree_views._render_prince2_role_tree_baseline(config)
             )
         if len(parts) == 2 and parts[1] == "add-child":
-            return main._guided_role_add_child(
+            return _project_role_flow._guided_role_add_child(
                 prefs=prefs,
                 config=config,
                 input_stream=input_stream,
@@ -210,7 +204,7 @@ def _handle_role_command(
             )
         if len(parts) >= 3 and parts[1] == "model":
             if len(parts) == 3:
-                return main._guided_role_node_menu(
+                return _project_role_flow._guided_role_node_menu(
                     prefs=prefs,
                     config=config,
                     node_id=parts[2],
@@ -233,7 +227,7 @@ def _handle_role_command(
                 else:
                     extra_params[key] = value
             try:
-                node = main._assign_prince2_role_node_model(
+                node = _project_role_flow._assign_prince2_role_node(
                     config,
                     prefs,
                     node_id=parts[2],
@@ -265,12 +259,12 @@ def _handle_role_command(
                 except ValueError:
                     return "Usage: role tolerance set <node_id> <percent>"
                 try:
-                    updated = main._set_prince2_role_node_tolerance_margin(config, prefs, node_id=parts[3], margin_percent=margin)
+                    updated = _project_role_flow._set_prince2_role_node_tolerance_margin(config, prefs, node_id=parts[3], margin_percent=margin)
                 except ValueError as exc:
                     return str(exc)
                 return f"Updated tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')}."
             if len(parts) == 4 and parts[2] == "reset":
-                updated = main._reset_prince2_role_node_tolerance(config, prefs, node_id=parts[3])
+                updated = _project_role_flow._reset_prince2_role_node_tolerance(config, prefs, node_id=parts[3])
                 return (
                     f"Reset tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')} "
                     f"pressure={updated.get('tolerance_pressure_percent', 'unknown')}."
@@ -285,7 +279,12 @@ def _handle_role_command(
                 if key == "reparent_children":
                     reparent_children = value.strip().lower() not in {"0", "false", "no"}
             try:
-                removed = main._remove_prince2_role_node(config, prefs, node_id=parts[2], reparent_children=reparent_children)
+                removed = _project_role_flow._remove_prince2_role_node(
+                    config,
+                    prefs,
+                    node_id=parts[2],
+                    reparent_children=reparent_children,
+                )
             except ValueError as exc:
                 return str(exc)
             return (
@@ -307,7 +306,7 @@ def _handle_role_command(
                 else:
                     extra_params[key] = value
             try:
-                node = main._assign_prince2_role_node(
+                node = _project_role_flow._assign_prince2_role_node(
                     config,
                     prefs,
                     node_id=parts[2],
@@ -333,7 +332,7 @@ def _handle_role_command(
                 f"provider_model={route.get('provider_model')} account={route.get('account') or 'none'} pool={pool}."
             )
         if len(parts) == 2 and parts[1] == "assign":
-            return main._guided_role_assign(
+            return _project_role_flow._guided_role_assign(
                 prefs=prefs,
                 config=config,
                 input_stream=input_stream,
@@ -356,7 +355,7 @@ def _handle_role_command(
             if not payload_scope:
                 return "Usage: role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]"
             try:
-                message = main._send_prince2_role_message(
+                message = _project_role_flow._send_prince2_role_message(
                     config,
                     source_node=parts[2],
                     target_node=parts[3],
@@ -398,7 +397,7 @@ def _handle_role_command(
             if not reason:
                 return "Usage: role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]"
             try:
-                node = main._set_prince2_role_node_waiting(
+                node = _project_role_flow._set_prince2_role_node_waiting(
                     config,
                     node_id=parts[2],
                     reason=reason,
@@ -421,7 +420,7 @@ def _handle_role_command(
             if not trigger:
                 return "Usage: role wake <node_id> trigger=<name>"
             try:
-                node = main._wake_prince2_role_node(
+                node = _project_role_flow._wake_prince2_role_node(
                     config,
                     node_id=parts[2],
                     trigger=trigger,
@@ -445,7 +444,7 @@ def _handle_role_command(
             if len(parts) > 3:
                 return "Usage: role configure [role]"
             requested_role = parts[2] if len(parts) == 3 else None
-            return main._guided_role_configure(
+            return _project_role_flow._guided_role_configure(
                 requested_role=requested_role,
                 prefs=prefs,
                 config=config,
@@ -472,7 +471,6 @@ def _handle_role_command(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
 ) -> str | None:
-    main = _main()
     parts = command.split()
     if not parts:
         return None
@@ -481,21 +479,21 @@ def _handle_role_command(
 
     prefs = _model_views._load_model_preferences(config)
     if len(parts) == 2 and parts[1] == "menu":
-        return main._guided_role_tree_menu(
+        return _project_role_flow._guided_role_tree_menu(
             prefs=prefs,
             config=config,
             input_stream=input_stream,
             output_stream=output_stream,
         )
     if len(parts) == 2 and parts[1] == "shell":
-        return main._guided_role_shell(
+        return _project_role_flow._guided_role_shell(
             prefs=prefs,
             config=config,
             input_stream=input_stream,
             output_stream=output_stream,
         )
     if len(parts) == 3 and parts[1] == "shell":
-        return main._guided_role_node_shell(
+        return _project_role_flow._guided_role_node_shell(
             prefs=prefs,
             config=config,
             node_id=parts[2],
@@ -503,7 +501,7 @@ def _handle_role_command(
             output_stream=output_stream,
         )
     if len(parts) == 3 and parts[1] == "switch":
-        return main._guided_role_node_switch_agent(
+        return _project_role_flow._guided_role_node_switch_agent(
             prefs=prefs,
             config=config,
             node_id=parts[2],
@@ -511,7 +509,7 @@ def _handle_role_command(
             output_stream=output_stream,
         )
     if len(parts) == 3 and parts[1] == "menu":
-        return main._guided_role_node_menu(
+        return _project_role_flow._guided_role_node_menu(
             prefs=prefs,
             config=config,
             node_id=parts[2],
@@ -520,7 +518,7 @@ def _handle_role_command(
         )
     if len(parts) in {4, 5} and parts[1] == "add-child":
         try:
-            child = main._add_child_prince2_role_node(
+            child = _project_role_flow._add_child_prince2_role_node(
                 config,
                 prefs,
                 parent_id=parts[2],
@@ -534,7 +532,7 @@ def _handle_role_command(
             + _project_role_tree_views._render_prince2_role_tree_baseline(config)
         )
     if len(parts) == 2 and parts[1] == "add-child":
-        return main._guided_role_add_child(
+        return _project_role_flow._guided_role_add_child(
             prefs=prefs,
             config=config,
             input_stream=input_stream,
@@ -542,7 +540,7 @@ def _handle_role_command(
         )
     if len(parts) >= 3 and parts[1] == "model":
         if len(parts) == 3:
-            return main._guided_role_node_menu(
+            return _project_role_flow._guided_role_node_menu(
                 prefs=prefs,
                 config=config,
                 node_id=parts[2],
@@ -565,7 +563,7 @@ def _handle_role_command(
             else:
                 extra_params[key] = value
         try:
-            node = main._assign_prince2_role_node_model(
+            node = _project_role_flow._assign_prince2_role_node(
                 config,
                 prefs,
                 node_id=parts[2],
@@ -597,14 +595,14 @@ def _handle_role_command(
             except ValueError:
                 return "Usage: role tolerance set <node_id> <percent>"
             try:
-                updated = main._set_prince2_role_node_tolerance_margin(
+                updated = _project_role_flow._set_prince2_role_node_tolerance_margin(
                     config, prefs, node_id=parts[3], margin_percent=margin
                 )
             except ValueError as exc:
                 return str(exc)
             return f"Updated tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')}."
         if len(parts) == 4 and parts[2] == "reset":
-            updated = main._reset_prince2_role_node_tolerance(config, prefs, node_id=parts[3])
+            updated = _project_role_flow._reset_prince2_role_node_tolerance(config, prefs, node_id=parts[3])
             return (
                 f"Reset tolerance for {parts[3]}: margin={updated.get('tolerance_margin_percent', 'unknown')} "
                 f"pressure={updated.get('tolerance_pressure_percent', 'unknown')}."
@@ -619,7 +617,7 @@ def _handle_role_command(
             if key == "reparent_children":
                 reparent_children = value.strip().lower() not in {"0", "false", "no"}
         try:
-            removed = main._remove_prince2_role_node(
+            removed = _project_role_flow._remove_prince2_role_node(
                 config, prefs, node_id=parts[2], reparent_children=reparent_children
             )
         except ValueError as exc:
@@ -643,7 +641,7 @@ def _handle_role_command(
             else:
                 extra_params[key] = value
         try:
-            node = main._assign_prince2_role_node(
+            node = _project_role_flow._assign_prince2_role_node(
                 config,
                 prefs,
                 node_id=parts[2],
@@ -669,7 +667,7 @@ def _handle_role_command(
             f"provider_model={route.get('provider_model')} account={route.get('account') or 'none'} pool={pool}."
         )
     if len(parts) == 2 and parts[1] == "assign":
-        return main._guided_role_assign(
+        return _project_role_flow._guided_role_assign(
             prefs=prefs,
             config=config,
             input_stream=input_stream,
@@ -692,7 +690,7 @@ def _handle_role_command(
         if not payload_scope:
             return "Usage: role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]"
         try:
-            message = main._send_prince2_role_message(
+            message = _project_role_flow._send_prince2_role_message(
                 config,
                 source_node=parts[2],
                 target_node=parts[3],
@@ -734,7 +732,7 @@ def _handle_role_command(
         if not reason:
             return "Usage: role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]"
         try:
-            node = main._set_prince2_role_node_waiting(
+            node = _project_role_flow._set_prince2_role_node_waiting(
                 config,
                 node_id=parts[2],
                 reason=reason,
@@ -757,7 +755,7 @@ def _handle_role_command(
         if not trigger:
             return "Usage: role wake <node_id> trigger=<name>"
         try:
-            node = main._wake_prince2_role_node(
+            node = _project_role_flow._wake_prince2_role_node(
                 config,
                 node_id=parts[2],
                 trigger=trigger,
@@ -781,7 +779,7 @@ def _handle_role_command(
         if len(parts) > 3:
             return "Usage: role configure [role]"
         requested_role = parts[2] if len(parts) == 3 else None
-        return main._guided_role_configure(
+        return _project_role_flow._guided_role_configure(
             requested_role=requested_role,
             prefs=prefs,
             config=config,

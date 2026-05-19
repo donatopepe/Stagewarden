@@ -8,13 +8,8 @@ from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .modelprefs import PRINCE2_ROLE_IDS
 from . import model_views as _model_views
+from . import shell_views as _shell_views
 from .provider_registry import provider_model_specs
-
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module
 
 
 def _interactive_help_overview() -> str:
@@ -155,7 +150,6 @@ def _wrap_description(text: str, *, width: int = 88, initial_indent: str = "  ",
 
 
 def _slash_palette_report(config: AgentConfig, prefix: str = "") -> dict[str, object]:
-    main = _main()
     lowered = prefix.strip().lower()
     specs = command_specs_by_query(lowered)
     prefs = _model_views._load_model_preferences(config)
@@ -259,7 +253,6 @@ def _guided_slash_choice(
     input_stream: TextIO | None,
     output_stream: TextIO | None,
 ) -> str:
-    main = _main()
     if input_stream is None or output_stream is None:
         return "Slash chooser unavailable without an interactive input/output stream."
     entries = list(_slash_palette_report(config, query)["entries"])[:20]
@@ -270,7 +263,7 @@ def _guided_slash_choice(
         for item in entries
         if isinstance(item, dict)
     ]
-    selected = main._prompt_menu_choice(
+    selected = _shell_views._prompt_menu_choice(
         title="Choose slash command:",
         options=options,
         input_stream=input_stream,

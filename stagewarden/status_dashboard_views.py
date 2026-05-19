@@ -12,8 +12,12 @@ from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .memory import MemoryStore
 from .project_handoff import ProjectHandoff
+from . import report_views as _report_views
+from . import status_views as _status_views
 from .project import role_tree_views as _project_role_tree_views
+from . import project_handoff_views as _project_handoff_views
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
+from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
 from .tools.git import GitTool
 
 
@@ -21,12 +25,6 @@ def _views():
     from . import status_views as _status_views_module
 
     return _status_views_module
-
-
-def _main():
-    from . import main as _main_module
-
-    return _main_module
 
 
 def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
@@ -63,7 +61,6 @@ def _statusline_rate_limit(item: dict[str, object]) -> dict[str, object]:
 
 
 def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     views = _views()
     status = views._status_report(agent, config)
     usage = views._model_usage_report(config)["report"]
@@ -113,28 +110,26 @@ def _statusline_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 
 def _overview_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     views = _views()
     return {
         "command": "overview",
         "schema": json_schema("overview"),
         "status": views._status_report(agent, config),
-        "board": main._board_report(config),
+        "board": _report_views._board_report(config),
         "model_usage": views._model_usage_report(config),
         "provider_limits": views._provider_limit_status_report(agent, config),
-        "transcript": main._transcript_report(config),
-        "handoff": main._handoff_report(config),
+        "transcript": _project_handoff_views._transcript_report(config),
+        "handoff": _project_handoff_views._handoff_report(config),
     }
 
 
 def _health_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     views = _views()
-    board = main._board_report(config)
+    board = _report_views._board_report(config)
     status = views._status_report(agent, config)
     usage = views._model_usage_report(config)["report"]
-    transcript = main._transcript_report(config)["report"]
-    log_errors = main._log_error_report(config)
+    transcript = _project_handoff_views._transcript_report(config)["report"]
+    log_errors = _project_handoff_views._log_error_report(config)
     ready = (
         board["recommended_authorization"] in {"continue", "close"}
         and board["open_issues"] == 0
@@ -175,7 +170,6 @@ def _preflight_remediations(
     log_errors: dict[str, object],
 ) -> list[dict[str, str]]:
     views = _views()
-    main = _main()
     items: list[dict[str, str]] = []
     if not doctor.get("python", {}).get("ok"):  # type: ignore[union-attr]
         items.append({"severity": "blocker", "code": "python", "action": "Install Python 3.11+ and rerun `/preflight`."})
@@ -232,23 +226,22 @@ def _status_remediation_report(
     stage_view: dict[str, object],
     config: AgentConfig,
 ) -> list[dict[str, str]]:
-    main = _main()
     git = GitTool(config)
     git_status = git.status()
     git_dirty = git.status_porcelain()
     items = _preflight_remediations(
         doctor={"python": {"ok": True}, "git": {"ok": True}},
-        runtime=main.detect_runtime_capabilities(config.workspace_root),
+        runtime=detect_runtime_capabilities(config.workspace_root),
         shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
         role_check=_project_role_tree_views._prince2_role_check_report(config),
         provider_limits=provider_limits,
-        sources=main._sources_status_report(config),
+        sources=_views()._sources_status_report(config),
         stage_view=stage_view,
-        log_errors=main._log_error_report(config),
+        log_errors=_project_handoff_views._log_error_report(config),
     )
-    local_fallback = main._delivery_local_fallback_report(config)
+    local_fallback = _project_role_tree_views._delivery_local_fallback_report(config)
     if local_fallback["status"] == "available":
         items.append(
             {
@@ -275,7 +268,6 @@ def _status_remediation_report(
 
 
 def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     views = _views()
     doctor = _doctor_report(config)
     git = GitTool(config)
@@ -284,9 +276,9 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     git_dirty = git.status_porcelain()
     role_check = _project_role_tree_views._prince2_role_check_report(config)
     provider_limits = views._provider_limit_status_report(agent, config)
-    sources = main._sources_status_report(config)
+    sources = _views()._sources_status_report(config)
     handoff = ProjectHandoff.load(config.handoff_path)
-    log_errors = main._log_error_report(config)
+    log_errors = _project_handoff_views._log_error_report(config)
     stage_view = handoff.stage_view()
     remediations = _preflight_remediations(
         doctor=doctor,
@@ -331,12 +323,11 @@ def _preflight_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
 
 
 def _report_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
-    main = _main()
     views = _views()
     handoff = ProjectHandoff.load(config.handoff_path)
-    board = main._board_report(config)
+    board = _report_views._board_report(config)
     usage = views._model_usage_report(config)["report"]
-    transcript = main._transcript_report(config)["report"]
+    transcript = _project_handoff_views._transcript_report(config)["report"]
     stage_view = handoff.stage_view()
     register_statuses = stage_view["register_statuses"]
     governance_status = (
@@ -382,7 +373,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "path_launcher": {},
         "repository": {},
         "runtime": _main().detect_runtime_capabilities(config.workspace_root),
-        "baseline": _main()._agent_baseline_report(config),
+        "baseline": _views()._agent_baseline_report(config),
         "providers": [],
         "policy": {"silent_install": False, "note": "no prerequisites are installed silently by doctor."},
     }
@@ -397,9 +388,8 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
     repo_probe = GitTool(config)._run(["git", "rev-parse", "--is-inside-work-tree"])
     report["repository"] = {"ok": repo_probe.ok and repo_probe.stdout.strip() == "true", "status": "OK" if repo_probe.ok and repo_probe.stdout.strip() == "true" else "WARN", "message": "current workspace is a git worktree" if repo_probe.ok and repo_probe.stdout.strip() == "true" else "current workspace is not a git worktree; Stagewarden will initialize one during normal agent startup."}
     providers: list[dict[str, object]] = []
-    main = _main()
-    for model in main.REGISTRY_MODELS:
-        capability = main.provider_capability(model)
+    for model in REGISTRY_MODELS:
+        capability = provider_capability(model)
         token_state = "n/a"
         if capability.token_env:
             token_state = "set" if os.environ.get(capability.token_env) else f"missing:{capability.token_env}"
@@ -442,7 +432,7 @@ def _render_report(agent: Agent, config: AgentConfig) -> str:
         f"- model_calls: {report['model_calls']}",
         f"- model_failures: {report['model_failures']}",
         f"- escalation_path: {report['escalation_path']}",
-        f"- provider_limits: {_main()._provider_limit_summary(agent, config)}",
+        f"- provider_limits: {_status_views._provider_limit_summary(agent, config)}",
         f"- transcript_entries: {report['transcript_entries']}",
         "Recent lessons:",
     ]
