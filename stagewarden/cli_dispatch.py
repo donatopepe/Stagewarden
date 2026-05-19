@@ -644,7 +644,7 @@ def run_cli() -> int:
         else:
             print(_project_start_flow._render_project_start_report(report, agent, config, prefs))
         return 0 if report.get("ready") else 1
-    if task.startswith("roles ") or task.startswith("role ") or task in {"project start", "project start --ai"}:
+    if task.startswith("roles ") or task.startswith("role "):
         agent = _agent_setup_views._configure_readonly_agent_for_workspace(config)
         response = _project_role_command_flow._handle_project_and_roles_command(task, agent, config)
         if response is None:

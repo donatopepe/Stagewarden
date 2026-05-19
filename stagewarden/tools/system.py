@@ -263,8 +263,8 @@ class SystemTool:
                         "ppid": int(ppid_s),
                         "name": Path(comm).name,
                         "status": status,
-                        "cpu_percent": float(cpu_s),
-                        "memory_percent": float(mem_s),
+                        "cpu_percent": float(cpu_s.replace(",", ".")),
+                        "memory_percent": float(mem_s.replace(",", ".")),
                         "cmdline": comm,
                     }
                 )
