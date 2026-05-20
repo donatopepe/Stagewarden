@@ -1955,10 +1955,6 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
     return report
 
 
-def _doctor_ok(rendered: str) -> bool:
-    return "\n- Python: FAIL" not in rendered and "\n- Git: FAIL" not in rendered
-
-
 def _render_preflight(agent: Agent, config: AgentConfig) -> str:
     report = _preflight_report(agent, config)
     lines = [

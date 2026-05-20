@@ -21,10 +21,8 @@ from . import status_views as _status_views
 from .provider_registry import provider_capability, provider_model_spec, provider_model_specs
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .command_dispatch import (
-    execute_browser_command as _browser_execute,
     execute_external_io_command as _external_io_execute,
     execute_system_command as _system_execute,
-    execute_watch_command as _watch_execute,
 )
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 from . import json_schema_registry as _json_schema_registry

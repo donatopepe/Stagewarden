@@ -386,7 +386,7 @@ def run_cli() -> int:
                 except ValueError:
                     print(dumps_ascii(_json_schema_registry.with_json_schema("catalog refresh", {"command": "catalog refresh", "ok": False, "error": _model_views._catalog_usage()}), indent=2))
                     return 1
-                catalog = write_ai_models_catalog(include_artificial_analysis=include_artificial_analysis)
+                catalog = _model_views.write_ai_models_catalog(include_artificial_analysis=include_artificial_analysis)
                 catalog["include_artificial_analysis"] = include_artificial_analysis
                 print(dumps_ascii(_json_schema_registry.with_json_schema("catalog refresh", _model_views._catalog_refresh_report(catalog)), indent=2))
                 return 0
@@ -464,7 +464,7 @@ def run_cli() -> int:
         agent = _agent_setup_views._configure_readonly_agent_for_workspace(config) if use_ai else None
         report = _project_tree_flow._project_tree_proposal_report(config, agent=agent, use_ai=use_ai)
         if use_ai and report.get("status") == "needs_clarification":
-            report["clarification_question"] = _project_tree_flow._project_tree_clarification_record(
+            report["clarification_question"] = _project_start_flow._project_tree_clarification_record(
                 config,
                 gaps=list(report.get("clarification_gaps", [])) if isinstance(report.get("clarification_gaps"), list) else [],
             )
