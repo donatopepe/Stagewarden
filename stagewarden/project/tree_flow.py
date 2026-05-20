@@ -554,7 +554,3 @@ def _render_project_tree_approval_report(report: dict[str, object], config: Agen
 
 def _render_project_tree_approval(config: AgentConfig, *, force: bool = False) -> str:
     return _render_project_tree_approval_report(_approve_project_tree_proposal(config, force=force), config)
-
-
-def _render_project_tree_proposal(config: AgentConfig) -> str:
-    return _render_project_tree_proposal_report(_project_tree_proposal_report(config))

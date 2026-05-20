@@ -1,35 +1,33 @@
 # Agent Handoff
 
 ## Current objective
-Completed second round of deep codebase analysis. Fixed 5 additional issues found during thorough analysis.
+Completed third round of deep codebase analysis. Fixed 4 additional issues including circular import resolution.
 
 ## Current state
-`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All critical bugs from round 1 fixed. Round 2 fixes applied:
+`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All critical bugs from rounds 1-2 fixed. Round 3 fixes applied:
 
-1. **Dead code in `cli_dispatch.py:647`** - `"project start"` already handled at line 638 with return. Removed duplicate condition from line 647.
-2. **Duplicate `_focus_snapshot` call in `status_views.py:1242`** - Already computed at line 1214 in `_status_report()`. Changed to reuse `status["focus"]`.
-3. **Locale bug in `tools/system.py:266-267`** - `ps` output uses comma decimal separator on European locales. Added `.replace(",", ".")` before `float()` conversion.
-4. **Unused imports** - Removed `from typing import Any` from `command_dispatch.py:5` and `tool_reports.py:3`.
-5. **cli_dispatch.py defaults** - Already aligned with AgentConfig (max_steps=20, strict_ascii_output=True).
+1. **P0: Circular import for `HandoffEntry`** - `project_handoff_views.py` imported `HandoffEntry` from `project_handoff` at module level, causing circular import. Fixed by using `TYPE_CHECKING` guard for type-only import.
+2. **P0: Missing `cwd` arg in `project/design_flow.py:63`** - `detect_runtime_capabilities()` called without `config.workspace_root`. Fixed to match all other call sites.
+3. **P1: Empty files** - Deleted `stagewarden/model_communication.py` (0 bytes) and `tests/test_model_communication.py` (0 bytes). No module imports from them.
+4. **P1: Duplicated `_project_budget_spend_usd`** - `project_handoff_runtime.py:29` had identical copy of function already in `project_handoff_state.py:15`. Removed dead duplicate.
 
-All focused CLI test batches pass (23 tests).
+All focused CLI test batches pass (15 tests).
 
 ## Recent changes
-- Fixed dead code in `cli_dispatch.py` - removed unreachable `"project start"` condition.
-- Fixed redundant `_focus_snapshot` call in `status_views.py` - reuse already-computed value.
-- Fixed locale bug in `tools/system.py` - handle comma decimal separator.
-- Removed unused `Any` imports from `command_dispatch.py` and `tool_reports.py`.
+- Fixed circular import in `project_handoff_views.py` - used `TYPE_CHECKING` guard for `HandoffEntry`.
+- Fixed missing `cwd` arg in `project/design_flow.py` - added `config.workspace_root`.
+- Deleted empty `model_communication.py` and test file.
+- Removed duplicated `_project_budget_spend_usd` from `project_handoff_runtime.py`.
 - Committed and pushed to `pr/p4-p5-updates`.
 
 ## Important files
-- `stagewarden/cli_dispatch.py`: fixed dead code at line 647.
-- `stagewarden/status_views.py`: fixed duplicate `_focus_snapshot` call.
-- `stagewarden/tools/system.py`: fixed locale bug in process list parsing.
-- `stagewarden/command_dispatch.py`, `stagewarden/tool_reports.py`: removed unused imports.
+- `stagewarden/project_handoff_views.py`: fixed circular import with TYPE_CHECKING guard.
+- `stagewarden/project/design_flow.py`: fixed missing `cwd` arg.
+- `stagewarden/project_handoff_runtime.py`: removed dead duplicate function.
 
 ## Technical decisions
-- Reused `status["focus"]` instead of calling `_focus_snapshot` again in `_status_dashboard_report()` - same data, avoids redundant computation.
-- Used `.replace(",", ".")` for locale compatibility - minimal change, preserves existing behavior for period-separated values.
+- Used `TYPE_CHECKING` guard for `HandoffEntry` import - this is the standard pattern for breaking circular imports when the import is only needed for type annotations.
+- Deleted empty `model_communication.py` files - no module imports from them, they serve no purpose.
 
 ## Open issues
 - Bugs: `pytest` unavailable; use `python3 -m unittest`.
