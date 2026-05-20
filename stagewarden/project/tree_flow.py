@@ -4,7 +4,6 @@ import copy
 import re
 from dataclasses import replace
 from datetime import datetime
-from typing import Any
 
 from ..agent import Agent
 from ..config import AgentConfig

@@ -63,6 +63,7 @@ class WatchTool:
     def _watch_with_watchdog(self, target: Path, *, timeout: float, recursive: bool) -> list[dict[str, str]]:
         base_path = target.parent if target.is_file() else target
         target_file = target if target.is_file() else None
+        self_outer = self
 
         class Handler(FileSystemEventHandler):  # type: ignore[misc]
             def __init__(self) -> None:
@@ -89,7 +90,6 @@ class WatchTool:
                 except Exception:
                     return str(candidate)
 
-        self_outer = self
         handler = Handler()
         observer = Observer()
         observer.schedule(handler, str(base_path), recursive=recursive if not target.is_file() else False)

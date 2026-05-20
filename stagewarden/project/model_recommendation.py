@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 from ..config import AgentConfig
 from ..model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
 from .. import model_views as _model_views
