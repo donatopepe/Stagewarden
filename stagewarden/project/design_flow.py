@@ -60,7 +60,7 @@ def _local_execution_candidates_report(
 def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     prefs = _model_views._load_model_preferences(config)
-    runtime = detect_runtime_capabilities()
+    runtime = detect_runtime_capabilities(config.workspace_root)
     shell_backend = _shell_views._shell_backend_report(config)
     provider_limits = _status_views._provider_limit_status_report(agent, config)
     permissions = _status_views._permissions_report(config)

@@ -26,17 +26,6 @@ def _safe_price_per_token(value: object) -> float | None:
     return None if price < 0 else price
 
 
-def _project_budget_spend_usd(handoff: Any) -> float:
-    runtime = handoff.prince2_node_runtime if isinstance(handoff.prince2_node_runtime, dict) else {}
-    nodes = runtime.get("nodes", []) if isinstance(runtime, dict) else []
-    total = 0.0
-    for node in nodes:
-        if not isinstance(node, dict):
-            continue
-        total += float(node.get("business_case_cost_usd", 0.0) or 0.0)
-    return _round_usd(total)
-
-
 def send_prince2_node_message(
     handoff: Any,
     *,
