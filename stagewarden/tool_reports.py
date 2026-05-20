@@ -183,34 +183,6 @@ def record_browser_evidence(
     )
 
 
-def handle_browser_command(
-    command: str,
-    config: AgentConfig,
-    *,
-    execute_browser_command: Callable[[str, AgentConfig], BrowserResult | None],
-    record_handoff_action: RecordHandoffAction,
-) -> str | None:
-    result = execute_browser_command(command, config)
-    if result is None:
-        return None
-    record_browser_evidence(config, result, task=command, record_handoff_action=record_handoff_action)
-    return browser_result_to_text(result)
-
-
-def browser_report(
-    command: str,
-    config: AgentConfig,
-    *,
-    execute_browser_command: Callable[[str, AgentConfig], BrowserResult | None],
-    record_handoff_action: RecordHandoffAction,
-) -> dict[str, object] | None:
-    result = execute_browser_command(command, config)
-    if result is None:
-        return None
-    record_browser_evidence(config, result, task=command, record_handoff_action=record_handoff_action)
-    return result.as_dict()
-
-
 def watch_result_to_text(result: WatchResult) -> str:
     lines = [f"{result.command}: {'OK' if result.ok else 'FAIL'} {result.message}"]
     if result.path:
@@ -257,34 +229,6 @@ def record_watch_evidence(
             "error": result.error,
         },
     )
-
-
-def handle_watch_command(
-    command: str,
-    config: AgentConfig,
-    *,
-    execute_watch_command: Callable[[str, AgentConfig], WatchResult | None],
-    record_handoff_action: RecordHandoffAction,
-) -> str | None:
-    result = execute_watch_command(command, config)
-    if result is None:
-        return None
-    record_watch_evidence(config, result, task=command, record_handoff_action=record_handoff_action)
-    return watch_result_to_text(result)
-
-
-def watch_report(
-    command: str,
-    config: AgentConfig,
-    *,
-    execute_watch_command: Callable[[str, AgentConfig], WatchResult | None],
-    record_handoff_action: RecordHandoffAction,
-) -> dict[str, object] | None:
-    result = execute_watch_command(command, config)
-    if result is None:
-        return None
-    record_watch_evidence(config, result, task=command, record_handoff_action=record_handoff_action)
-    return result.as_dict()
 
 
 def system_result_to_text(result: SystemResult) -> str:
@@ -359,16 +303,3 @@ def handle_system_command(
     record_system_evidence(config, result, task=command, record_handoff_action=record_handoff_action)
     return system_result_to_text(result)
 
-
-def system_report(
-    command: str,
-    config: AgentConfig,
-    *,
-    execute_system_command: Callable[[str, AgentConfig], SystemResult | None],
-    record_handoff_action: RecordHandoffAction,
-) -> dict[str, object] | None:
-    result = execute_system_command(command, config)
-    if result is None:
-        return None
-    record_system_evidence(config, result, task=command, record_handoff_action=record_handoff_action)
-    return result.as_dict()
