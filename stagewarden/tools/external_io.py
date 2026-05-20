@@ -434,13 +434,20 @@ class ExternalIOTool:
     def _extract_archive(self, path: Path, destination: Path) -> list[dict[str, str]]:
         if zipfile.is_zipfile(path):
             with zipfile.ZipFile(path) as archive:
+                for member in archive.infolist():
+                    extracted = (destination / member.filename).resolve()
+                    if not str(extracted).startswith(str(destination.resolve())):
+                        raise ValueError(f"Archive member '{member.filename}' attempts path traversal.")
                 archive.extractall(destination)
                 return [{"name": item.filename, "size": str(item.file_size)} for item in archive.infolist()]
         if tarfile.is_tarfile(path):
             with tarfile.open(path) as archive:
-                members = archive.getmembers()
+                for member in archive.getmembers():
+                    extracted = (destination / member.name).resolve()
+                    if not str(extracted).startswith(str(destination.resolve())):
+                        raise ValueError(f"Archive member '{member.name}' attempts path traversal.")
                 archive.extractall(destination)
-                return [{"name": member.name, "size": str(member.size)} for member in members]
+                return [{"name": member.name, "size": str(member.size)} for member in archive.getmembers()]
         if path.suffix == ".gz":
             target = destination / path.with_suffix("").name
             with gzip.open(path, "rb") as src, target.open("wb") as dst:

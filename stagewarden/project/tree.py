@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
 
 from ..config import AgentConfig
 from ..handoff import format_run_model
