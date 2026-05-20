@@ -824,7 +824,6 @@ def _run_interactive_shell_impl(
         "_make_rate_limit_decider": _make_rate_limit_decider,
         "INTERACTIVE_COMMAND_PREFIX": INTERACTIVE_COMMAND_PREFIX,
     }
-    globals().update(shell_exports)
     source = input_stream or sys.stdin
     sink = output_stream or sys.stdout
     agent = _agent_setup_views._configure_agent_for_workspace(config)
