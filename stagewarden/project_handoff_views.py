@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .config import AgentConfig
 from .json_schema_registry import json_schema
@@ -14,6 +14,9 @@ from .textcodec import read_text_utf8, write_text_utf8
 from .role_tree import prince2_role_mnemonic, prince2_role_team_name
 
 from .prince2 import PRINCE2_THEME_NAMES
+
+if TYPE_CHECKING:
+    from .project_handoff import HandoffEntry
 from .role_tree import prince2_node_description, prince2_status_color
 
 
