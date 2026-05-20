@@ -235,15 +235,6 @@ def _reasoning_effort_candidates(provider: str, provider_model: str, partial: st
     return [effort for effort in spec.reasoning_efforts if effort.lower().startswith(lowered)]
 
 
-def _account_name_candidates(config: AgentConfig, provider: str, partial: str) -> list[str]:
-    try:
-        prefs = _model_views._load_model_preferences(config)
-    except OSError:
-        return []
-    accounts = list((prefs.accounts_by_model or {}).get(provider, []))
-    return _prefixed_candidates(f"account use {provider} ", accounts, partial)
-
-
 def _workspace_relative_candidates(config: AgentConfig, partial: str) -> list[str]:
     root = config.workspace_root
     prefix = partial.strip()
@@ -804,7 +795,6 @@ def _run_interactive_shell_impl(
         "_interactive_command_phrases": _interactive_command_phrases,
         "_provider_model_candidates": _provider_model_candidates,
         "_reasoning_effort_candidates": _reasoning_effort_candidates,
-        "_account_name_candidates": _account_name_candidates,
         "_workspace_relative_candidates": _workspace_relative_candidates,
         "_prefixed_candidates": _prefixed_candidates,
         "_interactive_contextual_candidates": _interactive_contextual_candidates,

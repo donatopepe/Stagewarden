@@ -6,8 +6,6 @@ from ..prince2 import Prince2ToleranceProfile
 from ..project_handoff import ProjectHandoff
 from .brief import (
     handle_project_brief_command,
-    project_brief_guidance,
-    project_brief_missing_fields,
     project_brief_report,
     project_gap_to_brief_field,
     render_project_brief,
@@ -16,23 +14,13 @@ from .tree import (
     assignment_for_role,
     enrich_tree_with_local_execution_candidates,
     project_tree_adaptation_snapshot,
-    project_tree_brief_complexity,
     project_tree_decomposition_nodes,
     role_node_from_template,
-    route_from_local_execution_candidate,
 )
-
-
-def _project_brief_missing_fields(config: AgentConfig) -> list[str]:
-    return project_brief_missing_fields(config)
 
 
 def _project_gap_to_brief_field(gap_code: str) -> str | None:
     return project_gap_to_brief_field(gap_code)
-
-
-def _project_brief_guidance(config: AgentConfig) -> str:
-    return project_brief_guidance(config)
 
 
 def _project_brief_report(config: AgentConfig) -> dict[str, object]:
@@ -81,10 +69,6 @@ def _role_node_from_template(
     )
 
 
-def _project_tree_brief_complexity(brief: dict[str, str], joined: str) -> dict[str, object]:
-    return project_tree_brief_complexity(brief, joined)
-
-
 def _project_tree_adaptation_snapshot(
     *,
     brief: dict[str, str],
@@ -109,10 +93,6 @@ def _project_tree_decomposition_nodes(
         joined=joined,
         tolerance_profile=tolerance_profile,
     )
-
-
-def _route_from_local_execution_candidate(candidate: dict[str, object], *, node: dict[str, object]) -> dict[str, object] | None:
-    return route_from_local_execution_candidate(candidate, node=node)
 
 
 def _enrich_tree_with_local_execution_candidates(
