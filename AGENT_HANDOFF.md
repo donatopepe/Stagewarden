@@ -1,37 +1,50 @@
 # Agent Handoff
 
 ## Current objective
-Completed third round of deep codebase analysis. Fixed 4 additional issues including circular import resolution.
+Completed fourth round of deep codebase analysis. Fixed 3 critical runtime bugs, removed 333 lines of dead code, and cleaned up unused imports.
 
 ## Current state
-`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All critical bugs from rounds 1-2 fixed. Round 3 fixes applied:
+`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-3 fixed. Round 4 fixes:
 
-1. **P0: Circular import for `HandoffEntry`** - `project_handoff_views.py` imported `HandoffEntry` from `project_handoff` at module level, causing circular import. Fixed by using `TYPE_CHECKING` guard for type-only import.
-2. **P0: Missing `cwd` arg in `project/design_flow.py:63`** - `detect_runtime_capabilities()` called without `config.workspace_root`. Fixed to match all other call sites.
-3. **P1: Empty files** - Deleted `stagewarden/model_communication.py` (0 bytes) and `tests/test_model_communication.py` (0 bytes). No module imports from them.
-4. **P1: Duplicated `_project_budget_spend_usd`** - `project_handoff_runtime.py:29` had identical copy of function already in `project_handoff_state.py:15`. Removed dead duplicate.
+### Critical bugs fixed (P0)
+1. **Missing `write_ai_models_catalog` import** - `cli_dispatch.py:389` called function without importing. Fixed to use `_model_views.write_ai_models_catalog`.
+2. **Missing `PRINCE2_ROLE_IDS`/`PRINCE2_ROLE_LABELS` imports** - `project/role_command_flow.py` used constants without importing. Added imports from `..modelprefs`.
+3. **Wrong module reference** - `cli_dispatch.py:467` called `_project_tree_flow._project_tree_clarification_record` but function is in `start_flow.py`. Fixed to `_project_start_flow`.
+
+### Dead code removed (P1)
+4. **Duplicate `_handle_role_command`** - `project/role_command_flow.py` had two definitions (lines 131-463 dead, 466-806 active). Removed 333 lines of dead code.
+5. **Dead `_render_project_tree_proposal`** - `project/tree_flow.py:559` defined but never called. Removed.
+6. **Dead `_doctor_ok` duplicate** - `status_views.py:1958` defined but never called (active version in `status_dashboard_views.py`). Removed.
+
+### Unused imports cleaned (P1)
+7. **`shell_views.py`** - Removed unused `_browser_execute` and `_watch_execute` imports.
 
 All focused CLI test batches pass (15 tests).
 
 ## Recent changes
-- Fixed circular import in `project_handoff_views.py` - used `TYPE_CHECKING` guard for `HandoffEntry`.
-- Fixed missing `cwd` arg in `project/design_flow.py` - added `config.workspace_root`.
-- Deleted empty `model_communication.py` and test file.
-- Removed duplicated `_project_budget_spend_usd` from `project_handoff_runtime.py`.
+- Fixed missing `write_ai_models_catalog` call in `cli_dispatch.py`.
+- Fixed wrong module reference for `_project_tree_clarification_record` in `cli_dispatch.py`.
+- Added missing `PRINCE2_ROLE_IDS`/`PRINCE2_ROLE_LABELS` imports in `role_command_flow.py`.
+- Removed 333 lines of dead duplicate `_handle_role_command` in `role_command_flow.py`.
+- Removed dead `_render_project_tree_proposal` in `tree_flow.py`.
+- Removed dead `_doctor_ok` in `status_views.py`.
+- Removed unused imports in `shell_views.py`.
 - Committed and pushed to `pr/p4-p5-updates`.
 
 ## Important files
-- `stagewarden/project_handoff_views.py`: fixed circular import with TYPE_CHECKING guard.
-- `stagewarden/project/design_flow.py`: fixed missing `cwd` arg.
-- `stagewarden/project_handoff_runtime.py`: removed dead duplicate function.
+- `stagewarden/cli_dispatch.py`: fixed 2 critical bugs.
+- `stagewarden/project/role_command_flow.py`: fixed missing imports, removed 333 lines of dead code.
+- `stagewarden/project/tree_flow.py`: removed dead function.
+- `stagewarden/status_views.py`: removed dead duplicate function.
+- `stagewarden/shell_views.py`: removed unused imports.
 
 ## Technical decisions
-- Used `TYPE_CHECKING` guard for `HandoffEntry` import - this is the standard pattern for breaking circular imports when the import is only needed for type annotations.
-- Deleted empty `model_communication.py` files - no module imports from them, they serve no purpose.
+- Used `_model_views.write_ai_models_catalog` instead of direct import to avoid adding another import to already-heavy `cli_dispatch.py`.
+- Removed entire first definition of `_handle_role_command` - the second definition is the active one used by all callers.
 
 ## Open issues
 - Bugs: `pytest` unavailable; use `python3 -m unittest`.
-- Risks: `status_views.py` and `status_dashboard_views.py` still have ~14 duplicated functions (~400 lines). `report_views.py` and `project_handoff_views.py` have ~22 duplicated functions. Future consolidation recommended.
+- Risks: `status_views.py` and `status_dashboard_views.py` still have ~13 duplicated functions (~380 lines). `report_views.py` and `project_handoff_views.py` have ~22 duplicated functions. Future consolidation recommended.
 - Unknowns: None.
 
 ## Next steps

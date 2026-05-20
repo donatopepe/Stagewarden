@@ -67,18 +67,6 @@ def _local_model_profile_from_spec(spec) -> dict[str, object]:
     return _model_inspection_views._local_model_profile_from_spec(spec)
 
 
-def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
-    if not isinstance(entry, dict) or not entry:
-        return None
-    intelligence = entry.get("intelligence_rank")
-    if isinstance(intelligence, (int, float)):
-        return float(intelligence)
-    speed = entry.get("speed_rank")
-    if isinstance(speed, (int, float)):
-        return float(speed)
-    return None
-
-
 def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str, str, str]:
     capability = provider_capability(provider)
     pinned = prefs.variant_for_model(provider)
