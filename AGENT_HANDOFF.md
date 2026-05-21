@@ -1,61 +1,54 @@
 # Agent Handoff
 
 ## Current objective
-Completed thirteenth round of deep codebase analysis. Fixed critical NameError bug, removed dead code, and extracted duplicated literals to module-level constants across 7 files.
+Completed Round 13 deep codebase analysis and cleanup. Committed all changes. Ready for Round 14.
 
 ## Current state
-`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-12 fixed. Round 13 cleanup:
-
-### Critical bug fixed
-1. **`auth.py:209` - NameError: `urllib.parse` not imported** - `urllib.parse.quote()` called but only `urllib.request` was imported. Added `import urllib.parse`.
-
-### Dead code removed
-2. **`SUPPORTED_MODELS` in `provider_registry.py:140`** - Shadowed by line 867 `_build_supported_models()`. Removed dead definition.
-
-### Duplicated literals extracted to constants
-3. **`RISKY_ACTION_TOKENS` in `prince2.py`** - Tuple `("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")` duplicated 5 times across `prince2.py` (3x) and `router.py` (2x). Also fixed inconsistency where line 409 in `prince2.py` was missing `"production"`. Extracted to module constant in `prince2.py`, imported in `router.py`.
-4. **`DEBUG_TOKENS` and `COMPLEX_TOKENS` in `router.py`** - Duplicated within same file (2x each). Extracted to module-level constants.
-5. **`ROLE_HIGH_STAKES` and `ROLE_ECONOMICAL` in `modelprefs.py`** - Role classification sets duplicated (2x). Extracted to `frozenset` module constants.
-6. **`BUDGET_POLICY` in `memory.py`** - Budget policy string duplicated 4 times across `memory.py` (3x) and `status_views.py` (1x). Extracted to module constant, imported in `status_views.py`.
-
-All tests pass (63 tests across memory, executor, agent_integration, and trace_cli suites).
+- Round 13 committed as `4a8469f`. All 63 core tests pass. Key trace CLI tests pass.
+- `main.py` is minimal (~75 lines). All `_main()` patterns eliminated.
+- Round 13 summary:
+  - **Fixed NameError in `auth.py:209`** - added `import urllib.parse`
+  - **Removed dead `SUPPORTED_MODELS`** in `provider_registry.py:140` (shadowed by `_build_supported_models()`)
+  - **Extracted 6 duplicated literal groups to module constants:**
+    - `RISKY_ACTION_TOKENS` in `prince2.py`, imported in `router.py`
+    - `DEBUG_TOKENS` / `COMPLEX_TOKENS` in `router.py`
+    - `ROLE_HIGH_STAKES` / `ROLE_ECONOMICAL` in `modelprefs.py`
+    - `BUDGET_POLICY` in `memory.py`, imported in `status_views.py`
+  - **Extracted shared utilities to `textcodec.py`:** `utc_now()` and `round_usd()` (eliminated 3 duplicate definitions across `project_handoff.py`, `project_handoff_runtime.py`, `project_handoff_state.py`, and `model_catalog.py`)
 
 ## Recent changes
-- Fixed NameError in `auth.py` by adding `import urllib.parse`.
-- Removed dead `SUPPORTED_MODELS` definition from `provider_registry.py`.
-- Extracted `RISKY_ACTION_TOKENS` constant in `prince2.py`, imported in `router.py`.
-- Extracted `DEBUG_TOKENS` and `COMPLEX_TOKENS` constants in `router.py`.
-- Extracted `ROLE_HIGH_STAKES` and `ROLE_ECONOMICAL` constants in `modelprefs.py`.
-- Extracted `BUDGET_POLICY` constant in `memory.py`, imported in `status_views.py`.
+- Committed Round 13 cleanup (15 files, +179/-157 lines)
+- All changes verified with `python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration` (63 tests, all OK)
+- Key trace CLI tests verified (5 tests, all OK)
 
 ## Important files
-- `stagewarden/auth.py`: fixed NameError bug.
-- `stagewarden/provider_registry.py`: removed dead constant.
-- `stagewarden/prince2.py`: added `RISKY_ACTION_TOKENS` constant.
-- `stagewarden/router.py`: uses `RISKY_ACTION_TOKENS`, added `DEBUG_TOKENS`/`COMPLEX_TOKENS`.
-- `stagewarden/modelprefs.py`: added `ROLE_HIGH_STAKES`/`ROLE_ECONOMICAL` constants.
-- `stagewarden/memory.py`: added `BUDGET_POLICY` constant.
-- `stagewarden/status_views.py`: imports `BUDGET_POLICY` from `memory`.
+- `stagewarden/main.py`: ~75 lines, minimal dispatch only
+- `stagewarden/textcodec.py`: now owns `utc_now()` and `round_usd()` shared utilities
+- `stagewarden/prince2.py`: owns `RISKY_ACTION_TOKENS` constant
+- `stagewarden/router.py`: imports `RISKY_ACTION_TOKENS`, owns `DEBUG_TOKENS`/`COMPLEX_TOKENS`
+- `stagewarden/modelprefs.py`: owns `ROLE_HIGH_STAKES`/`ROLE_ECONOMICAL` constants
+- `stagewarden/memory.py`: owns `BUDGET_POLICY` constant
+- `stagewarden/status_views.py`: imports `BUDGET_POLICY` from `memory`
 
 ## Technical decisions
-- Used `frozenset` for role classification sets (immutable, hashable).
-- Used `tuple[str, ...]` for token lists (immutable, ordered).
-- Kept `BUDGET_POLICY` in `memory.py` (budget/usage domain), imported by `status_views.py`.
-- Kept `RISKY_ACTION_TOKENS` in `prince2.py` (PRINCE2 policy domain), imported by `router.py`.
+- Moved `utc_now()` and `round_usd()` to `textcodec.py` (text/time codec utilities)
+- Used `frozenset` for role classification sets (immutable, hashable)
+- Used `tuple[str, ...]` for token lists (immutable, ordered)
 
 ## Open issues
-- Bugs: `pytest` unavailable; use `python3 -m unittest`.
-- Risks: Duplicate functions across view modules (~380 lines). Future consolidation recommended but not urgent.
-- Unknowns: None.
+- Bugs: None known
+- Risks: Duplicate functions across view modules (~380 lines) - future consolidation recommended but low priority
+- Unknowns: None
 
 ## Next steps
-1. Run full `tests.test_trace_cli` suite (200 tests, ~5+ min).
-2. Consider consolidating duplicated functions between view modules (low priority).
+1. Round 14: Continue deep codebase analysis - look for remaining duplicated code, dead code, anti-patterns
+2. Consider consolidating duplicated functions between view modules
+3. Run full `tests.test_trace_cli` suite when time permits (200+ tests)
 
 ## Commands
 ```bash
 # test
+python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration -v
 python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_agent_writes_ljson_trace
-python3 -m unittest tests.test_trace_cli
 python3 -m unittest tests.test_prince2
 ```

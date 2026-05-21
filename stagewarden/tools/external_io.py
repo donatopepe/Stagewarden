@@ -6,7 +6,6 @@ import hashlib
 import html
 import json
 import mimetypes
-import os
 from pathlib import Path
 import re
 import shutil

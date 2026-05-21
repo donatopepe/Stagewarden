@@ -5,9 +5,8 @@ from typing import TextIO
 
 from .agent import Agent
 from .config import AgentConfig
-from .handoff import format_run_model
 from .project_handoff import ProjectHandoff
-from .model_catalog import catalog_entry_for_provider_model, catalog_path, load_ai_models_catalog, search_ai_models_catalog, write_ai_models_catalog
+from .model_catalog import catalog_entry_for_provider_model, catalog_path, load_ai_models_catalog, write_ai_models_catalog
 from .modelprefs import ModelPreferences, SUPPORTED_MODELS, provider_model_spec, provider_model_specs
 from .provider_registry import provider_capability, provider_model_preset
 from . import model_catalog_views as _model_catalog_views

@@ -16,7 +16,7 @@ from .memory import BUDGET_POLICY, MemoryStore
 from .model_catalog import catalog_entries_for_provider, catalog_entry_for_provider_model, load_ai_models_catalog
 from .modelprefs import SUPPORTED_MODELS, account_key, extract_blocked_until, limit_snapshot_from_message
 from .permissions import PermissionSettings
-from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
+from .provider_registry import provider_capability
 from . import account_views as _account_views
 from . import model_views as _model_views
 from . import report_views as _report_views
