@@ -1,21 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from . import project_handoff_state as _project_handoff_state
 from . import project_handoff_views as _project_handoff_views
 from . import project_handoff_runtime as _project_handoff_runtime
-
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-def _round_usd(value: float) -> float:
-    return round(max(0.0, float(value)), 8)
+from .textcodec import round_usd, utc_now
 
 
 @dataclass(slots=True)
@@ -76,7 +68,7 @@ class ProjectHandoff:
     prince2_roles: dict[str, dict[str, Any]] = field(default_factory=dict)
     prince2_role_tree_baseline: dict[str, Any] = field(default_factory=dict)
     prince2_node_runtime: dict[str, Any] = field(default_factory=dict)
-    updated_at: str = field(default_factory=_utc_now)
+    updated_at: str = field(default_factory=utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
 
     def start_run(self, *, task: str, plan_status: str, git_head: str | None) -> None:
@@ -89,7 +81,7 @@ class ProjectHandoff:
         self.plan_status = plan_status
         self.git_head = git_head
         self.git_head_baseline = git_head
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
         self.entries.append(
             HandoffEntry(
                 timestamp=self.updated_at,
@@ -107,7 +99,7 @@ class ProjectHandoff:
         self.plan_status = plan_status
         self.git_head = git_head
         self._seed_risk_register(checklist.get("risks", []))
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
         self.entries.append(
             HandoffEntry(
                 timestamp=self.updated_at,
@@ -130,7 +122,7 @@ class ProjectHandoff:
         details: dict[str, Any] | None = None,
     ) -> None:
         self.git_head = git_head or self.git_head
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
         self.entries.append(
             HandoffEntry(
                 timestamp=self.updated_at,
@@ -174,7 +166,7 @@ class ProjectHandoff:
                 }
             )
         self.implementation_backlog = backlog
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
 
     def sync_prince2_roles(self, roles: dict[str, dict[str, Any]]) -> None:
         normalized: dict[str, dict[str, Any]] = {}
@@ -197,17 +189,17 @@ class ProjectHandoff:
                 "source": str(assignment.get("source", "manual")).strip() or "manual",
             }
         self.prince2_roles = normalized
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
 
     def sync_prince2_role_tree_baseline(self, baseline: dict[str, Any]) -> None:
         if not isinstance(baseline, dict):
             self.prince2_role_tree_baseline = {}
             self.prince2_node_runtime = {}
-            self.updated_at = _utc_now()
+            self.updated_at = utc_now()
             return
         self.prince2_role_tree_baseline = dict(baseline)
         self.prince2_node_runtime = self._materialize_prince2_node_runtime(dict(baseline))
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
 
     def _project_budget_spend_usd(self) -> float:
         return _project_handoff_state._project_budget_spend_usd(self)
@@ -284,7 +276,7 @@ class ProjectHandoff:
         self.current_step_title = step_title
         self.current_step_status = step_status
         self.git_head = git_head
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
         self.entries.append(
             HandoffEntry(
                 timestamp=self.updated_at,
@@ -317,7 +309,7 @@ class ProjectHandoff:
         self.current_step_status = step_status
         self.latest_observation = observation
         self.git_head = git_head
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
         self.entries.append(
             HandoffEntry(
                 timestamp=self.updated_at,
@@ -344,7 +336,7 @@ class ProjectHandoff:
         git_head: str | None,
     ) -> None:
         self.git_head = git_head
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
         self.entries.append(
             HandoffEntry(
                 timestamp=self.updated_at,
@@ -375,7 +367,7 @@ class ProjectHandoff:
         self.git_head = git_head
         if not success:
             self._build_exception_plan()
-        self.updated_at = _utc_now()
+        self.updated_at = utc_now()
         self.entries.append(
             HandoffEntry(
                 timestamp=self.updated_at,

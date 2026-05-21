@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "shell_views.py eliminated globals().update(main_module.__dict__) and all main_module lazy imports; INTERACTIVE_COMMAND_PHRASES moved to shell_views.py, BASELINE_CAPABILITY_GROUPS moved to status_dashboard_views.py, all callers updated to direct imports, test_trace_cli.py imports from owner modules, cli_dispatch.py added _auth_views import. All focused trace CLI batches pass.",
+  "latest_observation": "Round 13: Fixed NameError bug in auth.py (missing urllib.parse import). Removed dead SUPPORTED_MODELS in provider_registry.py. Extracted RISKY_ACTION_TOKENS, DEBUG_TOKENS, COMPLEX_TOKENS, ROLE_HIGH_STAKES, ROLE_ECONOMICAL, and BUDGET_POLICY to module-level constants across 7 files. All tests pass.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "a38597f7a16300f031def40c42297f554018de08",
   "git_head_baseline": "a38597f",
@@ -176,8 +176,40 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-19T02:30:00Z",
+  "updated_at": "2026-05-21T01:00:00Z",
   "entries": [
+    {
+      "timestamp": "2026-05-21T01:00:00Z",
+      "phase": "finish",
+      "iteration": 38,
+      "task": "agent-refactor-slice",
+      "summary": "Fixed NameError in auth.py, removed dead SUPPORTED_MODELS, extracted 6 duplicated literal groups to module-level constants across 7 files.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration -v"
+      }
+    },
+    {
+      "timestamp": "2026-05-21T00:00:00Z",
+      "phase": "finish",
+      "iteration": 37,
+      "task": "agent-refactor-slice",
+      "summary": "Fixed critical dict indentation bug in memory.py model_usage_stats() early return. Removed unused subprocess import from status_dashboard_views.py, unused shutil import from model_inspection_views.py, and dead _catalog_entry_for_provider_spec from model_catalog.py.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "in_progress",
+      "model": null,
+      "action_type": null,
+      "git_head": "a38597f",
+      "details": {
+        "validation": "python3 -m unittest tests.test_memory -v"
+      }
+    },
     {
       "timestamp": "2026-05-19T02:30:00Z",
       "phase": "finish",
@@ -194,6 +226,7 @@
         "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_preflight_reports_windows_shell_readiness_warning tests.test_trace_cli.TraceAndCliTests.test_auth_status_chatgpt_uses_codex_without_token_output tests.test_trace_cli.TraceAndCliTests.test_auth_status_claude_uses_json_status_without_token_output tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_status_full_cli_renders_remediations tests.test_trace_cli.TraceAndCliTests.test_project_tree_propose_builds_proportional_review_proposal_from_brief tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_model_list_shows_provider_model_reasoning_catalog tests.test_trace_cli.TraceAndCliTests.test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis tests.test_executor.ExecutorTests.test_executor_runs_devil_advocate_review_before_accepting_response tests.test_agent_integration.AgentIntegrationTests.test_agent_closes_recovery_gate_after_recovery_lane_wet_run"
       }
     },
+    {
       "task": "agent-refactor-slice",
       "summary": "Moved sources/update routing to stagewarden.status_views and removed the corresponding main.py report bridges.",
       "step_id": "agent-refactor-slice",

@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
+from .prince2 import RISKY_ACTION_TOKENS
 from .provider_registry import SUPPORTED_MODELS, provider_model_preset, provider_model_specs
+
+DEBUG_TOKENS: tuple[str, ...] = ("debug", "failure", "bug", "traceback", "regression")
+COMPLEX_TOKENS: tuple[str, ...] = ("refactor", "complex", "architecture", "handoff", "planner", "executor")
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,23 +85,20 @@ class ModelRouter:
             return self.recommend_route(task, step_text, failure_count=failure_count).provider
 
         text = f"{task} {step_text}".lower()
-        risky_tokens = ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")
-        if any(token in text for token in risky_tokens):
+        if any(token in text for token in RISKY_ACTION_TOKENS):
             return self._best_available("chatgpt")
         complexity = 0
-        debug_tokens = ("debug", "failure", "bug", "traceback", "regression")
-        complex_tokens = ("refactor", "complex", "architecture", "handoff", "planner", "executor")
 
         if len(text.split()) > 35:
             complexity += 1
-        if any(token in text for token in debug_tokens):
+        if any(token in text for token in DEBUG_TOKENS):
             complexity += 2
-        if any(token in text for token in complex_tokens):
+        if any(token in text for token in COMPLEX_TOKENS):
             complexity += 1
         if any(token in text for token in ("test", "implement", "modify", "handoff", "router", "planner")):
             complexity += 1
 
-        if any(token in text for token in debug_tokens) and any(token in text for token in ("complex", "traceback")):
+        if any(token in text for token in DEBUG_TOKENS) and any(token in text for token in ("complex", "traceback")):
             return self._best_available("chatgpt")
         if complexity <= 1:
             return self._best_available("cheap")
@@ -186,18 +187,15 @@ class ModelRouter:
 
     def _task_profile(self, task: str, step_text: str) -> dict[str, object]:
         text = f"{task} {step_text}".lower()
-        debug_tokens = ("debug", "failure", "bug", "traceback", "regression")
-        complex_tokens = ("refactor", "complex", "architecture", "handoff", "planner", "executor")
-        risky_tokens = ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")
         planning_tokens = ("plan", "planner", "design", "architecture", "roadmap")
         regulatory_tokens = ("regulatory", "compliance", "audit", "lawful", "dpa", "dpia", "privacy", "records", "retention", "notice", "secure by design", "governance", "legal", "litigation", "discovery", "subpoena", "contract", "indemnity", "incident", "outage", "breach", "rollback", "vendor", "supplier", "third-party", "outsource", "multi-vendor", "dependency", "cascade", "crisis", "fallback", "supply chain", "logistics", "inventory", "procurement", "continuity", "board", "quorum", "authority", "executive")
 
         complexity = 0
         if len(text.split()) > 35:
             complexity += 1
-        if any(token in text for token in debug_tokens):
+        if any(token in text for token in DEBUG_TOKENS):
             complexity += 2
-        if any(token in text for token in complex_tokens):
+        if any(token in text for token in COMPLEX_TOKENS):
             complexity += 1
         if any(token in text for token in ("test", "implement", "modify", "handoff", "router", "planner")):
             complexity += 1
@@ -205,8 +203,8 @@ class ModelRouter:
         return {
             "text": text,
             "complexity": complexity,
-            "debug": any(token in text for token in debug_tokens),
-            "risky": any(token in text for token in risky_tokens),
+            "debug": any(token in text for token in DEBUG_TOKENS),
+            "risky": any(token in text for token in RISKY_ACTION_TOKENS),
             "planning": any(token in text for token in planning_tokens),
             "regulatory": any(token in text for token in regulatory_tokens),
         }

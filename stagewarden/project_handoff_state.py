@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-def _round_usd(value: float) -> float:
-    return round(max(0.0, float(value)), 8)
+from .textcodec import round_usd, utc_now
 
 
 def _project_budget_spend_usd(handoff: Any) -> float:
@@ -20,7 +13,7 @@ def _project_budget_spend_usd(handoff: Any) -> float:
         if not isinstance(node, dict):
             continue
         total += float(node.get("business_case_cost_usd", 0.0) or 0.0)
-    return _round_usd(total)
+    return round_usd(total)
 
 
 def project_budget_view(handoff: Any) -> dict[str, Any]:
@@ -44,14 +37,14 @@ def project_budget_view(handoff: Any) -> dict[str, Any]:
     budget_usd = None
     try:
         if budget_value is not None and str(budget_value).strip() != "":
-            budget_usd = _round_usd(float(budget_value))
+            budget_usd = round_usd(float(budget_value))
     except (TypeError, ValueError):
         budget_usd = None
     spend_usd = _project_budget_spend_usd(handoff)
     remaining = None
     used_percentage = None
     if isinstance(budget_usd, float) and budget_usd > 0:
-        remaining = _round_usd(max(budget_usd - spend_usd, 0.0))
+        remaining = round_usd(max(budget_usd - spend_usd, 0.0))
         used_percentage = round((spend_usd / budget_usd) * 100, 2)
         if spend_usd >= budget_usd and status not in {"paused", "complete"}:
             status = "budget_limited"
@@ -79,11 +72,11 @@ def project_budget_view(handoff: Any) -> dict[str, Any]:
 
 
 def set_project_budget(handoff: Any, *, budget_usd: float, currency: str = "USD") -> dict[str, Any]:
-    amount = _round_usd(budget_usd)
+    amount = round_usd(budget_usd)
     if amount <= 0:
         raise ValueError("Project budget must be a positive amount.")
     clean_currency = " ".join(str(currency).split()).strip().upper() or "USD"
-    now = _utc_now()
+    now = utc_now()
     previous = project_budget_view(handoff)
     budget_id = str(previous.get("budget_id") or f"budget-{now.replace(':', '').replace('+', 'Z')}")
     objective = str(handoff.goal.get("objective", "")).strip()
@@ -113,7 +106,7 @@ def update_project_budget_status(handoff: Any, status: str) -> dict[str, Any]:
     if not handoff.project_budget:
         raise ValueError("No project budget is set.")
     handoff.project_budget["status"] = clean_status
-    handoff.project_budget["updated_at"] = _utc_now()
+    handoff.project_budget["updated_at"] = utc_now()
     handoff.updated_at = str(handoff.project_budget["updated_at"])
     handoff.record_action(
         phase="project_budget_status",
@@ -127,7 +120,7 @@ def update_project_budget_status(handoff: Any, status: str) -> dict[str, Any]:
 def clear_project_budget(handoff: Any) -> dict[str, Any]:
     previous = project_budget_view(handoff)
     handoff.project_budget = {}
-    handoff.updated_at = _utc_now()
+    handoff.updated_at = utc_now()
     handoff.record_action(
         phase="project_budget_clear",
         summary="Project budget cleared.",
@@ -148,7 +141,7 @@ def ask_user(
     if not clean_question:
         raise ValueError("Question cannot be empty.")
     clean_reason = str(reason).strip().lower() or "clarification"
-    now = _utc_now()
+    now = utc_now()
     question_id = f"question-{len(handoff.user_question_log) + 1}"
     record = {
         "question_id": question_id,
@@ -182,7 +175,7 @@ def answer_user_question(handoff: Any, *, answer: str) -> dict[str, Any]:
         raise ValueError("Answer cannot be empty.")
     if not handoff.user_question:
         raise ValueError("No pending user question.")
-    now = _utc_now()
+    now = utc_now()
     record = dict(handoff.user_question)
     record["status"] = "answered"
     record["answered_at"] = now
@@ -269,7 +262,7 @@ def set_goal(handoff: Any, *, objective: str, token_budget: int | None = None) -
         raise ValueError("Goal objective cannot be empty.")
     if token_budget is not None and int(token_budget) <= 0:
         raise ValueError("Goal token budget must be positive.")
-    now = _utc_now()
+    now = utc_now()
     previous = goal_view(handoff)
     goal_id = str(previous.get("goal_id") or f"goal-{now.replace(':', '').replace('+', 'Z')}")
     handoff.goal = {
@@ -298,7 +291,7 @@ def update_goal_status(handoff: Any, status: str) -> dict[str, Any]:
     if not handoff.goal:
         raise ValueError("No goal is set.")
     handoff.goal["status"] = clean_status
-    handoff.goal["updated_at"] = _utc_now()
+    handoff.goal["updated_at"] = utc_now()
     handoff.updated_at = str(handoff.goal["updated_at"])
     handoff.record_action(
         phase="goal_status",
@@ -329,7 +322,7 @@ def record_goal_token_usage(
         return goal_view(handoff)
     previous = goal_view(handoff)
     handoff.goal["tokens_used"] = int(previous.get("tokens_used", 0) or 0) + total
-    handoff.goal["updated_at"] = _utc_now()
+    handoff.goal["updated_at"] = utc_now()
     budget = handoff.goal.get("token_budget")
     if isinstance(budget, int) and budget > 0 and int(handoff.goal["tokens_used"]) >= budget:
         handoff.goal["status"] = "budget_limited"
@@ -354,7 +347,7 @@ def record_goal_token_usage(
 def clear_goal(handoff: Any) -> dict[str, Any]:
     previous = goal_view(handoff)
     handoff.goal = {}
-    handoff.updated_at = _utc_now()
+    handoff.updated_at = utc_now()
     handoff.record_action(
         phase="goal_clear",
         summary="Goal cleared.",

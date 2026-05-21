@@ -137,9 +137,6 @@ PROVIDER_CAPABILITIES: dict[str, ProviderCapability] = {
 }
 
 
-SUPPORTED_MODELS = tuple(PROVIDER_CAPABILITIES.keys())
-
-
 def _ollama_base_url() -> str:
     return os.environ.get("STAGEWARDEN_OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
 
