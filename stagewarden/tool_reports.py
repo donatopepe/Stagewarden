@@ -5,10 +5,8 @@ from typing import Callable
 from .config import AgentConfig
 from .memory import MemoryStore
 from .textcodec import dumps_ascii
-from .tools.browser import BrowserResult
 from .tools.external_io import ExternalIOResult
 from .tools.system import SystemResult
-from .tools.watch import WatchResult
 
 
 RecordHandoffAction = Callable[..., None]
@@ -120,115 +118,6 @@ def external_io_report(
         return None
     record_external_io_evidence(config, result, task=command, record_handoff_action=record_handoff_action)
     return result.as_dict()
-
-
-def browser_result_to_text(result: BrowserResult) -> str:
-    lines = [f"{result.command}: {'OK' if result.ok else 'FAIL'} {result.message}"]
-    if result.url:
-        lines.append(f"- url: {result.url}")
-    if result.path:
-        lines.append(f"- path: {result.path}")
-    if result.title:
-        lines.append(f"- title: {result.title}")
-    if result.bytes_read:
-        lines.append(f"- bytes_read: {result.bytes_read}")
-    if result.content_type:
-        lines.append(f"- content_type: {result.content_type}")
-    if result.items:
-        lines.append("Links:")
-        for index, item in enumerate(result.items, 1):
-            href = item.get("href") or ""
-            text = item.get("text") or ""
-            lines.append(f"- {index}. {text} {href}".rstrip())
-    if result.error:
-        lines.append(f"- error: {result.error}")
-    return "\n".join(lines)
-
-
-def record_browser_evidence(
-    config: AgentConfig,
-    result: BrowserResult,
-    *,
-    task: str,
-    record_handoff_action: RecordHandoffAction,
-) -> None:
-    memory = MemoryStore.load(config.memory_path)
-    memory.record_tool_transcript(
-        iteration=0,
-        step_id="browser",
-        tool="browser",
-        action_type=result.command,
-        success=result.ok,
-        summary=result.message,
-        detail=dumps_ascii(result.as_dict()),
-        duration_ms=result.duration_ms,
-        error_type=None if result.ok else (result.error_type or "browser_error"),
-    )
-    memory.save(config.memory_path)
-    record_handoff_action(
-        config,
-        phase=result.command.replace(" ", "_"),
-        task=task,
-        summary=result.message,
-        details={
-            "ok": result.ok,
-            "url": result.url,
-            "path": result.path,
-            "title": result.title,
-            "bytes_read": result.bytes_read,
-            "content_type": result.content_type,
-            "error": result.error,
-            "items": result.items or [],
-        },
-    )
-
-
-def watch_result_to_text(result: WatchResult) -> str:
-    lines = [f"{result.command}: {'OK' if result.ok else 'FAIL'} {result.message}"]
-    if result.path:
-        lines.append(f"- path: {result.path}")
-    if result.items:
-        lines.append("Events:")
-        for index, item in enumerate(result.items, 1):
-            parts = ", ".join(f"{key}={value}" for key, value in item.items())
-            lines.append(f"- {index}. {parts}")
-    if result.error:
-        lines.append(f"- error: {result.error}")
-    return "\n".join(lines)
-
-
-def record_watch_evidence(
-    config: AgentConfig,
-    result: WatchResult,
-    *,
-    task: str,
-    record_handoff_action: RecordHandoffAction,
-) -> None:
-    memory = MemoryStore.load(config.memory_path)
-    memory.record_tool_transcript(
-        iteration=0,
-        step_id="watch",
-        tool="watch",
-        action_type=result.command,
-        success=result.ok,
-        summary=result.message,
-        detail=dumps_ascii(result.as_dict()),
-        duration_ms=result.duration_ms,
-        error_type=None if result.ok else (result.error_type or "watch_error"),
-    )
-    memory.save(config.memory_path)
-    record_handoff_action(
-        config,
-        phase="watch",
-        task=task,
-        summary=result.message,
-        details={
-            "ok": result.ok,
-            "path": result.path,
-            "items": result.items or [],
-            "error": result.error,
-        },
-    )
 
 
 def system_result_to_text(result: SystemResult) -> str:

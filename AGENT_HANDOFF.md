@@ -1,43 +1,44 @@
 # Agent Handoff
 
 ## Current objective
-Completed seventh round of deep codebase analysis. No critical bugs found - remaining issues are architectural debt.
+Completed eighth round of deep codebase analysis. Removed dead functions across 3 files.
 
 ## Current state
-`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-6 fixed. Round 7 analysis found:
+`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-7 fixed. Round 8 cleanup:
 
-### False positives (imports ARE used)
-- `status_views.py`: `os` (line 1942), `platform` (lines 1253, 1865), `sys` (lines 1857, 1867) - all legitimately used
-- `project/role_command_flow.py`: `TextIO` used in function signatures
-
-### Architectural debt (not bugs)
-- `project/flow.py` (122 lines) - pass-through re-export layer used by 5 modules
-- `project/role_runtime_views.py` (120 lines) - mostly thin wrappers delegating to handoff methods
-- `_focus_snapshot` defined twice with different implementations (`status_views.py:977`, `project_handoff_views.py:1084`)
-- `_shell_backend_report` defined 3 times (`status_views.py:84`, `shell_views.py:203`, `status_dashboard_views.py:30`)
-- `_catalog_option_suffix` defined 3 times (`model_views.py:20`, `project/model_recommendation.py:36`, `project/role_flow.py:722`)
-- `summary`/`detailed_summary` in `project_handoff_views.py` - public names by design (called as `handoff.summary()`)
-
-### No remaining runtime bugs
-- No `_main()` patterns
-- No missing imports
-- No dead code paths
-- No NameError/AttributeError risks
-- Path traversal vulnerability fixed (round 6)
+### Dead functions removed
+1. **`_account_name_candidates` in `shell_views.py:238`** - Defined and exported but never called. Removed 8 lines.
+2. **Dead wrappers in `project/flow.py`** - 5 wrapper functions never called:
+   - `_project_brief_missing_fields`
+   - `_project_brief_guidance`
+   - `_render_project_brief`
+   - `_project_tree_brief_complexity`
+   - `_route_from_local_execution_candidate`
+   - Removed unused imports too. Reduced file from 122 to 98 lines.
+3. **Dead functions in `tool_reports.py`** - 5 functions never called:
+   - `handle_browser_command`
+   - `browser_report`
+   - `handle_watch_command`
+   - `watch_report`
+   - `system_report`
+   - Reduced file from 374 to 306 lines.
 
 All focused CLI test batches pass (15 tests).
 
 ## Recent changes
-- Round 7 analysis completed - no code changes needed.
-- All remaining issues are architectural debt requiring significant refactoring.
+- Removed dead `_account_name_candidates` from `shell_views.py`.
+- Removed 5 dead wrapper functions from `project/flow.py`.
+- Removed 5 dead functions from `tool_reports.py`.
+- Committed and pushed to `pr/p4-p5-updates`.
 
 ## Important files
-- `stagewarden/main.py`: minimal entry point (~80 lines).
-- All view modules: stable, no runtime bugs.
+- `stagewarden/shell_views.py`: removed dead function.
+- `stagewarden/project/flow.py`: removed dead wrappers, now 98 lines.
+- `stagewarden/tool_reports.py`: removed dead functions, now 306 lines.
 
 ## Technical decisions
-- Left `project/flow.py` re-export layer in place - removing it would require updating 5 dependent modules with no functional benefit.
-- Left duplicate functions in place - consolidation would require careful testing to ensure behavior compatibility.
+- Kept `handle_system_command`, `system_result_to_text`, and `record_system_evidence` in `tool_reports.py` - these ARE used by `shell_views.py`.
+- Kept `watch_result_to_text` and `browser_result_to_text` in `tool_reports.py` - these may be used indirectly.
 
 ## Open issues
 - Bugs: `pytest` unavailable; use `python3 -m unittest`.
@@ -47,7 +48,6 @@ All focused CLI test batches pass (15 tests).
 ## Next steps
 1. Run full `tests.test_trace_cli` suite (200 tests, ~5+ min).
 2. Consider consolidating duplicated functions between view modules (low priority).
-3. Future: cleanup unused imports across codebase.
 
 ## Commands
 ```bash
