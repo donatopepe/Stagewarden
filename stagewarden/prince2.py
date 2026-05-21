@@ -92,6 +92,17 @@ PRINCE2_ROLE_TOLERANCE_WEIGHTS: dict[str, dict[str, float]] = {
     },
 }
 
+RISKY_ACTION_TOKENS: tuple[str, ...] = (
+    "delete",
+    "drop",
+    "prod",
+    "production",
+    "payment",
+    "auth",
+    "migration",
+    "security",
+)
+
 
 def _clamp_percentage(value: float) -> float:
     return round(max(0.0, min(100.0, value)), 2)
@@ -361,7 +372,7 @@ class Prince2AgentPolicy:
     ) -> Prince2ToleranceProfile:
         brief = {str(key).strip().lower(): str(value).strip() for key, value in (project_brief or {}).items() if str(key).strip()}
         lowered = task.lower()
-        risky = any(token in lowered for token in ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security"))
+        risky = any(token in lowered for token in RISKY_ACTION_TOKENS)
         change_heavy = any(token in lowered for token in ("change", "update", "refactor", "rewrite", "replace", "migrate", "rebaseline", "re-baseline"))
         exploratory = any(token in lowered for token in ("analyze", "inspect", "review", "assess", "investigate"))
         objective_present = bool(brief.get("objective"))
@@ -406,7 +417,7 @@ class Prince2AgentPolicy:
 
     def build_checklist(self, task: str, project_brief: dict[str, str] | None = None, base_margin_percent: float = 25.0, accountable_owner: str = "user") -> Prince2Checklist:
         lowered = task.lower()
-        risky = any(token in lowered for token in ("delete", "drop", "prod", "payment", "auth", "migration", "security"))
+        risky = any(token in lowered for token in RISKY_ACTION_TOKENS)
         code_task = any(token in lowered for token in ("implement", "fix", "refactor", "create", "update", "patch", "code"))
 
         business_justification = "Proceed only if task still serves requested outcome and remains worth time/risk."
@@ -523,14 +534,13 @@ class Prince2AgentPolicy:
         escalation_required = False
         clarification_questions: list[str] = []
 
-        risky_tokens = ("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")
         if len(task.strip()) < 8:
             reasons.append("Task too vague to establish business justification and product focus.")
             clarification_questions.append("What outcome do you want me to deliver?")
         if not any(token in lowered for token in ("create", "implement", "fix", "update", "write", "read", "analyze", "validate", "review", "plan")):
             reasons.append("Task does not express a clear product or management outcome.")
             clarification_questions.append("What is the concrete deliverable or decision you want from me?")
-        if any(token in lowered for token in risky_tokens):
+        if any(token in lowered for token in RISKY_ACTION_TOKENS):
             escalation_required = True
             if "validate" not in lowered and "test" not in lowered and "review" not in lowered:
                 reasons.append("High-impact task lacks explicit validation or review criteria.")

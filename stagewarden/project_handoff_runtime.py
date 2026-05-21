@@ -1,21 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
 from .prince2 import PRINCE2_THEME_NAMES
 from .role_tree import prince2_node_description, prince2_status_color
-from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
-
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-def _round_usd(value: float) -> float:
-    return round(max(0.0, float(value)), 8)
+from .textcodec import dumps_ascii, loads_text, read_text_utf8, round_usd, utc_now, write_text_utf8
 
 
 def _safe_price_per_token(value: object) -> float | None:
@@ -71,10 +62,10 @@ def send_prince2_node_message(
     if invalid_payload:
         raise ValueError("Payload scope exceeds authorized PRINCE2 flow edge: " + ", ".join(invalid_payload))
     evidence = [str(item).strip() for item in (evidence_refs or []) if str(item).strip()]
-    message_id = f"msg-{len(handoff.entries) + len(clean_payload) + len(evidence) + 1}-{_utc_now().replace(':', '').replace('-', '')}"
+    message_id = f"msg-{len(handoff.entries) + len(clean_payload) + len(evidence) + 1}-{utc_now().replace(':', '').replace('-', '')}"
     message = {
         "message_id": message_id,
-        "timestamp": _utc_now(),
+        "timestamp": utc_now(),
         "source_node": source_node,
         "target_node": target_node,
         "edge_id": edge_id,
@@ -116,7 +107,7 @@ def send_prince2_node_message(
     if str(target.get("wait_status", "none")).strip().lower() != "none":
         target["wait_status"] = "message_received"
     handoff.prince2_node_runtime["nodes"] = nodes
-    handoff.updated_at = _utc_now()
+    handoff.updated_at = utc_now()
     return message
 
 
@@ -136,8 +127,8 @@ def set_prince2_node_waiting(
     node["wait_reason"] = clean_reason[:240]
     if wake_triggers is not None:
         node["wake_triggers"] = [str(item).strip() for item in wake_triggers if str(item).strip()]
-    node["last_transition_at"] = _utc_now()
-    handoff.updated_at = _utc_now()
+    node["last_transition_at"] = utc_now()
+    handoff.updated_at = utc_now()
     return dict(node)
 
 
@@ -162,8 +153,8 @@ def wake_prince2_node(
     node["state"] = "ready"
     node["wait_status"] = "none"
     node["wait_reason"] = None
-    node["last_transition_at"] = _utc_now()
-    handoff.updated_at = _utc_now()
+    node["last_transition_at"] = utc_now()
+    handoff.updated_at = utc_now()
     return dict(node)
 
 
@@ -179,8 +170,8 @@ def tick_prince2_node(handoff: Any, *, node_id: str) -> dict[str, Any]:
         node["state"] = "escalated"
         node["wait_status"] = "none"
         node["wait_reason"] = None
-        node["last_transition_at"] = _utc_now()
-        handoff.updated_at = _utc_now()
+        node["last_transition_at"] = utc_now()
+        handoff.updated_at = utc_now()
         return {
             "node_id": node_id,
             "state": "escalated",
@@ -214,7 +205,7 @@ def tick_prince2_node(handoff: Any, *, node_id: str) -> dict[str, Any]:
     if state == "waiting":
         raise ValueError(f"Node '{node_id}' is waiting and cannot tick until woken.")
     inbox = [dict(item) for item in node.get("inbox", []) if isinstance(item, dict)]
-    now = _utc_now()
+    now = utc_now()
     if inbox:
         message = inbox.pop(0)
         message["status"] = "consumed"
@@ -365,7 +356,7 @@ def tick_prince2_runtime(handoff: Any, *, max_nodes: int | None = None) -> dict[
                 "reason": "not_ready",
             }
         )
-    handoff.updated_at = _utc_now()
+    handoff.updated_at = utc_now()
     return {
         "command": "roles tick",
         "processed": processed,
@@ -425,20 +416,20 @@ def record_issue(handoff: Any, *, step_id: str, severity: str, summary: str) -> 
             "severity": severity,
             "summary": summary[:240],
             "status": "open",
-            "recorded_at": _utc_now(),
+            "recorded_at": utc_now(),
         }
     )
 
 
 def record_quality(handoff: Any, *, step_id: str, status: str, evidence: str) -> None:
     handoff.quality_register.append(
-        {"step_id": step_id, "status": status, "evidence": evidence[:240], "recorded_at": _utc_now()}
+        {"step_id": step_id, "status": status, "evidence": evidence[:240], "recorded_at": utc_now()}
     )
 
 
 def record_lesson(handoff: Any, *, step_id: str, lesson_type: str, lesson: str) -> None:
     handoff.lessons_log.append(
-        {"step_id": step_id, "type": lesson_type, "lesson": lesson[:240], "recorded_at": _utc_now()}
+        {"step_id": step_id, "type": lesson_type, "lesson": lesson[:240], "recorded_at": utc_now()}
     )
 
 
@@ -452,7 +443,7 @@ def update_project_brief(handoff: Any, updates: dict[str, str]) -> None:
             handoff.project_brief[clean_key] = clean_value[:1000]
         elif clean_key in handoff.project_brief:
             del handoff.project_brief[clean_key]
-    handoff.updated_at = _utc_now()
+    handoff.updated_at = utc_now()
 
 
 def clear_project_brief(handoff: Any, field_name: str | None = None) -> None:
@@ -460,7 +451,7 @@ def clear_project_brief(handoff: Any, field_name: str | None = None) -> None:
         handoff.project_brief = {}
     else:
         handoff.project_brief.pop(field_name.strip().lower(), None)
-    handoff.updated_at = _utc_now()
+    handoff.updated_at = utc_now()
 
 
 def close_issues_for_step(handoff: Any, *, step_id: str, resolution: str) -> None:
@@ -470,7 +461,7 @@ def close_issues_for_step(handoff: Any, *, step_id: str, resolution: str) -> Non
         if str(item.get("status", "open")).strip().lower() == "closed":
             continue
         item["status"] = "closed"
-        item["resolved_at"] = _utc_now()
+        item["resolved_at"] = utc_now()
         item["resolution"] = resolution[:240]
 
 
@@ -479,7 +470,7 @@ def close_all_open_issues(handoff: Any, *, resolution: str) -> None:
         if str(item.get("status", "open")).strip().lower() == "closed":
             continue
         item["status"] = "closed"
-        item["resolved_at"] = _utc_now()
+        item["resolved_at"] = utc_now()
         item["resolution"] = resolution[:240]
 
 
@@ -488,7 +479,7 @@ def close_all_open_risks(handoff: Any, *, resolution: str) -> None:
         if str(item.get("status", "open")).strip().lower() == "closed":
             continue
         item["status"] = "closed"
-        item["resolved_at"] = _utc_now()
+        item["resolved_at"] = utc_now()
         item["resolution"] = resolution[:240]
 
 
@@ -498,7 +489,7 @@ def finalize_quality_register(handoff: Any, *, resolution: str) -> None:
         if status in {"accepted", "closed"}:
             continue
         item["status"] = "accepted"
-        item["accepted_at"] = _utc_now()
+        item["accepted_at"] = utc_now()
         item["resolution"] = resolution[:240]
 
 
@@ -521,7 +512,7 @@ def _seed_risk_register(handoff: Any, risks: list[Any]) -> None:
         text = str(item).strip()
         if not text:
             continue
-        handoff.risk_register.append({"risk": text[:240], "status": "open", "recorded_at": _utc_now()})
+        handoff.risk_register.append({"risk": text[:240], "status": "open", "recorded_at": utc_now()})
 
 
 def _build_exception_plan(handoff: Any) -> None:
@@ -826,15 +817,15 @@ def _node_thread_token_profile(handoff: Any, node: dict[str, Any]) -> dict[str, 
     input_price = pricing.get("cost_per_input_token_usd")
     output_price = pricing.get("cost_per_output_token_usd")
     business_case_output_tokens = int(node.get("business_case_output_token_count", 0) or 0)
-    business_case_input_cost_usd = _round_usd(business_case_input_tokens * float(input_price or 0.0))
-    business_case_output_cost_usd = _round_usd(business_case_output_tokens * float(output_price or 0.0))
+    business_case_input_cost_usd = round_usd(business_case_input_tokens * float(input_price or 0.0))
+    business_case_output_cost_usd = round_usd(business_case_output_tokens * float(output_price or 0.0))
     return {
         "business_case_token_count": business_case_input_tokens + business_case_output_tokens,
         "business_case_input_token_count": business_case_input_tokens,
         "business_case_output_token_count": business_case_output_tokens,
         "business_case_input_cost_usd": business_case_input_cost_usd,
         "business_case_output_cost_usd": business_case_output_cost_usd,
-        "business_case_cost_usd": _round_usd(business_case_input_cost_usd + business_case_output_cost_usd),
+        "business_case_cost_usd": round_usd(business_case_input_cost_usd + business_case_output_cost_usd),
         "kpi_token_counts": kpi_token_counts,
         "thread_token_count": business_case_input_tokens + business_case_output_tokens + sum(kpi_token_counts.values()),
         "token_budget": token_budget_value,
@@ -1044,13 +1035,13 @@ def _bump_node_thread_tokens(
     pricing = _node_model_pricing(handoff, node)
     input_price = float(pricing.get("cost_per_input_token_usd") or 0.0)
     output_price = float(pricing.get("cost_per_output_token_usd") or 0.0)
-    node["business_case_input_cost_usd"] = _round_usd(
+    node["business_case_input_cost_usd"] = round_usd(
         float(node.get("business_case_input_cost_usd", 0.0) or 0.0) + (input_count * input_price)
     )
-    node["business_case_output_cost_usd"] = _round_usd(
+    node["business_case_output_cost_usd"] = round_usd(
         float(node.get("business_case_output_cost_usd", 0.0) or 0.0) + (output_count * output_price)
     )
-    node["business_case_cost_usd"] = _round_usd(
+    node["business_case_cost_usd"] = round_usd(
         float(node.get("business_case_input_cost_usd", 0.0) or 0.0)
         + float(node.get("business_case_output_cost_usd", 0.0) or 0.0)
     )
@@ -1123,7 +1114,7 @@ def _spawn_prince2_escalation_child(handoff: Any, *, node_id: str, reason: str) 
         "spawn_source": "escalation",
         "spawn_reason": reason,
         "spawned_from": node_id,
-        "spawned_at": _utc_now(),
+        "spawned_at": utc_now(),
         "business_case_token_count": thread_profile["business_case_token_count"],
         "business_case_input_token_count": thread_profile["business_case_input_token_count"],
         "business_case_output_token_count": thread_profile["business_case_output_token_count"],
@@ -1140,7 +1131,7 @@ def _spawn_prince2_escalation_child(handoff: Any, *, node_id: str, reason: str) 
     baseline["tree"] = tree
     baseline["status"] = "approved"
     baseline["source"] = "escalation_spawn"
-    baseline["approved_at"] = _utc_now()
+    baseline["approved_at"] = utc_now()
     handoff.sync_prince2_role_tree_baseline(baseline)
     runtime_nodes = [node for node in (handoff.prince2_node_runtime or {}).get("nodes", []) if isinstance(node, dict)]
     return next((dict(node) for node in runtime_nodes if str(node.get("node_id", "")).strip() == child_id), dict(child))
@@ -1169,7 +1160,7 @@ def _materialize_prince2_node_runtime(handoff: Any, baseline: dict[str, Any]) ->
         if isinstance(node, dict) and node.get("node_id")
     }
     materialized_nodes: list[dict[str, Any]] = []
-    materialized_at = _utc_now()
+    materialized_at = utc_now()
     for node in nodes:
         node_id = str(node.get("node_id", "")).strip()
         if not node_id:
@@ -1328,14 +1319,14 @@ def load_project_handoff(cls: type[Any], path: Path) -> Any:
         prince2_node_runtime=dict(payload.get("prince2_node_runtime", {}))
         if isinstance(payload.get("prince2_node_runtime", {}), dict)
         else {},
-        updated_at=str(payload.get("updated_at", _utc_now())),
+        updated_at=str(payload.get("updated_at", utc_now())),
     )
     from .project_handoff import HandoffEntry
 
     for item in payload.get("entries", []):
         context.entries.append(
             HandoffEntry(
-                timestamp=str(item.get("timestamp", _utc_now())),
+                timestamp=str(item.get("timestamp", utc_now())),
                 phase=str(item.get("phase", "")),
                 iteration=int(item.get("iteration", 0)),
                 task=str(item.get("task", context.task)),

@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import json
 import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def round_usd(value: float) -> float:
+    return round(max(0.0, float(value)), 8)
 
 
 def dumps_ascii(data: Any, *, indent: int | None = None, sort_keys: bool = False, compact: bool = False) -> str:

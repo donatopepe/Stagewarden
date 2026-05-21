@@ -22,6 +22,9 @@ PRINCE2_ROLE_LABELS: dict[str, str] = {
 
 PRINCE2_ROLE_IDS: tuple[str, ...] = tuple(PRINCE2_ROLE_LABELS.keys())
 
+ROLE_HIGH_STAKES: frozenset[str] = frozenset({"project_executive", "senior_supplier", "project_manager", "change_authority"})
+ROLE_ECONOMICAL: frozenset[str] = frozenset({"senior_user", "team_manager", "project_support"})
+
 
 def extract_blocked_until(text: str, *, now: datetime | None = None) -> str | None:
     reference = now or datetime.now()
@@ -867,13 +870,10 @@ class ModelPreferences:
         has_medium = "medium" in reasoning_efforts or reasoning_default == "medium"
         has_high = "high" in reasoning_efforts or reasoning_default == "high"
 
-        role_high_stakes = {"project_executive", "senior_supplier", "project_manager", "change_authority"}
-        role_economical = {"senior_user", "team_manager", "project_support"}
-
         score = 0.0
-        if role in role_high_stakes:
+        if role in ROLE_HIGH_STAKES:
             score += 3.0 if has_high else 1.5 if has_medium else 0.5
-        elif role in role_economical:
+        elif role in ROLE_ECONOMICAL:
             score += 3.0 if has_low else 1.5 if has_medium else 0.5
         else:
             score += 2.0 if has_medium else 1.0 if has_low else 0.5
@@ -896,9 +896,9 @@ class ModelPreferences:
         reasoning_efforts = tuple(str(item).lower() for item in getattr(spec, "reasoning_efforts", ()))
         if not reasoning_efforts:
             return reasoning_default or "medium"
-        if role in {"project_executive", "senior_supplier", "project_manager", "change_authority"}:
+        if role in ROLE_HIGH_STAKES:
             return "high" if "high" in reasoning_efforts else reasoning_default or reasoning_efforts[-1]
-        if role in {"senior_user", "team_manager", "project_support"}:
+        if role in ROLE_ECONOMICAL:
             if "low" in reasoning_efforts:
                 return "low"
             if "medium" in reasoning_efforts:

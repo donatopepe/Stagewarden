@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
@@ -17,6 +16,7 @@ from .kilocode_source import (
     load_kilocode_provider_snapshot,
 )
 from .provider_registry import provider_model_specs
+from .textcodec import utc_now
 
 
 CATALOG_OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "ai_models_catalog.json"
@@ -38,10 +38,6 @@ AA_METRICS: dict[str, dict[str, int | None]] = {
     "anthropic/claude-opus-4.1": {"intelligence_rank": 11, "speed_rank": 50, "latency_rank": None},
     "anthropic/claude-haiku-4.5": {"intelligence_rank": 19, "speed_rank": 15, "latency_rank": None},
 }
-
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def _catalog_path(path: str | Path | None = None) -> Path:
@@ -400,7 +396,7 @@ def build_ai_models_catalog(
         for spec in provider_model_specs(provider):
             models.append(_entry_from_spec(provider, spec, index, aa_index))
     return {
-        "generated_at": _utc_now(),
+        "generated_at": utc_now(),
         "source_urls": {
             "openrouter_models": OPENROUTER_MODELS_URL,
             "artificial_analysis_models": ARTIFICIAL_ANALYSIS_LLM_MODELS_URL,

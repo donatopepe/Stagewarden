@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import time
+import urllib.parse
 import urllib.request
 import webbrowser
 from dataclasses import dataclass

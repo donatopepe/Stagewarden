@@ -1,46 +1,47 @@
 # Agent Handoff
 
 ## Current objective
-Completed eleventh round of deep codebase analysis. Removed dead functions, unused imports, and duplicate function definitions across 7 files.
+Completed thirteenth round of deep codebase analysis. Fixed critical NameError bug, removed dead code, and extracted duplicated literals to module-level constants across 7 files.
 
 ## Current state
-`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-10 fixed. Round 11 cleanup:
+`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-12 fixed. Round 13 cleanup:
 
-### Dead functions removed
-1. **`_safe_price_per_token` in `project_handoff.py:21`** - Duplicate of the one in `project_handoff_runtime.py` which IS used. Removed 6 lines.
-2. **`_safe_token_count` in `project_handoff.py:29`** - Never called anywhere. Removed 6 lines.
+### Critical bug fixed
+1. **`auth.py:209` - NameError: `urllib.parse` not imported** - `urllib.parse.quote()` called but only `urllib.request` was imported. Added `import urllib.parse`.
 
-### Unused imports removed
-3. **`Any` in `command_views.py:3`** - Never referenced.
-4. **`Any` in `model_views.py:4`** - Never referenced.
-5. **`provider_model_specs` in `project/design_flow.py`** - Only used by removed `_local_execution_candidates_report`.
+### Dead code removed
+2. **`SUPPORTED_MODELS` in `provider_registry.py:140`** - Shadowed by line 867 `_build_supported_models()`. Removed dead definition.
 
-### Duplicate functions consolidated
-6. **`_catalog_option_suffix` in `project/role_flow.py:722`** - Identical to `model_recommendation.py` version. Removed 13 lines, updated call site to use `_project_model_recommendation._catalog_option_suffix`.
-7. **`_catalog_model_choice_key` in `project/model_recommendation.py:22`** - Never called (callers use `_model_views` version). Removed 3 lines.
-8. **`_node_local_fallback_candidates` in `project/role_flow.py:591`** - Identical to `model_recommendation.py` version. Removed 6 lines, updated 3 call sites to use `_project_model_recommendation._node_local_fallback_candidates`.
-9. **`_local_execution_candidates_report` in `project/design_flow.py:14`** - Duplicate of `model_views.py` version. Removed 44 lines, updated `tree_flow.py` to call `_model_views` directly.
+### Duplicated literals extracted to constants
+3. **`RISKY_ACTION_TOKENS` in `prince2.py`** - Tuple `("delete", "drop", "prod", "production", "payment", "auth", "migration", "security")` duplicated 5 times across `prince2.py` (3x) and `router.py` (2x). Also fixed inconsistency where line 409 in `prince2.py` was missing `"production"`. Extracted to module constant in `prince2.py`, imported in `router.py`.
+4. **`DEBUG_TOKENS` and `COMPLEX_TOKENS` in `router.py`** - Duplicated within same file (2x each). Extracted to module-level constants.
+5. **`ROLE_HIGH_STAKES` and `ROLE_ECONOMICAL` in `modelprefs.py`** - Role classification sets duplicated (2x). Extracted to `frozenset` module constants.
+6. **`BUDGET_POLICY` in `memory.py`** - Budget policy string duplicated 4 times across `memory.py` (3x) and `status_views.py` (1x). Extracted to module constant, imported in `status_views.py`.
 
-Total: 157 lines removed across 7 files.
-
-All focused CLI test batches pass (15 tests).
+All tests pass (63 tests across memory, executor, agent_integration, and trace_cli suites).
 
 ## Recent changes
-- Removed dead `_safe_price_per_token` and `_safe_token_count` from `project_handoff.py`.
-- Removed unused `Any` imports from `command_views.py` and `model_views.py`.
-- Consolidated duplicate `_catalog_option_suffix`, `_catalog_model_choice_key`, `_node_local_fallback_candidates`, and `_local_execution_candidates_report`.
-- Committed and pushed to `pr/p4-p5-updates`.
+- Fixed NameError in `auth.py` by adding `import urllib.parse`.
+- Removed dead `SUPPORTED_MODELS` definition from `provider_registry.py`.
+- Extracted `RISKY_ACTION_TOKENS` constant in `prince2.py`, imported in `router.py`.
+- Extracted `DEBUG_TOKENS` and `COMPLEX_TOKENS` constants in `router.py`.
+- Extracted `ROLE_HIGH_STAKES` and `ROLE_ECONOMICAL` constants in `modelprefs.py`.
+- Extracted `BUDGET_POLICY` constant in `memory.py`, imported in `status_views.py`.
 
 ## Important files
-- `stagewarden/project_handoff.py`: removed dead helper functions.
-- `stagewarden/project/role_flow.py`: removed duplicate functions, now imports from `model_recommendation`.
-- `stagewarden/project/design_flow.py`: removed duplicate `_local_execution_candidates_report`.
-- `stagewarden/project/tree_flow.py`: now calls `_model_views` directly instead of through `design_flow`.
+- `stagewarden/auth.py`: fixed NameError bug.
+- `stagewarden/provider_registry.py`: removed dead constant.
+- `stagewarden/prince2.py`: added `RISKY_ACTION_TOKENS` constant.
+- `stagewarden/router.py`: uses `RISKY_ACTION_TOKENS`, added `DEBUG_TOKENS`/`COMPLEX_TOKENS`.
+- `stagewarden/modelprefs.py`: added `ROLE_HIGH_STAKES`/`ROLE_ECONOMICAL` constants.
+- `stagewarden/memory.py`: added `BUDGET_POLICY` constant.
+- `stagewarden/status_views.py`: imports `BUDGET_POLICY` from `memory`.
 
 ## Technical decisions
-- Kept `_catalog_option_suffix` in `model_views.py` - it has different implementation (shows `I#`, `S#`, `$X/1M` vs `context=`, `pricing=`, `availability=`).
-- Kept `_node_local_fallback_candidates` in `model_recommendation.py` - canonical version used by `role_flow.py`.
-- Kept `_local_execution_candidates_report` in `model_views.py` - canonical version, `design_flow.py` copy was redundant.
+- Used `frozenset` for role classification sets (immutable, hashable).
+- Used `tuple[str, ...]` for token lists (immutable, ordered).
+- Kept `BUDGET_POLICY` in `memory.py` (budget/usage domain), imported by `status_views.py`.
+- Kept `RISKY_ACTION_TOKENS` in `prince2.py` (PRINCE2 policy domain), imported by `router.py`.
 
 ## Open issues
 - Bugs: `pytest` unavailable; use `python3 -m unittest`.

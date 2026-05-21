@@ -4,8 +4,6 @@ import re
 import platform
 import shutil
 import subprocess
-import sys
-from datetime import datetime
 from pathlib import Path
 
 from .agent import Agent
@@ -14,7 +12,7 @@ from .commands import command_catalog
 from .executor import ALLOWED_MODEL_ACTIONS
 from .handoff import MODEL_BACKENDS
 from .json_schema_registry import json_schema
-from .memory import MemoryStore
+from .memory import BUDGET_POLICY, MemoryStore
 from .model_catalog import catalog_entries_for_provider, catalog_entry_for_provider_model, load_ai_models_catalog
 from .modelprefs import SUPPORTED_MODELS, account_key, extract_blocked_until, limit_snapshot_from_message
 from .permissions import PermissionSettings
@@ -34,7 +32,6 @@ from .project_handoff import ProjectHandoff
 from .runtime_env import detect_runtime_capabilities, select_shell_backend
 from .textcodec import read_text_utf8
 from .tools.git import GitTool
-from .secrets import SecretStore
 
 
 def _limits():
@@ -808,7 +805,7 @@ def _model_usage_report(config: AgentConfig) -> dict[str, object]:
         "schema": json_schema("models usage"),
         "report": report,
         "policy": {
-            "routing_budget": "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
+            "routing_budget": BUDGET_POLICY,
         },
     }
 
