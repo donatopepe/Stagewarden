@@ -4,7 +4,6 @@ from datetime import datetime
 import re
 from typing import Callable, TextIO
 
-from ..agent import Agent
 from ..config import AgentConfig
 from .. import model_views as _model_views
 from ..model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
@@ -17,7 +16,7 @@ from ..modelprefs import (
     provider_model_specs,
 )
 from ..prince2 import Prince2AgentPolicy, Prince2ToleranceProfile
-from ..provider_registry import SUPPORTED_MODELS, provider_capability
+from ..provider_registry import SUPPORTED_MODELS
 from ..role_tree import (
     ROLE_CONTEXT_RULES,
     STATUS_COLOR_LEGEND,

@@ -8,10 +8,9 @@ from datetime import datetime
 from ..agent import Agent
 from ..config import AgentConfig
 from ..handoff import format_run_model
-from ..modelprefs import ModelPreferences, PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS, provider_model_specs
+from ..modelprefs import PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS, provider_model_specs
 from .. import agent_setup_views as _agent_setup_views
 from .. import model_views as _model_views
-from ..prince2 import Prince2ToleranceProfile
 from ..project_handoff import ProjectHandoff
 from .. import project_handoff_views as _project_handoff_views
 from . import role_flow as _project_role_flow

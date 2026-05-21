@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from .agent import Agent
 from .config import AgentConfig
 from .project_handoff import ProjectHandoff
 from .json_schema_registry import json_schema

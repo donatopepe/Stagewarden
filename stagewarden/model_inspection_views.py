@@ -3,7 +3,7 @@ from __future__ import annotations
 from .agent import Agent
 from .config import AgentConfig
 from .handoff import format_run_model
-from .modelprefs import ModelPreferences, SUPPORTED_MODELS
+from .modelprefs import SUPPORTED_MODELS
 from . import model_views as _model_views
 from .provider_registry import provider_capability, provider_model_specs
 from .textcodec import dumps_ascii, loads_text

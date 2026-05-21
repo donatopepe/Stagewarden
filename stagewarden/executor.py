@@ -10,12 +10,9 @@ from .handoff import HandoffManager, format_run_model
 from .memory import MemoryStore
 from .modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until, limit_snapshot_from_message
 from .planner import PlanStep
-from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
+from .prince2 import Prince2Checklist, Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
 from .router import ModelRouter
-from .role_tree import build_prince2_role_flow
-from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
-from .runtime_env import detect_runtime_capabilities
 from .textcodec import dumps_ascii, loads_text
 from .tools.files import FileTool
 from .tools.git import GitTool

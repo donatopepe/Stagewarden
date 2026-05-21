@@ -11,7 +11,6 @@ from . import model_views as _model_views
 from .runtime_env import detect_runtime_capabilities
 from .provider_registry import SUPPORTED_MODELS as REGISTRY_MODELS, provider_capability
 from .handoff import MODEL_BACKENDS
-from .tools.git import GitTool
 
 
 def _provider_limit_snapshot_is_stale(captured_at: object, *, stale_after_minutes: int = 15) -> bool:

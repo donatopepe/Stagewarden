@@ -5,7 +5,7 @@ from typing import Any
 
 from .model_catalog import catalog_entry_for_provider_model, load_ai_models_catalog
 from .prince2 import PRINCE2_THEME_NAMES
-from .role_tree import prince2_node_description, prince2_status_color
+from .role_tree import prince2_node_description
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, round_usd, utc_now, write_text_utf8
 
 

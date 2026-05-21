@@ -4,7 +4,7 @@ from typing import TextIO
 
 from ..agent import Agent
 from ..config import AgentConfig
-from ..modelprefs import ModelPreferences, PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS
+from ..modelprefs import PRINCE2_ROLE_IDS, PRINCE2_ROLE_LABELS
 from .. import model_views as _model_views
 from .. import project_handoff_views as _project_handoff_views
 from . import role_flow as _project_role_flow
