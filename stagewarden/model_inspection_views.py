@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import shutil
-
 from .agent import Agent
 from .config import AgentConfig
 from .handoff import format_run_model

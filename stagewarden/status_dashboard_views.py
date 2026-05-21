@@ -3,7 +3,6 @@ from __future__ import annotations
 import platform
 import os
 import shutil
-import subprocess
 import sys
 from datetime import datetime
 

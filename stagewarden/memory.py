@@ -218,16 +218,16 @@ class MemoryStore:
                     "failures": 0,
                     "steps": 0,
                     "failure_rate": "0.00",
-                "highest_tier": "none",
-                "highest_tier_model": "none",
-                "last_model": "none",
-                "escalation_path": "none",
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "current_usage": 0,
-                "context_window_size": None,
-            },
-        }
+                    "highest_tier": "none",
+                    "highest_tier_model": "none",
+                    "last_model": "none",
+                    "escalation_path": "none",
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "current_usage": 0,
+                    "context_window_size": None,
+                },
+            }
 
         counts: dict[str, int] = {}
         failures: dict[str, int] = {}
