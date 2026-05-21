@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, TextIO
+from typing import TextIO
 
 from .agent import Agent
 from .config import AgentConfig

@@ -19,10 +19,6 @@ def _catalog_power_score(entry: dict[str, object] | None) -> float | None:
     return None
 
 
-def _catalog_model_choice_key(provider: str, provider_model: str) -> str:
-    return f"{provider}:{provider_model}"
-
-
 def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:
     pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
     routes = pools.get("fallback", []) if isinstance(pools.get("fallback"), list) else []

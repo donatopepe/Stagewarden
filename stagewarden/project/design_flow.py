@@ -3,58 +3,11 @@ from __future__ import annotations
 from ..agent import Agent
 from ..config import AgentConfig
 from ..project_handoff import ProjectHandoff
-from ..provider_registry import provider_model_specs
 from .. import model_views as _model_views
 from .. import shell_views as _shell_views
 from .. import status_views as _status_views
 from ..runtime_env import detect_runtime_capabilities
 from . import role_tree_views as _project_role_tree_views
-
-
-def _local_execution_candidates_report(
-    config: AgentConfig,
-    *,
-    agent: Agent | None = None,
-    use_ai: bool = False,
-) -> dict[str, object]:
-    specs = [spec for spec in provider_model_specs("local") if spec.id != "provider-default"]
-    if not specs:
-        return {
-            "status": "missing",
-            "message": "No local models discovered from Ollama.",
-            "models": [],
-            "candidates": [],
-            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Local discovery unavailable."},
-        }
-    if use_ai and agent is not None:
-        report = _model_views._inspect_provider_models(agent, config, provider="local")
-    else:
-        report = {
-            "status": "ok",
-            "provider": "local",
-            "models": [_model_views._local_model_profile_from_spec(spec) for spec in specs],
-            "ai_analysis": {"attempted": False, "ok": False, "model": None, "account": None, "message": "Metadata-only local profile."},
-            "global_recommendation": "Use local models only when runtime-discovered and appropriate for bounded node execution.",
-        }
-    models = [item for item in report.get("models", []) if isinstance(item, dict)]
-    fit_rank = {"high": 0, "medium": 1, "low": 2, "unknown": 3}
-    risk_rank = {"low": 0, "medium": 1, "unknown": 2, "high": 3}
-    candidates = sorted(
-        models,
-        key=lambda item: (
-            fit_rank.get(str(item.get("agentic_fit", "unknown")), 3),
-            risk_rank.get(str(item.get("tool_support_risk", "unknown")), 2),
-            str(item.get("id", "")),
-        ),
-    )
-    return {
-        "status": "ok",
-        "message": report.get("global_recommendation", ""),
-        "models": models,
-        "candidates": candidates[:3],
-        "ai_analysis": report.get("ai_analysis", {}),
-        "catalog_source": report.get("catalog_source", "dynamic local inspection"),
-    }
 
 
 def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, object]:

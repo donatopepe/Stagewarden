@@ -18,22 +18,6 @@ def _round_usd(value: float) -> float:
     return round(max(0.0, float(value)), 8)
 
 
-def _safe_price_per_token(value: object) -> float | None:
-    try:
-        price = float(str(value))
-    except (TypeError, ValueError):
-        return None
-    return None if price < 0 else price
-
-
-def _safe_token_count(value: object) -> int:
-    try:
-        count = int(float(str(value)))
-    except (TypeError, ValueError):
-        return 0
-    return max(0, count)
-
-
 @dataclass(slots=True)
 class HandoffEntry:
     timestamp: str
