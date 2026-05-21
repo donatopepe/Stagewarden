@@ -1,44 +1,41 @@
 # Agent Handoff
 
 ## Current objective
-Completed eighth round of deep codebase analysis. Removed dead functions across 3 files.
+Completed ninth round of deep codebase analysis. Removed dead browser/watch helper functions.
 
 ## Current state
-`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-7 fixed. Round 8 cleanup:
+`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-8 fixed. Round 9 cleanup:
 
 ### Dead functions removed
-1. **`_account_name_candidates` in `shell_views.py:238`** - Defined and exported but never called. Removed 8 lines.
-2. **Dead wrappers in `project/flow.py`** - 5 wrapper functions never called:
-   - `_project_brief_missing_fields`
-   - `_project_brief_guidance`
-   - `_render_project_brief`
-   - `_project_tree_brief_complexity`
-   - `_route_from_local_execution_candidate`
-   - Removed unused imports too. Reduced file from 122 to 98 lines.
-3. **Dead functions in `tool_reports.py`** - 5 functions never called:
-   - `handle_browser_command`
-   - `browser_report`
-   - `handle_watch_command`
-   - `watch_report`
-   - `system_report`
-   - Reduced file from 374 to 306 lines.
+1. **`browser_result_to_text` in `tool_reports.py`** - Never called. Removed 21 lines.
+2. **`record_browser_evidence` in `tool_reports.py`** - Never called. Removed 36 lines.
+3. **`watch_result_to_text` in `tool_reports.py`** - Never called. Removed 12 lines.
+4. **`record_watch_evidence` in `tool_reports.py`** - Never called. Removed 32 lines.
+5. **Unused imports** - Removed `BrowserResult` and `WatchResult` from `tool_reports.py`.
+
+Total: 139 lines removed.
+
+### Verified NOT dead (false positives from analysis)
+- `_status_pricing_report`, `_status_cost_sidebar_report`, `_render_cost_sidebar` - USED by model_views.py
+- `_record_limit_message`, `_clear_limit_snapshot` - USED by model_views.py and account_views.py
+- `_render_runtime_status`, `_render_model_status`, `_render_model_limits`, `_render_model_usage`, `_render_focus_snapshot`, `_render_agent_baseline`, `_render_provider_limit_status` - USED by cli_dispatch.py and model_views.py
+- `_doctor_ok`, `_render_preflight`, `_render_report`, `_render_doctor`, `_status_remediation_report` in status_dashboard_views.py - USED by cli_dispatch.py and mode_views.py
+- `external_io_report` - USED by cli_dispatch.py
+- Provider limit passthrough functions in status_views.py - USED by status_views.py and status_dashboard_views.py
 
 All focused CLI test batches pass (15 tests).
 
 ## Recent changes
-- Removed dead `_account_name_candidates` from `shell_views.py`.
-- Removed 5 dead wrapper functions from `project/flow.py`.
-- Removed 5 dead functions from `tool_reports.py`.
+- Removed dead browser/watch helper functions from `tool_reports.py`.
+- Removed unused `BrowserResult` and `WatchResult` imports.
 - Committed and pushed to `pr/p4-p5-updates`.
 
 ## Important files
-- `stagewarden/shell_views.py`: removed dead function.
-- `stagewarden/project/flow.py`: removed dead wrappers, now 98 lines.
-- `stagewarden/tool_reports.py`: removed dead functions, now 306 lines.
+- `stagewarden/tool_reports.py`: reduced from 305 to 193 lines.
 
 ## Technical decisions
-- Kept `handle_system_command`, `system_result_to_text`, and `record_system_evidence` in `tool_reports.py` - these ARE used by `shell_views.py`.
-- Kept `watch_result_to_text` and `browser_result_to_text` in `tool_reports.py` - these may be used indirectly.
+- Kept `external_io_report` and `handle_external_io_command` - both are used.
+- Kept `handle_system_command`, `system_result_to_text`, `record_system_evidence` - all are used.
 
 ## Open issues
 - Bugs: `pytest` unavailable; use `python3 -m unittest`.
