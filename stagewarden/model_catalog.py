@@ -228,21 +228,6 @@ def _catalog_source_provider(provider: str) -> str | None:
     return None
 
 
-def _catalog_entry_for_provider_spec(
-    provider: str,
-    spec: Any,
-    openrouter_models: dict[str, dict[str, Any]],
-) -> dict[str, Any]:
-    if str(getattr(spec, "id", "")).strip() == "provider-default":
-        return _entry_from_spec(provider, spec, openrouter_models)
-    source_provider = _catalog_source_provider(provider)
-    if source_provider:
-        model = kilocode_provider_models(source_provider).get(str(getattr(spec, "id", "")))
-        if model is not None:
-            return _snapshot_entry_from_provider_model(provider, str(getattr(spec, "id", "")), model)
-    return _entry_from_spec(provider, spec, openrouter_models)
-
-
 def _openrouter_model_index(urlopen_fn=urlopen) -> dict[str, dict[str, Any]]:
     try:
         with urlopen_fn(OPENROUTER_MODELS_URL, timeout=10) as response:

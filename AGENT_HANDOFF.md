@@ -1,44 +1,46 @@
 # Agent Handoff
 
 ## Current objective
-Completed tenth round of deep codebase analysis. Removed ~350 lines of dead code from status_views.py.
+Completed eleventh round of deep codebase analysis. Removed dead functions, unused imports, and duplicate function definitions across 7 files.
 
 ## Current state
-`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-9 fixed. Round 10 cleanup:
+`stagewarden/main.py` is minimal (~80 lines). All `_main()` patterns eliminated. All bugs from rounds 1-10 fixed. Round 11 cleanup:
 
-### Dead functions removed from status_views.py (~350 lines)
-1. **`_status_remediation_report`** (lines 1708-1752) - Never called; line 1224 uses `_status_dashboard_views._status_remediation_report`.
-2. **`_preflight_report`** (lines 1755-1806) - Only called by dead `_render_preflight`.
-3. **`_report_report`** (lines 1809-1853) - Only called by dead `_render_report`.
-4. **`_doctor_report`** (lines 1856-1955) - Only called by dead `_render_preflight` and `_render_doctor`.
-5. **`_render_preflight`** (lines 1958-1971) - External callers use `_status_dashboard_views._render_preflight`.
-6. **`_render_report`** (lines 1974-2008) - External callers use `_status_dashboard_views._render_report`.
-7. **`_render_doctor`** (lines 2011-2060) - External callers use `_status_dashboard_views._render_doctor`.
-8. **Unused import `os`** - Only used by dead `_doctor_report`.
+### Dead functions removed
+1. **`_safe_price_per_token` in `project_handoff.py:21`** - Duplicate of the one in `project_handoff_runtime.py` which IS used. Removed 6 lines.
+2. **`_safe_token_count` in `project_handoff.py:29`** - Never called anywhere. Removed 6 lines.
 
-Total: 385 lines removed from status_views.py.
+### Unused imports removed
+3. **`Any` in `command_views.py:3`** - Never referenced.
+4. **`Any` in `model_views.py:4`** - Never referenced.
+5. **`provider_model_specs` in `project/design_flow.py`** - Only used by removed `_local_execution_candidates_report`.
 
-### Verified NOT dead (false positives from analysis)
-- `_status_pricing_report`, `_status_cost_sidebar_report`, `_render_cost_sidebar` - USED by model_views.py
-- `_record_limit_message`, `_clear_limit_snapshot` - USED by model_views.py and account_views.py
-- `_render_runtime_status`, `_render_model_status`, `_render_model_limits`, `_render_model_usage`, `_render_focus_snapshot`, `_render_agent_baseline`, `_render_provider_limit_status` - USED by cli_dispatch.py and model_views.py
-- `_doctor_ok`, `_render_preflight`, `_render_report`, `_render_doctor`, `_status_remediation_report` in status_dashboard_views.py - USED by cli_dispatch.py and mode_views.py
-- `external_io_report` - USED by cli_dispatch.py
-- Provider limit passthrough functions in status_views.py - USED by status_views.py and status_dashboard_views.py
+### Duplicate functions consolidated
+6. **`_catalog_option_suffix` in `project/role_flow.py:722`** - Identical to `model_recommendation.py` version. Removed 13 lines, updated call site to use `_project_model_recommendation._catalog_option_suffix`.
+7. **`_catalog_model_choice_key` in `project/model_recommendation.py:22`** - Never called (callers use `_model_views` version). Removed 3 lines.
+8. **`_node_local_fallback_candidates` in `project/role_flow.py:591`** - Identical to `model_recommendation.py` version. Removed 6 lines, updated 3 call sites to use `_project_model_recommendation._node_local_fallback_candidates`.
+9. **`_local_execution_candidates_report` in `project/design_flow.py:14`** - Duplicate of `model_views.py` version. Removed 44 lines, updated `tree_flow.py` to call `_model_views` directly.
+
+Total: 157 lines removed across 7 files.
 
 All focused CLI test batches pass (15 tests).
 
 ## Recent changes
-- Removed 7 dead functions (~350 lines) from `status_views.py`.
-- Removed unused `os` import from `status_views.py`.
+- Removed dead `_safe_price_per_token` and `_safe_token_count` from `project_handoff.py`.
+- Removed unused `Any` imports from `command_views.py` and `model_views.py`.
+- Consolidated duplicate `_catalog_option_suffix`, `_catalog_model_choice_key`, `_node_local_fallback_candidates`, and `_local_execution_candidates_report`.
 - Committed and pushed to `pr/p4-p5-updates`.
 
 ## Important files
-- `stagewarden/status_views.py`: reduced from 2060 to ~1710 lines.
+- `stagewarden/project_handoff.py`: removed dead helper functions.
+- `stagewarden/project/role_flow.py`: removed duplicate functions, now imports from `model_recommendation`.
+- `stagewarden/project/design_flow.py`: removed duplicate `_local_execution_candidates_report`.
+- `stagewarden/project/tree_flow.py`: now calls `_model_views` directly instead of through `design_flow`.
 
 ## Technical decisions
-- Left duplicate functions in status_dashboard_views.py - these ARE used by cli_dispatch.py and mode_views.py.
-- Left provider limit passthrough functions in status_views.py - these ARE used internally.
+- Kept `_catalog_option_suffix` in `model_views.py` - it has different implementation (shows `I#`, `S#`, `$X/1M` vs `context=`, `pricing=`, `availability=`).
+- Kept `_node_local_fallback_candidates` in `model_recommendation.py` - canonical version used by `role_flow.py`.
+- Kept `_local_execution_candidates_report` in `model_views.py` - canonical version, `design_flow.py` copy was redundant.
 
 ## Open issues
 - Bugs: `pytest` unavailable; use `python3 -m unittest`.
