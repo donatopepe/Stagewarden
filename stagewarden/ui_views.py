@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from typing import TextIO
 
-from .commands import command_specs_by_query, help_topic_catalog, help_topic_lines, help_topic_report
+from .commands import _fuzzy_score, command_specs_by_query, help_topic_catalog, help_topic_lines, help_topic_report
 from .config import AgentConfig
 from .json_schema_registry import json_schema
 from .modelprefs import PRINCE2_ROLE_IDS
@@ -71,7 +71,7 @@ def _slash_match_report(spec: object, query: str) -> dict[str, object]:
     scored = [
         (score, phrase)
         for phrase in phrases
-        if phrase and (score := _slash_fuzzy_score(query, phrase)) is not None
+        if phrase and (score := _fuzzy_score(query, phrase)) is not None
     ]
     if not scored:
         return {"query": query, "phrase": "", "highlight": "", "score": None}
@@ -83,58 +83,6 @@ def _slash_match_report(spec: object, query: str) -> dict[str, object]:
         "score": score,
     }
 
-
-def _slash_fuzzy_score(query: str, candidate: str) -> int | None:
-    lowered_query = query.strip().lower()
-    lowered_candidate = candidate.strip().lower()
-    if not lowered_query:
-        return 0
-    if lowered_candidate.startswith(lowered_query):
-        return 0
-    if lowered_query in lowered_candidate:
-        return 10 + lowered_candidate.index(lowered_query)
-    position = 0
-    gaps = 0
-    for char in lowered_query:
-        found = lowered_candidate.find(char, position)
-        if found < 0:
-            return None
-        gaps += max(0, found - position)
-        position = found + 1
-    return 100 + gaps + len(lowered_candidate)
-
-
-def _highlight_fuzzy_match(query: str, candidate: str) -> str:
-    clean_query = query.strip().lower()
-    if not clean_query:
-        return candidate
-    lowered_candidate = candidate.lower()
-    substring_index = lowered_candidate.find(clean_query)
-    if substring_index >= 0:
-        end = substring_index + len(clean_query)
-        return f"{candidate[:substring_index]}[{candidate[substring_index:end]}]{candidate[end:]}"
-    positions: list[int] = []
-    search_from = 0
-    for char in clean_query:
-        found = lowered_candidate.find(char, search_from)
-        if found < 0:
-            return candidate
-        positions.append(found)
-        search_from = found + 1
-    highlighted: list[str] = []
-    position_set = set(positions)
-    in_match = False
-    for index, char in enumerate(candidate):
-        if index in position_set and not in_match:
-            highlighted.append("[")
-            in_match = True
-        if index not in position_set and in_match:
-            highlighted.append("]")
-            in_match = False
-        highlighted.append(char)
-    if in_match:
-        highlighted.append("]")
-    return "".join(highlighted)
 
 
 def _wrap_description(text: str, *, width: int = 88, initial_indent: str = "  ", subsequent_indent: str = "  ") -> list[str]:

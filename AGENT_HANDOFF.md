@@ -1,49 +1,59 @@
 # Agent Handoff
 
 ## Current objective
-Completed Round 13 deep codebase analysis and cleanup. Committed all changes. Ready for Round 14.
+Completed Round 14 deep codebase analysis and cleanup. Committed all changes.
 
 ## Current state
-- Round 13 committed as `4a8469f`. All 63 core tests pass. Key trace CLI tests pass.
-- `main.py` is minimal (~75 lines). All `_main()` patterns eliminated.
-- Round 13 summary:
-  - **Fixed NameError in `auth.py:209`** - added `import urllib.parse`
-  - **Removed dead `SUPPORTED_MODELS`** in `provider_registry.py:140` (shadowed by `_build_supported_models()`)
-  - **Extracted 6 duplicated literal groups to module constants:**
-    - `RISKY_ACTION_TOKENS` in `prince2.py`, imported in `router.py`
-    - `DEBUG_TOKENS` / `COMPLEX_TOKENS` in `router.py`
-    - `ROLE_HIGH_STAKES` / `ROLE_ECONOMICAL` in `modelprefs.py`
-    - `BUDGET_POLICY` in `memory.py`, imported in `status_views.py`
-  - **Extracted shared utilities to `textcodec.py`:** `utc_now()` and `round_usd()` (eliminated 3 duplicate definitions across `project_handoff.py`, `project_handoff_runtime.py`, `project_handoff_state.py`, and `model_catalog.py`)
+- Round 14 committed as `ddffcef`. All 63 core tests pass.
+- Branch: `pr/p4-p5-updates`, 3 commits ahead of origin.
+
+### Round 14 summary: Removed 28 unused imports across 14 modules
+**Files cleaned:**
+- `stagewarden/project_handoff_views.py` - removed unused `Path` import
+- `stagewarden/report_views.py` - removed unused `Agent` import
+- `stagewarden/model_views.py` - removed unused `format_run_model`, `search_ai_models_catalog` imports
+- `stagewarden/project_handoff.py` - removed unused `round_usd` import (already using `textcodec.round_usd`)
+- `stagewarden/project_handoff_runtime.py` - removed unused `prince2_status_color` import
+- `stagewarden/status_views.py` - removed unused `REGISTRY_MODELS` import
+- `stagewarden/status_limits_views.py` - removed unused `GitTool` import
+- `stagewarden/model_inspection_views.py` - removed unused `ModelPreferences` import
+- `stagewarden/executor.py` - removed 5 unused imports: `Prince2Assessment`, `build_prince2_role_flow`, `PRINCE2_ROLE_AUTOMATION_RULES`, `PRINCE2_ROLE_SCOPE_DESCRIPTIONS`, `detect_runtime_capabilities`
+- `stagewarden/tools/external_io.py` - removed unused `os` import
+- `stagewarden/project/role_flow.py` - removed unused `Agent`, `provider_capability` imports
+- `stagewarden/project/tree.py` - removed 6 unused imports: `replace`, `AgentConfig`, `format_run_model`, `build_prince2_role_flow`, `build_prince2_role_matrix_payload`, `build_prince2_role_tree_with_tolerance`, `check_prince2_role_tree_payload`
+- `stagewarden/project/tree_flow.py` - removed unused `ModelPreferences`, `Prince2ToleranceProfile` imports
+- `stagewarden/project/role_command_flow.py` - removed unused `ModelPreferences` import
+
+### Round 13 summary (previous commit `4a8469f`):
+- Fixed NameError in `auth.py` (missing `urllib.parse` import)
+- Removed dead `SUPPORTED_MODELS` in `provider_registry.py`
+- Extracted 6 duplicated literal groups to module constants
+- Extracted `utc_now()` and `round_usd()` to `textcodec.py`
 
 ## Recent changes
-- Committed Round 13 cleanup (15 files, +179/-157 lines)
-- All changes verified with `python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration` (63 tests, all OK)
-- Key trace CLI tests verified (5 tests, all OK)
+- Round 14: Removed 28 unused imports (14 files, ~30 lines removed)
+- Round 13: Fixed bug, removed dead code, extracted constants (15 files, +179/-157)
 
 ## Important files
 - `stagewarden/main.py`: ~75 lines, minimal dispatch only
-- `stagewarden/textcodec.py`: now owns `utc_now()` and `round_usd()` shared utilities
-- `stagewarden/prince2.py`: owns `RISKY_ACTION_TOKENS` constant
-- `stagewarden/router.py`: imports `RISKY_ACTION_TOKENS`, owns `DEBUG_TOKENS`/`COMPLEX_TOKENS`
-- `stagewarden/modelprefs.py`: owns `ROLE_HIGH_STAKES`/`ROLE_ECONOMICAL` constants
-- `stagewarden/memory.py`: owns `BUDGET_POLICY` constant
-- `stagewarden/status_views.py`: imports `BUDGET_POLICY` from `memory`
+- `stagewarden/executor.py`: core execution engine, now has cleaner imports
+- `stagewarden/cli_dispatch.py`: 889-line CLI dispatcher (largest function, acceptable for CLI)
+- `stagewarden/agent.py`: 399-line `run()` method (main agent loop)
 
 ## Technical decisions
-- Moved `utc_now()` and `round_usd()` to `textcodec.py` (text/time codec utilities)
-- Used `frozenset` for role classification sets (immutable, hashable)
-- Used `tuple[str, ...]` for token lists (immutable, ordered)
+- Kept `__future__.annotations` imports (standard for Python 3.11+ forward references)
+- Did not extract duplicated report format strings (too many variations, low value)
+- No anti-patterns found: no `globals().update()`, `eval()`, `exec()`, or bare `except:`
 
 ## Open issues
 - Bugs: None known
-- Risks: Duplicate functions across view modules (~380 lines) - future consolidation recommended but low priority
+- Risks: Long functions in `cli_dispatch.py:run_cli()` (889 lines), `executor.py:execute_step()` (435 lines), `agent.py:run()` (399 lines) - these are architectural, not bugs
 - Unknowns: None
 
 ## Next steps
-1. Round 14: Continue deep codebase analysis - look for remaining duplicated code, dead code, anti-patterns
-2. Consider consolidating duplicated functions between view modules
-3. Run full `tests.test_trace_cli` suite when time permits (200+ tests)
+1. Consider breaking down `cli_dispatch.py:run_cli()` into smaller dispatch functions
+2. Consider consolidating duplicated report format patterns across view modules
+3. Run full `tests.test_trace_cli` suite when time permits
 
 ## Commands
 ```bash
