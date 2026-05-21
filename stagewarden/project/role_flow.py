@@ -588,14 +588,6 @@ def _remove_prince2_role_node(
     return removed
 
 
-def _node_local_fallback_candidates(node: dict[str, object]) -> list[dict[str, object]]:
-    pools = node.get("assignment_pool", {}) if isinstance(node.get("assignment_pool"), dict) else {}
-    routes = pools.get("fallback", []) if isinstance(pools.get("fallback"), list) else []
-    local_routes = [dict(item) for item in routes if isinstance(item, dict) and item.get("provider") == "local"]
-    local_routes.sort(key=lambda item: str(item.get("provider_model", "")))
-    return local_routes
-
-
 def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool: str) -> str:
     node = _role_tree_node_record(config, node_id)
     if not node:
@@ -607,7 +599,7 @@ def _guided_role_node_assignment_context(config: AgentConfig, node_id: str, pool
         f"- level: {node.get('level', 'unknown')}",
         f"- selected_pool: {pool}",
     ]
-    local_routes = _node_local_fallback_candidates(node)
+    local_routes = _project_model_recommendation._node_local_fallback_candidates(node)
     if local_routes:
         lines.append(
             "- recommended_local_fallbacks: "
@@ -719,21 +711,6 @@ def _render_prince2_role_node_shell(config: AgentConfig, node_id: str) -> str:
     return "\n".join(lines)
 
 
-def _catalog_option_suffix(entry: dict[str, object] | None) -> str:
-    if not isinstance(entry, dict) or not entry:
-        return ""
-    parts: list[str] = []
-    if entry.get("context_window"):
-        parts.append(f"context={entry['context_window']}")
-    if entry.get("pricing_source"):
-        parts.append(f"pricing={entry['pricing_source']}")
-    if entry.get("availability"):
-        parts.append(f"availability={entry['availability']}")
-    if not parts:
-        return ""
-    return " [" + "; ".join(str(item) for item in parts) + "]"
-
-
 def _node_model_choice_options(config: AgentConfig, node_id: str) -> list[tuple[str, str]]:
     node = _role_tree_node_record(config, node_id)
     if not node:
@@ -789,7 +766,7 @@ def _guided_provider_options_for_node(
 ) -> list[tuple[str, str]]:
     providers = list(prefs.enabled_models or list(SUPPORTED_MODELS))
     node = _role_tree_node_record(config, node_id)
-    local_routes = _node_local_fallback_candidates(node) if node else []
+    local_routes = _project_model_recommendation._node_local_fallback_candidates(node) if node else []
     recommended_local = bool(pool == "fallback" and local_routes)
     ordered: list[str] = []
     if recommended_local and "local" in providers:
@@ -814,7 +791,7 @@ def _guided_provider_model_options_for_node(
     pool: str,
 ) -> list[tuple[str, str]]:
     node = _role_tree_node_record(config, node_id)
-    local_routes = _node_local_fallback_candidates(node) if node else []
+    local_routes = _project_model_recommendation._node_local_fallback_candidates(node) if node else []
     catalog = load_ai_models_catalog()
     if provider == "local" and pool == "fallback" and local_routes:
         return [
@@ -827,7 +804,7 @@ def _guided_provider_model_options_for_node(
         ]
     specs = list(provider_model_specs(provider))
     return [
-        (spec.id, f"{spec.id} | {spec.label}{_catalog_option_suffix(catalog_entry_for_provider_model(provider, spec.id, catalog))}")
+        (spec.id, f"{spec.id} | {spec.label}{_project_model_recommendation._catalog_option_suffix(catalog_entry_for_provider_model(provider, spec.id, catalog))}")
         for spec in specs
     ]
 

@@ -14,7 +14,6 @@ from .. import model_views as _model_views
 from ..prince2 import Prince2ToleranceProfile
 from ..project_handoff import ProjectHandoff
 from .. import project_handoff_views as _project_handoff_views
-from . import design_flow as _project_design_flow
 from . import role_flow as _project_role_flow
 from . import flow as _project_flow
 from ..role_tree import (
@@ -38,7 +37,7 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     brief = {str(key): str(value) for key, value in handoff.project_brief.items()}
     joined = " ".join(value.lower() for value in brief.values())
     tolerance_profile = _project_role_flow._project_tolerance_profile(handoff, task=handoff.task or None)
-    local_execution = _project_design_flow._local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
+    local_execution = _model_views._local_execution_candidates_report(config, agent=agent, use_ai=use_ai)
     decomposition_nodes, decomposition = _project_flow._project_tree_decomposition_nodes(
         proposal_prefs=proposal_prefs,
         active_models=active_models,
