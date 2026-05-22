@@ -19,6 +19,11 @@ RAG_MIN_SCORE_DEFAULTS: dict[str, dict[str, float]] = {
     "delivery": {"lexical": 0.03, "vector": 0.01, "hybrid": 0.02},
     "finish": {"lexical": 0.06, "vector": 0.03, "hybrid": 0.05},
 }
+RAG_MIN_SCORE_ROLE_DEFAULTS: dict[str, dict[str, float]] = {
+    "project_manager": {"lexical": 0.06, "vector": 0.03, "hybrid": 0.05},
+    "project_assurance": {"lexical": 0.05, "vector": 0.03, "hybrid": 0.045},
+    "team_manager": {"lexical": 0.03, "vector": 0.01, "hybrid": 0.025},
+}
 SEMANTIC_ALIASES: dict[str, tuple[str, ...]] = {
     "api": ("interface", "contract", "endpoint"),
     "interface": ("api", "contract"),
@@ -158,11 +163,15 @@ def _score_entry(query_tokens: set[str], entry: RagEntry) -> float:
     return _score_entry_breakdown(query_tokens, entry)["score"]
 
 
-def resolve_min_score_policy(*, phase: str | None, mode: str, override: float | None) -> float:
+def resolve_min_score_policy(*, phase: str | None, role: str | None = None, mode: str, override: float | None) -> float:
     if override is not None:
         return max(0.0, float(override))
     phase_key = str(phase or "").strip().lower()
+    role_key = str(role or "").strip().lower()
     mode_key = mode if mode in VECTOR_SEARCH_MODES else "hybrid"
+    role_defaults = RAG_MIN_SCORE_ROLE_DEFAULTS.get(role_key)
+    if role_defaults is not None:
+        return max(0.0, float(role_defaults.get(mode_key, 0.0)))
     phase_defaults = RAG_MIN_SCORE_DEFAULTS.get(phase_key) or RAG_MIN_SCORE_DEFAULTS["default"]
     return max(0.0, float(phase_defaults.get(mode_key, 0.0)))
 
@@ -408,18 +417,31 @@ class DesignRag:
         query: str,
         *,
         phase: str | None = None,
+        role: str | None = None,
         tags: list[str] | None = None,
         limit: int = 5,
         mode: str = "hybrid",
         min_score: float | None = None,
     ) -> list[tuple[RagEntry, float]]:
-        return [(item["entry"], item["score"]) for item in self.search_diagnostics(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)]
+        return [
+            (item["entry"], item["score"])
+            for item in self.search_diagnostics(
+                query,
+                phase=phase,
+                role=role,
+                tags=tags,
+                limit=limit,
+                mode=mode,
+                min_score=min_score,
+            )
+        ]
 
     def search_diagnostics(
         self,
         query: str,
         *,
         phase: str | None = None,
+        role: str | None = None,
         tags: list[str] | None = None,
         limit: int = 5,
         mode: str = "hybrid",
@@ -463,7 +485,7 @@ class DesignRag:
                 }
             )
         scored.sort(key=lambda x: -float(x["score"]))
-        threshold = resolve_min_score_policy(phase=phase, mode=search_mode, override=min_score)
+        threshold = resolve_min_score_policy(phase=phase, role=role, mode=search_mode, override=min_score)
         return [item for item in scored[:limit] if float(item["score"]) > threshold]
 
     def search(
@@ -471,12 +493,24 @@ class DesignRag:
         query: str,
         *,
         phase: str | None = None,
+        role: str | None = None,
         tags: list[str] | None = None,
         limit: int = 5,
         mode: str = "hybrid",
         min_score: float | None = None,
     ) -> list[RagEntry]:
-        return [entry for entry, _ in self.search_scored(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)]
+        return [
+            entry
+            for entry, _ in self.search_scored(
+                query,
+                phase=phase,
+                role=role,
+                tags=tags,
+                limit=limit,
+                mode=mode,
+                min_score=min_score,
+            )
+        ]
 
     def get_by_phase(self, phase: str, *, limit: int = 20) -> list[RagEntry]:
         return [e for e in self.entries if e.phase == phase][:limit]

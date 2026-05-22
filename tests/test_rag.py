@@ -78,6 +78,10 @@ class RagTests(unittest.TestCase):
         self.assertGreater(resolve_min_score_policy(phase="design", mode="hybrid", override=None), 0.0)
         self.assertEqual(resolve_min_score_policy(phase="unknown", mode="hybrid", override=None), 0.0)
         self.assertEqual(resolve_min_score_policy(phase="design", mode="hybrid", override=0.2), 0.2)
+        self.assertGreater(
+            resolve_min_score_policy(phase="unknown", role="project_manager", mode="hybrid", override=None),
+            0.0,
+        )
 
     def test_design_rag_search_and_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -240,6 +244,13 @@ class RagTests(unittest.TestCase):
             self.assertIn("lexical=", search_result["message"])
             self.assertIn("vector=", search_result["message"])
 
+            role_scoped_search = executor._run_action(
+                {"type": "rag_search", "query": "REST integrations", "mode": "hybrid"},
+                prince2_role="project_manager",
+            )
+            self.assertTrue(role_scoped_search["ok"])
+            self.assertIn("API decision", role_scoped_search["message"])
+
             update_result = executor._run_action({"type": "rag_update", "entry_id": "rag-1", "content": "Use REST adapters."})
             self.assertTrue(update_result["ok"])
             self.assertIn("Updated", update_result["message"])
@@ -328,6 +339,10 @@ class RagTests(unittest.TestCase):
             design_policy_report = rag_command_report("rag search RAG phase=design", config)
             self.assertTrue(design_policy_report["ok"])
             self.assertGreater(float(design_policy_report.get("min_score", 0.0)), 0.0)
+
+            role_policy_report = rag_command_report("rag search RAG role=project_manager", config)
+            self.assertTrue(role_policy_report["ok"])
+            self.assertGreater(float(role_policy_report.get("min_score", 0.0)), 0.0)
 
             rendered = render_rag_report(rag_command_report("rag list", config))
             self.assertIn("Boundary", rendered)

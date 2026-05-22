@@ -89,6 +89,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
     if task.startswith("rag search "):
         query_parts: list[str] = []
         phase = None
+        role = None
         tags: list[str] | None = None
         limit = 10
         mode = "hybrid"
@@ -96,6 +97,9 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         for token in parts[2:]:
             if token.startswith("phase="):
                 phase = token.split("=", 1)[1]
+                continue
+            if token.startswith("role="):
+                role = token.split("=", 1)[1]
                 continue
             if token.startswith("tags=") or token.startswith("tag="):
                 tags = [item.strip() for item in token.split("=", 1)[1].split(",") if item.strip()]
@@ -121,13 +125,14 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         query = " ".join(query_parts).strip()
         if not query:
             return {"command": task, "ok": False, "error": _rag_usage()}
-        effective_min_score = resolve_min_score_policy(phase=phase, mode=mode, override=min_score)
-        diagnostic_results = rag.search_diagnostics(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)
+        effective_min_score = resolve_min_score_policy(phase=phase, role=role, mode=mode, override=min_score)
+        diagnostic_results = rag.search_diagnostics(query, phase=phase, role=role, tags=tags, limit=limit, mode=mode, min_score=min_score)
         return {
             "command": task,
             "ok": True,
             "query": query,
             "mode": mode,
+            "role": role,
             "min_score": effective_min_score,
             "entries": [
                 _rag_entry_report(
@@ -254,7 +259,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:

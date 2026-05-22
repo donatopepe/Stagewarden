@@ -14,6 +14,11 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
 ## Recent changes
+- `stagewarden/executor.py`: `_run_action(...)` now accepts optional `prince2_role`; execution path passes step role into action execution so `rag_search` can apply role-aware `min_score` defaults even when action payload omits `role`.
+- `tests/test_rag.py`: added executor-level coverage asserting role-derived fallback behavior for `rag_search`.
+- `stagewarden/rag.py`: extended RAG v3.5 with role-aware threshold defaults (`RAG_MIN_SCORE_ROLE_DEFAULTS`) in `resolve_min_score_policy`, preserving explicit override precedence.
+- `stagewarden/rag_views.py`, `stagewarden/executor.py`, and `stagewarden/executor_prompting.py`: `rag_search` now accepts optional `role` context and applies role-aware effective `min_score` defaults when caller omits threshold.
+- `tests/test_rag.py`: added role-aware min-score policy tests in both direct policy resolution and CLI report behavior.
 - `stagewarden/rag.py`, `stagewarden/rag_views.py`, and `stagewarden/executor.py`: started RAG v3.5 retrieval policy defaults by phase/mode via `resolve_min_score_policy(...)` and automatic `min_score` resolution when caller does not override.
 - `tests/test_rag.py`: added policy-default coverage and CLI assertion for effective `min_score` in phase-scoped searches.
 - `stagewarden/rag_benchmark.py`: added baseline-compare utilities (`compare_rag_benchmark_reports`) and snapshot load/save helpers for retrieval drift gating.
@@ -87,16 +92,15 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
   - Trade-offs: threshold tuning can hide relevant low-score entries if set too high.
 
 ## Next implementation plan
-1. **RAG v3.5 (in progress)**: extend policy defaults from phase/mode to optional role-aware retrieval presets for model actions.
-   - Tests: policy resolution correctness and backward compatibility with current defaults.
-2. **RAG v3.6**: add optional benchmark history snapshots and trend summary for retrieval quality over time.
+1. **RAG v3.6 (next)**: add optional benchmark history snapshots and trend summary for retrieval quality over time.
    - Tests: snapshot append/read contract and deterministic trend aggregation.
+2. Extend retrieval policy introspection output to include resolved policy source (`override|role|phase|default`) for easier audit/debug.
 
 ## Open issues
 - Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 14 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). v3.4 CLI/schema checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 14 OK).
+- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 14 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). v3.4 CLI/schema checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 14 OK). v3.5 role-policy checks passed (`python3 -m unittest tests.test_rag tests.test_executor.ExecutorTests.test_model_visible_tool_schema_matches_executor_actions -v` -> 15 OK), including executor role-fallback wiring.
 
 ## Next steps
 1. No immediate follow-up is pending for the completed RAG/trace-regression slice.
