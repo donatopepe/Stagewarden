@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import shlex
 from pathlib import Path
 
 from . import extension_views as _extension_views
@@ -32,6 +33,7 @@ from . import tool_reports as _tool_reports
 from . import openrouter_benchmark as _openrouter_benchmark
 from . import prince2_benchmark as _prince2_benchmark
 from . import commands as _commands
+from . import rag_views as _rag_views
 from .model_inspection_views import _render_provider_model_inspection
 from .agent import Agent
 from .config import AgentConfig
@@ -152,7 +154,7 @@ def run_cli() -> int:
         print(rendered)
         return 0 if report.get("overall", {}).get("passed") else 1
 
-    task = " ".join(args.task).strip()
+    task = shlex.join(args.task).strip() if args.task[:1] == ["rag"] else " ".join(args.task).strip()
     if args.caveman_help:
         task = "/caveman help"
     elif args.caveman_commit:
@@ -229,6 +231,14 @@ def run_cli() -> int:
         else:
             print(_ui_views._render_slash_palette(config, prefix))
         return 0
+    if task == "rag" or task.startswith("rag "):
+        rag_json = args.json or task.endswith(" --json")
+        report = _rag_views.rag_command_report(task, config)
+        if rag_json:
+            print(dumps_ascii(_json_schema_registry.with_json_schema("rag", report), indent=2))
+        else:
+            print(_rag_views.render_rag_report(report))
+        return 0 if report.get("ok", True) else 1
     if task == "doctor":
         report = _status_dashboard_views._doctor_report(config)
         rendered = _status_dashboard_views._render_doctor(config)

@@ -55,6 +55,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "question",
             "question ask",
             "answer",
+            "rag",
             "help",
             "accounts",
             "permissions",

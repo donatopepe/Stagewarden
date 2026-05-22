@@ -29,6 +29,7 @@ class AgentConfig:
     prince2_pid_filename: str = ".stagewarden_prince2_pid.json"
     model_prefs_filename: str = ".stagewarden_models.json"
     handoff_filename: str = ".stagewarden_handoff.json"
+    rag_filename: str = ".stagewarden_rag.json"
     settings_filename: str = ".stagewarden_settings.json"
     history_filename: str = ".stagewarden_history"
     sensitive_ascii_patterns: tuple[str, ...] = (
@@ -132,6 +133,10 @@ class AgentConfig:
     @property
     def handoff_path(self) -> Path:
         return (self.workspace_root / self.handoff_filename).resolve()
+
+    @property
+    def rag_path(self) -> Path:
+        return (self.workspace_root / self.rag_filename).resolve()
 
     @property
     def settings_path(self) -> Path:

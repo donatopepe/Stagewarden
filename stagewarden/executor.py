@@ -19,6 +19,7 @@ from .tools.git import GitTool
 from .tools.shell import ShellTool
 from .executor_quality import ResponseQualityAssessment, assess_response_quality
 from . import executor_prompting as _executor_prompting
+from .rag import DesignRag
 
 
 @dataclass(slots=True)
@@ -107,6 +108,10 @@ ALLOWED_MODEL_ACTIONS = {
     "git_show",
     "git_file_history",
     "git_commit",
+    "rag_search",
+    "rag_add",
+    "rag_update",
+    "rag_remove",
     "complete",
 }
 
@@ -143,6 +148,10 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
     "git_show": {"tool": "git", "required": [], "optional": ["revision", "stat"], "mutates": False},
     "git_file_history": {"tool": "git", "required": ["path"], "optional": ["limit"], "mutates": False},
     "git_commit": {"tool": "git", "required": ["message"], "optional": [], "mutates": True},
+    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "tags", "limit", "mode"], "mutates": False},
+    "rag_add": {"tool": "rag", "required": ["phase", "title", "content"], "optional": ["tags", "metadata"], "mutates": True},
+    "rag_update": {"tool": "rag", "required": ["entry_id"], "optional": ["phase", "tags", "title", "content", "metadata"], "mutates": True},
+    "rag_remove": {"tool": "rag", "required": ["entry_id"], "optional": [], "mutates": True},
     "complete": {"tool": "agent", "required": ["message"], "optional": [], "mutates": False},
 }
 
@@ -158,12 +167,14 @@ class Executor:
         handoff: HandoffManager,
         memory: MemoryStore,
         project_handoff: ProjectHandoff | None = None,
+        rag: DesignRag | None = None,
     ) -> None:
         self.config = config
         self.router = router
         self.handoff = handoff
         self.memory = memory
         self.project_handoff = project_handoff or ProjectHandoff()
+        self.rag = rag or DesignRag()
         self.shell = ShellTool(config)
         self.files = FileTool(config)
         self.git = GitTool(config)
@@ -1350,6 +1361,9 @@ class Executor:
             ),
             PromptSection("Recent memory", memory_summary),
         ]
+        rag_context = self._bounded_context("rag_context", self.rag.render_context(query=f"{task} {step.title} {step.instruction}", limit=5, max_chars=2500), 2500)
+        if rag_context:
+            sections.append(PromptSection("Design knowledge (RAG)", rag_context))
         transcript_items = [
             PromptTranscriptItem("handoff_log", scoped_handoff_log),
             PromptTranscriptItem("execution_log", scoped_execution_log),
@@ -2022,10 +2036,107 @@ class Executor:
             )
             return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "git_error"}
 
+        if action_type == "rag_search":
+            query = str(action.get("query", ""))
+            phase = action.get("phase")
+            tags = action.get("tags")
+            try:
+                limit = max(1, int(action.get("limit", 5)))
+            except (TypeError, ValueError):
+                message = "rag_search limit must be an integer."
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
+                return {"ok": False, "message": message, "error_type": "invalid_output"}
+            mode = str(action.get("mode", "hybrid"))
+            if mode not in {"lexical", "vector", "hybrid"}:
+                message = "rag_search mode must be lexical, vector, or hybrid."
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
+                return {"ok": False, "message": message, "error_type": "invalid_output"}
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(",") if t.strip()]
+            results = self.rag.search(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode)
+            if results:
+                message = "\n".join(
+                    f"- [{r.entry_id}] [{r.phase}] {r.title} (tags: {', '.join(r.tags)})\n  {r.content[:500]}"
+                    for r in results
+                )
+            else:
+                message = "No design knowledge entries found."
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_search: {query} mode={mode}", detail=message, error_type=None)
+            return {"ok": True, "message": message, "error_type": None}
+
+        if action_type == "rag_add":
+            phase = str(action.get("phase", ""))
+            title = str(action.get("title", ""))
+            content = str(action.get("content", ""))
+            tags = action.get("tags", [])
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(",") if t.strip()]
+            metadata = action.get("metadata", {})
+            if not phase or not title or not content:
+                message = "rag_add requires phase, title, and content fields."
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary="rag_add: missing fields", detail=message, error_type="invalid_output")
+                return {"ok": False, "message": message, "error_type": "invalid_output"}
+            entry = self.rag.add(phase=phase, tags=list(tags) if isinstance(tags, list) else [], title=title, content=content, metadata=dict(metadata) if isinstance(metadata, dict) else {})
+            save_error = self._save_rag_action_error()
+            if save_error:
+                message = f"Failed to persist design knowledge entry {entry.entry_id}: {save_error}"
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_add: {title}", detail=message, error_type="persistence_error")
+                return {"ok": False, "message": message, "error_type": "persistence_error"}
+            message = f"Added design knowledge entry {entry.entry_id}: [{phase}] {title}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_add: {title}", detail=message, error_type=None)
+            return {"ok": True, "message": message, "error_type": None}
+
+        if action_type == "rag_update":
+            entry_id = str(action.get("entry_id", ""))
+            tags = action.get("tags")
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(",") if t.strip()]
+            metadata = action.get("metadata")
+            entry = self.rag.update(
+                entry_id,
+                phase=str(action["phase"]) if action.get("phase") is not None else None,
+                title=str(action["title"]) if action.get("title") is not None else None,
+                content=str(action["content"]) if action.get("content") is not None else None,
+                tags=list(tags) if isinstance(tags, list) else None,
+                metadata=dict(metadata) if isinstance(metadata, dict) else None,
+            )
+            if entry is None:
+                message = f"Design knowledge entry not found: {entry_id}"
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_update: {entry_id}", detail=message, error_type="not_found")
+                return {"ok": False, "message": message, "error_type": "not_found"}
+            save_error = self._save_rag_action_error()
+            if save_error:
+                message = f"Failed to persist design knowledge entry {entry.entry_id}: {save_error}"
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_update: {entry_id}", detail=message, error_type="persistence_error")
+                return {"ok": False, "message": message, "error_type": "persistence_error"}
+            message = f"Updated design knowledge entry {entry.entry_id}: [{entry.phase}] {entry.title}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_update: {entry_id}", detail=message, error_type=None)
+            return {"ok": True, "message": message, "error_type": None}
+
+        if action_type == "rag_remove":
+            entry_id = str(action.get("entry_id", ""))
+            removed = self.rag.remove(entry_id)
+            if removed:
+                save_error = self._save_rag_action_error()
+                if save_error:
+                    message = f"Failed to persist removal for design knowledge entry {entry_id}: {save_error}"
+                    self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_remove: {entry_id}", detail=message, error_type="persistence_error")
+                    return {"ok": False, "message": message, "error_type": "persistence_error"}
+            message = f"Removed design knowledge entry {entry_id}." if removed else f"Design knowledge entry not found: {entry_id}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=removed, summary=f"rag_remove: {entry_id}", detail=message, error_type=None if removed else "not_found")
+            return {"ok": removed, "message": message, "error_type": None if removed else "not_found"}
+
         if action_type == "complete":
             return {"ok": True, "message": action.get("message", "Step completed.")}
 
         return {"ok": False, "message": f"Unsupported action type: {action_type}", "error_type": "invalid_output"}
+
+    def _save_rag_action_error(self) -> str:
+        try:
+            self.rag.save(self.config.rag_path)
+        except OSError as exc:
+            return str(exc)
+        return ""
 
     def _record_tool_transcript(
         self,
