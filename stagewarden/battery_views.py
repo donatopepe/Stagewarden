@@ -12,6 +12,7 @@ from .modelprefs import ModelPreferences, account_key, limit_snapshot_from_messa
 from .project_handoff import ProjectHandoff
 from .project import role_flow as _project_role_flow
 from .project import role_runtime_views as _project_role_runtime_views
+from . import project_handoff_views as _project_handoff_views
 from . import status_dashboard_views as _status_dashboard_views
 from .planner import PlanStep
 from .textcodec import dumps_ascii
