@@ -13,7 +13,7 @@ from stagewarden.config import AgentConfig
 from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.planner import PlanStep
-from stagewarden.rag import DesignRag
+from stagewarden.rag import DesignRag, resolve_min_score_policy
 from stagewarden.rag_benchmark import compare_rag_benchmark_reports, run_rag_benchmark
 from stagewarden.rag_views import rag_command_report, render_rag_report
 from stagewarden.router import ModelRouter
@@ -73,6 +73,11 @@ class RagTests(unittest.TestCase):
         comparison = compare_rag_benchmark_reports(baseline, current, threshold=0.01)
         self.assertFalse(comparison["passed"])
         self.assertTrue(comparison["regressions"])
+
+    def test_rag_min_score_policy_defaults(self) -> None:
+        self.assertGreater(resolve_min_score_policy(phase="design", mode="hybrid", override=None), 0.0)
+        self.assertEqual(resolve_min_score_policy(phase="unknown", mode="hybrid", override=None), 0.0)
+        self.assertEqual(resolve_min_score_policy(phase="design", mode="hybrid", override=0.2), 0.2)
 
     def test_design_rag_search_and_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -319,6 +324,10 @@ class RagTests(unittest.TestCase):
             search_report = rag_command_report("rag search RAG tags=rag", config)
             self.assertTrue(search_report["ok"])
             self.assertEqual(len(search_report["entries"]), 1)
+
+            design_policy_report = rag_command_report("rag search RAG phase=design", config)
+            self.assertTrue(design_policy_report["ok"])
+            self.assertGreater(float(design_policy_report.get("min_score", 0.0)), 0.0)
 
             rendered = render_rag_report(rag_command_report("rag list", config))
             self.assertIn("Boundary", rendered)
