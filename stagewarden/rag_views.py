@@ -21,7 +21,7 @@ def _try_load_design_rag(config: AgentConfig) -> tuple[DesignRag | None, str]:
         return None, f"Unable to load design knowledge store: {exc}"
 
 
-def _rag_entry_report(entry: RagEntry) -> dict[str, Any]:
+def _rag_entry_report(entry: RagEntry, *, score: float | None = None) -> dict[str, Any]:
     return {
         "entry_id": entry.entry_id,
         "phase": entry.phase,
@@ -31,6 +31,7 @@ def _rag_entry_report(entry: RagEntry) -> dict[str, Any]:
         "metadata": dict(entry.metadata),
         "created_at": entry.created_at,
         "updated_at": entry.updated_at,
+        "score": score,
     }
 
 
@@ -61,6 +62,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         tags: list[str] | None = None
         limit = 10
         mode = "hybrid"
+        min_score = 0.0
         for token in parts[2:]:
             if token.startswith("phase="):
                 phase = token.split("=", 1)[1]
@@ -79,16 +81,24 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 if mode not in {"lexical", "vector", "hybrid"}:
                     return {"command": task, "ok": False, "error": _rag_usage()}
                 continue
+            if token.startswith("min_score="):
+                try:
+                    min_score = max(0.0, float(token.split("=", 1)[1]))
+                except ValueError:
+                    return {"command": task, "ok": False, "error": _rag_usage()}
+                continue
             query_parts.append(token)
         query = " ".join(query_parts).strip()
         if not query:
             return {"command": task, "ok": False, "error": _rag_usage()}
+        scored_results = rag.search_scored(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)
         return {
             "command": task,
             "ok": True,
             "query": query,
             "mode": mode,
-            "entries": [_rag_entry_report(entry) for entry in rag.search(query, phase=phase, tags=tags, limit=limit, mode=mode)],
+            "min_score": min_score,
+            "entries": [_rag_entry_report(entry, score=score) for entry, score in scored_results],
         }
     if task.startswith("rag add "):
         fields = _parse_key_value_fields(parts[2:])
@@ -163,7 +173,9 @@ def render_rag_report(report: dict[str, Any]) -> str:
         if not isinstance(item, dict):
             continue
         tags = ", ".join(str(tag) for tag in item.get("tags", []))
-        lines.append(f"- [{item.get('entry_id')}] [{item.get('phase')}] {item.get('title')} (tags: {tags})")
+        score = item.get("score")
+        score_text = f", score={float(score):.3f}" if isinstance(score, (int, float)) else ""
+        lines.append(f"- [{item.get('entry_id')}] [{item.get('phase')}] {item.get('title')} (tags: {tags}{score_text})")
         content = str(item.get("content", ""))
         if content:
             lines.append(f"  {content[:500]}")
@@ -171,7 +183,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact | rag rebuild-vectors"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact | rag rebuild-vectors"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:
