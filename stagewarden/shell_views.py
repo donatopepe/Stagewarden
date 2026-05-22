@@ -14,6 +14,7 @@ from .commands import command_catalog, command_phrases, command_specs_by_query, 
 from .permissions import PermissionSettings
 from .modelprefs import PRINCE2_ROLE_IDS, SUPPORTED_MODELS
 from . import model_views as _model_views
+from . import rag_views as _rag_views
 from . import project_handoff_views as _project_handoff_views
 from . import ui_views as _ui_views
 from .ui_views import _guided_slash_choice
@@ -600,6 +601,7 @@ def _is_known_interactive_command(command: str) -> bool:
         "budget ",
         "question ",
         "answer ",
+        "rag ",
         "roles ",
         "role ",
         "project ",
@@ -948,6 +950,14 @@ def _run_interactive_shell_impl(
         account_message = _account_views._handle_account_command(shell_command, agent, config, input_stream=source, output_stream=sink)
         if account_message is not None:
             sink.write(f"{account_message}\n")
+            sink.flush()
+            continue
+        if shell_command == "rag" or shell_command.startswith("rag "):
+            report = _rag_views.rag_command_report(shell_command, config)
+            if shell_command.endswith(" --json"):
+                sink.write(f"{dumps_ascii(_json_schema_registry.with_json_schema('rag', report), indent=2)}\n")
+            else:
+                sink.write(f"{_rag_views.render_rag_report(report)}\n")
             sink.flush()
             continue
         project_brief_message = _project_flow._handle_project_brief_command(shell_command, config)

@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "Round 13: Fixed NameError bug in auth.py (missing urllib.parse import). Removed dead SUPPORTED_MODELS in provider_registry.py. Extracted RISKY_ACTION_TOKENS, DEBUG_TOKENS, COMPLEX_TOKENS, ROLE_HIGH_STAKES, ROLE_ECONOMICAL, and BUDGET_POLICY to module-level constants across 7 files. All tests pass.",
+  "latest_observation": "RAG slice complete and limits addressed: JSON-backed DesignRag, prompt injection, model actions rag_search/rag_add/rag_update/rag_remove, CLI rag list/search/add/update/remove/compact/rebuild-vectors, lifecycle auto-indexing, duplicate upsert/compact, deterministic trigram/fuzzy retrieval, persisted versioned local hashed-vector index, search mode=lexical|vector|hybrid, and dedicated tests. Validation passed: python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag -v (68 OK); CLI vector add/rebuild/search/remove smoke passed.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "a38597f7a16300f031def40c42297f554018de08",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-21T01:00:00Z",
+  "updated_at": "2026-05-22T00:00:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",

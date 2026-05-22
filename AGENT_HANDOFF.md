@@ -1,64 +1,69 @@
 # Agent Handoff
 
 ## Current objective
-Completed Round 14 deep codebase analysis and cleanup. Committed all changes.
+Implement RAG as a first-class design-knowledge base for the Stagewarden agent: persisted locally, injected into model prompts, queryable/updatable/removable by model actions and CLI commands, automatically indexed during agent lifecycle events, deduplicated, and retrievable with deterministic lexical/fuzzy/vector matching.
 
 ## Current state
-- Round 14 committed as `ddffcef`. All 63 core tests pass.
-- Branch: `pr/p4-p5-updates`, 3 commits ahead of origin.
-
-### Round 14 summary: Removed 28 unused imports across 14 modules
-**Files cleaned:**
-- `stagewarden/project_handoff_views.py` - removed unused `Path` import
-- `stagewarden/report_views.py` - removed unused `Agent` import
-- `stagewarden/model_views.py` - removed unused `format_run_model`, `search_ai_models_catalog` imports
-- `stagewarden/project_handoff.py` - removed unused `round_usd` import (already using `textcodec.round_usd`)
-- `stagewarden/project_handoff_runtime.py` - removed unused `prince2_status_color` import
-- `stagewarden/status_views.py` - removed unused `REGISTRY_MODELS` import
-- `stagewarden/status_limits_views.py` - removed unused `GitTool` import
-- `stagewarden/model_inspection_views.py` - removed unused `ModelPreferences` import
-- `stagewarden/executor.py` - removed 5 unused imports: `Prince2Assessment`, `build_prince2_role_flow`, `PRINCE2_ROLE_AUTOMATION_RULES`, `PRINCE2_ROLE_SCOPE_DESCRIPTIONS`, `detect_runtime_capabilities`
-- `stagewarden/tools/external_io.py` - removed unused `os` import
-- `stagewarden/project/role_flow.py` - removed unused `Agent`, `provider_capability` imports
-- `stagewarden/project/tree.py` - removed 6 unused imports: `replace`, `AgentConfig`, `format_run_model`, `build_prince2_role_flow`, `build_prince2_role_matrix_payload`, `build_prince2_role_tree_with_tolerance`, `check_prince2_role_tree_payload`
-- `stagewarden/project/tree_flow.py` - removed unused `ModelPreferences`, `Prince2ToleranceProfile` imports
-- `stagewarden/project/role_command_flow.py` - removed unused `ModelPreferences` import
-
-### Round 13 summary (previous commit `4a8469f`):
-- Fixed NameError in `auth.py` (missing `urllib.parse` import)
-- Removed dead `SUPPORTED_MODELS` in `provider_registry.py`
-- Extracted 6 duplicated literal groups to module constants
-- Extracted `utc_now()` and `round_usd()` to `textcodec.py`
+- Branch: `pr/p4-p5-updates`.
+- RAG implementation is complete for this slice and tests pass.
+- Core validation passed: `python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag -v` -> 68 OK.
+- CLI smoke passed for `rag add`, `rag rebuild-vectors`, vector-mode `rag search`, and `rag remove`.
+- Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
 ## Recent changes
-- Round 14: Removed 28 unused imports (14 files, ~30 lines removed)
-- Round 13: Fixed bug, removed dead code, extracted constants (15 files, +179/-157)
+- `.gitignore`: added `.stagewarden_rag.json` runtime state ignore.
+- `stagewarden/rag.py`: added JSON-backed `DesignRag` and `RagEntry`, keyword/tag/phase retrieval, deterministic trigram/fuzzy matching, local hashed vector embeddings, persisted vector index, prompt rendering, timestamps, persistence, duplicate upsert, `compact()`, remove, update, vector rebuild, vector-index versioning, and robust next-id recovery.
+- `stagewarden/config.py`: added `rag_filename` and `rag_path`.
+- `stagewarden/agent.py`: loads/saves RAG, passes it to `Executor`, indexes project start, clarification, rejection, step completion, step observation, step failure, recovery-gate closure, and project finish.
+- `stagewarden/executor.py`: injects `Design knowledge (RAG)` into primary and devil-advocate prompt packets; supports model actions `rag_search`, `rag_add`, `rag_update`, and `rag_remove`; exposes RAG actions in executor-level schema constants.
+- `stagewarden/executor_prompting.py`: exposes `rag_search`, `rag_add`, `rag_update`, and `rag_remove` in model-visible action schema and examples.
+- `stagewarden/rag_views.py`: added CLI report/render helpers for `rag`, `rag list`, `rag search` with `mode=lexical|vector|hybrid`, `rag add`, `rag update`, `rag remove`, `rag compact`, and `rag rebuild-vectors`.
+- `stagewarden/cli_dispatch.py`: routes manual RAG CLI commands and JSON output.
+- `stagewarden/commands.py`: added command catalog entries for RAG list/search/add/update/remove/compact/rebuild-vectors commands.
+- `stagewarden/shell_views.py`: recognizes `rag` command prefix in interactive command detection.
+- `tests/test_rag.py`: added coverage for RAG search/persistence, dedupe, fuzzy retrieval, local vector search, vector rebuild, compaction, executor RAG actions, prompt injection, and CLI report helpers.
 
 ## Important files
-- `stagewarden/main.py`: ~75 lines, minimal dispatch only
-- `stagewarden/executor.py`: core execution engine, now has cleaner imports
-- `stagewarden/cli_dispatch.py`: 889-line CLI dispatcher (largest function, acceptable for CLI)
-- `stagewarden/agent.py`: 399-line `run()` method (main agent loop)
+- `stagewarden/rag.py`: canonical RAG store and retrieval implementation.
+- `stagewarden/agent.py`: lifecycle auto-indexing and RAG ownership for agent runs.
+- `stagewarden/executor.py`: prompt injection and model action execution path.
+- `stagewarden/rag_views.py`: manual CLI surface for RAG.
+- `tests/test_rag.py`: dedicated regression coverage for this slice.
+- `.stagewarden_rag.json`: local runtime design-knowledge store, intentionally gitignored.
 
 ## Technical decisions
-- Kept `__future__.annotations` imports (standard for Python 3.11+ forward references)
-- Did not extract duplicated report format strings (too many variations, low value)
-- No anti-patterns found: no `globals().update()`, `eval()`, `exec()`, or bare `except:`
+- Decision: Use stdlib-only JSON-backed RAG with deterministic lexical, trigram, fuzzy-subsequence, and local hashed-vector scoring, not an external vector DB.
+  - Reason: keeps Stagewarden dependency-free and portable.
+  - Trade-offs: local vectors improve semantic-ish recall without services, but are not as strong as model-generated embeddings.
+- Decision: Persist the vector index inside `.stagewarden_rag.json` and version it.
+  - Reason: avoids recomputing on every load and safely rebuilds stale vectors after tokenizer/index changes.
+  - Trade-offs: the RAG file is larger than entry-only JSON.
+- Decision: Inject RAG through `_build_model_communication_packet`.
+  - Reason: primary prompts and devil-advocate prompts both render from that packet path.
+  - Trade-offs: prompt size is bounded to 2500 chars for RAG context.
+- Decision: Allow both automatic lifecycle indexing and manual/model additions.
+  - Reason: design knowledge must evolve during project execution and remain user-controllable.
+  - Trade-offs: duplicate entries are possible; no deduplication policy yet.
 
 ## Open issues
-- Bugs: None known
-- Risks: Long functions in `cli_dispatch.py:run_cli()` (889 lines), `executor.py:execute_step()` (435 lines), `agent.py:run()` (399 lines) - these are architectural, not bugs
-- Unknowns: None
+- Bugs: None known after validation.
+- Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
+- Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Consider breaking down `cli_dispatch.py:run_cli()` into smaller dispatch functions
-2. Consider consolidating duplicated report format patterns across view modules
-3. Run full `tests.test_trace_cli` suite when time permits
+1. Run broader trace CLI suite when time permits.
+2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Commands
 ```bash
 # test
-python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration -v
-python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_agent_writes_ljson_trace
-python3 -m unittest tests.test_prince2
+python3 -m py_compile stagewarden/rag.py stagewarden/rag_views.py stagewarden/agent.py stagewarden/executor.py stagewarden/cli_dispatch.py stagewarden/commands.py stagewarden/shell_views.py
+python3 -m unittest tests.test_rag -v
+python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag -v
+
+# smoke
+python3 -m stagewarden.main --json rag add design VectorSmoke HTTP_endpoint_contract
+python3 -m stagewarden.main --json rag rebuild-vectors
+python3 -m stagewarden.main --json rag search api mode=vector
+python3 -m stagewarden.main --json rag remove rag-3
 ```
