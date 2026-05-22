@@ -14,7 +14,12 @@ from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.planner import PlanStep
 from stagewarden.rag import DesignRag, resolve_min_score_policy
-from stagewarden.rag_benchmark import compare_rag_benchmark_reports, run_rag_benchmark
+from stagewarden.rag_benchmark import (
+    append_rag_benchmark_history,
+    compare_rag_benchmark_reports,
+    run_rag_benchmark,
+    summarize_rag_benchmark_trend,
+)
 from stagewarden.rag_views import rag_command_report, render_rag_report
 from stagewarden.router import ModelRouter
 from stagewarden.shell_views import run_interactive_shell
@@ -73,6 +78,20 @@ class RagTests(unittest.TestCase):
         comparison = compare_rag_benchmark_reports(baseline, current, threshold=0.01)
         self.assertFalse(comparison["passed"])
         self.assertTrue(comparison["regressions"])
+
+    def test_rag_benchmark_history_trend_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            history_path = Path(tmp_dir) / "rag-benchmark-history.json"
+            first = run_rag_benchmark()
+            second = run_rag_benchmark()
+            second["modes"][0]["metrics"]["recall@3"] = 0.0
+            payload = append_rag_benchmark_history(history_path, first)
+            payload = append_rag_benchmark_history(history_path, second)
+            self.assertEqual(len(payload["entries"]), 2)
+            trend = summarize_rag_benchmark_trend(payload)
+            self.assertEqual(trend["samples"], 2)
+            self.assertTrue(trend["modes"])
+            self.assertGreaterEqual(int(trend["regressing"]), 1)
 
     def test_rag_min_score_policy_defaults(self) -> None:
         self.assertGreater(resolve_min_score_policy(phase="design", mode="hybrid", override=None), 0.0)
@@ -386,6 +405,16 @@ class RagTests(unittest.TestCase):
             self.assertTrue(compared["ok"])
             self.assertIn("comparison", compared)
             self.assertTrue(compared["comparison"]["passed"])
+
+            history_path = Path(tmp_dir) / "rag-benchmark-history.json"
+            with_history = rag_command_report(f"rag benchmark history={history_path}", config)
+            self.assertTrue(with_history["ok"])
+            self.assertIn("history", with_history)
+            self.assertIn("trend", with_history)
+
+            trend_only = rag_command_report(f"rag benchmark trend={history_path}", config)
+            self.assertTrue(trend_only["ok"])
+            self.assertIn("trend", trend_only)
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
