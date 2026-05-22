@@ -316,7 +316,16 @@ class DesignRag:
         self.vector_index = {entry.entry_id: _embed_text(_entry_text(entry)) for entry in self.entries}
         return len(self.vector_index)
 
-    def search(self, query: str, *, phase: str | None = None, tags: list[str] | None = None, limit: int = 5, mode: str = "hybrid") -> list[RagEntry]:
+    def search_scored(
+        self,
+        query: str,
+        *,
+        phase: str | None = None,
+        tags: list[str] | None = None,
+        limit: int = 5,
+        mode: str = "hybrid",
+        min_score: float = 0.0,
+    ) -> list[tuple[RagEntry, float]]:
         query_tokens = _expanded_tokens(query)
         candidates = self.entries
         if phase:
@@ -345,7 +354,20 @@ class DesignRag:
                     score = lexical_score * 0.45 + vector_score * 0.55
             scored.append((entry, score))
         scored.sort(key=lambda x: -x[1])
-        return [e for e, score in scored[:limit] if score > 0]
+        threshold = max(0.0, min_score)
+        return [(entry, score) for entry, score in scored[:limit] if score > threshold]
+
+    def search(
+        self,
+        query: str,
+        *,
+        phase: str | None = None,
+        tags: list[str] | None = None,
+        limit: int = 5,
+        mode: str = "hybrid",
+        min_score: float = 0.0,
+    ) -> list[RagEntry]:
+        return [entry for entry, _ in self.search_scored(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)]
 
     def get_by_phase(self, phase: str, *, limit: int = 20) -> list[RagEntry]:
         return [e for e in self.entries if e.phase == phase][:limit]

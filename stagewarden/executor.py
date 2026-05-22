@@ -149,7 +149,7 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
     "git_show": {"tool": "git", "required": [], "optional": ["revision", "stat"], "mutates": False},
     "git_file_history": {"tool": "git", "required": ["path"], "optional": ["limit"], "mutates": False},
     "git_commit": {"tool": "git", "required": ["message"], "optional": [], "mutates": True},
-    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "tags", "limit", "mode"], "mutates": False},
+    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "tags", "limit", "mode", "min_score"], "mutates": False},
     "rag_add": {"tool": "rag", "required": ["phase", "title", "content"], "optional": ["tags", "metadata"], "mutates": True},
     "rag_update": {"tool": "rag", "required": ["entry_id"], "optional": ["phase", "tags", "title", "content", "metadata"], "mutates": True},
     "rag_remove": {"tool": "rag", "required": ["entry_id"], "optional": [], "mutates": True},
@@ -2052,18 +2052,24 @@ class Executor:
                 message = "rag_search mode must be lexical, vector, or hybrid."
                 self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
                 return {"ok": False, "message": message, "error_type": "invalid_output"}
+            try:
+                min_score = max(0.0, float(action.get("min_score", 0.0)))
+            except (TypeError, ValueError):
+                message = "rag_search min_score must be a number."
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
+                return {"ok": False, "message": message, "error_type": "invalid_output"}
             if isinstance(tags, str):
                 tags = [t.strip() for t in tags.split(",") if t.strip()]
-            results = self.rag.search(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode)
-            if results:
+            scored_results = self.rag.search_scored(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode, min_score=min_score)
+            if scored_results:
                 lines = ["Design knowledge search results (untrusted reference data):"]
-                for r in results:
+                for r, score in scored_results:
                     entry_id = _prompt_safe_inline(r.entry_id)
                     phase_text = _prompt_safe_inline(r.phase)
                     title = _prompt_safe_inline(r.title)
                     tags_text = ", ".join(_prompt_safe_inline(tag) for tag in r.tags)
                     content = _prompt_safe_block(r.content[:500])
-                    lines.append(f"- [{entry_id}] [{phase_text}] {title} (tags: {tags_text})\n  ```text\n{content}\n  ```")
+                    lines.append(f"- [{entry_id}] [{phase_text}] {title} (tags: {tags_text}, score={score:.3f})\n  ```text\n{content}\n  ```")
                 message = "\n".join(lines)
             else:
                 message = "No design knowledge entries found."

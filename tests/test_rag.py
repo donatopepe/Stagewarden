@@ -185,6 +185,7 @@ class RagTests(unittest.TestCase):
             search_result = executor._run_action({"type": "rag_search", "query": "REST integrations", "mode": "hybrid"})
             self.assertTrue(search_result["ok"])
             self.assertIn("API decision", search_result["message"])
+            self.assertIn("score=", search_result["message"])
 
             update_result = executor._run_action({"type": "rag_update", "entry_id": "rag-1", "content": "Use REST adapters."})
             self.assertTrue(update_result["ok"])
@@ -220,6 +221,10 @@ class RagTests(unittest.TestCase):
             bad_mode = executor._run_action({"type": "rag_search", "query": "x", "mode": "semantic"})
             self.assertFalse(bad_mode["ok"])
             self.assertEqual(bad_mode["error_type"], "invalid_output")
+
+            bad_min_score = executor._run_action({"type": "rag_search", "query": "x", "min_score": "high"})
+            self.assertFalse(bad_min_score["ok"])
+            self.assertEqual(bad_min_score["error_type"], "invalid_output")
 
             failed_save = executor._run_action({"type": "rag_add", "phase": "design", "title": "x", "content": "y"})
             self.assertFalse(failed_save["ok"])
@@ -284,6 +289,10 @@ class RagTests(unittest.TestCase):
             vector_report = rag_command_report("rag search updated mode=vector", config)
             self.assertTrue(vector_report["ok"])
             self.assertEqual(vector_report["mode"], "vector")
+
+            threshold_report = rag_command_report("rag search updated mode=hybrid min_score=0.9", config)
+            self.assertTrue(threshold_report["ok"])
+            self.assertIn("min_score", threshold_report)
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
