@@ -937,11 +937,14 @@ def _guided_role_configure(
     spec = provider_model_spec(provider, provider_model)
     params: dict[str, str] = {}
     if spec is not None and spec.reasoning_efforts:
+        ordered_reasoning_efforts = list(spec.reasoning_efforts)
+        if provider_model and "mini" not in provider_model.lower():
+            ordered_reasoning_efforts = list(reversed(ordered_reasoning_efforts))
         reasoning = _shell_views._prompt_menu_choice(
             title=f"Choose reasoning_effort for {provider}:{provider_model}:",
             options=[
                 (effort, f"{effort}{' (default)' if effort == spec.reasoning_default else ''}")
-                for effort in spec.reasoning_efforts
+                for effort in ordered_reasoning_efforts
             ],
             input_stream=input_stream,
             output_stream=output_stream,

@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "RAG slice complete and limits addressed: JSON-backed DesignRag, prompt injection, model actions rag_search/rag_add/rag_update/rag_remove, CLI rag list/search/add/update/remove/compact/rebuild-vectors, lifecycle auto-indexing, duplicate upsert/compact, deterministic trigram/fuzzy retrieval, persisted versioned local hashed-vector index, search mode=lexical|vector|hybrid, and dedicated tests. Validation passed: python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v (73 OK) and python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_battery_cli_runs_simulated_agent_scenarios -v. Full discovery was attempted with a 300s timeout; it passed battery then timed out later in tests.test_trace_cli with unrelated browser/catalog/auth/model-view failures/errors.",
+  "latest_observation": "Deep analysis continued after RAG integration. Fixed trace CLI regressions from refactor fallout: browser/system/watch/external IO routes, slash fuzzy highlighting, main.py compatibility patch targets, provider auth metadata in model list, roles flow/tick routing, project tree AI import, provider-limit summaries, PRINCE2 role proposal defaults, and RAG prompt/persistence hardening. Validation passed: py_compile edited files; python3 -m unittest tests.test_rag -v (9 OK); python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v (74 OK); focused touched trace regressions (8 OK). Full tests.test_trace_cli was run and reached 200 tests with 4 failures, then those 4 failures were fixed and revalidated in focused tests; full module was not rerun after the last fixes due runtime cost.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "a38597f7a16300f031def40c42297f554018de08",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-22T05:37:34Z",
+  "updated_at": "2026-05-22T08:40:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",
@@ -227,6 +227,9 @@
       }
     },
     {
+      "timestamp": "2026-05-22T05:48:01+00:00",
+      "phase": "",
+      "iteration": 0,
       "task": "agent-refactor-slice",
       "summary": "Moved sources/update routing to stagewarden.status_views and removed the corresponding main.py report bridges.",
       "step_id": "agent-refactor-slice",

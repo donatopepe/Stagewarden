@@ -84,6 +84,31 @@ def _slash_match_report(spec: object, query: str) -> dict[str, object]:
     }
 
 
+def _highlight_fuzzy_match(query: str, phrase: str) -> str:
+    if not query:
+        return phrase
+    query_chars = [char.lower() for char in query if not char.isspace()]
+    if not query_chars:
+        return phrase
+    highlighted: list[str] = []
+    query_index = 0
+    open_match = False
+    for char in phrase:
+        matches = query_index < len(query_chars) and char.lower() == query_chars[query_index]
+        if matches and not open_match:
+            highlighted.append("[")
+            open_match = True
+        if not matches and open_match:
+            highlighted.append("]")
+            open_match = False
+        highlighted.append(char)
+        if matches:
+            query_index += 1
+    if open_match:
+        highlighted.append("]")
+    return "".join(highlighted)
+
+
 
 def _wrap_description(text: str, *, width: int = 88, initial_indent: str = "  ", subsequent_indent: str = "  ") -> list[str]:
     wrapped = textwrap.wrap(

@@ -5,10 +5,10 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 
 ## Current state
 - Branch: `pr/p4-p5-updates`.
-- RAG implementation is complete for this slice and focused tests pass.
-- Core validation passed: `python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v` -> 73 OK.
+- RAG implementation is complete for this slice and focused tests pass, including hardening found during deep review.
+- Core validation passed: `python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v` -> 74 OK.
 - Focused battery validation passed: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_battery_cli_runs_simulated_agent_scenarios -v`.
-- Full discovery was attempted with a 300s timeout; it passed the previous battery failure but timed out later in `tests.test_trace_cli` with unrelated browser/catalog/auth/model-view failures still present.
+- Full `tests.test_trace_cli` was run after deep analysis and reached 200 tests with 4 failures; those 4 failures were then fixed and revalidated in focused tests. Full module was not rerun after the final fixes due runtime cost.
 - CLI smoke passed for `rag add`, `rag rebuild-vectors`, vector-mode `rag search`, and `rag remove`.
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
@@ -21,13 +21,23 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - `stagewarden/executor_prompting.py`: exposes `rag_search`, `rag_add`, `rag_update`, and `rag_remove` in model-visible action schema and examples.
 - `stagewarden/rag_views.py`: added CLI report/render helpers for `rag`, `rag list`, `rag search` with `mode=lexical|vector|hybrid`, `rag add`, `rag update`, `rag remove`, `rag compact`, and `rag rebuild-vectors`.
 - `stagewarden/cli_dispatch.py`: routes manual RAG CLI commands and JSON output.
+- `stagewarden/cli_dispatch.py`: restored browser/system/watch/external IO JSON routing coverage and corrected roles flow/tick routing to owner modules.
+- `stagewarden/command_dispatch.py`: added browser `--limit` parsing and non-JSON external IO handling.
+- `stagewarden/ui_views.py`: restored slash fuzzy-match highlighting helper.
+- `stagewarden/main.py`: restored compatibility exports for catalog/auth/runtime patch targets used by tests.
+- `stagewarden/model_views.py`: restored provider auth/login metadata in `model list <provider>` output.
+- `stagewarden/modelprefs.py`: stabilized PRINCE2 proposal defaults for project manager/team manager and filters non-chat model specs from role defaults.
+- `stagewarden/status_limits_views.py`: provider-limit summaries now report configured/relevant providers rather than every registry provider.
+- `stagewarden/status_dashboard_views.py`: runtime detection honors the compatibility patch target used by existing tests.
+- `stagewarden/project/tree_flow.py`: restored missing design-flow import for AI-assisted project tree proposals.
+- `stagewarden/project/role_flow.py` and `stagewarden/project/role_views.py`: aligned guided role reasoning ordering/rendering with existing CLI contracts.
 - `stagewarden/commands.py`: added command catalog entries for RAG list/search/add/update/remove/compact/rebuild-vectors commands.
 - `stagewarden/shell_views.py`: recognizes `rag` command prefix in interactive command detection.
 - `stagewarden/battery_views.py`: `log_detection` battery path now resolves `_log_error_report` through `project_handoff_views`; focused battery regression passes.
 - `tests/test_rag.py`: added coverage for RAG search/persistence, dedupe, fuzzy retrieval, local vector search, vector rebuild, compaction, executor RAG actions, prompt injection, and CLI report helpers.
 
 ## Important files
-- `stagewarden/rag.py`: canonical RAG store and retrieval implementation.
+- `stagewarden/rag.py`: canonical RAG store and retrieval implementation; prompt rendering escapes embedded fences and rebuilds vectors on load to avoid stale persisted embeddings.
 - `stagewarden/agent.py`: lifecycle auto-indexing and RAG ownership for agent runs.
 - `stagewarden/executor.py`: prompt injection and model action execution path.
 - `stagewarden/rag_views.py`: manual CLI surface for RAG.
@@ -49,22 +59,23 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
   - Trade-offs: duplicate entries are possible; no deduplication policy yet.
 
 ## Open issues
-- Bugs: No known RAG or battery-regression bugs after focused validation.
+- Bugs: No known RAG, battery, or previously isolated trace-CLI regression bugs after focused validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: `python3 -m unittest discover -s tests -v` timed out after 300s after reporting failures/errors in `test_browser_cli_fetch_exposes_title_and_links`, `test_catalog_refresh_and_status_use_shared_snapshot`, `test_cli_slash_choose_renders_candidates_and_json`, several interactive login/auth tests, `test_interactive_shell_model_list_uses_provider_registry_for_login_hints`, and `test_interactive_shell_persists_provider_model_variant`.
+- Full-suite follow-up: full `tests.test_trace_cli` was not rerun after the final 4 fixes due runtime cost; focused revalidation passed. `python3 -m unittest discover -s tests -v` still remains the next expensive end-to-end check.
 
 ## Next steps
-1. Investigate the unrelated full-discovery `test_trace_cli` browser/catalog/auth/model-view failures if this slice expands beyond RAG.
+1. If time permits, run `python3 -m unittest discover -s tests -v` with a very high timeout.
 2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Commands
 ```bash
 # test
-python3 -m py_compile stagewarden/rag.py stagewarden/rag_views.py stagewarden/agent.py stagewarden/executor.py stagewarden/cli_dispatch.py stagewarden/commands.py stagewarden/shell_views.py
+python3 -m py_compile stagewarden/ui_views.py stagewarden/cli_dispatch.py stagewarden/command_dispatch.py stagewarden/model_views.py stagewarden/main.py stagewarden/rag.py stagewarden/executor.py stagewarden/status_limits_views.py stagewarden/status_dashboard_views.py stagewarden/modelprefs.py stagewarden/project/role_flow.py stagewarden/project/role_views.py stagewarden/project/tree_flow.py tests/test_rag.py
 python3 -m unittest tests.test_rag -v
 python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v
 python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_battery_cli_runs_simulated_agent_scenarios -v
+python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_openrouter_benchmark_cli_reports_multi_suite_baseline tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_overview_and_board_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_configure_menu_persists_manual_assignment tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_roles_propose_persists_assignments_and_handoff tests.test_trace_cli.TraceAndCliTests.test_roles_propose_preloads_local_execution_candidates_into_delivery_fallbacks tests.test_trace_cli.TraceAndCliTests.test_roles_tick_advances_runtime_in_batch tests.test_trace_cli.TraceAndCliTests.test_roles_tick_spawns_escalation_child_and_tracks_thread_tokens tests.test_trace_cli.TraceAndCliTests.test_roles_flow_shows_prince2_node_transitions -v
 python3 -m unittest discover -s tests -v
 
 # smoke

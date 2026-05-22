@@ -4,6 +4,7 @@ import platform
 import os
 import shutil
 import sys
+import sys
 from datetime import datetime
 
 from .agent import Agent
@@ -26,9 +27,17 @@ def _views():
     return _status_views_module
 
 
+def _detect_runtime_capabilities(workspace_root):  # noqa: ANN001
+    main_module = sys.modules.get("stagewarden.main")
+    patched = getattr(main_module, "detect_runtime_capabilities", None) if main_module is not None else None
+    if patched is not None and patched is not detect_runtime_capabilities:
+        return patched(workspace_root)
+    return detect_runtime_capabilities(workspace_root)
+
+
 def _shell_backend_report(config: AgentConfig) -> dict[str, object]:
     configured = str(getattr(config, "shell_backend", "auto") or "auto")
-    selection = select_shell_backend(configured, detect_runtime_capabilities(config.workspace_root))
+    selection = select_shell_backend(configured, _detect_runtime_capabilities(config.workspace_root))
     return {
         "command": "shell backend",
         "configured": configured,
@@ -230,7 +239,7 @@ def _status_remediation_report(
     git_dirty = git.status_porcelain()
     items = _preflight_remediations(
         doctor={"python": {"ok": True}, "git": {"ok": True}},
-        runtime=detect_runtime_capabilities(config.workspace_root),
+        runtime=_detect_runtime_capabilities(config.workspace_root),
         shell_backend=_shell_backend_report(config),
         git_status=git_status,
         git_dirty=git_dirty,
@@ -371,7 +380,7 @@ def _doctor_report(config: AgentConfig) -> dict[str, object]:
         "git": {},
         "path_launcher": {},
         "repository": {},
-        "runtime": detect_runtime_capabilities(config.workspace_root),
+        "runtime": _detect_runtime_capabilities(config.workspace_root),
         "baseline": _views()._agent_baseline_report(config),
         "providers": [],
         "policy": {"silent_install": False, "note": "no prerequisites are installed silently by doctor."},

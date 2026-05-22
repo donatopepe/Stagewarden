@@ -823,9 +823,14 @@ class ModelPreferences:
         candidates = [candidate for candidate in available if candidate in SUPPORTED_MODELS]
         if not candidates:
             return available[0]
+        if role == "project_manager" and "chatgpt" in candidates:
+            return "chatgpt"
+        if role == "team_manager" and "cheap" in candidates:
+            return "cheap"
+        provider_priority = {"chatgpt": 5, "claude": 4, "openai": 3, "cheap": 2, "local": 1}
         ranked = sorted(
             ((self._provider_role_score(candidate, role), candidate) for candidate in candidates),
-            key=lambda item: (item[0], item[1]),
+            key=lambda item: (item[0], provider_priority.get(item[1], 0), item[1]),
             reverse=True,
         )
         return ranked[0][1]
@@ -834,11 +839,14 @@ class ModelPreferences:
         specs = provider_model_specs(provider)
         if not specs:
             raise ValueError(f"Unsupported provider '{provider}'.")
+        if provider == "chatgpt" and role == "project_manager" and provider_model_spec(provider, "gpt-5.3-codex") is not None:
+            return "gpt-5.3-codex"
         ranked = sorted(
             (
                 (self._provider_model_role_score(provider, spec, role), spec)
                 for spec in specs
                 if spec.id != "provider-default" or len(specs) == 1
+                if not any(token in spec.id.lower() for token in ("embedding", "image", "audio", "tts"))
             ),
             key=lambda item: (item[0], item[1].id),
             reverse=True,

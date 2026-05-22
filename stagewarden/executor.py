@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,7 +20,7 @@ from .tools.git import GitTool
 from .tools.shell import ShellTool
 from .executor_quality import ResponseQualityAssessment, assess_response_quality
 from . import executor_prompting as _executor_prompting
-from .rag import DesignRag
+from .rag import DesignRag, _prompt_safe_block, _prompt_safe_inline
 
 
 @dataclass(slots=True)
@@ -2055,10 +2056,15 @@ class Executor:
                 tags = [t.strip() for t in tags.split(",") if t.strip()]
             results = self.rag.search(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode)
             if results:
-                message = "\n".join(
-                    f"- [{r.entry_id}] [{r.phase}] {r.title} (tags: {', '.join(r.tags)})\n  {r.content[:500]}"
-                    for r in results
-                )
+                lines = ["Design knowledge search results (untrusted reference data):"]
+                for r in results:
+                    entry_id = _prompt_safe_inline(r.entry_id)
+                    phase_text = _prompt_safe_inline(r.phase)
+                    title = _prompt_safe_inline(r.title)
+                    tags_text = ", ".join(_prompt_safe_inline(tag) for tag in r.tags)
+                    content = _prompt_safe_block(r.content[:500])
+                    lines.append(f"- [{entry_id}] [{phase_text}] {title} (tags: {tags_text})\n  ```text\n{content}\n  ```")
+                message = "\n".join(lines)
             else:
                 message = "No design knowledge entries found."
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_search: {query} mode={mode}", detail=message, error_type=None)
@@ -2076,9 +2082,11 @@ class Executor:
                 message = "rag_add requires phase, title, and content fields."
                 self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary="rag_add: missing fields", detail=message, error_type="invalid_output")
                 return {"ok": False, "message": message, "error_type": "invalid_output"}
+            snapshot = self._rag_state_snapshot()
             entry = self.rag.add(phase=phase, tags=list(tags) if isinstance(tags, list) else [], title=title, content=content, metadata=dict(metadata) if isinstance(metadata, dict) else {})
             save_error = self._save_rag_action_error()
             if save_error:
+                self._restore_rag_state(snapshot)
                 message = f"Failed to persist design knowledge entry {entry.entry_id}: {save_error}"
                 self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_add: {title}", detail=message, error_type="persistence_error")
                 return {"ok": False, "message": message, "error_type": "persistence_error"}
@@ -2092,6 +2100,7 @@ class Executor:
             if isinstance(tags, str):
                 tags = [t.strip() for t in tags.split(",") if t.strip()]
             metadata = action.get("metadata")
+            snapshot = self._rag_state_snapshot()
             entry = self.rag.update(
                 entry_id,
                 phase=str(action["phase"]) if action.get("phase") is not None else None,
@@ -2106,6 +2115,7 @@ class Executor:
                 return {"ok": False, "message": message, "error_type": "not_found"}
             save_error = self._save_rag_action_error()
             if save_error:
+                self._restore_rag_state(snapshot)
                 message = f"Failed to persist design knowledge entry {entry.entry_id}: {save_error}"
                 self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_update: {entry_id}", detail=message, error_type="persistence_error")
                 return {"ok": False, "message": message, "error_type": "persistence_error"}
@@ -2115,10 +2125,12 @@ class Executor:
 
         if action_type == "rag_remove":
             entry_id = str(action.get("entry_id", ""))
+            snapshot = self._rag_state_snapshot()
             removed = self.rag.remove(entry_id)
             if removed:
                 save_error = self._save_rag_action_error()
                 if save_error:
+                    self._restore_rag_state(snapshot)
                     message = f"Failed to persist removal for design knowledge entry {entry_id}: {save_error}"
                     self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_remove: {entry_id}", detail=message, error_type="persistence_error")
                     return {"ok": False, "message": message, "error_type": "persistence_error"}
@@ -2130,6 +2142,15 @@ class Executor:
             return {"ok": True, "message": action.get("message", "Step completed.")}
 
         return {"ok": False, "message": f"Unsupported action type: {action_type}", "error_type": "invalid_output"}
+
+    def _rag_state_snapshot(self) -> tuple[list[object], dict[str, list[float]], int]:
+        return (deepcopy(self.rag.entries), {key: list(value) for key, value in self.rag.vector_index.items()}, self.rag._next_id)
+
+    def _restore_rag_state(self, snapshot: tuple[list[object], dict[str, list[float]], int]) -> None:
+        entries, vector_index, next_id = snapshot
+        self.rag.entries = deepcopy(entries)
+        self.rag.vector_index = {key: list(value) for key, value in vector_index.items()}
+        self.rag._next_id = next_id
 
     def _save_rag_action_error(self) -> str:
         try:
