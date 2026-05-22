@@ -2060,16 +2060,23 @@ class Executor:
                 return {"ok": False, "message": message, "error_type": "invalid_output"}
             if isinstance(tags, str):
                 tags = [t.strip() for t in tags.split(",") if t.strip()]
-            scored_results = self.rag.search_scored(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode, min_score=min_score)
-            if scored_results:
+            diagnostic_results = self.rag.search_diagnostics(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode, min_score=min_score)
+            if diagnostic_results:
                 lines = ["Design knowledge search results (untrusted reference data):"]
-                for r, score in scored_results:
+                for item in diagnostic_results:
+                    r = item["entry"]
+                    score = float(item.get("score", 0.0))
+                    lexical_score = float(item.get("lexical_score", 0.0))
+                    vector_score = float(item.get("vector_score", 0.0))
                     entry_id = _prompt_safe_inline(r.entry_id)
                     phase_text = _prompt_safe_inline(r.phase)
                     title = _prompt_safe_inline(r.title)
                     tags_text = ", ".join(_prompt_safe_inline(tag) for tag in r.tags)
                     content = _prompt_safe_block(r.content[:500])
-                    lines.append(f"- [{entry_id}] [{phase_text}] {title} (tags: {tags_text}, score={score:.3f})\n  ```text\n{content}\n  ```")
+                    lines.append(
+                        f"- [{entry_id}] [{phase_text}] {title} (tags: {tags_text}, score={score:.3f}, lexical={lexical_score:.3f}, vector={vector_score:.3f})\n"
+                        f"  ```text\n{content}\n  ```"
+                    )
                 message = "\n".join(lines)
             else:
                 message = "No design knowledge entries found."

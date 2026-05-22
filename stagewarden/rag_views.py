@@ -21,7 +21,7 @@ def _try_load_design_rag(config: AgentConfig) -> tuple[DesignRag | None, str]:
         return None, f"Unable to load design knowledge store: {exc}"
 
 
-def _rag_entry_report(entry: RagEntry, *, score: float | None = None) -> dict[str, Any]:
+def _rag_entry_report(entry: RagEntry, *, score: float | None = None, diagnostics: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
         "entry_id": entry.entry_id,
         "phase": entry.phase,
@@ -32,6 +32,7 @@ def _rag_entry_report(entry: RagEntry, *, score: float | None = None) -> dict[st
         "created_at": entry.created_at,
         "updated_at": entry.updated_at,
         "score": score,
+        "diagnostics": diagnostics,
     }
 
 
@@ -91,14 +92,25 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         query = " ".join(query_parts).strip()
         if not query:
             return {"command": task, "ok": False, "error": _rag_usage()}
-        scored_results = rag.search_scored(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)
+        diagnostic_results = rag.search_diagnostics(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)
         return {
             "command": task,
             "ok": True,
             "query": query,
             "mode": mode,
             "min_score": min_score,
-            "entries": [_rag_entry_report(entry, score=score) for entry, score in scored_results],
+            "entries": [
+                _rag_entry_report(
+                    item["entry"],
+                    score=float(item.get("score", 0.0)),
+                    diagnostics={
+                        "mode": item.get("mode"),
+                        "lexical_score": float(item.get("lexical_score", 0.0)),
+                        "vector_score": float(item.get("vector_score", 0.0)),
+                    },
+                )
+                for item in diagnostic_results
+            ],
         }
     if task.startswith("rag add "):
         fields = _parse_key_value_fields(parts[2:])
