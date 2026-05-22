@@ -149,7 +149,7 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
     "git_show": {"tool": "git", "required": [], "optional": ["revision", "stat"], "mutates": False},
     "git_file_history": {"tool": "git", "required": ["path"], "optional": ["limit"], "mutates": False},
     "git_commit": {"tool": "git", "required": ["message"], "optional": [], "mutates": True},
-    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "tags", "limit", "mode", "min_score"], "mutates": False},
+    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "role", "tags", "limit", "mode", "min_score"], "mutates": False},
     "rag_add": {"tool": "rag", "required": ["phase", "title", "content"], "optional": ["tags", "metadata"], "mutates": True},
     "rag_update": {"tool": "rag", "required": ["entry_id"], "optional": ["phase", "tags", "title", "content", "metadata"], "mutates": True},
     "rag_remove": {"tool": "rag", "required": ["entry_id"], "optional": [], "mutates": True},
@@ -504,7 +504,7 @@ class Executor:
             )
         usage_metadata = self._extract_usage_metadata(parsed.get("payload", {}))
         action_type = action.get("type", "").strip()
-        observation = self._run_action(action, iteration=iteration, step_id=step.id)
+        observation = self._run_action(action, iteration=iteration, step_id=step.id, prince2_role=prince2_role)
         if devil_advocate.get("ok"):
             observation["message"] = f"{observation['message']}\n{review_header}"
         ok = observation["ok"]
@@ -1620,7 +1620,14 @@ class Executor:
             start = text.find("{", start + 1)
         return None
 
-    def _run_action(self, action: dict[str, Any], *, iteration: int = 0, step_id: str = "") -> dict[str, Any]:
+    def _run_action(
+        self,
+        action: dict[str, Any],
+        *,
+        iteration: int = 0,
+        step_id: str = "",
+        prince2_role: str | None = None,
+    ) -> dict[str, Any]:
         action_type = action.get("type")
         if action_type == "shell":
             command = str(action.get("command", ""))
@@ -2040,6 +2047,7 @@ class Executor:
         if action_type == "rag_search":
             query = str(action.get("query", ""))
             phase = action.get("phase")
+            role = action.get("role")
             tags = action.get("tags")
             try:
                 limit = max(1, int(action.get("limit", 5)))
@@ -2062,8 +2070,9 @@ class Executor:
             if isinstance(tags, str):
                 tags = [t.strip() for t in tags.split(",") if t.strip()]
             phase_text = str(phase) if phase else None
-            effective_min_score = resolve_min_score_policy(phase=phase_text, mode=mode, override=min_score)
-            diagnostic_results = self.rag.search_diagnostics(query, phase=phase_text, tags=tags, limit=limit, mode=mode, min_score=min_score)
+            role_text = str(role) if role else (str(prince2_role) if prince2_role else None)
+            effective_min_score = resolve_min_score_policy(phase=phase_text, role=role_text, mode=mode, override=min_score)
+            diagnostic_results = self.rag.search_diagnostics(query, phase=phase_text, role=role_text, tags=tags, limit=limit, mode=mode, min_score=min_score)
             if diagnostic_results:
                 lines = ["Design knowledge search results (untrusted reference data):"]
                 for item in diagnostic_results:

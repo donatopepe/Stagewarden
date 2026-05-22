@@ -83,7 +83,7 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
     "git_file_history": {"tool": "git", "required": ["path"], "optional": ["limit"], "mutates": False},
     "git_commit": {"tool": "git", "required": ["message"], "optional": [], "mutates": True},
     "complete": {"tool": "agent", "required": ["message"], "optional": [], "mutates": False},
-    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "tags", "limit", "mode", "min_score"], "mutates": False},
+    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "role", "tags", "limit", "mode", "min_score"], "mutates": False},
     "rag_add": {"tool": "rag", "required": ["phase", "title", "content"], "optional": ["tags", "metadata"], "mutates": True},
     "rag_update": {"tool": "rag", "required": ["entry_id"], "optional": ["phase", "tags", "title", "content", "metadata"], "mutates": True},
     "rag_remove": {"tool": "rag", "required": ["entry_id"], "optional": [], "mutates": True},
