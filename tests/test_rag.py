@@ -14,6 +14,7 @@ from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.planner import PlanStep
 from stagewarden.rag import DesignRag
+from stagewarden.rag_benchmark import run_rag_benchmark
 from stagewarden.rag_views import rag_command_report, render_rag_report
 from stagewarden.router import ModelRouter
 from stagewarden.shell_views import run_interactive_shell
@@ -51,6 +52,20 @@ def run_main_capture(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 class RagTests(unittest.TestCase):
+    def test_rag_benchmark_snapshot_contract_is_deterministic(self) -> None:
+        first = run_rag_benchmark()
+        second = run_rag_benchmark()
+        self.assertEqual(first, second)
+        self.assertEqual(first["command"], "rag benchmark")
+        self.assertEqual(first["version"], 1)
+        self.assertEqual(first["case_count"], 4)
+        self.assertEqual([item["mode"] for item in first["modes"]], ["lexical", "vector", "hybrid"])
+        for mode_payload in first["modes"]:
+            self.assertIn("metrics", mode_payload)
+            self.assertIn("recall@1", mode_payload["metrics"])
+            self.assertIn("recall@3", mode_payload["metrics"])
+            self.assertEqual(len(mode_payload["cases"]), 4)
+
     def test_design_rag_search_and_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / ".stagewarden_rag.json"

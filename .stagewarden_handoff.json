@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "RAG v3.3 compaction policy modes completed: strict/balanced/aggressive dedupe paths are now supported in core and CLI, with focused regression coverage green (tests.test_rag = 11 OK).",
+  "latest_observation": "RAG v3.4 started: deterministic retrieval benchmark harness added with fixed corpus/cases and recall@1/recall@3 metrics across lexical/vector/hybrid modes. Snapshot-contract test is green (tests.test_rag = 12 OK).",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "26f53f4ef419e1b22aade0b0cc9b7704cedd2428",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-22T21:50:00Z",
+  "updated_at": "2026-05-22T22:10:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",
