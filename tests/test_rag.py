@@ -340,6 +340,11 @@ class RagTests(unittest.TestCase):
             if threshold_report["entries"]:
                 self.assertIn("diagnostics", threshold_report["entries"][0])
 
+            benchmark_report = rag_command_report("rag benchmark", config)
+            self.assertTrue(benchmark_report["ok"])
+            self.assertEqual(benchmark_report["command"], "rag benchmark")
+            self.assertEqual(benchmark_report["version"], 1)
+
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
             self.assertEqual(rag_command_report("rag list", config)["entries"], [])
@@ -352,6 +357,11 @@ class RagTests(unittest.TestCase):
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["schema"]["name"], "stagewarden.rag")
             self.assertEqual(payload["entry"]["title"], "API Boundary")
+
+            benchmark = run_main_capture(root, "--json", "rag", "benchmark")
+            self.assertEqual(benchmark.returncode, 0, benchmark.stderr or benchmark.stdout)
+            benchmark_payload = json.loads(benchmark.stdout)
+            self.assertEqual(benchmark_payload["schema"]["name"], "stagewarden.rag_benchmark")
 
             output = StringIO()
             code = run_interactive_shell(

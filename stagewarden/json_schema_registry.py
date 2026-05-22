@@ -41,6 +41,7 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "question ask": "stagewarden.question_ask",
     "answer": "stagewarden.answer",
     "rag": "stagewarden.rag",
+    "rag benchmark": "stagewarden.rag_benchmark",
     "help": "stagewarden.help",
     "commands": "stagewarden.commands",
     "slash": "stagewarden.slash",
