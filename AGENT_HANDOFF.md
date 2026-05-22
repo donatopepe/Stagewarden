@@ -14,6 +14,9 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
 ## Recent changes
+- `stagewarden/rag_benchmark.py`: added baseline-compare utilities (`compare_rag_benchmark_reports`) and snapshot load/save helpers for retrieval drift gating.
+- `stagewarden/rag_views.py`: `rag benchmark` now supports `baseline=<path>`, `threshold=<float>`, and `write=<path>` for deterministic compare workflows.
+- `tests/test_rag.py`: added regression coverage for benchmark compare behavior and CLI benchmark write/compare path.
 - `stagewarden/rag_views.py` and `stagewarden/cli_dispatch.py`: completed RAG v3.4 CLI wiring with `rag benchmark`, including correct JSON schema routing (`stagewarden.rag_benchmark`).
 - `stagewarden/json_schema_registry.py` and `stagewarden/commands.py`: registered command/schema/catalog entries for `rag benchmark`.
 - `tests/test_rag.py` and `tests/test_json_schema_registry.py`: added CLI/schema coverage for `rag benchmark` end-to-end.
@@ -82,16 +85,16 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
   - Trade-offs: threshold tuning can hide relevant low-score entries if set too high.
 
 ## Next implementation plan
-1. **RAG v3.4 (next substep)**: add optional baseline snapshot compare for retrieval drift gating on top of the new CLI/JSON benchmark surface.
-   - Tests: deterministic compare behavior and threshold-trigger contracts.
-2. **RAG v3.5**: add optional action-level retrieval policy defaults (different `min_score` by phase/role) with safe fallbacks.
+1. **RAG v3.5 (next)**: add optional action-level retrieval policy defaults (different `min_score` by phase/role) with safe fallbacks.
    - Tests: policy resolution correctness and backward compatibility with current defaults.
+2. **RAG v3.6**: add optional benchmark history snapshots and trend summary for retrieval quality over time.
+   - Tests: snapshot append/read contract and deterministic trend aggregation.
 
 ## Open issues
 - Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 12 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). v3.4 CLI/schema checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 14 OK).
+- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 13 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). v3.4 CLI/schema checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 14 OK).
 
 ## Next steps
 1. No immediate follow-up is pending for the completed RAG/trace-regression slice.

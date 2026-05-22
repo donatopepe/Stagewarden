@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
 from .rag import DesignRag
 
@@ -86,3 +89,58 @@ def run_rag_benchmark() -> dict[str, Any]:
         "case_count": len(_cases()),
         "modes": [_mode_metrics(rag, mode) for mode in modes],
     }
+
+
+def _mode_metrics_map(report: dict[str, Any]) -> dict[str, dict[str, float]]:
+    mapping: dict[str, dict[str, float]] = {}
+    modes = report.get("modes", [])
+    if not isinstance(modes, list):
+        return mapping
+    for item in modes:
+        if not isinstance(item, dict):
+            continue
+        mode = str(item.get("mode", ""))
+        metrics = item.get("metrics", {}) if isinstance(item.get("metrics"), dict) else {}
+        mapping[mode] = {
+            "recall@1": float(metrics.get("recall@1", 0.0)),
+            "recall@3": float(metrics.get("recall@3", 0.0)),
+        }
+    return mapping
+
+
+def compare_rag_benchmark_reports(baseline: dict[str, Any], current: dict[str, Any], *, threshold: float = 0.05) -> dict[str, Any]:
+    baseline_map = _mode_metrics_map(baseline)
+    current_map = _mode_metrics_map(current)
+    regressions: list[dict[str, Any]] = []
+    for mode, baseline_metrics in baseline_map.items():
+        current_metrics = current_map.get(mode, {})
+        for metric_name, baseline_value in baseline_metrics.items():
+            current_value = float(current_metrics.get(metric_name, 0.0))
+            delta = current_value - baseline_value
+            if delta < -abs(threshold):
+                regressions.append(
+                    {
+                        "mode": mode,
+                        "metric": metric_name,
+                        "baseline": baseline_value,
+                        "current": current_value,
+                        "delta": delta,
+                    }
+                )
+    return {
+        "threshold": float(threshold),
+        "regressions": regressions,
+        "passed": not regressions,
+    }
+
+
+def save_rag_benchmark_snapshot(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_utf8(path, dumps_ascii(report, indent=2))
+
+
+def load_rag_benchmark_snapshot(path: Path) -> dict[str, Any]:
+    payload = loads_text(read_text_utf8(path))
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid RAG benchmark snapshot payload.")
+    return payload
