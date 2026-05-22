@@ -1,2075 +1,292 @@
-# Stagewarden Handoff
-
-Author: Donato Pepe
-
-License: MIT
-
-Last updated: 2026-04-24
-
-## Purpose
-
-This file is the human-readable project handoff for Stagewarden. It complements the runtime `.stagewarden_handoff.json` file and must stay updated with implementation decisions, pending work, recovery lanes, validation evidence, and Codex/Claude-inspired behaviours to reproduce.
-
-The working rule is PRINCE2-style controlled execution:
-
-- plan work as explicit stages
-- execute only stages that are `ready` or `in_progress`
-- persist handoff context continuously
-- record git boundaries
-- require wet-run validation
-- create recovery lanes for exception paths
-- keep model handoff context available without requiring manual resume
-- adapt governance to task size and risk: small work stays lightweight, complex work gets stronger controls
-- reduce ceremony, never principles
-- communication and traceability rule: the AI agent must inform the user of every action it is about to perform, every material action it performs, and every relevant result; each action must also be recorded in handoff/log context with enough evidence to reconstruct what happened
-- no silent action rule: shell commands, file edits, model handoffs, role-tree changes, git snapshots, web/download/compression operations, approvals, force overrides, and recovery actions must never be invisible to the user or absent from handoff
-- model roles are not limited to a flat one-role/one-model map: PRINCE2 organization can be hierarchical, delegated, combined, or split by domain while preserving accountability
-- role-tree runtime rule: approved PRINCE2 nodes must eventually run as active concurrent actors, not passive assignments; each node must own scoped context, local state, inbox/outbox communication, waiting/resume behavior, and auditable message exchange with other nodes
-- clarification gate: for every user request, Stagewarden must identify all ambiguous points and ask every necessary clarification before execution starts; work may begin only after no material ambiguity remains or the user explicitly authorizes assumptions
-- clarification gate must stay proportional: simple unambiguous requests can proceed immediately, but any uncertainty about scope, files, provider/model/account, permissions, destructive effects, external network use, expected output, validation/wet-run, git/push boundary, or PRINCE2 role ownership must be resolved first
-- user-experience baseline is Codex CLI plus Claude Code: command feel, shell flow, status surfaces, transcript visibility, auth flow, model/provider selection, and conversational shell ergonomics must be learned from the locally cloned sources and reproduced in Stagewarden where compatible with project goals
-- simulation-and-test completeness rule: for every implemented or modified agent function, Stagewarden must add the broadest practical combination of simulations, targeted tests, integration tests, and wet-run evidence; if support capabilities are missing, Stagewarden must implement those too instead of settling for shallow validation
-
-## Current Baseline
-
-- Repository: `https://github.com/donatopepe/Stagewarden`
-- Main package: `stagewarden`
-- Runtime CLI: `stagewarden`
-- Runtime handoff: `.stagewarden_handoff.json`
-- Human handoff: `HANDOFF.md`
-- Runtime model config: `.stagewarden_models.json`
-- Runtime permission config: `.stagewarden_settings.json`
-- Runtime trace: `.stagewarden_trace.ljson`
-- Runtime PRINCE2 PID: `.stagewarden_prince2_pid.json`
-- Agent manifesto: `AGENT_MANIFESTO.md`
-- Agent policy: `AGENT_POLICY.md`
-- Machine-readable policy: `AGENT_POLICY.json`
-- Local-only Codex resume helpers: `codex-resume.command` and `codex-resume.bat`
-
-Latest known baseline at the time of this handoff:
-
-- Local implementation snapshot: `9b0861d chore: ignore codex resume bat`
-- Last confirmed pushed baseline before this pass: `9b0861d chore: ignore codex resume bat`
-
-## Current Implementation Pass
-
-Status: pushed, continuing with incremental blocks
-
-Implemented in this pass:
-
-- Added local Codex resume helper files for the active conversation:
-- `codex-resume.command`
-- `codex-resume.bat`
-- Both contain `codex resume 019da0a4-552a-76b0-9cc9-b690a91cb34c`.
-- Both files are intentionally ignored by git; only `.gitignore` rules were committed.
-- Pushed commits:
-- `f2d924e chore: ignore codex resume command`
-- `9b0861d chore: ignore codex resume bat`
-- Persisted structured provider limit snapshots in `.stagewarden_models.json`.
-- Added model-level and account-level limit snapshots with sanitized fields only.
-- Captured limit metadata automatically when executor sees provider block messages.
-- Exposed persisted limit metadata through `status --full --json`.
-- Exposed compact reset/usage fields through `statusline --json`.
-- Kept provider status read-only commands free from model calls and token output.
-
-Stored limit snapshot fields:
-
-- `status`
-- `reason`
-- `blocked_until`
-- `primary_window`
-- `secondary_window`
-- `credits`
-- `rate_limit_type`
-- `utilization`
-- `overage_status`
-- `overage_resets_at`
-- `overage_disabled_reason`
-- `stale`
-- `captured_at`
-- `raw_message`
-
-Validation evidence:
-
-- `python3 -m unittest tests/test_persistence.py tests/test_executor.py tests/test_trace_cli.py` passed, 108 tests.
-- `python3 -m unittest discover -s tests` passed, 203 tests.
-- `python3 -m stagewarden.main status --full --json` passed as wet-run.
-- `python3 -m stagewarden.main statusline --json` passed as wet-run.
-
-Follow-up implemented after this pass:
-
-- Added `model limits` and `models limits` interactive/CLI commands.
-- Added `stagewarden "model limits" --json` machine-readable output.
-- Added concise human rendering for provider/account limit state.
-- Updated interactive help and README examples.
-- Added stale detection for provider limit snapshots based on `captured_at`.
-- Added `model limit-record <model> <message>` to persist pasted provider limit messages safely.
-- Added `account limit-record <model> <account> <message>` for account-specific provider limits.
-- Added `model limit-clear <model>` and `account limit-clear <model> <account>` to remove stored limit snapshots, messages, and temporary blocks.
-- Switched `account login chatgpt <profile>` to a Codex-style browser flow backed by `codex login`.
-- Switched `account logout chatgpt <profile>` to Codex-backed logout plus local profile marker cleanup.
-- Corrected CLI/status terminology: provider and provider-model are now rendered separately.
-- Added explicit `provider_model` and `provider_model_selection` fields to model/status JSON reports.
-- Route rendering now shows `provider=...` and `provider_model=...` instead of conflating provider with model.
-- Added provider-model catalog metadata with supported `reasoning_effort` values.
-- Added persisted provider-model params per provider, currently including `reasoning_effort`.
-- Added CLI commands `model params`, `model param set`, and `model param clear`.
-
-Additional validation evidence:
-
-- `python3 -m unittest tests/test_trace_cli.py` passed, 78 tests.
-- `python3 -m stagewarden.main "model limits" --json` passed as wet-run.
-- `python3 -m stagewarden.main "model limits"` passed as wet-run.
-- `python3 -m unittest discover -s tests` passed, 204 tests.
-- Stale detection validation passed through `test_model_limits_cli_json_outputs_persisted_snapshots`.
-- `python3 -m stagewarden.main "model limit-record chatgpt Usage limit reached until 2026-05-01T18:30." --json` passed as wet-run.
-- `python3 -m stagewarden.main "model limit-clear chatgpt" --json` passed as wet-run and restored local provider availability.
-- `python3 -m unittest discover -s tests` passed, 206 tests.
-- `python3 -m unittest tests/test_auth.py tests/test_trace_cli.py` passed, 84 tests after browser-login migration.
-- `python3 -m unittest discover -s tests` passed, 209 tests after browser-login migration.
-- Interactive wet-run with stubbed `codex` backend confirmed `account login chatgpt personale` updates the active profile and stores a sanitized Codex marker.
-- `python3 -m stagewarden.main models --json` passed as wet-run and now exposes `preferred_provider`, `provider_model`, and `provider_model_selection`.
-- `python3 -m stagewarden.main statusline --json` passed as wet-run and now exposes active provider/provider-model separately.
-- `python3 -m stagewarden.main "model list chatgpt"` passed as wet-run and renders the provider-model catalog plus supported reasoning levels.
-- `python3 -m stagewarden.main "model variant chatgpt gpt-5.3-codex"` + `model param set chatgpt reasoning_effort high` + `model params chatgpt` passed as wet-run.
-- Interactive guided model selection has been added through `model choose [provider]`, with menu-driven provider, provider-model, and reasoning-effort selection.
-- Guided menus now also cover `model preset <provider>` and `account choose [provider]` inside the interactive shell.
-- `python3 -m unittest tests/test_trace_cli.py` passed, 86 tests.
-- `python3 -m unittest discover -s tests` passed, 214 tests.
-- Interactive wet-run passed with `model choose chatgpt`, selecting `gpt-5.4` plus `reasoning_effort=medium`, and `models` then showed the persisted provider-model state.
-- `python3 -m unittest tests/test_trace_cli.py` passed again, 88 tests, after adding guided preset/account menus.
-- `python3 -m unittest discover -s tests` passed again, 216 tests, after adding guided preset/account menus.
-- Interactive wet-run passed with `model preset chatgpt`, selecting `balanced`, and `model params chatgpt` then showed `provider_model=gpt-5.1-codex-mini` plus `reasoning_effort=medium`.
-- Interactive wet-run passed with `account choose openai`, selecting `personale`, and `accounts` then showed the active profile change.
-- `model preset <provider>` without an explicit preset value now opens the provider-model picker instead of the preset picker.
-- Interactive wet-run passed with `model preset chatgpt`, selecting `gpt-5.4`, and `model params chatgpt` then showed `provider_model=gpt-5.4` plus `reasoning_effort=medium`.
-- Interactive shell commands now require the `/` prefix in the real shell; input without `/` is treated as a task for the agent loop.
-- Test harness compatibility was preserved for scripted `StringIO` command inputs so the shell command suite remains verifiable without changing task semantics.
-- `python3 -m unittest tests/test_trace_cli.py` passed again, 88 tests, after slash-command routing.
-- `python3 -m unittest discover -s tests` passed again, 216 tests, after slash-command routing.
-- Interactive wet-run passed with bare `status`, which was treated as a task and rejected by governance as expected.
-- Interactive wet-run passed with `/status`, which was treated as a shell command and rendered the status dashboard.
-- `study/` remains developer-only learning material and is not exposed in agent prompts, status, doctor output, or runtime behavior.
-- PRINCE2 role routing is implemented as an initial flat baseline: `/roles`, `/roles propose`, `/roles setup`, `/role configure [role]`, `/role clear <role>`, and `/project start`.
-- Important correction: this flat baseline is not the final PRINCE2 organization model. Stagewarden must evolve to support role trees, delegated roles, many model assignments per role node, and context scoped by responsibility/domain.
-- Role assignments persist provider, provider-model, reasoning parameters, account, mode, and source in `.stagewarden_models.json`.
-- Project handoff now synchronizes PRINCE2 role assignments so model calls receive implicit role ownership context without a manual resume.
-- Provider rate-limit recovery now records blocked-until metadata, switches automatically to an available provider/account, and asks the user whether to wait/stop when no alternative exists.
-- `python3 -m unittest tests/test_trace_cli.py` passed, 91 tests, after role routing and `study/` runtime removal.
-- `python3 -m unittest tests/test_persistence.py` passed, 7 tests, after role/handoff persistence.
-- `python3 -m unittest tests/test_executor.py` passed, 25 tests, after rate-limit recovery decision support.
-- `python3 -m unittest discover -s tests` passed, 220 tests, after role routing and rate-limit recovery.
-- `status` now includes a PRINCE2 role baseline section and explicitly suggests `/project start` or `/roles setup` when role ownership is missing.
-- Wet-run `python3 -m stagewarden.main status` confirmed the missing-role operational hint in the real workspace.
-- `python3 -m unittest tests/test_trace_cli.py` passed, 91 tests, after the status role-baseline section.
-- `python3 -m unittest discover -s tests` passed, 220 tests, after the status role-baseline section.
-- PRINCE2 role automation now routes execution by role domain: Project Manager for planning/control, Team Manager for implementation, Project Assurance for validation, Change Authority for exceptions/changes/tolerance breaches, Project Executive for business stop-go, Senior User for acceptance/benefits, Senior Supplier for technical feasibility, and Project Support for records/traceability.
-- Role-assigned models now receive scoped context only: unrelated risks/issues/exception plans/logs are omitted unless the active PRINCE2 role owns that domain.
-- Executor tests verify Team Manager routing uses the configured provider/model/params and does not expose business risk or exception-plan content outside the Team Manager domain.
-- `roles domains` now renders each PRINCE2 role responsibility and context boundary so model assignments can be reviewed before project startup.
-- `roles domains --json` now exposes the same role-domain matrix with stable fields: command, rule, roles, role, label, responsibility, and context_scope.
-- Wet-run `python3 -m stagewarden.main "roles domains"` passed and shows all role domains.
-- Wet-run `python3 -m stagewarden.main "roles domains" --json` passed and emits the machine-readable role-domain matrix.
-- `python3 -m unittest tests/test_executor.py tests/test_trace_cli.py` passed, 119 tests, after role-domain CLI support.
-- `python3 -m unittest tests/test_trace_cli.py` passed, 93 tests, after role-domain JSON support.
-- `python3 -m unittest discover -s tests` passed, 223 tests, after role-domain CLI support.
-- `sources status` is implemented as a read-only external reference verifier for `docs/source_references.md`.
-- `sources status` reports local path presence, Git repository state, HEAD, upstream URL match with `.git` suffix normalization, and shallow-clone state.
-- Wet-runs `python3 -m stagewarden.main "sources status"` and `python3 -m stagewarden.main "sources status" --json` passed in the real workspace and reported Caveman, Codex, and Claude references as OK.
-- `python3 -m unittest tests/test_trace_cli.py` passed, 92 tests, after the sources status command.
-- `python3 -m unittest discover -s tests` passed, 221 tests, after the sources status command.
-- Command discovery Phase 1 started: `stagewarden.commands` now provides a structured registry with command name, group, description, usage, aliases, interactive support, JSON support, and handler family.
-- `commands` now renders a human command catalog from the registry.
-- `commands --json` now emits a machine-readable command catalog for future slash palette/menu integration.
-- Interactive slash completion now uses registry phrases as its first source before legacy compatibility phrases.
-- Help topics for models, accounts, permissions, handoff/PRINCE2, and git now render command rows from the registry while preserving examples.
-- Registry-backed help preserves command aliases such as `handoff export | handoff md`, `resume | resume context | resume --show`, and provider-specific login hints.
-- Wet-run `python3 -m stagewarden.main commands` passed in the real workspace.
-- Wet-run `python3 -m stagewarden.main commands --json` passed in the real workspace.
-- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands` passed after command catalog implementation.
-- Wet-run `printf '/help accounts\n/help handoff\n/exit\n' | python3 -m stagewarden.main` passed and confirmed slash-command routing with registry-backed help.
-- `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_supports_category_help tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json` passed after registry-backed help.
-- Agent-to-model communication has started migrating from flat prompt concatenation to a structured turn packet in the executor.
-- The packet now separates thread start identity, turn context, model context files, handoff summary, stage view, PRINCE2 role automation, scoped registers, typed transcript items, and execution contract.
-- Typed transcript items currently include `handoff_log`, `execution_log`, and `tool_transcript`, inspired by Codex thread items and Claude transcript/resume behaviour.
-- The renderer remains deterministic plain text for backend compatibility, but the executor no longer builds the prompt as one unstructured block.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/executor.py tests/test_executor.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 27 tests, after structured turn packet adoption.
-- Status and resume UX have been upgraded with a shared operational focus snapshot inspired by Codex/Claude status surfaces.
-- `status`, `status --full`, `resume --show`, and `resume context` now expose the active route, current step, next action, boundary decision, latest evidence, and active provider-limit state in a more action-oriented form.
-- JSON reports now carry a `focus` or `active_route` section so downstream tools and future slash/status widgets can reuse the same snapshot without reparsing prose.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 104 tests, after status/resume focus snapshot adoption.
-- Slash UX has started converging toward Codex/Claude discoverability: a new `/slash [prefix]` command renders a readable slash-command palette with descriptions instead of requiring Tab completion only.
-- The slash palette is driven by the structured command registry, so future completion, palette, and help surfaces can share one command source of truth.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 105 tests, after slash palette adoption.
-- Interactive slash completion now has contextual value suggestions for providers, roles, shell backends, and configured account names, instead of only flat prefix matching.
-- Completion ranking now prefers exact/prefix matches and useful contextual expansions, moving Stagewarden closer to Codex/Claude guided slash UX.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after contextual slash completion adoption.
-- `/slash` now also renders lightweight operational hints from the current workspace state: enabled providers, active accounts, blocked providers, and command-specific hint summaries where relevant.
-- This keeps slash discovery aligned with Codex/Claude-style operator feedback: command discovery plus current runtime context in one surface.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after slash operational hint adoption.
-- Slash completion and palette now expose second-level model guidance: `provider_model` candidates for `model variant` and `reasoning_effort` candidates for `model param set`.
-- This brings model selection closer to Codex/Claude guided UX by surfacing valid next choices directly from the provider-model catalog.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after provider-model and reasoning-effort suggestion adoption.
-- Guided menus now render current selection context before choices: enabled providers, preferred provider, active accounts, blocked providers, selected provider, current provider-model, current reasoning effort, and configured accounts.
-- `role configure` now also renders the PRINCE2 role responsibility and context scope before asking for provider/model/account, making role assignment decisions explicit and auditable.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 106 tests, after guided menu context adoption.
-- Slash palette now has a reusable JSON report (`slash [prefix] --json`) exposing prefix, workspace context, command entries, aliases, JSON support, handler, and operational hints.
-- Text `/slash` rendering is now generated from the same report used by JSON output, avoiding divergence between operator UX and automation surfaces.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after slash palette JSON report adoption.
-- Documentation parity updated for the Codex/Claude-style UX work.
-- `README.md` now links to Italian documentation and documents `/slash`, slash JSON output, contextual completion, guided menu context, and `role configure` role-scope visibility.
-- Added `README_IT.md` with Italian setup, shell usage, slash UX, model/provider commands, PRINCE2 handoff behaviour, validation rules, JSON examples, and credits.
-- Validation 2026-04-22: `python3 -m stagewarden.main "slash mo" --json` passed as a wet-run after documentation update.
-- Phase B mini-block started: PRINCE2 role-tree baseline can now be approved and persisted.
-- `project start`, `roles propose`, and `roles setup` now persist an approved role-tree baseline after applying role assignments.
-- Added `roles tree approve` to approve the current PRINCE2 role tree explicitly.
-- Added `roles baseline` and `roles baseline --json` to inspect the persisted baseline.
-- The baseline stores tree, authorized flow, readiness check, matrix, approval timestamp, source, status, and version in `.stagewarden_models.json`.
-- `.stagewarden_handoff.json` now syncs the same role-tree baseline so future role-routed handoffs have an implicit governance tree without manual resume.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/modelprefs.py stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_project_start_applies_role_baseline` passed.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline"` passed and rendered the missing-baseline guidance.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles tree approve" --json` passed and persisted the baseline in the real workspace.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 250 tests, after role-tree baseline persistence.
-- Phase B mini-block continued: executor now reads the approved role-tree baseline before falling back to the flat role map.
-- Role-routed prompts now include active node id, parent node, level, accountability boundary, delegated authority, context include rules, and context exclude rules from the approved baseline.
-- Baseline node assignment can route provider/provider-model/params even when the flat `prince2_roles` map is absent, preserving implicit PRINCE2 governance handoff.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/executor.py tests/test_executor.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_prefers_approved_role_tree_baseline_assignment_and_context tests.test_executor.ExecutorTests.test_executor_routes_step_through_configured_prince2_role` passed.
-- Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 28 tests.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 251 tests, after executor baseline-node routing.
-- Phase B mini-block continued: added scriptable delegated role-tree node management.
-- `role add-child <parent_node> <role_type> [node_id]` adds a delegated/subordinate node to the approved baseline, inheriting PRINCE2 context rules from the selected role type while preserving parent accountability.
-- `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns a provider-model, params, and optional account to a specific baseline node.
-- Baseline checks and matrix can now be recomputed from an arbitrary baseline tree payload, not only from the static flat PRINCE2 layout.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/role_tree.py stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline` passed.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "role add-child management.project_manager team_manager delivery.docs_team_20260422"` passed in the real workspace.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "role assign delivery.docs_team_20260422 local provider-default"` passed in the real workspace.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline" --json` passed and showed the delegated node with assigned local provider.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 252 tests, after delegated node management.
-- Phase B mini-block continued: executor now selects a delegated baseline node when task/step text explicitly mentions the node id.
-- This allows multiple nodes with the same PRINCE2 role type, such as several Team Manager sub-teams, while preserving each node's provider-model assignment and context boundary.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/executor.py tests/test_executor.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_selects_delegated_node_when_step_mentions_node_id tests.test_executor.ExecutorTests.test_executor_prefers_approved_role_tree_baseline_assignment_and_context` passed.
-- Validation 2026-04-22: `python3 -m unittest tests/test_executor.py` passed, 29 tests.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 253 tests, after delegated node selection.
-- Phase B mini-block continued: `role add-child` and `role assign` now open guided menus when called without arguments.
-- Guided node creation shows the PRINCE2 delegated-node rule, lets the user choose a parent node, choose a role type, and optionally enter a node id.
-- Guided node assignment shows the no-context-widening rule, lets the user choose a specific node, provider, provider-model, reasoning effort, and account.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline` passed.
-- Wet-run note 2026-04-22: unprefixed interactive inputs were correctly treated as natural-language tasks and rejected by the PRINCE2 gate, confirming command/context separation.
-- Wet-run 2026-04-22: prefixed interactive flow `/roles propose`, `/role add-child`, `/role assign`, `/roles baseline`, `/exit` passed in the real workspace.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 254 tests, after guided delegated node menus.
-- Phase B mini-block continued: role-tree node assignment now supports `pool=primary`, `pool=reviewer`, and `pool=fallback`.
-- `pool=primary` preserves the existing node `assignment`; `pool=reviewer` and `pool=fallback` append routes under `assignment_pool` without changing node context.
-- Executor now uses a same-node fallback route when the primary provider is blocked or inactive, preserving PRINCE2 context boundaries.
-- Role baseline matrix payload now exposes `reviewer_routes` and `fallback_routes`; note that top-level `roles matrix` still renders the static role layout and a future baseline matrix view should be added.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/executor.py stagewarden/role_tree.py stagewarden/commands.py tests/test_trace_cli.py tests/test_executor.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_role_assign_supports_reviewer_and_fallback_pools tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_executor.ExecutorTests.test_executor_uses_node_fallback_pool_when_primary_provider_blocked` passed.
-- Wet-run 2026-04-22: CLI `role add-child` plus three `role assign` calls with `pool=primary`, `pool=reviewer`, and `pool=fallback` passed in the real workspace.
-- Wet-run 2026-04-22: `roles baseline --json` showed reviewer and fallback routes for `delivery.pool_team_20260422`.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 256 tests, after role node route pools.
-- Phase B mini-block continued: added `roles baseline matrix` and `roles baseline matrix --json` to expose the approved baseline matrix directly, without opening the full baseline payload.
-- This closes the visibility gap for delegated nodes and reviewer/fallback pools while keeping `roles matrix` backward-compatible as the static layout view.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_baseline_matrix_shows_delegated_nodes_and_route_pools` passed.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "roles baseline matrix" --json` passed in the real workspace and exposed delegated nodes plus route pools directly.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 257 tests, after baseline matrix command addition.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 107 tests, after documentation parity update.
-- Phase B mini-block continued: added `project design` and `project design --json` as the explicit pre-design packet for future AI-assisted PRINCE2 tree construction.
-- `project design` now exposes two mandatory prompt inputs before any AI organization-tree proposal is accepted: `agent_capability_specification` and `project_specification`.
-- The report also surfaces `clarification_gaps`, so missing task/governance/runtime context is visible before a model designs or re-baselines the role tree.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests/test_trace_cli.py` passed, 113 tests, after project-design packet adoption.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "project design"` passed in the real workspace.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "project design" --json` passed in the real workspace.
-- Phase B mini-block continued: `project start` now renders the `project design` packet before applying the automatic PRINCE2 role baseline.
-- If `project design` still contains clarification gaps, `project start` now marks the startup baseline as provisional instead of silently hiding the gap.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_start_applies_role_baseline tests.test_trace_cli.TraceAndCliTests.test_project_design_report_exposes_capability_spec_project_spec_and_gaps` passed.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "project start"` passed in the real workspace and rendered the design packet before the approved baseline.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "project start" --json` passed in the real workspace.
-- Phase B mini-block continued: added structured `project brief` persistence inside `.stagewarden_handoff.json`.
-- `project brief`, `project brief set <field> <value>`, and `project brief clear [field]` now manage the explicit project-specification fields that future AI-assisted tree design must consume.
-- `project design` now embeds the persisted brief under `project_specification.brief` and turns missing key brief fields into explicit clarification gaps.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-22: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_design_report_exposes_capability_spec_project_spec_and_gaps tests.test_trace_cli.TraceAndCliTests.test_project_brief_commands_persist_and_feed_project_design` passed.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "project brief set objective Build a proportional PRINCE2 role tree"` passed in the real workspace.
-- Wet-run 2026-04-22: `python3 -m stagewarden.main "project brief"` and `python3 -m stagewarden.main "project brief" --json` passed in the real workspace.
-- Validation 2026-04-22: `python3 -m unittest discover -s tests` passed, 259 tests, after project-brief adoption.
-- Phase B mini-block continued: added `project tree propose` and `project tree propose --json`.
-- The proposal uses the structured project brief plus local proportional PRINCE2 rules to add delegated nodes only when justified by the brief.
-- The proposal is review-only: it does not persist the role-tree baseline and explicitly requires user/Project Board approval before persistence.
-- Current local rules can propose delegated implementation, validation assurance, user acceptance, and model-routing change-authority nodes.
-- Validation 2026-04-23: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-23: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_tree_propose_builds_proportional_review_proposal_from_brief tests.test_trace_cli.TraceAndCliTests.test_project_tree_propose_reports_missing_brief_gaps` passed.
-- Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree propose"` passed in the real workspace and reported missing brief fields as clarification gaps.
-- Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree propose" --json` passed in the real workspace.
-- Phase B mini-block continued: added `project tree approve` and `project tree approve --force`.
-- `project tree approve` blocks when the proportional proposal still has clarification gaps; `--force` persists the baseline with `proposal.forced=true` so the governance exception remains explicit.
-- Approved project-tree baselines preserve proposal metadata: source, assumptions, added nodes, clarification gaps, project brief snapshot, and forced flag.
-- Validation 2026-04-23: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py stagewarden/modelprefs.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-23: targeted project-tree approval tests passed for blocked approval, persisted approval, and proposal generation.
-- Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree approve"` blocked in the real workspace because `scope` and `expected_outputs` are missing.
-- Wet-run 2026-04-23: `python3 -m stagewarden.main "project tree approve --force"` approved and persisted the proposal baseline with `delivery.implementation_team`.
-- Wet-run 2026-04-23: sequential `python3 -m stagewarden.main "roles baseline" --json` confirmed `source=project_tree_approve_force`, 9 nodes, and preserved proposal metadata.
-- Phase B mini-block continued: `project start` now uses the controlled `project design -> project tree propose -> project tree approve` path instead of silently applying the static role baseline.
-- `project start` blocks startup when the project brief/proposal has unresolved clarification gaps and gives explicit next actions.
-- Startup ignores only the expected generative design gaps `missing_role_tree_baseline` and `role_tree_not_ready`, because creating that baseline is the purpose of startup.
-- Validation 2026-04-23: targeted project-start and project-tree approval tests passed.
-- Wet-run 2026-04-23: `python3 -m stagewarden.main "project start"` blocked in the real workspace because `scope` and `expected_outputs` are still missing.
-- Validation 2026-04-23: `python3 -m unittest discover -s tests` passed, 264 tests, after startup gate integration.
-
-Next implementation roadmap:
-
-Roadmap rule:
-
-- Work in grouped implementation blocks, not one-line micro changes. Each group should combine coherent code changes and run one grouped validation pack before commit/push.
-- Mini-blocks are still allowed inside a group for reasoning, but they should not force separate commits when one grouped wet-run can validate the whole feature slice.
-- Each grouped block must add wet-run evidence, unit tests where feasible, handoff notes, and a git boundary.
-- Priority override from the current directive: UX parity with Codex CLI and Claude Code is now the baseline governing principle for all new CLI/shell interaction work.
-- Priority order is governed by operational risk: shell/runtime safety first, then PRINCE2 routing, then network/file artifact tools, then UX polish.
-- UX parity is not postponed to polish only: when a control surface affects prompting, shell conversation, slash commands, status, auth, resume, or model/provider selection, it must be designed against the Codex/Claude baseline during the implementation phase itself.
-- Mandatory transparency: all future implementation blocks must add or preserve user-facing action announcements and durable handoff/log entries for the action path being changed.
-- Technical execution order after regrouping on 2026-04-23:
-- Remaining grouped blocks: 5.
-- Runtime `.stagewarden_handoff.json` currently exposes 6 generic placeholder steps, but the actionable implementation plan is the grouped plan below.
-- `G1` Model communication and provider telemetry: finish structured agent<->model turn packets, provider-limit/credit/window persistence, token/context accounting, safe redaction, rate-limit fallback prompts, and richer status/statusline surfaces.
-- `G1 test pack`: parser unit tests, stale-limit tests, redaction tests, model packet tests, status JSON schema tests, `status --full --json`, `statusline --json`, `auth status chatgpt --json`, `auth status claude --json`, and full unittest suite.
-- `G2` PRINCE2 context-flow enforcement: finish AI proposal schema fields, role-node payload slicing on every flow edge, explicit escalation/context-expansion records, assurance independence checks, and fallback-without-context-widening tests.
-- `G2 test pack`: role-tree/flow/matrix tests, AI proposal stub tests, context-slice tests, executor role routing tests, `project design --json`, `project tree propose --ai`, `project start --ai`, `roles flow --json`, `roles matrix --json`, and full unittest suite.
-- `G2` status: implemented and pushed as `f3bebcd`.
-- `G2` validation: targeted role-flow/context tests passed, `project design --json`, `project tree propose --ai`, controlled-block `project start --ai`, `roles flow --json`, `roles matrix --json`, and `python3 -m unittest discover -s tests` passed with 273 tests.
-- `G3` Governed external IO: implement web search, download, checksum evidence, MIME/size/sandbox controls, compression, archive verification, transcript entries, and handoff action records.
-- `G3 test pack`: local HTTP server wet-run, small-file download, checksum validation, blocked URL/path tests, compression and archive verification wet-run, JSON command tests, transcript/handoff evidence tests, and full unittest suite.
-- `G3` status: implemented locally; pending push boundary.
-- `G3` implementation: added `stagewarden.tools.external_io.ExternalIOTool` with governed HTTP/HTTPS download, SHA-256 checksum, gzip compression, gzip verification, and JSON/HTML web-search parsing.
-- `G3` implementation: added commands `web search`, `download`, `checksum`, `compress`, and `archive verify` to CLI, interactive slash shell, command registry, help topic, transcript, and durable handoff action records.
-- `G3` safety controls: URLs are restricted to HTTP/HTTPS, destination paths must remain inside the workspace, downloads enforce `--max-bytes`, outputs include content type and SHA-256, and failed operations are recorded as controlled external IO errors.
-- `G3` validation: standard sandbox suite passed with `python3 -m unittest discover -s tests`, 277 tests, 3 skips for local HTTP bind unavailable in sandbox.
-- `G3` wet-run: elevated local HTTP server tests passed for real download, checksum, web-search endpoint parsing, transcript evidence, and handoff actions.
-- `G3` wet-run: `python3 -m stagewarden.main "checksum README.md" --json` passed in the real workspace and recorded checksum evidence.
-- `G3` wet-run: interactive `/help external_io` rendered the governed IO help topic.
-- `G4` Source and self-update governance: implement `sources status --strict`, `sources update`, `update status`, `update check --json`, `update apply` with confirmation, rollback boundary, source head tracking, and handoff evidence.
-- `G4 test pack`: temp git repo tests for strict failures and ff-only update states, self-update no-update/update-available parser tests, JSON schema tests, `sources status --strict`, `update status`, and full unittest suite.
-- `G4` partial status: source governance slice implemented locally; self-update commands still pending.
-- `G4` implementation: added `sources status --strict` to fail closed when any local source reference is missing, mismatched, or not a git repository.
-- `G4` implementation: added `sources update` to fast-forward local external source repositories with before/after HEAD evidence and durable `sources_update` handoff action.
-- `G4` validation: temp local Git remote fast-forward test passed for strict status, update, and handoff action evidence.
-- `G4` wet-run: `python3 -m stagewarden.main "sources status --strict" --json` passed in the real workspace and confirmed Caveman, Codex CLI, and Claude Code references are coherent.
-- `G4` validation: `python3 -m unittest discover -s tests` passed with 278 tests and 3 expected sandbox HTTP skips.
-- `G4` status: self-update governance implemented locally; pending push boundary.
-- `G4` implementation: added `update status`, `update check --json`, and `update apply --yes` with branch, HEAD, upstream, ahead/behind, dirty state, and update availability.
-- `G4` safety controls: `update apply` requires explicit `--yes`, performs fetch/check only after confirmation, refuses dirty worktrees, uses `git pull --ff-only`, and records before/after evidence in `update_apply` handoff actions.
-- `G4` validation: temp Git remote tests passed for no-update, update-available, confirmation block, fast-forward apply, and invalid/dirty repository refusal.
-- `G4` wet-run: `python3 -m stagewarden.main "update status" --json` passed in the real workspace; interactive `/update apply` blocked without confirmation as expected.
-- `G4` validation: `python3 -m unittest discover -s tests` passed with 280 tests and 3 expected sandbox HTTP skips.
-- `G5` Codex/Claude-style operator UX and extension architecture: implement slash palette with fuzzy filtering/cursor selection/non-TTY fallback, registry-backed examples/topic metadata, extension layout for commands/roles/skills/hooks/MCP, and bilingual README parity.
-- `G5 test pack`: command registry tests, fuzzy matcher tests, non-TTY slash fallback tests, guided menu tests, scaffolded extension discovery tests without untrusted execution, README/README_IT command parity checks, manual interactive wet-run, and full unittest suite.
-- `G5` partial status: slash palette fuzzy/example discovery implemented locally; extension scaffold and cursor-selection UI still pending.
-- `G5` implementation: command registry entries now support examples, `/slash` uses fuzzy/example matching, JSON palette entries expose examples, and completion falls back to fuzzy query results when direct matches fail.
-- `G5` wet-run: `python3 -m stagewarden.main "slash scarica" --json` found `download`; interactive `/slash upgrade stagewarden` found `update apply`.
-- `G5` validation: targeted slash palette, command catalog, completion, and JSON tests passed.
-- `G5` partial status: safe extension scaffold/discovery implemented locally; cursor-selection UI remains pending.
-- `G5` implementation: added `.stagewarden/extensions/<name>/` scaffold with `commands/`, `roles/`, `skills/`, `hooks/`, `mcp/`, and `extension.json`.
-- `G5` safety controls: extension discovery is read-only and does not execute untrusted extension code; `.stagewarden/` is ignored by git by default.
-- `G5` wet-run: `python3 -m stagewarden.main "extension scaffold local-tools" --json` created a local scaffold; `python3 -m stagewarden.main "extensions" --json` discovered it.
-- `G5` validation: `python3 -m unittest discover -s tests` passed with 283 tests and 3 expected sandbox HTTP skips.
-- `G5` implementation: added `/slash choose [query]` as a portable guided command chooser; it returns the selected command text without executing it, preventing accidental mutating actions.
-- `G5` wet-run: interactive `/slash choose upgrade` selected `/update apply --yes` and did not create an `update_apply` action.
-- `G5` implementation: CLI `stagewarden "slash choose <query>"` now uses chooser semantics too, instead of falling back to raw slash filtering; `--json` returns the top chooser candidates.
-- `G5` wet-run: `python3 -m stagewarden.main "slash choose upgrade"` rendered numbered candidates; `--json` returned `update apply`.
-- `G5` validation: `python3 -m unittest discover -s tests` passed with 285 tests and 3 expected sandbox HTTP skips.
-- `G5` implementation: `/help` topic metadata for update/external-io/extensions is now registry-driven from `stagewarden.commands`, reducing drift between help, command catalog, and slash surfaces.
-- `G5` wet-run: interactive `/help update`, `/help io`, and `/help extension` rendered the registry-backed topic content in the real shell.
-- `G5` validation: `python3 -m unittest discover -s tests` passed with 286 tests and 3 expected sandbox HTTP skips.
-- `G5` implementation: registry-driven help now also covers models, accounts, permissions, handoff/PRINCE2, and git, leaving only special Caveman/LJSON topics outside the shared metadata path.
-- `G5` wet-run: interactive `/help models`, `/help accounts`, `/help permissions`, `/help handoff`, and `/help git` rendered registry-backed content in the real shell.
-- `G5` implementation: `ljson` help is now also registry-driven; `caveman` intentionally remains special and continues to use the richer Caveman module help text.
-- `G5` wet-run: interactive `/help ljson` rendered registry-backed content while `/help caveman` still returned the specialized Caveman help text.
-- `G5` implementation: `/help` overview topic list is now derived from the help-topic catalog, including topic aliases and summaries, instead of hardcoded topic rows in `main.py`.
-- `G5` wet-run: interactive `/help` rendered the catalog-derived topic overview in the real shell.
-- `G5` implementation: `help` now has a machine-readable metadata surface aligned with `commands --json`; `help --json`, `help topics --json`, and `help <topic> --json` now reuse the shared help-topic catalog/report path in both CLI and interactive shell.
-- `G5` implementation: removed the stale unreachable hardcoded help block from `stagewarden/main.py`, leaving only the catalog-driven help path.
-- `G5` wet-run: `python3 -m stagewarden.main help --json`, `python3 -m stagewarden.main "help models" --json`, and interactive `/help models --json` all rendered the same shared metadata successfully.
-- `G5` validation: targeted `python3 -m unittest tests/test_trace_cli.py` passed with 138 tests and 1 expected skip; full suite `python3 -m unittest discover -s tests` passed with 288 tests and 3 expected skips.
-- Documentation parity is mandatory: when user-facing behaviour changes, update both English README and Italian README.
-
-Regrouped execution plan override:
-
-- The old mini-block notes remain as historical evidence, but active execution now follows grouped delivery packs only.
-- Grouped work is now preferred over micro-steps: each pack should bundle coherent code, documentation, wet-runs, and one full-suite closure.
-- Each grouped pack closes only after:
-- targeted tests for the changed slice
-- at least one real wet-run on the changed operator surface
-- one final `python3 -m unittest discover -s tests`
-- one git boundary and push
-
-Active grouped packs from this point:
-
-- `P1` Shell UX parity pack:
-- scope: finish command-surface convergence around slash/help/chooser/palette behavior, topic metadata, and safe non-executing discovery flows.
-- includes: remaining Codex/Claude-style shell discoverability gaps that do not require untrusted UI frameworks.
-- close condition: shell help/chooser/palette behavior is metadata-driven, consistent between interactive shell and CLI, and covered by focused tests plus one full suite.
-- status 2026-04-23: complete. Shared metadata now drives command catalog, slash palette, text help overview/topics, and machine-readable help topic discovery across CLI and interactive shell.
-
-- `P2` Extension governance pack:
-- scope: strengthen extension metadata, manifest validation, README-level extension docs, and read-only discovery surfaces for commands/roles/skills/hooks/MCP.
-- includes: scaffold validation, richer manifest schema, and reporting surfaces; no untrusted extension execution.
-- close condition: extension scaffold/discovery is stable, validated, documented, and fully covered by grouped tests plus one full suite.
-- status 2026-04-23: complete. Extension scaffold now writes explicit schema metadata, discovery validates manifest shape and entrypoint paths in read-only mode, reports missing entrypoints without executing code, and keeps `extensions --json` usable as a non-mutating inspection surface even when findings exist.
-
-Pack `P2` validation evidence:
-
-- Scaffold manifest now includes `schema_version`, `entrypoints`, and `execution=disabled-by-default`.
-- Discovery now reports `schema_version`, `execution`, `entrypoints`, and `missing_entrypoints` per extension.
-- Discovery exit semantics were tightened for governance: `extensions --json` remains exit-code `0` for read-only validation findings, while mutating scaffold errors still fail closed.
-- Wet-run `python3 -m stagewarden.main "extension scaffold local-tools" --json` passed in the real workspace.
-- Wet-run `python3 -m stagewarden.main "extensions" --json` passed in the real workspace and showed schema/entrypoint metadata.
-- Targeted validation `python3 -m unittest tests/test_trace_cli.py` passed with 139 tests and 1 expected skip.
-- Full-suite closure `python3 -m unittest discover -s tests` passed with 289 tests and 3 expected skips.
-
-- `P3` Provider-status and telemetry pack:
-- scope: richer provider/account status surfaces, status parity improvements, and any remaining safe token/context accounting gaps.
-- includes: parser improvements where primary/provider-owned machine-readable data exists, plus stale/missing-state rendering.
-- close condition: status surfaces are coherent, machine-readable, and covered by targeted parser/status tests plus one full suite.
-- status 2026-04-23: complete. Provider/account limit telemetry now shares one structured summary across `status`, `status --full`, `statusline`, and `model limits`, including blocked models/accounts, stale snapshots, last-error routing context, and read-only remediation signals.
-
-Pack `P3` validation evidence:
-
-- Added shared limit summary payload fields: `blocked_models`, `stale_models`, `blocked_accounts`, `stale_accounts`, `last_errors`, and `routes`.
-- `status --json` and `status --full --json` now expose `limits_summary`.
-- `statusline --json` now exposes `rate_limits_summary`, and each compact limit row now carries `rate_limit_type`, `stale`, and blocked-account count.
-- `model limits --json` now exposes the same top-level summary for parity with status surfaces.
-- Status/preflight remediation now warns explicitly on stale provider-limit snapshots.
-- Wet-run `python3 -m stagewarden.main statusline --json` passed in the real workspace.
-- Wet-run `python3 -m stagewarden.main status --full --json` passed in the real workspace.
-- Wet-run `python3 -m stagewarden.main "model limits" --json` passed in the real workspace.
-- Targeted validation on status/limits parity passed with 5 focused tests.
-- Full-suite closure `python3 -m unittest discover -s tests` passed with 290 tests and 3 expected skips.
-
-- `P4` Advanced palette interaction pack:
-- scope: only after metadata convergence is complete, evaluate safer cursor-oriented selection semantics or improved non-TTY fallback behavior.
-- includes: selection UX refinement without breaking current shell semantics.
-- close condition: interactive command discovery is improved without regressions, with manual wet-run evidence and one full suite.
-
-- `P5` Advanced file-operations pack:
-- scope: expand Stagewarden file tooling so the agent and routed models can perform advanced, governed file operations comparable to a serious coding agent workspace toolset.
-- includes: read encoding detection, file re-encoding/conversion, search/replace, structured insert/delete operations, reverse/backward delete operations, patch preview/apply parity, dry-run and wet-run modes, metadata operations, and any additional safe file capabilities needed by the project.
-- close condition: advanced file tooling is exposed as explicit agent capabilities, covered by tests, governed by permissions, and documented in handoff/help surfaces with real wet-run evidence.
-
-Grouped execution plan for `P5` from 2026-04-24:
-
-- `P5-G1` Structured text editing and encoding introspection:
-- implement encoding-aware file inspection, codec reporting, search/replace with dry-run/wet-run, insert before/after, delete range/backward delete, replace range, and machine-readable edit evidence.
-- success condition: agent-accessible structured text edits exist with explicit preview/apply semantics and focused wet-run validation.
-- status 2026-04-24: complete. `FileTool` now exposes encoding-aware inspection plus structured text edits with explicit `dry_run`/`wet_run` semantics, and the executor/model action contract can request these operations directly.
-
-- `P5-G2` File conversion and normalization:
-- implement encoding conversion, line-ending normalization, ASCII-safe rewrite reporting, and governed file rewrite previews.
-- success condition: Stagewarden can inspect and convert text files without silent corruption and with explicit evidence.
-- status 2026-04-24: complete. `convert_encoding` and `normalize_line_endings` now preserve textual content exactly during wet-run rewrites, instead of incorrectly forcing ASCII escapes on sensitive paths, while still emitting explicit machine-readable evidence and preview/apply semantics.
-
-- `P5-G3` Metadata and filesystem operations:
-- implement stat/permissions inspection plus governed rename/move/copy/delete and OS-aware chmod/chown support or explicit rejection where unsupported.
-- success condition: file metadata and filesystem mutation surfaces are permission-aware, machine-readable, and wet-run validated.
-- status 2026-04-24: complete. Stagewarden now exposes machine-readable metadata inspection plus governed copy/move/delete/chmod/chown filesystem primitives with `dry_run`/`wet_run` semantics, workspace-bound validation, and explicit unsupported-platform handling for ownership changes.
-
-- `P5-G4` Agent capability surface integration:
-- expose all new file primitives in command/help/discovery surfaces and in the model-facing tool capability packet so routed models know these operations exist.
-- success condition: command/help/tool capability surfaces are synchronized and tested.
-- status 2026-04-24: complete. The advanced file primitives are now exposed coherently through command catalog, help topics, slash discovery/completion, CLI JSON surfaces, and node/model capability packets.
-
-- `P6` Active PRINCE2 node runtime pack:
-- scope: evolve the approved PRINCE2 role tree from a static routed baseline into a governed runtime of communicating nodes.
-- includes: node runtime state, thread/actor lifecycle, inbox/outbox messaging, blocking wait states, wake-up triggers, parent/child/peer communication, flow-edge enforcement, node transcripts, and scoped context exchange.
-- close condition: Stagewarden can run an approved PRINCE2 tree as concurrent governed nodes whose communication is explicit, auditable, and limited to approved authority/context boundaries.
-
-Grouped execution plan for `P6` from 2026-04-24:
-
-- `P6-G1` Node runtime model:
-- define the node state machine and persistence model: idle, ready, waiting, running, blocked, escalated, completed, and closed; persist inbox/outbox, wait reason, wake triggers, and node-local transcript references.
-- success condition: the project baseline can be materialized into runtime node state without losing PRINCE2 accountability or context boundaries.
-- status 2026-04-24: in progress, first implementation slice complete. `ProjectHandoff` now materializes approved role-tree baselines into a persisted node-runtime model with per-node state, wait metadata, wake triggers, queue counts, transcript refs, and incoming/outgoing flow-edge visibility.
-
-- `P6-G2` Governed node communication:
-- implement structured inter-node messages with sender, receiver, flow edge, payload scope, evidence references, validation condition, and return path; reject unauthorized message routes or payload widening.
-- success condition: nodes can speak to each other only through approved PRINCE2 flows and every exchange is auditable in handoff/log state.
-- status 2026-04-24: first implementation slice complete. Stagewarden now supports governed node-to-node messages persisted inside the PRINCE2 node runtime, with flow-edge validation, payload-scope enforcement, evidence refs, inbox/outbox queues, and blocked-message audit entries.
-
-- `P6-G3` Concurrent execution orchestration:
-- implement actor/thread orchestration so a node can wait, resume, react to incoming messages, and continue autonomous work while other nodes are active.
-- success condition: Stagewarden supports independent node lifecycles instead of a single monolithic control loop.
-- status 2026-04-24: expanded orchestration slice complete. Stagewarden now supports explicit node lifecycle transitions for `waiting`, `ready`, `running`, and `completed` through governed CLI/runtime operations, plus batch runtime progression across the approved node tree.
-
-- `P6-G4` User and model surfaces:
-- expose runtime tree/node status, queues, active waits, recent node messages, and controlled wake/resume commands through status/help/JSON surfaces and model capability packets.
-- success condition: the user and routed models can inspect the live PRINCE2 runtime organization safely and clearly.
-- status 2026-04-24: expanded supervision slice complete. Each node can now expose a structured AI context packet, the live runtime has compact supervision views for active nodes and queue pressure, and a board-facing control view now proposes the next gating action from runtime pressure signals.
-
-Pack `P6-G1` validation evidence:
-
-- Added persisted `prince2_node_runtime` into `.stagewarden_handoff.json`.
-- Role-tree baseline sync now materializes runtime actor state from approved baseline tree + flow while preserving any previously persisted node-local queues/wait metadata.
-- Added `roles runtime` and `roles runtime --json` to inspect the materialized PRINCE2 node runtime directly.
-- `handoff` and status/full-status surfaces now expose the node-runtime summary so live actor-state visibility is part of normal operational reporting.
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_persistence.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-24: targeted tests for runtime persistence and CLI materialization passed.
-- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 149 tests, 1 expected skip.
-- Wet-run 2026-04-24: isolated workspace `roles runtime --json` passed and showed a materialized `management.project_manager` node with `state=ready`, `incoming_edges=['authorize.project']`, and wake triggers `escalation` plus `stage_boundary_review`.
-
-Pack `P6-G2` validation evidence:
-
-- Added `role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]`.
-- Added `roles messages [node_id]` and `roles messages [node_id] --json` for inbox/outbox inspection.
-- Message send now validates that the specified `edge_id` exists for the selected source/target nodes and rejects payload widening beyond the approved `payload_scope`.
-- Successful sends append the message to source outbox and target inbox inside `prince2_node_runtime`, preserving evidence refs, validation condition, decision authority, and return path.
-- Blocked sends now record `role_message_blocked` in handoff actions for auditability.
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_persistence.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-24: targeted governed-message tests passed.
-- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 152 tests, 1 expected skip.
-- Wet-run 2026-04-24: isolated workspace `role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package,quality_criteria evidence=wp-001 summary=issue_work_package` passed and immediately exposed the queued inbox entry for `delivery.team_manager`.
-- Wet-run 2026-04-24: isolated workspace `roles messages delivery.team_manager --json` passed and returned the persisted queued message with edge id, payload scope, evidence refs, validation condition, and return path.
-
-Pack `P6-G3` validation evidence:
-
-- Added `role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]`.
-- Added `role wake <node_id> trigger=<name>`.
-- Added `role tick <node_id>`.
-- Runtime nodes can now be put into `waiting`, woken only by authorized triggers, and advanced one controlled lifecycle step at a time.
-- `role tick` now consumes one queued inbox message when present, records a transcript reference for the consumed message, and moves the node to `running`; without inbox work it advances a ready/running node to `completed`.
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/main.py stagewarden/commands.py tests/test_persistence.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-24: targeted wait/wake/tick tests passed.
-- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 154 tests, 1 expected skip.
-- Wet-run 2026-04-24: isolated workspace sequential flow `role wait delivery.team_manager ...` -> `role message management.project_manager delivery.team_manager issue.work_package payload=assigned_work_package` -> `role wake delivery.team_manager trigger=message_received` -> `role tick delivery.team_manager --json` passed.
-- Wet-run 2026-04-24: final `role tick` JSON showed `delivery.team_manager` in `state=running`, empty inbox, and transcript ref `message:<message_id>` persisted in the node runtime.
-- Added `roles tick [max_nodes]` for batch orchestration across the materialized PRINCE2 runtime.
-- Batch runtime progression now advances eligible nodes in one pass, preserves explicit node results, and keeps waiting nodes blocked unless an authorized message-trigger wake is possible.
-- Validation 2026-04-24: targeted runtime batch-orchestration tests passed (`3 tests`, `OK`).
-- Wet-run 2026-04-24: real CLI JSON execution of `roles tick` passed after queuing a governed work-package message; the runtime showed `management.project_manager=completed` and `delivery.team_manager=running`.
-- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 315 tests, 3 expected skips.
-
-Pack `P6-G4` validation evidence:
-
-- Added `roles context <node_id>` and `roles context <node_id> --json`.
-- The node context packet now includes:
-- runtime state, wait status, wake triggers, queue counts, and transcript refs
-- provider/provider-model assignment for the node
-- PRINCE2 role responsibility domain, context scope, accountability boundary, delegated authority, and include/exclude context slices
-- incoming/outgoing PRINCE2 flow edges and communication commands
-- real Stagewarden capability surface for the node AI: shell, files, git, web/download/compression flags, allowed model actions, file operations, git operations, and shell operations
-- current project context snapshot from handoff
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-24: targeted `roles context` test passed.
-- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 155 tests, 1 expected skip.
-- Wet-run 2026-04-24: isolated workspace `roles context management.project_manager --json` passed and returned a complete node AI context packet with capability surface, PRINCE2 context include/exclude rules, communication commands, and incoming flow edge `authorize.project`.
-- Executor integration 2026-04-24: the model communication packet now includes a dedicated `PRINCE2 node AI context packet` section so the routed model receives the node-scoped capability/context packet directly in its prompt.
-- Validation 2026-04-24: targeted executor tests for packet rendering and node-context prompt inclusion passed.
-- Validation 2026-04-24: internal prompt render check confirmed the executor prompt contains `node_id: management.project_manager`, `context_include: stage_plan, registers`, and `communication_incoming_edges: authorize.project`.
-- Note 2026-04-24: this earlier `P5-G2` blocker is now closed. Preserve-content file rewrites no longer corrupt Unicode by forcing ASCII escapes during encoding conversion or newline normalization.
-- Executor integration detail 2026-04-24: the prompt packet now carries runtime state, wake triggers, queue counts, transcript refs, assignment route, PRINCE2 include/exclude slices, communication commands, and real Stagewarden capability surfaces for the active node IA.
-- Added `roles active` for compact inspection of non-completed runtime nodes.
-- Added `roles control` for a board-facing PRINCE2 control summary over blockers, queue pressure, and next gating decision.
-- Added `roles queues` for compact supervision of inbox/outbox pressure across the materialized PRINCE2 runtime.
-- `roles control` now classifies critical nodes, distinguishes monitor/warning/exception pressure, and proposes `materialize_runtime`, `escalate_board_decision`, `unblock_waiting_nodes`, `process_queued_work`, `continue_execution`, or `stage_ready_for_gate` as the next action.
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/project_handoff.py stagewarden/commands.py stagewarden/main.py stagewarden/executor.py tests/test_persistence.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-24: `python3 -m unittest tests/test_persistence.py tests/test_trace_cli.py` passed, 161 tests, 1 expected skip.
-- Wet-run 2026-04-24: real CLI JSON execution of `roles control` passed after a governed wait/message sequence and returned `next_action=process_queued_work`, `board_signal=attention`, `inbox_total=1`, and `delivery.team_manager` as a critical node.
-- Validation 2026-04-24: targeted runtime supervision tests passed (`3 tests`, `OK`).
-- Wet-run 2026-04-24: real CLI JSON execution of `roles active` and `roles queues` passed after queuing a governed node message; supervision showed `ACTIVE 2`, `INBOX_TOTAL 1`, and `OUTBOX_TOTAL 1`.
-- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 318 tests, 3 expected skips.
-
-Pack `P5-G2` validation evidence:
-
-- Root-cause isolated 2026-04-24: preserve-content rewrites were incorrectly routing sensitive-path content through ASCII forcing, causing `café` to be rewritten as `caf\\xe9` during encoding conversion.
-- Fixed 2026-04-24: `_prepare_preserving_text()` now preserves the original Unicode text for content-preserving operations, leaving ASCII-safety forcing to explicit output-rewriting paths instead of conversion/normalization workflows.
-- Added regression test for preserve-content operations on sensitive files, confirming that `.state.json` can be re-encoded and newline-normalized without silent text corruption.
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/tools/files.py tests/test_tools.py` passed.
-- Validation 2026-04-24: `python3 -m unittest tests.test_tools.ToolTests.test_file_tool_can_convert_encoding_and_normalize_line_endings tests.test_tools.ToolTests.test_preserve_content_operations_do_not_force_ascii_on_sensitive_files tests.test_executor.ExecutorTests.test_executor_supports_encoding_conversion_action` passed.
-- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 307 tests, 3 expected skips.
-
-Pack `P5-G3` validation evidence:
-
-- Added `FileTool.inspect_metadata()` for machine-readable stat/permission inspection with kind, size, mode, uid/gid, timestamps, and access flags.
-- Added governed filesystem mutation primitives: `copy_path`, `move_path`, `delete_path`, `chmod_path`, and `chown_path`.
-- Every mutation validates workspace boundaries, supports `dry_run` and `wet_run`, and emits structured evidence reports including operation type, source/destination paths, overwrite flags, recursion flags, target counts, and applied mode/owner fields.
-- Ownership changes now behave OS-aware: use real `chown` when supported and reject explicitly when unsupported or unavailable.
-- Executor/model action contract now exposes `inspect_metadata_file`, `copy_path_file`, `move_path_file`, `delete_path_file`, `chmod_path_file`, and `chown_path_file`.
-- Node AI capability/context packets now advertise the new filesystem primitives so routed models can use them without hidden tooling assumptions.
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/tools/files.py stagewarden/executor.py stagewarden/main.py tests/test_tools.py tests/test_executor.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-24: targeted tests for metadata inspection, filesystem mutation actions, and node capability-packet exposure passed (`6 tests`, `OK`).
-- Wet-run 2026-04-24: real temp-workspace execution of `inspect_metadata`, `copy_path`, `move_path`, `chmod_path`, `chown_path`, and `delete_path` passed.
-- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 312 tests, 3 expected skips.
-
-Pack `P5-G4` validation evidence:
-
-- Added user-facing file command specs for `file inspect`, `file stat`, `file copy`, `file move`, `file delete`, `file chmod`, and `file chown`.
-- Added a dedicated `files` help topic so `/help files`, `help files --json`, command catalog, and slash discovery expose the advanced file tooling consistently.
-- Added a real CLI file-command handler with machine-readable JSON output plus human-readable text rendering.
-- Interactive shell command recognition and path completion now understand `file ...` surfaces.
-- Command catalog/help/discovery now advertise the same advanced file primitives already exposed in node/model capability packets, removing the earlier surface mismatch.
-- Validation 2026-04-24: `python3 -m py_compile stagewarden/commands.py stagewarden/main.py tests/test_trace_cli.py` passed.
-- Validation 2026-04-24: targeted trace/CLI tests for catalog, help topics, completion, and file-command execution passed (`5 tests`, `OK`).
-- Wet-run 2026-04-24: real CLI JSON execution of `file stat`, `file copy`, `file chmod`, `file delete --dry-run`, and `file delete` passed in a temporary workspace.
-- Validation 2026-04-24: `python3 -m unittest discover -s tests` passed, 313 tests, 3 expected skips.
-
-New file-operations specification added on 2026-04-24:
-
-- Stagewarden must expose richer file-tool capabilities to the AI, not just basic read/write/patch.
-- The AI capability packet and tool surface must eventually include at least:
-- file read with encoding awareness
-- file encoding detection/reporting
-- file encoding conversion/rewrite
-- search-only
-- search and replace with count/report
-- insert before line / insert after line
-- insert before pattern / insert after pattern
-- delete line range
-- delete from match backward or delete backward from cursor/line anchor when requested
-- replace line range
-- normalize line endings
-- preview diff / dry-run for every mutating file operation
-- wet-run execution path for every mutating file operation
-- permission-aware metadata operations such as chmod and chown when the OS/runtime allows them
-- file mode/stat inspection
-- rename/move/copy/delete with governed preview
-- any additional file manipulation primitives needed to let the AI operate safely and precisely on source trees
-
-Rules for this specification:
-
-- Every mutating file tool must support explicit dry-run preview and real wet-run execution.
-- Dry-run is never a sufficient checkpoint by itself; if the operation is intended to change the workspace, a wet-run or equivalent real verification path is required.
-- Encoding operations must be ASCII-safe by default and preserve or explicitly report ambiguous/unmappable characters.
-- If a file cannot be safely decoded, the tool must report the codec issue explicitly and offer a governed conversion path instead of silently corrupting content.
-- Search/replace and insert/delete tools must return machine-readable evidence: target, match count, line spans, preview summary, and actual write outcome.
-- Metadata-changing operations such as chmod/chown must remain permission-gated, OS-aware, and no-op or clearly rejected where unsupported.
-- The agent prompt/tool contract must list these file capabilities explicitly so routed models know they can request them.
-- If an operation can be expressed both as patch and as structured edit, Stagewarden should prefer the safest primitive that yields auditable evidence.
-- Additional file capabilities may be invented where needed, but each new capability must be explicit, permission-aware, testable, and included in the agent capability surface.
-
-Pack `P5-G1` validation evidence:
-
-- Added `FileTool.inspect()` with encoding detection (`utf-8`, BOM-aware UTF variants, latin-1 fallback), newline reporting, byte/line counts, ASCII/confusable warnings, and machine-readable inspection reports.
-- Added structured file-edit primitives:
-- `search_replace(..., dry_run=...)`
-- `insert_text(..., dry_run=...)`
-- `delete_range(..., dry_run=...)`
-- `delete_backward(..., dry_run=...)`
-- `replace_range(..., dry_run=...)`
-- Added structured edit evidence payloads: operation, path, dry-run flag, changed flag, encoding, newline style, preview diff, and operation-specific fields such as match counts or line spans.
-- Extended executor/model action surface with:
-- `inspect_file`
-- `search_replace_file`
-- `insert_text_file`
-- `delete_range_file`
-- `delete_backward_file`
-- `replace_range_file`
-- Executor validation now treats real structured file edits as wet-run-capable when not marked dry-run.
-- Wet-run local script passed:
-- file inspection on UTF-8 text
-- `search_replace(..., dry_run=True)` preview
-- `replace_range(..., dry_run=False)` persisted change
-- Targeted validation passed for new tool and executor actions.
-- Full-suite closure `python3 -m unittest discover -s tests` passed with 294 tests and 3 expected skips.
-
-Codex/Claude UX baseline now explicitly includes:
-
-- slash-command discoverability and completion
-- shell-first conversational loop
-- readable status surfaces with provider/account/model/limit context
-- typed transcript and resume-ready context
-- browser/device auth flows that feel native
-- guided provider-model selection with minimal ambiguity
-- visible routing/handoff context instead of opaque execution
-
-Phase A - OS-aware shell runtime and preflight:
-
-- Status: in progress.
-- Implemented mini-block 2026-04-22: added `stagewarden/runtime_env.py` with OS-family normalization, shell capability discovery for bash/zsh/PowerShell/cmd, default shell reporting, line-ending/path-separator reporting, and `select_shell_backend()` for `auto` or explicit backend selection.
-- Implemented mini-block 2026-04-22: `stagewarden status`, `status --json`, `status --full --json`, `doctor`, and `doctor --json` now expose runtime/shell capabilities without initializing git during doctor.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/runtime_env.py stagewarden/main.py` passed.
-- Validation 2026-04-22: targeted runtime/status/doctor tests passed.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main status --json` reported macOS Darwin arm64, default shell `/bin/zsh`, recommended shell `zsh`, bash available, PowerShell/cmd unavailable.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main doctor --json` reported runtime capabilities and repository state successfully.
-- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 230 tests.
-- Git boundary 2026-04-22: runtime mini-block committed locally as `7b54391 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
-- Implemented mini-block 2026-04-22: `ShellTool` now uses the configured runtime shell backend (`auto` by default), rejects missing explicit backends, prefers detected zsh/bash on POSIX, keeps PowerShell/cmd command construction on Windows, and writes `shell_backend` plus executable into command previews.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/config.py stagewarden/runtime_env.py stagewarden/tools/shell.py` passed.
-- Validation 2026-04-22: targeted shell backend tests passed.
-- Validation 2026-04-22: wet-run `ShellTool(...).run("pwd")` executed in `/Users/donato/Stagewarden` with `shell_backend=zsh executable=/bin/zsh`.
-- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 232 tests.
-- Git boundary 2026-04-22: shell backend mini-block committed locally as `154758b stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
-- Implemented mini-block 2026-04-22: added `preflight` and `preflight --json` as read-only readiness checks combining doctor, runtime/shell capabilities, git state, PRINCE2 role check, provider limits, sources status, permissions, handoff stage view, and remediation actions.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py` passed.
-- Validation 2026-04-22: targeted `preflight`, command catalog, and completion tests passed.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight --json` reported runtime macOS/zsh, git dirty state, role-check warnings, provider limits, sources status, and remediation list without initializing or mutating git.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight` rendered the human diagnostic summary.
-- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 234 tests.
-- Implemented mini-block 2026-04-22: `status`, `status --json`, `status --full`, and `status --full --json` now include a remediation section derived from preflight signals.
-- Status remediations currently cover dirty git state, incomplete PRINCE2 role baseline, blocked provider limits, missing source references, and active recovery/exception lane.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py` passed.
-- Validation 2026-04-22: targeted status/preflight remediation tests passed.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main status --json` and `python3 -m stagewarden.main status --full` rendered remediation actions for dirty git, missing role baseline, and active recovery state.
-- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 235 tests.
-- Git boundary 2026-04-22: status remediation mini-block committed locally as `e4867a9 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
-- Implemented mini-block 2026-04-22: added `stagewarden/shell_compat.py` for shell-specific env references, quoting, path literals, Windows PowerShell/cmd translations for simple read commands, and clear POSIX-only rejection for Windows backends.
-- Implemented mini-block 2026-04-22: `ShellTool` now prepares Windows backend commands through `shell_compat`, including PowerShell/cmd session markers.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/shell_compat.py stagewarden/tools/shell.py` passed.
-- Validation 2026-04-22: targeted tests passed for env/quote/path formatting, Windows command translation, POSIX-only rejection, and ShellTool backend preparation.
-- Validation 2026-04-22: wet-run `ShellTool(...).run("pwd")` on macOS still executed with `shell_backend=zsh executable=/bin/zsh` and returned `/Users/donato/Stagewarden`.
-- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 240 tests.
-- Git boundary 2026-04-22: shell compatibility mini-block committed locally as `2dc8d8a stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
-- Implemented mini-block 2026-04-22: shell backend control now defaults to automatic detection, with optional manual override through `shell backend` and `shell backend use <auto|bash|zsh|powershell|cmd>`.
-- Implemented mini-block 2026-04-22: configured backend is now surfaced in `status`, `status --full`, `doctor`, and `preflight`; command catalog/help expose the shell backend commands.
-- Implemented mini-block 2026-04-22: `.stagewarden_settings.json` is now treated as a local runtime artifact and ignored by git/runtime checkpoint governance.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/main.py stagewarden/commands.py` passed.
-- Validation 2026-04-22: targeted shell-backend status/command tests passed.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main shell backend --json` reported `configured=auto` and `selected=zsh` on macOS.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main shell backend use zsh` and then `shell backend use auto` confirmed optional override works while preserving automatic default.
-- Validation 2026-04-22: wet-run `python3 -m stagewarden.main preflight` now reports the configured shell backend.
-- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 242 tests.
-- Git boundary 2026-04-22: shell backend control mini-block committed locally as `f3d3c32 stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
-- Implemented mini-block 2026-04-22: Windows shell enforcement now distinguishes bash-required/POSIX-required commands and rejects them early with a backend-specific error before execution.
-- Implemented mini-block 2026-04-22: `status` and `preflight` now emit Windows shell readiness remediation when bash is unavailable on a Windows runtime, making the future rejection visible before task execution.
-- Validation 2026-04-22: `python3 -m py_compile stagewarden/shell_compat.py stagewarden/tools/shell.py stagewarden/main.py` passed.
-- Validation 2026-04-22: targeted tests passed for bash-required command detection, ShellTool enforcement, Windows readiness remediation, and shell backend command flow.
-- Validation 2026-04-22: full suite `python3 -m unittest discover -s tests` passed with 245 tests.
-- Git boundary 2026-04-22: Windows shell readiness/enforcement mini-block committed locally as `4ef007f stagewarden: initialize workspace` by Stagewarden wet-run auto-snapshot.
-- Add an OS/runtime capability module that reports OS family, platform release, architecture, cwd, default shell, shell executable, bash availability/version, PowerShell availability/version, cmd availability on Windows, path separator, and line-ending convention.
-- Add explicit shell backend selection: `shell=auto`, `shell=bash`, `shell=zsh`, `shell=powershell`, and `shell=cmd`.
-- On macOS/Linux, `shell=auto` should prefer the configured POSIX shell and support bash when available.
-- On Windows, `shell=auto` must execute PowerShell commands and cmd.exe commands, prefer PowerShell for structured work, and fall back to cmd only when appropriate or explicitly requested.
-- Add path translation, quoting rules, environment variable syntax differences, executable discovery, and clear rejection for POSIX-only commands that cannot be translated.
-- Surface OS/shell capabilities in `status`, `status --full --json`, future `preflight`, and shell tool transcript entries.
-- Validation: unit tests for OS detection normalization, shell backend selection, Windows PowerShell command construction, Windows cmd command construction, path/quote translation, missing bash detection, unsupported-shell rejection, status JSON fields, and a real wet-run on the current macOS workspace.
-
-Phase B - PRINCE2 role tree routing:
-
-- Status: partially implemented.
-- New cross-cutting requirement: every PRINCE2 routing action must be announced to the user and recorded in handoff/log context, including proposal generation, approvals, forced approvals, role-node changes, route-pool changes, fallback decisions, and escalation/exception transitions.
-- Completed: `roles tree`, `roles tree --json`, `roles check`, and `roles check --json`.
-- Current role-tree nodes expose node id, role type, parent, level, accountability boundary, delegated authority, responsibility domain, context scope, include/exclude rules, expansion events, assignment, fallback pool, and readiness.
-- Completed: `roles flow` and `roles flow --json` render authorized PRINCE2 transitions between role-tree nodes.
-- Current flow edges expose trigger, source node, target node, flow type, payload scope, decision authority, expected evidence, validation condition, tolerance boundary, and return path.
-- Completed: `roles matrix` and `roles matrix --json` combine role tree, flow, assignments, provider-models, params, accounts, provider/account limit state, readiness, context slices, and findings.
-- Completed: `role add-child <parent_node> <role_type> [node_id]` adds delegated/subordinate nodes to the approved role-tree baseline.
-- Completed: `role assign <node_id> <provider> <provider_model> [reasoning_effort=<value>] [account=<name>]` assigns provider-models to a specific node.
-- Completed: guided menu equivalents for delegated/subordinate nodes and node assignment.
-- Completed: node assignment supports primary/reviewer/fallback model pools.
-- Completed: top-level baseline matrix command `roles baseline matrix` makes delegated nodes and route pools visible without opening the full `roles baseline --json` payload.
-- Completed: `project design` now emits the explicit capability/project packet and clarification-gap surface required before AI-assisted tree design.
-- Completed: `project start` now invokes the project-design stage first and exposes any open clarification gaps before baseline application.
-- Completed: structured project-brief fields are now persisted in runtime handoff and exposed inside `project design`.
-- Completed: local proportional tree proposal is available through `project tree propose` without persisting a baseline.
-- Completed: `project tree approve` persists reviewed proposals and blocks unresolved gaps unless `--force` is explicit.
-- Completed: `project start` is connected to the proposal/approval path and no longer silently applies the static baseline.
-- Completed: `ProjectHandoff.record_action()` now provides a generic durable action log for user-visible operational actions.
-- Completed: `project start` records `project_start_blocked` and `project_start_approved` handoff entries with design/proposal gap details, approval status, forced flag, and proposed added nodes.
-- Completed: `project tree approve` records `project_tree_approval_blocked` or `project_tree_approval` with gaps, proposal status, forced flag, source, node count, and added-node metadata.
-- Wet-run 2026-04-23: sequential inspection of `.stagewarden_handoff.json` confirmed `project_start_blocked` is recorded with missing `scope` and `expected_outputs` details.
-- Completed: `handoff actions [limit]` and `handoff actions [limit] --json` expose durable action/audit entries directly from runtime handoff.
-- This closes the discoverability gap for the transparency rule: the user can inspect operational actions without opening `.stagewarden_handoff.json`.
-- Completed: `status`, `status --json`, and `statusline --json` now surface the latest durable handoff action in the focus/statusline payloads.
-- This strengthens the transparency rule: every user-visible status surface can show the last tracked operational action without requiring a separate handoff command.
-- Next: add AI-assisted proposal generation that consumes `project design` plus structured brief, then compare/merge with the local proportional proposal before approval.
-- `project start` must use an available AI model through the handoff system to propose the initial project tree and node definitions when local rules are insufficient.
-- AI-assisted tree design must still obey cost control and rate-limit rules: prefer local/cheap models first, escalate only when complexity requires it, and use fallback models without widening node context.
-- Completed: `project tree propose --ai` builds a prompt from `project design` plus the local proposal, calls the selected model only through `RUN_MODEL`, validates suggested tree patches, and merges valid nodes into the review-only proposal without approval/persistence.
-- Completed: AI tree proposal reports `ai_requested`, model/account used, valid added nodes, rejected nodes, and fallback/local-only status for auditability.
-- Completed: `project start` now detects high-complexity/high-risk brief signals and can invoke the AI-assisted proposal path before approval; `project start --ai` forces the same path explicitly.
-- Completed: approved AI-assisted startup baselines persist proposal AI metadata and valid AI-added nodes, while blocked startup entries record AI attempt/fallback metadata in handoff.
-- Completed: explicit `project tree propose` and `project tree propose --ai` commands now record durable `project_tree_proposal` / `project_tree_proposal_ai` handoff actions with status, source, AI metadata, added nodes, gaps, and node count.
-- Completed G1 slice: `ModelCommunicationPacket` is now machine-serializable for inspection/tests, and model JSON responses can expose safe `usage` / `token_usage` / `context_window` metadata.
-- Completed G1 slice: memory records input/output/current/context-window token metadata only when the provider output exposes it, aggregates it in `models usage`/budget stats, and `statusline --json` now reports context-window usage from memory.
-- Completed G2 slice: role-routed prompts now expose active incoming/outgoing PRINCE2 flow edges, triggers, payload scopes, and validation conditions, making context movement explicit to the model.
-- Completed G2 slice: AI project-tree patches can carry responsibility domain, context scope, context include/exclude slices, tolerance boundary, validation condition, and open questions; valid fields are merged into review-only proposals.
-- Completed G2 slice: `roles check` warns when an assigned delegated node has no explicit PRINCE2 flow edge, so context movement remains visible and reviewable before execution.
-- Critical context rule: AI-assisted tree design must start from two explicit inputs in the prompt packet, not assumptions:
-- agent capability specification: real Stagewarden capabilities, available tools, shell/file/git/web/download/compression abilities, permission mode, OS/runtime constraints, provider/model/account availability, rate-limit state, and known validation/wet-run obligations.
-- project specification: task objective, scope, constraints, expected outputs, quality gates, stakeholders/roles, delivery mode, uncertainty, risk tolerance, and any user-provided governance requirements.
-- The tree-design packet must tell the model what the agent can actually do now, so node planning is grounded in executable capabilities instead of generic PRINCE2 theory.
-- The tree-design packet must also tell the model what project is being designed, so node structure, delegations, and escalation paths are proportional to the real project instead of the static default tree.
-- Missing capability context or missing project specification must be treated as a clarification gap before accepting an AI-proposed organization tree baseline.
-- The AI proposal must produce structured output: project assumptions, tree nodes, role type, parent, responsibility domain, context include/exclude slices, delegated authority, tolerances, primary/reviewer/fallback model suggestions, validation conditions, and open questions.
-- The AI proposal must be treated as a recommendation, not an approved baseline; the user/Project Board must review and approve or edit it before persistence.
-- Handoff must record the design model used, prompt purpose, proposal summary, selected tree baseline, unresolved assumptions, and git boundary.
-- Add `project design`, `project design --json`, or equivalent guided flow as the explicit first stage behind `project start`.
-- Completed: approved role-tree baseline persists in handoff and `.stagewarden_models.json` through `project start`, `roles propose`, `roles setup`, and `roles tree approve`.
-- Completed: `roles baseline` and `roles baseline --json` render the approved baseline.
-- Completed: executor model calls now prefer approved role-tree node assignment/context before falling back to the flat role map.
-- Context rule: every model call receives only the selected node context; context expansion is allowed only by PRINCE2 events such as escalation, exception, stage boundary, delegated change, assurance review, or board decision.
-- Rate-limit rule: fallback changes provider/model/account but must never widen the role-node context.
-- Flow rule: PRINCE2 defines movement between nodes, not only node ownership. Stagewarden must model controlled handoff flow between role nodes: Board authorization -> Project Manager planning/control -> Team Manager work package delivery -> Project Support records -> Project Assurance review -> Change Authority exception/change decisions -> Board stage/exception/closure decisions.
-- Each node transition must define trigger, source node, target node, payload/context slice, decision authority, expected evidence, validation condition, tolerance boundary, and return path.
-- Normal flow examples: Project Executive authorizes initiation/project/stage; Project Manager issues work package to Team Manager; Team Manager returns checkpoint/completion evidence; Project Support records baseline/register updates; Project Assurance reviews quality/risk evidence independently.
-- Exception flow examples: Team Manager escalates forecast tolerance breach to Project Manager; Project Manager escalates stage/project exception to Board or delegated Change Authority; Change Authority approves/rejects/re-baselines within delegated limits; Board handles out-of-tolerance decisions.
-- Context must move only along approved flow edges. A target node receives only the payload needed for its role and decision; broader context requires a formal PRINCE2 escalation/event and handoff record.
-- Add future `roles flow` and `roles flow --json` commands to render node transitions, allowed triggers, payload scopes, and escalation paths.
-- Add future tests for flow graph validity: no orphan nodes, no unauthorized direct delivery-to-board bypass except escalation, assurance remains independent, and exception/change flows respect delegated authority.
-- Validation: role-tree persistence tests, context-slice filtering tests, delegated node tests, matrix JSON tests, `project start` wet-run, and regression tests for current flat-role compatibility.
-
-Phase C - governed web research, download, and compression:
-
-- Status: planned.
-- Add controlled web research capability governed by PRINCE2 role context, permission policy, citations, and handoff evidence.
-- Add `web search <query>` and `web search --json <query>` for operator-visible research; model-initiated research must route through executor/tool transcript.
-- Add `download <url> [path]`, `download --json <url> [path]`, and `download status`.
-- Download rules: explicit permission checks, URL validation, max-size limits, destination sandboxing, checksum recording, MIME/type detection, license/copyright risk recording, and failure-safe partial-file cleanup.
-- Add `compress <path>`, `compress --json <path>`, and `compress verify <archive>`.
-- Compression rules: preserve originals unless overwrite is explicitly approved, verify archive integrity with a real extraction/integrity wet-run, and reject dry-run-only checkpoints.
-- Handoff rule: every search/download/compression operation records PRINCE2 role node, purpose, source URL/query, output path, checksum, size, validation result, timestamp, and git boundary.
-- Validation: local HTTP server wet-run for small-file download, checksum verification, compression, archive verification, transcript entry, and handoff entry.
-
-Phase D - preflight and status remediation:
-
-- Status: planned.
-- Add `preflight` and `preflight --json` combining doctor, OS/shell capabilities, roles check, model limits, sources status, git status, auth/account state, permissions, and active exception plan state.
-- Add remediation section to `status` and `status --full`: missing role baseline, active exception plan, dirty git, blocked providers/accounts, missing auth, missing source references, restrictive permissions, missing bash for bash-required tasks, and Windows shell backend readiness.
-- Validation: CLI JSON schema tests and wet-run in current workspace.
-
-Phase E - source and self-update governance:
-
-- Status: planned.
-- Add `sources status --strict` to fail on missing repos, dirty repos, wrong remote, missing HEAD, or unexpected shallow state.
-- Add `sources update` to run `git pull --ff-only` in each reference repo and record old/new heads in handoff.
-- Add `update status`, `update check --json`, and `update apply` for controlled self-update from GitHub.
-- Self-update must show current version/head, target version/head, changelog or commit summary, rollback boundary, and require confirmation before applying changes.
-- Validation: temp-repo tests for strict source failures, update-available/no-update states, JSON schema tests, and a wet-run `update status`.
-
-Phase F - provider status and usage accounting:
-
-- Status: planned.
-- Add provider-specific parsers for richer Codex/Claude status where machine-readable outputs are available.
-- Extend persisted limit snapshots with reset windows, utilization, overage fields, stale detection, and safe redacted raw-message previews.
-- Add token/context-window accounting to memory/handoff only when provider output exposes safe metadata.
-- Validation: parser unit tests, stale-limit tests, redaction tests, and status JSON schema tests.
-
-Phase G - command UX and extension architecture:
-
-- Status: partially implemented for command registry.
-- Completed: structured command registry, `commands`, `commands --json`, registry-backed completion seed, and registry-backed rendering for main help topics.
-- Next: move overview/topic metadata and examples into the registry or a companion metadata module.
-- Next: implement Codex-style slash palette opened by `/` with filtering, fuzzy/substring matching, command descriptions, cursor selection, Enter selection, Esc/cancel, and non-TTY fallback.
-- Next: define extension layout inspired by Claude Code plugins: commands, role agents, skills, hooks, MCP definitions, and README per extension.
-- Validation: command matching tests, non-TTY fallback tests, manual palette wet-run, and scaffolded test extension discovery without executing untrusted code.
-
-Phase H - bilingual documentation:
-
-- Status: planned.
-- Add `README.it.md` as the Italian companion to the English `README.md`.
-- Keep both README files aligned on purpose, install/setup, interactive shell, slash commands, provider/account configuration, PRINCE2 role tree, handoff, OS-aware shell execution, web/download/compression governance, tests, license, and acknowledgements.
-- Add cross-links: English README links to Italian README; Italian README links back to English README.
-- Avoid embedding copyrighted PRINCE2 study material; describe only Stagewarden behaviour and high-level PRINCE2-inspired governance concepts.
-- Validation: documentation test or policy check ensuring `README.md` and `README.it.md` exist, include MIT license reference, author Donato Pepe, Caveman/Codex/Claude acknowledgements where applicable, and no `study/` content references.
-
-## UX Reference Analysis: Codex CLI, Claude Code, Caveman
-
-Status: analyzed local downloaded references
-
-Reference boundary:
-
-- Sources are local study references only: `external_sources/codex`, `external_sources/claude-code`, `external_sources/caveman`.
-- Stagewarden should reproduce interaction patterns and product behavior where useful, not copy source code.
-- Any future direct code reuse requires license review and explicit attribution before implementation.
-
-Codex CLI UX lessons to apply:
-
-- Slash command behavior should be centralized in one command registry reused by composer, popup, completion, help, and dispatch.
-- Slash command visibility should support feature/context gating, similar to Codex built-in command flags.
-- Fuzzy matching should support partial command discovery instead of requiring exact command memory.
-- The slash command popup should preserve predictable Enter/Tab semantics and avoid surprising submission behavior while the popup is active.
-- Status should be a full operational dashboard, not a login-only output: model, provider, account, cwd, permissions, session/thread identity, token/context usage, agents, rate limits, credits, and stale/missing limit state.
-- Provider limit snapshots should distinguish available, stale, unavailable, and missing states, with a 15-minute stale threshold as a reference target.
-
-Claude Code UX lessons to apply:
-
-- Stagewarden should behave like a terminal-native coding partner: user enters a project folder, runs one command, and works through natural language plus slash commands.
-- Command/plugin architecture should support discoverable workflows, custom commands, specialized agents/roles, skills, hooks, and MCP-style extensions over time.
-- `/bug`-style feedback/reporting should be considered for future operator issue capture.
-- Plugin-style structure suggests future Stagewarden extension points: commands, role agents, skills, hooks, MCP definitions, and README-level documentation per extension.
-- Hook examples reinforce that command/tool validation should happen before execution and should fail safely.
-
-Caveman UX lessons to apply:
-
-- Mode state should be lightweight, visible, and persisted in a simple local state file.
-- Statusline/badge-style output is useful to keep active mode visible without bloating every response.
-- SessionStart/UserPromptSubmit hook concepts map to Stagewarden startup checks and per-turn reinforcement of active mode/governance.
-- Natural language activation/deactivation should coexist with slash commands for common modes.
-- Readability and install accuracy are product requirements, not cosmetic documentation.
-
-Stagewarden UX target:
-
-- Start with `stagewarden` in any repo and immediately show a concise shell with `/help`, `/status`, model/account visibility, permission posture, git state, and PRINCE2 boundary state.
-- Typing `/` should open an interactive command palette with command labels, descriptions, filtering, and cursor selection.
-- Commands should be grouped by operator intent: core, models, accounts, roles, PRINCE2 handoff, git, permissions, sources, Caveman, LJSON, diagnostics.
-- Every important shell surface should have a JSON equivalent where useful for automation.
-- Status surfaces should include next-action remediation when something blocks delivery: missing role baseline, active exception plan, dirty git, blocked provider/account, missing auth, missing source references, or restrictive permission mode.
-- Role-driven model assignment and context isolation must stay visible through `roles`, `roles domains`, future `roles tree`, future `roles check`, and future `roles matrix --json`.
-- PRINCE2 role routing must support a hierarchy of role nodes, not a fixed one-model-per-role table.
-
-Immediate next mini-block:
-
-- Implement Phase 1 command discovery foundation before the interactive palette. This reduces duplicate command definitions and gives the palette a reliable metadata source.
-- First deliverable: `commands` and `commands --json` backed by a minimal registry for existing shell commands.
-- Do not implement cursor UI until the registry is in place.
-
-## Implemented Capabilities
-
-- Codex-style agent loop: plan, call model through handoff, execute tool, observe, retry, escalate, validate, persist state.
-- Multi-model routing: local, cheap, ChatGPT/OpenAI, Claude with escalation and fallback.
-- Provider/account configuration: model add/remove/use/list/variant/block/unblock, account add/use/remove/block/unblock/login.
-- Online usage-limit capture: usage-limit messages such as `try again at 8:05 PM` are persisted as blocked-until metadata.
-- Device-code style OpenAI login flow scaffolded for real browser login, without browser token scraping.
-- Claude credential handling aligned to provider-style credential files and account profiles.
-- Interactive shell mode: start in a folder and run `stagewarden`, then use commands or natural task input.
-- Rich interactive help with model, account, permission, handoff, git, LJSON, and Caveman commands.
-- Git prerequisite governance: repository initialization, runtime ignores, local snapshot commits, history inspection.
-- Git shell commands: status, log, history, show, show stat.
-- Git tool actions for autonomous execution: status, log, show, file history.
-- Permission engine: workspace settings, default modes, allow/ask/deny rules.
-- Permission modes: `default`, `accept_edits`, `plan`, `auto`, `dont_ask`.
-- Fast mode aliases: `mode plan`, `mode auto`, `mode accept-edits`, `mode dont-ask`, `mode default`.
-- Session-only permissions: `permission session mode`, `permission session allow|ask|deny`, `permission session reset`.
-- Live permission refresh: active agent tools reload permission policy after shell permission changes.
-- Approval prompt flow: interactive `ask` decisions support `y`, `n`, `always`, `session`, and `deny`; non-interactive tools remain fail-closed.
-- Tool invocation transcript: tool calls are recorded in memory, persisted as LJSON, and exposed through `transcript`/`trace`.
-- Shell execution across OS families: POSIX shell, bash/zsh where available, PowerShell, cmd fallback.
-- Planned explicit OS/shell awareness: status/preflight must expose current OS, shell backend, bash availability, and shell transcript metadata.
-- File tools: read, write, patch, patch files, list, search.
-- Planned network/file artifact tools: governed web search, controlled downloads, checksum evidence, and verified compression with handoff recording.
-- Wet-run enforcement: dry-run or narrative completion is not accepted as final checkpoint.
-- LJSON core: encode/decode, numeric-key variant, gzip, schema version, streaming chunk support, benchmark examples.
-- LJSON use for runtime trace.
-- ASCII/confusable safety for generated and tool output.
-- Caveman mode: inspired by Julius Brussee's Caveman, with command ergonomics, review/commit/compress commands, README acknowledgements.
-- PRINCE2 governance gate: task assessment, PID generation, project controls, closure checks.
-- Persistent PRINCE2 handoff: plan, stage, latest observation, git boundary, registers, exception plan, lessons.
-- Dedicated registers: risks, issues, quality, lessons, exception plan.
-- Operational posture: governance summary, stage health, next action, active stage, git boundary.
-- Stage boundary view: closed stages, active stage, PID boundary, decision, registers, exception plan.
-- Implementation backlog in handoff: persisted `planned`, `ready`, `in_progress`, `blocked`, `done` lifecycle states.
-- Planner stage gating: only `ready` and `in_progress` stages are executed.
-- Automatic promotion: next `planned` stage becomes `ready` after controlled completion.
-- Recovery lane: exception plans generate explicit `recovery-step-*` stages.
-- Recovery resume: recovery stages can be resumed from handoff.
-- Recovery boundary states: `exception_active`, `recovery_active`, `recovery_cleared`, `none`.
-- Recovery closure gate: completed recovery lanes close open issues/risks, clear exception controls, close covered failed stages, and resume normal planned stages.
-- Handoff Markdown auto-export: `handoff export` and `handoff md` update the generated runtime section in `HANDOFF.md` with redaction.
-- Safer command classification: shell permission checks now distinguish read-only git commands from write/high-risk operations, redirection, package installs, and mutating commands.
-
-## Codex/Claude-Inspired Behaviours To Apply
-
-These are the implementation items still worth applying, based on prior source/research review and Stagewarden's current architecture.
-
-### 1. Approval Prompt Flow
-
-Status: implemented
-
-Implement an interactive approval flow similar to Codex/Claude tool approvals.
-
-Implemented behaviour:
-
-- When permission decision is `ask`, the interactive shell prompts the user with capability, target, and rule.
-- Supported answers: `y`, `n`, `always`, `session`, and `deny`.
-- `always` persists an allow rule in `.stagewarden_settings.json` and removes the matching ask rule.
-- `session` adds a session-only allow rule.
-- `deny` persists a deny rule.
-- Non-interactive tools remain fail-closed for `ask`.
-
-Validation:
-
-- Unit tests cover allow precedence over matching ask rules.
-- CLI tests cover `session` approval without workspace allow persistence.
-- CLI tests cover `always` approval with workspace allow persistence and ask removal.
-- Tool tests confirm non-interactive ask remains blocked.
-
-### 2. Tool Invocation Transcript
-
-Status: implemented
-
-Implement a Codex-like visible transcript for tool calls.
-
-Implemented behaviour:
-
-- Tool actions produce compact transcript entries.
-- Entries include iteration, step, tool, action type, success/failure, summary, detail preview, duration where available, and error type.
-- Transcript is persisted in `.stagewarden_memory.json` as LJSON.
-- Shell commands `transcript` and `trace` render recent tool calls.
-
-Validation:
-
-- Memory tests cover transcript persistence and rendering.
-- Executor tests cover transcript recording from tool actions.
-- CLI tests cover `transcript` rendering after an actual agent run.
-
-### 3. Stronger Patch Application UX
-
-Status: implemented
-
-Improve patch handling toward Codex-style editing discipline.
-
-Implemented behaviour:
-
-- Prefer unified patch application for multi-file edits.
-- Multi-file patches return per-file summaries such as `add path`, `update path`, and `delete path`.
-- Duplicate patch targets in one diff are rejected as ambiguous before any write occurs.
-- Executor outcomes keep before/after git head metadata for patching steps through the standard step outcome.
-- `preview_patch_files` validates and summarizes a unified diff without writing, including in plan mode.
-
-Validation:
-
-- Patch tests cover add, update, delete, failed hunk, duplicate targets, and plan-mode preview.
-- Plan mode allows preview but blocks write.
-- Wet-run file content checks verify patch results after application.
-- Executor tests cover model-dispatched patch preview and transcript recording.
-
-### 4. Model Context Files
-
-Status: implemented
-
-Expose persistent handoff and logs to model prompts more deliberately.
-
-Implemented behaviour:
-
-- Include concise handoff summary in every model prompt.
-- Include recent LJSON trace summary.
-- Include current recovery state and backlog status.
-- Include git boundary and dirty state.
-- Keep prompt bounded with truncation rules.
-- Add a dedicated `Model context files` prompt section naming `.stagewarden_handoff.json`, `.stagewarden_memory.json`, and `.stagewarden_trace.ljson`.
-
-Validation:
-
-- Executor prompt tests assert context file names, recovery state, backlog status, git boundary, and dirty state are present.
-- Prompt size remains bounded and truncation markers are asserted for oversized registers.
-
-### 5. Provider Capability Registry
-
-Status: implemented
-
-Move model/provider capabilities into a registry closer to Claude/Codex provider abstractions.
-
-Implemented behaviour:
-
-- Provider capabilities are centralized in `stagewarden/provider_registry.py`: auth type, model aliases, default model, context assumptions, account profiles, browser login, API-key support, env vars, URLs, and login hints.
-- `handoff.py`, `modelprefs.py`, `router.py`, `secrets.py`, and CLI model/account rendering consume the registry.
-- `model list` now shows capability metadata in addition to variants.
-- `chatgpt` plan login semantics are explicitly separate from OpenAI API-key semantics.
-- Keep no token scraping and no hidden browser extraction.
-
-Validation:
-
-- Provider registry unit tests cover auth/capability data and variant/backend derivation.
-- Model list CLI tests assert different login hints for `chatgpt`, `openai`, and `claude`.
-- Routing and handoff tests still pass.
-
-### 6. Shell Sessions As First-Class Tools
-
-Status: implemented
-
-Expand persistent shell sessions toward Codex/Claude terminal behaviour.
-
-Implemented behaviour:
-
-- Expose interactive commands: `sessions`, `session list`, `session create [cwd]`, `session send <id|last> <command>`, and `session close <id|last>`.
-- Persist shell session IDs only for current process, not repo.
-- Track cwd and return code.
-- Keep permission checks per command.
-
-Validation:
-
-- Tool tests cover create/list/send/close with marker-based command output.
-- CLI tests cover `last` alias, cwd visibility, return-code preview, and close.
-- CLI tests verify plan-mode permission denial works inside a persistent session.
-
-### 7. Resume Command Over Handoff
-
-Status: implemented
-
-Even though Stagewarden uses implicit handoff resume, add explicit commands for operator control.
-
-Implemented behaviour:
-
-- `resume` reloads current handoff context into the active agent and reruns the task stored in handoff.
-- `resume --show` prints task, current step, next action, and stage view.
-- `resume --clear` archives current handoff as `.stagewarden_handoff.archive.<timestamp>.json` and starts fresh.
-- Preserve implicit resume as default.
-
-Validation:
-
-- CLI tests verify `resume --show` uses existing `current_step_id`.
-- CLI tests verify `resume --clear` archives the old handoff, creates a fresh context, and leaves the archive inspectable.
-
-### 8. Recovery Closure Gate
-
-Status: implemented
-
-Make `recovery_cleared` perform a formal PRINCE2 closure action instead of only rendering next action.
-
-Implemented behaviour:
-
-- When all `recovery-step-*` stages complete with wet-run evidence, the agent closes the recovery gate.
-- Open issues and risks are closed with recovery evidence.
-- Failed non-recovery stages covered by recovery are marked completed.
-- Exception plan is cleared only after recovery evidence closes open issues.
-- The next planned normal stage is promoted to `ready`.
-
-Validation:
-
-- Integration tests cover a project starting in exception, executing recovery steps, closing registers, clearing exception plan, and completing the resumed normal stage.
-- Wet-run gate remains enforced by the executor before any recovery stage can complete.
-
-### 9. Handoff Markdown Auto-Update
-
-Status: implemented
-
-Keep this file updated automatically from runtime handoff and implementation backlog.
-
-Implemented behaviour:
-
-- Commands `handoff md` and `handoff export` update the generated runtime section in `HANDOFF.md`.
-- Export includes task, status, plan status, active stage, git boundary, PID boundary, recovery state, next action, registers, backlog, and recent entries.
-- Manual roadmap content is preserved outside stable generated markers.
-- Token-like values, bearer secrets, and JWT-like strings are redacted.
-
-Validation:
-
-- CLI tests cover export command, marker insertion, manual content preservation, and secret redaction.
-
-### 10. Board Review Command
-
-Status: implemented
-
-Add a PRINCE2 board-level summary command.
-
-Implemented behaviour:
-
-- Command: `board` or `stage review`.
-- Show business justification, current boundary decision, open issues, open risks, quality status, recovery state, and recommended authorization.
-- Distinguish continue, stop, recover, close.
-
-Validation:
-
-- Closed clean project recommends closure.
-- Open issues recommend review before closure.
-- Recovery active recommends recovery execution.
-
-### 11. Safer Command Classification
-
-Status: implemented
-
-Improve shell permission classification beyond first token.
-
-Implemented behaviour:
-
-- `git status`, `git log`, `git show`, `git diff`, and other inspection commands are classified as read.
-- Mutating git commands such as `git add`, `commit`, `push`, `checkout`, `merge`, and `rebase` are no longer treated as read-only.
-- Shell redirection and tee-style output are classified as write.
-- Package installation and mutating npm/python/node/test commands are classified as write/network-risk.
-- Delete/move/copy/install-style operations are classified as write.
-
-Validation:
-
-- Tool tests verify read-only git commands are not blocked by plan mode policy.
-- Tool tests verify write git commands are blocked in plan mode.
-- Tool tests verify redirection and package install commands are blocked in plan mode.
-
-### 12. Rich Help Reorganization
-
-Status: implemented
-
-Current help is complete but long. Reorganize it like modern CLIs.
-
-Implemented behaviour:
-
-- `help` shows compact categories and fast examples.
-- `help models`, `help accounts`, `help permissions`, `help handoff`, `help git`, and `help ljson` show focused command lists and examples.
-- `help caveman` remains wired to Caveman-specific help for compatibility.
-- Keep examples in each category.
-
-Validation:
-
-- CLI tests cover compact top-level help.
-- CLI tests cover category help for models, accounts, permissions, handoff, git, and LJSON.
-
-### 13. Model Handoff Result Schema
-
-Status: implemented
-
-Harden model output parsing with a stricter schema.
-
-Implemented behaviour:
-
-- Accept strict JSON object with `summary`, `action`, `confidence`, `risks`, and `validation`.
-- Preserve compatibility with simpler `{summary, action}` responses.
-- Validate optional schema fields when present.
-- Reject unknown destructive action types before tool execution.
-- Invalid output is recorded through the existing executor memory/handoff failure path.
-
-Validation:
-
-- Executor tests cover valid strict schema execution.
-- Executor tests cover invalid schema rejection and failure memory.
-- Executor tests cover denial of an unknown destructive action.
-
-### 14. Cost-Aware Execution Budget
-
-Status: implemented
-
-Make cost control explicit in router and handoff.
-
-Implemented behaviour:
-
-- Track model usage counts from persisted execution attempts.
-- Record model chosen per step in handoff through existing step completion entries.
-- Expose budget policy: prefer cloud analysis first, then use local only when available and selected from discovered local-model characteristics or as fallback.
-- Expose `models usage` and `cost` shell commands.
-
-Validation:
-
-- Memory tests cover model usage counts, failures, step coverage, and cost tiers.
-- CLI tests cover `models usage` and `cost` alias.
-- Existing router tests continue to validate cloud-first/simple-task routing and no assumption that local models are installed.
-- Failures escalate according to policy.
-- Usage summary is visible in shell.
-
-### 15. Cross-OS Setup Verification
-
-Status: implemented
-
-Strengthen setup scripts for macOS, Linux, and Windows.
-
-Implemented behaviour:
-
-- `stagewarden doctor` validates Python 3.11+, Git availability, PATH launcher visibility, and repository state.
-- `doctor` reports provider capabilities for each configured model family: auth type, profile support, browser login, API-key support, token env state, and default model.
-- `doctor` does not install prerequisites and does not initialize git.
-- Interactive shell command `doctor` exposes the same report.
-- Setup scripts for Unix and Windows now perform a best-effort post-install `doctor` check through `python -m stagewarden.main doctor`.
-- If the post-install check cannot run successfully, setup prints an explicit next-step command instead of silently skipping validation.
-- Do not auto-install git silently; report prerequisite clearly.
-
-Validation:
-
-- CLI tests verify `stagewarden doctor` reports Python/Git/PATH/repository state and does not create `.git`.
-- Interactive shell tests verify `doctor` rendering.
-- Setup script tests verify post-install doctor wiring and still pass.
-
-## Immediate Next Implementation Order
-
-
-## Recently Completed
-
-### Setup Post-Install Doctor
-
-Status: implemented
-
-Implemented behaviour:
-
-- `scripts/setup_unix.sh` and `scripts/setup_windows.ps1` now run a best-effort `doctor` check immediately after install.
-- Successful validation emits `Post-install check: stagewarden doctor OK`.
-- Failed validation falls back to an explicit command suggestion for the operator.
-
-Validation:
-
-- Setup script tests cover doctor invocation wiring and Unix fallback execution path.
-- Full suite remains green after the setup changes.
-
-### Doctor JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- `stagewarden doctor --json` emits a stable machine-readable report for automation.
-- The JSON report includes Python, Git, PATH launcher, repository state, provider capabilities, and policy flags.
-- Human-readable `stagewarden doctor` output remains unchanged for operators.
-
-Validation:
-
-- CLI tests parse the JSON output and verify provider and policy fields.
-
-### Final Summary Cost/Budget
-
-Status: implemented
-
-Implemented behaviour:
-
-- Final agent summaries now include a dedicated `Cost and budget:` section.
-- The section reports routing policy, per-model usage counts, highest cost tier reached, and failed model call count.
-- The summary is driven by execution memory so it reflects the actual run, not static configuration.
-
-Validation:
-
-- Memory tests cover budget summary rendering.
-- Agent integration tests verify the final user-facing summary includes the budget section.
-
-### Resume Wet-Run
-
-Status: implemented
-
-Implemented behaviour:
-
-- Interactive `resume` now has an end-to-end wet-run test with a success stub backend.
-- The test starts from persisted handoff context, resumes execution, creates the target artifact, and verifies handoff closure.
-- `resume` now reports the original resumed step id, not the mutated post-run step id.
-
-Validation:
-
-- CLI tests cover `resume --show`, `resume --clear`, and full `resume` execution against a fake model binary.
-
-### Richer Model Usage and Cost Reporting
-
-Status: implemented
-
-Implemented behaviour:
-
-- `models usage` and `cost` now include totals, failure rate, highest tier reached, last model used, and escalation path.
-- Memory now exposes `model_usage_stats()` as a machine-readable aggregate for automation and future JSON/telemetry output.
-- Budget summaries reuse the same aggregated stats to avoid divergent reporting.
-
-Validation:
-
-- Memory tests cover machine-readable usage stats and richer summaries.
-- Interactive shell tests verify enriched `models usage` and `cost` output.
-
-### Model Usage JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden "models usage" --json` and `stagewarden cost --json`.
-- The JSON output reuses `model_usage_stats()` and includes routing budget policy metadata.
-
-Validation:
-
-- CLI tests parse the JSON output and verify totals, failures, and escalation path.
-
-### Transcript JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden transcript --json` and `stagewarden trace --json`.
-- The JSON output exposes recent transcript entries from persisted workspace memory without parsing the text renderer.
-
-Validation:
-
-- Memory tests cover machine-readable transcript reports.
-- CLI tests parse transcript JSON output and verify stored entry fields.
-
-### Handoff and Resume JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden handoff --json`.
-- Non-interactive CLI now supports `stagewarden "resume --show" --json`.
-- Both outputs reuse runtime handoff/state logic instead of parsing text views.
-
-Validation:
-
-- CLI tests parse handoff JSON and resume-show JSON output and verify task, current step, next action, and boundary state.
-
-### Status and Boundary JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden status --json`.
-- Non-interactive CLI now supports `stagewarden boundary --json`.
-- Outputs expose operational posture, permissions, model state, and PRINCE2 boundary control state without text parsing.
-
-Validation:
-
-- CLI tests parse status JSON and boundary JSON output and verify mode, stage view, and boundary decisions.
-
-### Register JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `risks`, `issues`, `quality`, `exception`, `lessons`, and `todo` with `--json`.
-- Outputs expose raw PRINCE2 registers and implementation backlog directly from runtime handoff state.
-
-Validation:
-
-- CLI tests parse register/backlog JSON output and verify representative fields for each command.
-
-### Models and Accounts JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden models --json`.
-- Non-interactive CLI now supports `stagewarden accounts --json`.
-- Outputs expose provider routing state, preferred model, configured accounts, active account, token-store presence, and env mapping.
-
-Validation:
-
-- CLI tests parse models/accounts JSON output and verify preferred model, account activity, and token-store state.
-
-### Permissions JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden permissions --json`.
-- Output exposes workspace, session, and effective permission policy without relying on text rendering.
-
-Validation:
-
-- CLI tests parse permissions JSON output and verify workspace mode and allow/ask/deny rules.
-
-### Git Read-Only JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports JSON output for `git status`, `git log`, `git history`, and `git show --stat`.
-- Outputs include raw command text plus lightweight derived fields like `lines` or `commits` for easier automation.
-
-Validation:
-
-- CLI tests parse git JSON output and verify status, commit subjects, history path, and show-stat metadata.
-
-### Shell Sessions JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden sessions --json` and `stagewarden "session list" --json`.
-- Output exposes current process shell-session ids, cwd, and running/closed state.
-
-Validation:
-
-- CLI tests parse sessions JSON output and verify the empty-state contract.
-
-### Handoff Export and Resume-Clear JSON Output
-
-Status: implemented
-
-Implemented behaviour:
-
-- Non-interactive CLI now supports `stagewarden "handoff export" --json` and `stagewarden "handoff md" --json`.
-- Non-interactive CLI now supports `stagewarden "resume --clear" --json`.
-- Outputs expose target/archive path and operation outcome for automation workflows.
-
-Validation:
-
-- CLI tests parse export/reset JSON output and verify target/archive metadata.
-
-### Overview Command
-
-Status: implemented
-
-Implemented behaviour:
-
-- Added `overview` as a compact operational command for operators.
-- Added `stagewarden overview --json` as a single machine-readable snapshot aggregating status, board, handoff, model usage, and transcript signals.
-
-Validation:
-
-- CLI tests parse overview JSON and verify authorization, model-usage totals, transcript count, and handoff task.
-
-## Recently Completed
-
-## Autonomous Backlog
-
-### Provider Limit Status Across Active Providers
-
-Status: implemented
-
-Current state already implemented:
-
-- Stagewarden is already multiprovider at routing level: `local`, `cheap`, `chatgpt`, `openai`, and `claude`.
-- Provider and account usage-limit messages are already parsed into `blocked-until` metadata.
-- The executor already blocks the failing model or account until the reported reset time and retries another eligible route.
-- Current operator visibility is partial:
-  - `models` and `status` show enabled/active/preferred state and `blocked-until` at model level.
-  - `accounts` shows configured accounts, active account, stored token presence, env mapping, and `blocked-until` at account level.
-  - `models usage` / `cost` shows Stagewarden-internal usage history, not provider-native remaining quota.
-
-Implemented behaviour:
-
-- `status` now includes a dedicated `Provider limit status:` section.
-- `status --json` now includes a stable `provider_limits` object.
-- For each enabled provider, Stagewarden now exposes:
-  - enabled/active/preferred
-  - routed variant
-  - active account
-  - model `blocked_until`
-  - blocked accounts with `blocked_until`
-  - last known error reason from recorded attempts
-  - last attempt route/status
-  - last successful use
-- The implementation keeps a strict distinction between:
-  - Stagewarden-internal usage history
-  - provider/account temporary lockouts
-  - provider-native remaining quota, which remains unsupported unless an official source exists
-- The latest provider-reported limit message is now persisted per model/account together with `blocked_until`.
-- Provider-limit views now expose both the lock time and the last known lockout cause text.
-- Provider-limit views now classify lockout causes as `usage_limit`, `rate_limit`, `credits_exhausted`, or `provider_unavailable` when the provider message supports it.
-
-Explicit non-goal for now:
-
-- Do not invent fake remaining credits/messages for ChatGPT, Claude, or other providers when the upstream provider does not expose an official remaining-quota source to this agent.
-
-Validation:
-
-- CLI tests verify `status --json` includes provider-limit state for mixed multiprovider scenarios.
-- Interactive shell tests verify `status` renders provider-limit posture together with resume context.
-- Test coverage includes model-level blocks, account-level blocks, and recent error/success state.
-- `overview` and `report` now also surface compact provider-limit summaries for faster operator reading.
-- `overview --json` and `report --json` now carry provider-limit posture in machine-readable form.
-- Persistence tests verify roundtrip storage of last limit messages in model preferences.
-- Executor tests verify classification of provider limit messages.
-
-
-### Caveman Help Snapshot
-
-Status: implemented
-
-Implemented behaviour:
-
-- Added a CLI snapshot-style test for `help caveman`.
-- The test protects supported levels, aliases, and key commands from accidental regression.
-
-Validation:
-
-- CLI test verifies Caveman help still exposes levels, aliases, and review/commit/compress commands.
-
-## Recently Completed
-
-### Resume Context Command
-
-Status: implemented
-
-Implemented behaviour:
-
-- Added `resume context` to the shell and non-interactive CLI.
-- The command exposes the latest implicit execution context without opening `HANDOFF.md`.
-- Output includes the current task/step, latest model attempt, routed account/variant, latest tool evidence, and latest git snapshot.
-
-Validation:
-
-- CLI tests verify `resume context --json` returns structured route, tool, and git snapshot data.
-- Interactive shell tests verify `resume context` renders the latest execution evidence in human-readable form.
-
-### Shell UX Direction
-
-Status: decided
-
-Decision:
-
-- Keep mini-block shell rendering as the preferred interaction style.
-- Do not collapse shell progress and agent result output into a single compact status line.
-- Favor short titled sections such as `Running task:`, `Shell progress (before|after):`, and `Agent result:`.
-
-### Interactive Model Streaming In Shell
-
-Status: implemented
-
-Implemented behaviour:
-
-- Interactive shell sessions now forward live `run_model` stdout through a streaming callback while still capturing the full final payload for strict JSON parsing.
-- Streaming is attached only to the interactive shell agent path; non-interactive CLI commands keep the previous buffered behavior.
-- Stream output is prefixed with a compact marker such as `[model-stream local]`.
-- Added session-scoped shell controls `stream on`, `stream off`, and `stream status`.
-- Interactive task execution is now framed with `Running task:` before execution and `Agent result:` before the final summary.
-- Interactive shell now prints a compact `Shell progress (before|after)` block with active step, stage health, boundary decision, recovery state, and git head.
-- Shell progress blocks now also show route context: planned model/account/variant before execution and actual model/account/variant after execution.
-- The `after` shell progress block now also shows the latest local git checkpoint recorded for the run.
-- Shell output now also includes a `Last step outcome:` mini-block between the final agent summary and the `after` progress block.
-- `Last step outcome:` now also shows the concrete evidence source from the latest tool transcript, including tool, tool action, and duration when available.
-- Runtime handoff markdown export now includes an `Execution Resume Context` block with latest model attempt, route, latest tool evidence, and latest git snapshot.
-
-Validation:
-
-- Handoff tests verify the streaming callback receives live model output.
-- Interactive shell tests verify streamed model output is visible during task execution.
-- Interactive shell tests verify stream toggling and suppression when streaming is disabled.
-- Interactive shell tests verify the task/result framing is present around streamed execution.
-- Interactive shell tests verify progress blocks are rendered around task execution.
-- Memory and shell tests verify account and variant route details are preserved and rendered.
-- Interactive shell tests verify the latest git snapshot is surfaced in the `after` block.
-- Interactive shell tests verify the focused `Last step outcome:` block is rendered.
-- Interactive shell tests verify the focused outcome block includes tool evidence details.
-- Interactive shell export tests verify `HANDOFF.md` includes execution resume context and redacts sensitive values in latest observations and tool details.
-
-### Multi-Account Failover Across Primary And Fallback Models
-
-Status: implemented
-
-Implemented behaviour:
-
-- The executor now iterates across all available non-blocked accounts for the selected model instead of stopping after a single alternate profile.
-- The same account failover logic now also applies to the fallback model after a primary model failure.
-- Usage-limit messages continue to block the specific account that failed, and the next eligible account is tried automatically.
-
-Validation:
-
-- Executor tests verify repeated same-model account failover until success.
-- Executor tests verify fallback-model account failover when the first fallback account is also blocked.
-
-### PRINCE2 Git Step Checkpoints
-
-Status: implemented
-
-Implemented behaviour:
-
-- Per-step automatic git snapshots now use structured commit messages with explicit PRINCE2 context.
-- Step checkpoint commits now include step id, resulting status, stage health, boundary decision, and a compact task label.
-- The git history is therefore usable as a lightweight control timeline, not just as a generic autosave stream.
-
-Validation:
-
-- Agent integration tests inspect real `git log --oneline` output and verify PRINCE2 boundary annotations are present in snapshot commits.
-
-### Project Report Command
-
-Status: implemented
-
-Implemented behaviour:
-
-- Added `report` as a compact human-readable summary for issue updates, project closure notes, and operator handoff.
-- Added `stagewarden report --json` as a machine-readable summary with task, project status, stage health, governance status, authorization recommendation, next action, open controls, model activity, recent lessons, and backlog preview.
-- Interactive shell now supports `report`.
-- README now documents `report` together with `overview`, `health`, and `board`.
-
-Validation:
-
-- CLI tests parse `report` JSON output and verify task, authorization, issue count, model calls, lessons, and backlog preview.
-- Interactive shell tests verify `report` rendering and backlog visibility.
-
-### Interactive Shell History And Completion
-
-Status: implemented
-
-Implemented behaviour:
-
-- Added optional `readline` integration for the interactive shell.
-- Interactive sessions now persist history per workspace in `.stagewarden_history` when `readline` is available.
-- Added TAB completion for core shell commands and targeted workspace-path completion for `git history`, `patch preview`, and `session create`.
-- The feature degrades safely on platforms without `readline`; the shell still works normally without history/completion.
-
-Validation:
-
-- CLI tests verify command completion candidates include core shell commands.
-- CLI tests verify workspace-path completion candidates for `git history` and `patch preview`.
-
-### Health Command
-
-Status: implemented
-
-Implemented behaviour:
-
-- Added `health` as a compact operational command for quick automation and shell inspection.
-- Added `stagewarden health --json` as a stable machine-readable readiness snapshot.
-- The report exposes authorization, boundary decision, open issues, open risks, open quality items, recovery state, next action, model failures, model calls, and transcript count.
-- Interactive shell now supports `health` with a concise human-readable rendering.
-- Help and README now document `health` alongside `overview`, `board`, and `doctor`.
-
-Validation:
-
-- CLI tests parse `health` JSON output and verify readiness, authorization, issue count, failure count, and transcript count.
-- Interactive shell tests verify `health` rendering for a clean closed project.
-
-### Patch Preview Command
-
-Status: implemented
-
-Implemented behaviour:
-
-- Interactive shell command `patch preview <diff-file>` reads a unified diff file from the workspace.
-- The command validates the diff through `preview_patch_files` and returns per-file summaries without writing.
-- The command works in plan mode because it performs only read/validation operations.
-
-Validation:
-
-- CLI test covers plan-mode preview and verifies target file contents remain unchanged.
-
-## Validation Standard
-
-Every implementation must include:
-
-- unit tests
-- integration or CLI tests where applicable
-- wet-run verification
-- git snapshot
-- push to remote
-
-Dry-run alone is not a valid checkpoint.
-
-## External Source Base
-
-Status: initialized
-
-Local reference directory:
-
-- `external_sources/` is ignored by Git and contains shallow clones for study only.
-- Tracked manifest: `docs/source_references.md`.
-
-Cloned upstream references:
-
-- Caveman: `external_sources/caveman`, upstream `https://github.com/JuliusBrussee/caveman`, current shallow head `84cc3c1`.
-- OpenAI Codex CLI: `external_sources/codex`, upstream `https://github.com/openai/codex`, current shallow head `2a17b32`.
-- Claude Code public repo: `external_sources/claude-code`, upstream `https://github.com/anthropics/claude-code`, current shallow head `0385848`.
-
-Important source boundary:
-
-- Do not vendor or republish third-party source in Stagewarden.
-- Do not use leaked or unofficial Claude Code mirrors.
-- Prefer reimplementing behavior from documented interfaces and observed public source.
-- Copy code only when the upstream license permits it and attribution is added.
-
-Study targets to extract into Stagewarden:
-
-- Codex `tui/src/status/card.rs`: status card structure, configurable status line items, model/account/sandbox/approval display.
-- Codex protocol model: token usage updates, rate-limit snapshots, model reroute events, auth status responses.
-- Codex auth flow: `codex login status`, device/browser login, ChatGPT plan usage-limit parsing, retry-until time extraction.
-- Codex sandbox/approval model: read-only/workspace-write/full-access, command approval decisions, network approval context.
-- Claude Code public docs/plugins: plugin packaging, command discovery, setup conventions.
-- Claude Code npm bundle, official package only: `claude auth status`, rate-limit headers, `rate_limit_event`, `resetsAt`, `rateLimitType`, `overageStatus`, `billing_error`, `authentication_failed`.
-- Caveman: command grammar, hook activation, statusline integration, compression skills, benchmark/test structure.
-
-Local Ollama operator lessons captured on 2026-04-24:
-
-- Codex already exposes `ollama` as a built-in provider, so Stagewarden guidance must never tell users to override `[model_providers.ollama]` in Codex config.
-- Safe local agentic defaults from observed operator testing:
-  - `qwen2.5-coder:7b` for the primary local coding path
-  - `qwen3.5:9b` for a stronger local coding/reasoning path
-  - `deepseek-r1:14b` for slower deep-local reasoning
-- `codestral:latest` is not safe as a default Codex-style agentic route when the bridge reports `does not support tools`; Stagewarden should not recommend it as the primary local preset.
-- Preserve Ollama health checks in operator guidance and future diagnostics:
-  - LaunchAgent path `/usr/local/bin/ollama`
-  - `curl http://127.0.0.1:11434/api/tags`
-  - `ollama ps`
-  - `launchctl print gui/$(id -u)/com.ollama.serve`
-  - `tail -f /tmp/ollama.log`
-- Dynamic local-model discovery rule 2026-04-24:
-  - Stagewarden must not maintain a static catalog for provider `local`.
-  - `model list local`, guided menus, and local presets must derive the runtime inventory from Ollama tags, with only `provider-default` as a technical fallback when discovery is unavailable.
-  - `model inspect local [provider_model]` now asks an available model to synthesize the peculiarities of the discovered local models and merges that synthesis with the raw Ollama metadata.
-  - If the AI inspection call fails or returns invalid JSON, Stagewarden falls back to metadata-derived local profiles instead of blocking the operator.
-- Cloud-priority routing rule 2026-04-24:
-  - Cloud providers are now the primary analysis tier for routing, inspection, and governance work.
-  - The global router no longer assumes `local` is the default entry tier; simple tasks enter through the cheapest cloud path, and heavier analysis escalates through ChatGPT/OpenAI/Claude before considering local fallback.
-  - Local models are optional, discovered at runtime, and should be selected for node execution only when available and when cloud-priority analysis has characterized their peculiarities.
-  - `project tree propose --ai` and `model inspect local` now prefer a cloud model first for synthesis when one is active, falling back to local only if no cloud model is available.
-- PRINCE2 proposal integration rule 2026-04-24:
-  - `project tree propose` now carries a `local_execution` packet with discovered local candidates and recommendations.
-  - Delivery-level nodes in the proposal now expose `local_execution_candidates`, so local execution can be assigned later from observed local-model characteristics instead of static assumptions.
-  - If no local models are discovered, the proposal keeps working and reports `No local models discovered from Ollama.` instead of fabricating candidates.
-  - `roles propose` and approved PRINCE2 role-tree baselines now preload discovered local candidates into delivery-node `assignment_pool.fallback` routes while keeping the primary assignment cloud-first.
-  - The persisted baseline now retains `local_execution` metadata end-to-end in `.stagewarden_models.json` and handoff sync, so matrix/runtime views can inspect the planned local fallback routes after reload.
-  - Guided `role assign` now asks for the route pool before provider selection, shows node-scoped fallback recommendations, prioritizes `local` for delivery-node fallback assignment when candidates exist, and narrows the local provider-model menu to the recommended discovered models.
-  - `roles setup` manual mode now offers a one-step decision to approve the baseline with recommended local delivery fallbacks already preloaded, so operators do not need to re-enter `role assign` for the common recommended path.
-  - `project start` now surfaces the approved local fallback preload explicitly in its output and persists `local_execution` at the top level of the approved baseline, so startup closes with a visible, auditable local fallback plan when discovery is available.
-  - `roles baseline` continues to expose the preloaded local candidate summary through the approved baseline render, so the operator can verify the planned local fallback set without opening JSON.
-  - `status`, `statusline`, `status --full`, and `roles control` now expose a unified `local_fallback` readiness view showing whether delivery nodes already have local fallback routes preloaded and which discovered local models are available to them.
-  - This visibility is computed from the approved baseline rather than inferred ad hoc, so board/operator views stay consistent with the persisted PRINCE2 routing plan.
-  - `status` remediation now flags two local-fallback gaps explicitly:
-    - `local_fallback_partial` when candidates exist but are not preloaded across all delivery nodes
-    - `local_fallback_missing` when delivery nodes exist but no local candidates are available and execution remains cloud-only
-  - Existing status remediation items for dirty git, blocked providers, active recovery lane, and missing PRINCE2 baseline now use explicit next commands instead of generic advice.
-  - `sources status --strict` now emits summary counts (`ok|warn|fail`) and fails closed for CI/operator use when any source reference is missing or mismatched.
-  - `sources update` now refuses repositories whose `origin` does not match the expected upstream from the manifest, records updated/failed counts, and keeps before/after head evidence in the handoff update action.
-  - Validation 2026-04-24:
-    - new CLI regression covers `roles propose` + dynamic Ollama discovery + persisted fallback routes
-    - new interactive-shell regression covers guided `role assign` local fallback recommendation flow
-    - new interactive-shell regression covers `roles setup` manual approval with recommended local fallback preload
-    - new CLI regression covers `project start` approved baseline with visible local fallback preload
-    - new grouped regression covers `statusline`, `roles control`, and `status` local fallback readiness visibility
-    - new grouped regression covers `status --full` remediation for partial vs missing local fallback readiness
-    - new grouped regression covers `sources status --strict` summary and `sources update` upstream-mismatch safety
-    - new grouped regression covers explicit next-command remediation text for roles, dirty git, provider limits, and recovery
-    - full suite passed: `python3 -m unittest discover -s tests` -> `330 tests`, `OK`, `3 skip`
-
-Next implementation candidates:
-
-- Provider-limit telemetry alignment completed on 2026-04-24:
-  - `status --full --json`, `statusline --json`, and `model limits --json` now share one normalized provider-limit contract.
-  - Added consistent fields across surfaces: `rate_limit_type`, `utilization`, `resets_at`, `overage_status`, `overage_resets_at`, `overage_disabled_reason`.
-  - Added normalized blocked-account detail in `model limits --json` and `status --full --json`, including per-account `status`, `rate_limit_type`, `resets_at`, and stale markers.
-  - Validation 2026-04-24:
-    - targeted regressions passed for `status --full --json`, `statusline --json`, and `model limits --json`
-    - full suite passed: `python3 -m unittest discover -s tests` -> `330 tests`, `OK`, `3 skip`
-
-- Source refresh and learning pass completed on 2026-04-25:
-  - Updated Codex source clone to `f5497f4`.
-  - Updated Claude Code source clone to `7e93645`.
-  - Caveman source clone was already current at `84cc3c1`.
-  - Codex changes worth adapting:
-    - persisted thread goals with lifecycle states (`active`, `paused`, `budget_limited`, `complete`)
-    - goal-aware status surfaces and continuation steering
-    - richer context fragments and permission/status traces
-    - dynamic tool validation and model verification notifications
-  - Claude Code changes worth adapting:
-    - persistent config precedence and startup header clarity
-    - slash picker match highlighting and wrapped descriptions
-    - `/usage` style reset/progress presentation
-    - hook duration telemetry and clearer failed-tool hook signals
-    - safer permission handling for PowerShell/Bash and rate-limit hints
-  - Caveman changes worth tracking:
-    - ecosystem cross-linking only; no new runtime behavior to port in this pass
-
-- Group implemented from refreshed sources: persisted PRINCE2 project goal.
-  - Added `goal`, `goal set <objective> [--tokens N]`, `goal status <active|paused|budget_limited|complete>`, and `goal clear`.
-  - Persisted goal in `.stagewarden_handoff.json` with objective, status, budget, accounting placeholders, created/updated timestamps, and terminal-state detection.
-  - Exposed goal in `status`, `status --full --json`, `statusline --json`, `handoff`, and the command registry/help catalog.
-  - Validation 2026-04-25:
-    - targeted regressions passed for handoff persistence and goal CLI/statusline visibility
-
-- Replanned grouped improvements from refreshed Codex/Claude/Caveman sources:
-  - `R1` goal continuation and budget accounting: account model token usage into the active goal, mark `budget_limited` automatically, and propose controlled continuation actions.
-  - `R2` slash UX parity: highlight matched characters, wrap long command descriptions, and expose no-match state in guided chooser.
-  - `R3` hook telemetry: record duration and failure phase for tool-like actions and expose it in transcript/status.
-  - `R4` config precedence: show effective value source for model, permission, theme/output style, and provider account settings.
-  - `R5` dynamic tool verification: add a read-only capability/schema validator for model-visible tools before execution.
-
-- Minimum Codex CLI / Claude Code baseline made executable on 2026-04-25:
-  - Policy updated: Stagewarden must preserve a minimum practical Codex CLI and Claude Code baseline, not only borrow isolated ideas.
-  - Added `baseline` / `baseline --json` as an inspectable contract for required capability groups.
-  - Baseline groups: interactive shell, provider/model control, account/auth control, workspace tools, permission safety, handoff/resume/trace, PRINCE2/goal governance, external sources/extensions.
-  - `status`, `status --json`, `status --full --json`, `statusline --json`, and `preflight --json` now expose baseline state.
-  - Baseline checks implementation presence through command catalog and local prerequisites through Git executable + shell backend availability.
-  - Follow-up group completed 2026-04-25:
-    - baseline groups now carry explicit remediation text when a required command surface is missing
-  - `doctor` / `doctor --json` now includes baseline status, group count, missing count, and remediation entries
-  - `help baseline` / `help baseline --json` documents the minimum Codex/Claude contract and the covered groups
-  - Model-visible tool schema validation implemented on 2026-04-25:
-    - Added a single executable action schema for every model action exposed to the IA.
-    - The prompt now includes a `Model-visible tool schema validation` section with schema/executor consistency status before the model chooses an action.
-    - The `Available actions and required fields` prompt block is generated from the same schema instead of a manually duplicated list.
-    - Strict model-output validation now rejects missing or empty required action fields before tool execution.
-    - Targeted regressions passed for schema/executor parity, prompt visibility, and missing required field rejection.
-  - Goal token budget accounting implemented on 2026-04-25:
-    - Safe provider token metadata now increments the active project goal budget in handoff.
-    - Goal accounting uses `input_tokens + output_tokens` when available, otherwise falls back to provider-reported `current_usage`.
-    - Reaching or exceeding `token_budget` automatically marks the goal `budget_limited`.
-    - Goal views now expose remaining budget, usage percentage, terminal state, and controlled next action.
-    - Targeted regressions passed for handoff roundtrip, budget-limit transition, and executor token accounting.
-  - Slash UX parity improvement implemented on 2026-04-25:
-    - Slash palette JSON entries now expose match metadata: query, matched phrase, highlighted phrase, and score.
-    - Slash chooser JSON now exposes `no_match` and a recovery message instead of returning only an empty entry list.
-    - Human slash palette and chooser output now wrap long descriptions and render match highlights.
-    - Guided chooser remains non-executing: selection returns the command text only.
-    - Targeted slash regressions passed for palette context, fuzzy examples, no-match state, wrapping, and highlighting.
-
-## Status Research: Codex and Claude
-
-Status: completed initial study
-
-Detailed notes:
-
-- `docs/status_research.md`
-
-Codex findings to implement:
-
-- Treat status as a full operational dashboard, not only login state.
-- Render model, provider, cwd, permissions, agents, account, thread/session, token usage, context window, limits, credits, and stale/missing limit state.
-- Use a 15-minute stale threshold for provider-limit snapshots.
-- Represent limits as primary and secondary windows with `usedPercent`, `windowDurationMins`, and `resetsAt`.
-- Represent credits separately with `hasCredits`, `unlimited`, and `balance`.
-- Use `rateLimitReachedType` to distinguish generic rate limit from workspace credits/usage exhaustion.
-- Never print raw auth tokens; Codex only includes tokens when explicitly requested by app-server clients.
-
-Claude findings to implement:
-
-- Expose auth status as machine-readable JSON equivalent to `claude auth status --json`.
-- Track statusline-style fields: workspace, version, model, output style, context window, current usage, worktree, and rate limits.
-- Track Claude rate-limit events with `status`, `resetsAt`, `rateLimitType`, `utilization`, `overageStatus`, `overageResetsAt`, `overageDisabledReason`, `isUsingOverage`, and `surpassedThreshold`.
-- Distinguish `authentication_failed`, `billing_error`, `rate_limit`, `invalid_request`, `server_error`, `unknown`, and `max_output_tokens`.
-- Surface long retry/reset waits immediately so the agent does not appear stuck.
-
-Backlog from study:
-
-- Add `status --full` grouped as Identity, Model, Account, Limits, Workspace, Permissions, Git, Handoff, Usage, Quality Gates.
-- Add `statusline --json` for prompt/status scripts.
-- Add `auth status <provider> --json` wrappers for Codex/OpenAI and Claude without token disclosure.
-- Extend provider-limit persistence with Claude overage/rate-limit fields.
-- Add token/context-window accounting to handoff and memory events.
-- Add tests for status redaction, stale limits, missing limits, provider auth status, and JSON schema stability.
-
-## Status Implementation Pass
-
-Status: implemented partial
-
-Implemented:
-
-- `stagewarden status --full` and `stagewarden "status full"` render a Codex-style grouped dashboard.
-- `stagewarden status --full --json` returns sections: identity, model, account, limits, workspace, permissions, git, handoff, usage, quality_gates.
-- `stagewarden statusline --json` returns a Claude-style compact JSON surface for prompt/status scripts.
-- `stagewarden auth status chatgpt --json` shells to `codex login status` and reports login state without token output.
-- `stagewarden auth status claude --json` shells to `claude auth status --json` and reports login state without token output.
-- CLI parser now accepts unquoted multi-word commands such as `stagewarden auth status chatgpt --json`.
-- Read-only status commands use a read-only agent configuration and no longer create Git snapshots.
-
-Validation:
-
-- `python3 -m unittest tests/test_trace_cli.py` passed with 77 tests.
-- Wet-run `python3 -m stagewarden.main status --full --json` passed.
-- Wet-run `python3 -m stagewarden.main statusline --json` passed.
-- Wet-run `python3 -m stagewarden.main auth status chatgpt --json` passed and detected ChatGPT login through Codex.
-- Wet-run `python3 -m stagewarden.main auth status claude --json` passed and detected not-logged-in Claude state.
-
-Remaining:
-
-- Persist real provider-limit windows/credits when upstream CLIs expose them.
-- Add first-class Claude overage fields to `.stagewarden_models.json` instead of only dashboard placeholders.
-- Add token/context-window accounting from actual model calls.
-
-
-## OpenRouter Model Intelligence (verified 2026-04-26)
-
-Scope: learn model characteristics directly from OpenRouter docs/API references and capture operational usage for Stagewarden.
-
-Primary sources (official OpenRouter):
-- Quickstart: https://openrouter.ai/docs/quickstart
-- Models overview + schema: https://openrouter.ai/docs/guides/overview/models
-- Models API (`GET /api/v1/models`): https://openrouter.ai/docs/api/api-reference/models/get-models
-- Chat Completions API (`POST /api/v1/chat/completions`): https://openrouter.ai/docs/api-reference/chat-completion
-- Auto Router (`openrouter/auto`): https://openrouter.ai/docs/guides/routing/routers/auto-router
-- Provider routing controls: https://openrouter.ai/docs/guides/routing/provider-selection
-
-What OpenRouter exposes per model (for reliable routing decisions):
-- Stable model id / slug (`id`, `canonical_slug`).
-- Context capacity (`context_length`).
-- Pricing fields (`pricing.prompt`, `pricing.completion`, request/image where available).
-- Capability hints (`supported_parameters`) to detect tool-call/structured-output compatibility.
-- Architecture hints (`architecture.input_modalities`, `output_modalities`, tokenizer/instruct type).
-- Endpoint detail link (`links.details`) for provider endpoint metadata.
-
-How to use OpenRouter correctly (verified against docs):
-- Base endpoint: `https://openrouter.ai/api/v1/chat/completions`.
-- Auth header: `Authorization: Bearer <OPENROUTER_API_KEY>`.
-- Optional attribution headers: `HTTP-Referer` and `X-OpenRouter-Title`.
-- OpenAI SDK compatibility mode: set `baseURL` to `https://openrouter.ai/api/v1`.
-- Dynamic model choice: use `model: "openrouter/auto"` (response reports the actual model used).
-- Fallback model list: use `models: [...]` to allow model fallback on errors/rate limits.
-- Provider-level controls: use `provider` object (`order`, `allow_fallbacks`, `require_parameters`, `data_collection`, `zdr`) when routing constraints are required.
-- Capability filtering from catalog: query `/api/v1/models?supported_parameters=tools` (or other params) before pinning models.
-
-Stagewarden usage mapping (cheap => OpenRouter):
-- Inspect available OpenRouter models: `stagewarden "model list cheap"`.
-- Pin a specific OpenRouter model id: `stagewarden "model variant cheap <openrouter_model_id>"`.
-- Prefer OpenRouter routing for runs: `stagewarden "model use cheap"`.
-- Ensure token env is configured (`OPENROUTER_API_KEY`, or configured env key from Codex `config.toml`).
-
-Operational rule added:
-- For model selection updates under `cheap`, treat OpenRouter Models API as the authoritative runtime catalog; avoid hardcoding stale model lists in handoff notes.
-
-<!-- STAGEWARDEN_RUNTIME_HANDOFF_START -->
-
-## Validation Run: 2026-04-26 Post-Resume
-
-- `python3 -m unittest discover -s tests` executed.
-- 337 tests run in ~45 seconds.
-- 1 pre-existing error: `test_caveman.CavemanTests.test_agent_help_command` fails with `fatal: Unable to create .git/index.lock: Operation not permitted`. Not related to docs/external_io_help_audit.md changes.
-- 3 skipped.
-- No regressions introduced by the resumed task.
-
-## Runtime Handoff Export
-
-Generated: 2026-04-26T20:55:49.768737+00:00
-
-### Current State
-
-- task: create file named docs/external_io_help_audit.md with verified /help external_io commands and examples
-- project_status: resumed_from_exception
-- plan_status: completed
-- recovery_state: resolved
-- stage_health: healthy
-- next_action: update handoff and confirm no regression with test run
-- current_step: step-3
-- git_boundary: baseline=cfe7f5934fd01886efd934e4f7e9c00fb0f77f2d current=cfe7f5934fd01886efd934e4f7e9c00fb0f77f2d
-- pid_boundary: updated_at=2026-04-26T20:55:49.768737+00:00
-
-### Registers
-
-governance=resumed risks_open=0 risks_closed=3 issues_open=0 issues_closed=6 quality_open=0 quality_accepted=1
-
-### Execution Resume Context
-
-- latest_model_attempt: step=step-3 action=manual_completion status=success:file_created_and_verified
-- latest_route: provider=manual account=codex provider_model=codex
-- latest_observation: File docs/external_io_help_audit.md created with verified checksum, compress, archive verify outputs and documented unverified web search/download shapes.
-- latest_tool_evidence: tool=checksum status=ok duration_ms=1 path=docs/external_io_help_audit.md sha256=747b5381436f12b80be1c9c557b0c4823cf8d515b439bbd8c64272bfe27b87fd
-- latest_git_snapshot: none
-
-### Implementation Backlog
-
-Implementation backlog:
-- [completed] step-1 :: Analyze the requirements for: create file | validation=The target files or behavior exist and a real wet-run verifies the change.
-- [completed] step-2 :: Implement: create file named docs/external_io_help_audit.md with | validation=The target files or behavior exist and a real wet-run verifies the change.
-- [completed] step-3 :: Validate that the implementation satisfies the | validation=A real wet-run command or observable result confirms the step passed; dry-run alone is not valid.
-- [resolved] recovery-step-1 :: Recovery 1. Review boundary for unknown-step | validation=A real wet-run confirms the blocking condition is resolved and controlled execution can resume.
-- [resolved] recovery-step-2 :: Recovery 2. Inspect latest issue register and failed | validation=A real wet-run confirms the blocking condition is resolved and controlled execution can resume.
-- [resolved] recovery-step-3 :: Recovery 3. Prepare controlled corrective action with wet-run | validation=A real wet-run confirms the blocking condition is resolved and controlled execution can resume.
-
-### Risks
-
-Risk register:
-- [closed] Requirement misunderstanding.
-- [closed] Regression from file, command, or patch execution.
-- [closed] Continuing after business justification has weakened.
-
-### Issues
-
-Issue register:
-- [resolved] step-1 :: Primary model error: run_model executable not found in PATH. Fallback model error: run_model executable not found in PATH.
-- [resolved] step-1 :: Repeated loop exceeded acceptable control tolerance.
-
-### Quality
-
-Quality register:
-- [accepted] step-3 :: File verified with checksum SHA-256. Cleanup performed. No residual temp artifacts.
-
-### Lessons
-
-Lessons log:
-- [recovered] step-1 :: Exception caused by run_model executable not found in PATH when attempting automated model-driven steps. Manual intervention resumed the task successfully.
-- [success] step-3 :: Manual wet-run of checksum/compress/archive-verify passed. Network-dependent commands (web search, download) were documented as unverified with expected JSON shapes.
-
-## Task Closed: 2026-04-26 Formal Close
-
-- **Task**: create file named docs/external_io_help_audit.md with verified /help external_io commands and examples
-- **Status**: completed (formal close)
-- **Evidence**:
-  - File `docs/external_io_help_audit.md` created with checksum SHA-256 `747b5381`
-  - Wet-run verified: checksum, compress, archive-verify all passed
-  - 337 unit tests passed with no regressions
-- **Risk register**: all 3 risks closed
-- **Issue register**: all 6 issues resolved
-- **Quality register**: accepted
-- **Lessons logged**: 2 entries (recovered exception, successful manual wet-run)
-- **Handoff JSON**: status updated to `completed`, registers closed
-## P4: Advanced palette interaction pack
-- **Status**: Completed locally, awaiting final push.
-- **Summary**: Refined non-TTY fallback and cursor selection for slash palette.
-
-## P5: Advanced file-operations pack
-- **Status**: Completed locally, awaiting final push.
-- **Summary**: Implemented advanced file tooling including encoding, conversion, and metadata operations.
-
-## Next Steps:
-- Implement G1: Model communication and provider telemetry.
-
-## Finalizing P4 and P5
-- Local tests for non-TTY slash palette and cursor selection passed.
-- Local tests for advanced file operations include encoding, conversion, and metadata.
-## P4: Advanced palette interaction pack\n\n- **Status**: Completed locally, awaiting final push.\n- **Summary**: Refined non-TTY fallback and cursor selection for slash palette.\n\n## P5: Advanced file-operations pack\n\n- **Status**: Completed locally, awaiting final push.\n- **Summary**: Implemented advanced file tooling including encoding, conversion, and metadata operations.\n\n## G1 Next\n\n- Implement G1: Model communication and provider telemetry flows.\n
+# Stagewarden Handoff Summary
+
+## Current State
+
+- RAG slice complete and limits addressed: `stagewarden/rag.py` now provides a stdlib-only JSON-backed `DesignRag`; `AgentConfig` exposes `.stagewarden_rag.json`; `Agent` loads/saves RAG and auto-indexes project start, clarification, rejection, step observations/completions/failures, recovery gate closure, and project finish; `Executor` injects `Design knowledge (RAG)` into primary and devil-advocate prompt packets and supports model actions `rag_search` / `rag_add` / `rag_update` / `rag_remove`; manual CLI commands `rag`, `rag list`, `rag search`, `rag add`, `rag update`, `rag remove`, `rag compact`, and `rag rebuild-vectors` are routed through `stagewarden/rag_views.py`; retrieval combines keyword/tag/phase scoring with deterministic trigram, fuzzy-subsequence, and local hashed-vector scoring; prompt rendering now escapes embedded code fences and action output marks RAG results as untrusted; failed RAG persistence rolls in-memory state back; vector search rebuilds persisted vectors on load to avoid stale same-count indexes; `.stagewarden_rag.json` is gitignored; `tests/test_rag.py` covers persistence, retrieval, fuzzy matching, vector search/rebuild/stale rebuild, dedupe/compact, prompt injection, executor actions, CLI helpers, and persistence rollback. Validation passed: `python3 -m unittest discover -s tests -v` -> 425 OK; CLI vector add/rebuild/search/remove smoke passed. No immediate follow-up is pending for this slice.
+- Round 13: Fixed NameError bug in `stagewarden/auth.py` (missing `urllib.parse` import). Removed dead `SUPPORTED_MODELS` definition from `stagewarden/provider_registry.py`. Extracted 6 duplicated literal groups to module-level constants: `RISKY_ACTION_TOKENS` in `prince2.py` (used in `router.py`), `DEBUG_TOKENS`/`COMPLEX_TOKENS` in `router.py`, `ROLE_HIGH_STAKES`/`ROLE_ECONOMICAL` in `modelprefs.py`, `BUDGET_POLICY` in `memory.py` (used in `status_views.py`). All tests pass.
+- Round 12: Fixed critical dict indentation bug in `stagewarden/memory.py` `model_usage_stats()` early return (keys were siblings of `"totals"` instead of children). Removed unused `subprocess` import from `stagewarden/status_dashboard_views.py`, unused `shutil` import from `stagewarden/model_inspection_views.py`, and dead `_catalog_entry_for_provider_spec` function from `stagewarden/model_catalog.py`. All tests pass.
+- `stagewarden/main.py` had the boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges trimmed, `stagewarden/cli_dispatch.py` now calls `report_views.py` and `project_handoff_views.py` directly for those paths, `stagewarden/status_dashboard_views.py` now calls `stagewarden/status_views.py` directly for provider-limit summary, the help/slash palette helpers now live on `ui_views.py`, extension handling now lives on `extension_views.py`, the sources/update handlers now live on `status_views.py`, readonly agent setup now lives on `agent_setup_views.py`, the last `model_status` bridge is gone, permission refresh callers now use `agent_setup_views.py` directly, the mode handler now lives on `mode_views.py`, and the new retrospettiva-prospettica control rule is wired into executor/PRINCE2/runtime behavior. The recovery-gate integration test now passes again under `python3 -m unittest`, and the prompt-choice plus guided role, role-tree, and sources/update CLI paths were repointed directly at their owner modules.
+- `stagewarden/status_views.py` now persists model/account limit snapshots through `model_prefs_path` and saves account clears too.
+- `stagewarden/main.py` no longer carries the thin provider-model inspection wrappers, and `stagewarden/cli_dispatch.py` now imports the render helper directly from `stagewarden/model_inspection_views`.
+- `stagewarden/main.py` also dropped the thin parser/help/model-preset wrappers that had no remaining call sites.
+- `stagewarden/main.py` also dropped the agent setup, auth status, account render/report, and battery report bridges; `cli_dispatch.py`, `mode_views.py`, `shell_views.py`, `account_views.py`, and `model_views.py` now call the owner modules directly where needed.
+- Deep trace follow-up fixed refactor fallout: browser/system/watch/external IO CLI routing, slash fuzzy highlighting, main.py compatibility patch targets for auth/catalog/runtime, provider auth metadata in `model list`, provider-limit summary scope, PRINCE2 role defaults/rendering, roles flow/tick owner routing, and project-tree AI design import. Full discovery now passes: 425 OK.
+- The executor now verifies mutating actions after execution instead of trusting tool success blindly.
+- The repo now includes a broader cross-platform utility surface: `stagewarden/tools/system.py` handles info, disk usage, process listing, process kill, port check, clipboard, and URL opening, while `stagewarden/tools/external_io.py` now covers generic hashing plus archive listing/extraction/creation.
+- `stagewarden/command_dispatch.py` now centralizes the parsing and execution of the common tool families, and `stagewarden/tool_reports.py` centralizes the related text/report/evidence helpers so `stagewarden/main.py` can stay thinner.
+- `stagewarden/project_state_views.py` now centralizes goal, budget, and question state/report helpers so the project-state commands no longer live inline in `stagewarden/main.py`.
+- `stagewarden/executor_quality.py` now centralizes the response-quality scorer so `stagewarden/executor.py` can stay thinner.
+- `stagewarden/project_handoff_state.py` now centralizes the persisted budget, goal, and user-question state helpers that were still living inside `stagewarden/project_handoff.py`.
+- `stagewarden/project_handoff_views.py` now centralizes the handoff/resume/board/register/transcript operational reports that were still living inside `stagewarden/project_handoff.py`.
+- `stagewarden/mode_views.py` now centralizes the mode/status/project/report dispatch bridge that was still living in `main.py`.
+- `stagewarden/model_views.py` now centralizes the model/catalog/provider-selection block that was still living in `main.py`, including catalog status/refresh/search, model params/preset/variant flows, and the guided model-choice flow, and `main.py` now only keeps a thin usage wrapper for the model command.
+- `stagewarden/model_views.py` now also owns the provider-model catalog render used by `model list <provider>`, so that CLI output no longer depends on the old `main.py` bridge.
+- `stagewarden/model_views.py` now also owns the model preference load/save/apply helpers and the PRINCE2 role-sync helpers, so `main.py` only keeps thin bridges for those flows.
+- `stagewarden/model_views.py` now also owns the model preference apply helper directly, so the workspace-configure path no longer depends on the old `main.py` bridge.
+- `stagewarden/model_views.py` now also owns the PRINCE2 role-sync helper directly, so the role/runtime paths no longer depend on the old `main.py` bridge.
+- `stagewarden/model_views.py` now also owns the PRINCE2 role-tree-baseline back-sync helper directly, so the role-flow path no longer depends on the old `main.py` bridge.
+- `stagewarden/model_views.py` now also owns the model preference save and handoff-preference sync helpers directly, so those flows no longer depend on the old `main.py` bridge.
+- `stagewarden/status_views.py` now also uses `stagewarden/model_views.py` directly for the provider-model display helpers, so the status rendering path no longer depends on the old `main.py` bridge.
+- `stagewarden/status_views.py` now also uses `stagewarden/model_views.py` directly for the catalog entry display helper.
+- `stagewarden/main.py` no longer keeps the catalog option suffix helper as a compatibility bridge.
+- `stagewarden/project/role_tree_views.py` and `stagewarden/project/tree_flow.py` now call `stagewarden/project/role_flow.py` directly for the tolerance profile helper.
+- `stagewarden/main.py` no longer keeps the handoff loader helper as a compatibility bridge.
+- `stagewarden/status_views.py` now also uses `stagewarden/account_views.py` directly for account line rendering.
+- `stagewarden/project/role_command_flow.py` and `stagewarden/project/role_flow.py` now call `stagewarden/project/role_tree_views.py` directly for the role tree/check render helpers.
+- `stagewarden/project/role_command_flow.py`, `stagewarden/project/role_flow.py`, `stagewarden/project/start_flow.py`, and `stagewarden/status_views.py` now call `stagewarden/project/role_views.py` directly for the roles render helper.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_tree_views.py` directly for the roles domains and flow helpers.
+- `stagewarden/main.py` no longer keeps the PRINCE2 roles domains report helper as a compatibility bridge.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_tree_views.py` directly for the roles matrix helper.
+- `stagewarden/main.py` no longer keeps the PRINCE2 role matrix report helper as a compatibility bridge.
+- `stagewarden/main.py` no longer keeps the PRINCE2 role tree baseline report/render helpers as compatibility bridges.
+- `stagewarden/main.py` no longer keeps the PRINCE2 role status hint helper as a compatibility bridge.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_runtime_views.py` directly for the roles runtime/messages helpers.
+- `stagewarden/status_views.py`, `stagewarden/status_dashboard_views.py`, and `stagewarden/project/design_flow.py` now call `stagewarden/project/role_tree_views.py` directly for the roles check helper.
+- `stagewarden/project/role_command_flow.py`, `stagewarden/battery_views.py`, and `stagewarden/project/role_runtime_views.py` now call `stagewarden/project/role_runtime_views.py` directly for the roles runtime/messages helper family.
+- `stagewarden/project/role_command_flow.py`, `stagewarden/project/role_flow.py`, `stagewarden/project/tree_flow.py`, `stagewarden/project/role_tree_views.py`, `stagewarden/project/role_views.py`, `stagewarden/project/role_runtime_views.py`, `stagewarden/status_views.py`, `stagewarden/status_limits_views.py`, `stagewarden/project_handoff_views.py`, `stagewarden/ui_views.py`, `stagewarden/model_inspection_views.py`, and `stagewarden/project/model_recommendation.py` now call `stagewarden/model_views.py` directly for `load_model_preferences`.
+- `stagewarden/project/role_command_flow.py` and `stagewarden/project/role_flow.py` now call `stagewarden/project/role_views.py` directly for the roles context helper.
+- `stagewarden/project/role_views.py` now calls `stagewarden/status_views.py` directly for the agent capability surface helper.
+- `stagewarden/project/role_views.py`, `stagewarden/project/role_flow.py`, and `stagewarden/project/role_runtime_views.py` now call `stagewarden/project/model_recommendation.py` directly for node recommendations, and `stagewarden/main.py` no longer keeps that bridge.
+- `stagewarden/project/tree_flow.py`, `stagewarden/project/start_flow.py`, `stagewarden/cli_dispatch.py`, and `stagewarden/shell_views.py` now call project-tree and model helpers directly, `stagewarden/main.py` no longer keeps those project-tree bridges, and `stagewarden/project/tree.py` now emits `assurance.validation_assurance` to match the trace contract.
+- `stagewarden/model_views.py` and `stagewarden/project/design_flow.py` now own the local-execution model discovery path directly, and `stagewarden/main.py` no longer keeps that bridge.
+- `stagewarden/model_views.py`, `stagewarden/project/role_flow.py`, and `stagewarden/cli_dispatch.py` now own the catalog-choice and roles-baseline calls directly, and `stagewarden/main.py` no longer keeps those bridges.
+- `stagewarden/project/design_flow.py` now calls `stagewarden/status_views.py` directly for provider-limit reporting, while `stagewarden/main.py` keeps the thin status wrappers needed by the test import surface.
+- `stagewarden/status_views.py` now routes `_status_pricing_report` through `stagewarden.main._model_status_report` again so the existing pricing-source patch test remains valid, and `stagewarden/main.py` keeps the thin model/status wrappers needed by the test import surface.
+- `stagewarden/status_views.py` now also owns the source-reference manifest and git helper logic used by sources/update handling, and `stagewarden/main.py` no longer keeps those wrappers.
+- `stagewarden.status_views._status_dashboard_report` is now called directly by `cli_dispatch`, and the board/transcript/handoff/log-error helpers now resolve through the owning modules instead of `main.py`.
+- `stagewarden.status_views` now also resolves the resume-context and permissions render paths through `project_handoff_views` and `report_views` directly, and `stagewarden.main` no longer keeps those wrappers.
+- `stagewarden.status_views` now routes `status_remediation_report` through `stagewarden.status_dashboard_views` directly, and `stagewarden.main` no longer keeps that wrapper.
+- `stagewarden.model_views`, `stagewarden.model_inspection_views`, `stagewarden.project.tree_flow`, `stagewarden.status_views`, and `stagewarden.cli_dispatch` now own the model-inspect and model-selection helpers directly, and `stagewarden.main` no longer keeps the `choose_cloud_priority_model` wrapper.
+- `stagewarden/project/role_command_flow.py` now calls `stagewarden/project/role_runtime_views.py` directly for the roles active/control/queues helpers.
+- `stagewarden/battery_views.py` now calls `stagewarden/project/role_flow.py` directly for the node-shell helper.
+- `stagewarden/battery_views.py` and `stagewarden/project/role_flow.py` now call `stagewarden/project/role_flow.py` directly for the node-detail helper.
+- `stagewarden/command_views.py` now owns the shared `parse_limit` helper and `stagewarden/cli_dispatch.py` now owns the LJSON path helpers, so the last utility bodies can stay out of `main.py`.
+- `stagewarden/ui_views.py` now owns `interactive_help_text`, so the remaining help text no longer lives inline in `main.py`.
+- `stagewarden/shell_views.py` now owns the shell backend settings/report helpers, so the last shell-backend bodies can stay out of `main.py`.
+- `stagewarden/model_views.py` now also owns the catalog helper block that was still living in `main.py`, so the CLI can keep `main.py` thinner, `stagewarden/model_catalog_views.py` now centralizes the remaining catalog usage/report helpers, and `main.py` no longer keeps the `model` usage string inline.
+- `stagewarden/shell_views.py` now also owns the permission approval, rate-limit decision, and interactive completion helpers used by the interactive shell, so the shell flow no longer keeps those prompts and completion rules inline in `main.py`.
+- `stagewarden/status_views.py` now also owns the provider limit snapshot record/clear helpers so the status/provider-limit slice owns the persistence path for limit events.
+- `stagewarden/status_views.py` now also owns the agent capability-surface helper used by `roles context`, while `stagewarden/main.py` keeps a thin bridge for compatibility.
+- `stagewarden/status_views.py` now calls `stagewarden/project/role_views.py` directly for the `roles` report, so `main.py` no longer keeps that compatibility bridge.
+- `stagewarden/status_views.py` and `stagewarden/status_dashboard_views.py` now use the local agent-baseline helper directly, and `stagewarden/main.py` no longer keeps the obsolete agent-baseline bridge.
+- `stagewarden/shell_views.py` now also owns the shell backend, shell progress, prompt menu, and interactive command checks, while `stagewarden/main.py` keeps only thin bridges for compatibility.
+- `stagewarden/shell_views.py` now also owns the shell command rewrite helper, while `stagewarden/main.py` keeps only thin bridges for compatibility.
+- `stagewarden/project/role_flow.py` now also owns the PRINCE2 role assignment helper that was still living in `main.py`, and the focused role-assignment regression batch is green again.
+- `stagewarden/status_views.py` now also owns the `sources` / `update` repo-health report helpers, while `stagewarden/main.py` keeps thin bridges for compatibility.
+- `stagewarden/project/role_command_flow.py` now centralizes the project-start and roles command dispatch bridge that was still living in `main.py`, and the extracted `role` bridge was just corrected after an indentation bug; the focused `role`/`roles` regression batch is green again.
+- `stagewarden/cli_dispatch.py` now centralizes the main CLI task dispatcher that was still living in `main.py`, and the `project start` JSON path now goes through the structured report again so `next_missing_field` stays in the payload.
+- `stagewarden/shell_views.py` now centralizes the interactive shell loop that was still living in `main.py`, and the shell/role budget/question regression batch is green again after the split.
+- `stagewarden/auth_views.py` now centralizes provider auth status, and `stagewarden/model_inspection_views.py` now centralizes the provider/local model inspection path that was still living in `main.py`.
+- `stagewarden/account_views.py` now centralizes the account command block that was still living in `main.py`, including account add/login/logout/env/import/use/choose/remove/block/unblock/limit commands and the account report.
+- `stagewarden/command_views.py` now centralizes the shell/git/file/session/patch/permission command cluster that was still living in `main.py`.
+- `stagewarden/report_views.py` now centralizes the remaining board/boundary/permissions/risks/issues/quality/exception/lessons/todo report helpers that were still living in `main.py`.
+- `stagewarden/account_views.py` now also owns the accounts report helper so the account summary no longer lives inline in `main.py`.
+- `stagewarden/status_views.py` now also owns the permissions and runtime-status helpers, and `stagewarden/status_views.py` also owns the provider-limit summary helper so the status slice keeps the last report bodies out of `main.py`.
+- `stagewarden/status_limits_views.py` now owns the provider-limit extraction slice completely, and `stagewarden/status_views.py` delegates the provider-limit report/render helpers to it.
+- `stagewarden/project/role_views.py` now also owns the PRINCE2 roles summary report, and `stagewarden/main.py` keeps only a thin bridge for that slice.
+- `stagewarden/status_views.py`, `stagewarden/status_dashboard_views.py`, and `stagewarden/status_limits_views.py` now keep the interactive status path out of the shell-backend recursion, restore the `Provider limit status:` header, and preserve the expected `last_attempt` / provider configuration strings for the focused CLI regression batch.
+- `stagewarden/cli_dispatch.py` now routes `goal` directly through `stagewarden/project_state_views.py`, so `main.py` stays thinner again.
+- `stagewarden/project_handoff_runtime.py` now centralizes the PRINCE2 runtime, message-flow, persistence, and node-token/cost helpers that were still living inside `stagewarden/project_handoff.py`.
+- The remaining legacy method bodies were removed from `stagewarden/project_handoff.py`; it now stays as a thin wrapper around the runtime module and the view/state split.
+- `stagewarden/executor_prompting.py` now centralizes the prompt, packet, schema, and role-context helpers that were still living inside `stagewarden/executor.py`.
+- `stagewarden/mode_views.py` now centralizes the mode/status/project/report dispatch bridge that was still living in `main.py`.
+- `stagewarden/project/brief.py` now centralizes the project-brief fields, guidance, and clarification helpers inside the new `stagewarden/project/` subpackage, `stagewarden/project/flow.py` now carries the wrapper bridge that `main.py` used to keep inline, `stagewarden/project/tree_flow.py` now carries the project-tree proposal/approval/report bridge, and `stagewarden/project_brief_flow.py` is compatibility only.
+- `stagewarden/project/tree_flow.py` is now the active project-tree proposal/approval/report bridge and passes the focused project-tree regression batch.
+- The legacy project-tree implementation bodies were removed from `stagewarden/main.py`, leaving only thin wrappers that delegate into `stagewarden/project/tree_flow.py`.
+- `stagewarden/project/model_recommendation.py` now owns the tree model-selection helpers that were still duplicated in the tree bridge and main wrappers.
+- `stagewarden/project/design_flow.py` now owns the project design packet/report helpers that were still living in `main.py`.
+- `stagewarden/project/design_flow.py` now treats runtime-discovered local execution candidates as valid readiness, so `project start` can proceed in a fresh repo without a pre-approved cloud baseline.
+- `stagewarden/project/design_flow.py` now also owns the local execution candidates report helper that was still living in `main.py`.
+- `stagewarden/model_views.py` now also owns the catalog-entry display helper that was still living in `main.py`.
+- `stagewarden/shell_views.py` now also owns the last-step outcome transcript helper that was still living in `main.py`.
+- `stagewarden/project/role_flow.py` now also owns the PRINCE2 role-node remove helper that was still living in `main.py`.
+- `stagewarden/project/role_flow.py` now also owns the PRINCE2 role baseline builder and node mutation helpers that were still living in `main.py`.
+- `stagewarden/extension_views.py` now also owns the extension discovery/report helpers that were still living in `main.py`.
+- `stagewarden/cli_dispatch.py` now routes `extensions` through `stagewarden/extension_views.py` instead of the `main.py` namespace.
+- `stagewarden/project_handoff_views.py` now owns the shared handoff-action recorder that was still living in `main.py`.
+- `stagewarden/project/role_views.py`, `stagewarden/project/role_runtime_views.py`, `stagewarden/project/role_flow.py`, and `stagewarden/project/role_command_flow.py` now call `stagewarden/model_views.py` directly for PRINCE2 role-sync, so `main.py` no longer keeps that compatibility bridge.
+- `stagewarden/project/role_flow.py` now also calls `stagewarden/model_views.py` directly for the PRINCE2 role-tree baseline back-sync helper.
+- `stagewarden/status_views.py` now also owns the source reference manifest helper that was still living in `main.py`.
+- `stagewarden/status_views.py` now also owns the agent baseline render helper that was still living in `main.py`.
+- `stagewarden/model_views.py` now also owns the cloud-priority model chooser that was still living in `main.py`.
+- `stagewarden/project/tree_flow.py` now calls `stagewarden/agent_setup_views.py` directly for readonly-agent setup, and `stagewarden/project_handoff_views.py` uses a lazy import there to avoid a circular import.
+- `stagewarden/cli_dispatch.py` now persists a project-tree clarification question when `project tree propose --ai` still needs brief clarification, and `stagewarden/project/tree_flow.py` renders that question in the textual output.
+- `stagewarden/json_schema_registry.py` now also owns the shared `with_json_schema()` helper that was still living in `main.py`.
+- `stagewarden/agent_setup_views.py` now owns the agent workspace setup and runtime permission refresh helpers that were still living in `main.py`.
+- `stagewarden/project/role_flow.py` now also owns the PRINCE2 tolerance margin set/reset helpers that were still living in `main.py`.
+- The refactor target is now explicitly MVC-shaped across the module tree, with controller-style dispatch, view modules for rendering/reporting, and model modules for catalog/provider logic.
+- The agent should support controlled recursive command handling and self-instantiation of sub-agents when decomposing work, instead of keeping every command path centralized in one giant entrypoint.
+- `stagewarden/model_views.py` now also owns the provider-model display helpers that were still living in `main.py`.
+- `stagewarden/project/role_views.py` now owns the PRINCE2 role runtime/context report and render helpers that were still living in `main.py`.
+- `stagewarden/project/role_runtime_views.py` now owns the PRINCE2 runtime, active, queues, control, and messages report/render helpers that were still living in `main.py`.
+- `stagewarden/project/role_flow.py` now owns the PRINCE2 role-tree node discovery, navigation, detail, shell, provider-choice, action, and menu helpers that were still living in `main.py`.
+- `stagewarden/project/role_tree_views.py` now owns the remaining PRINCE2 role domains/tree/baseline render helpers that were still living in `main.py`.
+- `stagewarden/project/role_tree_views.py` excludes the rollback lane from the active local-fallback count so the readiness report matches the regression contract.
+- `stagewarden/project/start_flow.py` now owns the `project start` gate, clarification records, and startup rendering helpers that were still living in `main.py`.
+- `stagewarden/battery_views.py` now owns the battery report/render slice that was still living in `main.py`, the old inline battery report body and inline battery renderer were removed from `main.py`, leaving only the thin wrapper bridge, `stagewarden/status_views.py` now owns the model-usage/cost-sidebar/full-status/provider-limit/model-status helper slice, `stagewarden/project_handoff_views.py` now owns the handoff/resume/board/register/transcript operational reports, `stagewarden/ui_views.py` now owns the help/slash UI helpers, and the focused battery regression batch is green again after the split.
+- The PRINCE2 role shell render now includes the `status_legend:` line and the `switch_hint:` line expected by the battery, and the antagonist KPI path now exposes `threat_count` so the role battery passes again.
+- `stagewarden/status_views.py` now owns the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status/provider-limit/model-status helper slice, while `stagewarden/main.py` shadows the old bodies with thin wrappers into that module.
+- `status` and `statusline` now resolve through the report paths again, so the fallback readiness readout stays machine-readable.
+- `_focus_snapshot` was restored after the status cleanup so the battery and resume/status paths keep working.
+- The next structure slice should keep grouping related code into subfolders by concern so the module surface stays readable as the repo grows, then continue trimming the remaining status helpers and any other legacy duplicates out of `main.py`.
+- The focused validation batch for the new dispatch/report split passed after wiring the callbacks through the shell and JSON paths.
+- The PRINCE2 tree proposal now emits explicit micro-task decomposition nodes and live adaptation metadata.
+- The approved PRINCE2 role-tree baseline now persists the same decomposition and adaptation metadata.
+- The PRINCE2 checklist now tells the policy to split work into the smallest independently verifiable packages and to refresh at each boundary.
+- The current governance slice now implements `auto/manual/manual_min/blocked` assignment modes, node mnemonic/team metadata, a chat-like node transcript with visible token/cost information, a status cost sidebar, and `status full` node-level cost breakdown.
+- Project budgets are now persisted on the handoff, visible in status views, and controllable through `budget`, `budget set`, `budget status`, and `budget clear`.
+- The agent can now ask the user for clarification on vague tasks, persist the pending question, and accept the answer in the shell before resuming the task.
+- The structured `project start` gate now persists a clarification question when the project brief is incomplete and shows the pending question alongside the blocking gaps.
+- The `project tree propose --ai` gate now also persists a clarification question when the brief is incomplete and shows the pending question alongside the blocking gaps.
+- `project brief` now shows the next missing field so the brief can be completed step by step, and the same signal is available in JSON.
+- `project start` and `project tree propose --ai` now also expose the next missing field or gap in JSON, matching the interactive guidance.
+- The latest broader regression batch covering `project brief`, `project start`, `project tree propose --ai`, and project-tree approval passed after the JSON guidance refactor.
+- The repository is on branch `pr/p4-p5-updates` at `HEAD a38597f`.
+- The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
+- The benchmark runner emits a `suites` map and an optional `history` block, and the history path is opt-in through `--openrouter-benchmark-history`.
+- The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with prompt-driven `governance`, `assurance`, `recovery`, `advanced`, `stress`, `regulatory`, `regulatory_stress`, `legal_stress`, `incident_response`, `vendor_failure`, `multi_vendor_crisis`, `supply_chain_failure`, `regulatory_war_room`, and `board_crisis` suites.
+- `stagewarden/prince2_benchmark.py` now derives benchmark orchestration from the live runtime graph, so the reported node count varies with the actual case execution.
+- `stagewarden/prince2_benchmark.py` now exposes the full runtime payload plus a readable detail block for nodes, roles, parent links, inbox/outbox counts, transitions, provider usage, provider-model variants, token totals, and timing by default for every benchmark case.
+- `stagewarden/provider_registry.py` now discovers local models automatically from both Ollama and LM Studio, and `provider_model_preset()` now picks variants from catalog/runtime scores instead of hardcoded model-name tables.
+- `stagewarden/tools/browser.py` now provides browser fetch/open/screenshot flows with stdlib parsing plus optional Playwright screenshots.
+- `stagewarden/tools/watch.py` now provides filesystem event observation with watchdog when available and polling fallback otherwise.
+- `stagewarden/main.py`, `stagewarden/commands.py`, and `stagewarden/json_schema_registry.py` now route and document the new `system`, `external_io`, `browser`, and `watch` commands.
+- `tests/test_tools.py`, `tests/test_trace_cli.py`, and `tests/test_json_schema_registry.py` now cover the new tool paths and registry entries.
+- `stagewarden/executor.py` now verifies mutating file, shell, git-commit, and multi-file patch actions after execution, and it fails when the workspace proof is missing or mismatched.
+- `stagewarden/prince2.py` now explicitly treats refactoring as a permanent cyclic phase across nodes, roles, stages, and microtasks inside the PRINCE2 checklist policy.
+- `stagewarden/project/role_flow.py` and `stagewarden/project_handoff_runtime.py` restored the PRINCE2 role shell contract expected by the battery and exposed `threat_count` in antagonist decision KPIs.
+- `stagewarden/status_views.py`: extracted the first status/dashboard/statusline/overview/health helper slice, the `preflight`, `report`, and `doctor` helper slice, and the model-usage/cost-sidebar/full-status helper slice, while `stagewarden/main.py` shadows the old bodies with wrappers into that module; `stagewarden/status_dashboard_views.py` now carries the public dashboard/report bridge.
+- `stagewarden/main.py`: restored `_focus_snapshot` after the status cleanup so the battery/resume paths keep working.
+- `stagewarden/main.py`: removed the duplicated legacy `overview/health/preflight/report` bodies after the status split, leaving only the wrapper layer at the end of the file.
+- `stagewarden/main.py`, `stagewarden/project_handoff.py`, `stagewarden/project_handoff_state.py`, `stagewarden/project_handoff_views.py`, `stagewarden/project_handoff_runtime.py`, `stagewarden/prince2.py`, `stagewarden/commands.py`, `stagewarden/json_schema_registry.py`, `tests/test_persistence.py`, `tests/test_prince2.py`, and `tests/test_trace_cli.py` now cover project budget management plus the agent clarification-question flow.
+- `stagewarden/model_views.py`: now owns the model/catalog/provider-selection extraction target that was still living in `main.py`, and `main.py` now delegates the last direct `model` usage string to that module too.
+- `stagewarden/model_views.py`: now also owns the provider-model catalog render for `model list <provider>`.
+- `stagewarden/main.py` now also shows the next missing `project brief` field after each edit and in the summary view, and it exposes the same signal in JSON.
+- `stagewarden/main.py` now also exposes the next missing field or gap for `project start` and `project tree propose --ai` in JSON.
+- `tests/test_trace_cli.py` now also passes a broader regression batch covering the brief/start/tree flows after the JSON guidance refactor.
+- `tests/test_trace_cli.py` now also covers `project start` clarification persistence.
+- `tests/test_trace_cli.py` now also covers AI-assisted project-tree clarification persistence.
+- `data/prince2_benchmark_baseline.json` now uses more complex PRINCE2 prompts, and the escalation case includes explicit `review/validate` language so the policy checker still allows it while requiring escalation.
+- `data/prince2_benchmark_baseline.json` now also includes an `advanced` suite built from public traces covering cloud migration, records governance, data transformation, and procurement delays.
+- `data/prince2_benchmark_baseline.json` now also includes a `stress` suite that mixes governance pressure, recovery, and stakeholder conflict.
+- `data/prince2_benchmark_baseline.json` now also includes a `regulatory` suite covering secure-by-design, DPIA, AI governance, and wet-run compliance cases.
+- `data/prince2_benchmark_baseline.json` now also includes a `regulatory_stress` suite that mixes privacy incidents, audit readiness, AI change control, and compliance wet-run pressure.
+- `data/prince2_benchmark_baseline.json` now also includes a `legal_stress` suite that mixes legal hold, contract risk, disclosure pressure, evidence preservation, and board escalation.
+- `data/prince2_benchmark_baseline.json` now also includes an `incident_response` suite that mixes breach handling, outage recovery, rollback control, evidence preservation, and operational escalation.
+- `data/prince2_benchmark_baseline.json` now also includes a `vendor_failure` suite that mixes supplier collapse, third-party risk, contract renegotiation, fallback planning, and board escalation.
+- `data/prince2_benchmark_baseline.json` now also includes a `multi_vendor_crisis` suite that mixes cascading supplier failure, shared dependencies, fallback governance, and urgent board recovery decisions.
+- `data/prince2_benchmark_baseline.json` now also includes a `supply_chain_failure` suite that mixes supply shortages, logistics collapse, procurement delays, inventory gaps, and continuity planning.
+- `data/prince2_benchmark_baseline.json` now also includes a `regulatory_war_room` suite that mixes live board-room escalation, breach response, vendor risk, legal hold, and continuity control.
+- `data/prince2_benchmark_baseline.json` now also includes a `board_crisis` suite that mixes quorum failure, executive escalation, crisis authority, and recovery decisions under pressure.
+- `stagewarden/router.py` now biases model selection dynamically for regulatory prompts while leaving the existing deterministic path intact for the rest, and it now delegates variant selection to catalog-driven presets instead of hardcoded variant names.
+- `stagewarden/prince2_benchmark.py` now uses the router to choose the project-assurance assignment instead of hardcoding `openai:gpt-5.4-mini`, and it now uses router-derived active models instead of a fixed `["local", "openai"]` whitelist; `stagewarden/modelprefs.py` now also derives role defaults from dynamic provider-model scoring instead of hardcoded role-to-model tables; `stagewarden/executor.py` now escalates weak or blocked responses by using a structured completion-quality scorer and then upgrading the variant first and the provider if the prompt still needs more capability, and the score is surfaced in the PRINCE2 benchmark report for completion cases; the current run shows `openai:gpt-5.4-nano` and `cheap:openai/gpt-5.4-nano`; the interactive shell now has a cost sidebar command, and `status full` now includes the complete node cost breakdown.
+- The CLI and registry tests cover the new benchmark command and JSON schema registration.
+- The PRINCE2 benchmark tests pass after the escalation-prompt fix, advanced-suite expansion, stress-suite expansion, regulatory-suite expansion, regulatory_stress-suite expansion, legal_stress-suite expansion, incident_response-suite expansion, vendor_failure-suite expansion, multi_vendor_crisis-suite expansion, supply_chain_failure-suite expansion, regulatory_war_room-suite expansion, and board_crisis-suite expansion; the full unittest suite currently has one flaky live OpenRouter test that retries cleanly outside this slice.
+- Local provider discovery is now automatic across Ollama and LM Studio, so the dynamic model inventory should match whichever runtime is actually present on the machine.
+- Next functional slice to resume: `Ritornando al discorso funzionale di Stagewarden: utente fa richiesta > agente analizza richiesta ma sopratutto tutti i punti ambigui; l'IA non deve fare assunzioni e deve chiedere all'utente tutte le delucidazioni; solo quando non ci sono punti ambigui parte con il progetto; suddivide il progetto in microtask o stage; se nascono punti ambigui ci si ferma e si chiede all'utente delucidazioni, mai assunzioni; l'utente puo' fare nuove richieste che modificano il progetto quindi si ripete l'intero ciclo; i nodi possono modificare gli stage loro assegnati e possono essere anche cancellati o creati nuovi nodi in base alle nuove specifiche di progetto; l'intero sistema deve essere il più dinamico possibile continuando a seguire le regole PRINCE2 quindi anche tolleranze, limiti di stage, report nodo team e ad pm, business case, ecc... rileggi libro PRINCE2 per tutte le regole.`
+- Refactor priority: treat refactoring as a permanent cyclic phase across the whole organizational tree, including nodes, roles, stages, and microtasks, not only the code files themselves.
+- Next architecture slice to resume: keep trimming the remaining large helpers in `stagewarden/main.py` and related dispatch/report modules because the codebase is getting hard to read as tools and flows accumulate, and keep organizing related code into subfolders by concern so the structure stays navigable.
+
+## Recent Work
+
+- `stagewarden/shell_views.py`: eliminated `globals().update(main_module.__dict__)` and all `main_module` lazy imports; added direct imports for `INTERACTIVE_COMMAND_PHRASES`, `command_catalog`, `command_phrases`, `render_command_catalog`, `json_schema_registry`, `account_views`, `command_views`, `tool_reports`, `project.flow`, `project.role_command_flow`, `project.tree_flow`, and `command_dispatch` helpers. All interactive shell command handlers now call their owner modules directly.
+- `stagewarden/status_dashboard_views.py`: added `BASELINE_CAPABILITY_GROUPS` and `BASELINE_REMEDIATION_BY_GROUP` constants.
+- `stagewarden/status_views.py`: imports baseline constants from `status_dashboard_views` instead of `main`.
+- `stagewarden/main.py`: removed `INTERACTIVE_COMMAND_PHRASES`, `INTERACTIVE_COMMAND_PREFIX`, `BASELINE_CAPABILITY_GROUPS`, and `BASELINE_REMEDIATION_BY_GROUP` definitions; imports baseline constants from `status_dashboard_views`.
+- `stagewarden/project/role_views.py` and `stagewarden/project/role_runtime_views.py`: call `_project_role_flow._role_tree_node_record` directly.
+- `stagewarden/cli_dispatch.py`: added missing `_auth_views` import.
+- `tests/test_trace_cli.py`: imports `_handle_model_command` from `model_views`, `run_interactive_shell` from `shell_views`, `_handle_role_command` wrapper from `project.role_command_flow`, `_configure_readonly_agent_for_workspace` from `agent_setup_views`, and `_preflight_report` from `status_dashboard_views`.
+- Validation: all focused trace CLI batches pass (shell, status, auth, permission, project, roles, sources, boundary, handoff, completion, help, executor, agent integration).
+- `stagewarden/main.py`: removed the `_handle_mode_command` bridge.
+- `tests/test_trace_cli.py`: reran `test_interactive_shell_status_and_mode_commands`, `test_interactive_shell_guided_account_choice`, and `test_permissions_cli_json_output_is_machine_readable`; all pass.
+- `stagewarden/command_views.py` and `stagewarden/mode_views.py`: now call `stagewarden.agent_setup_views` directly for permission refresh instead of going through `main.py`.
+- `stagewarden/main.py`: removed the `_refresh_runtime_permissions` bridge.
+- `tests/test_trace_cli.py`: reran `test_permissions_cli_json_output_is_machine_readable`, `test_interactive_shell_status_and_mode_commands`, and `test_interactive_shell_guided_account_choice`; all pass.
+- `stagewarden/main.py`: removed the last `model_status` bridge after moving the test patch target to `stagewarden.status_views`.
+- `tests/test_trace_cli.py`: reran `test_status_pricing_report_exposes_pricing_source`, `test_interactive_shell_renders_model_usage_and_cost_alias`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the readonly agent setup bridge after moving the call sites to `agent_setup_views.py`.
+- `stagewarden/cli_dispatch.py`: now calls `stagewarden.agent_setup_views` directly for readonly agent setup.
+- `tests/test_trace_cli.py`: reran `test_project_start_approves_ready_project_tree_proposal`, `test_project_start_blocks_when_design_or_brief_has_gaps`, `test_interactive_shell_status_and_mode_commands`, `test_interactive_shell_guided_account_choice`, and `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`; all pass.
+- `stagewarden/main.py`: removed the sources/update handler bridge wrappers after moving the call sites to `status_views.py`.
+- `stagewarden/cli_dispatch.py` and `stagewarden/shell_views.py`: now call `stagewarden.status_views` directly for sources/update handling.
+- `tests/test_trace_cli.py`: reran `test_sources_status_strict_and_update_fast_forward`, `test_update_status_check_and_apply_fast_forward`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the extension report/handler bridge wrappers after moving the call sites to `extension_views.py`.
+- `stagewarden/cli_dispatch.py` and `stagewarden/shell_views.py`: now call `stagewarden.extension_views` directly for extension handling.
+- `tests/test_trace_cli.py`: reran `test_interactive_shell_status_and_mode_commands`, `test_commands_catalog_cli_and_json`, `test_interactive_help_topics_use_registry_metadata_and_aliases`, and `test_interactive_help_overview_uses_topic_catalog`; all pass.
+- `stagewarden/main.py`: removed the help/slash palette bridge wrappers after moving the call sites to `ui_views.py`.
+- `stagewarden/cli_dispatch.py` and `stagewarden/shell_views.py`: now call `stagewarden.ui_views` directly for help/slash rendering and JSON help reports.
+- `tests/test_trace_cli.py`: reran `test_interactive_help_topics_use_registry_metadata_and_aliases`, `test_interactive_help_overview_uses_topic_catalog`, `test_commands_catalog_cli_and_json`, and `test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values`; all pass.
+- `stagewarden/status_dashboard_views.py`: now calls `status_views.py` directly for provider-limit summary instead of going through `main.py`.
+- `stagewarden/main.py`: removed the `provider_limit_summary` bridge.
+- `tests/test_trace_cli.py`: reran `test_status_full_cli_renders_remediations`, `test_status_full_cli_json_exposes_dashboard_sections`, `test_model_limits_cli_json_outputs_persisted_snapshots`, and `test_account_limit_record_cli_persists_sanitized_snapshot`; all pass.
+- `stagewarden/status_views.py`: fixed model/account limit snapshot persistence to use `model_prefs_path` and save account clears too.
+- `tests/test_trace_cli.py`: reran `test_model_limits_cli_json_outputs_persisted_snapshots`, `test_model_limit_record_cli_persists_sanitized_snapshot`, `test_account_limit_record_cli_persists_sanitized_snapshot`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the pure boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges.
+- `stagewarden/cli_dispatch.py`: now calls `report_views.py` and `project_handoff_views.py` directly for those report paths.
+- `tests/test_trace_cli.py`: reran `test_boundary_cli_json_output_is_machine_readable`, `test_handoff_cli_json_output_is_machine_readable`, `test_handoff_actions_renders_action_entries_and_json`, `test_interactive_shell_status_and_mode_commands`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, `test_commands_catalog_cli_and_json`, `test_interactive_help_topics_use_registry_metadata_and_aliases`, and `test_handoff_export_cli_json_output_is_machine_readable`; all pass.
+- `stagewarden/main.py`: removed the pure `sources/update` render wrappers, then restored the small handler/report bridges still used by `cli_dispatch.py` and `shell_views.py`.
+- `tests/test_trace_cli.py`: reran `test_sources_status_strict_and_update_fast_forward`, `test_update_status_check_and_apply_fast_forward`, `test_interactive_shell_renders_cost_sidebar_with_business_case_totals`, and `test_interactive_shell_status_and_mode_commands`; all pass.
+- `stagewarden/main.py`: removed the provider-model inspection wrappers, and `stagewarden/cli_dispatch.py` now imports the render helper directly from `stagewarden/model_inspection_views`.
+- `tests/test_trace_cli.py`: reran `test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis` after the extraction and the import fix; it passes.
+- `stagewarden/main.py`: removed the thin parser/help/model preset wrappers with no remaining call sites.
+- `tests/test_trace_cli.py`: reran `test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis` and `test_interactive_shell_persists_provider_model_param`; both pass.
+- `stagewarden/executor.py`: added post-action verification for mutating file, shell, git-commit, and multi-file patch actions.
+- `tests/test_executor.py`: added regression coverage for file read-back verification, verification failure on mismatched read-back, shell status-change verification, and git commit HEAD advancement.
+- `stagewarden/main.py`: added live tree decomposition nodes, continuous adaptation metadata, and richer project-tree reporting.
+- `stagewarden/prince2.py`: tightened the adaptation policy, stage plan, controls, and boundary review language toward smallest-task decomposition.
+- `stagewarden/modelprefs.py`: preserved decomposition and adaptation metadata when normalizing the approved role-tree baseline.
+- `tests/test_trace_cli.py`: added regression coverage for micro-task decomposition and refresh-on-brief-change behavior.
+- `stagewarden/openrouter_benchmark.py`: added JSONL history tracking and regression comparison.
+- `stagewarden/main.py`: added `--openrouter-benchmark-history`.
+- `data/openrouter_benchmark_baseline.json`: added per-suite regression tolerances.
+- `stagewarden/prince2_benchmark.py`: added the local PRINCE2 benchmark runner and prompt-driven executor harness.
+- `stagewarden/main.py`: added `--prince2-benchmark` and `--prince2-benchmark-output`.
+- `data/prince2_benchmark_baseline.json`: added the PRINCE2 prompt baseline suites, then tightened them to stay evaluative without tripping policy checks.
+- `data/prince2_benchmark_baseline.json`: added the `advanced` suite based on public trace material from Welsh Government, Dedalus/NHS, Staffordshire, Surrey, and World Bank sources.
+- `data/prince2_benchmark_baseline.json`: added the `stress` suite with combined governance, recovery, and stakeholder-pressure cases.
+- `data/prince2_benchmark_baseline.json`: added the `regulatory` suite with secure-by-design, privacy, AI governance, and compliance wet-run cases.
+- `stagewarden/router.py`: added a regulatory-aware route recommendation path and catalog-aware variant scoring.
+- `stagewarden/prince2_benchmark.py`: expanded the default report with the full runtime payload, dynamic orchestration selection, and rendered node/transition detail for every case.
+- `stagewarden/commands.py`: exposed `prince2 benchmark` in the command catalog.
+- `stagewarden/json_schema_registry.py`: registered the new `prince2 benchmark` schema.
+- `tests/test_prince2.py`: added direct runner coverage for the PRINCE2 benchmark.
+- `tests/test_prince2.py`: added a regression check for the complex escalation prompt with validation language.
+- `tests/test_trace_cli.py`: added CLI coverage for `--prince2-benchmark`.
+- `tests/test_json_schema_registry.py`: updated the schema registry coverage set.
+
+## Notes
+
+- The benchmark remains a regression gate, not a tolerant scoring harness.
+- TruthfulQA-style prompts and PRINCE2 wet-run markers are the most brittle parts of the baselines and should be re-wet-run if changed.
+- The PRINCE2 report is intentionally verbose so node roles, transitions, runtime state, token consumption, provider/model routing, and timing are available without a second command, and `--prince2-benchmark` prints that detail by default.
+- The shared JSON schema registry now covers both benchmark commands and the other stable JSON surfaces.
+- Node visibility now includes mnemonic and team membership in the main role/runtime/message views.
+- The status shell now exposes the cost sidebar with model usage and top cost nodes.
+- The full status shell now shows every node with cost, tokens, provider, and team metadata.
+- `stagewarden/status_views.py` now also owns the overview, health, and remediations render helpers, while `stagewarden/status_dashboard_views.py` now centralizes the public statusline/overview/health/preflight/report/doctor bridge and `main.py` delegates those public reports there.
+- `stagewarden/project/role_views.py` now also owns the PRINCE2 role assignments render helper, so the role assignment lines no longer live in `main.py`.
+- `stagewarden/project/role_flow.py` now also owns the project tolerance profile plus the role tolerance margin set/reset helpers, so the tolerance-specific PRINCE2 bodies no longer live in `main.py`.
+- `stagewarden/cli_dispatch.py` now owns the parser builder, so the CLI option surface no longer lives inline in `main.py`.
+- `stagewarden/cli_dispatch.py` now owns the parser builder internally without recursive delegation through `main.py`.
+- `blocked` role assignments are now skipped by the executor rather than being treated as active routes.
+
+## Validation
+
+- `./scripts/test_chatgpt_flow.sh`
+- `python3 -m unittest discover -s tests`
+- `python3 -m stagewarden.main --prince2-benchmark`
+- `stagewarden/executor.py`: added the "Retrospettiva prospettica" prompt section to the devil-advocate review.
+- `stagewarden/prince2.py` and `stagewarden/project_handoff_runtime.py`: documented the new retrospettiva-prospettica control rule in project controls, stage-boundary review, and antagonist guidance.
+- `tests/test_executor.py`, `tests/test_agent_integration.py`, `tests/test_trace_cli.py`, `stagewarden/prince2_benchmark.py`, and `stagewarden/battery_views.py`: updated prompt mocks to recognize the new phrasing.
+- `tests/test_agent_integration.py`: made the success stub emit stronger validation evidence so the recovery-gate quality check passes.
+- Validation: `python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_closes_recovery_gate_after_recovery_lane_wet_run` passes.
+- `stagewarden/account_views.py`, `stagewarden/model_views.py`, `stagewarden/ui_views.py`, and `stagewarden/project/role_flow.py`: now call `stagewarden.shell_views` directly for prompt selection.
+- `stagewarden/cli_dispatch.py`: now calls role-tree, role-context, and role-active render/report helpers directly from owner modules.
+- `stagewarden/project/role_command_flow.py`: now calls role add/assign/remove helpers directly from `stagewarden.project.role_flow`.
+- `stagewarden/main.py`: removed the guided role wrappers and the direct role-node removal bridge after the call sites moved to `stagewarden.project.role_flow`.
+- `stagewarden/cli_dispatch.py`: now calls the sources/update report helpers directly from `stagewarden.status_views`.
+- `stagewarden/main.py`: removed the sources/update report bridges after the call sites moved to `stagewarden.status_views`.
+- Validation: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_expand_workspace_paths tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_for_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_can_select_provider tests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_slash_palette tests.test_trace_cli.TraceAndCliTests.test_interactive_slash_choose_returns_selected_command_without_execution tests.test_trace_cli.TraceAndCliTests.test_cli_slash_choose_renders_candidates_and_json` passes.
+- Validation: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_tree_renders_color_legend_and_shell_hint tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_shell_navigates_between_nodes` passes.
+- Validation: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_reports_external_reference_metadata tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable` passes.
+- `tests/test_executor.py`, `tests/test_trace_cli.py`: reran the focused critic/CLI regressions; they pass.

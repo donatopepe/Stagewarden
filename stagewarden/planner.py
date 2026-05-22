@@ -65,7 +65,7 @@ class Planner:
             if previous_status in {"pending", "planned", "ready", "in_progress", "completed", "failed"}:
                 step.status = self._normalize_status(previous_status)
 
-        if project_handoff.status not in {"executing", "planned", "exception"}:
+        if project_handoff.status not in {"executing", "planned", "waiting", "exception"}:
             return
 
         current_step_id = project_handoff.current_step_id

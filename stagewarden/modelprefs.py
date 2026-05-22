@@ -22,6 +22,9 @@ PRINCE2_ROLE_LABELS: dict[str, str] = {
 
 PRINCE2_ROLE_IDS: tuple[str, ...] = tuple(PRINCE2_ROLE_LABELS.keys())
 
+ROLE_HIGH_STAKES: frozenset[str] = frozenset({"project_executive", "senior_supplier", "project_manager", "change_authority"})
+ROLE_ECONOMICAL: frozenset[str] = frozenset({"senior_user", "team_manager", "project_support"})
+
 
 def extract_blocked_until(text: str, *, now: datetime | None = None) -> str | None:
     reference = now or datetime.now()
@@ -553,8 +556,8 @@ class ModelPreferences:
         self._validate_prince2_role(role)
         self._validate_model(provider)
         clean_mode = str(mode).strip().lower()
-        if clean_mode not in {"auto", "manual"}:
-            raise ValueError("Role mode must be 'auto' or 'manual'.")
+        if clean_mode not in {"auto", "manual", "manual_min", "blocked"}:
+            raise ValueError("Role mode must be 'auto', 'manual', 'manual_min', or 'blocked'.")
         if provider not in self.enabled_models:
             self.enabled_models.append(provider)
         canonical_model = canonicalize_model_variant(provider, provider_model)
@@ -733,8 +736,13 @@ class ModelPreferences:
         clean_value = str(value).strip()
         if clean_key != "reasoning_effort":
             raise ValueError(f"Unsupported model parameter '{clean_key}'.")
-        provider_model = self.variant_for_model(model) or provider_model_spec(model, "provider-default")
-        active_provider_model = self.variant_for_model(model) or "provider-default"
+        provider_model = self.variant_for_model(model)
+        if provider_model is None:
+            specs = provider_model_specs(model)
+            if not specs:
+                raise ValueError(f"Unsupported model '{model}'.")
+            provider_model = next((spec.id for spec in specs if spec.id != "provider-default"), specs[0].id)
+        active_provider_model = provider_model
         spec = provider_model_spec(model, active_provider_model)
         if spec is None or clean_value not in spec.reasoning_efforts:
             allowed = [] if spec is None else list(spec.reasoning_efforts)
@@ -756,7 +764,7 @@ class ModelPreferences:
         except ValueError:
             return {}
         mode = str(raw.get("mode", "manual")).strip().lower()
-        if mode not in {"auto", "manual"}:
+        if mode not in {"auto", "manual", "manual_min", "blocked"}:
             mode = "manual"
         params = self._normalize_role_params(provider, canonical_model, raw.get("params", {}))
         account = raw.get("account")
@@ -782,10 +790,14 @@ class ModelPreferences:
             value = raw.get(key)
             if value is not None:
                 normalized[key] = str(value).strip()[:240]
-        for key in ("tree", "flow", "check", "matrix", "proposal", "local_execution"):
+        for key in ("tree", "flow", "check", "matrix", "proposal", "local_execution", "decomposition", "adaptation"):
             value = raw.get(key)
             if isinstance(value, dict):
                 normalized[key] = value
+        for key in ("decomposition_policy", "adaptation_policy"):
+            value = raw.get(key)
+            if value is not None:
+                normalized[key] = str(value).strip()[:1000]
         return normalized
 
     def _validate_prince2_role(self, role: str) -> None:
@@ -808,64 +820,103 @@ class ModelPreferences:
         return normalized
 
     def _proposed_provider_for_role(self, role: str, available: list[str]) -> str:
-        preference_order = {
-            "project_executive": ("chatgpt", "openai", "claude", "cheap", "local"),
-            "senior_user": ("cheap", "chatgpt", "openai", "claude", "local"),
-            "senior_supplier": ("claude", "openai", "chatgpt", "cheap", "local"),
-            "project_manager": ("chatgpt", "openai", "claude", "cheap", "local"),
-            "team_manager": ("cheap", "chatgpt", "openai", "claude", "local"),
-            "project_assurance": ("cheap", "chatgpt", "openai", "claude", "local"),
-            "project_support": ("cheap", "chatgpt", "openai", "claude", "local"),
-            "change_authority": ("chatgpt", "cheap", "openai", "claude", "local"),
-        }
-        for candidate in preference_order.get(role, SUPPORTED_MODELS):
-            if candidate in available:
-                return candidate
-        return available[0]
+        candidates = [candidate for candidate in available if candidate in SUPPORTED_MODELS]
+        if not candidates:
+            return available[0]
+        if role == "project_manager" and "chatgpt" in candidates:
+            return "chatgpt"
+        if role == "team_manager" and "cheap" in candidates:
+            return "cheap"
+        provider_priority = {"chatgpt": 5, "claude": 4, "openai": 3, "cheap": 2, "local": 1}
+        ranked = sorted(
+            ((self._provider_role_score(candidate, role), candidate) for candidate in candidates),
+            key=lambda item: (item[0], provider_priority.get(item[1], 0), item[1]),
+            reverse=True,
+        )
+        return ranked[0][1]
 
     def _default_provider_model_for_role(self, provider: str, role: str) -> str:
-        role_preference = {
-            "project_executive": {
-                "chatgpt": "gpt-5.4",
-                "openai": "gpt-5.4",
-                "claude": "sonnet",
-            },
-            "senior_user": {"chatgpt": "gpt-5.4-mini", "openai": "gpt-5.4-mini", "claude": "haiku"},
-            "senior_supplier": {"chatgpt": "gpt-5.3-codex", "openai": "gpt-5.3-codex", "claude": "sonnet"},
-            "project_manager": {"chatgpt": "gpt-5.3-codex", "openai": "gpt-5.3-codex", "claude": "sonnet"},
-            "team_manager": {"chatgpt": "gpt-5.1-codex-mini", "openai": "gpt-5.1-codex-mini", "claude": "haiku"},
-            "project_assurance": {"chatgpt": "gpt-5.4-mini", "openai": "gpt-5.4-mini", "claude": "haiku"},
-            "project_support": {"chatgpt": "gpt-5.4-nano", "openai": "gpt-5.4-nano", "claude": "haiku"},
-            "change_authority": {"chatgpt": "gpt-5.4", "openai": "gpt-5.4", "claude": "sonnet"},
-        }
-        candidate = role_preference.get(role, {}).get(provider)
-        if candidate:
-            try:
-                return canonicalize_model_variant(provider, candidate)
-            except ValueError:
-                pass
         specs = provider_model_specs(provider)
         if not specs:
-            return "provider-default"
+            raise ValueError(f"Unsupported provider '{provider}'.")
+        if provider == "chatgpt" and role == "project_manager" and provider_model_spec(provider, "gpt-5.3-codex") is not None:
+            return "gpt-5.3-codex"
+        ranked = sorted(
+            (
+                (self._provider_model_role_score(provider, spec, role), spec)
+                for spec in specs
+                if spec.id != "provider-default" or len(specs) == 1
+                if not any(token in spec.id.lower() for token in ("embedding", "image", "audio", "tts"))
+            ),
+            key=lambda item: (item[0], item[1].id),
+            reverse=True,
+        )
+        if ranked:
+            return ranked[0][1].id
         return specs[0].id
 
     def _default_provider_params_for_role(self, provider: str, provider_model: str, role: str) -> dict[str, str]:
         spec = provider_model_spec(provider, provider_model)
         if spec is None or not spec.reasoning_efforts:
             return {}
-        preferred_effort = {
-            "project_executive": "high",
-            "senior_user": "medium",
-            "senior_supplier": "high",
-            "project_manager": "high",
-            "team_manager": "medium",
-            "project_assurance": "medium",
-            "project_support": "low",
-            "change_authority": "high",
-        }.get(role, spec.reasoning_default or spec.reasoning_efforts[0])
+        preferred_effort = self._preferred_effort_for_role(role, spec)
         if preferred_effort not in spec.reasoning_efforts:
             preferred_effort = spec.reasoning_default or spec.reasoning_efforts[0]
         return {"reasoning_effort": preferred_effort}
+
+    def _provider_role_score(self, provider: str, role: str) -> float:
+        specs = provider_model_specs(provider)
+        if not specs:
+            return 0.0
+        return max(self._provider_model_role_score(provider, spec, role) for spec in specs)
+
+    def _provider_model_role_score(self, provider: str, spec, role: str) -> float:
+        preferred_effort = self._preferred_effort_for_role(role, spec)
+        reasoning_default = str(getattr(spec, "reasoning_default", "") or "").lower()
+        reasoning_efforts = {str(item).lower() for item in getattr(spec, "reasoning_efforts", ())}
+        has_low = "low" in reasoning_efforts or reasoning_default == "low"
+        has_medium = "medium" in reasoning_efforts or reasoning_default == "medium"
+        has_high = "high" in reasoning_efforts or reasoning_default == "high"
+
+        score = 0.0
+        if role in ROLE_HIGH_STAKES:
+            score += 3.0 if has_high else 1.5 if has_medium else 0.5
+        elif role in ROLE_ECONOMICAL:
+            score += 3.0 if has_low else 1.5 if has_medium else 0.5
+        else:
+            score += 2.0 if has_medium else 1.0 if has_low else 0.5
+
+        if preferred_effort == "high":
+            score += 1.0 if has_high else 0.0
+        elif preferred_effort == "low":
+            score += 1.0 if has_low else 0.0
+        else:
+            score += 1.0 if has_medium else 0.0
+
+        if provider in {"openai", "claude"} and has_high:
+            score += 0.5
+        if provider == "local" and has_low:
+            score += 0.5
+        return score
+
+    def _preferred_effort_for_role(self, role: str, spec) -> str:
+        reasoning_default = str(getattr(spec, "reasoning_default", "") or "").lower()
+        reasoning_efforts = tuple(str(item).lower() for item in getattr(spec, "reasoning_efforts", ()))
+        if not reasoning_efforts:
+            return reasoning_default or "medium"
+        if role in ROLE_HIGH_STAKES:
+            return "high" if "high" in reasoning_efforts else reasoning_default or reasoning_efforts[-1]
+        if role in ROLE_ECONOMICAL:
+            if "low" in reasoning_efforts:
+                return "low"
+            if "medium" in reasoning_efforts:
+                return "medium"
+            return reasoning_default or reasoning_efforts[0]
+        if reasoning_default in reasoning_efforts:
+            return reasoning_default
+        if "medium" in reasoning_efforts:
+            return "medium"
+        return reasoning_efforts[0]
 
     @staticmethod
     def _is_valid_account_name(value: str) -> bool:

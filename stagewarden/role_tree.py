@@ -3,7 +3,47 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 from .modelprefs import PRINCE2_ROLE_LABELS, ModelPreferences, account_key
+from .prince2 import Prince2AgentPolicy, Prince2ToleranceProfile
 from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
+
+
+STATUS_COLOR_LEGEND = {
+    "green": "ready or completed",
+    "blue": "running or active",
+    "amber": "waiting or attention",
+    "red": "blocked or escalated",
+    "grey": "idle or unassigned",
+}
+
+PRINCE2_ROLE_TEAM_NAMES: dict[str, str] = {
+    "project_executive": "Board",
+    "senior_user": "Board",
+    "senior_supplier": "Board",
+    "project_manager": "Management",
+    "team_manager": "Delivery",
+    "project_assurance": "Assurance",
+    "project_support": "Support",
+    "change_authority": "Authority",
+}
+
+PRINCE2_ROLE_MNEMONICS: dict[str, str] = {
+    "project_executive": "PEX",
+    "senior_user": "SU",
+    "senior_supplier": "SS",
+    "project_manager": "PM",
+    "team_manager": "TM",
+    "project_assurance": "PA",
+    "project_support": "PS",
+    "change_authority": "CA",
+}
+
+
+def prince2_role_team_name(role: str) -> str:
+    return PRINCE2_ROLE_TEAM_NAMES.get(role, "Unassigned")
+
+
+def prince2_role_mnemonic(role: str) -> str:
+    return PRINCE2_ROLE_MNEMONICS.get(role, role[:3].upper() or "NOD")
 
 
 @dataclass(frozen=True)
@@ -20,11 +60,50 @@ class RoleContextRule:
         }
 
 
+def prince2_node_description(node: dict[str, object]) -> str:
+    description = str(node.get("description", "")).strip()
+    if description:
+        return description
+    label = str(node.get("label", node.get("node_id", "node"))).strip() or "Node"
+    role_type = str(node.get("role_type", "unknown")).strip()
+    responsibility_domain = str(node.get("responsibility_domain", "")).strip()
+    context_scope = str(node.get("context_scope", "")).strip()
+    accountability_boundary = str(node.get("accountability_boundary", "")).strip()
+    pieces = [
+        f"{label} is a {role_type.replace('_', ' ')} node",
+    ]
+    if responsibility_domain:
+        pieces.append(f"for {responsibility_domain}")
+    if context_scope:
+        pieces.append(f"context: {context_scope}")
+    if accountability_boundary:
+        pieces.append(f"boundary: {accountability_boundary}")
+    return ". ".join(pieces).replace(". boundary:", "; boundary:")
+
+
+def prince2_status_color(node: dict[str, object], *, runtime_state: str | None = None) -> str:
+    state = str(runtime_state or node.get("tolerance_state") or node.get("readiness") or node.get("state") or "").strip().lower()
+    if state in {"completed", "done"}:
+        return "green"
+    if state in {"running", "active"}:
+        return "blue"
+    if state in {"waiting", "wait", "pending"}:
+        return "amber"
+    if state in {"blocked", "escalated", "exception"}:
+        return "red"
+    if state in {"ready", "assigned"}:
+        return "green"
+    return "grey"
+
+
 @dataclass(frozen=True)
 class RoleTreeNode:
     node_id: str
+    mnemonic: str
     role_type: str
+    team_name: str
     label: str
+    description: str
     parent_id: str | None
     level: str
     accountability_boundary: str
@@ -32,6 +111,12 @@ class RoleTreeNode:
     responsibility_domain: str
     context_scope: str
     context_rule: RoleContextRule
+    accountable_owner: str
+    tolerance_margin_percent: float
+    tolerance_pressure_percent: float
+    autonomy_rule: str
+    escalation_target: str
+    tolerance_profile: dict[str, object]
     assignment: dict[str, object] = field(default_factory=dict)
     fallback_pool: tuple[str, ...] = ()
     readiness: str = "unassigned"
@@ -272,17 +357,44 @@ ROLE_FLOW_EDGES: tuple[RoleFlowEdge, ...] = (
 
 
 def build_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
+    return build_prince2_role_tree_with_tolerance(prefs)
+
+
+def build_prince2_role_tree_with_tolerance(
+    prefs: ModelPreferences,
+    *,
+    tolerance_profile: Prince2ToleranceProfile | None = None,
+    accountable_owner: str = "user",
+) -> dict[str, object]:
     active_models = tuple(prefs.active_models() or prefs.enabled_models)
     assignments = prefs.prince2_roles or {}
+    profile = tolerance_profile or Prince2AgentPolicy().build_tolerance_profile(
+        "PRINCE2 role tree",
+        Prince2AgentPolicy().build_checklist("PRINCE2 role tree"),
+        accountable_owner=accountable_owner,
+    )
     nodes: list[dict[str, object]] = []
     for raw in ROLE_TREE_LAYOUT:
         role_type = str(raw["role_type"])
         assignment = dict(assignments.get(role_type, {}))
+        node_tolerance = profile.node_profile(role_type)
         nodes.append(
             RoleTreeNode(
                 node_id=str(raw["node_id"]),
+                mnemonic=prince2_role_mnemonic(role_type),
                 role_type=role_type,
+                team_name=prince2_role_team_name(role_type),
                 label=PRINCE2_ROLE_LABELS[role_type],
+                description=prince2_node_description(
+                    {
+                        "node_id": raw["node_id"],
+                        "label": PRINCE2_ROLE_LABELS[role_type],
+                        "role_type": role_type,
+                        "responsibility_domain": PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
+                        "context_scope": PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
+                        "accountability_boundary": raw["accountability_boundary"],
+                    }
+                ),
                 parent_id=str(raw["parent_id"]) if raw["parent_id"] is not None else None,
                 level=str(raw["level"]),
                 accountability_boundary=str(raw["accountability_boundary"]),
@@ -290,6 +402,12 @@ def build_prince2_role_tree(prefs: ModelPreferences) -> dict[str, object]:
                 responsibility_domain=PRINCE2_ROLE_AUTOMATION_RULES.get(role_type, "controlled project work"),
                 context_scope=PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role_type, "controlled project work"),
                 context_rule=ROLE_CONTEXT_RULES[role_type],
+                accountable_owner=str(node_tolerance.get("accountable_owner", accountable_owner)),
+                tolerance_margin_percent=float(node_tolerance.get("margin_percent", profile.project_margin_percent)),
+                tolerance_pressure_percent=float(node_tolerance.get("pressure_percent", profile.project_pressure_percent)),
+                autonomy_rule=str(node_tolerance.get("autonomy_rule", "")),
+                escalation_target=str(node_tolerance.get("escalation_target", "board.executive")),
+                tolerance_profile=dict(node_tolerance),
                 assignment=assignment,
                 fallback_pool=tuple(model for model in active_models if model != assignment.get("provider")),
                 readiness="assigned" if assignment else "unassigned",
@@ -357,6 +475,14 @@ def check_prince2_role_tree_payload(tree: dict[str, object], prefs: ModelPrefere
             )
         if provider in {"chatgpt", "openai", "claude", "cheap"} and account is None and provider in (prefs.accounts_by_model or {}):
             add("warning", "account_not_selected", node_id, f"{role_type} provider {provider} has profiles but no active account on this node.")
+        margin = node.get("tolerance_margin_percent")
+        pressure = node.get("tolerance_pressure_percent")
+        if not isinstance(margin, (int, float)) or not (0 < float(margin) <= 100):
+            add("error", "missing_tolerance_margin", node_id, f"{role_type} node is missing a valid tolerance margin.")
+        if not isinstance(pressure, (int, float)) or not (0 <= float(pressure) <= 100):
+            add("warning", "missing_tolerance_pressure", node_id, f"{role_type} node is missing a valid tolerance pressure estimate.")
+        if not str(node.get("accountable_owner", "")).strip():
+            add("warning", "missing_accountable_owner", node_id, f"{role_type} node is missing an accountable owner.")
 
     by_role = {str(node.get("role_type")): node for node in nodes}
     flow = build_prince2_role_flow()
@@ -443,13 +569,21 @@ def build_prince2_role_matrix_payload(tree: dict[str, object], prefs: ModelPrefe
         rows.append(
             {
                 "node_id": node.get("node_id"),
+                "mnemonic": node.get("mnemonic"),
                 "role_type": node.get("role_type"),
+                "team_name": node.get("team_name"),
                 "label": node.get("label"),
                 "parent_id": node.get("parent_id"),
                 "level": node.get("level"),
+                "accountable_owner": node.get("accountable_owner"),
                 "readiness": node.get("readiness"),
+                "tolerance_margin_percent": node.get("tolerance_margin_percent"),
+                "tolerance_pressure_percent": node.get("tolerance_pressure_percent"),
+                "autonomy_rule": node.get("autonomy_rule"),
+                "escalation_target": node.get("escalation_target"),
                 "provider": provider or None,
                 "provider_model": assignment.get("provider_model") if assignment else None,
+                "mode": assignment.get("mode") if assignment else None,
                 "params": dict(assignment.get("params", {})) if isinstance(assignment.get("params"), dict) else {},
                 "account": account or None,
                 "provider_blocked_until": (prefs.blocked_until_by_model or {}).get(provider) if provider else None,
@@ -490,7 +624,10 @@ def render_prince2_role_matrix(matrix: dict[str, object]) -> str:
         provider_block = f" provider_blocked_until={row.get('provider_blocked_until')}" if row.get("provider_blocked_until") else ""
         account_block = f" account_blocked_until={row.get('account_blocked_until')}" if row.get("account_blocked_until") else ""
         lines.append(
-            f"- {row.get('label')} [{row.get('node_id')}]: readiness={row.get('readiness')} "
+            f"- {row.get('label')} [{row.get('node_id')}]: mnemonic={row.get('mnemonic')} team={row.get('team_name')} "
+            f"readiness={row.get('readiness')} mode={row.get('mode') or 'manual'} "
+            f"owner={row.get('accountable_owner') or 'user'} "
+            f"margin={row.get('tolerance_margin_percent')} pressure={row.get('tolerance_pressure_percent')} "
             f"provider={row.get('provider') or 'none'} provider_model={row.get('provider_model') or 'none'} "
             f"account={row.get('account') or 'none'} "
             f"reviewers={len(row.get('reviewer_routes', []))} fallbacks={len(row.get('fallback_routes', []))} "
@@ -526,26 +663,43 @@ def render_prince2_role_tree(tree: dict[str, object]) -> str:
     for node in nodes:
         parent_id = node.get("parent_id")
         children.setdefault(str(parent_id) if parent_id else None, []).append(node)
+    for child_nodes in children.values():
+        child_nodes.sort(key=lambda item: (str(item.get("label", item.get("node_id", ""))).lower(), str(item.get("node_id", ""))))
 
     lines = ["PRINCE2 role tree:", f"- rule: {tree.get('rule')}"]
+    lines.append("- status legend:")
+    for color, meaning in STATUS_COLOR_LEGEND.items():
+        lines.append(f"  - {color}: {meaning}")
+    lines.append("- navigation: use `role shell <node_id>` to step through a node shell or `role menu <node_id>` for actions.")
 
-    def append_node(node: dict[str, object], depth: int) -> None:
-        indent = "  " * depth
+    def append_node(node: dict[str, object], prefix: str, is_last: bool) -> None:
         assignment = node.get("assignment") if isinstance(node.get("assignment"), dict) else {}
         provider = assignment.get("provider", "unassigned") if isinstance(assignment, dict) else "unassigned"
         provider_model = assignment.get("provider_model", "none") if isinstance(assignment, dict) else "none"
+        status_color = prince2_status_color(node)
+        description = str(node.get("description") or prince2_node_description(node))
+        connector = "`--" if is_last else "|--"
+        next_prefix = f"{prefix}   " if is_last else f"{prefix}|  "
         lines.append(
-            f"{indent}- {node.get('label')} [{node.get('node_id')}] "
+            f"{prefix}{connector} {node.get('label')} [{node.get('node_id')}] "
+            f"mnemonic={node.get('mnemonic')} team={node.get('team_name')} "
             f"level={node.get('level')} readiness={node.get('readiness')} "
-            f"provider={provider} provider_model={provider_model}"
+            f"color={status_color} owner={node.get('accountable_owner') or 'user'} "
+            f"margin={node.get('tolerance_margin_percent')} pressure={node.get('tolerance_pressure_percent')} "
+            f"mode={(assignment.get('mode', 'manual') if isinstance(assignment, dict) else 'manual')} "
+            f"provider={provider} provider_model={provider_model} shell=role shell {node.get('node_id')}"
         )
-        lines.append(f"{indent}  context={node.get('context_scope')}")
-        lines.append(f"{indent}  authority={node.get('delegated_authority')}")
-        for child in children.get(str(node.get("node_id")), []):
-            append_node(child, depth + 1)
+        lines.append(f"{prefix}   description={description}")
+        lines.append(f"{prefix}   context={node.get('context_scope')}")
+        lines.append(f"{prefix}   authority={node.get('delegated_authority')}")
+        lines.append(f"{prefix}   tolerance={node.get('autonomy_rule')}")
+        child_nodes = children.get(str(node.get("node_id")), [])
+        for index, child in enumerate(child_nodes):
+            append_node(child, next_prefix, index == len(child_nodes) - 1)
 
-    for root in children.get(None, []):
-        append_node(root, 0)
+    root_nodes = children.get(None, [])
+    for index, root in enumerate(root_nodes):
+        append_node(root, "", index == len(root_nodes) - 1)
     lines.append(f"- expansion_rule: {tree.get('expansion_rule')}")
     return "\n".join(lines)
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from stagewarden.json_schema_registry import json_schema
+
 
 @dataclass(frozen=True)
 class CommandSpec:
@@ -75,10 +77,26 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("status", "core", "Show workspace, model, permission, handoff, and provider status.", "status [--full|--json]", json=True, handler="status"),
     CommandSpec("statusline", "core", "Emit compact statusline JSON.", "statusline", json=True, handler="status"),
     CommandSpec("baseline", "core", "Verify the minimum Codex CLI and Claude Code capability baseline.", "baseline [--json]", json=True, handler="status"),
+    CommandSpec("battery", "core", "Run simulated end-to-end agent battery scenarios.", "battery [--json]", json=True, handler="status"),
+    CommandSpec("prince2 benchmark", "core", "Run the local PRINCE2 benchmark baseline and report accuracy by suite.", "prince2 benchmark [--json]", json=True, handler="status"),
     CommandSpec("goal", "core", "Show the persisted project goal.", "goal [--json]", json=True, handler="status"),
     CommandSpec("goal set", "core", "Set the active project goal with optional token budget.", "goal set <objective> [--tokens N]", json=True, handler="status"),
     CommandSpec("goal status", "core", "Update the project goal lifecycle status.", "goal status <active|paused|budget_limited|complete>", json=True, handler="status"),
     CommandSpec("goal clear", "core", "Clear the persisted project goal.", "goal clear", json=True, handler="status"),
+    CommandSpec("budget", "core", "Show the persisted project budget and current spend.", "budget [--json]", json=True, handler="status"),
+    CommandSpec("budget set", "core", "Set the project budget in currency units.", "budget set <amount> [currency]", json=True, handler="status"),
+    CommandSpec("budget status", "core", "Update the project budget lifecycle status.", "budget status <active|paused|budget_limited|complete>", json=True, handler="status"),
+    CommandSpec("budget clear", "core", "Clear the persisted project budget.", "budget clear", json=True, handler="status"),
+    CommandSpec("question", "core", "Show or record a user clarification question.", "question [ask <question>] [--json]", json=True, handler="status"),
+    CommandSpec("question ask", "core", "Record a user clarification question and pause for response.", "question ask <question>", json=True, handler="status"),
+    CommandSpec("answer", "core", "Answer the pending user clarification question.", "answer <response>", json=True, handler="status"),
+    CommandSpec("rag", "core", "Show, search, or add design knowledge used in agent prompts.", "rag [list|search <query>|add <phase> <title> <content>]", json=True, handler="rag"),
+    CommandSpec("rag search", "core", "Search persisted design knowledge.", "rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid]", json=True, handler="rag"),
+    CommandSpec("rag add", "core", "Add a persisted design knowledge entry.", "rag add <phase> <title> <content> [tags=a,b]", json=True, handler="rag"),
+    CommandSpec("rag update", "core", "Update a persisted design knowledge entry.", "rag update <entry_id> [phase=x] [title=x] [content=x] [tags=a,b]", json=True, handler="rag"),
+    CommandSpec("rag remove", "core", "Remove a persisted design knowledge entry.", "rag remove <entry_id>", json=True, handler="rag"),
+    CommandSpec("rag compact", "core", "Deduplicate persisted design knowledge entries.", "rag compact", json=True, handler="rag"),
+    CommandSpec("rag rebuild-vectors", "core", "Rebuild persisted local RAG vector index.", "rag rebuild-vectors", json=True, handler="rag"),
     CommandSpec("preflight", "core", "Run read-only readiness checks before agent work.", "preflight [--json]", json=True, handler="status"),
     CommandSpec("stream on", "core", "Enable streaming output.", "stream on", handler="session"),
     CommandSpec("stream off", "core", "Disable streaming output.", "stream off", handler="session"),
@@ -89,6 +107,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("models", "models", "Show configured providers and provider-model selections.", "models", json=True, handler="models"),
     CommandSpec("models usage", "models", "Show recent model usage.", "models usage", json=True, handler="models"),
     CommandSpec("models limits", "models", "Show provider/account limit status.", "models limits", aliases=("model limits",), json=True, handler="models"),
+    CommandSpec("catalog", "models", "Refresh, inspect, or search the AI model catalog snapshot.", "catalog <status|refresh [--aa]|search <query> [provider=<provider>] [feature=<feature>]", json=True, handler="models"),
     CommandSpec("model use", "models", "Set preferred provider.", "model use <local|cheap|chatgpt|openai|claude>", handler="models"),
     CommandSpec("model choose", "models", "Open guided provider/model/parameter menu.", "model choose [local|cheap|chatgpt|openai|claude]", handler="models", examples=("model choose chatgpt", "choose model", "provider picker")),
     CommandSpec("model preset", "models", "Apply or choose a provider preset.", "model preset <provider> [preset]", handler="models"),
@@ -135,6 +154,9 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("project design", "prince2", "Show the design packet that future AI tree planning must receive.", "project design [--json]", json=True, handler="roles"),
     CommandSpec("roles domains", "prince2", "Show role domains and context visibility boundaries.", "roles domains [--json]", json=True, handler="roles"),
     CommandSpec("roles tree", "prince2", "Show hierarchical PRINCE2 organization tree and node context boundaries.", "roles tree [--json]", json=True, handler="roles"),
+    CommandSpec("roles menu", "prince2", "Open the guided PRINCE2 tree menu.", "roles menu", handler="roles"),
+    CommandSpec("roles tree menu", "prince2", "Open a guided PRINCE2 tree menu for adding, removing, and reassigning nodes.", "roles tree menu", handler="roles"),
+    CommandSpec("roles shell", "prince2", "Open a guided PRINCE2 node shell navigator.", "roles shell [node_id]", handler="roles"),
     CommandSpec("roles tree approve", "prince2", "Approve and persist the current PRINCE2 role-tree baseline.", "roles tree approve [--json]", json=True, handler="roles"),
     CommandSpec("roles baseline", "prince2", "Show the approved PRINCE2 role-tree baseline.", "roles baseline [--json]", json=True, handler="roles"),
     CommandSpec("roles baseline matrix", "prince2", "Show the approved role-tree baseline matrix including delegated nodes and route pools.", "roles baseline matrix [--json]", json=True, handler="roles"),
@@ -151,6 +173,12 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("role configure", "prince2", "Configure one PRINCE2 role assignment.", "role configure [role]", handler="roles", examples=("role configure project_manager", "assign role model", "prince2 role model")),
     CommandSpec("role clear", "prince2", "Clear one PRINCE2 role assignment.", "role clear <role>", handler="roles"),
     CommandSpec("role add-child", "prince2", "Add a delegated PRINCE2 child node to the approved role-tree baseline.", "role add-child [parent_node role_type [node_id]]", handler="roles"),
+    CommandSpec("role menu", "prince2", "Open a guided menu for one PRINCE2 node or the whole tree.", "role menu [node_id]", handler="roles"),
+    CommandSpec("role shell", "prince2", "Open a guided shell navigator for one PRINCE2 node.", "role shell [node_id]", handler="roles"),
+    CommandSpec("role switch", "prince2", "Switch the agent/model assignment for one PRINCE2 node using the guided recommendation menu.", "role switch <node_id>", aliases=("roles switch",), handler="roles"),
+    CommandSpec("role model", "prince2", "Change or guided-select the model assignment for one PRINCE2 node.", "role model <node_id> [provider provider_model] [reasoning_effort=<value>] [account=<name>]", handler="roles"),
+    CommandSpec("role tolerance", "prince2", "Adjust or reset one PRINCE2 node tolerance margin.", "role tolerance <set|reset> <node_id> [percent]", handler="roles"),
+    CommandSpec("role remove", "prince2", "Remove one PRINCE2 node from the approved baseline.", "role remove <node_id> [reparent_children=<yes|no>]", handler="roles"),
     CommandSpec("role assign", "prince2", "Assign provider/provider-model/params to one PRINCE2 role-tree node.", "role assign [node_id provider provider_model [reasoning_effort=<value>] [account=<name>] [pool=<primary|reviewer|fallback>]]", handler="roles"),
     CommandSpec("role message", "prince2", "Send a governed PRINCE2 node-to-node message through an approved flow edge.", "role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> [evidence=<ref1,ref2>] [summary=<text_with_underscores>]", json=True, handler="roles"),
     CommandSpec("role wait", "prince2", "Put one PRINCE2 runtime node into waiting state with explicit wake triggers.", "role wait <node_id> reason=<text_with_underscores> [wake=<trigger1,trigger2>]", json=True, handler="roles"),
@@ -165,8 +193,11 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("resume --clear", "handoff", "Clear resume context.", "resume --clear", handler="handoff"),
     CommandSpec("boundary", "handoff", "Show current boundary recommendation.", "boundary", json=True, handler="handoff"),
     CommandSpec("risks", "handoff", "Show risk register.", "risks", json=True, handler="handoff"),
+    CommandSpec("risks close", "handoff", "Close open risks with an explicit resolution.", "risks close <resolution>", json=True, handler="handoff"),
     CommandSpec("issues", "handoff", "Show issue register.", "issues", json=True, handler="handoff"),
+    CommandSpec("issues close", "handoff", "Close open issues with an explicit resolution.", "issues close <resolution>", json=True, handler="handoff"),
     CommandSpec("quality", "handoff", "Show quality register.", "quality", json=True, handler="handoff"),
+    CommandSpec("quality close", "handoff", "Accept remaining quality entries with an explicit resolution.", "quality close <resolution>", json=True, handler="handoff"),
     CommandSpec("exception", "handoff", "Show exception plan lane.", "exception", json=True, handler="handoff"),
     CommandSpec("lessons", "handoff", "Show lessons log.", "lessons", json=True, handler="handoff"),
     CommandSpec("transcript", "handoff", "Show recent tool transcript.", "transcript", aliases=("trace",), json=True, handler="handoff"),
@@ -197,8 +228,25 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("web search", "external_io", "Run governed web search with result evidence.", "web search <query>", json=True, handler="external_io", examples=("search web", "research online", "rete ricerca")),
     CommandSpec("download", "external_io", "Download HTTP/HTTPS file inside workspace with checksum evidence.", "download <url> [path] [--max-bytes N]", json=True, handler="external_io", examples=("download file", "scarica file", "fetch artifact")),
     CommandSpec("checksum", "external_io", "Compute SHA-256 for a workspace file.", "checksum <path>", json=True, handler="external_io"),
+    CommandSpec("hash", "external_io", "Compute a file hash with a chosen algorithm.", "hash <path> [algorithm]", json=True, handler="external_io"),
     CommandSpec("compress", "external_io", "Gzip-compress one workspace file.", "compress <path> [target.gz]", json=True, handler="external_io"),
     CommandSpec("archive verify", "external_io", "Verify a gzip archive and report checksum evidence.", "archive verify <path.gz>", json=True, handler="external_io"),
+    CommandSpec("archive list", "external_io", "List archive members for zip/tar/gzip archives.", "archive list <path>", json=True, handler="external_io"),
+    CommandSpec("archive extract", "external_io", "Extract an archive into a workspace directory.", "archive extract <path> [destination]", json=True, handler="external_io"),
+    CommandSpec("archive create", "external_io", "Create a zip/tar archive from a file or directory.", "archive create <source> [destination] [--format zip|tar|gztar|bztar|xztar]", json=True, handler="external_io"),
+    CommandSpec("browser fetch", "browser", "Fetch a web page and extract its title and links.", "browser fetch <url> [--limit N]", json=True, handler="browser"),
+    CommandSpec("browser open", "browser", "Open a URL in the default browser.", "browser open <url>", json=True, handler="browser"),
+    CommandSpec("browser screenshot", "browser", "Capture a browser screenshot when Playwright is available.", "browser screenshot <url> [path] [--full-page]", json=True, handler="browser"),
+    CommandSpec("watch", "system", "Watch filesystem events inside the workspace.", "watch <path> [--timeout N] [--recursive|--no-recursive] [--poll N]", json=True, handler="system"),
+    CommandSpec("system info", "system", "Show platform and runtime information.", "system info", json=True, handler="system"),
+    CommandSpec("disk usage", "system", "Show disk usage for a workspace path.", "disk usage [path]", json=True, handler="system"),
+    CommandSpec("process list", "system", "List local processes.", "process list [limit]", json=True, handler="system"),
+    CommandSpec("process kill", "system", "Terminate a local process by PID.", "process kill <pid> [--force]", json=True, handler="system"),
+    CommandSpec("port check", "system", "Check whether a host/port is reachable.", "port check <host> <port>", json=True, handler="system"),
+    CommandSpec("clipboard get", "system", "Read clipboard text.", "clipboard get", json=True, handler="system"),
+    CommandSpec("clipboard set", "system", "Write clipboard text.", "clipboard set <text>", json=True, handler="system"),
+    CommandSpec("clipboard clear", "system", "Clear clipboard text.", "clipboard clear", json=True, handler="system"),
+    CommandSpec("open url", "system", "Open a URL in the default browser.", "open url <url>", json=True, handler="system"),
     CommandSpec("git status", "git", "Show git branch and working tree status.", "git status", json=True, handler="git"),
     CommandSpec("git log", "git", "Show recent commits.", "git log [limit]", json=True, handler="git"),
     CommandSpec("git history", "git", "Show commit history for a path.", "git history <path> [limit]", json=True, handler="git"),
@@ -232,6 +280,7 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
         summary="exit, reset, overview, health, report, status, preflight, stream, sessions, transcript",
         extra_lines=(
             "- help [topic]",
+            "- help agent",
             "- exit | quit",
             "- reset",
             "- overview",
@@ -245,6 +294,13 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
             "- goal set <objective> [--tokens N]",
             "- goal status <active|paused|budget_limited|complete>",
             "- goal clear",
+            "- budget",
+            "- budget set <amount> [currency]",
+            "- budget status <active|paused|budget_limited|complete>",
+            "- budget clear",
+            "- question",
+            "- question ask <question>",
+            "- answer <response>",
             "- preflight",
             "- shell backend",
             "- shell backend use <auto|bash|zsh|powershell|cmd>",
@@ -265,9 +321,14 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
             "status",
             "status full",
             "statusline",
+            "help agent",
             "baseline",
             "goal set Close provider telemetry pack --tokens 20000",
             "goal status complete",
+            "budget set 12000 USD",
+            "budget status paused",
+            "question ask Which deliverable should I prioritize?",
+            "answer Prioritize the release checklist.",
             "preflight",
             "shell backend",
             "shell backend use zsh",
@@ -280,6 +341,24 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
             "transcript",
         ),
         aliases=("sessions", "session"),
+    ),
+    HelpTopic(
+        key="agent",
+        title="Agent compatibility protocol",
+        summary="startup, handoff, wet-run validation, and cross-agent continuity",
+        extra_lines=(
+            "- Read AGENTS.md before starting or resuming work.",
+            "- Read AGENT_HANDOFF.md and the runtime handoff file before editing.",
+            "- Keep AGENTS.md, AGENT_HANDOFF.md, HANDOFF.md, and .stagewarden_handoff.json aligned.",
+            "- Prefer wet-run validation for simulations and logs on every node.",
+            "- Dry-run alone is not a valid completion checkpoint.",
+        ),
+        examples=(
+            "help agent",
+            "help handoff",
+            "help core",
+        ),
+        aliases=("agents", "protocol"),
     ),
     HelpTopic(
         key="baseline",
@@ -513,11 +592,12 @@ def help_topic_catalog() -> list[dict[str, object]]:
 
 def help_topic_report(topic: str | None = None) -> dict[str, object]:
     if topic is None:
-        return {"command": "help", "topics": help_topic_catalog()}
+        return {"command": "help", "schema": json_schema("help"), "topics": help_topic_catalog()}
     item = help_topic_entry(topic)
     if item is None:
         return {
             "command": "help",
+            "schema": json_schema("help"),
             "ok": False,
             "topic": topic,
             "message": f"Unknown help topic: {topic}",
@@ -525,6 +605,7 @@ def help_topic_report(topic: str | None = None) -> dict[str, object]:
         }
     payload = item.to_dict()
     payload["command"] = "help"
+    payload["schema"] = json_schema("help")
     payload["ok"] = True
     payload["topic"] = item.key
     return payload

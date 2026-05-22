@@ -7,6 +7,8 @@ from typing import Any
 from .ljson import LJSONOptions, decode as decode_ljson, encode as encode_ljson
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
+BUDGET_POLICY = "prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback."
+
 
 @dataclass(slots=True)
 class AttemptRecord:
@@ -218,16 +220,16 @@ class MemoryStore:
                     "failures": 0,
                     "steps": 0,
                     "failure_rate": "0.00",
-                "highest_tier": "none",
-                "highest_tier_model": "none",
-                "last_model": "none",
-                "escalation_path": "none",
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "current_usage": 0,
-                "context_window_size": None,
-            },
-        }
+                    "highest_tier": "none",
+                    "highest_tier_model": "none",
+                    "last_model": "none",
+                    "escalation_path": "none",
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "current_usage": 0,
+                    "context_window_size": None,
+                },
+            }
 
         counts: dict[str, int] = {}
         failures: dict[str, int] = {}
@@ -320,7 +322,7 @@ class MemoryStore:
             f"- routing: last_model={totals['last_model']} highest_tier={totals['highest_tier']} "
             f"highest_model={totals['highest_tier_model']} escalation_path={totals['escalation_path']}"
         )
-        lines.append("Budget policy: prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.")
+        lines.append(f"Budget policy: {BUDGET_POLICY}")
         return "\n".join(lines)
 
     def budget_summary(self) -> str:
@@ -330,14 +332,14 @@ class MemoryStore:
                 [
                     "Cost and budget:",
                     "- no model attempts recorded",
-                    "- policy: prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
+                    f"- policy: {BUDGET_POLICY}",
                 ]
             )
         totals = stats["totals"]
         usage = ", ".join(f"{item['model']}={item['calls']}" for item in stats["models"])
         lines = [
             "Cost and budget:",
-            "- policy: prefer cloud analysis first (cheap/chatgpt/openai/claude); use local only when available and selected from discovered local-model characteristics or as fallback.",
+            f"- policy: {BUDGET_POLICY}",
             f"- usage: {usage}",
             f"- highest_tier_used: {totals['highest_tier']} ({totals['highest_tier_model']})",
             f"- failed_model_calls: {totals['failures']}",

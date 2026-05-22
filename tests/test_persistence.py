@@ -138,6 +138,77 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(goal["budget_used_percentage"], 105.0)
         self.assertIn("raise budget", goal["next_action"])
 
+    def test_project_budget_roundtrip_and_spend_summary(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.prince2_node_runtime = {
+            "nodes": [
+                {
+                    "node_id": "board.executive",
+                    "business_case_cost_usd": 0.01,
+                },
+                {
+                    "node_id": "delivery.team_manager",
+                    "business_case_cost_usd": 0.004,
+                },
+            ]
+        }
+        budget = handoff.set_project_budget(budget_usd=0.02, currency="usd")
+        self.assertEqual(budget["status"], "active")
+        self.assertEqual(budget["budget_usd"], 0.02)
+        self.assertEqual(budget["currency"], "USD")
+        self.assertEqual(budget["spend_usd"], 0.014)
+        self.assertEqual(budget["remaining_usd"], 0.006)
+        self.assertEqual(budget["budget_used_percentage"], 70.0)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / ".stagewarden_handoff.json"
+            handoff.save(path)
+            loaded = ProjectHandoff.load(path)
+            loaded_budget = loaded.project_budget_view()
+            self.assertEqual(loaded_budget["status"], "active")
+            self.assertEqual(loaded_budget["budget_usd"], 0.02)
+            self.assertEqual(loaded_budget["spend_usd"], 0.014)
+            self.assertEqual(loaded_budget["remaining_usd"], 0.006)
+
+    def test_project_budget_marks_budget_limited_when_spend_is_reached(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.prince2_node_runtime = {
+            "nodes": [
+                {
+                    "node_id": "board.executive",
+                    "business_case_cost_usd": 0.06,
+                }
+            ]
+        }
+        budget = handoff.set_project_budget(budget_usd=0.05, currency="USD")
+        self.assertEqual(budget["status"], "budget_limited")
+        self.assertTrue(budget["terminal"])
+        self.assertEqual(budget["spend_usd"], 0.06)
+        self.assertEqual(budget["remaining_usd"], 0.0)
+        self.assertEqual(budget["budget_used_percentage"], 120.0)
+        self.assertIn("raise budget", budget["next_action"])
+
+    def test_user_question_roundtrip_and_answer_flow(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / ".stagewarden_handoff.json"
+            handoff = ProjectHandoff()
+            question = handoff.ask_user(
+                question="Which deliverable should I prioritize?",
+                reason="clarification",
+                context={"task": "deliver project"},
+            )
+            self.assertEqual(question["status"], "pending")
+            self.assertEqual(question["question"], "Which deliverable should I prioritize?")
+            self.assertEqual(handoff.user_question_view()["status"], "pending")
+            answered = handoff.answer_user_question(answer="Prioritize the release checklist.")
+            self.assertEqual(answered["status"], "answered")
+            self.assertEqual(answered["answer"], "Prioritize the release checklist.")
+            self.assertEqual(handoff.user_question_view()["status"], "missing")
+            handoff.save(path)
+            loaded = ProjectHandoff.load(path)
+            self.assertEqual(loaded.user_question_view()["status"], "missing")
+            self.assertEqual(loaded.user_question_view()["answered_count"], 1)
+
     def test_project_handoff_materializes_prince2_node_runtime_from_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / ".stagewarden_handoff.json"
@@ -183,6 +254,11 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(runtime["runtime"]["nodes"][0]["node_id"], "management.project_manager")
             self.assertEqual(runtime["runtime"]["nodes"][0]["state"], "ready")
             self.assertEqual(runtime["runtime"]["nodes"][0]["wake_triggers"], ["escalation", "stage_boundary_review"])
+            self.assertGreater(int(runtime["runtime"]["nodes"][0]["business_case_input_token_count"]), 0)
+            self.assertEqual(int(runtime["runtime"]["nodes"][0]["business_case_output_token_count"]), 0)
+            self.assertGreater(float(runtime["runtime"]["nodes"][0]["business_case_input_cost_usd"]), 0.0)
+            self.assertGreater(float(runtime["runtime"]["nodes"][0]["business_case_cost_usd"]), 0.0)
+            self.assertIn("pricing", runtime["runtime"]["nodes"][0])
 
     def test_project_handoff_rejects_prince2_message_payload_outside_edge_scope(self) -> None:
         handoff = ProjectHandoff()
@@ -294,6 +370,13 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(ticked["state"], "running")
         self.assertIsNotNone(ticked["consumed_message"])
         self.assertEqual(ticked["remaining_inbox"], 0)
+        runtime_node = next(
+            item
+            for item in handoff.prince2_node_runtime_report()["runtime"]["nodes"]
+            if item["node_id"] == "delivery.team_manager"
+        )
+        self.assertGreater(int(runtime_node["business_case_input_token_count"]), 0)
+        self.assertEqual(int(runtime_node["business_case_output_token_count"]), 0)
 
     def test_project_handoff_can_batch_tick_prince2_runtime(self) -> None:
         handoff = ProjectHandoff()
@@ -359,6 +442,9 @@ class PersistenceTests(unittest.TestCase):
         }
         self.assertEqual(nodes["management.project_manager"]["state"], "completed")
         self.assertEqual(nodes["delivery.team_manager"]["state"], "running")
+        self.assertGreater(int(nodes["management.project_manager"]["business_case_output_token_count"]), 0)
+        self.assertGreater(int(nodes["delivery.team_manager"]["business_case_input_token_count"]), 0)
+        self.assertEqual(int(nodes["delivery.team_manager"]["business_case_output_token_count"]), 0)
         self.assertEqual(nodes["delivery.team_manager"]["inbox_count"], 0)
 
     def test_project_handoff_can_build_prince2_control_report(self) -> None:
@@ -422,6 +508,9 @@ class PersistenceTests(unittest.TestCase):
         critical = {item["node_id"]: item for item in report["critical_nodes"]}
         self.assertIn("delivery.team_manager", critical)
         self.assertIn("queued inbound message(s)", " ".join(critical["delivery.team_manager"]["reasons"]))
+        self.assertGreater(int(critical["delivery.team_manager"]["business_case_input_token_count"]), 0)
+        self.assertEqual(int(critical["delivery.team_manager"]["business_case_output_token_count"]), 0)
+        self.assertIn("pricing", critical["delivery.team_manager"])
 
     def test_project_handoff_can_close_step_issues_and_clear_exception_plan(self) -> None:
         handoff = ProjectHandoff(

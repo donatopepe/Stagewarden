@@ -10,6 +10,7 @@ from pathlib import Path
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
+from stagewarden.provider_registry import model_token_env
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 
@@ -38,16 +39,20 @@ def write_success_stub(root: Path) -> Path:
                 "        print(json.dumps({'error': 'usage: stub <model> <prompt>'}))",
                 "        return 1",
                 "    prompt = sys.argv[2]",
+                "    prompt_lower = prompt.lower()",
                 "    instruction = extract(prompt, 'instruction').lower()",
                 "    task_match = re.search(r'Task:\\n(.+?)\\n\\nImplicit project handoff context:', prompt, re.DOTALL)",
                 "    task = task_match.group(1).strip() if task_match else ''",
+                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower or ('retrospettiva prospettica' in prompt_lower and 'primary model response' in prompt_lower):",
+                "        print(json.dumps({'summary': 'devil advocate review', 'verdict': 'accept', 'contradictions': [], 'missing_evidence': [], 'counter_argument': 'No contradiction found.', 'must_escalate': False, 'confidence': 0.9}))",
+                "        return 0",
                 "    if instruction.startswith('analyze') or instruction.startswith('inspect') or instruction.startswith('resume 1.') or instruction.startswith('resume 3.'):",
-                "        action = {'type': 'complete', 'message': 'analysis validated exit_code=0'}",
+                "        action = {'type': 'complete', 'message': 'analysis validated exit_code=0 wet-run validation passed'}",
                 "    elif 'implement' in instruction or 'create' in instruction or 'build' in instruction or instruction.startswith('resume 2.'):",
                 "        target = detect_target_file(f'{instruction} {task}') or 'stub_output.txt'",
-                "        action = {'type': 'write_file', 'path': target, 'content': 'created by test stub\\n'}",
+                "        action = {'type': 'write_file', 'path': target, 'content': 'created by test stub\\nvalidation completed exit_code=0\\n'}",
                 "    else:",
-                "        action = {'type': 'complete', 'message': 'validation completed exit_code=0'}",
+                "        action = {'type': 'complete', 'message': 'review completed exit_code=0 wet-run validation passed'}",
                 "    print(json.dumps({'summary': 'stub response', 'action': action}))",
                 "    return 0",
                 "",
@@ -61,7 +66,121 @@ def write_success_stub(root: Path) -> Path:
     return path
 
 
+def write_resume_network_stub(root: Path) -> Path:
+    path = root / "run_model_resume_stub.py"
+    path.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "from __future__ import annotations",
+                "import json",
+                "import re",
+                "import sys",
+                "from pathlib import Path",
+                "",
+                "def extract(prompt: str, field: str) -> str:",
+                '    match = re.search(rf"^{re.escape(field)}=(.+)$", prompt, re.MULTILINE)',
+                "    return match.group(1).strip() if match else ''",
+                "",
+                "def workspace_root(prompt: str) -> Path:",
+                '    match = re.search(r"^- workspace_root: (.+)$", prompt, re.MULTILINE)',
+                "    return Path(match.group(1).strip()) if match else Path.cwd()",
+                "",
+                "def main() -> int:",
+                "    if len(sys.argv) < 3:",
+                "        print(json.dumps({'error': 'usage: stub <model> <prompt>'}))",
+                "        return 1",
+                "    prompt = sys.argv[2]",
+                "    prompt_lower = prompt.lower()",
+                "    instruction = extract(prompt, 'instruction').lower()",
+                "    marker = workspace_root(prompt) / '.resume_ready'",
+                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower or ('retrospettiva prospettica' in prompt_lower and 'primary model response' in prompt_lower):",
+                "        print(json.dumps({'summary': 'devil advocate review', 'verdict': 'accept', 'contradictions': [], 'missing_evidence': [], 'counter_argument': 'No contradiction found.', 'must_escalate': False, 'confidence': 0.9}))",
+                "        return 0",
+                "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
+                "        print(json.dumps({'summary': 'analysis ok', 'action': {'type': 'complete', 'message': 'analysis validated exit_code=0'}}))",
+                "        return 0",
+                "    if 'implement' in instruction or 'create' in instruction or 'build' in instruction:",
+                "        if not marker.exists():",
+                "            print('Temporary failure in name resolution.', file=sys.stderr)",
+                "            return 1",
+                "        print(json.dumps({'summary': 'resume patch', 'action': {'type': 'write_file', 'path': 'hello.txt', 'content': 'created after resume\\n'}}))",
+                "        return 0",
+                "    print(json.dumps({'summary': 'validation ok', 'action': {'type': 'complete', 'message': 'validation completed exit_code=0'}}))",
+                "    return 0",
+                "",
+                "if __name__ == '__main__':",
+                "    raise SystemExit(main())",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
+def write_resume_rate_limit_stub(root: Path) -> Path:
+    path = root / "run_model_rate_limit_resume_stub.py"
+    path.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "from __future__ import annotations",
+                "import json",
+                "import re",
+                "import sys",
+                "from pathlib import Path",
+                "",
+                "def extract(prompt: str, field: str) -> str:",
+                '    match = re.search(rf"^{re.escape(field)}=(.+)$", prompt, re.MULTILINE)',
+                "    return match.group(1).strip() if match else ''",
+                "",
+                "def workspace_root(prompt: str) -> Path:",
+                '    match = re.search(r"^- workspace_root: (.+)$", prompt, re.MULTILINE)',
+                "    return Path(match.group(1).strip()) if match else Path.cwd()",
+                "",
+                "def main() -> int:",
+                "    if len(sys.argv) < 3:",
+                "        print(json.dumps({'error': 'usage: stub <model> <prompt>'}))",
+                "        return 1",
+                "    prompt = sys.argv[2]",
+                "    prompt_lower = prompt.lower()",
+                "    instruction = extract(prompt, 'instruction').lower()",
+                "    marker = workspace_root(prompt) / '.resume_ready'",
+                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower or ('retrospettiva prospettica' in prompt_lower and 'primary model response' in prompt_lower):",
+                "        print(json.dumps({'summary': 'devil advocate review', 'verdict': 'accept', 'contradictions': [], 'missing_evidence': [], 'counter_argument': 'No contradiction found.', 'must_escalate': False, 'confidence': 0.9}))",
+                "        return 0",
+                "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
+                "        print(json.dumps({'summary': 'analysis ok', 'action': {'type': 'complete', 'message': 'analysis validated exit_code=0'}}))",
+                "        return 0",
+                "    if 'implement' in instruction or 'create' in instruction or 'build' in instruction:",
+                "        if not marker.exists():",
+                "            print(\"You've hit your usage limit. Try again at 8:05 PM.\", file=sys.stderr)",
+                "            return 1",
+                "        print(json.dumps({'summary': 'resume patch', 'action': {'type': 'write_file', 'path': 'hello.txt', 'content': 'created after token reset\\n'}}))",
+                "        return 0",
+                "    print(json.dumps({'summary': 'validation ok', 'action': {'type': 'complete', 'message': 'validation completed exit_code=0'}}))",
+                "    return 0",
+                "",
+                "if __name__ == '__main__':",
+                "    raise SystemExit(main())",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
 class AgentIntegrationTests(unittest.TestCase):
+    def _openrouter_env_name(self) -> str:
+        candidate = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
+        if os.environ.get(candidate):
+            return candidate
+        if candidate != "OPENROUTER_API_KEY" and os.environ.get("OPENROUTER_API_KEY"):
+            return "OPENROUTER_API_KEY"
+        self.fail("OpenRouter API key is required for this test.")
+
     def test_agent_completes_task_with_stub_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -135,16 +254,16 @@ class AgentIntegrationTests(unittest.TestCase):
             root = Path(tmp_dir)
             stub = write_success_stub(root)
             prefs = ModelPreferences.default()
-            prefs.enabled_models = ["openai", "local"]
-            prefs.preferred_model = "openai"
-            prefs.add_account("openai", "work", "OPENAI_API_KEY_WORK")
-            prefs.set_variant("openai", "gpt-5.4-mini")
+            openrouter_env = self._openrouter_env_name()
+            prefs.enabled_models = ["cheap", "local"]
+            prefs.preferred_model = "cheap"
+            prefs.add_account("cheap", "live", openrouter_env)
+            prefs.set_variant("cheap", "provider-default")
             prefs.save(root / ".stagewarden_models.json")
 
             original = os.environ.get("RUN_MODEL_BIN")
-            original_key = os.environ.get("OPENAI_API_KEY_WORK")
+            original_key = os.environ.get(openrouter_env)
             os.environ["RUN_MODEL_BIN"] = str(stub)
-            os.environ["OPENAI_API_KEY_WORK"] = "work-token"
             try:
                 output = StringIO()
                 with redirect_stdout(output):
@@ -162,17 +281,17 @@ class AgentIntegrationTests(unittest.TestCase):
                 else:
                     os.environ["RUN_MODEL_BIN"] = original
                 if original_key is None:
-                    os.environ.pop("OPENAI_API_KEY_WORK", None)
+                    os.environ.pop(openrouter_env, None)
                 else:
-                    os.environ["OPENAI_API_KEY_WORK"] = original_key
+                    os.environ[openrouter_env] = original_key
 
             rendered = output.getvalue()
             self.assertTrue(result.ok)
-            self.assertIn("variant=gpt-5.4-mini", rendered)
-            self.assertIn("account=work", rendered)
+            self.assertIn("variant=provider-default", rendered)
+            self.assertIn("account=live", rendered)
             self.assertIn("git_head_before=", rendered)
             self.assertIn("git_head_after=", rendered)
-            self.assertIn("model=openai variant=gpt-5.4-mini account=work", rendered)
+            self.assertIn("model=cheap variant=provider-default account=live", rendered)
 
     def test_agent_closes_matching_open_issues_on_immediate_project_closure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -253,6 +372,92 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertIn("recovery-step-2:completed", saved.plan_status)
             self.assertIn("step-2:completed", saved.plan_status)
             self.assertIn("step-3:completed", saved.plan_status)
+
+    def test_agent_resumes_suspended_network_session_from_persisted_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_resume_network_stub(root)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                first = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                    )
+                )
+                suspended = first.run("create a file named hello.txt")
+                saved_after_suspend = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+                self.assertFalse(suspended.ok)
+                self.assertIn("Session suspended because network is unavailable", suspended.message)
+                self.assertEqual(saved_after_suspend.status, "waiting")
+                self.assertIn("network unavailable", saved_after_suspend.latest_observation.lower())
+
+                (root / ".resume_ready").write_text("yes\n", encoding="utf-8")
+                second = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                    )
+                )
+                resumed = second.run("create a file named hello.txt")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertTrue(resumed.ok)
+            self.assertTrue((root / "hello.txt").exists())
+            saved_after_resume = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(saved_after_resume.status, "closed")
+            self.assertIn("step-3:completed", saved_after_resume.plan_status)
+
+    def test_agent_resumes_after_token_reset_from_persisted_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_resume_rate_limit_stub(root)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                first = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                        rate_limit_decider=lambda provider, until, alternatives: "wait",
+                    )
+                )
+                suspended = first.run("create a file named hello.txt")
+                saved_after_suspend = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+                self.assertFalse(suspended.ok)
+                self.assertIn("Session suspended", suspended.message)
+                self.assertEqual(saved_after_suspend.status, "waiting")
+                self.assertIn("usage limit", saved_after_suspend.latest_observation.lower())
+
+                (root / ".resume_ready").write_text("yes\n", encoding="utf-8")
+                second = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                        rate_limit_decider=lambda provider, until, alternatives: "wait",
+                    )
+                )
+                resumed = second.run("create a file named hello.txt")
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            self.assertTrue(resumed.ok)
+            self.assertTrue((root / "hello.txt").exists())
+            saved_after_resume = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(saved_after_resume.status, "closed")
+            self.assertIn("step-3:completed", saved_after_resume.plan_status)
 
 
 if __name__ == "__main__":

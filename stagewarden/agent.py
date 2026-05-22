@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from .caveman import CavemanDirective, CavemanManager, CavemanState
 from .config import AgentConfig
@@ -12,7 +13,9 @@ from .modelprefs import ModelPreferences
 from .planner import Planner, PlanStep
 from .prince2 import Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
+from .rag import DesignRag
 from .router import ModelRouter
+from .ljson import load_file as load_ljson_file
 from .tools.git import GitTool
 
 
@@ -38,12 +41,14 @@ class Agent:
         self.handoff = HandoffManager(timeout_seconds=config.model_timeout_seconds)
         self.planner = Planner()
         self.project_handoff = self._load_handoff()
+        self.rag = self._load_rag()
         self.executor = Executor(
             config=config,
             router=self.router,
             handoff=self.handoff,
             memory=self.memory,
             project_handoff=self.project_handoff,
+            rag=self.rag,
         )
         self._apply_workspace_model_preferences()
 
@@ -59,7 +64,8 @@ class Agent:
         directive = self._merge_caveman_state(directive, task)
 
         effective_task = directive.stripped_task or task
-        checklist = self.prince2.build_checklist(effective_task)
+        resumable_run = self._should_resume_existing_run(effective_task)
+        checklist = self.prince2.build_checklist(effective_task, project_brief=self.project_handoff.project_brief)
         assessment = self.prince2.assess_task(effective_task, checklist)
         pid = self.prince2.build_pid(effective_task, checklist)
         if directive.active:
@@ -74,22 +80,42 @@ class Agent:
         self._sync_prince2_roles_from_preferences()
         plan = self.planner.create_plan(effective_task, project_handoff=self.project_handoff)
         self._sync_implementation_backlog(plan)
-        last_observation = "Task received."
+        last_observation = self.project_handoff.latest_observation or "Task received."
         iterations = 0
-        self.trace_records = []
+        self.trace_records = self._load_trace_records() if resumable_run else []
         start_head = self._git_head()
-        self.project_handoff.start_run(
-            task=effective_task,
-            plan_status=self._plan_status(plan),
-            git_head=start_head,
-        )
-        self.project_handoff.record_plan(
-            task=effective_task,
-            plan_status=self._plan_status(plan),
-            checklist=checklist.as_dict(),
-            git_head=start_head,
-        )
+        if not resumable_run:
+            self.project_handoff.start_run(
+                task=effective_task,
+                plan_status=self._plan_status(plan),
+                git_head=start_head,
+            )
+            self.project_handoff.record_plan(
+                task=effective_task,
+                plan_status=self._plan_status(plan),
+                checklist=checklist.as_dict(),
+                git_head=start_head,
+            )
+        else:
+            self.project_handoff.record_action(
+                phase="resume",
+                summary="Resuming suspended run from persisted handoff state.",
+                task=effective_task,
+                git_head=start_head,
+                details={
+                    "current_step_id": self.project_handoff.current_step_id,
+                    "current_step_status": self.project_handoff.current_step_status,
+                    "latest_observation": self.project_handoff.latest_observation,
+                },
+            )
         self._save_handoff()
+        self._index_project_phase(
+            phase="project_start",
+            title=f"Task: {effective_task}",
+            content=f"PRINCE2 checklist created with {len(checklist.stage_plan)} stages. Assessment: {'allowed' if assessment.allowed else 'rejected'}.",
+            tags=["prince2", "checklist", "assessment", effective_task[:50]],
+            metadata={"checklist": checklist.as_dict(), "assessment": assessment.as_dict()},
+        )
         self._trace(
             phase="start",
             iteration=0,
@@ -104,6 +130,47 @@ class Agent:
         self._save_pid(pid)
 
         if not assessment.allowed:
+            if assessment.clarification_questions:
+                question = assessment.clarification_questions[0]
+                user_question = self.project_handoff.ask_user(
+                    question=question,
+                    reason="clarification",
+                    context={
+                        "task": effective_task,
+                        "reasons": list(assessment.reasons),
+                        "escalation_required": assessment.escalation_required,
+                    },
+                )
+                pid.status = "waiting"
+                pid.outcome = question
+                self._save_pid(pid)
+                self._save_handoff()
+                self._index_project_phase(
+                    phase="clarification",
+                    title=f"Clarification needed: {effective_task}",
+                    content=f"Question: {question}\nReasons: {'; '.join(assessment.reasons)}",
+                    tags=["clarification", "prince2", effective_task[:50]],
+                    metadata={"assessment": assessment.as_dict(), "question": user_question},
+                )
+                self._trace(
+                    phase="await_user_clarification",
+                    iteration=0,
+                    task=effective_task,
+                    prince2_assessment=assessment.as_dict(),
+                    prince2_pid=pid.as_dict(),
+                    clarification_question=user_question,
+                    plan_status=self._plan_status(plan),
+                )
+                self._save_trace()
+                message = (
+                    "Clarification needed.\n"
+                    f"- question: {question}\n"
+                    f"- reason: {assessment.reasons[0] if assessment.reasons else 'task requires clarification'}\n"
+                    "Reply with the answer in the shell, or rerun the task with more detail."
+                )
+                if directive.active:
+                    message = self.caveman.format_text(message, directive.level)
+                return AgentResult(False, 0, message)
             pid.status = "rejected"
             pid.outcome = "Rejected by PRINCE2 governance gate before execution."
             self._save_pid(pid)
@@ -116,6 +183,13 @@ class Agent:
             )
             self._save_handoff()
             self._save_memory()
+            self._index_project_phase(
+                phase="project_rejected",
+                title=f"Project rejected: {effective_task}",
+                content=f"Rejected before execution. Reasons: {'; '.join(assessment.reasons)}",
+                tags=["rejected", "prince2", effective_task[:50]],
+                metadata={"assessment": assessment.as_dict(), "plan_status": self._plan_status(plan)},
+            )
             self._trace(
                 phase="finish",
                 iteration=0,
@@ -159,6 +233,13 @@ class Agent:
                 )
                 self._save_handoff()
                 self._save_memory()
+                self._index_project_phase(
+                    phase="project_finish",
+                    title=f"Project {'completed' if success else 'stopped'}: {effective_task}",
+                    content=f"Final outcome: {pid.outcome}. Plan status: {self._plan_status(plan)}.",
+                    tags=["finish", "closure", effective_task[:50]],
+                    metadata={"success": success, "outcome": pid.outcome, "plan_status": self._plan_status(plan)},
+                )
                 self._trace(
                     phase="finish",
                     iteration=iterations - 1,
@@ -214,6 +295,13 @@ class Agent:
                 )
                 self._sync_implementation_backlog(plan)
                 self._save_handoff()
+                self._index_project_phase(
+                    phase="step_failure",
+                    title=f"Step aborted: {current.id} {current.title}",
+                    content=last_observation,
+                    tags=["abort", "failure", current.id, effective_task[:50]],
+                    metadata={"step_id": current.id, "step_status": current.status},
+                )
                 self._trace(
                     phase="abort_step",
                     iteration=iterations,
@@ -287,6 +375,18 @@ class Agent:
                     lesson=outcome.observation,
                 )
                 if outcome.step_completed:
+                    self._index_project_phase(
+                        phase="step_completed",
+                        title=f"Step completed: {current.id} {current.title}",
+                        content=outcome.observation,
+                        tags=["step", "completed", current.id, outcome.action_type, effective_task[:50]],
+                        metadata={
+                            "step_id": current.id,
+                            "action_type": outcome.action_type,
+                            "model": outcome.model,
+                            "prince2_assessment": outcome.prince2_assessment,
+                        },
+                    )
                     self._promote_next_ready_step(plan)
                     if current.id.startswith("recovery-step-"):
                         self._close_recovery_gate_if_ready(plan, outcome.observation)
@@ -306,6 +406,21 @@ class Agent:
                     step_id=current.id,
                     lesson_type="failure",
                     lesson=outcome.observation,
+                )
+                self._index_project_phase(
+                    phase="step_failure",
+                    title=f"Step issue: {current.id} {current.title}",
+                    content=outcome.observation,
+                    tags=["step", "failure", current.id, outcome.action_type, effective_task[:50]],
+                    metadata={"step_id": current.id, "action_type": outcome.action_type, "error_type": outcome.error_type},
+                )
+            if outcome.ok and not outcome.step_completed:
+                self._index_project_phase(
+                    phase="step_observation",
+                    title=f"Step observation: {current.id} {current.title}",
+                    content=outcome.observation,
+                    tags=["step", "observation", current.id, outcome.action_type, effective_task[:50]],
+                    metadata={"step_id": current.id, "action_type": outcome.action_type, "model": outcome.model},
                 )
             self.project_handoff.complete_step(
                 iteration=iterations,
@@ -353,6 +468,21 @@ class Agent:
                     git_head=self._git_head(),
                 )
             self._save_handoff()
+            if self._is_session_suspendable_error(outcome.error_type):
+                suspend_message = self._session_suspend_message(outcome.error_type)
+                pid.status = "waiting"
+                pid.outcome = suspend_message
+                self._save_pid(pid)
+                self.project_handoff.status = "waiting"
+                self.project_handoff.current_step_status = current.status
+                self.project_handoff.latest_observation = outcome.observation
+                self._save_handoff()
+                self._save_trace()
+                message = self._format_summary(plan, success=False)
+                message += f"\n{suspend_message} Re-run `resume` to continue from the saved checkpoint."
+                if directive.active:
+                    message = self.caveman.format_text(message, directive.level)
+                return AgentResult(False, iterations, message)
 
         success = all(step.status == "completed" for step in plan)
         pid.status = "closed" if success else "exception"
@@ -368,6 +498,13 @@ class Agent:
         self._sync_implementation_backlog(plan)
         self._save_handoff()
         self._save_memory()
+        self._index_project_phase(
+            phase="project_finish",
+            title=f"Project {'completed' if success else 'stopped'}: {effective_task}",
+            content=f"Final outcome: {pid.outcome}. Plan status: {self._plan_status(plan)}.",
+            tags=["finish", "closure", effective_task[:50]],
+            metadata={"success": success, "outcome": pid.outcome, "plan_status": self._plan_status(plan)},
+        )
         self._trace(
             phase="finish",
             iteration=iterations,
@@ -467,6 +604,22 @@ class Agent:
         except OSError:
             pass
 
+    def _load_rag(self) -> DesignRag:
+        try:
+            return DesignRag.load(self.config.rag_path)
+        except (OSError, ValueError, TypeError):
+            return DesignRag()
+
+    def _save_rag(self) -> None:
+        try:
+            self.rag.save(self.config.rag_path)
+        except OSError:
+            pass
+
+    def _index_project_phase(self, phase: str, title: str, content: str, tags: list[str], metadata: dict[str, Any] | None = None) -> None:
+        self.rag.add(phase=phase, tags=tags, title=title, content=content[:2000], metadata=metadata)
+        self._save_rag()
+
     def _sync_implementation_backlog(self, plan: list[PlanStep]) -> None:
         self.project_handoff.sync_implementation_backlog(
             [
@@ -506,6 +659,13 @@ class Agent:
         self.project_handoff.close_all_open_risks(resolution=resolution)
         self.project_handoff.clear_exception_plan_if_recovered()
         self._promote_next_ready_step(plan)
+        self._index_project_phase(
+            phase="recovery_gate",
+            title="Recovery gate closed",
+            content=resolution,
+            tags=["recovery", "gate", "prince2"],
+            metadata={"resolution": resolution},
+        )
 
     def _handle_caveman_command(self, directive: CavemanDirective) -> AgentResult | None:
         if directive.command == "help":
@@ -586,6 +746,15 @@ class Agent:
 
         return encode(self.trace_records)
 
+    def _load_trace_records(self) -> list[dict[str, object]]:
+        try:
+            if not self.config.trace_path.exists():
+                return []
+            payload = load_ljson_file(self.config.trace_path)
+            return [dict(item) for item in payload if isinstance(item, dict)]
+        except (OSError, ValueError, TypeError):
+            return []
+
     def _save_trace(self) -> None:
         try:
             dump_file(self.config.trace_path, self.trace_records)
@@ -627,6 +796,23 @@ class Agent:
 
     def _trace(self, **record: object) -> None:
         self.trace_records.append(record)
+
+    def _should_resume_existing_run(self, task: str) -> bool:
+        current_task = str(self.project_handoff.task or "").strip()
+        if not current_task or current_task != task.strip():
+            return False
+        if self.project_handoff.status not in {"initiating", "planned", "executing", "waiting", "exception"}:
+            return False
+        return bool(self.project_handoff.current_step_id or self.project_handoff.latest_observation)
+
+    def _is_session_suspendable_error(self, error_type: str | None) -> bool:
+        return str(error_type or "").strip().lower() in {"network_wait", "rate_limit_wait"}
+
+    def _session_suspend_message(self, error_type: str | None) -> str:
+        kind = str(error_type or "").strip().lower()
+        if kind == "rate_limit_wait":
+            return "Session suspended because a token or usage limit is active."
+        return "Session suspended because network is unavailable."
 
     def _plan_status(self, plan: list[PlanStep]) -> str:
         return ",".join(f"{step.id}:{step.status}" for step in plan)

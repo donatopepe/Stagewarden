@@ -28,7 +28,71 @@ class FakeHandoff:
 
     def execute(self, command: str):  # noqa: ANN001
         self.calls.append(command)
-        payload = self.outputs.pop(0)
+        command_lower = command.lower()
+        wants_review = "devil advocate mission" in command_lower or "project assurance critic" in command_lower or "retrospettiva prospettica" in command_lower
+        if self.outputs:
+            next_payload = self.outputs[0]
+            next_output = str(next_payload.get("output", "")) if isinstance(next_payload, dict) else ""
+            next_prompt = str(next_payload.get("prompt", "")) if isinstance(next_payload, dict) else ""
+            if wants_review and "\"verdict\"" not in next_output and "critic" not in next_prompt.lower():
+                payload = {
+                    "ok": True,
+                    "model": "critic",
+                    "backend": "critic/mock",
+                    "prompt": command,
+                    "command": "RUN_MODEL: critic mock",
+                    "output": json.dumps(
+                        {
+                            "verdict": "accept",
+                            "contradictions": [],
+                            "missing_evidence": [],
+                            "counter_argument": "No contradiction found.",
+                            "must_escalate": False,
+                            "confidence": 0.9,
+                        }
+                    ),
+                    "error": "",
+                }
+            else:
+                payload = self.outputs.pop(0)
+        elif wants_review:
+            payload = {
+                "ok": True,
+                "model": "critic",
+                "backend": "critic/mock",
+                "prompt": command,
+                "command": "RUN_MODEL: critic mock",
+                "output": json.dumps(
+                    {
+                        "verdict": "accept",
+                        "contradictions": [],
+                        "missing_evidence": [],
+                        "counter_argument": "No contradiction found.",
+                        "must_escalate": False,
+                        "confidence": 0.9,
+                    }
+                ),
+                "error": "",
+            }
+        else:
+            payload = {
+                "ok": True,
+                "model": "local",
+                "backend": "local/mock",
+                "prompt": command,
+                "command": "RUN_MODEL: local mock",
+                "output": json.dumps(
+                    {
+                        "verdict": "accept",
+                        "contradictions": [],
+                        "missing_evidence": [],
+                        "counter_argument": "Default accept.",
+                        "must_escalate": False,
+                        "confidence": 0.5,
+                    }
+                ),
+                "error": "",
+            }
         return type("ModelResult", (), payload)()
 
 
@@ -110,10 +174,185 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertTrue(outcome.step_completed)
             self.assertTrue((Path(tmp_dir) / "hello.txt").exists())
+            self.assertIn("Verified write_file by reading back", outcome.observation)
             self.assertTrue(memory.tool_transcript)
             self.assertEqual(memory.tool_transcript[-1].tool, "files")
             self.assertEqual(memory.tool_transcript[-1].action_type, "write_file")
             self.assertIn("hello.txt", memory.tool_transcript[-1].summary)
+
+    def test_executor_blocks_file_write_when_readback_mismatches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "write file",
+                                "action": {
+                                    "type": "write_file",
+                                    "path": "hello.txt",
+                                    "content": "ciao\n",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=handoff,
+                memory=memory,
+            )
+
+            def fake_read(path: str):  # noqa: ANN001
+                return type(
+                    "ReadResult",
+                    (),
+                    {
+                        "ok": True,
+                        "path": str(Path(tmp_dir) / "hello.txt"),
+                        "content": "tampered\n",
+                        "error": "",
+                    },
+                )()
+
+            executor.files.read = fake_read  # type: ignore[method-assign]
+            step = PlanStep(
+                id="step-1",
+                title="Implement",
+                instruction="implement create file",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+
+            outcome = executor.execute_step(
+                task="create a file",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertFalse(outcome.ok)
+            self.assertFalse(outcome.step_completed)
+            self.assertEqual(outcome.error_type, "verification_failed")
+            self.assertIn("read-back content mismatch", outcome.observation)
+
+    def test_executor_verifies_shell_mutation_via_git_status_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "created.txt").write_text("shell mutation\n", encoding="utf-8")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "shell touch file",
+                                "action": {
+                                    "type": "shell",
+                                    "command": "git add created.txt",
+                                    "cwd": str(root),
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=handoff,
+                memory=memory,
+            )
+            self.assertTrue(executor.git.ensure_ready().ok)
+            step = PlanStep(
+                id="step-1",
+                title="Implement",
+                instruction="stage the created file",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+
+            outcome = executor.execute_step(
+                task="stage a file with shell",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertTrue(outcome.ok)
+            self.assertTrue((root / "created.txt").exists())
+            self.assertIn("Verified shell command via workspace change", outcome.observation)
+
+    def test_executor_verifies_git_commit_advances_head(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "notes.txt").write_text("seed\n", encoding="utf-8")
+            config = AgentConfig(workspace_root=root)
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "git commit",
+                                "action": {
+                                    "type": "git_commit",
+                                    "message": "Add notes",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=handoff,
+                memory=memory,
+            )
+            self.assertTrue(executor.git.ensure_ready().ok)
+            self.assertTrue(executor.git.commit("bootstrap").ok)
+            (root / "notes.txt").write_text("seed\nupdated\n", encoding="utf-8")
+            step = PlanStep(
+                id="step-1",
+                title="Commit",
+                instruction="commit the prepared change",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+
+            outcome = executor.execute_step(
+                task="commit changes",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertTrue(outcome.ok)
+            self.assertIn("Verified git commit at", outcome.observation)
 
     def test_executor_supports_structured_file_edit_actions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -347,11 +586,12 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(delete_outcome.ok)
             self.assertFalse((root / "copy.txt").exists())
             self.assertFalse((root / "moved.txt").exists())
-            self.assertEqual(memory.tool_transcript[-5].action_type, "copy_path_file")
-            self.assertEqual(memory.tool_transcript[-4].action_type, "move_path_file")
-            self.assertEqual(memory.tool_transcript[-3].action_type, "chmod_path_file")
-            self.assertEqual(memory.tool_transcript[-2].action_type, "chown_path_file")
-            self.assertEqual(memory.tool_transcript[-1].action_type, "delete_path_file")
+            action_types = [item.action_type for item in memory.tool_transcript if item.action_type != "devil_advocate_review"]
+            self.assertEqual(action_types[-5], "copy_path_file")
+            self.assertEqual(action_types[-4], "move_path_file")
+            self.assertEqual(action_types[-3], "chmod_path_file")
+            self.assertEqual(action_types[-2], "chown_path_file")
+            self.assertEqual(action_types[-1], "delete_path_file")
 
     def test_executor_tracks_invalid_output_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -830,6 +1070,46 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("openai", updated.blocked_until_by_model or {})
             self.assertEqual(len(handoff.calls), 1)
 
+    def test_executor_waits_on_transient_network_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["openai", "local"], preferred_model="openai")
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": False,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": "",
+                        "error": "Temporary failure in name resolution.",
+                    },
+                    {
+                        "ok": False,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": "",
+                        "error": "Connection refused.",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory)
+            step = PlanStep(id="step-1", title="Analyze", instruction="debug complex traceback", validation="done")
+            outcome = executor.execute_step(task="debug complex traceback", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.action_type, "model_network_unavailable")
+            self.assertEqual(outcome.error_type, "network_wait")
+            self.assertIn("safe to resume", outcome.observation)
+            self.assertEqual(len(handoff.calls), 2)
+            self.assertEqual(memory.latest_attempt().action_type, "model_network_unavailable")
+            self.assertEqual(memory.latest_attempt().error_type, "network_wait")
+
     def test_executor_retries_all_available_accounts_on_same_model_until_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -901,7 +1181,7 @@ class ExecutorTests(unittest.TestCase):
                 mode="manual",
                 provider="openai",
                 provider_model="gpt-5.4-mini",
-                params={"reasoning_effort": "low"},
+                params={"reasoning_effort": "medium"},
                 source="unit_test",
             )
             prefs.save(config.model_prefs_path)
@@ -920,7 +1200,15 @@ class ExecutorTests(unittest.TestCase):
                         "backend": "openai/GPT-5.4",
                         "prompt": "x",
                         "command": "run_model openai x",
-                        "output": json.dumps({"summary": "done", "action": {"type": "complete", "message": "validation completed exit_code=0"}}),
+                        "output": json.dumps(
+                            {
+                                "summary": "delivery.api_team implementation complete",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "delivery.api_team implementation validated exit_code=0",
+                                },
+                            }
+                        ),
                         "error": "",
                     },
                 ]
@@ -933,7 +1221,7 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual(outcome.model, "openai")
             self.assertEqual(outcome.variant, "gpt-5.4-mini")
             self.assertEqual(outcome.prince2_role, "team_manager")
-            self.assertEqual(handoff.model_params_by_model["openai"]["reasoning_effort"], "low")
+            self.assertEqual(handoff.model_params_by_model["openai"]["reasoning_effort"], "medium")
             self.assertIn("RUN_MODEL: openai", handoff.calls[0])
             self.assertIn("active_role: team_manager", handoff.calls[0])
             self.assertIn("context_scope: current work package, product delivery, quality criteria, and implementation lessons only", handoff.calls[0])
@@ -941,6 +1229,68 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("Risks:\nOmitted by PRINCE2 role scope.", handoff.calls[0])
             self.assertIn("Exception plan:\nOmitted by PRINCE2 role scope.", handoff.calls[0])
             self.assertNotIn("business risk outside team domain", handoff.calls[0])
+
+    def test_executor_skips_blocked_prince2_role_assignment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "project_manager",
+                mode="blocked",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff = ProjectHandoff(task="inspect workspace")
+            project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+            baseline = {
+                "version": "1",
+                "approved_at": "2026-04-22T17:30:00",
+                "source": "unit_test",
+                "status": "approved",
+                "tree": build_prince2_role_tree(prefs),
+                "flow": build_prince2_role_flow(),
+            }
+            project_handoff.sync_prince2_role_tree_baseline(baseline)
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=FakeHandoff([]),
+                memory=MemoryStore(),
+                project_handoff=project_handoff,
+            )
+            step = PlanStep(id="step-1", title="Inspect workspace", instruction="inspect workspace", validation="validate")
+
+            assignment = executor._role_assignment_for_step(prefs, "project_manager", task="inspect workspace", step=step)
+
+            self.assertIsNone(assignment)
+
+            prefs.set_prince2_role_assignment(
+                "project_manager",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff.sync_prince2_roles(dict(prefs.prince2_roles or {}))
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "version": "1",
+                    "approved_at": "2026-04-22T17:30:00",
+                    "source": "unit_test",
+                    "status": "approved",
+                    "tree": build_prince2_role_tree(prefs),
+                    "flow": build_prince2_role_flow(),
+                }
+            )
+            assignment = executor._role_assignment_for_step(prefs, "project_manager", task="inspect workspace", step=step)
+
+            self.assertIsNotNone(assignment)
+            self.assertEqual(assignment["mode"], "manual")
 
     def test_executor_prefers_approved_role_tree_baseline_assignment_and_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1000,6 +1350,9 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("active_role_parent_node: management.project_manager", prompt)
             self.assertIn("active_role_level: delivery", prompt)
             self.assertIn("active_node_accountability_boundary: delivery of assigned work package products within agreed tolerances", prompt)
+            self.assertIn("margin=", prompt)
+            self.assertIn("pressure=", prompt)
+            self.assertIn("tolerance_state=", prompt)
             self.assertIn("context_include: assigned_work_package, product_descriptions, quality_criteria, delivery_lessons, team_risks", prompt)
             self.assertIn("context_exclude: business_case_detail, full_exception_plan, unrelated_project_registers", prompt)
             self.assertIn("active_flow_rule: context moves only through approved PRINCE2 flow edges", prompt)
@@ -1007,6 +1360,404 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("active_flow_outgoing: escalate.work_package_exception", prompt)
             self.assertIn("flow_edge issue.work_package: trigger=work_package_authorization", prompt)
             self.assertIn("active_role_route: provider=openai provider_model=gpt-5.4-mini", prompt)
+
+    def test_executor_runs_devil_advocate_review_before_accepting_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff = ProjectHandoff(task="implement a hospital records migration under board scrutiny")
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "version": "1",
+                    "approved_at": "2026-04-29T08:30:00",
+                    "source": "unit_test",
+                    "status": "approved",
+                    "tree": build_prince2_role_tree(prefs),
+                    "flow": build_prince2_role_flow(),
+                    "check": check_prince2_role_tree(prefs),
+                    "matrix": build_prince2_role_matrix(prefs),
+                }
+            )
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"])
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete the task",
+                                "validation": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "critic",
+                        "command": "run_model openai critic",
+                        "output": json.dumps(
+                            {
+                                "verdict": "block",
+                                "contradictions": ["No wet-run evidence for the completion claim."],
+                                "missing_evidence": ["Real command output"],
+                                "counter_argument": "The response assumes success without proof.",
+                                "must_escalate": True,
+                                "confidence": 0.97,
+                            }
+                        ),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-validate",
+                title="Validate evidence for migration release",
+                instruction="review the release evidence, validate the recovery options, and escalate any board impact",
+                validation="The release evidence proves the migration outcome and the recovery plan is externally validated.",
+            )
+
+            outcome = executor.execute_step(
+                task="implement a hospital records migration under board scrutiny",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.error_type, "critic_rejection")
+            self.assertIn("Devil advocate verdict=block", outcome.observation)
+            self.assertTrue(any("retrospettiva prospettica" in call.lower() for call in handoff.calls))
+            self.assertTrue(any(item.action_type == "devil_advocate_review" for item in memory.tool_transcript))
+            self.assertGreaterEqual(len(handoff.calls), 2)
+
+    def test_executor_blocks_when_devil_advocate_output_is_invalid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff = ProjectHandoff(task="implement a hospital records migration under board scrutiny")
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "version": "1",
+                    "approved_at": "2026-04-29T08:30:00",
+                    "source": "unit_test",
+                    "status": "approved",
+                    "tree": build_prince2_role_tree(prefs),
+                    "flow": build_prince2_role_flow(),
+                    "check": check_prince2_role_tree(prefs),
+                    "matrix": build_prince2_role_matrix(prefs),
+                }
+            )
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"])
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete the task",
+                                "validation": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "critic",
+                        "command": "run_model openai critic",
+                        "output": json.dumps(
+                            {
+                                "contradictions": [],
+                                "missing_evidence": ["Real command output"],
+                                "counter_argument": "The response assumes success without proof.",
+                                "must_escalate": True,
+                                "confidence": 0.97,
+                            }
+                        ),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-validate",
+                title="Validate evidence for migration release",
+                instruction="review the release evidence, validate the recovery options, and escalate any board impact",
+                validation="The release evidence proves the migration outcome and the recovery plan is externally validated.",
+            )
+
+            outcome = executor.execute_step(
+                task="implement a hospital records migration under board scrutiny",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.error_type, "critic_invalid_output")
+            self.assertIn("missing a valid verdict", outcome.observation)
+            self.assertTrue(
+                any(
+                    item.action_type == "devil_advocate_review" and item.error_type == "critic_invalid_output"
+                    for item in memory.tool_transcript
+                )
+            )
+            self.assertGreaterEqual(len(handoff.calls), 2)
+
+    def test_executor_escalates_variant_after_insufficient_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai", "claude"]
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff = ProjectHandoff(task="implement a hospital records migration under board scrutiny")
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "version": "1",
+                    "approved_at": "2026-04-29T08:30:00",
+                    "source": "unit_test",
+                    "status": "approved",
+                    "tree": build_prince2_role_tree(prefs),
+                    "flow": build_prince2_role_flow(),
+                    "check": check_prince2_role_tree(prefs),
+                    "matrix": build_prince2_role_matrix(prefs),
+                }
+            )
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai", "claude"])
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete the task",
+                                "validation": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "critic",
+                        "command": "run_model openai critic",
+                        "output": json.dumps(
+                            {
+                                "verdict": "block",
+                                "contradictions": ["No wet-run evidence for the completion claim."],
+                                "missing_evidence": ["Real command output"],
+                                "counter_argument": "The response assumes success without proof.",
+                                "must_escalate": True,
+                                "confidence": 0.97,
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps(
+                            {
+                                "summary": "complete the task",
+                                "validation": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    },
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "critic",
+                        "command": "run_model openai critic",
+                        "output": json.dumps(
+                            {
+                                "verdict": "accept",
+                                "contradictions": [],
+                                "missing_evidence": [],
+                                "counter_argument": "The completion is sufficiently supported.",
+                                "must_escalate": False,
+                                "confidence": 0.99,
+                            }
+                        ),
+                        "error": "",
+                    },
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-validate",
+                title="Validate evidence",
+                instruction="validate the wet-run evidence",
+                validation="The target files or behavior exist and are internally consistent.",
+            )
+
+            first = executor.execute_step(task="validate evidence", step=step, plan=[step], iteration=1, last_observation="none")
+            second = executor.execute_step(task="validate evidence", step=step, plan=[step], iteration=2, last_observation=first.observation)
+
+            self.assertFalse(first.ok)
+            self.assertFalse(first.step_completed)
+            self.assertEqual(first.error_type, "critic_rejection")
+            self.assertTrue(second.ok)
+            self.assertTrue(second.step_completed)
+            self.assertNotEqual(first.variant, second.variant)
+            self.assertNotEqual(second.variant, "gpt-5.4-mini")
+            self.assertEqual(second.model, "openai")
+            self.assertEqual(executor.handoff.model_variant_by_model["openai"], second.variant)
+
+    def test_executor_flags_generic_completion_as_response_insufficient(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["local", "openai"]
+            prefs.set_prince2_role_assignment(
+                "project_assurance",
+                mode="manual",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                params={"reasoning_effort": "medium"},
+                source="unit_test",
+            )
+            prefs.save(config.model_prefs_path)
+            project_handoff = ProjectHandoff(task="validate wet-run evidence")
+            project_handoff.sync_prince2_role_tree_baseline(
+                {
+                    "version": "1",
+                    "approved_at": "2026-04-29T08:30:00",
+                    "source": "unit_test",
+                    "status": "approved",
+                    "tree": build_prince2_role_tree(prefs),
+                    "flow": build_prince2_role_flow(),
+                    "check": check_prince2_role_tree(prefs),
+                    "matrix": build_prince2_role_matrix(prefs),
+                }
+            )
+            memory = MemoryStore()
+            router = ModelRouter()
+            router.configure(enabled_models=["local", "openai"])
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "openai",
+                        "backend": "openai/GPT-5.4",
+                        "prompt": "x",
+                        "command": "run_model openai x",
+                        "output": json.dumps(
+                            {
+                                "summary": "done",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=memory, project_handoff=project_handoff)
+            step = PlanStep(
+                id="step-validate",
+                title="Validate evidence for migration release",
+                instruction="review the release evidence, validate the recovery options, and escalate any board impact",
+                validation="The release evidence proves the migration outcome and the recovery plan is externally validated.",
+            )
+
+            outcome = executor.execute_step(
+                task="implement a hospital records migration under board scrutiny",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertFalse(outcome.ok)
+            self.assertFalse(outcome.step_completed)
+            self.assertEqual(outcome.error_type, "response_insufficient")
+            self.assertIn("Response quality gate failed", outcome.observation)
+            self.assertTrue(
+                any(
+                    item.action_type == "response_quality_assessment" and item.error_type == "response_insufficient"
+                    for item in memory.tool_transcript
+                )
+            )
 
     def test_executor_selects_delegated_node_when_step_mentions_node_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1029,7 +1780,7 @@ class ExecutorTests(unittest.TestCase):
                 "mode": "manual",
                 "provider": "openai",
                 "provider_model": "gpt-5.4-mini",
-                "params": {"reasoning_effort": "low"},
+                "params": {"reasoning_effort": "medium"},
                 "account": None,
                 "source": "unit_test",
             }
@@ -1078,7 +1829,7 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertEqual(outcome.model, "openai")
             self.assertEqual(outcome.variant, "gpt-5.4-mini")
-            self.assertEqual(handoff.model_params_by_model["openai"]["reasoning_effort"], "low")
+            self.assertEqual(handoff.model_params_by_model["openai"]["reasoning_effort"], "medium")
             prompt = handoff.calls[0]
             self.assertIn("active_role_node: delivery.api_team", prompt)
             self.assertIn("active_role_parent_node: management.project_manager", prompt)
@@ -1091,7 +1842,7 @@ class ExecutorTests(unittest.TestCase):
             config = AgentConfig(workspace_root=root)
             prefs = ModelPreferences.default()
             prefs.enabled_models = ["local", "openai"]
-            prefs.blocked_until_by_model = {"openai": "2026-05-01T18:30"}
+            prefs.blocked_until_by_model = {"openai": "2099-05-01T18:30"}
             prefs.save(config.model_prefs_path)
             tree = build_prince2_role_tree(prefs)
             team_node = next(node for node in tree["nodes"] if isinstance(node, dict) and node["node_id"] == "delivery.team_manager")
@@ -1289,7 +2040,7 @@ class ExecutorTests(unittest.TestCase):
             outcome = executor.execute_step(task="debug complex traceback in production", step=step, plan=[step], iteration=1, last_observation="none")
 
             self.assertTrue(outcome.ok)
-            self.assertEqual(handoff.model_variant_by_model.get("claude"), "opus")
+            self.assertEqual(handoff.model_variant_by_model.get("claude"), "sonnet[1m]")
 
     def test_executor_keeps_pinned_provider_variant(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -1,0 +1,159 @@
+from __future__ import annotations
+
+from typing import Final
+
+
+JSON_SCHEMA_VERSION: Final[str] = "1"
+JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
+    "status": "stagewarden.status",
+    "statusline": "stagewarden.statusline",
+    "overview": "stagewarden.overview",
+    "health": "stagewarden.health",
+    "preflight": "stagewarden.preflight",
+    "report": "stagewarden.report",
+    "handoff": "stagewarden.handoff",
+    "boundary": "stagewarden.boundary",
+    "board": "stagewarden.board",
+    "doctor": "stagewarden.doctor",
+    "models": "stagewarden.models",
+    "model": "stagewarden.model",
+    "model inspect": "stagewarden.model_inspect",
+    "model limits": "stagewarden.model_limits",
+    "provider limits": "stagewarden.provider_limits",
+    "model limit-record": "stagewarden.model_limit_record",
+    "model limit-clear": "stagewarden.model_limit_clear",
+    "account limit-record": "stagewarden.account_limit_record",
+    "account limit-clear": "stagewarden.account_limit_clear",
+    "file": "stagewarden.file",
+    "catalog status": "stagewarden.catalog_status",
+    "catalog search": "stagewarden.catalog_search",
+    "catalog": "stagewarden.catalog",
+    "catalog refresh": "stagewarden.catalog_refresh",
+    "goal": "stagewarden.goal",
+    "goal set": "stagewarden.goal_set",
+    "goal status": "stagewarden.goal_status",
+    "goal clear": "stagewarden.goal_clear",
+    "budget": "stagewarden.budget",
+    "budget set": "stagewarden.budget_set",
+    "budget status": "stagewarden.budget_status",
+    "budget clear": "stagewarden.budget_clear",
+    "question": "stagewarden.question",
+    "question ask": "stagewarden.question_ask",
+    "answer": "stagewarden.answer",
+    "rag": "stagewarden.rag",
+    "help": "stagewarden.help",
+    "commands": "stagewarden.commands",
+    "slash": "stagewarden.slash",
+    "slash choose": "stagewarden.slash_choose",
+    "baseline": "stagewarden.baseline",
+    "battery": "stagewarden.battery",
+    "prince2 benchmark": "stagewarden.prince2_benchmark",
+    "shell backend": "stagewarden.shell_backend",
+    "auth status": "stagewarden.auth_status",
+    "project brief": "stagewarden.project_brief",
+    "project brief set": "stagewarden.project_brief_set",
+    "project brief clear": "stagewarden.project_brief_clear",
+    "project design": "stagewarden.project_design",
+    "project tree propose": "stagewarden.project_tree_propose",
+    "project tree approve": "stagewarden.project_tree_approve",
+    "accounts": "stagewarden.accounts",
+    "permissions": "stagewarden.permissions",
+    "roles": "stagewarden.roles",
+    "roles domains": "stagewarden.roles_domains",
+    "roles tree": "stagewarden.roles_tree",
+    "roles tree approve": "stagewarden.roles_tree_approve",
+    "roles baseline": "stagewarden.roles_baseline",
+    "roles baseline matrix": "stagewarden.roles_baseline_matrix",
+    "roles context": "stagewarden.roles_context",
+    "roles active": "stagewarden.roles_active",
+    "roles control": "stagewarden.roles_control",
+    "roles queues": "stagewarden.roles_queues",
+    "roles messages": "stagewarden.roles_messages",
+    "roles runtime": "stagewarden.roles_runtime",
+    "roles tick": "stagewarden.roles_tick",
+    "roles check": "stagewarden.roles_check",
+    "roles flow": "stagewarden.roles_flow",
+    "roles matrix": "stagewarden.roles_matrix",
+    "sources status": "stagewarden.sources_status",
+    "sources update": "stagewarden.sources_update",
+    "update": "stagewarden.update",
+    "update status": "stagewarden.update_status",
+    "update check": "stagewarden.update_check",
+    "update apply": "stagewarden.update_apply",
+    "extensions": "stagewarden.extensions",
+    "file inspect": "stagewarden.file_inspect",
+    "file stat": "stagewarden.file_stat",
+    "file copy": "stagewarden.file_copy",
+    "file move": "stagewarden.file_move",
+    "file delete": "stagewarden.file_delete",
+    "file chmod": "stagewarden.file_chmod",
+    "file chown": "stagewarden.file_chown",
+    "git": "stagewarden.git",
+    "external_io": "stagewarden.external_io",
+    "shell backend use": "stagewarden.shell_backend_use",
+    "web search": "stagewarden.web_search",
+    "download": "stagewarden.download",
+    "checksum": "stagewarden.checksum",
+    "hash": "stagewarden.hash",
+    "compress": "stagewarden.compress",
+    "archive verify": "stagewarden.archive_verify",
+    "archive list": "stagewarden.archive_list",
+    "archive extract": "stagewarden.archive_extract",
+    "archive create": "stagewarden.archive_create",
+    "browser fetch": "stagewarden.browser_fetch",
+    "browser open": "stagewarden.browser_open",
+    "browser screenshot": "stagewarden.browser_screenshot",
+    "watch": "stagewarden.watch",
+    "system info": "stagewarden.system_info",
+    "disk usage": "stagewarden.disk_usage",
+    "process list": "stagewarden.process_list",
+    "process kill": "stagewarden.process_kill",
+    "port check": "stagewarden.port_check",
+    "clipboard get": "stagewarden.clipboard_get",
+    "clipboard set": "stagewarden.clipboard_set",
+    "clipboard clear": "stagewarden.clipboard_clear",
+    "open url": "stagewarden.open_url",
+    "git status": "stagewarden.git_status",
+    "git log": "stagewarden.git_log",
+    "git history": "stagewarden.git_history",
+    "git show": "stagewarden.git_show",
+    "sessions": "stagewarden.sessions",
+    "risks": "stagewarden.risks",
+    "issues": "stagewarden.issues",
+    "quality": "stagewarden.quality",
+    "exception": "stagewarden.exception",
+    "lessons": "stagewarden.lessons",
+    "todo": "stagewarden.todo",
+    "transcript": "stagewarden.transcript",
+    "resume --show": "stagewarden.resume_show",
+    "resume context": "stagewarden.resume_context",
+    "resume --clear": "stagewarden.resume_clear",
+    "models usage": "stagewarden.models_usage",
+    "ljson benchmark": "stagewarden.ljson_benchmark",
+    "openrouter benchmark": "stagewarden.openrouter_benchmark",
+}
+
+
+def json_schema(command: str) -> dict[str, str]:
+    return {
+        "name": JSON_SCHEMA_REGISTRY[command],
+        "version": JSON_SCHEMA_VERSION,
+    }
+
+
+def with_json_schema(command: str, payload: dict[str, object]) -> dict[str, object]:
+    if "schema" in payload:
+        return payload
+    try:
+        result = dict(payload)
+    except TypeError:
+        return payload
+    try:
+        result["schema"] = json_schema(command)
+    except KeyError:
+        return payload
+    return result
+
+
+def json_schema_commands() -> tuple[str, ...]:
+    return tuple(JSON_SCHEMA_REGISTRY)
