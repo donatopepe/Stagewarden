@@ -100,6 +100,11 @@ class RagTests(unittest.TestCase):
             reloaded = DesignRag.load(path)
             self.assertEqual(reloaded.search("inventory stock", mode="vector")[0].entry_id, entry.entry_id)
 
+            diagnostics = reloaded.search_diagnostics("inventory stock", mode="hybrid", limit=1)
+            self.assertEqual(len(diagnostics), 1)
+            self.assertIn("lexical_score", diagnostics[0])
+            self.assertIn("vector_score", diagnostics[0])
+
     def test_design_rag_deduplicates_and_supports_fuzzy_retrieval(self) -> None:
         rag = DesignRag()
         first = rag.add(
@@ -186,6 +191,8 @@ class RagTests(unittest.TestCase):
             self.assertTrue(search_result["ok"])
             self.assertIn("API decision", search_result["message"])
             self.assertIn("score=", search_result["message"])
+            self.assertIn("lexical=", search_result["message"])
+            self.assertIn("vector=", search_result["message"])
 
             update_result = executor._run_action({"type": "rag_update", "entry_id": "rag-1", "content": "Use REST adapters."})
             self.assertTrue(update_result["ok"])
@@ -293,6 +300,8 @@ class RagTests(unittest.TestCase):
             threshold_report = rag_command_report("rag search updated mode=hybrid min_score=0.9", config)
             self.assertTrue(threshold_report["ok"])
             self.assertIn("min_score", threshold_report)
+            if threshold_report["entries"]:
+                self.assertIn("diagnostics", threshold_report["entries"][0])
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])

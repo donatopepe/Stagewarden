@@ -149,15 +149,41 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
 
 
 def _score_entry(query_tokens: set[str], entry: RagEntry) -> float:
+    return _score_entry_breakdown(query_tokens, entry)["score"]
+
+
+def _score_entry_breakdown(query_tokens: set[str], entry: RagEntry) -> dict[str, float]:
     if not query_tokens:
-        return 0.0
+        return {
+            "score": 0.0,
+            "title": 0.0,
+            "content": 0.0,
+            "tags": 0.0,
+            "phase": 0.0,
+            "ngram": 0.0,
+            "fuzzy": 0.0,
+            "coverage": 0.0,
+            "phrase": 0.0,
+            "prefix": 0.0,
+        }
     title_tokens = _tokenize(entry.title)
     content_tokens = _tokenize(entry.content)
     tag_tokens = set(_normalize_tags(entry.tags))
     phase_tokens = _tokenize(entry.phase)
     searchable_tokens = title_tokens | content_tokens | tag_tokens | phase_tokens
     if not searchable_tokens:
-        return 0.0
+        return {
+            "score": 0.0,
+            "title": 0.0,
+            "content": 0.0,
+            "tags": 0.0,
+            "phase": 0.0,
+            "ngram": 0.0,
+            "fuzzy": 0.0,
+            "coverage": 0.0,
+            "phrase": 0.0,
+            "prefix": 0.0,
+        }
     title_matches = query_tokens & title_tokens
     content_matches = query_tokens & content_tokens
     tag_matches = query_tokens & tag_tokens
@@ -172,17 +198,38 @@ def _score_entry(query_tokens: set[str], entry: RagEntry) -> float:
     ngram_score = len(query_ngrams & entry_ngrams) / max(len(query_ngrams), 1)
     fuzzy_score = _fuzzy_subsequence_score(query_tokens, searchable_tokens)
     coverage_score = len((title_matches | content_matches | tag_matches)) / max(len(query_tokens), 1)
-    return (
-        (len(title_matches) / max(len(query_tokens), 1)) * 0.30
-        + (len(content_matches) / max(len(query_tokens), 1)) * 0.20
-        + (len(tag_matches) / max(len(query_tokens), 1)) * 0.20
-        + phase_match * 0.05
-        + ngram_score * 0.08
-        + fuzzy_score * 0.05
-        + coverage_score * 0.07
-        + exact_phrase_boost * 0.03
-        + prefix_phrase_boost * 0.02
+    title_component = (len(title_matches) / max(len(query_tokens), 1)) * 0.30
+    content_component = (len(content_matches) / max(len(query_tokens), 1)) * 0.20
+    tag_component = (len(tag_matches) / max(len(query_tokens), 1)) * 0.20
+    phase_component = phase_match * 0.05
+    ngram_component = ngram_score * 0.08
+    fuzzy_component = fuzzy_score * 0.05
+    coverage_component = coverage_score * 0.07
+    phrase_component = exact_phrase_boost * 0.03
+    prefix_component = prefix_phrase_boost * 0.02
+    total = (
+        title_component
+        + content_component
+        + tag_component
+        + phase_component
+        + ngram_component
+        + fuzzy_component
+        + coverage_component
+        + phrase_component
+        + prefix_component
     )
+    return {
+        "score": total,
+        "title": title_component,
+        "content": content_component,
+        "tags": tag_component,
+        "phase": phase_component,
+        "ngram": ngram_component,
+        "fuzzy": fuzzy_component,
+        "coverage": coverage_component,
+        "phrase": phrase_component,
+        "prefix": prefix_component,
+    }
 
 
 @dataclass(slots=True)
@@ -326,6 +373,18 @@ class DesignRag:
         mode: str = "hybrid",
         min_score: float = 0.0,
     ) -> list[tuple[RagEntry, float]]:
+        return [(item["entry"], item["score"]) for item in self.search_diagnostics(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)]
+
+    def search_diagnostics(
+        self,
+        query: str,
+        *,
+        phase: str | None = None,
+        tags: list[str] | None = None,
+        limit: int = 5,
+        mode: str = "hybrid",
+        min_score: float = 0.0,
+    ) -> list[dict[str, Any]]:
         query_tokens = _expanded_tokens(query)
         candidates = self.entries
         if phase:
@@ -337,9 +396,10 @@ class DesignRag:
         if search_mode in {"vector", "hybrid"} and len(self.vector_index) < len(self.entries):
             self.rebuild_vector_index()
         query_vector = _embed_text(query) if search_mode in {"vector", "hybrid"} else []
-        scored: list[tuple[RagEntry, float]] = []
+        scored: list[dict[str, Any]] = []
         for entry in candidates:
-            lexical_score = _score_entry(query_tokens, entry) if search_mode in {"lexical", "hybrid"} else 0.0
+            lexical_breakdown = _score_entry_breakdown(query_tokens, entry) if search_mode in {"lexical", "hybrid"} else {"score": 0.0}
+            lexical_score = float(lexical_breakdown.get("score", 0.0))
             vector_score = max(0.0, _cosine_similarity(query_vector, self.vector_index.get(entry.entry_id, []))) if search_mode in {"vector", "hybrid"} else 0.0
             if search_mode == "vector":
                 score = vector_score
@@ -352,10 +412,19 @@ class DesignRag:
                     score = lexical_score * 0.65 + vector_score * 0.35
                 else:
                     score = lexical_score * 0.45 + vector_score * 0.55
-            scored.append((entry, score))
-        scored.sort(key=lambda x: -x[1])
+            scored.append(
+                {
+                    "entry": entry,
+                    "score": score,
+                    "mode": search_mode,
+                    "lexical_score": lexical_score,
+                    "vector_score": vector_score,
+                    "lexical": lexical_breakdown,
+                }
+            )
+        scored.sort(key=lambda x: -float(x["score"]))
         threshold = max(0.0, min_score)
-        return [(entry, score) for entry, score in scored[:limit] if score > threshold]
+        return [item for item in scored[:limit] if float(item["score"]) > threshold]
 
     def search(
         self,
