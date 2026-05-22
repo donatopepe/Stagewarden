@@ -164,16 +164,29 @@ def _score_entry(query_tokens: set[str], entry: RagEntry) -> float:
 
 
 def resolve_min_score_policy(*, phase: str | None, role: str | None = None, mode: str, override: float | None) -> float:
+    return resolve_min_score_policy_details(phase=phase, role=role, mode=mode, override=override)["min_score"]
+
+
+def resolve_min_score_policy_details(
+    *,
+    phase: str | None,
+    role: str | None = None,
+    mode: str,
+    override: float | None,
+) -> dict[str, str | float]:
     if override is not None:
-        return max(0.0, float(override))
+        return {"min_score": max(0.0, float(override)), "policy_source": "override"}
     phase_key = str(phase or "").strip().lower()
     role_key = str(role or "").strip().lower()
     mode_key = mode if mode in VECTOR_SEARCH_MODES else "hybrid"
     role_defaults = RAG_MIN_SCORE_ROLE_DEFAULTS.get(role_key)
     if role_defaults is not None:
-        return max(0.0, float(role_defaults.get(mode_key, 0.0)))
-    phase_defaults = RAG_MIN_SCORE_DEFAULTS.get(phase_key) or RAG_MIN_SCORE_DEFAULTS["default"]
-    return max(0.0, float(phase_defaults.get(mode_key, 0.0)))
+        return {"min_score": max(0.0, float(role_defaults.get(mode_key, 0.0))), "policy_source": "role"}
+    phase_defaults = RAG_MIN_SCORE_DEFAULTS.get(phase_key)
+    if phase_defaults is not None:
+        return {"min_score": max(0.0, float(phase_defaults.get(mode_key, 0.0))), "policy_source": "phase"}
+    fallback_defaults = RAG_MIN_SCORE_DEFAULTS["default"]
+    return {"min_score": max(0.0, float(fallback_defaults.get(mode_key, 0.0))), "policy_source": "default"}
 
 
 def _score_entry_breakdown(query_tokens: set[str], entry: RagEntry) -> dict[str, float]:

@@ -20,7 +20,7 @@ from .tools.git import GitTool
 from .tools.shell import ShellTool
 from .executor_quality import ResponseQualityAssessment, assess_response_quality
 from . import executor_prompting as _executor_prompting
-from .rag import DesignRag, _prompt_safe_block, _prompt_safe_inline, resolve_min_score_policy
+from .rag import DesignRag, _prompt_safe_block, _prompt_safe_inline, resolve_min_score_policy_details
 
 
 @dataclass(slots=True)
@@ -2071,7 +2071,9 @@ class Executor:
                 tags = [t.strip() for t in tags.split(",") if t.strip()]
             phase_text = str(phase) if phase else None
             role_text = str(role) if role else (str(prince2_role) if prince2_role else None)
-            effective_min_score = resolve_min_score_policy(phase=phase_text, role=role_text, mode=mode, override=min_score)
+            policy = resolve_min_score_policy_details(phase=phase_text, role=role_text, mode=mode, override=min_score)
+            effective_min_score = float(policy.get("min_score", 0.0))
+            policy_source = str(policy.get("policy_source", "default"))
             diagnostic_results = self.rag.search_diagnostics(query, phase=phase_text, role=role_text, tags=tags, limit=limit, mode=mode, min_score=min_score)
             if diagnostic_results:
                 lines = ["Design knowledge search results (untrusted reference data):"]
@@ -2092,7 +2094,7 @@ class Executor:
                 message = "\n".join(lines)
             else:
                 message = "No design knowledge entries found."
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_search: {query} mode={mode} min_score={effective_min_score:.3f}", detail=message, error_type=None)
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_search: {query} mode={mode} min_score={effective_min_score:.3f} source={policy_source}", detail=message, error_type=None)
             return {"ok": True, "message": message, "error_type": None}
 
         if action_type == "rag_add":
