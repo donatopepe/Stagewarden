@@ -4,7 +4,9 @@ import shlex
 from typing import Any
 
 from .config import AgentConfig
-from .rag_benchmark import run_rag_benchmark
+from pathlib import Path
+
+from .rag_benchmark import compare_rag_benchmark_reports, load_rag_benchmark_snapshot, run_rag_benchmark, save_rag_benchmark_snapshot
 from .rag import DesignRag, RagEntry
 
 
@@ -60,6 +62,28 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         }
     if task == "rag benchmark":
         report = run_rag_benchmark()
+        report["ok"] = True
+        return report
+    if task.startswith("rag benchmark "):
+        fields = _parse_key_value_fields(parts[2:])
+        report = run_rag_benchmark()
+        baseline_path = str(fields.get("baseline", "")).strip()
+        write_path = str(fields.get("write", "")).strip()
+        threshold = 0.05
+        if fields.get("threshold") is not None:
+            try:
+                threshold = max(0.0, float(str(fields.get("threshold"))))
+            except ValueError:
+                return {"command": task, "ok": False, "error": _rag_usage()}
+        if write_path:
+            save_rag_benchmark_snapshot(Path(write_path), report)
+            report["saved_to"] = write_path
+        if baseline_path:
+            try:
+                baseline = load_rag_benchmark_snapshot(Path(baseline_path))
+            except (OSError, ValueError, TypeError) as exc:
+                return {"command": task, "ok": False, "error": f"Unable to load baseline snapshot: {exc}"}
+            report["comparison"] = compare_rag_benchmark_reports(baseline, report, threshold=threshold)
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -200,6 +224,16 @@ def render_rag_report(report: dict[str, Any]) -> str:
             lines.append(
                 f"- {item.get('mode')}: recall@1={float(metrics.get('recall@1', 0.0)):.3f}, recall@3={float(metrics.get('recall@3', 0.0)):.3f}"
             )
+        comparison = report.get("comparison") if isinstance(report.get("comparison"), dict) else None
+        if comparison is not None:
+            lines.append(f"Comparison passed: {bool(comparison.get('passed'))}")
+            regressions = comparison.get("regressions", []) if isinstance(comparison.get("regressions"), list) else []
+            for item in regressions:
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"- regression {item.get('mode')} {item.get('metric')}: baseline={float(item.get('baseline', 0.0)):.3f}, current={float(item.get('current', 0.0)):.3f}, delta={float(item.get('delta', 0.0)):.3f}"
+                )
         return "\n".join(lines)
     entries = report.get("entries", [])
     if not isinstance(entries, list) or not entries:
@@ -219,7 +253,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:

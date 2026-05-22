@@ -14,7 +14,7 @@ from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.planner import PlanStep
 from stagewarden.rag import DesignRag
-from stagewarden.rag_benchmark import run_rag_benchmark
+from stagewarden.rag_benchmark import compare_rag_benchmark_reports, run_rag_benchmark
 from stagewarden.rag_views import rag_command_report, render_rag_report
 from stagewarden.router import ModelRouter
 from stagewarden.shell_views import run_interactive_shell
@@ -65,6 +65,14 @@ class RagTests(unittest.TestCase):
             self.assertIn("recall@1", mode_payload["metrics"])
             self.assertIn("recall@3", mode_payload["metrics"])
             self.assertEqual(len(mode_payload["cases"]), 4)
+
+    def test_rag_benchmark_compare_detects_regressions(self) -> None:
+        baseline = run_rag_benchmark()
+        current = run_rag_benchmark()
+        current["modes"][0]["metrics"]["recall@1"] = 0.0
+        comparison = compare_rag_benchmark_reports(baseline, current, threshold=0.01)
+        self.assertFalse(comparison["passed"])
+        self.assertTrue(comparison["regressions"])
 
     def test_design_rag_search_and_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -344,6 +352,16 @@ class RagTests(unittest.TestCase):
             self.assertTrue(benchmark_report["ok"])
             self.assertEqual(benchmark_report["command"], "rag benchmark")
             self.assertEqual(benchmark_report["version"], 1)
+
+            baseline_path = Path(tmp_dir) / "rag-benchmark.json"
+            written = rag_command_report(f"rag benchmark write={baseline_path}", config)
+            self.assertTrue(written["ok"])
+            self.assertTrue(baseline_path.exists())
+
+            compared = rag_command_report(f"rag benchmark baseline={baseline_path} threshold=0.0", config)
+            self.assertTrue(compared["ok"])
+            self.assertIn("comparison", compared)
+            self.assertTrue(compared["comparison"]["passed"])
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
