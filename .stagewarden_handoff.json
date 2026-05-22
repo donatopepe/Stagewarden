@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "RAG v3.6 continued: rag benchmark rendering now prints per-mode trend details (recall@1/recall@3 first->last delta) for human audit. Validation passed: tests.test_rag (15 OK).",
+  "latest_observation": "RAG v3.6 continued: rag search min_score introspection now includes policy source (override|role|phase|default) in CLI report and executor transcripts. Validation passed: tests.test_rag + executor schema contract (16 OK).",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "26f53f4ef419e1b22aade0b0cc9b7704cedd2428",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-23T00:05:00Z",
+  "updated_at": "2026-05-23T00:20:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",

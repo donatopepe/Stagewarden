@@ -15,7 +15,7 @@ from .rag_benchmark import (
     save_rag_benchmark_snapshot,
     summarize_rag_benchmark_trend,
 )
-from .rag import DesignRag, RagEntry, resolve_min_score_policy
+from .rag import DesignRag, RagEntry, resolve_min_score_policy_details
 
 
 def _load_design_rag(config: AgentConfig) -> DesignRag:
@@ -151,7 +151,9 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         query = " ".join(query_parts).strip()
         if not query:
             return {"command": task, "ok": False, "error": _rag_usage()}
-        effective_min_score = resolve_min_score_policy(phase=phase, role=role, mode=mode, override=min_score)
+        policy = resolve_min_score_policy_details(phase=phase, role=role, mode=mode, override=min_score)
+        effective_min_score = float(policy.get("min_score", 0.0))
+        policy_source = str(policy.get("policy_source", "default"))
         diagnostic_results = rag.search_diagnostics(query, phase=phase, role=role, tags=tags, limit=limit, mode=mode, min_score=min_score)
         return {
             "command": task,
@@ -160,6 +162,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             "mode": mode,
             "role": role,
             "min_score": effective_min_score,
+            "policy_source": policy_source,
             "entries": [
                 _rag_entry_report(
                     item["entry"],

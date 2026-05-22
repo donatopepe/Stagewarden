@@ -13,7 +13,7 @@ from stagewarden.config import AgentConfig
 from stagewarden.executor import Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.planner import PlanStep
-from stagewarden.rag import DesignRag, resolve_min_score_policy
+from stagewarden.rag import DesignRag, resolve_min_score_policy, resolve_min_score_policy_details
 from stagewarden.rag_benchmark import (
     append_rag_benchmark_history,
     compare_rag_benchmark_reports,
@@ -100,6 +100,22 @@ class RagTests(unittest.TestCase):
         self.assertGreater(
             resolve_min_score_policy(phase="unknown", role="project_manager", mode="hybrid", override=None),
             0.0,
+        )
+        self.assertEqual(
+            resolve_min_score_policy_details(phase="unknown", role="project_manager", mode="hybrid", override=None)["policy_source"],
+            "role",
+        )
+        self.assertEqual(
+            resolve_min_score_policy_details(phase="design", role=None, mode="hybrid", override=None)["policy_source"],
+            "phase",
+        )
+        self.assertEqual(
+            resolve_min_score_policy_details(phase="unknown", role=None, mode="hybrid", override=None)["policy_source"],
+            "default",
+        )
+        self.assertEqual(
+            resolve_min_score_policy_details(phase="unknown", role=None, mode="hybrid", override=0.4)["policy_source"],
+            "override",
         )
 
     def test_design_rag_search_and_persistence(self) -> None:
@@ -362,6 +378,7 @@ class RagTests(unittest.TestCase):
             role_policy_report = rag_command_report("rag search RAG role=project_manager", config)
             self.assertTrue(role_policy_report["ok"])
             self.assertGreater(float(role_policy_report.get("min_score", 0.0)), 0.0)
+            self.assertEqual(role_policy_report.get("policy_source"), "role")
 
             rendered = render_rag_report(rag_command_report("rag list", config))
             self.assertIn("Boundary", rendered)
