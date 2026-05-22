@@ -7,7 +7,7 @@ from .config import AgentConfig
 from pathlib import Path
 
 from .rag_benchmark import compare_rag_benchmark_reports, load_rag_benchmark_snapshot, run_rag_benchmark, save_rag_benchmark_snapshot
-from .rag import DesignRag, RagEntry
+from .rag import DesignRag, RagEntry, resolve_min_score_policy
 
 
 def _load_design_rag(config: AgentConfig) -> DesignRag:
@@ -92,7 +92,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         tags: list[str] | None = None
         limit = 10
         mode = "hybrid"
-        min_score = 0.0
+        min_score: float | None = None
         for token in parts[2:]:
             if token.startswith("phase="):
                 phase = token.split("=", 1)[1]
@@ -121,13 +121,14 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         query = " ".join(query_parts).strip()
         if not query:
             return {"command": task, "ok": False, "error": _rag_usage()}
+        effective_min_score = resolve_min_score_policy(phase=phase, mode=mode, override=min_score)
         diagnostic_results = rag.search_diagnostics(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)
         return {
             "command": task,
             "ok": True,
             "query": query,
             "mode": mode,
-            "min_score": min_score,
+            "min_score": effective_min_score,
             "entries": [
                 _rag_entry_report(
                     item["entry"],

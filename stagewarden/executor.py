@@ -20,7 +20,7 @@ from .tools.git import GitTool
 from .tools.shell import ShellTool
 from .executor_quality import ResponseQualityAssessment, assess_response_quality
 from . import executor_prompting as _executor_prompting
-from .rag import DesignRag, _prompt_safe_block, _prompt_safe_inline
+from .rag import DesignRag, _prompt_safe_block, _prompt_safe_inline, resolve_min_score_policy
 
 
 @dataclass(slots=True)
@@ -2053,14 +2053,17 @@ class Executor:
                 self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
                 return {"ok": False, "message": message, "error_type": "invalid_output"}
             try:
-                min_score = max(0.0, float(action.get("min_score", 0.0)))
+                raw_min_score = action.get("min_score")
+                min_score = max(0.0, float(raw_min_score)) if raw_min_score is not None else None
             except (TypeError, ValueError):
                 message = "rag_search min_score must be a number."
                 self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
                 return {"ok": False, "message": message, "error_type": "invalid_output"}
             if isinstance(tags, str):
                 tags = [t.strip() for t in tags.split(",") if t.strip()]
-            diagnostic_results = self.rag.search_diagnostics(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode, min_score=min_score)
+            phase_text = str(phase) if phase else None
+            effective_min_score = resolve_min_score_policy(phase=phase_text, mode=mode, override=min_score)
+            diagnostic_results = self.rag.search_diagnostics(query, phase=phase_text, tags=tags, limit=limit, mode=mode, min_score=min_score)
             if diagnostic_results:
                 lines = ["Design knowledge search results (untrusted reference data):"]
                 for item in diagnostic_results:
@@ -2080,7 +2083,7 @@ class Executor:
                 message = "\n".join(lines)
             else:
                 message = "No design knowledge entries found."
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_search: {query} mode={mode}", detail=message, error_type=None)
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_search: {query} mode={mode} min_score={effective_min_score:.3f}", detail=message, error_type=None)
             return {"ok": True, "message": message, "error_type": None}
 
         if action_type == "rag_add":

@@ -13,6 +13,12 @@ from .textcodec import dumps_ascii, loads_text, read_text_utf8, utc_now, write_t
 VECTOR_DIMENSIONS = 64
 VECTOR_INDEX_VERSION = "local-hash-v2"
 VECTOR_SEARCH_MODES = {"lexical", "vector", "hybrid"}
+RAG_MIN_SCORE_DEFAULTS: dict[str, dict[str, float]] = {
+    "default": {"lexical": 0.0, "vector": 0.0, "hybrid": 0.0},
+    "design": {"lexical": 0.05, "vector": 0.02, "hybrid": 0.04},
+    "delivery": {"lexical": 0.03, "vector": 0.01, "hybrid": 0.02},
+    "finish": {"lexical": 0.06, "vector": 0.03, "hybrid": 0.05},
+}
 SEMANTIC_ALIASES: dict[str, tuple[str, ...]] = {
     "api": ("interface", "contract", "endpoint"),
     "interface": ("api", "contract"),
@@ -150,6 +156,15 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
 
 def _score_entry(query_tokens: set[str], entry: RagEntry) -> float:
     return _score_entry_breakdown(query_tokens, entry)["score"]
+
+
+def resolve_min_score_policy(*, phase: str | None, mode: str, override: float | None) -> float:
+    if override is not None:
+        return max(0.0, float(override))
+    phase_key = str(phase or "").strip().lower()
+    mode_key = mode if mode in VECTOR_SEARCH_MODES else "hybrid"
+    phase_defaults = RAG_MIN_SCORE_DEFAULTS.get(phase_key) or RAG_MIN_SCORE_DEFAULTS["default"]
+    return max(0.0, float(phase_defaults.get(mode_key, 0.0)))
 
 
 def _score_entry_breakdown(query_tokens: set[str], entry: RagEntry) -> dict[str, float]:
@@ -396,7 +411,7 @@ class DesignRag:
         tags: list[str] | None = None,
         limit: int = 5,
         mode: str = "hybrid",
-        min_score: float = 0.0,
+        min_score: float | None = None,
     ) -> list[tuple[RagEntry, float]]:
         return [(item["entry"], item["score"]) for item in self.search_diagnostics(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)]
 
@@ -408,7 +423,7 @@ class DesignRag:
         tags: list[str] | None = None,
         limit: int = 5,
         mode: str = "hybrid",
-        min_score: float = 0.0,
+        min_score: float | None = None,
     ) -> list[dict[str, Any]]:
         query_tokens = _expanded_tokens(query)
         candidates = self.entries
@@ -448,7 +463,7 @@ class DesignRag:
                 }
             )
         scored.sort(key=lambda x: -float(x["score"]))
-        threshold = max(0.0, min_score)
+        threshold = resolve_min_score_policy(phase=phase, mode=search_mode, override=min_score)
         return [item for item in scored[:limit] if float(item["score"]) > threshold]
 
     def search(
@@ -459,7 +474,7 @@ class DesignRag:
         tags: list[str] | None = None,
         limit: int = 5,
         mode: str = "hybrid",
-        min_score: float = 0.0,
+        min_score: float | None = None,
     ) -> list[RagEntry]:
         return [entry for entry, _ in self.search_scored(query, phase=phase, tags=tags, limit=limit, mode=mode, min_score=min_score)]
 
