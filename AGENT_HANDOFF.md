@@ -14,6 +14,9 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
 ## Recent changes
+- `stagewarden/rag.py`: completed RAG v3.3 compaction policy modes with `compact(mode=...)` supporting `strict`, `balanced`, and `aggressive` dedupe strategies.
+- `stagewarden/rag_views.py`: `rag compact` now accepts `mode=strict|balanced|aggressive` and reports selected mode in response payload.
+- `tests/test_rag.py`: added `test_design_rag_compact_modes` and CLI invalid-mode coverage for compaction policy behavior.
 - `stagewarden/rag.py`: completed RAG v3.2 diagnostics foundation via `search_diagnostics(...)`, exposing per-result total score plus lexical/vector components.
 - `stagewarden/rag_views.py`: `rag search` now returns score diagnostics payload (`mode`, `lexical_score`, `vector_score`) per entry.
 - `stagewarden/executor.py`: `rag_search` model-action output now includes lexical/vector score components alongside total score.
@@ -74,18 +77,16 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
   - Trade-offs: threshold tuning can hide relevant low-score entries if set too high.
 
 ## Next implementation plan
-1. **RAG v3.3 (next)**: add optional compaction policy modes (`strict|balanced|aggressive`) while keeping current mode default.
-   - Tests: compaction regression matrix and no false-positive merges for unrelated entries.
-2. **RAG v3.4**: add bounded benchmark script for retrieval quality drift (fixed corpus, recall@k proxy) to gate future ranking changes.
+1. **RAG v3.4 (next)**: add bounded benchmark script for retrieval quality drift (fixed corpus, recall@k proxy) to gate future ranking changes.
    - Tests: benchmark snapshot contract + CI-friendly deterministic run.
-3. **RAG v3.5**: add optional action-level retrieval policy defaults (different `min_score` by phase/role) with safe fallbacks.
+2. **RAG v3.5**: add optional action-level retrieval policy defaults (different `min_score` by phase/role) with safe fallbacks.
    - Tests: policy resolution correctness and backward compatibility with current defaults.
 
 ## Open issues
 - Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 10 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). RAG v3.1/v3.2 slice checks passed (`python3 -m unittest tests.test_rag tests.test_executor.ExecutorTests.test_model_visible_tool_schema_matches_executor_actions -v` -> 11 OK).
+- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 11 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). RAG v3.1/v3.2 slice checks passed (`python3 -m unittest tests.test_rag tests.test_executor.ExecutorTests.test_model_visible_tool_schema_matches_executor_actions -v` -> 11 OK).
 
 ## Next steps
 1. No immediate follow-up is pending for the completed RAG/trace-regression slice.
