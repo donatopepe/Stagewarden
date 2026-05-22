@@ -12,6 +12,7 @@ from . import model_views as _model_views
 from . import project_handoff_views as _project_handoff_views
 from . import project_state_views as _project_state_views
 from .project import start_flow as _project_start_flow
+from .project import role_flow as _project_role_flow
 from .project import role_runtime_views as _project_role_runtime_views
 from .project import role_views as _project_role_views
 from .project import role_tree_views as _project_role_tree_views
@@ -239,6 +240,43 @@ def run_cli() -> int:
         else:
             print(_rag_views.render_rag_report(report))
         return 0 if report.get("ok", True) else 1
+    if task == "browser" or task.startswith("browser "):
+        result = _command_dispatch.execute_browser_command(task, config)
+        if args.json:
+            report = result.as_dict() if result is not None else {"command": "browser", "ok": False, "error": "Unsupported browser command"}
+            schema_command = str(report.get("command", "browser"))
+            if schema_command not in {"browser fetch", "browser open", "browser screenshot"}:
+                schema_command = "browser fetch"
+            print(dumps_ascii(_json_schema_registry.with_json_schema(schema_command, report), indent=2))
+        else:
+            if result is None:
+                print("Usage: browser fetch <url> [--limit N] | browser open <url> | browser screenshot <url> [path] [--browser chromium|firefox|webkit] [--full-page]")
+            else:
+                print(result.message)
+                if result.title:
+                    print(f"Title: {result.title}")
+                for item in result.items or []:
+                    print(f"- {item.get('href', '')} {item.get('text', '')}".rstrip())
+        return 0 if result is not None and result.ok else 1
+    if task == "watch" or task.startswith("watch "):
+        result = _command_dispatch.execute_watch_command(task, config)
+        if args.json:
+            report = result.as_dict() if result is not None else {"command": "watch", "ok": False, "error": "Unsupported watch command"}
+            print(dumps_ascii(_json_schema_registry.with_json_schema("watch", report), indent=2))
+        else:
+            print(result.message if result is not None else "Usage: watch <path> [--timeout N] [--recursive|--no-recursive] [--poll N]")
+        return 0 if result is not None and result.ok else 1
+    if task == "system" or task.startswith("system ") or task.startswith("disk ") or task.startswith("process ") or task.startswith("port ") or task.startswith("clipboard ") or task.startswith("open url "):
+        result = _command_dispatch.execute_system_command(task, config)
+        if args.json:
+            report = result.as_dict() if result is not None else {"command": "system", "ok": False, "error": "Unsupported system command"}
+            schema_command = str(report.get("command", "system info"))
+            if schema_command not in {"system info"}:
+                schema_command = "system info"
+            print(dumps_ascii(_json_schema_registry.with_json_schema(schema_command, report), indent=2))
+        else:
+            print(result.message if result is not None else "Usage: system info | disk usage [path] | process list [limit] | process kill <pid> [--force] | port check <host> <port> | clipboard get | clipboard set <text> | clipboard clear | open url <url>")
+        return 0 if result is not None and result.ok else 1
     if task == "doctor":
         report = _status_dashboard_views._doctor_report(config)
         rendered = _status_dashboard_views._render_doctor(config)
@@ -592,7 +630,7 @@ def run_cli() -> int:
                 else:
                     print(error_payload["error"])
                 return 1
-        result = _project_role_runtime_views._tick_prince2_role_runtime(config, max_nodes=max_nodes)
+        result = _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
         if args.json:
             print(
                 dumps_ascii(
@@ -624,9 +662,9 @@ def run_cli() -> int:
         return 0
     if task == "roles flow":
         if args.json:
-            print(dumps_ascii(_json_schema_registry.with_json_schema("roles flow", _project_role_flow._prince2_role_flow_report()), indent=2))
+            print(dumps_ascii(_json_schema_registry.with_json_schema("roles flow", _project_role_tree_views._prince2_role_flow_report()), indent=2))
         else:
-            print(_project_role_flow._render_prince2_role_flow())
+            print(_project_role_tree_views._render_prince2_role_flow())
         return 0
     if task == "roles matrix":
         if args.json:
@@ -703,7 +741,7 @@ def run_cli() -> int:
                             "roles tick",
                         {
                             "command": task,
-                            "result": _project_role_runtime_views._tick_prince2_role_runtime(
+                            "result": _project_role_flow._tick_prince2_role_runtime(
                                 config,
                                 max_nodes=int(task.split(maxsplit=2)[2]) if len(task.split(maxsplit=2)) == 3 else None,
                             ),
@@ -799,9 +837,13 @@ def run_cli() -> int:
         task.startswith("web search ")
         or task.startswith("download ")
         or task.startswith("checksum ")
+        or task.startswith("hash ")
         or task.startswith("compress ")
         or task.startswith("archive verify ")
-        or task in {"download", "checksum", "compress", "archive", "web"}
+        or task.startswith("archive list ")
+        or task.startswith("archive extract ")
+        or task.startswith("archive create ")
+        or task in {"download", "checksum", "hash", "compress", "archive", "web"}
     ):
         if args.json:
             report = _tool_reports.external_io_report(
@@ -811,7 +853,7 @@ def run_cli() -> int:
                 record_handoff_action=_project_handoff_views._record_handoff_action,
             )
             schema_command = (report or {}).get("command", "external_io")
-            if schema_command not in {"web search", "download", "checksum", "compress", "archive verify"}:
+            if schema_command not in {"web search", "download", "checksum", "hash", "compress", "archive verify", "archive list", "archive extract", "archive create"}:
                 schema_command = "external_io"
             print(dumps_ascii(_json_schema_registry.with_json_schema(schema_command, report or {"command": task, "ok": False, "error": "Unsupported external IO command"}), indent=2))
             return 0 if report and report.get("ok") else 1

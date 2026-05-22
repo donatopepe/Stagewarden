@@ -13,6 +13,7 @@ from .. import agent_setup_views as _agent_setup_views
 from .. import model_views as _model_views
 from ..project_handoff import ProjectHandoff
 from .. import project_handoff_views as _project_handoff_views
+from . import design_flow as _project_design_flow
 from . import role_flow as _project_role_flow
 from . import flow as _project_flow
 from ..role_tree import (

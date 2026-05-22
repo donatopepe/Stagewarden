@@ -82,6 +82,23 @@ def execute_external_io_command(command: str, config: AgentConfig) -> ExternalIO
     return None
 
 
+def handle_external_io_command(command: str, config: AgentConfig, *, execute_external_io_command=execute_external_io_command, record_handoff_action=None) -> str | None:  # noqa: ANN001
+    result = execute_external_io_command(command, config)
+    if result is None:
+        return None
+    if result.ok and record_handoff_action is not None:
+        record_handoff_action(
+            config,
+            phase="external_io",
+            task=command,
+            summary=result.message,
+            details=result.as_dict(),
+        )
+    status = "OK" if result.ok else "FAILED"
+    detail = result.path or result.url or result.error or ""
+    return f"{result.command}: {status} {result.message} {detail}".strip()
+
+
 def execute_browser_command(command: str, config: AgentConfig) -> BrowserResult | None:
     try:
         parts = shlex.split(command)
@@ -90,7 +107,12 @@ def execute_browser_command(command: str, config: AgentConfig) -> BrowserResult 
     if not parts:
         return None
     if parts[:2] == ["browser", "fetch"] and len(parts) >= 3:
-        limit = parse_limit(parts[3] if len(parts) >= 4 else "", default=10)
+        limit = 10
+        if len(parts) >= 4:
+            if parts[3] == "--limit" and len(parts) >= 5:
+                limit = parse_limit(parts[4], default=10)
+            else:
+                limit = parse_limit(parts[3], default=10)
         return BrowserTool(config.workspace_root).fetch(parts[2], limit=limit)
     if parts[:2] == ["browser", "open"] and len(parts) == 3:
         return BrowserTool(config.workspace_root).open(parts[2])

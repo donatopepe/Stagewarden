@@ -98,6 +98,15 @@ def _entry_text(entry: RagEntry) -> str:
     return f"{entry.phase} {' '.join(entry.tags)} {entry.title} {entry.content}"
 
 
+def _prompt_safe_inline(value: str) -> str:
+    return " ".join(str(value).replace("```", "''' ").split())
+
+
+def _prompt_safe_block(value: str) -> str:
+    sanitized = str(value).replace("```", "''' ")
+    return "\n".join(f"  {line}" for line in sanitized.splitlines()) or "  "
+
+
 def _embed_text(text: str, dimensions: int = VECTOR_DIMENSIONS) -> list[float]:
     features: list[str] = []
     tokens = _expanded_tokens(text)
@@ -318,11 +327,16 @@ class DesignRag:
         ]
         total = 0
         for entry in results:
-            entry_text = f"- [{entry.phase}] {entry.title} (tags: {', '.join(entry.tags)})\n  ```text\n  {entry.content}\n  ```"
+            phase = _prompt_safe_inline(entry.phase)
+            title = _prompt_safe_inline(entry.title)
+            tags_text = ", ".join(_prompt_safe_inline(tag) for tag in entry.tags)
+            content = _prompt_safe_block(entry.content)
+            entry_text = f"- [{phase}] {title} (tags: {tags_text})\n  ```text\n{content}\n  ```"
             if total + len(entry_text) > max_chars:
                 remaining = max_chars - total
                 if remaining > 50:
-                    lines.append(f"- [{entry.phase}] {entry.title} (tags: {', '.join(entry.tags)})\n  ```text\n  {entry.content[:remaining]}...[truncated]\n  ```")
+                    truncated = _prompt_safe_block(entry.content[:remaining])
+                    lines.append(f"- [{phase}] {title} (tags: {tags_text})\n  ```text\n{truncated}...[truncated]\n  ```")
                 break
             lines.append(entry_text)
             total += len(entry_text)
@@ -376,6 +390,5 @@ class DesignRag:
                     rag._next_id = max(rag._next_id, int(entry.entry_id.split("-", 1)[1]) + 1)
                 except ValueError:
                     pass
-        if len(rag.vector_index) < len(rag.entries):
-            rag.rebuild_vector_index()
+        rag.rebuild_vector_index()
         return rag

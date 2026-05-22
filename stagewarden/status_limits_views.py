@@ -169,7 +169,15 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
     capabilities = detect_runtime_capabilities(config.workspace_root)
     memory = MemoryStore.load(config.memory_path)
     providers = []
-    for provider in REGISTRY_MODELS:
+    providers_to_report = list(dict.fromkeys(
+        list(prefs.enabled_models or [])
+        + list((prefs.blocked_until_by_model or {}).keys())
+        + list((prefs.last_limit_message_by_model or {}).keys())
+        + list((prefs.provider_limit_snapshot_by_model or {}).keys())
+    ))
+    for provider in providers_to_report:
+        if provider not in REGISTRY_MODELS:
+            continue
         capability = provider_capability(provider)
         active_account = (prefs.active_account_by_model or {}).get(provider)
         if active_account and (prefs.blocked_until_by_account or {}).get(account_key(provider, active_account)):
@@ -306,8 +314,8 @@ def _provider_limit_summary(agent: Agent, config: AgentConfig) -> str:
         return "none"
     parts = [
         f"providers={summary['providers_count']}",
-        f"blocked_models={len(summary['blocked_models'])}",
-        f"stale_models={len(summary['stale_models'])}",
-        f"blocked_accounts={len(summary['blocked_accounts'])}",
+        f"blocked_models={','.join(summary['blocked_models']) if summary['blocked_models'] else 'none'}",
+        f"stale_models={','.join(summary['stale_models']) if summary['stale_models'] else 'none'}",
+        f"blocked_accounts={','.join(summary['blocked_accounts']) if summary['blocked_accounts'] else 'none'}",
     ]
     return " ".join(parts)

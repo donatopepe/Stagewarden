@@ -163,8 +163,8 @@ def _render_prince2_roles(config: AgentConfig) -> str:
             else ""
         )
         lines.append(
-            f"- {item['label']} ({item['role']}): mnemonic={item['mnemonic']} "
-            f"team={item['team_name']} mode={assignment.get('mode', 'manual')} "
+            f"- {item['label']} ({item['role']}): mode={assignment.get('mode', 'manual')} "
+            f"mnemonic={item['mnemonic']} team={item['team_name']} "
             f"provider={assignment.get('provider', 'unknown')} "
             f"provider_model={assignment.get('provider_model', 'unknown')} "
             f"account={assignment.get('account') or 'none'}"

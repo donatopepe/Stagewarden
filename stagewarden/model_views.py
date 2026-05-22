@@ -494,6 +494,17 @@ def _handle_model_command(
             specs = provider_model_specs(model)
             catalog = load_ai_models_catalog()
             lines = [f"Provider-model catalog for {model}:"]
+            lines.extend(
+                [
+                    f"Auth: {capability.auth_type}",
+                    f"API key: {'yes' if capability.supports_api_key else 'no'}",
+                    f"Browser login: {'yes' if capability.supports_browser_login else 'no'}",
+                ]
+            )
+            if capability.token_env:
+                lines.append(f"Token env: {capability.token_env}")
+            if capability.login_hint:
+                lines.append(f"Login hint: {capability.login_hint}")
             for spec in specs:
                 entry = catalog_entry_for_provider_model(model, spec.id, catalog)
                 display = _catalog_entry_display(entry, spec)
