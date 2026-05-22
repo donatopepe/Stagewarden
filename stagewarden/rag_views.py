@@ -274,6 +274,15 @@ def render_rag_report(report: dict[str, Any]) -> str:
             lines.append(
                 f"Trend: samples={int(trend.get('samples', 0))}, improving={int(trend.get('improving', 0))}, regressing={int(trend.get('regressing', 0))}, stable={int(trend.get('stable', 0))}"
             )
+            mode_trends = trend.get("modes", []) if isinstance(trend.get("modes"), list) else []
+            for item in mode_trends:
+                if not isinstance(item, dict):
+                    continue
+                recall1 = item.get("recall@1", {}) if isinstance(item.get("recall@1"), dict) else {}
+                recall3 = item.get("recall@3", {}) if isinstance(item.get("recall@3"), dict) else {}
+                lines.append(
+                    f"- trend {item.get('mode')}: type={item.get('trend')}, recall@1={float(recall1.get('first', 0.0)):.3f}->{float(recall1.get('last', 0.0)):.3f} (delta={float(recall1.get('delta', 0.0)):.3f}), recall@3={float(recall3.get('first', 0.0)):.3f}->{float(recall3.get('last', 0.0)):.3f} (delta={float(recall3.get('delta', 0.0)):.3f})"
+                )
         return "\n".join(lines)
     entries = report.get("entries", [])
     if not isinstance(entries, list) or not entries:
