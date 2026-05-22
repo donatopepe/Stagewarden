@@ -125,6 +125,38 @@ class RagTests(unittest.TestCase):
         self.assertEqual(rag.compact(), 1)
         self.assertEqual(len(rag.entries), 1)
 
+    def test_design_rag_stronger_dedup_and_ranking(self) -> None:
+        rag = DesignRag()
+        first = rag.add(
+            phase="design",
+            tags=["api", "boundary"],
+            title="External Integration Boundary",
+            content="Define stable REST contracts for partner systems.",
+        )
+        second = rag.add(
+            phase="design",
+            tags=["interface"],
+            title="External integrations boundaries",
+            content="Define stable REST API contracts for partner system integrations.",
+        )
+        self.assertEqual(first.entry_id, second.entry_id)
+
+        rag.add(
+            phase="design",
+            tags=["api"],
+            title="API boundary contract",
+            content="This entry should rank first for API boundary contract searches.",
+        )
+        rag.add(
+            phase="design",
+            tags=["api"],
+            title="Integration notes",
+            content="API boundary contract details are discussed here only in content.",
+        )
+        results = rag.search("api boundary contract", mode="hybrid", limit=3)
+        self.assertGreaterEqual(len(results), 2)
+        self.assertEqual(results[0].title, "API boundary contract")
+
     def test_executor_rag_actions_and_prompt_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), enforce_git=False, auto_git_commit=False)

@@ -47,7 +47,13 @@ class RagEntry:
 
 def _tokenize(text: str) -> set[str]:
     lowered = text.lower()
-    return set(re.findall(r"[a-z0-9]+", lowered))
+    raw = re.findall(r"[a-z0-9]+", lowered)
+    tokens: set[str] = set()
+    for token in raw:
+        tokens.add(token)
+        if len(token) > 3 and token.endswith("s"):
+            tokens.add(token[:-1])
+    return tokens
 
 
 def _expanded_tokens(text: str) -> set[str]:
@@ -87,6 +93,15 @@ def _fuzzy_subsequence_score(query_tokens: set[str], entry_tokens: set[str]) -> 
                 matched += 1
                 break
     return matched / len(query_tokens)
+
+
+def _token_jaccard(left: set[str], right: set[str]) -> float:
+    if not left or not right:
+        return 0.0
+    union = left | right
+    if not union:
+        return 0.0
+    return len(left & right) / len(union)
 
 
 def _stable_hash(value: str) -> int:
@@ -136,23 +151,37 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
 def _score_entry(query_tokens: set[str], entry: RagEntry) -> float:
     if not query_tokens:
         return 0.0
-    searchable = f"{entry.title} {entry.content} {' '.join(entry.tags)} {entry.phase}"
-    entry_tokens = _tokenize(searchable)
-    if not entry_tokens:
+    title_tokens = _tokenize(entry.title)
+    content_tokens = _tokenize(entry.content)
+    tag_tokens = set(_normalize_tags(entry.tags))
+    phase_tokens = _tokenize(entry.phase)
+    searchable_tokens = title_tokens | content_tokens | tag_tokens | phase_tokens
+    if not searchable_tokens:
         return 0.0
-    matches = query_tokens & entry_tokens
-    tag_matches = query_tokens & set(entry.tags)
-    phase_match = 1.0 if entry.phase in query_tokens else 0.0
+    title_matches = query_tokens & title_tokens
+    content_matches = query_tokens & content_tokens
+    tag_matches = query_tokens & tag_tokens
+    phase_match = 1.0 if phase_tokens & query_tokens else 0.0
+    query_text = " ".join(sorted(query_tokens))
+    normalized_query = _normalize_text(query_text)
+    normalized_title = _normalize_text(entry.title)
+    exact_phrase_boost = 1.0 if normalized_query and normalized_query in normalized_title else 0.0
+    prefix_phrase_boost = 1.0 if normalized_query and normalized_title.startswith(normalized_query) else 0.0
     query_ngrams = _char_ngrams(" ".join(query_tokens))
-    entry_ngrams = _char_ngrams(searchable)
+    entry_ngrams = _char_ngrams(f"{entry.title} {entry.content}")
     ngram_score = len(query_ngrams & entry_ngrams) / max(len(query_ngrams), 1)
-    fuzzy_score = _fuzzy_subsequence_score(query_tokens, entry_tokens)
+    fuzzy_score = _fuzzy_subsequence_score(query_tokens, searchable_tokens)
+    coverage_score = len((title_matches | content_matches | tag_matches)) / max(len(query_tokens), 1)
     return (
-        (len(matches) / len(query_tokens)) * 0.45
-        + (len(tag_matches) / max(len(query_tokens), 1)) * 0.25
-        + phase_match * 0.15
-        + ngram_score * 0.10
+        (len(title_matches) / max(len(query_tokens), 1)) * 0.30
+        + (len(content_matches) / max(len(query_tokens), 1)) * 0.20
+        + (len(tag_matches) / max(len(query_tokens), 1)) * 0.20
+        + phase_match * 0.05
+        + ngram_score * 0.08
         + fuzzy_score * 0.05
+        + coverage_score * 0.07
+        + exact_phrase_boost * 0.03
+        + prefix_phrase_boost * 0.02
     )
 
 
@@ -234,12 +263,25 @@ class DesignRag:
     def find_duplicate(self, *, phase: str, title: str, content: str) -> RagEntry | None:
         normalized_title = _normalize_text(title)
         normalized_content = _normalize_text(content)
+        incoming_tokens = _tokenize(f"{normalized_title} {normalized_content}")
         for entry in self.entries:
+            existing_title = _normalize_text(entry.title)
+            existing_content = _normalize_text(entry.content)
+            if entry.phase == phase and existing_title == normalized_title:
+                return entry
+            if normalized_content and existing_content == normalized_content:
+                return entry
             if entry.phase != phase:
                 continue
-            if _normalize_text(entry.title) == normalized_title:
+            existing_tokens = _tokenize(f"{existing_title} {existing_content}")
+            jaccard = _token_jaccard(incoming_tokens, existing_tokens)
+            title_ngram = _token_jaccard(_char_ngrams(normalized_title), _char_ngrams(existing_title))
+            content_ngram = _token_jaccard(_char_ngrams(normalized_content), _char_ngrams(existing_content))
+            title_token_overlap = _token_jaccard(_tokenize(normalized_title), _tokenize(existing_title))
+            content_token_overlap = _token_jaccard(_tokenize(normalized_content), _tokenize(existing_content))
+            if jaccard >= 0.58 and title_ngram >= 0.52:
                 return entry
-            if normalized_content and _normalize_text(entry.content) == normalized_content:
+            if title_token_overlap >= 0.45 and (content_ngram >= 0.35 or content_token_overlap >= 0.45):
                 return entry
         return None
 
@@ -295,7 +337,12 @@ class DesignRag:
             elif search_mode == "lexical":
                 score = lexical_score
             else:
-                score = lexical_score * 0.65 + vector_score * 0.35
+                if lexical_score >= 0.70:
+                    score = lexical_score * 0.80 + vector_score * 0.20
+                elif lexical_score >= 0.45:
+                    score = lexical_score * 0.65 + vector_score * 0.35
+                else:
+                    score = lexical_score * 0.45 + vector_score * 0.55
             scored.append((entry, score))
         scored.sort(key=lambda x: -x[1])
         return [e for e, score in scored[:limit] if score > 0]
