@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "Deep analysis continued after RAG integration. Fixed trace CLI regressions from refactor fallout: browser/system/watch/external IO routes, slash fuzzy highlighting, main.py compatibility patch targets, provider auth metadata in model list, roles flow/tick routing, project tree AI import, provider-limit summaries, PRINCE2 role proposal defaults, and RAG prompt/persistence hardening. Validation passed: py_compile edited files; python3 -m unittest tests.test_rag -v (9 OK); python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v (74 OK); focused touched trace regressions (8 OK). Full tests.test_trace_cli was run and reached 200 tests with 4 failures, then those 4 failures were fixed and revalidated in focused tests; full module was not rerun after the last fixes due runtime cost.",
+  "latest_observation": "Deep analysis continued after RAG integration. Fixed trace CLI regressions from refactor fallout: browser/system/watch/external IO routes, slash fuzzy highlighting, main.py compatibility patch targets, provider auth metadata in model list, roles flow/tick routing, project tree AI import, provider-limit summaries, PRINCE2 role proposal defaults, and RAG prompt/persistence hardening. Full validation passed: python3 -m unittest discover -s tests -v (425 OK). No immediate follow-up is pending for this slice.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "a38597f7a16300f031def40c42297f554018de08",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-22T08:40:00Z",
+  "updated_at": "2026-05-22T12:05:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",

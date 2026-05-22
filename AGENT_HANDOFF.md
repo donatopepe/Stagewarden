@@ -8,7 +8,7 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - RAG implementation is complete for this slice and focused tests pass, including hardening found during deep review.
 - Core validation passed: `python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v` -> 74 OK.
 - Focused battery validation passed: `python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_battery_cli_runs_simulated_agent_scenarios -v`.
-- Full `tests.test_trace_cli` was run after deep analysis and reached 200 tests with 4 failures; those 4 failures were then fixed and revalidated in focused tests. Full module was not rerun after the final fixes due runtime cost.
+- Full validation passed: `python3 -m unittest discover -s tests -v` -> 425 OK.
 - CLI smoke passed for `rag add`, `rag rebuild-vectors`, vector-mode `rag search`, and `rag remove`.
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
@@ -59,13 +59,13 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
   - Trade-offs: duplicate entries are possible; no deduplication policy yet.
 
 ## Open issues
-- Bugs: No known RAG, battery, or previously isolated trace-CLI regression bugs after focused validation.
+- Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: full `tests.test_trace_cli` was not rerun after the final 4 fixes due runtime cost; focused revalidation passed. `python3 -m unittest discover -s tests -v` still remains the next expensive end-to-end check.
+- Full-suite follow-up: None currently; full discovery passed.
 
 ## Next steps
-1. If time permits, run `python3 -m unittest discover -s tests -v` with a very high timeout.
+1. No immediate follow-up is pending for the completed RAG/trace-regression slice.
 2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Commands
