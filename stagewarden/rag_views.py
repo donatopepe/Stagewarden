@@ -38,7 +38,7 @@ def _rag_entry_report(entry: RagEntry, *, score: float | None = None, diagnostic
 
 def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
     task = task.removesuffix(" --json").strip()
-    mutating = task.startswith("rag add ") or task.startswith("rag update ") or task.startswith("rag remove ") or task == "rag compact" or task == "rag rebuild-vectors"
+    mutating = task.startswith("rag add ") or task.startswith("rag update ") or task.startswith("rag remove ") or task.startswith("rag compact") or task == "rag rebuild-vectors"
     loaded, load_error = _try_load_design_rag(config)
     if loaded is None:
         if mutating:
@@ -153,10 +153,16 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         if removed:
             rag.save(config.rag_path)
         return {"command": task, "ok": removed, "removed": removed, "entry_id": raw[2], "error": "" if removed else f"Design knowledge entry not found: {raw[2]}"}
-    if task == "rag compact":
-        removed = rag.compact()
+    if task.startswith("rag compact"):
+        compact_mode = "strict"
+        for token in parts[2:]:
+            if token.startswith("mode="):
+                compact_mode = token.split("=", 1)[1]
+        if compact_mode not in {"strict", "balanced", "aggressive"}:
+            return {"command": task, "ok": False, "error": _rag_usage()}
+        removed = rag.compact(mode=compact_mode)
         rag.save(config.rag_path)
-        return {"command": task, "ok": True, "removed": removed, "entries": [_rag_entry_report(entry) for entry in rag.get_all(limit=100)]}
+        return {"command": task, "ok": True, "mode": compact_mode, "removed": removed, "entries": [_rag_entry_report(entry) for entry in rag.get_all(limit=100)]}
     if task == "rag rebuild-vectors":
         indexed = rag.rebuild_vector_index()
         rag.save(config.rag_path)
@@ -195,7 +201,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact | rag rebuild-vectors"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:

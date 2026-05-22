@@ -332,14 +332,13 @@ class DesignRag:
                 return entry
         return None
 
-    def compact(self) -> int:
+    def compact(self, mode: str = "strict") -> int:
+        selected_mode = mode if mode in {"strict", "balanced", "aggressive"} else "strict"
         unique: list[RagEntry] = []
         removed = 0
-        seen: dict[tuple[str, str], RagEntry] = {}
         for entry in self.entries:
-            key = (entry.phase, _normalize_text(entry.title) or _normalize_text(entry.content))
-            if key in seen:
-                kept = seen[key]
+            kept = self._compact_match(unique, entry, selected_mode)
+            if kept is not None:
                 kept.tags = sorted(set(kept.tags) | set(entry.tags))
                 merged_metadata = dict(kept.metadata)
                 merged_metadata.update(entry.metadata)
@@ -347,11 +346,37 @@ class DesignRag:
                 kept.updated_at = utc_now()
                 removed += 1
                 continue
-            seen[key] = entry
             unique.append(entry)
         self.entries = unique
         self.rebuild_vector_index()
         return removed
+
+    def _compact_match(self, unique: list[RagEntry], candidate: RagEntry, mode: str) -> RagEntry | None:
+        candidate_title = _normalize_text(candidate.title)
+        candidate_content = _normalize_text(candidate.content)
+        candidate_tokens = _tokenize(f"{candidate_title} {candidate_content}")
+        for kept in unique:
+            kept_title = _normalize_text(kept.title)
+            kept_content = _normalize_text(kept.content)
+            if mode == "strict":
+                key_kept = (kept.phase, kept_title or kept_content)
+                key_candidate = (candidate.phase, candidate_title or candidate_content)
+                if key_kept == key_candidate:
+                    return kept
+                continue
+            if mode == "balanced" and kept.phase != candidate.phase:
+                continue
+            kept_tokens = _tokenize(f"{kept_title} {kept_content}")
+            token_overlap = _token_jaccard(candidate_tokens, kept_tokens)
+            title_overlap = _token_jaccard(_tokenize(candidate_title), _tokenize(kept_title))
+            content_overlap = _token_jaccard(_tokenize(candidate_content), _tokenize(kept_content))
+            if mode == "balanced":
+                if token_overlap >= 0.60 and (title_overlap >= 0.50 or content_overlap >= 0.60):
+                    return kept
+            else:
+                if token_overlap >= 0.45 and (title_overlap >= 0.40 or content_overlap >= 0.45):
+                    return kept
+        return None
 
     def remove(self, entry_id: str) -> bool:
         before = len(self.entries)

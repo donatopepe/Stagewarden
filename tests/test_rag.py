@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 
@@ -162,6 +163,23 @@ class RagTests(unittest.TestCase):
         self.assertGreaterEqual(len(results), 2)
         self.assertEqual(results[0].title, "API boundary contract")
 
+    def test_design_rag_compact_modes(self) -> None:
+        rag = DesignRag()
+        rag.add(phase="design", tags=["api"], title="Gateway contract", content="External API gateway contract for partners.", dedupe=False)
+        rag.add(phase="design", tags=["interface"], title="Gateway contracts", content="External API gateway contracts for partner integration.", dedupe=False)
+        rag.add(phase="delivery", tags=["api"], title="Gateway contract", content="External API gateway contract for partners.", dedupe=False)
+
+        strict_rag = deepcopy(rag)
+        balanced_rag = deepcopy(rag)
+        aggressive_rag = deepcopy(rag)
+
+        self.assertEqual(strict_rag.compact(mode="strict"), 0)
+        self.assertEqual(len(strict_rag.entries), 3)
+        self.assertEqual(balanced_rag.compact(mode="balanced"), 1)
+        self.assertEqual(len(balanced_rag.entries), 2)
+        self.assertEqual(aggressive_rag.compact(mode="aggressive"), 2)
+        self.assertEqual(len(aggressive_rag.entries), 1)
+
     def test_executor_rag_actions_and_prompt_context(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir), enforce_git=False, auto_git_commit=False)
@@ -288,6 +306,10 @@ class RagTests(unittest.TestCase):
 
             compact_report = rag_command_report("rag compact", config)
             self.assertTrue(compact_report["ok"])
+            self.assertEqual(compact_report["mode"], "strict")
+
+            compact_invalid = rag_command_report("rag compact mode=unsafe", config)
+            self.assertFalse(compact_invalid["ok"])
 
             rebuild_report = rag_command_report("rag rebuild-vectors", config)
             self.assertTrue(rebuild_report["ok"])
