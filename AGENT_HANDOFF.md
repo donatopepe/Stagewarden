@@ -69,6 +69,11 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 1. No immediate follow-up is pending for the completed RAG/trace-regression slice.
 2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
+## Starting point note
+- Start from `main` with a clean worktree.
+- Keep PR scope narrow (single objective per branch) and preserve current RAG behavior/contracts.
+- Re-run at least focused tests for touched modules; run full discovery for cross-cutting/runtime-impacting changes.
+
 ## Commands
 ```bash
 # test
