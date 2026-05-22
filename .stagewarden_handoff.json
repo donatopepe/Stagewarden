@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "RAG v2 hardening extended: stronger near-duplicate detection, field-weighted lexical ranking with phrase boosts, adaptive hybrid lexical/vector weighting, and plural-normalized token aliases. Validation passed: python3 -m unittest tests.test_rag -v (10 OK) and python3 -m unittest tests.test_executor tests.test_agent_integration -v (56 OK).",
+  "latest_observation": "RAG v2 hardening extended: stronger near-duplicate detection, field-weighted lexical ranking with phrase boosts, adaptive hybrid lexical/vector weighting, and plural-normalized token aliases. Validation passed: tests.test_rag (10 OK), tests.test_executor + tests.test_agent_integration (56 OK), and tests.test_trace_cli (200 OK).",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "26f53f4ef419e1b22aade0b0cc9b7704cedd2428",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-22T19:20:00Z",
+  "updated_at": "2026-05-22T19:55:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",
