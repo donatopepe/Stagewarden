@@ -14,6 +14,9 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
 ## Recent changes
+- `stagewarden/rag.py`: RAG v2 retrieval tuning with field-weighted lexical scoring (title/content/tag coverage), phrase-match boosts, adaptive hybrid lexical/vector weighting, and stronger dedupe detection using token overlap + ngram similarity for near-duplicates.
+- `stagewarden/rag.py`: tokenizer now adds a simple plural-normalized alias (`tokens` -> `token`) to improve matching/dedup robustness without external dependencies.
+- `tests/test_rag.py`: added `test_design_rag_stronger_dedup_and_ranking` to validate near-duplicate collapse and improved hybrid ranking priority for title-strong matches.
 - `.gitignore`: added `.stagewarden_rag.json` runtime state ignore.
 - `stagewarden/rag.py`: added JSON-backed `DesignRag` and `RagEntry`, keyword/tag/phase retrieval, deterministic trigram/fuzzy matching, local hashed vector embeddings, persisted vector index, prompt rendering, timestamps, persistence, duplicate upsert, `compact()`, remove, update, vector rebuild, vector-index versioning, and robust next-id recovery.
 - `stagewarden/config.py`: added `rag_filename` and `rag_path`.
@@ -63,7 +66,7 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: None currently; full discovery passed.
+- Full-suite follow-up: RAG-focused suite revalidated after RAG v2 ranking/dedup changes (`python3 -m unittest tests.test_rag -v` -> 10 OK).
 
 ## Next steps
 1. No immediate follow-up is pending for the completed RAG/trace-regression slice.
