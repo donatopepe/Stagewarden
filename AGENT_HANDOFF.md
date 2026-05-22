@@ -66,7 +66,7 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: RAG-focused suite revalidated after RAG v2 ranking/dedup changes (`python3 -m unittest tests.test_rag -v` -> 10 OK). Extended impact validation also passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK).
+- Full-suite follow-up: RAG-focused suite revalidated after RAG v2 ranking/dedup changes (`python3 -m unittest tests.test_rag -v` -> 10 OK). Extended impact validation also passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK). Full trace CLI module passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK).
 
 ## Next steps
 1. No immediate follow-up is pending for the completed RAG/trace-regression slice.
