@@ -4,6 +4,7 @@ import shlex
 from typing import Any
 
 from .config import AgentConfig
+from .rag_benchmark import run_rag_benchmark
 from .rag import DesignRag, RagEntry
 
 
@@ -57,6 +58,10 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             "vector_entries": len(rag.vector_index),
             "entries": [_rag_entry_report(entry) for entry in rag.get_all(limit=100)],
         }
+    if task == "rag benchmark":
+        report = run_rag_benchmark()
+        report["ok"] = True
+        return report
     if task.startswith("rag search "):
         query_parts: list[str] = []
         phase = None
@@ -183,6 +188,19 @@ def render_rag_report(report: dict[str, Any]) -> str:
         return f"Compacted design knowledge entries: removed={report.get('removed', 0)}"
     if str(report.get("command", "")) == "rag rebuild-vectors":
         return f"Rebuilt RAG vector index: entries={report.get('vector_entries', 0)}"
+    if str(report.get("command", "")) == "rag benchmark":
+        modes = report.get("modes", [])
+        if not isinstance(modes, list):
+            return "RAG benchmark completed."
+        lines = ["RAG benchmark:"]
+        for item in modes:
+            if not isinstance(item, dict):
+                continue
+            metrics = item.get("metrics", {}) if isinstance(item.get("metrics"), dict) else {}
+            lines.append(
+                f"- {item.get('mode')}: recall@1={float(metrics.get('recall@1', 0.0)):.3f}, recall@3={float(metrics.get('recall@3', 0.0)):.3f}"
+            )
+        return "\n".join(lines)
     entries = report.get("entries", [])
     if not isinstance(entries, list) or not entries:
         return "No design knowledge entries found."
@@ -201,7 +219,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:

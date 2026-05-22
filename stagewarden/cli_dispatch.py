@@ -236,7 +236,8 @@ def run_cli() -> int:
         rag_json = args.json or task.endswith(" --json")
         report = _rag_views.rag_command_report(task, config)
         if rag_json:
-            print(dumps_ascii(_json_schema_registry.with_json_schema("rag", report), indent=2))
+            schema_command = "rag benchmark" if str(report.get("command", "")) == "rag benchmark" else "rag"
+            print(dumps_ascii(_json_schema_registry.with_json_schema(schema_command, report), indent=2))
         else:
             print(_rag_views.render_rag_report(report))
         return 0 if report.get("ok", True) else 1
