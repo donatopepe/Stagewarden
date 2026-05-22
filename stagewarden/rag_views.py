@@ -6,7 +6,15 @@ from typing import Any
 from .config import AgentConfig
 from pathlib import Path
 
-from .rag_benchmark import compare_rag_benchmark_reports, load_rag_benchmark_snapshot, run_rag_benchmark, save_rag_benchmark_snapshot
+from .rag_benchmark import (
+    append_rag_benchmark_history,
+    compare_rag_benchmark_reports,
+    load_rag_benchmark_history,
+    load_rag_benchmark_snapshot,
+    run_rag_benchmark,
+    save_rag_benchmark_snapshot,
+    summarize_rag_benchmark_trend,
+)
 from .rag import DesignRag, RagEntry, resolve_min_score_policy
 
 
@@ -69,6 +77,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         report = run_rag_benchmark()
         baseline_path = str(fields.get("baseline", "")).strip()
         write_path = str(fields.get("write", "")).strip()
+        history_path = str(fields.get("history", "")).strip()
         threshold = 0.05
         if fields.get("threshold") is not None:
             try:
@@ -84,6 +93,23 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             except (OSError, ValueError, TypeError) as exc:
                 return {"command": task, "ok": False, "error": f"Unable to load baseline snapshot: {exc}"}
             report["comparison"] = compare_rag_benchmark_reports(baseline, report, threshold=threshold)
+        if history_path:
+            try:
+                history_payload = append_rag_benchmark_history(Path(history_path), report)
+            except (OSError, ValueError, TypeError) as exc:
+                return {"command": task, "ok": False, "error": f"Unable to append benchmark history: {exc}"}
+            report["history"] = {
+                "path": history_path,
+                "samples": len(history_payload.get("entries", [])),
+            }
+            report["trend"] = summarize_rag_benchmark_trend(history_payload)
+        elif str(fields.get("trend", "")).strip():
+            trend_path = str(fields.get("trend", "")).strip()
+            try:
+                history_payload = load_rag_benchmark_history(Path(trend_path))
+            except (OSError, ValueError, TypeError) as exc:
+                return {"command": task, "ok": False, "error": f"Unable to load benchmark trend history: {exc}"}
+            report["trend"] = summarize_rag_benchmark_trend(history_payload)
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -240,6 +266,14 @@ def render_rag_report(report: dict[str, Any]) -> str:
                 lines.append(
                     f"- regression {item.get('mode')} {item.get('metric')}: baseline={float(item.get('baseline', 0.0)):.3f}, current={float(item.get('current', 0.0)):.3f}, delta={float(item.get('delta', 0.0)):.3f}"
                 )
+        history = report.get("history") if isinstance(report.get("history"), dict) else None
+        if history is not None:
+            lines.append(f"History samples: {int(history.get('samples', 0))}")
+        trend = report.get("trend") if isinstance(report.get("trend"), dict) else None
+        if trend is not None:
+            lines.append(
+                f"Trend: samples={int(trend.get('samples', 0))}, improving={int(trend.get('improving', 0))}, regressing={int(trend.get('regressing', 0))}, stable={int(trend.get('stable', 0))}"
+            )
         return "\n".join(lines)
     entries = report.get("entries", [])
     if not isinstance(entries, list) or not entries:
@@ -259,7 +293,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:
