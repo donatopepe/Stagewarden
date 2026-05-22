@@ -7,6 +7,7 @@ from pathlib import Path
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
+from stagewarden.prince2_benchmark import run_prince2_benchmark
 from stagewarden.prince2 import Prince2AgentPolicy
 
 
@@ -19,6 +20,10 @@ class Prince2Tests(unittest.TestCase):
         self.assertIn("Adapt governance", checklist.adaptation_policy)
         self.assertIn("responsibility explicit", checklist.role_policy)
         self.assertTrue(any("Irreversible" in item for item in checklist.risks))
+        self.assertIn("tolerance_profile", checklist.as_dict())
+        self.assertEqual(checklist.tolerance_profile["accountable_owner"], "user")
+        self.assertEqual(len(checklist.tolerance_profile["theme_scores"]), 7)
+        self.assertEqual(checklist.tolerance_profile["base_margin_percent"], 25.0)
 
     def test_policy_requires_adaptive_governance_not_overengineering(self) -> None:
         checklist = Prince2AgentPolicy().build_checklist("change a lamp")
@@ -26,6 +31,41 @@ class Prince2Tests(unittest.TestCase):
         self.assertIn("If the method feels heavier than the task", rendered)
         self.assertTrue(any("no overengineering" in item.lower() for item in checklist.stage_plan))
         self.assertTrue(any("proportionate" in item.lower() for item in checklist.quality_criteria))
+        self.assertIn("permanent cyclic phase", checklist.adaptation_policy)
+        self.assertTrue(any("Refactor the organizational tree cyclically" in item for item in checklist.controls))
+
+    def test_policy_escalates_when_tolerance_pressure_exceeds_margin(self) -> None:
+        policy = Prince2AgentPolicy()
+        checklist = policy.build_checklist("implement feature")
+        checklist.tolerance_profile = {
+            **checklist.tolerance_profile,
+            "margin_percent": 10.0,
+            "pressure_percent": 40.0,
+        }
+        assessment = policy.assess_task("implement feature", checklist)
+        self.assertTrue(assessment.allowed)
+        self.assertTrue(assessment.escalation_required)
+        self.assertTrue(assessment.escalation_notes)
+        self.assertIn("exceeds margin", assessment.escalation_notes[0])
+
+    def test_policy_allows_complex_escalation_prompt_with_validation_language(self) -> None:
+        policy = Prince2AgentPolicy()
+        prompt = (
+            "Implement a production feature for the hospital records migration under tight tolerance: "
+            "a vendor delay, a data-protection concern, and a 15% cost overrun have pushed the stage outside tolerance. "
+            "Review the release evidence, validate the recovery options, decide whether to authorize the next stage, "
+            "prepare the exception report, and escalate to the board with change-control implications and stakeholder impacts."
+        )
+        checklist = policy.build_checklist(prompt)
+        checklist.tolerance_profile = {
+            **checklist.tolerance_profile,
+            "margin_percent": 10.0,
+            "pressure_percent": 40.0,
+        }
+        assessment = policy.assess_task(prompt, checklist)
+        self.assertTrue(assessment.allowed)
+        self.assertTrue(assessment.escalation_required)
+        self.assertTrue(assessment.escalation_notes)
 
     def test_policy_rejects_vague_task(self) -> None:
         policy = Prince2AgentPolicy()
@@ -43,13 +83,64 @@ class Prince2Tests(unittest.TestCase):
             fields = payload["_fields"]
             self.assertIn("prince2_checklist", fields)
 
-    def test_agent_rejects_task_without_prince2_basis(self) -> None:
+    def test_agent_asks_for_clarification_on_vague_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
             result = agent.run("stuff")
             self.assertFalse(result.ok)
-            self.assertIn("PRINCE2 governance gate", result.message)
+            self.assertIn("Clarification needed", result.message)
+            self.assertEqual(agent.project_handoff.status, "waiting")
+            self.assertEqual(agent.project_handoff.waiting_reason, "clarification")
+            self.assertEqual(agent.project_handoff.user_question_view()["status"], "pending")
+
+    def test_prince2_benchmark_reports_prompt_baseline(self) -> None:
+        report = run_prince2_benchmark()
+        self.assertEqual(report["command"], "prince2 benchmark")
+        self.assertEqual(report["baseline"]["provider"], "stagewarden")
+        self.assertEqual(report["overall"]["suite_count"], 14)
+        self.assertEqual(report["overall"]["total_cases"], 55)
+        self.assertTrue(report["overall"]["passed"])
+        self.assertIn("static_inventory", report)
+        self.assertIn("supported_models", report["static_inventory"])
+        self.assertIn("provider_capabilities", report["static_inventory"])
+        self.assertIn("ai_models_catalog", report["static_inventory"])
+        self.assertTrue(report["suites"]["governance"]["passed"])
+        self.assertTrue(report["suites"]["assurance"]["passed"])
+        self.assertTrue(report["suites"]["recovery"]["passed"])
+        self.assertTrue(report["suites"]["advanced"]["passed"])
+        self.assertTrue(report["suites"]["stress"]["passed"])
+        self.assertTrue(report["suites"]["regulatory"]["passed"])
+        self.assertTrue(report["suites"]["regulatory_stress"]["passed"])
+        self.assertTrue(report["suites"]["legal_stress"]["passed"])
+        self.assertTrue(report["suites"]["incident_response"]["passed"])
+        self.assertTrue(report["suites"]["vendor_failure"]["passed"])
+        self.assertTrue(report["suites"]["multi_vendor_crisis"]["passed"])
+        self.assertTrue(report["suites"]["supply_chain_failure"]["passed"])
+        self.assertTrue(report["suites"]["regulatory_war_room"]["passed"])
+        self.assertTrue(report["suites"]["board_crisis"]["passed"])
+        self.assertEqual(report["governance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
+        self.assertEqual(report["assurance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 2)
+        self.assertEqual(report["recovery"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
+        self.assertEqual(report["advanced"]["case_count"], 5)
+        self.assertEqual(report["stress"]["case_count"], 4)
+        self.assertEqual(report["regulatory"]["case_count"], 4)
+        self.assertEqual(report["regulatory_stress"]["case_count"], 4)
+        self.assertEqual(report["legal_stress"]["case_count"], 4)
+        self.assertEqual(report["incident_response"]["case_count"], 4)
+        self.assertEqual(report["vendor_failure"]["case_count"], 4)
+        self.assertEqual(report["multi_vendor_crisis"]["case_count"], 4)
+        self.assertEqual(report["supply_chain_failure"]["case_count"], 4)
+        self.assertEqual(report["regulatory_war_room"]["case_count"], 4)
+        self.assertEqual(report["board_crisis"]["case_count"], 4)
+        self.assertIn("prompt", report["governance"]["cases"][0])
+        self.assertIn("node_runtime", report["governance"]["cases"][0])
+        self.assertIn("detail", report["governance"]["cases"][0]["node_runtime"])
+        self.assertIn("PRINCE2 node runtime:", report["governance"]["cases"][0]["node_runtime"]["detail"])
+        self.assertTrue(report["governance"]["cases"][0]["node_runtime"]["nodes"])
+        self.assertTrue(report["governance"]["cases"][0]["node_runtime"]["transitions"])
+        self.assertIn("response_quality", report["assurance"]["cases"][0]["observed"])
+        self.assertIn("score", report["assurance"]["cases"][0]["observed"]["response_quality"])
 
 
 if __name__ == "__main__":

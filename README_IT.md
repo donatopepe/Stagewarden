@@ -35,7 +35,7 @@ Nella shell interattiva i comandi iniziano con `/`. Tutto cio che non inizia con
 
 ## UX Stile Codex/Claude
 
-Stagewarden usa Codex CLI e Claude Code come baseline di esperienza utente:
+Stagewarden usa Codex CLI, Claude Code e KiloCode come baseline di esperienza utente:
 
 - `/help` mostra le categorie principali.
 - `/slash [prefisso]` mostra una palette comandi con descrizioni.
@@ -45,6 +45,8 @@ Stagewarden usa Codex CLI e Claude Code come baseline di esperienza utente:
 - La ricerca slash usa anche fuzzy matching ed esempi: `slash scarica` trova `download`, `slash upgrade stagewarden` trova `update apply`.
 - Il completamento slash suggerisce provider, ruoli PRINCE2, backend shell, account configurati, provider-model e valori `reasoning_effort`.
 - La palette mostra anche contesto operativo: provider abilitati, account attivi, provider bloccati e hint sui parametri.
+- `/help agent` mostra il protocollo di compatibilita multi-agente, con AGENTS.md, AGENT_HANDOFF.md, handoff runtime e validazione wet-run.
+- `/risks close <risoluzione>`, `/issues close <risoluzione>` e `/quality close <risoluzione>` chiudono i registri di governance aperti dopo una mitigazione o accettazione esplicita.
 
 Esempi:
 
@@ -70,6 +72,11 @@ Comandi principali:
 - `/model variant <provider> <provider_model>` fissa un modello del provider.
 - `/model param set <provider> reasoning_effort <low|medium|high>` salva il livello di ragionamento quando supportato.
 - `/model limits` mostra blocchi, reset time e limiti conosciuti.
+- `catalog refresh` rigenera lo snapshot condiviso del catalogo modelli partendo dal discovery OpenRouter.
+- `catalog refresh --aa` include esplicitamente il refresh dei prezzi da Artificial Analysis quando `STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY` è disponibile.
+- `catalog search <query> [provider=<provider>] [feature=<feature>]` cerca nello snapshot per nome, alias, provider o capacita.
+- Il catalogo viene anche rigenerato in modo schedulato dal workflow GitHub Actions `Refresh AI Model Catalog`, che prova a fare commit e push dello snapshot aggiornato quando cambia.
+- Un file di esempio della workspace settings si trova in [`examples/stagewarden_settings.example.json`](examples/stagewarden_settings.example.json).
 
 I menu guidati mostrano il contesto corrente prima della scelta: provider abilitati, provider preferito, account attivi, provider bloccati, provider-model corrente, reasoning effort corrente e account configurati.
 
@@ -79,11 +86,22 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 
 - `.stagewarden_handoff.json` contiene lo stato operativo.
 - `HANDOFF.md` contiene roadmap e decisioni umane.
+- `AGENTS.md` contiene il protocollo di startup e handoff condiviso tra agenti.
+- `AGENT_HANDOFF.md` contiene il handoff compatibile tra agenti.
 - `/handoff` mostra il contesto persistente.
 - `/resume --show` mostra il target di resume.
+- Se la shell parte con una sessione `waiting`, il task salvato viene ripreso automaticamente prima di accettare nuovo input.
 - `/resume context` mostra ultimo tentativo modello, route, evidenza tool e snapshot git.
 - `/roles domains` mostra responsabilita e perimetro dei ruoli.
 - `/role configure [role]` mostra responsabilita PRINCE2 e scope del ruolo prima di assegnare provider/modello/account.
+- `/roles menu` apre il menu guidato del tree PRINCE2 per aggiungere o rimuovere nodi, aprire la shell di un nodo e approvare la baseline.
+- `/roles shell [node_id]` apre la shell navigabile di un nodo PRINCE2 con parent, sibling e child hop.
+- `/role menu [node_id]` apre il menu guidato di un nodo, con cambio agente/modello in stile KiloCode, update tolleranza, shell del nodo e rimozione.
+- `/role shell [node_id]` apre direttamente la shell navigabile di un nodo PRINCE2.
+- `/role switch [node_id]` apre direttamente il flusso guidato di switch agente/modello per un nodo.
+- `/role model <node_id> ...` cambia il modello del nodo; il chooser mostra prima le alternative piu forti, piu deboli e poi il resto del catalogo.
+- `/role tolerance set <node_id> <percent>` e `/role tolerance reset <node_id>` aggiornano o ricalcolano il margine di tolleranza del nodo.
+- `/role remove <node_id> [reparent_children=<yes|no>]` rimuove un nodo dalla baseline dinamica.
 - `/roles tree approve` salva l'albero PRINCE2 corrente come baseline approvata in `.stagewarden_models.json` e `.stagewarden_handoff.json`.
 - `/roles baseline` mostra la baseline approvata che guidera i futuri handoff di contesto per ruolo.
 - `/roles baseline matrix` mostra la matrice della baseline approvata, inclusi nodi delegati e pool reviewer/fallback.
@@ -97,6 +115,9 @@ Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice 
 - I prompt modello instradati per ruolo includono edge PRINCE2 attivi, payload scope e condizioni di validazione, cosi il fallback non puo allargare silenziosamente il contesto del ruolo.
 - `/handoff actions` mostra le azioni operative tracciate nell'handoff; `/handoff actions 50 --json` espone la stessa cronologia in formato macchina.
 - `/status`, `/status --json` e `/statusline --json` mostrano anche l'ultima azione handoff tracciata, cosi l'utente vede subito l'ultima operazione eseguita o bloccata.
+- `/status --json`, `/statusline --json`, `/overview --json`, `/health --json`, `/preflight --json`, `/report --json`, `/handoff --json`, `/boundary --json` e `/board --json` includono un blocco `schema` versionato, cosi gli altri agenti possono validare i contratti dei payload in modo esplicito.
+- Questi blocchi `schema` sono centralizzati in `stagewarden/json_schema_registry.py`, che copre ora le superfici JSON stabili di status, help, commands, catalog, goal, models, git, sessions e dei registri.
+- `/status` e `/status --json` espongono anche la pricing source attiva del modello instradato corrente, cosi puoi vedere se il pricing arriva da `openrouter`, `artificial_analysis` o dal fallback locale.
 
 Il contesto passato ai modelli e limitato al dominio del ruolo PRINCE2 assegnato.
 
@@ -114,6 +135,7 @@ Regole operative:
 ```text
 stagewarden> /doctor
 stagewarden> /preflight
+stagewarden> /battery
 stagewarden> /health
 stagewarden> /report
 stagewarden> /transcript
@@ -156,4 +178,4 @@ I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` re
 
 ## Crediti
 
-Stagewarden studia e riproduce, dove compatibile, pattern UX e architetturali ispirati a Codex CLI, Claude Code e Caveman. Le fonti locali servono come riferimento tecnico; non vengono vendorizzati contenuti protetti nel progetto.
+Stagewarden studia e riproduce, dove compatibile, pattern UX e architetturali ispirati a Codex CLI, Claude Code, KiloCode e Caveman. Le fonti locali servono come riferimento tecnico; non vengono vendorizzati contenuti protetti nel progetto.

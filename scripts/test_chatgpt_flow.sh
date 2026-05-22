@@ -3,92 +3,159 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-STORE_DIR="${STAGEWARDEN_SECRET_STORE_DIR:-/tmp/stagewarden-chatgpt-smoke}"
-RUN_STUB_DIR="$(mktemp -d)"
-RUN_STUB="$RUN_STUB_DIR/run_model_test_stub"
+SMOKE_DIR="$(mktemp -d)"
 
 cleanup() {
-  rm -rf "$RUN_STUB_DIR"
+  rm -rf "$SMOKE_DIR"
 }
 trap cleanup EXIT INT TERM
 
-cat > "$RUN_STUB" <<'EOF'
-#!/usr/bin/env python3
+echo "[1/1] Running live OpenRouter benchmark baseline"
+PYTHONPATH="$PROJECT_DIR" PROJECT_DIR="$PROJECT_DIR" SMOKE_DIR="$SMOKE_DIR" python3 - <<'PY'
 import json
 import os
-print(json.dumps({
-    "account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""),
-    "target": os.environ.get("STAGEWARDEN_MODEL_TARGET", ""),
-    "token": os.environ.get("CHATGPT_TOKEN", ""),
-}))
-EOF
-chmod +x "$RUN_STUB"
-
-rm -rf "$STORE_DIR"
-mkdir -p "$STORE_DIR"
-
-echo "[1/3] Simulated Codex-style device login for chatgpt profile"
-LOGIN_OUTPUT=$(
-  printf 'account login chatgpt personale\naccounts\nmodels\nexit\n' | \
-    STAGEWARDEN_SECRET_STORE_DIR="$STORE_DIR" \
-    STAGEWARDEN_OPENAI_CLIENT_ID="client-id" \
-    PYTHONPATH="$PROJECT_DIR" \
-    python3 - <<'PY'
-from io import StringIO
+import subprocess
 from pathlib import Path
+from textwrap import dedent
 
-from stagewarden.auth import AuthResult
-from stagewarden.config import AgentConfig
-from stagewarden.main import run_interactive_shell
-import stagewarden.main as main_module
+from stagewarden.provider_registry import model_token_env
 
-original_run = main_module.OpenAIDeviceCodeFlow.run
+env_name = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
+token = os.environ.get(env_name) or os.environ.get("OPENROUTER_API_KEY")
+if not token:
+    raise SystemExit("OpenRouter API key is required for this smoke test.")
 
-def fake_run(self):
-    return AuthResult(
-        True,
-        "Device code login completed.",
-        token="access-token-123",
-        secret_payload='{"access_token":"access-token-123","refresh_token":"refresh-token-123","id_token":"id-token-123"}',
+smoke_dir = Path(os.environ["SMOKE_DIR"])
+fixed_model = "google/gemini-3.1-pro-preview"
+stub = smoke_dir / "run_model_test_stub"
+stub.write_text(
+    dedent(
+        f"""\
+        #!/usr/bin/env python3
+        from __future__ import annotations
+
+        import json
+        import os
+        import sys
+        import urllib.request
+
+
+        def main() -> int:
+            if len(sys.argv) < 3:
+                print(json.dumps({{"error": "usage: stub <model> <prompt>"}}))
+                return 1
+
+            requested_model = sys.argv[1]
+            prompt = sys.argv[2]
+            api_key = os.environ.get("{env_name}", "")
+            if not api_key:
+                print(json.dumps({{"error": "missing {env_name}"}}))
+                return 1
+
+            payload = {{
+                "model": "{fixed_model}",
+                "messages": [
+                    {{"role": "system", "content": "Answer with only one letter: A, B, C, or D."}},
+                    {{"role": "user", "content": prompt}},
+                ],
+                "max_tokens": 256,
+                "temperature": 0,
+            }}
+            request = urllib.request.Request(
+                "https://openrouter.ai/api/v1/chat/completions",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={{
+                    "Authorization": f"Bearer {{api_key}}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://stagewarden.local",
+                    "X-Title": "Stagewarden tests",
+                }},
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=60) as response:
+                data = json.load(response)
+
+            choices = data.get("choices") or []
+            message = choices[0].get("message") if choices else {{}}
+            content = str((message or {{}}).get("content") or (message or {{}}).get("reasoning") or "").strip()
+            print(json.dumps({{
+                "account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""),
+                "target": os.environ.get("STAGEWARDEN_MODEL_TARGET", ""),
+                "requested_model": requested_model,
+                "routed_model": data.get("model", ""),
+                "content": content,
+                "usage": data.get("usage", {{}}),
+                "action": {{"type": "complete", "message": content or "OpenRouter call completed."}},
+            }}))
+            return 0
+
+
+        if __name__ == "__main__":
+            raise SystemExit(main())
+        """
     )
+)
+stub.chmod(0o755)
 
-main_module.OpenAIDeviceCodeFlow.run = fake_run
-try:
-    input_stream = StringIO("account login chatgpt personale\naccounts\nmodels\nexit\n")
-    output_stream = StringIO()
-    run_interactive_shell(AgentConfig(workspace_root=Path("."), max_steps=1), input_stream=input_stream, output_stream=output_stream)
-    print(output_stream.getvalue(), end="")
-finally:
-    main_module.OpenAIDeviceCodeFlow.run = original_run
+output_path = Path(os.environ["SMOKE_DIR"]) / "openrouter-benchmark.json"
+history_path = Path(os.environ["SMOKE_DIR"]) / "openrouter-benchmark-history.jsonl"
+env = dict(os.environ)
+env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "")
+env["RUN_MODEL_BIN"] = str(stub)
+completed = subprocess.run(
+    [
+        "python3",
+        "-m",
+        "stagewarden.main",
+        "--openrouter-benchmark",
+        "--openrouter-benchmark-output",
+        str(output_path),
+        "--openrouter-benchmark-history",
+        str(history_path),
+    ],
+    cwd=Path(os.environ["PROJECT_DIR"]),
+    env=env,
+    capture_output=True,
+    text=True,
+    timeout=300,
+    check=False,
+)
+if completed.returncode != 0:
+    raise SystemExit(completed.stderr or completed.stdout or "OpenRouter benchmark CLI failed.")
+
+payload = json.loads(completed.stdout)
+if payload.get("command") != "openrouter benchmark":
+    raise SystemExit("Benchmark CLI did not report the expected command.")
+if payload.get("schema", {}).get("name") != "stagewarden.openrouter_benchmark":
+    raise SystemExit("Benchmark CLI did not emit the shared schema.")
+if not payload.get("suites", {}).get("general", {}).get("passed"):
+    raise SystemExit("General OpenRouter baseline did not pass.")
+if not payload.get("suites", {}).get("reasoning", {}).get("passed"):
+    raise SystemExit("Reasoning OpenRouter baseline did not pass.")
+if not payload.get("suites", {}).get("truthfulness", {}).get("passed"):
+    raise SystemExit("Truthfulness OpenRouter baseline did not pass.")
+if not payload.get("overall", {}).get("passed"):
+    raise SystemExit("Overall OpenRouter benchmark baseline did not pass.")
+if not payload.get("history", {}).get("enabled"):
+    raise SystemExit("Benchmark history tracking was not enabled.")
+if not payload.get("history", {}).get("appended"):
+    raise SystemExit("Benchmark history snapshot was not appended.")
+if payload.get("overall", {}).get("regressed"):
+    raise SystemExit("Benchmark reported an unexpected regression on the initial run.")
+if payload.get("overall", {}).get("total_cases") != 9:
+    raise SystemExit("Benchmark CLI reported an unexpected case count.")
+if payload.get("overall", {}).get("suite_count") != 3:
+    raise SystemExit("Benchmark CLI reported an unexpected suite count.")
+if not output_path.exists():
+    raise SystemExit("Benchmark output file was not written.")
+if not history_path.exists():
+    raise SystemExit("Benchmark history file was not written.")
+
+saved = json.loads(output_path.read_text(encoding="utf-8"))
+if saved.get("command") != "openrouter benchmark":
+    raise SystemExit("Benchmark output file did not contain the expected command.")
+
+print(f"OpenRouter env used: {env_name}")
+print("Backend runner confirmed real OpenRouter benchmark suite.")
+print("OpenRouter benchmark smoke test completed.")
 PY
-)
-printf '%s\n' "$LOGIN_OUTPUT"
-
-echo "[2/3] Reading stored token from secret store"
-TOKEN_OUTPUT=$(
-  STAGEWARDEN_SECRET_STORE_DIR="$STORE_DIR" \
-    PYTHONPATH="$PROJECT_DIR" \
-    python3 - <<'PY'
-from stagewarden.secrets import SecretStore
-loaded = SecretStore().load_token("chatgpt", "personale")
-print({"ok": loaded.ok, "message": loaded.message, "secret": loaded.secret})
-PY
-)
-printf '%s\n' "$TOKEN_OUTPUT"
-
-echo "[3/3] Verifying backend token injection via HandoffManager"
-HANDOFF_OUTPUT=$(
-  RUN_MODEL_BIN="$RUN_STUB" \
-  STAGEWARDEN_SECRET_STORE_DIR="$STORE_DIR" \
-  PYTHONPATH="$PROJECT_DIR" \
-    python3 - <<'PY'
-from stagewarden.handoff import HandoffManager, format_run_model
-result = HandoffManager(timeout_seconds=5).execute(
-    format_run_model("chatgpt", "prompt", account="personale")
-)
-print({"ok": result.ok, "output": result.output, "error": result.error})
-PY
-)
-printf '%s\n' "$HANDOFF_OUTPUT"
-
-echo "Smoke test completed."

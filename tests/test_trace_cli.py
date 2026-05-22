@@ -6,21 +6,43 @@ import os
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from io import StringIO
 from pathlib import Path
+import textwrap
+from unittest.mock import patch
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
 from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
-from stagewarden.main import _interactive_completion_candidates, _render_boundary, _render_handoff, run_interactive_shell
+from stagewarden.model_views import _handle_model_command
+from stagewarden.shell_views import run_interactive_shell
+from stagewarden.project.role_command_flow import _handle_project_and_roles_command, _handle_role_command as _handle_role_command_direct
+from stagewarden.model_views import _catalog_refresh_report, _catalog_status_report
+from stagewarden.openrouter_benchmark import _compare_openrouter_benchmark_snapshots
 from stagewarden.modelprefs import ModelPreferences
+from stagewarden.project_handoff_views import _render_handoff
 from stagewarden.project_handoff import ProjectHandoff
+from stagewarden.project.role_flow import _guided_role_node_menu, _guided_role_node_shell, _guided_role_tree_menu
+from stagewarden.report_views import _render_boundary
 from stagewarden.secrets import SecretStore
+from stagewarden.provider_registry import model_token_env
+from stagewarden.shell_views import _interactive_completion_candidates
+from stagewarden.status_views import _status_pricing_report
+from tests.test_agent_integration import write_resume_network_stub
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FIXED_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview"
+
+
+def _handle_role_command(command, agent, config, *, input_stream=None, output_stream=None):
+    roles_result = _handle_project_and_roles_command(command, agent, config, input_stream=input_stream, output_stream=output_stream)
+    if roles_result is not None:
+        return roles_result
+    return _handle_role_command_direct(command, agent, config, input_stream=input_stream, output_stream=output_stream)
 
 
 def write_success_stub(root: Path) -> Path:
@@ -47,9 +69,13 @@ def write_success_stub(root: Path) -> Path:
                 "        print(json.dumps({'error': 'usage: stub <model> <prompt>'}))",
                 "        return 1",
                 "    prompt = sys.argv[2]",
+                "    prompt_lower = prompt.lower()",
                 "    instruction = extract(prompt, 'instruction').lower()",
                 "    task_match = re.search(r'Task:\\n(.+?)\\n\\nImplicit project handoff context:', prompt, re.DOTALL)",
                 "    task = task_match.group(1).strip() if task_match else ''",
+                "    if 'required keys: verdict' in prompt_lower or 'allowed verdict values: accept, revise, block' in prompt_lower or \"you are the devil's advocate / project assurance critic\" in prompt_lower or ('retrospettiva prospettica' in prompt_lower and 'primary model response' in prompt_lower):",
+                "        print(json.dumps({'summary': 'devil advocate review', 'verdict': 'accept', 'contradictions': [], 'missing_evidence': [], 'counter_argument': 'No contradiction found.', 'must_escalate': False, 'confidence': 0.9}))",
+                "        return 0",
                 "    if instruction.startswith('analyze') or instruction.startswith('inspect'):",
                 "        action = {'type': 'complete', 'message': 'analysis validated exit_code=0'}",
                 "    elif 'implement' in instruction or 'create' in instruction or 'build' in instruction or 'continue from persisted handoff context' in instruction:",
@@ -63,6 +89,80 @@ def write_success_stub(root: Path) -> Path:
                 "if __name__ == '__main__':",
                 "    raise SystemExit(main())",
             ]
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
+def write_openrouter_live_stub(root: Path, env_name: str) -> Path:
+    path = root / "run_model_openrouter_live_stub.py"
+    path.write_text(
+        textwrap.dedent(
+            f"""\
+            #!/usr/bin/env python3
+            from __future__ import annotations
+
+            import json
+            import os
+            import sys
+            import urllib.request
+
+
+            def main() -> int:
+                if len(sys.argv) < 3:
+                    print(json.dumps({{"error": "usage: stub <model> <prompt>"}}))
+                    return 1
+
+                requested_model = sys.argv[1]
+                prompt = sys.argv[2]
+                api_key = os.environ.get("{env_name}", "") or os.environ.get("OPENROUTER_API_KEY", "")
+                if not api_key:
+                    print(json.dumps({{"error": "missing {env_name}"}}))
+                    return 1
+
+                payload = {{
+                    "model": "{FIXED_OPENROUTER_MODEL}",
+                    "messages": [
+                        {{"role": "system", "content": "Answer with only one letter: A, B, C, or D or with only the final numeric result."}},
+                        {{"role": "user", "content": prompt}},
+                    ],
+                    "max_tokens": 256,
+                    "temperature": 0,
+                }}
+                request = urllib.request.Request(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={{
+                        "Authorization": f"Bearer {{api_key}}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://stagewarden.local",
+                        "X-Title": "Stagewarden tests",
+                    }},
+                    method="POST",
+                )
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    data = json.load(response)
+
+                choices = data.get("choices") or []
+                message = choices[0].get("message") if choices else {{}}
+                content = str((message or {{}}).get("content") or (message or {{}}).get("reasoning") or "").strip()
+                print(json.dumps({{
+                    "account": os.environ.get("STAGEWARDEN_MODEL_ACCOUNT", ""),
+                    "target": os.environ.get("STAGEWARDEN_MODEL_TARGET", ""),
+                    "requested_model": requested_model,
+                    "routed_model": data.get("model", ""),
+                    "content": content,
+                    "usage": data.get("usage", {{}}),
+                    "action": {{"type": "complete", "message": content or "OpenRouter call completed."}},
+                }}))
+                return 0
+
+
+            if __name__ == "__main__":
+                raise SystemExit(main())
+            """
         ),
         encoding="utf-8",
     )
@@ -87,7 +187,7 @@ def run_main_in_cwd(cwd: Path, *args: str) -> int:
     return completed.returncode
 
 
-def run_main_capture(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def run_main_capture(cwd: Path, *args: str, timeout: int = 20) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT)
     return subprocess.run(
@@ -96,7 +196,7 @@ def run_main_capture(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
         env=env,
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=timeout,
         check=False,
     )
 
@@ -138,6 +238,162 @@ class TraceAndCliTests(unittest.TestCase):
             decoded = root / "records.json"
             self.assertEqual(decoded_code, 0)
             self.assertEqual(json.loads(decoded.read_text(encoding="utf-8")), [{"id": 1, "name": "Mario"}])
+
+    def test_ljson_benchmark_reports_shared_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            source = root / "records.json"
+            source.write_text(
+                json.dumps(
+                    [
+                        {"id": 1, "name": "Mario", "role": "member"},
+                        {"id": 2, "name": "Luigi", "role": "member"},
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            completed = run_main_capture(root, "--ljson-benchmark", str(source))
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "ljson benchmark")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.ljson_benchmark")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertEqual(payload["record_count"], 2)
+            self.assertIn("standard", payload)
+            self.assertIn("numeric", payload)
+
+    def test_openrouter_benchmark_cli_reports_multi_suite_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            env_name = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
+            if not (os.environ.get(env_name) or os.environ.get("OPENROUTER_API_KEY")):
+                self.skipTest("OpenRouter API key is required for this test.")
+            stub = write_openrouter_live_stub(root, env_name)
+            original_bin = os.environ.get("RUN_MODEL_BIN")
+            output_path = root / "openrouter-benchmark.json"
+            history_path = root / "openrouter-benchmark-history.jsonl"
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                completed = run_main_capture(
+                    root,
+                    "--openrouter-benchmark",
+                    "--openrouter-benchmark-output",
+                    str(output_path),
+                    "--openrouter-benchmark-history",
+                    str(history_path),
+                    timeout=300,
+                )
+            finally:
+                if original_bin is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original_bin
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "openrouter benchmark")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.openrouter_benchmark")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertTrue(payload["suites"]["general"]["passed"])
+            self.assertTrue(payload["suites"]["reasoning"]["passed"])
+            self.assertTrue(payload["suites"]["truthfulness"]["passed"])
+            self.assertTrue(payload["overall"]["passed"])
+            self.assertEqual(payload["overall"]["suite_count"], 3)
+            self.assertEqual(payload["overall"]["total_cases"], 9)
+            self.assertEqual(payload["baseline"]["timeout_seconds"], 60)
+            self.assertIn("history", payload)
+            self.assertTrue(payload["history"]["enabled"])
+            self.assertTrue(payload["history"]["appended"])
+            self.assertIsNone(payload["history"]["previous"])
+            self.assertFalse(payload["overall"]["regressed"])
+            self.assertGreaterEqual(payload["suites"]["general"]["accuracy"], 1.0)
+            self.assertGreaterEqual(payload["suites"]["reasoning"]["accuracy"], 1.0)
+            self.assertGreaterEqual(payload["suites"]["truthfulness"]["accuracy"], 1.0)
+            self.assertTrue(output_path.exists())
+            self.assertTrue(history_path.exists())
+            saved = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["command"], "openrouter benchmark")
+            self.assertTrue(saved["overall"]["passed"])
+
+    def test_prince2_benchmark_cli_reports_prompt_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "--prince2-benchmark", timeout=60)
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "prince2 benchmark")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.prince2_benchmark")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("static_inventory", payload)
+            self.assertIn("model_backends", payload["static_inventory"])
+            self.assertIn("ai_models_catalog", payload["static_inventory"])
+            self.assertEqual(payload["overall"]["suite_count"], 14)
+            self.assertEqual(payload["overall"]["total_cases"], 55)
+            self.assertTrue(payload["overall"]["passed"])
+            self.assertTrue(payload["suites"]["governance"]["passed"])
+            self.assertTrue(payload["suites"]["assurance"]["passed"])
+            self.assertTrue(payload["suites"]["recovery"]["passed"])
+            self.assertTrue(payload["suites"]["advanced"]["passed"])
+            self.assertTrue(payload["suites"]["stress"]["passed"])
+            self.assertTrue(payload["suites"]["regulatory"]["passed"])
+            self.assertTrue(payload["suites"]["regulatory_stress"]["passed"])
+            self.assertTrue(payload["suites"]["legal_stress"]["passed"])
+            self.assertTrue(payload["suites"]["incident_response"]["passed"])
+            self.assertTrue(payload["suites"]["vendor_failure"]["passed"])
+            self.assertTrue(payload["suites"]["multi_vendor_crisis"]["passed"])
+            self.assertTrue(payload["suites"]["supply_chain_failure"]["passed"])
+            self.assertTrue(payload["suites"]["regulatory_war_room"]["passed"])
+            self.assertTrue(payload["suites"]["board_crisis"]["passed"])
+            self.assertEqual(payload["baseline"]["provider"], "stagewarden")
+            self.assertEqual(payload["governance"]["case_count"], 3)
+            self.assertEqual(payload["assurance"]["case_count"], 5)
+            self.assertEqual(payload["recovery"]["case_count"], 2)
+            self.assertEqual(payload["advanced"]["case_count"], 5)
+            self.assertEqual(payload["stress"]["case_count"], 4)
+            self.assertEqual(payload["regulatory"]["case_count"], 4)
+            self.assertEqual(payload["regulatory_stress"]["case_count"], 4)
+            self.assertEqual(payload["legal_stress"]["case_count"], 4)
+            self.assertEqual(payload["incident_response"]["case_count"], 4)
+            self.assertEqual(payload["vendor_failure"]["case_count"], 4)
+            self.assertEqual(payload["multi_vendor_crisis"]["case_count"], 4)
+            self.assertEqual(payload["supply_chain_failure"]["case_count"], 4)
+            self.assertEqual(payload["regulatory_war_room"]["case_count"], 4)
+            self.assertEqual(payload["board_crisis"]["case_count"], 4)
+            self.assertEqual(payload["governance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
+            self.assertEqual(payload["assurance"]["cases"][0]["node_runtime"]["summary"]["nodes"], 2)
+            self.assertEqual(payload["recovery"]["cases"][0]["node_runtime"]["summary"]["nodes"], 3)
+            self.assertEqual(payload["governance"]["cases"][0]["node_runtime"]["orchestration"]["mode"], "dynamic_runtime_graph")
+            self.assertIn("detail", payload["governance"]["cases"][0]["node_runtime"])
+            self.assertIn("nodes detail:", payload["governance"]["cases"][0]["node_runtime"]["detail"])
+            self.assertIn("transitions:", payload["governance"]["cases"][0]["node_runtime"]["detail"])
+            self.assertIn("response_quality", payload["assurance"]["cases"][0]["observed"])
+            self.assertIn("score", payload["assurance"]["cases"][0]["observed"]["response_quality"])
+
+    def test_openrouter_benchmark_history_comparison_detects_regressions(self) -> None:
+        previous = {
+            "overall": {"accuracy": 1.0},
+            "suites": {
+                "general": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "reasoning": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "truthfulness": {"accuracy": 1.0, "regression_tolerance": 0.0},
+            },
+        }
+        current = {
+            "overall": {"accuracy": 0.889},
+            "suites": {
+                "general": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "reasoning": {"accuracy": 1.0, "regression_tolerance": 0.0},
+                "truthfulness": {"accuracy": 0.667, "regression_tolerance": 0.0},
+            },
+        }
+
+        regressions = _compare_openrouter_benchmark_snapshots(previous, current)
+
+        self.assertEqual(len(regressions), 1)
+        self.assertEqual(regressions[0]["suite_id"], "truthfulness")
+        self.assertLess(regressions[0]["delta_accuracy"], 0.0)
 
     def test_interactive_shell_handles_help_and_exit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -183,6 +439,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "doctor")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.doctor")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["python"]["status"], "OK")
             self.assertTrue(payload["git"]["ok"])
             self.assertIn("runtime", payload)
@@ -226,6 +484,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "models usage")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.models_usage")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["report"]["totals"]["calls"], 2)
             self.assertEqual(payload["report"]["totals"]["failures"], 1)
             self.assertEqual(payload["report"]["totals"]["escalation_path"], "local -> cheap")
@@ -251,6 +511,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "transcript")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.transcript")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["report"]["count"], 1)
             self.assertEqual(payload["report"]["entries"][0]["tool"], "shell")
             self.assertEqual(payload["report"]["entries"][0]["summary"], "pwd")
@@ -278,6 +540,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "handoff")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.handoff")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["handoff"]["task"], "fix failing tests")
             self.assertEqual(payload["stage_view"]["boundary_decision"], "continue_current_stage")
             self.assertEqual(payload["next_action"], "continue step-3")
@@ -311,6 +575,34 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["next_action"], "continue step-7")
             self.assertIn("focus", payload)
             self.assertEqual(payload["focus"]["task"], "fix failing tests")
+
+    def test_resume_show_cli_marks_waiting_session_recoverable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "fix failing tests",
+                "status": "waiting",
+                "current_step_id": "step-7",
+                "current_step_title": "Validate",
+                "current_step_status": "waiting",
+                "latest_observation": "Network unavailable while contacting model providers.",
+                "plan_status": "step-7:in_progress",
+                "git_head": "def456",
+                "git_head_baseline": "abc123",
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+            completed = run_main_capture(root, "resume --show", "--json")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "resume --show")
+            self.assertEqual(payload["session_state"], "waiting")
+            self.assertTrue(payload["session_recoverable"])
+            self.assertIn("resume suspended session", payload["next_action"])
+            self.assertEqual(payload["current_step_status"], "waiting")
 
     def test_resume_context_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -438,6 +730,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "status")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.status")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["mode"], "normal")
             self.assertEqual(payload["handoff"]["stage_view"]["boundary_decision"], "continue_current_stage")
             self.assertIn("models", payload)
@@ -482,11 +776,14 @@ class TraceAndCliTests(unittest.TestCase):
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "status")
             self.assertEqual(payload["view"], "full")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.status")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertIn("identity", payload)
             self.assertIn("limits", payload)
             self.assertIn("git", payload)
             self.assertIn("runtime", payload)
             self.assertIn("shell_backend", payload)
+            self.assertIn("pricing", payload)
             self.assertIn("focus", payload)
             self.assertIn("recommended_shell", payload["runtime"])
             self.assertIn("quality_gates", payload)
@@ -524,6 +821,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "shell backend")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.shell_backend")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["configured"], "zsh")
             self.assertEqual(payload["selected"], "zsh")
 
@@ -540,7 +839,41 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertIn("shell_backend", payload)
+            self.assertIn("pricing", payload)
             self.assertEqual(payload["shell_backend"]["configured"], "zsh")
+
+    def test_status_pricing_report_exposes_pricing_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            model_report = {
+                "models": [
+                    {
+                        "preferred": True,
+                        "active": True,
+                        "provider": "openai",
+                        "provider_model": "gpt-5.4",
+                        "catalog_source": "openrouter",
+                        "pricing_source": "artificial_analysis",
+                        "catalog": {
+                            "pricing_source": "artificial_analysis",
+                            "catalog_source": "openrouter",
+                            "cost_per_input_token_usd": 0.000004,
+                            "cost_per_output_token_usd": 0.000016,
+                            "blended_price_usd_per_1m_tokens": 7.0,
+                        },
+                    }
+                ]
+            }
+
+            with patch("stagewarden.status_views._model_status_report", return_value=model_report):
+                report = _status_pricing_report(agent, config)
+
+            self.assertEqual(report["source"], "artificial_analysis")
+            self.assertEqual(report["catalog_source"], "openrouter")
+            self.assertEqual(report["cost_per_input_token_usd"], 0.000004)
+            self.assertEqual(report["cost_per_output_token_usd"], 0.000016)
 
     def test_status_surfaces_latest_handoff_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -576,7 +909,8 @@ class TraceAndCliTests(unittest.TestCase):
 
     def test_preflight_reports_windows_shell_readiness_warning(self) -> None:
         from unittest.mock import patch
-        from stagewarden.main import _configure_readonly_agent_for_workspace, _preflight_report
+        from stagewarden.agent_setup_views import _configure_readonly_agent_for_workspace
+        from stagewarden.status_dashboard_views import _preflight_report
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -627,7 +961,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "raw_message": "Usage limit reached at 91%. Try again at 8:05 PM.",
                 },
             )
-            prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.block_account("claude", "team", "2099-05-01T19:00")
             prefs.set_account_limit_snapshot(
                 "claude",
                 "team",
@@ -646,6 +980,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "statusline")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.statusline")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertIn("workspace", payload)
             self.assertIn("model", payload)
             self.assertIn("rate_limits", payload)
@@ -689,6 +1025,8 @@ class TraceAndCliTests(unittest.TestCase):
             doctor_payload = json.loads(doctor.stdout)
             help_payload = json.loads(help_baseline.stdout)
             self.assertEqual(baseline_payload["baseline"], "codex_cli+claude_code_minimum")
+            self.assertEqual(baseline_payload["schema"]["name"], "stagewarden.baseline")
+            self.assertEqual(baseline_payload["schema"]["version"], "1")
             self.assertTrue(baseline_payload["ok"])
             self.assertIn("remediations", baseline_payload)
             group_ids = {item["id"] for item in baseline_payload["groups"]}
@@ -697,7 +1035,11 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("handoff_resume_trace", group_ids)
             self.assertIn("agent_governance", group_ids)
             self.assertEqual(status_payload["baseline"]["status"], "ok")
+            self.assertEqual(status_payload["schema"]["name"], "stagewarden.status")
+            self.assertEqual(status_payload["schema"]["version"], "1")
             self.assertEqual(statusline_payload["baseline"]["status"], "ok")
+            self.assertEqual(statusline_payload["schema"]["name"], "stagewarden.statusline")
+            self.assertEqual(statusline_payload["schema"]["version"], "1")
             self.assertEqual(preflight_payload["baseline"]["status"], "ok")
             self.assertEqual(doctor_payload["baseline"]["status"], "ok")
             self.assertEqual(help_payload["topic"], "baseline")
@@ -721,6 +1063,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(goal_payload["goal"]["status"], "paused")
             self.assertEqual(goal_payload["goal"]["objective"], "Stabilize provider telemetry")
             self.assertEqual(goal_payload["goal"]["token_budget"], 20000)
+            self.assertEqual(goal_payload["schema"]["name"], "stagewarden.goal")
+            self.assertEqual(goal_payload["schema"]["version"], "1")
+            self.assertEqual(statusline_payload["schema"]["name"], "stagewarden.statusline")
+            self.assertEqual(statusline_payload["schema"]["version"], "1")
             self.assertEqual(statusline_payload["goal"]["status"], "paused")
             self.assertEqual(statusline_payload["goal"]["objective"], "Stabilize provider telemetry")
 
@@ -832,6 +1178,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["provider"], "chatgpt")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.auth_status")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertTrue(payload["logged_in"])
             self.assertEqual(payload["auth_method"], "chatgpt")
             self.assertNotIn("token", completed.stdout.lower())
@@ -862,6 +1210,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["provider"], "claude")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.auth_status")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertFalse(payload["logged_in"])
             self.assertEqual(payload["auth_method"], "none")
             self.assertEqual(payload["api_provider"], "firstParty")
@@ -893,7 +1243,7 @@ class TraceAndCliTests(unittest.TestCase):
                     "raw_message": "You've hit your usage limit. Try again at 8:05 PM.",
                 },
             )
-            prefs.block_account("claude", "team", "2026-05-01T19:00")
+            prefs.block_account("claude", "team", "2099-05-01T19:00")
             prefs.last_limit_message_by_account = {"claude:team": "Claude usage limited until 2026-05-01T19:00."}
             prefs.set_account_limit_snapshot(
                 "claude",
@@ -950,7 +1300,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(providers["claude"]["active_account"], "none")
             self.assertEqual(providers["claude"]["last_success"]["account"], "team")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["name"], "team")
-            self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2026-05-01T19:00")
+            self.assertEqual(providers["claude"]["blocked_accounts"][0]["blocked_until"], "2099-05-01T19:00")
             self.assertEqual(providers["claude"]["blocked_accounts"][0]["last_limit_reason"], "usage_limit")
             self.assertIn("usage limited", providers["claude"]["blocked_accounts"][0]["last_limit_message"].lower())
             self.assertEqual(
@@ -975,6 +1325,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "models")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.models")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["preferred_model"], "cheap")
             models = {item["model"]: item for item in payload["models"]}
             self.assertTrue(models["cheap"]["enabled"])
@@ -1026,6 +1378,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "model limits")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.model_limits")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["summary"]["blocked_models"], ["chatgpt"])
             self.assertEqual(payload["summary"]["blocked_accounts"], ["claude:team"])
             providers = {item["provider"]: item for item in payload["providers"]}
@@ -1124,6 +1478,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "accounts")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.accounts")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["models"][0]["model"], "openai")
             self.assertEqual(payload["models"][0]["accounts"][0]["name"], "lavoro")
             self.assertTrue(payload["models"][0]["accounts"][0]["active"])
@@ -1146,6 +1502,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "permissions")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.permissions")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["report"]["workspace"]["mode"], "plan")
             self.assertEqual(payload["report"]["workspace"]["allow"], ["shell:git status"])
             self.assertEqual(payload["report"]["workspace"]["ask"], ["file:secret.txt"])
@@ -1204,6 +1562,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "overview")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.overview")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["board"]["recommended_authorization"], "review")
             self.assertIn("provider_limits", payload)
             providers = {item["provider"]: item for item in payload["provider_limits"]["providers"]}
@@ -1254,20 +1614,39 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "health")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.health")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertFalse(payload["ready"])
             self.assertEqual(payload["recommended_authorization"], "review")
             self.assertEqual(payload["open_issues"], 1)
             self.assertEqual(payload["model_failures"], 1)
             self.assertEqual(payload["transcript_entries"], 1)
+            self.assertEqual(payload["log_errors"]["count"], 1)
+            self.assertEqual(payload["log_errors"]["status"], "warning")
 
     def test_preflight_cli_json_output_is_machine_readable_and_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
+            memory = MemoryStore()
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="shell",
+                action_type="shell",
+                success=False,
+                summary="run tests",
+                detail="Traceback: simulated failure",
+                duration_ms=10,
+                error_type="runtime_error",
+            )
+            memory.save(root / ".stagewarden_memory.json")
             completed = run_main_capture(root, "preflight", "--json")
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "preflight")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.preflight")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertIn("ready", payload)
             self.assertIn("doctor", payload)
             self.assertIn("runtime", payload)
@@ -1276,6 +1655,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("provider_limits", payload)
             self.assertIn("sources", payload)
             self.assertIn("remediations", payload)
+            self.assertEqual(payload["log_errors"]["count"], 1)
+            self.assertTrue(any(item["code"] == "log_errors" for item in payload["remediations"]))
             self.assertFalse((root / ".git").exists())
 
     def test_preflight_cli_renders_remediations(self) -> None:
@@ -1286,8 +1667,70 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("Stagewarden preflight:", completed.stdout)
             self.assertIn("- ready:", completed.stdout)
+            self.assertIn("- log_errors:", completed.stdout)
             self.assertIn("Remediations:", completed.stdout)
             self.assertIn("roles", completed.stdout)
+
+    def test_battery_cli_runs_simulated_agent_scenarios(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            json_completed = run_main_capture(root, "battery", "--json")
+            text_completed = run_main_capture(root, "battery")
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "battery")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.battery")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertTrue(payload["ready"])
+            self.assertGreaterEqual(payload["passed"], 27)
+            self.assertEqual(payload["failed"], 0)
+            self.assertTrue(any(item["name"] == "executor_write_file" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_read_file" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_inspect_file" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_search_replace" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_list_search" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "filesystem_mutation" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_shell_command" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "git_workflow" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_shell_session" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_complete_action" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "provider_limit_snapshot" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_write_permission_denied" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "executor_shell_permission_denied" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_shell" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_runtime_missing_baseline" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_switch_agent" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_message_cycle" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_wait_wake_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_escalation_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_antagonist_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_devil_advocate_review" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "role_unauthorized_edge" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "action_validation_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "health_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "preflight_guard" for item in payload["simulations"]))
+            self.assertTrue(any(item["name"] == "log_detection" for item in payload["simulations"]))
+            self.assertNotIn("dry-run", text_completed.stdout.lower())
+
+            self.assertEqual(text_completed.returncode, 0, text_completed.stderr)
+            self.assertIn("Agent battery:", text_completed.stdout)
+            self.assertIn("executor_write_file", text_completed.stdout)
+            self.assertIn("provider_limit_snapshot", text_completed.stdout)
+            self.assertIn("executor_write_permission_denied", text_completed.stdout)
+            self.assertIn("executor_shell_permission_denied", text_completed.stdout)
+            self.assertIn("role_runtime", text_completed.stdout)
+            self.assertIn("role_runtime_missing_baseline", text_completed.stdout)
+            self.assertIn("role_shell", text_completed.stdout)
+            self.assertIn("role_switch_agent", text_completed.stdout)
+            self.assertIn("role_wait_wake_guard", text_completed.stdout)
+            self.assertIn("role_escalation_guard", text_completed.stdout)
+            self.assertIn("role_antagonist_guard", text_completed.stdout)
+            self.assertIn("role_devil_advocate_review", text_completed.stdout)
+            self.assertIn("role_unauthorized_edge", text_completed.stdout)
+            self.assertIn("health_guard", text_completed.stdout)
+            self.assertIn("preflight_guard", text_completed.stdout)
+            self.assertIn("log_detection", text_completed.stdout)
 
     def test_report_cli_json_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1347,6 +1790,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "report")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.report")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["task"], "fix failing tests")
             self.assertEqual(payload["recommended_authorization"], "review")
             self.assertEqual(payload["open_issues"], 1)
@@ -1422,7 +1867,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("/models", rendered)
             self.assertIn("/model use", rendered)
             self.assertIn("hint=providers[chatgpt, openai]", rendered)
-            self.assertIn("hint=provider_models[chatgpt=provider-default,codex-mini-latest,gpt-5.1-codex; openai=provider-default,gpt-5.4,gpt-5.4-mini]", rendered)
+            self.assertIn("hint=provider_models[chatgpt=", rendered)
+            self.assertIn("; openai=", rendered)
             self.assertIn("hint=params[reasoning_effort]", rendered)
 
     def test_slash_palette_cli_json_exposes_reusable_context_and_hints(self) -> None:
@@ -1440,6 +1886,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "slash")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.slash")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["prefix"], "/mo")
             self.assertEqual(payload["context"]["enabled_providers"], ["chatgpt", "openai"])
             self.assertEqual(payload["context"]["active_accounts"], ["openai=work"])
@@ -1475,6 +1923,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(no_match.returncode, 0, no_match.stderr)
             no_match_payload = json.loads(no_match.stdout)
             self.assertTrue(no_match_payload["no_match"])
+            self.assertEqual(no_match_payload["schema"]["name"], "stagewarden.slash_choose")
+            self.assertEqual(no_match_payload["schema"]["version"], "1")
             self.assertEqual(no_match_payload["entries"], [])
             self.assertIn("Use /slash", no_match_payload["message"])
 
@@ -1491,6 +1941,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(scaffold.returncode, 0, scaffold.stderr)
             payload = json.loads(scaffold.stdout)
             self.assertTrue(payload["ok"])
+            self.assertEqual(payload["schema"]["name"], "stagewarden.extensions")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["name"], "local-tools")
             self.assertTrue((root / ".stagewarden/extensions/local-tools/extension.json").exists())
             self.assertTrue((root / ".stagewarden/extensions/local-tools/commands").is_dir())
@@ -1503,6 +1955,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(discovered.returncode, 0, discovered.stderr)
             discovered_payload = json.loads(discovered.stdout)
             self.assertTrue(discovered_payload["ok"])
+            self.assertEqual(discovered_payload["schema"]["name"], "stagewarden.extensions")
+            self.assertEqual(discovered_payload["schema"]["version"], "1")
             self.assertEqual(discovered_payload["extensions"][0]["name"], "local-tools")
             self.assertEqual(discovered_payload["extensions"][0]["capabilities"], [])
             self.assertEqual(discovered_payload["extensions"][0]["schema_version"], "1")
@@ -1554,6 +2008,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(discovered.returncode, 0, discovered.stderr)
             payload = json.loads(discovered.stdout)
             self.assertFalse(payload["ok"])
+            self.assertEqual(payload["schema"]["name"], "stagewarden.extensions")
+            self.assertEqual(payload["schema"]["version"], "1")
             record = payload["extensions"][0]
             self.assertEqual(record["name"], "broken-tools")
             self.assertEqual(record["schema_version"], "1")
@@ -1591,6 +2047,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(json_rendered.returncode, 0, json_rendered.stderr)
             payload = json.loads(json_rendered.stdout)
             self.assertEqual(payload["command"], "slash choose")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.slash_choose")
+            self.assertEqual(payload["schema"]["version"], "1")
             names = [item["name"] for item in payload["entries"]]
             self.assertIn("update apply", names)
 
@@ -1606,6 +2064,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles check [--json]", rendered.stdout)
             self.assertIn("roles flow [--json]", rendered.stdout)
             self.assertIn("roles matrix [--json]", rendered.stdout)
+            self.assertIn("risks close <resolution>", rendered.stdout)
+            self.assertIn("issues close <resolution>", rendered.stdout)
+            self.assertIn("quality close <resolution>", rendered.stdout)
             self.assertIn("sources", rendered.stdout)
             self.assertIn("preflight [--json]", rendered.stdout)
             self.assertIn("shell backend", rendered.stdout)
@@ -1618,6 +2079,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "commands")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.commands")
+            self.assertEqual(payload["schema"]["version"], "1")
             by_name = {item["name"]: item for item in payload["commands"]}
             self.assertIn("commands", by_name)
             self.assertIn("preflight", by_name)
@@ -1628,6 +2091,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("roles check", by_name)
             self.assertIn("roles flow", by_name)
             self.assertIn("roles matrix", by_name)
+            self.assertIn("risks close", by_name)
+            self.assertIn("issues close", by_name)
+            self.assertIn("quality close", by_name)
             self.assertIn("sources", by_name)
             self.assertIn("file inspect", by_name)
             self.assertIn("file stat", by_name)
@@ -1641,6 +2107,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(by_name["roles check"]["handler"], "roles")
             self.assertEqual(by_name["roles flow"]["handler"], "roles")
             self.assertEqual(by_name["roles matrix"]["handler"], "roles")
+            self.assertEqual(by_name["risks close"]["handler"], "handoff")
+            self.assertEqual(by_name["issues close"]["handler"], "handoff")
+            self.assertEqual(by_name["quality close"]["handler"], "handoff")
             self.assertEqual(by_name["file inspect"]["group"], "files")
             self.assertEqual(by_name["file copy"]["handler"], "files")
 
@@ -1648,12 +2117,15 @@ class TraceAndCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             config = AgentConfig(workspace_root=root, max_steps=1)
-            input_stream = StringIO("/help update\n/help io\n/help extension\n/help files\n/exit\n")
+            input_stream = StringIO("/help agent\n/help update\n/help io\n/help extension\n/help files\n/exit\n")
             output_stream = StringIO()
             code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
             rendered = output_stream.getvalue()
 
             self.assertEqual(code, 0)
+            self.assertIn("Agent compatibility protocol", rendered)
+            self.assertIn("AGENTS.md", rendered)
+            self.assertIn("AGENT_HANDOFF.md", rendered)
             self.assertIn("Update commands", rendered)
             self.assertIn("update apply --yes", rendered)
             self.assertIn("External IO commands", rendered)
@@ -1674,6 +2146,7 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertIn("Topics:", rendered)
+            self.assertIn("/help agent: startup, handoff, wet-run validation, and cross-agent continuity aliases=agents,protocol", rendered)
             self.assertIn("/help core: exit, reset, overview, health, report, status, preflight, stream, sessions, transcript", rendered)
             self.assertIn("/help models: provider routing, provider models, blocks aliases=model", rendered)
             self.assertIn("/help external_io: web search, download, checksum, compression, archive verify aliases=io,network,download", rendered)
@@ -1688,6 +2161,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             overview_payload = json.loads(completed.stdout)
             self.assertEqual(overview_payload["command"], "help")
+            self.assertEqual(overview_payload["schema"]["name"], "stagewarden.help")
+            self.assertEqual(overview_payload["schema"]["version"], "1")
             topics = {item["key"]: item for item in overview_payload["topics"]}
             self.assertIn("models", topics)
             self.assertIn("external_io", topics)
@@ -1700,6 +2175,8 @@ class TraceAndCliTests(unittest.TestCase):
             topic_payload = json.loads(completed.stdout)
             self.assertTrue(topic_payload["ok"])
             self.assertEqual(topic_payload["topic"], "models")
+            self.assertEqual(topic_payload["schema"]["name"], "stagewarden.help")
+            self.assertEqual(topic_payload["schema"]["version"], "1")
             self.assertIn("model choose [local|cheap|chatgpt|openai|claude]", topic_payload["commands"])
             self.assertIn("model choose chatgpt", topic_payload["examples"])
 
@@ -1748,11 +2225,17 @@ class TraceAndCliTests(unittest.TestCase):
             copy_payload = json.loads(run_main_capture(root, "file copy data.txt copied.txt", "--json").stdout)
 
             self.assertTrue(stat_payload["ok"])
+            self.assertEqual(stat_payload["schema"]["name"], "stagewarden.file_stat")
+            self.assertEqual(stat_payload["schema"]["version"], "1")
             self.assertEqual(stat_payload["report"]["command"], "file stat")
             self.assertEqual(stat_payload["report"]["kind"], "file")
             self.assertTrue(inspect_payload["ok"])
+            self.assertEqual(inspect_payload["schema"]["name"], "stagewarden.file_inspect")
+            self.assertEqual(inspect_payload["schema"]["version"], "1")
             self.assertEqual(inspect_payload["report"]["encoding"], "utf-8")
             self.assertTrue(copy_payload["ok"])
+            self.assertEqual(copy_payload["schema"]["name"], "stagewarden.file_copy")
+            self.assertEqual(copy_payload["schema"]["version"], "1")
             self.assertTrue((root / "copied.txt").exists())
 
             chmod_payload = json.loads(run_main_capture(root, "file chmod copied.txt 0600", "--json").stdout)
@@ -1783,16 +2266,24 @@ class TraceAndCliTests(unittest.TestCase):
             show = json.loads(run_main_capture(root, "git show --stat HEAD", "--json").stdout)
 
             self.assertEqual(status["command"], "git status")
+            self.assertEqual(status["schema"]["name"], "stagewarden.git_status")
+            self.assertEqual(status["schema"]["version"], "1")
             self.assertTrue(status["ok"])
             self.assertIsInstance(status["lines"], list)
             self.assertEqual(log_payload["command"], "git log")
+            self.assertEqual(log_payload["schema"]["name"], "stagewarden.git_log")
+            self.assertEqual(log_payload["schema"]["version"], "1")
             self.assertTrue(log_payload["ok"])
             self.assertEqual(log_payload["limit"], 5)
             self.assertEqual(log_payload["commits"][0]["subject"], "add tracked")
             self.assertEqual(history["command"], "git history")
+            self.assertEqual(history["schema"]["name"], "stagewarden.git_history")
+            self.assertEqual(history["schema"]["version"], "1")
             self.assertEqual(history["path"], "tracked.txt")
             self.assertEqual(history["commits"][0]["subject"], "add tracked")
             self.assertEqual(show["command"], "git show")
+            self.assertEqual(show["schema"]["name"], "stagewarden.git_show")
+            self.assertEqual(show["schema"]["version"], "1")
             self.assertTrue(show["stat"])
             self.assertEqual(show["revision"], "HEAD")
 
@@ -1804,6 +2295,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "sessions")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.sessions")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["count"], 0)
             self.assertEqual(payload["items"], [])
 
@@ -1831,6 +2324,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["command"], "boundary")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.boundary")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["stage_view"]["boundary_decision"], "review_boundary:exception_plan")
             self.assertEqual(payload["stage_view"]["recovery_state"], "exception_active")
 
@@ -1863,17 +2358,55 @@ class TraceAndCliTests(unittest.TestCase):
             todo = json.loads(run_main_capture(root, "todo", "--json").stdout)
 
             self.assertEqual(risks["command"], "risks")
+            self.assertEqual(risks["schema"]["name"], "stagewarden.risks")
+            self.assertEqual(risks["schema"]["version"], "1")
             self.assertEqual(risks["count"], 1)
             self.assertEqual(risks["items"][0]["risk"], "Regression from patch execution")
+
+            closed = run_main_capture(root, "risks close mitigated by wet-run validation", "--json")
+            closed_payload = json.loads(closed.stdout)
+            risks_after = json.loads(run_main_capture(root, "risks", "--json").stdout)
+            self.assertEqual(closed_payload["command"], "risks close")
+            self.assertEqual(closed_payload["open_before"], 1)
+            self.assertEqual(closed_payload["open_after"], 0)
+            self.assertEqual(closed_payload["resolution"], "mitigated by wet-run validation")
+            self.assertEqual(str(closed_payload["items"][0]["status"]).lower(), "closed")
+            self.assertEqual(risks_after["items"][0]["status"], "closed")
+            issues_closed = json.loads(run_main_capture(root, "issues close corrective action validated by wet-run", "--json").stdout)
+            issues_after = json.loads(run_main_capture(root, "issues", "--json").stdout)
+            quality_closed = json.loads(run_main_capture(root, "quality close accepted by wet-run validation", "--json").stdout)
+            quality_after = json.loads(run_main_capture(root, "quality", "--json").stdout)
+            self.assertEqual(issues_closed["command"], "issues close")
+            self.assertEqual(issues_closed["open_before"], 1)
+            self.assertEqual(issues_closed["open_after"], 0)
+            self.assertEqual(issues_closed["resolution"], "corrective action validated by wet-run")
+            self.assertEqual(str(issues_closed["items"][0]["status"]).lower(), "closed")
+            self.assertEqual(issues_after["items"][0]["status"], "closed")
+            self.assertEqual(quality_closed["command"], "quality close")
+            self.assertEqual(quality_closed["open_before"], 1)
+            self.assertEqual(quality_closed["open_after"], 0)
+            self.assertEqual(quality_closed["resolution"], "accepted by wet-run validation")
+            self.assertEqual(str(quality_closed["items"][0]["status"]).lower(), "accepted")
+            self.assertEqual(quality_after["items"][0]["status"], "accepted")
             self.assertEqual(issues["command"], "issues")
+            self.assertEqual(issues["schema"]["name"], "stagewarden.issues")
+            self.assertEqual(issues["schema"]["version"], "1")
             self.assertEqual(issues["items"][0]["summary"], "validation pending")
             self.assertEqual(quality["command"], "quality")
+            self.assertEqual(quality["schema"]["name"], "stagewarden.quality")
+            self.assertEqual(quality["schema"]["version"], "1")
             self.assertEqual(quality["items"][0]["evidence"], "file updated")
             self.assertEqual(exception["command"], "exception")
+            self.assertEqual(exception["schema"]["name"], "stagewarden.exception")
+            self.assertEqual(exception["schema"]["version"], "1")
             self.assertEqual(exception["items"][0], "review boundary for step-3")
             self.assertEqual(lessons["command"], "lessons")
+            self.assertEqual(lessons["schema"]["name"], "stagewarden.lessons")
+            self.assertEqual(lessons["schema"]["version"], "1")
             self.assertEqual(lessons["items"][0]["lesson"], "file update pattern is reusable")
             self.assertEqual(todo["command"], "todo")
+            self.assertEqual(todo["schema"]["name"], "stagewarden.todo")
+            self.assertEqual(todo["schema"]["version"], "1")
             self.assertEqual(todo["items"][0]["title"], "Inspect tests")
 
     def test_interactive_shell_doctor_command(self) -> None:
@@ -1915,6 +2448,9 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("permission session allow <rule>", rendered)
             self.assertIn("Handoff and PRINCE2 commands", rendered)
             self.assertIn("handoff export | handoff md", rendered)
+            self.assertIn("risks close <resolution>", rendered)
+            self.assertIn("issues close <resolution>", rendered)
+            self.assertIn("quality close <resolution>", rendered)
             self.assertIn("Git commands", rendered)
             self.assertIn("git history <path> [limit]", rendered)
             self.assertIn("LJSON commands", rendered)
@@ -1940,14 +2476,14 @@ class TraceAndCliTests(unittest.TestCase):
             rendered = output_stream.getvalue()
             self.assertIn("Running task: create a file named hello.txt", rendered)
             self.assertIn("Shell progress (before):", rendered)
-            self.assertIn("route: provider=cheap account=none provider_model=provider-default", rendered)
+            self.assertIn("route: provider=cheap account=none provider_model=", rendered)
             self.assertIn("Agent result:", rendered)
             self.assertIn("Last step outcome:", rendered)
             self.assertIn("step: step-3", rendered)
             self.assertIn("action: shell", rendered)
             self.assertIn("evidence: tool=shell action=shell", rendered)
             self.assertIn("Shell progress (after):", rendered)
-            self.assertIn("route: provider=cheap account=none provider_model=provider-default", rendered)
+            self.assertIn("route: provider=cheap account=none provider_model=", rendered)
             self.assertIn("git_snapshot:", rendered)
             self.assertRegex(rendered, r"git_snapshot: [0-9a-f]{7,40} ::")
             self.assertIn("Tool transcript:", rendered)
@@ -1991,7 +2527,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Shell progress (before):", rendered)
             self.assertIn("Agent result:", rendered)
             self.assertIn("Last step outcome:", rendered)
-            self.assertIn("evidence: none", rendered)
+            self.assertIn("evidence: tool=model action=devil_advocate_review", rendered)
+            self.assertIn("devil_advocate: approved", rendered)
             self.assertIn("Shell progress (after):", rendered)
             self.assertIn("[model-stream cheap]", rendered)
             self.assertIn('"summary":"ok"', rendered)
@@ -2159,6 +2696,207 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Provider-model catalog for chatgpt:", completed.stdout)
             self.assertIn("gpt-5.3-codex", completed.stdout)
             self.assertIn("reasoning_effort=[low,medium,high]", completed.stdout)
+            self.assertIn("catalog=", completed.stdout)
+
+    def test_models_json_includes_catalog_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "models", "--json")
+            payload = json.loads(completed.stdout)
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(payload["command"], "models")
+            self.assertTrue(any(item.get("catalog_source") for item in payload["models"]))
+            self.assertTrue(any(item.get("catalog") for item in payload["models"]))
+
+    def test_catalog_refresh_and_status_use_shared_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            snapshot = {
+                "generated_at": "2026-04-27T15:15:22Z",
+                "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+                "models": [{"provider": "local", "model_id": "provider-default"}],
+            }
+            with patch("stagewarden.model_views.write_ai_models_catalog", return_value=snapshot):
+                refreshed = _handle_model_command("catalog refresh", agent, config)
+            with patch("stagewarden.main.load_ai_models_catalog", return_value=snapshot), patch("stagewarden.model_views.load_ai_models_catalog", return_value=snapshot):
+                report = _catalog_status_report()
+
+            self.assertIn("Catalog refreshed:", refreshed or "")
+            self.assertIn("model_count=1", refreshed or "")
+            self.assertEqual(report["model_count"], 1)
+            self.assertEqual(report["generated_at"], snapshot["generated_at"])
+            self.assertEqual(report["command"], "catalog status")
+            self.assertEqual(report["schema"]["name"], "stagewarden.catalog_status")
+            self.assertEqual(report["schema"]["version"], "1")
+            self.assertEqual(_catalog_refresh_report(snapshot)["pricing_source"], "openrouter")
+
+    def test_catalog_refresh_aa_flag_requests_artificial_analysis_pricing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            config = AgentConfig(workspace_root=root, max_steps=1)
+            snapshot = {
+                "generated_at": "2026-04-27T15:15:22Z",
+                "include_artificial_analysis": True,
+                "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+                "models": [{"provider": "local", "model_id": "provider-default"}],
+            }
+            with patch("stagewarden.model_views.write_ai_models_catalog", return_value=snapshot) as mocked:
+                refreshed = _handle_model_command("catalog refresh --aa", agent, config)
+
+            self.assertIn("pricing_source=artificial_analysis", refreshed or "")
+            mocked.assert_called_once_with(include_artificial_analysis=True)
+
+    def test_catalog_refresh_report_uses_specific_command_name(self) -> None:
+        catalog = {
+            "generated_at": "2026-04-27T15:15:22Z",
+            "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+            "models": [{"provider": "local", "model_id": "provider-default"}],
+        }
+
+        report = _catalog_refresh_report(catalog)
+
+        self.assertEqual(report["command"], "catalog refresh")
+        self.assertEqual(report["schema"]["name"], "stagewarden.catalog_refresh")
+        self.assertEqual(report["schema"]["version"], "1")
+        self.assertEqual(report["include_artificial_analysis"], False)
+        self.assertEqual(report["pricing_source"], "openrouter")
+        self.assertEqual(report["model_count"], 1)
+
+    def test_catalog_search_reports_matches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            catalog = {
+                "generated_at": "2026-04-27T15:35:07Z",
+                "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+                "models": [
+                    {
+                        "provider": "openai",
+                        "model_id": "gpt-5.4",
+                        "model_name": "GPT-5.4",
+                        "aliases": ["openai/gpt-5.4", "GPT-5.4"],
+                        "features": ["text", "tool_use"],
+                        "openness": "proprietary",
+                    }
+                ],
+            }
+            completed = run_main_capture(root, "catalog search gpt-5.4", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            search_payload = json.loads(completed.stdout)
+            self.assertEqual(search_payload["command"], "catalog search")
+            self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
+            self.assertEqual(search_payload["schema"]["version"], "1")
+
+            with patch("stagewarden.model_views.load_ai_models_catalog", return_value=catalog):
+                agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+                config = AgentConfig(workspace_root=root, max_steps=1)
+                response = _handle_model_command("catalog search gpt-5.4", agent, config)
+
+            self.assertIn("Matches: 1", response or "")
+            self.assertIn("openai:gpt-5.4", response or "")
+
+    def test_catalog_search_supports_feature_filters(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            catalog = {
+                "generated_at": "2026-04-27T15:35:07Z",
+                "source_urls": {"openrouter_models": "https://openrouter.ai/api/v1/models"},
+                "models": [
+                    {
+                        "provider": "openai",
+                        "model_id": "gpt-5.4",
+                        "model_name": "GPT-5.4",
+                        "aliases": ["openai/gpt-5.4", "GPT-5.4"],
+                        "features": ["text", "tool_use"],
+                        "openness": "proprietary",
+                    },
+                    {
+                        "provider": "local",
+                        "model_id": "qwen2.5-coder:7b",
+                        "model_name": "Qwen2.5 Coder",
+                        "aliases": ["qwen2.5-coder", "Qwen2.5 Coder"],
+                        "features": ["coding", "text"],
+                        "openness": "self_hosted",
+                    },
+                ],
+            }
+            completed = run_main_capture(root, "catalog search feature=tool_use", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            search_payload = json.loads(completed.stdout)
+            self.assertEqual(search_payload["command"], "catalog search")
+            self.assertEqual(search_payload["schema"]["name"], "stagewarden.catalog_search")
+            self.assertEqual(search_payload["schema"]["version"], "1")
+
+            with patch("stagewarden.model_views.load_ai_models_catalog", return_value=catalog):
+                agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+                config = AgentConfig(workspace_root=root, max_steps=1)
+                response = _handle_model_command("catalog search feature=tool_use", agent, config)
+
+            self.assertIn("Matches: 1", response or "")
+            self.assertIn("openai:gpt-5.4", response or "")
+
+    def test_catalog_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "catalog unexpected", "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(payload["command"], "catalog unexpected")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.catalog")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("Usage: catalog status", payload["message"])
+
+    def test_file_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "file unexpected", "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertEqual(payload["command"], "file unexpected")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.file")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("Usage: file inspect <path>", payload["error"])
+
+    def test_update_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "update unexpected", "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertEqual(payload["command"], "update unexpected")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.update")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("Usage: update status", payload["error"])
+
+    def test_git_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "git unexpected", "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertEqual(payload["command"], "git unexpected")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.git")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("Usage: git status", payload["error"])
+
+    def test_external_io_fallback_json_preserves_input_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, 'web search "foo', "--json")
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertEqual(payload["command"], 'web search "foo')
+            self.assertEqual(payload["schema"]["name"], "stagewarden.external_io")
+            self.assertEqual(payload["schema"]["version"], "1")
+            self.assertIn("No closing quotation", payload["error"])
 
     def test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2313,7 +3051,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual((prefs.variant_by_model or {}).get("chatgpt"), "gpt-5.4")
             self.assertEqual((prefs.params_by_model or {}).get("chatgpt", {}).get("reasoning_effort"), "medium")
             self.assertIn("Choose provider:", rendered)
-            self.assertIn("- enabled_providers: local, cheap, chatgpt, openai, claude", rendered)
+            self.assertIn("- enabled_providers: local, cheap, chatgpt", rendered)
+            self.assertIn("claude", rendered)
             self.assertIn("- selected_provider: chatgpt", rendered)
             self.assertIn("Guided selection applied: provider=chatgpt provider_model=gpt-5.4 reasoning_effort=medium.", rendered)
 
@@ -2389,8 +3128,11 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(propose.returncode, 0, propose.stderr)
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("PRINCE2 role tree:", completed.stdout)
+            self.assertIn("- status legend:", completed.stdout)
             self.assertIn("Project Executive [board.executive]", completed.stdout)
-            self.assertIn("  - Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("Project Manager [management.project_manager]", completed.stdout)
+            self.assertIn("description=", completed.stdout)
+            self.assertIn("shell=role shell board.executive", completed.stdout)
             self.assertIn("context=current work package, product delivery, quality criteria, and implementation lessons only", completed.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
@@ -2428,7 +3170,7 @@ class TraceAndCliTests(unittest.TestCase):
                 account=team_assignment.get("account"),
                 source="test_independence_warning",
             )
-            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.blocked_until_by_model = {"chatgpt": "2099-05-01T18:30"}
             prefs.save(root / ".stagewarden_models.json")
 
             completed = run_main_capture(root, "roles check")
@@ -2491,7 +3233,7 @@ class TraceAndCliTests(unittest.TestCase):
             propose = run_main_capture(root, "roles propose")
             self.assertEqual(propose.returncode, 0, propose.stderr)
             prefs = ModelPreferences.load(root / ".stagewarden_models.json")
-            prefs.blocked_until_by_model = {"chatgpt": "2026-05-01T18:30"}
+            prefs.blocked_until_by_model = {"chatgpt": "2099-05-01T18:30"}
             prefs.save(root / ".stagewarden_models.json")
 
             completed = run_main_capture(root, "roles matrix")
@@ -2501,7 +3243,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 role matrix:", completed.stdout)
             self.assertIn("Project Manager [management.project_manager]", completed.stdout)
             self.assertIn("provider_blocked", completed.stdout)
-            self.assertIn("provider_blocked_until=2026-05-01T18:30", completed.stdout)
+            self.assertIn("provider_blocked_until=2099-05-01T18:30", completed.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             payload = json.loads(json_completed.stdout)
@@ -2509,7 +3251,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["status"], "error")
             rows = {item["node_id"]: item for item in payload["rows"]}
             self.assertEqual(rows["management.project_manager"]["provider"], "chatgpt")
-            self.assertEqual(rows["management.project_manager"]["provider_blocked_until"], "2026-05-01T18:30")
+            self.assertEqual(rows["management.project_manager"]["provider_blocked_until"], "2099-05-01T18:30")
             self.assertIn("authorize.project", rows["management.project_manager"]["incoming_edges"])
             self.assertIn("issue.work_package", rows["management.project_manager"]["outgoing_edges"])
             self.assertIn("stage_plan", rows["management.project_manager"]["context_include"])
@@ -2826,6 +3568,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 role-tree baseline:", baseline.stdout)
             self.assertIn("status: approved", baseline.stdout)
             self.assertIn("rule: this approved role tree is the governance baseline", baseline.stdout)
+            self.assertIn("Decomposition:", baseline.stdout)
+            self.assertIn("Adaptation:", baseline.stdout)
             self.assertEqual((prefs.prince2_role_tree_baseline or {}).get("source"), "roles_tree_approve")
             self.assertEqual((handoff.prince2_role_tree_baseline or {}).get("source"), "roles_tree_approve")
 
@@ -2835,6 +3579,50 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["status"], "approved")
             self.assertEqual(payload["baseline"]["tree"]["command"], "roles tree")
             self.assertEqual(payload["baseline"]["matrix"]["command"], "roles matrix")
+            self.assertIn("decomposition", payload)
+            self.assertIn("adaptation", payload)
+
+    def test_roles_render_blocked_mode_with_mnemonic_and_team(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_assignment(
+                "project_manager",
+                mode="blocked",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                source="unit_test",
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("mnemonic=PM", completed.stdout)
+            self.assertIn("team=Management", completed.stdout)
+            self.assertIn("mode=blocked", completed.stdout)
+            self.assertIn("provider=openai", completed.stdout)
+
+    def test_roles_render_manual_min_mode_with_mnemonic_and_team(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_assignment(
+                "team_manager",
+                mode="manual_min",
+                provider="openai",
+                provider_model="gpt-5.4-mini",
+                source="unit_test",
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            completed = run_main_capture(root, "roles")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("mnemonic=TM", completed.stdout)
+            self.assertIn("team=Delivery", completed.stdout)
+            self.assertIn("mode=manual_min", completed.stdout)
+            self.assertIn("provider=openai", completed.stdout)
 
     def test_role_add_child_and_assign_updates_role_tree_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2917,6 +3705,161 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider"], "openai")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["provider_model"], "gpt-5.4-mini")
             self.assertEqual(nodes["delivery.docs_team"]["assignment"]["params"]["reasoning_effort"], "medium")
+
+    def test_interactive_shell_roles_menu_can_add_and_remove_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            input_stream = StringIO(
+                "add-child\n"
+                "management.project_manager\n"
+                "team_manager\n"
+                "delivery.menu_team\n"
+                "remove\n"
+                "delivery.menu_team\n"
+                "yes\n"
+                "back\n"
+            )
+            output_stream = StringIO()
+            result = _guided_role_tree_menu(
+                prefs=prefs,
+                config=AgentConfig(workspace_root=root, max_steps=1),
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            node_ids = {
+                item["node_id"]
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict)
+            }
+
+            self.assertIn("PRINCE2 tree menu closed.", result)
+            self.assertIn("PRINCE2 tree menu:", rendered)
+            self.assertIn("Added delegated PRINCE2 role node delivery.menu_team under management.project_manager.", rendered)
+            self.assertIn("Removed PRINCE2 role node delivery.menu_team.", rendered)
+            self.assertNotIn("delivery.menu_team", node_ids)
+
+    def test_interactive_shell_role_tree_renders_color_legend_and_shell_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            completed = run_main_capture(root, "roles tree")
+
+            self.assertEqual(completed.returncode, 0)
+            self.assertIn("PRINCE2 role tree:", completed.stdout)
+            self.assertIn("- status legend:", completed.stdout)
+            self.assertIn("color=", completed.stdout)
+            self.assertIn("description=", completed.stdout)
+            self.assertIn("shell=role shell", completed.stdout)
+            self.assertIn("|--", completed.stdout)
+
+    def test_interactive_shell_role_shell_navigates_between_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            input_stream = StringIO(
+                "child\n"
+                "board.senior_user\n"
+                "parent\n"
+                "back\n"
+            )
+            output_stream = StringIO()
+            result = _guided_role_node_shell(
+                prefs=prefs,
+                config=AgentConfig(workspace_root=root, max_steps=1),
+                node_id="board.executive",
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+
+            self.assertIn("Closed node shell for board.executive.", result)
+            self.assertIn("PRINCE2 node shell:", rendered)
+            self.assertIn("board.executive", rendered)
+            self.assertIn("board.senior_user", rendered)
+            self.assertIn("description=", rendered)
+            self.assertIn("status_color=", rendered)
+            self.assertIn("parent=", rendered)
+            self.assertIn("Switch agent/model for this node", rendered)
+
+    def test_interactive_shell_role_menu_can_switch_model_by_menu(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            input_stream = StringIO(
+                "switch-agent\n"
+                "2\n"
+                "1\n"
+                "back\n"
+            )
+            output_stream = StringIO()
+            result = _guided_role_node_menu(
+                prefs=prefs,
+                config=AgentConfig(workspace_root=root, max_steps=1),
+                node_id="delivery.team_manager",
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            team_node = next(
+                item
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict) and item.get("node_id") == "delivery.team_manager"
+            )
+
+            self.assertIn("Closed node menu for delivery.team_manager.", result)
+            self.assertIn("PRINCE2 node detail:", rendered)
+            self.assertIn("Node menu for delivery.team_manager:", rendered)
+            self.assertIn("Switch agent/model for this node", rendered)
+            self.assertIn("model_recommendation:", rendered)
+            self.assertIn("KiloCode-style switch agent:", rendered)
+            self.assertIn("Assigned role node delivery.team_manager: provider=302ai provider_model=MiniMax-M1 account=none", rendered)
+            self.assertEqual(team_node["assignment"]["provider"], "302ai")
+            self.assertEqual(team_node["assignment"]["provider_model"], "MiniMax-M1")
+            self.assertFalse(team_node["assignment"].get("params"))
+
+    def test_interactive_shell_role_switch_agent_command_switches_model(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            self.assertEqual(run_main_capture(root, "roles propose").returncode, 0)
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
+            input_stream = StringIO(
+                "2\n"
+                "1\n"
+            )
+            output_stream = StringIO()
+            result = _handle_role_command(
+                "role switch delivery.team_manager",
+                agent,
+                agent.config,
+                input_stream=input_stream,
+                output_stream=output_stream,
+            )
+            rendered = output_stream.getvalue()
+            prefs = ModelPreferences.load(root / ".stagewarden_models.json")
+            baseline = prefs.prince2_role_tree_baseline or {}
+            team_node = next(
+                item
+                for item in baseline.get("tree", {}).get("nodes", [])
+                if isinstance(item, dict) and item.get("node_id") == "delivery.team_manager"
+            )
+
+            self.assertIsInstance(result, str)
+            self.assertIn("KiloCode-style switch agent:", rendered)
+            self.assertIn("switch_summary:", rendered)
+            self.assertIn("Assigned role node delivery.team_manager: provider=302ai provider_model=MiniMax-M1 account=none", result)
+            self.assertEqual(team_node["assignment"]["provider"], "302ai")
+            self.assertEqual(team_node["assignment"]["provider_model"], "MiniMax-M1")
+            self.assertFalse(team_node["assignment"].get("params"))
 
     def test_interactive_shell_role_assign_prioritizes_local_fallback_candidates_for_delivery_node(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3071,8 +4014,10 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("PRINCE2 node runtime:", completed.stdout)
+            self.assertIn("- session_state:", completed.stdout)
             self.assertIn("Project Manager [management.project_manager]", completed.stdout)
             self.assertIn("state=ready", completed.stdout)
+            self.assertIn("switch_hint=role switch management.project_manager", completed.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             payload = json.loads(json_completed.stdout)
@@ -3129,6 +4074,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "--json",
             )
             active_completed = run_main_capture(root, "roles active", "--json")
+            active_text = run_main_capture(root, "roles active")
             queues_completed = run_main_capture(root, "roles queues", "--json")
 
             self.assertEqual(active_completed.returncode, 0, active_completed.stderr)
@@ -3140,6 +4086,48 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(queues_payload["command"], "roles queues")
             self.assertEqual(queues_payload["summary"]["inbox_total"], 1)
             self.assertEqual(queues_payload["summary"]["nodes_with_outbox"], 1)
+            self.assertEqual(active_text.returncode, 0, active_text.stderr)
+            self.assertIn("- session_state:", active_text.stdout)
+            self.assertIn("switch_hint=role switch management.project_manager", active_text.stdout)
+
+    def test_interactive_shell_auto_resumes_waiting_session_on_startup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stub = write_resume_network_stub(root)
+            original = os.environ.get("RUN_MODEL_BIN")
+            os.environ["RUN_MODEL_BIN"] = str(stub)
+            try:
+                first = Agent(
+                    AgentConfig(
+                        workspace_root=root,
+                        max_steps=10,
+                        verbose=False,
+                    )
+                )
+                suspended = first.run("create a file named hello.txt")
+                self.assertFalse(suspended.ok)
+                self.assertEqual(ProjectHandoff.load(root / ".stagewarden_handoff.json").status, "waiting")
+
+                (root / ".resume_ready").write_text("yes\n", encoding="utf-8")
+                config = AgentConfig(workspace_root=root, max_steps=10)
+                input_stream = StringIO("exit\n")
+                output_stream = StringIO()
+                code = run_interactive_shell(config, input_stream=input_stream, output_stream=output_stream)
+            finally:
+                if original is None:
+                    os.environ.pop("RUN_MODEL_BIN", None)
+                else:
+                    os.environ["RUN_MODEL_BIN"] = original
+
+            rendered = output_stream.getvalue()
+            self.assertEqual(code, 0)
+            self.assertIn("Auto-resuming suspended task: create a file named hello.txt", rendered)
+            self.assertIn("Running task: create a file named hello.txt", rendered)
+            self.assertIn("- session_state: suspended", rendered)
+            self.assertIn("- session_recoverable: true", rendered)
+            self.assertIn("Agent result:", rendered)
+            self.assertTrue((root / "hello.txt").exists())
+            self.assertEqual(ProjectHandoff.load(root / ".stagewarden_handoff.json").status, "closed")
 
     def test_roles_control_renders_board_facing_runtime_decision(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3204,6 +4192,90 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("delivery.team_manager", {item["node_id"] for item in payload["critical_nodes"]})
             self.assertIn("PRINCE2 control view:", text_completed.stdout)
             self.assertIn("next_action=process_queued_work", text_completed.stdout)
+            self.assertIn("switch_hint: role switch delivery.team_manager", text_completed.stdout)
+
+    def test_roles_tick_spawns_escalation_child_and_tracks_thread_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.set_prince2_role_tree_baseline(
+                {
+                    "status": "approved",
+                    "source": "unit_test",
+                    "tree": {
+                        "nodes": [
+                            {
+                                "node_id": "management.project_manager",
+                                "role_type": "project_manager",
+                                "label": "Project Manager",
+                                "parent_id": "board.executive",
+                                "level": "management",
+                                "tolerance_margin_percent": 25.0,
+                                "tolerance_pressure_percent": 42.0,
+                                "assignment": {"provider": "chatgpt", "provider_model": "gpt-5.4"},
+                            }
+                        ]
+                    },
+                    "flow": {"edges": []},
+                }
+            )
+            prefs.save(root / ".stagewarden_models.json")
+
+            json_completed = run_main_capture(root, "roles tick 1", "--json")
+            runtime_text = run_main_capture(root, "roles runtime")
+            control_json = run_main_capture(root, "roles control", "--json")
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            prefs_after = ModelPreferences.load(root / ".stagewarden_models.json")
+
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["command"], "roles tick")
+            self.assertEqual(payload["result"]["escalated"], 1)
+            self.assertEqual(payload["result"]["spawned_children"], 1)
+            self.assertEqual(payload["result"]["results"][0]["action"], "escalate")
+            self.assertIsNotNone(payload["result"]["results"][0]["spawned_child"])
+
+            baseline_nodes = {
+                item["node_id"]: item
+                for item in (prefs_after.prince2_role_tree_baseline or {}).get("tree", {}).get("nodes", [])
+                if isinstance(item, dict)
+            }
+            runtime_nodes = {
+                item["node_id"]: item
+                for item in (handoff.prince2_node_runtime or {}).get("nodes", [])
+                if isinstance(item, dict)
+            }
+            control_payload = json.loads(control_json.stdout)
+            child = next(
+                item
+                for item in runtime_nodes.values()
+                if item.get("parent_id") == "management.project_manager"
+                and item.get("spawn_source") == "escalation"
+            )
+
+            self.assertIn("management.project_manager.escalation", baseline_nodes)
+            self.assertEqual(baseline_nodes["management.project_manager.escalation"]["spawn_source"], "escalation")
+            self.assertGreater(int(child.get("thread_token_count", 0) or 0), 0)
+            self.assertGreater(int(child.get("business_case_token_count", 0) or 0), 0)
+            self.assertGreater(int(child.get("business_case_input_token_count", 0) or 0), 0)
+            self.assertIn("business_case_cost_usd", child)
+            critical = next(
+                item
+                for item in control_payload["critical_nodes"]
+                if item["node_id"] == "management.project_manager"
+            )
+            self.assertIn("antagonist_name", critical)
+            self.assertGreater(int(critical["decision_kpis"]["threat_count"]), 0)
+            self.assertIn("devil_advocate", critical)
+            self.assertIn("evidence_signals", critical)
+            self.assertIn("Escalation Child", runtime_text.stdout)
+            self.assertIn("thread_tokens total=", runtime_text.stdout)
+            self.assertIn("business_case=", runtime_text.stdout)
+            self.assertIn("input=", runtime_text.stdout)
+            self.assertIn("output=", runtime_text.stdout)
+            self.assertIn("cost_usd=", runtime_text.stdout)
+            self.assertIn("antagonist_name", control_json.stdout)
+            self.assertIn("devil_advocate", control_json.stdout)
 
     def test_roles_context_exposes_node_ai_context_packet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3342,6 +4414,12 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Queued PRINCE2 node message", completed.stdout)
             self.assertIn("delivery.team_manager", completed.stdout)
             self.assertIn("payload=assigned_work_package,quality_criteria", completed.stdout)
+            rendered_messages = run_main_capture(root, "roles messages delivery.team_manager")
+            self.assertEqual(rendered_messages.returncode, 0, rendered_messages.stderr)
+            self.assertIn("mnemonic=TM", rendered_messages.stdout)
+            self.assertIn("team=Delivery", rendered_messages.stdout)
+            self.assertIn("chat:", rendered_messages.stdout)
+            self.assertIn("summary=issue_work_package", rendered_messages.stdout)
 
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             message_payload = json.loads(json_completed.stdout)
@@ -3496,6 +4574,8 @@ class TraceAndCliTests(unittest.TestCase):
                 for item in tick_payload["runtime"]["runtime"]["nodes"]
             }
             self.assertEqual(tick_rows["delivery.team_manager"]["state"], "running")
+            self.assertGreater(int(tick_rows["delivery.team_manager"]["business_case_input_token_count"]), 0)
+            self.assertEqual(int(tick_rows["delivery.team_manager"]["business_case_output_token_count"]), 0)
 
     def test_roles_tick_advances_runtime_in_batch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3568,6 +4648,9 @@ class TraceAndCliTests(unittest.TestCase):
             }
             self.assertEqual(rows["management.project_manager"]["state"], "completed")
             self.assertEqual(rows["delivery.team_manager"]["state"], "running")
+            self.assertGreater(int(rows["management.project_manager"]["business_case_output_token_count"]), 0)
+            self.assertGreater(int(rows["delivery.team_manager"]["business_case_input_token_count"]), 0)
+            self.assertEqual(int(rows["delivery.team_manager"]["business_case_output_token_count"]), 0)
             self.assertEqual(payload["messages"]["nodes"][0]["inbox"], [])
 
     def test_project_design_report_exposes_capability_spec_project_spec_and_gaps(self) -> None:
@@ -3586,6 +4669,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             payload = json.loads(json_completed.stdout)
             self.assertEqual(payload["command"], "project design")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.project_design")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertIn("agent_capability_specification", payload)
             self.assertIn("project_specification", payload)
             self.assertIn("clarification_gaps", payload)
@@ -3605,6 +4690,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(run_main_capture(root, "project brief set scope CLI, shell, git, and model routing").returncode, 0)
             self.assertEqual(run_main_capture(root, "project brief set expected_outputs Production-ready CLI plus tests").returncode, 0)
             self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set tolerance_margin_percent 30").returncode, 0)
 
             brief = run_main_capture(root, "project brief")
             json_brief = run_main_capture(root, "project brief", "--json")
@@ -3617,7 +4703,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(json_brief.returncode, 0, json_brief.stderr)
             brief_payload = json.loads(json_brief.stdout)
             self.assertEqual(brief_payload["command"], "project brief")
+            self.assertEqual(brief_payload["schema"]["name"], "stagewarden.project_brief")
+            self.assertEqual(brief_payload["schema"]["version"], "1")
             self.assertEqual(brief_payload["fields"]["delivery_mode"], "hybrid")
+            self.assertEqual(brief_payload["fields"]["tolerance_margin_percent"], "30")
 
             self.assertEqual(design_json.returncode, 0, design_json.stderr)
             design_payload = json.loads(design_json.stdout)
@@ -3627,6 +4716,27 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertNotIn("missing_project_scope", codes)
             self.assertNotIn("missing_expected_outputs", codes)
             self.assertNotIn("missing_delivery_mode", codes)
+
+    def test_project_brief_set_reports_next_missing_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            completed = run_main_capture(root, "project brief set objective Build a governed coding agent")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project brief updated: objective=Build a governed coding agent", completed.stdout)
+            self.assertIn("Next missing project brief field: scope", completed.stdout)
+            self.assertIn("project brief set scope <value>", completed.stdout)
+
+            brief = run_main_capture(root, "project brief")
+            self.assertEqual(brief.returncode, 0, brief.stderr)
+            self.assertIn("Next missing project brief field: scope", brief.stdout)
+            self.assertIn("- objective: Build a governed coding agent", brief.stdout)
+            json_brief = run_main_capture(root, "project brief", "--json")
+            self.assertEqual(json_brief.returncode, 0, json_brief.stderr)
+            brief_payload = json.loads(json_brief.stdout)
+            self.assertEqual(brief_payload["next_missing_field"], "scope")
+            self.assertIn("Next missing project brief field: scope", brief_payload["guidance"])
 
     def test_project_tree_propose_builds_proportional_review_proposal_from_brief(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3656,6 +4766,38 @@ class TraceAndCliTests(unittest.TestCase):
             node_ids = {item["node_id"] for item in payload["tree"]["nodes"]}
             self.assertIn("assurance.validation_assurance", node_ids)
             self.assertEqual(payload["clarification_gaps"], [])
+
+    def test_project_tree_proposal_refines_micro_tasks_and_refreshes_on_brief_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a governed coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git model routing and browser login").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests wet-run validation and rollback evidence").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+
+            approved = run_main_capture(root, "project tree approve")
+            self.assertEqual(approved.returncode, 0, approved.stderr)
+            self.assertIn("Project tree approval:", approved.stdout)
+
+            self.assertEqual(
+                run_main_capture(root, "project brief set scope shell git model routing browser login and release rollback").returncode,
+                0,
+            )
+
+            completed = run_main_capture(root, "project tree propose", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertIn("Decomposition:", run_main_capture(root, "project tree propose").stdout)
+            self.assertIn("Adaptation:", run_main_capture(root, "project tree propose").stdout)
+            self.assertIn("decomposition", payload)
+            self.assertIn("adaptation", payload)
+            self.assertGreaterEqual(payload["decomposition"]["micro_task_count"], 2)
+            micro_nodes = {item["node_id"] for item in payload["decomposition"]["micro_tasks"]}
+            self.assertIn("management.work_package_breakdown", micro_nodes)
+            self.assertIn("support.evidence_keeper", micro_nodes)
+            self.assertEqual(payload["adaptation"]["status"], "refreshed")
+            self.assertIn("scope", payload["adaptation"]["changed_fields"])
 
     def test_project_tree_propose_ai_attaches_local_execution_candidates_when_discovered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3871,6 +5013,43 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("missing_objective", codes)
             self.assertIn("missing_scope", codes)
 
+    def test_project_tree_propose_ai_requests_clarification_for_missing_brief(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "project tree propose --ai")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Clarification question:", completed.stdout)
+            self.assertIn("What objective should this project tree optimize for?", completed.stdout)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(handoff.status, "waiting")
+            self.assertEqual(handoff.waiting_reason, "clarification")
+            self.assertEqual(handoff.user_question_view()["status"], "pending")
+            json_completed = run_main_capture(root, "project tree propose --ai", "--json")
+            self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["next_missing_field"], "objective")
+            self.assertEqual(payload["next_missing_gap"]["code"], "missing_objective")
+
+    def test_project_start_requests_clarification_for_missing_brief(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "project start")
+
+            self.assertEqual(completed.returncode, 1, completed.stdout)
+            self.assertIn("Clarification question:", completed.stdout)
+            self.assertIn("What project outcome or objective should I prioritize?", completed.stdout)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(handoff.status, "waiting")
+            self.assertEqual(handoff.waiting_reason, "clarification")
+            self.assertEqual(handoff.user_question_view()["status"], "pending")
+            json_completed = run_main_capture(root, "project start", "--json")
+            self.assertEqual(json_completed.returncode, 1, json_completed.stdout)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["next_missing_field"], "objective")
+            self.assertIn(payload["next_missing_gap"]["code"], {"missing_project_task", "missing_project_objective"})
+            self.assertIn("question", payload["clarification_question"])
+
     def test_project_tree_approve_blocks_until_brief_is_complete(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -3991,6 +5170,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             payload = json.loads(json_completed.stdout)
             self.assertTrue(payload["ok"])
+            self.assertEqual(payload["schema"]["name"], "stagewarden.sources_status")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["items"][0]["project"], "OpenAI Codex CLI")
             self.assertEqual(payload["summary"]["ok"], 1)
 
@@ -4035,6 +5216,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(updated.returncode, 0, updated.stderr)
             payload = json.loads(updated.stdout)
             self.assertTrue(payload["ok"])
+            self.assertEqual(payload["schema"]["name"], "stagewarden.sources_update")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertTrue(payload["items"][0]["updated"])
             self.assertEqual(payload["updated_count"], 1)
             self.assertEqual(payload["failed_count"], 0)
@@ -4079,10 +5262,14 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(strict.returncode, 1, strict.stderr)
             strict_payload = json.loads(strict.stdout)
             self.assertFalse(strict_payload["ok"])
+            self.assertEqual(strict_payload["schema"]["name"], "stagewarden.sources_status")
+            self.assertEqual(strict_payload["schema"]["version"], "1")
             self.assertEqual(strict_payload["summary"]["fail"], 1)
             self.assertEqual(updated.returncode, 1, updated.stderr)
             payload = json.loads(updated.stdout)
             self.assertFalse(payload["ok"])
+            self.assertEqual(payload["schema"]["name"], "stagewarden.sources_update")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["failed_count"], 1)
             self.assertEqual(payload["items"][0]["update_message"], "skipped: upstream mismatch")
 
@@ -4105,6 +5292,8 @@ class TraceAndCliTests(unittest.TestCase):
             status = run_main_capture(work, "update status", "--json")
             self.assertEqual(status.returncode, 0, status.stderr)
             status_payload = json.loads(status.stdout)
+            self.assertEqual(status_payload["schema"]["name"], "stagewarden.update_status")
+            self.assertEqual(status_payload["schema"]["version"], "1")
             self.assertFalse(status_payload["update_available"])
             self.assertEqual(status_payload["behind"], 0)
 
@@ -4116,6 +5305,8 @@ class TraceAndCliTests(unittest.TestCase):
             check = run_main_capture(work, "update check --json")
             self.assertEqual(check.returncode, 0, check.stderr)
             check_payload = json.loads(check.stdout)
+            self.assertEqual(check_payload["schema"]["name"], "stagewarden.update_check")
+            self.assertEqual(check_payload["schema"]["version"], "1")
             self.assertTrue(check_payload["update_available"])
             self.assertEqual(check_payload["behind"], 1)
 
@@ -4127,6 +5318,8 @@ class TraceAndCliTests(unittest.TestCase):
             applied = run_main_capture(work, "update apply --yes", "--json")
             self.assertEqual(applied.returncode, 0, applied.stderr)
             applied_payload = json.loads(applied.stdout)
+            self.assertEqual(applied_payload["schema"]["name"], "stagewarden.update_apply")
+            self.assertEqual(applied_payload["schema"]["version"], "1")
             self.assertTrue(applied_payload["ok"])
             self.assertTrue(applied_payload["applied"])
             self.assertEqual((work / "README.md").read_text(encoding="utf-8"), "v2\n")
@@ -4198,6 +5391,89 @@ class TraceAndCliTests(unittest.TestCase):
                 thread.join(timeout=2)
                 server.server_close()
 
+    def test_system_and_archive_cli_commands_expose_dynamic_tools(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            bundle = root / "bundle"
+            (bundle / "nested").mkdir(parents=True)
+            (bundle / "nested" / "data.txt").write_text("hello archive\n", encoding="utf-8")
+
+            system_completed = run_main_capture(root, "system info", "--json")
+            self.assertEqual(system_completed.returncode, 0, system_completed.stderr)
+            system_payload = json.loads(system_completed.stdout)
+            self.assertEqual(system_payload["command"], "system info")
+            self.assertEqual(system_payload["schema"]["name"], "stagewarden.system_info")
+            self.assertIn("platform", system_payload["info"])
+
+            hash_completed = run_main_capture(root, "hash bundle/nested/data.txt", "--json")
+            self.assertEqual(hash_completed.returncode, 0, hash_completed.stderr)
+            hash_payload = json.loads(hash_completed.stdout)
+            self.assertEqual(hash_payload["command"], "hash")
+            self.assertEqual(hash_payload["hash_algorithm"], "sha256")
+            self.assertTrue(hash_payload["digest"])
+
+            archive_completed = run_main_capture(root, "archive create bundle exports/bundle.tar.gz --format gztar", "--json")
+            self.assertEqual(archive_completed.returncode, 0, archive_completed.stderr)
+            archive_payload = json.loads(archive_completed.stdout)
+            self.assertEqual(archive_payload["command"], "archive create")
+            self.assertEqual(archive_payload["path"], "exports/bundle.tar.gz")
+            self.assertTrue((root / "exports" / "bundle.tar.gz").exists())
+
+    def test_browser_cli_fetch_exposes_title_and_links(self) -> None:
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                body = b"<html><head><title>Stagewarden</title></head><body><a href='https://example.test'>Example</a></body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            try:
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            except PermissionError as exc:
+                self.skipTest(f"local HTTP bind unavailable: {exc}")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_port}/index.html"
+                completed = run_main_capture(root, "browser fetch", url, "--json")
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                payload = json.loads(completed.stdout)
+                self.assertEqual(payload["command"], "browser fetch")
+                self.assertEqual(payload["schema"]["name"], "stagewarden.browser_fetch")
+                self.assertEqual(payload["title"], "Stagewarden")
+                self.assertTrue(any(item["href"] == "https://example.test" for item in payload["items"]))
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+
+    def test_watch_cli_detects_file_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            target = root / "watched.txt"
+
+            def mutate() -> None:
+                time.sleep(1.0)
+                target.write_text("after\n", encoding="utf-8")
+
+            thread = threading.Thread(target=mutate, daemon=True)
+            thread.start()
+            completed = run_main_capture(root, "watch . --timeout 3.0 --recursive --poll 0.1", "--json")
+            thread.join(timeout=2)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "watch")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.watch")
+            self.assertIn("Observed", payload["message"])
+            self.assertEqual(payload["path"], ".")
+
     def test_interactive_shell_model_list_uses_provider_registry_for_login_hints(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -4213,7 +5489,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Use account login chatgpt <profile>", rendered)
             self.assertIn("Auth: openai_api_key", rendered)
             self.assertIn("API key: yes", rendered)
-            self.assertIn("Prefer OPENAI_API_KEY", rendered)
+            self.assertIn("Token env: OPENAI_API_KEY", rendered)
+            self.assertIn("Login hint:", rendered)
 
     def test_interactive_shell_manages_persistent_shell_sessions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -4324,6 +5601,174 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("totals: calls=2 failures=1 steps=2 failure_rate=50.00%", rendered)
             self.assertIn("routing: last_model=claude highest_tier=high/fallback highest_model=claude escalation_path=local -> claude", rendered)
             self.assertGreaterEqual(rendered.count("Model usage:"), 2)
+
+    def test_interactive_shell_renders_cost_sidebar_with_business_case_totals(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["openai"]
+            prefs.preferred_model = "openai"
+            prefs.save(root / ".stagewarden_models.json")
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "report costs",
+                "status": "executing",
+                "current_step_id": "step-1",
+                "current_step_title": "Validate costs",
+                "current_step_status": "in_progress",
+                "latest_observation": "cost totals visible",
+                "plan_status": "step-1:in_progress",
+                "prince2_node_runtime": {
+                    "command": "roles runtime",
+                    "status": "materialized",
+                    "materialized_at": "2026-05-08T12:30:00+00:00",
+                    "baseline_source": "unit_test",
+                    "nodes": [
+                        {
+                            "node_id": "board.executive",
+                            "label": "Project Executive",
+                            "mnemonic": "PEX",
+                            "team_name": "Board",
+                            "mode": "auto",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 100,
+                            "business_case_input_cost_usd": 0.01,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.01,
+                        },
+                        {
+                            "node_id": "delivery.team_manager",
+                            "label": "Team Manager",
+                            "mnemonic": "TM",
+                            "team_name": "Delivery",
+                            "mode": "manual_min",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 50,
+                            "business_case_input_cost_usd": 0.004,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.004,
+                        },
+                    ],
+                },
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+
+            input_stream = StringIO("status\nstatus full\ncost sidebar\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Cost sidebar:", rendered)
+            self.assertIn("business_case_total_cost_usd: 0.014", rendered)
+            self.assertIn("Node cost breakdown:", rendered)
+            self.assertIn("top_cost_nodes:", rendered)
+            self.assertIn("board.executive", rendered)
+            self.assertIn("delivery.team_manager", rendered)
+            self.assertIn("cost_usd=0.01", rendered)
+            self.assertIn("cost_usd=0.004", rendered)
+
+    def test_interactive_shell_manages_project_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = {
+                "_format": "stagewarden_project_handoff",
+                "_version": 1,
+                "task": "budget control",
+                "status": "executing",
+                "current_step_id": "step-1",
+                "current_step_title": "Manage budget",
+                "current_step_status": "in_progress",
+                "latest_observation": "budget control available",
+                "plan_status": "step-1:in_progress",
+                "prince2_node_runtime": {
+                    "command": "roles runtime",
+                    "status": "materialized",
+                    "materialized_at": "2026-05-08T12:30:00+00:00",
+                    "baseline_source": "unit_test",
+                    "nodes": [
+                        {
+                            "node_id": "board.executive",
+                            "label": "Project Executive",
+                            "mnemonic": "PEX",
+                            "team_name": "Board",
+                            "mode": "auto",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 100,
+                            "business_case_input_cost_usd": 0.01,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.01,
+                        },
+                        {
+                            "node_id": "delivery.team_manager",
+                            "label": "Team Manager",
+                            "mnemonic": "TM",
+                            "team_name": "Delivery",
+                            "mode": "manual_min",
+                            "provider": "openai",
+                            "provider_model": "gpt-5.4-nano",
+                            "business_case_token_count": 50,
+                            "business_case_input_cost_usd": 0.004,
+                            "business_case_output_cost_usd": 0.0,
+                            "business_case_cost_usd": 0.004,
+                        },
+                    ],
+                },
+                "entries": [],
+            }
+            (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
+
+            input_stream = StringIO("budget\nbudget set 0.02 USD\nbudget\nbudget status paused\nbudget\nbudget clear\nbudget\nexit\n")
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Project budget:", rendered)
+            self.assertIn("- status: missing", rendered)
+            self.assertIn("Budget active: 0.02 USD", rendered)
+            self.assertIn("- status: active", rendered)
+            self.assertIn("Budget paused: 0.02 USD", rendered)
+            self.assertIn("- status: paused", rendered)
+            self.assertIn("Project budget cleared.", rendered)
+
+    def test_interactive_shell_manages_user_questions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / ".stagewarden_handoff.json").write_text(
+                json.dumps(
+                    {
+                        "_format": "stagewarden_project_handoff",
+                        "_version": 1,
+                        "task": "",
+                        "status": "idle",
+                        "entries": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            input_stream = StringIO(
+                "question ask Which deliverable should I prioritize?\n"
+                "question\n"
+                "answer Prioritize the release checklist.\n"
+                "question\n"
+                "exit\n"
+            )
+            output_stream = StringIO()
+            code = run_interactive_shell(AgentConfig(workspace_root=root, max_steps=1), input_stream=input_stream, output_stream=output_stream)
+            rendered = output_stream.getvalue()
+
+            self.assertEqual(code, 0)
+            self.assertIn("Question asked: Which deliverable should I prioritize?", rendered)
+            self.assertIn("User question:", rendered)
+            self.assertIn("- status: pending", rendered)
+            self.assertIn("Question answered: Which deliverable should I prioritize?", rendered)
+            self.assertIn("- status: missing", rendered)
 
     def test_interactive_shell_manages_model_accounts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -4728,6 +6173,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("PRINCE2 roles:", rendered)
             self.assertIn("prince2_role_baseline: missing", rendered)
             self.assertIn("Provider limit status:", rendered)
+            self.assertIn("Cost sidebar:", rendered)
             self.assertIn("chatgpt: enabled active provider_model=automatic-by-task selection=automatic active_account=none", rendered)
             self.assertIn("last_attempt: step=step-3 status=failed:runtime account=work provider_model=gpt-5.3-codex", rendered)
             self.assertIn("Resume context:", rendered)
@@ -5529,6 +6975,8 @@ class TraceAndCliTests(unittest.TestCase):
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             completed = run_main_capture(root, "board", "--json")
             payload = json.loads(completed.stdout)
+            self.assertEqual(payload["schema"]["name"], "stagewarden.board")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["recommended_authorization"], "close")
 
     def test_board_review_recommends_review_when_open_issues_remain(self) -> None:
@@ -5548,6 +6996,8 @@ class TraceAndCliTests(unittest.TestCase):
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             completed = run_main_capture(root, "stage review", "--json")
             payload = json.loads(completed.stdout)
+            self.assertEqual(payload["schema"]["name"], "stagewarden.board")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["recommended_authorization"], "review")
 
     def test_board_review_recommends_recover_when_recovery_is_active(self) -> None:
@@ -5567,6 +7017,8 @@ class TraceAndCliTests(unittest.TestCase):
             (root / ".stagewarden_handoff.json").write_text(json.dumps(handoff), encoding="utf-8")
             completed = run_main_capture(root, "board", "--json")
             payload = json.loads(completed.stdout)
+            self.assertEqual(payload["schema"]["name"], "stagewarden.board")
+            self.assertEqual(payload["schema"]["version"], "1")
             self.assertEqual(payload["recommended_authorization"], "recover")
 
     def test_interactive_shell_can_query_git_history(self) -> None:

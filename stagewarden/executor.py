@@ -2,24 +2,25 @@ from __future__ import annotations
 
 import json
 import re
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
 from .config import AgentConfig
 from .handoff import HandoffManager, format_run_model
 from .memory import MemoryStore
-from .modelprefs import ModelPreferences, extract_blocked_until, limit_snapshot_from_message
+from .modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until, limit_snapshot_from_message
 from .planner import PlanStep
-from .prince2 import Prince2Assessment, Prince2Checklist, Prince2AgentPolicy
+from .prince2 import Prince2Checklist, Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
 from .router import ModelRouter
-from .role_tree import build_prince2_role_flow
-from .roles import PRINCE2_ROLE_AUTOMATION_RULES, PRINCE2_ROLE_SCOPE_DESCRIPTIONS
-from .runtime_env import detect_runtime_capabilities
 from .textcodec import dumps_ascii, loads_text
 from .tools.files import FileTool
 from .tools.git import GitTool
 from .tools.shell import ShellTool
+from .executor_quality import ResponseQualityAssessment, assess_response_quality
+from . import executor_prompting as _executor_prompting
+from .rag import DesignRag, _prompt_safe_block, _prompt_safe_inline
 
 
 @dataclass(slots=True)
@@ -36,6 +37,7 @@ class StepOutcome:
     error_type: str | None = None
     prince2_assessment: dict[str, Any] | None = None
     prince2_role: str | None = None
+    response_quality: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -62,6 +64,7 @@ class ModelCommunicationPacket:
     sections: list[PromptSection]
     transcript_items: list[PromptTranscriptItem]
     contract_sections: list[PromptSection]
+    telemetry: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -69,6 +72,7 @@ class ModelCommunicationPacket:
             "sections": [section.as_dict() for section in self.sections],
             "transcript_items": [item.as_dict() for item in self.transcript_items],
             "contract_sections": [section.as_dict() for section in self.contract_sections],
+            "telemetry": self.telemetry,
         }
 
 
@@ -105,6 +109,10 @@ ALLOWED_MODEL_ACTIONS = {
     "git_show",
     "git_file_history",
     "git_commit",
+    "rag_search",
+    "rag_add",
+    "rag_update",
+    "rag_remove",
     "complete",
 }
 
@@ -141,6 +149,10 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
     "git_show": {"tool": "git", "required": [], "optional": ["revision", "stat"], "mutates": False},
     "git_file_history": {"tool": "git", "required": ["path"], "optional": ["limit"], "mutates": False},
     "git_commit": {"tool": "git", "required": ["message"], "optional": [], "mutates": True},
+    "rag_search": {"tool": "rag", "required": ["query"], "optional": ["phase", "tags", "limit", "mode"], "mutates": False},
+    "rag_add": {"tool": "rag", "required": ["phase", "title", "content"], "optional": ["tags", "metadata"], "mutates": True},
+    "rag_update": {"tool": "rag", "required": ["entry_id"], "optional": ["phase", "tags", "title", "content", "metadata"], "mutates": True},
+    "rag_remove": {"tool": "rag", "required": ["entry_id"], "optional": [], "mutates": True},
     "complete": {"tool": "agent", "required": ["message"], "optional": [], "mutates": False},
 }
 
@@ -156,12 +168,14 @@ class Executor:
         handoff: HandoffManager,
         memory: MemoryStore,
         project_handoff: ProjectHandoff | None = None,
+        rag: DesignRag | None = None,
     ) -> None:
         self.config = config
         self.router = router
         self.handoff = handoff
         self.memory = memory
         self.project_handoff = project_handoff or ProjectHandoff()
+        self.rag = rag or DesignRag()
         self.shell = ShellTool(config)
         self.files = FileTool(config)
         self.git = GitTool(config)
@@ -186,7 +200,13 @@ class Executor:
         git_head_before = self._git_head()
         prefs = self._configure_handoff_accounts()
         prince2_role = self._role_for_step(task=task, step=step)
-        role_assignment = self._role_assignment_for_step(prefs, prince2_role, task=task, step=step)
+        role_assignment = self._role_assignment_for_step(
+            prefs,
+            prince2_role,
+            task=task,
+            step=step,
+            failure_count=failure_count,
+        )
         if role_assignment:
             model = str(role_assignment["provider"])
             self._configure_handoff_role_route(role_assignment)
@@ -214,9 +234,12 @@ class Executor:
             account = self._select_account(model)
         result, account = self._execute_with_account_failover(model=model, prompt=prompt, account=account)
         if not result.ok:
-            rate_limit_until = extract_blocked_until(result.error or result.output)
+            response_text = result.error or result.output
+            network_issue = self._is_transient_network_failure(response_text)
+            rate_limit_until = extract_blocked_until(response_text)
+            limit_reason = classify_limit_reason(response_text)
             fallback_model = self._fallback_model_after_failure(model)
-            if rate_limit_until:
+            if rate_limit_until or limit_reason in {"usage_limit", "credits_exhausted"}:
                 alternatives = self._available_alternative_models(model)
                 if alternatives:
                     fallback_model = alternatives[0]
@@ -232,7 +255,9 @@ class Executor:
                         action_signature=f"rate-limit:{model}",
                         success=False,
                         observation=(
-                            f"Provider {model} is rate-limited until {rate_limit_until}. "
+                            f"Provider {model} is rate-limited"
+                            + (f" until {rate_limit_until}" if rate_limit_until else "")
+                            + ". "
                             f"User decision: {decision or 'stop'}."
                         ),
                         error_type="rate_limit",
@@ -243,7 +268,9 @@ class Executor:
                         model=model,
                         action_type="model_rate_limit",
                         observation=(
-                            f"Provider {model} is rate-limited until {rate_limit_until}. "
+                            f"Provider {model} is rate-limited"
+                            + (f" until {rate_limit_until}" if rate_limit_until else "")
+                            + ". "
                             "No alternative provider is currently available."
                         ),
                         account=account,
@@ -267,7 +294,77 @@ class Executor:
                 prompt=prompt,
                 account=fallback_account,
             )
+            fallback_response_text = fallback.error or fallback.output
+            fallback_network_issue = self._is_transient_network_failure(fallback_response_text)
+            fallback_limit_reason = classify_limit_reason(fallback_response_text)
             if not fallback.ok:
+                if network_issue or fallback_network_issue:
+                    observation = (
+                        "Network unavailable while contacting model providers.\n"
+                        f"Primary error: {result.error or result.output or 'unknown'}\n"
+                        f"Fallback error: {fallback.error or fallback.output or 'unknown'}\n"
+                        "The run is safe to resume once connectivity returns."
+                    )
+                    self.memory.record_attempt(
+                        iteration=iteration,
+                        step_id=step.id,
+                        model=fallback_model,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        action_type="model_network_unavailable",
+                        action_signature=f"network-unavailable:{model}->{fallback_model}",
+                        success=False,
+                        observation=observation,
+                        error_type="network_wait",
+                    )
+                    return StepOutcome(
+                        ok=False,
+                        step_completed=False,
+                        model=fallback_model,
+                        action_type="model_network_unavailable",
+                        observation=observation,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        git_head_before=git_head_before,
+                        git_head_after=self._git_head(),
+                        error_type="network_wait",
+                        prince2_assessment=None,
+                        prince2_role=prince2_role,
+                    )
+                if limit_reason in {"usage_limit", "credits_exhausted"} or fallback_limit_reason in {"usage_limit", "credits_exhausted"}:
+                    observation = (
+                        f"Provider {model} reached a usage limit"
+                        + (f" until {rate_limit_until}" if rate_limit_until else "")
+                        + ". "
+                        f"Fallback provider {fallback_model} also reported a usage limit. "
+                        "The run is safe to resume once limits reset."
+                    )
+                    self.memory.record_attempt(
+                        iteration=iteration,
+                        step_id=step.id,
+                        model=fallback_model,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        action_type="model_rate_limit",
+                        action_signature=f"rate-limit:{model}->{fallback_model}",
+                        success=False,
+                        observation=observation,
+                        error_type="rate_limit_wait",
+                    )
+                    return StepOutcome(
+                        ok=False,
+                        step_completed=False,
+                        model=fallback_model,
+                        action_type="model_rate_limit",
+                        observation=observation,
+                        account=fallback_account,
+                        variant=self.handoff.model_variant_by_model.get(fallback_model),
+                        git_head_before=git_head_before,
+                        git_head_after=self._git_head(),
+                        error_type="rate_limit_wait",
+                        prince2_assessment=None,
+                        prince2_role=prince2_role,
+                    )
                 self.memory.record_attempt(
                     iteration=iteration,
                     step_id=step.id,
@@ -328,9 +425,88 @@ class Executor:
             )
 
         action = parsed["action"]
+        devil_advocate = self._run_devil_advocate_review(
+            iteration=iteration,
+            task=task,
+            step=step,
+            plan=plan,
+            model=model,
+            account=account,
+            primary_payload=parsed.get("payload", {}) if isinstance(parsed.get("payload", {}), dict) else {},
+            primary_action=action,
+            primary_output=result.output,
+            primary_observation=last_observation,
+        )
+        review_payload = devil_advocate.get("review", {}) if isinstance(devil_advocate.get("review", {}), dict) else {}
+        review_verdict = str(review_payload.get("verdict", "accept")).strip().lower() if review_payload else "accept"
+        review_contradictions = [str(item).strip() for item in review_payload.get("contradictions", []) if str(item).strip()] if isinstance(review_payload.get("contradictions", []), list) else []
+        review_missing = [str(item).strip() for item in review_payload.get("missing_evidence", []) if str(item).strip()] if isinstance(review_payload.get("missing_evidence", []), list) else []
+        review_counter_argument = str(review_payload.get("counter_argument", "")).strip() if review_payload else ""
+        review_header = (
+            f"Devil advocate verdict={review_verdict}"
+            + (f" contradictions={'; '.join(review_contradictions)}" if review_contradictions else "")
+            + (f" missing_evidence={'; '.join(review_missing)}" if review_missing else "")
+            + (f" counter_argument={review_counter_argument}" if review_counter_argument else "")
+        )
+        if not devil_advocate.get("ok"):
+            self.memory.record_attempt(
+                iteration=iteration,
+                step_id=step.id,
+                model=str(devil_advocate.get("model", model)),
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                action_type="devil_advocate_rejection",
+                action_signature=dumps_ascii(review_payload, sort_keys=True),
+                success=False,
+                observation=str(devil_advocate.get("error", review_header)),
+                error_type="critic_invalid_output",
+            )
+            return StepOutcome(
+                ok=False,
+                step_completed=False,
+                model=str(devil_advocate.get("model", model)),
+                action_type="devil_advocate_rejection",
+                observation=str(devil_advocate.get("error", review_header)),
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                git_head_before=git_head_before,
+                git_head_after=self._git_head(),
+                error_type="critic_invalid_output",
+                prince2_assessment=None,
+                prince2_role=prince2_role,
+            )
+        if devil_advocate.get("ok") and (review_verdict == "block" or bool(review_payload.get("must_escalate"))):
+            self.memory.record_attempt(
+                iteration=iteration,
+                step_id=step.id,
+                model=str(devil_advocate.get("model", model)),
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                action_type="devil_advocate_rejection",
+                action_signature=dumps_ascii(review_payload, sort_keys=True),
+                success=False,
+                observation=review_header,
+                error_type="critic_rejection",
+            )
+            return StepOutcome(
+                ok=False,
+                step_completed=False,
+                model=str(devil_advocate.get("model", model)),
+                action_type="devil_advocate_rejection",
+                observation=review_header,
+                account=devil_advocate.get("account", account),
+                variant=self.handoff.model_variant_by_model.get(str(devil_advocate.get("model", model))),
+                git_head_before=git_head_before,
+                git_head_after=self._git_head(),
+                error_type="critic_rejection",
+                prince2_assessment=None,
+                prince2_role=prince2_role,
+            )
         usage_metadata = self._extract_usage_metadata(parsed.get("payload", {}))
         action_type = action.get("type", "").strip()
         observation = self._run_action(action, iteration=iteration, step_id=step.id)
+        if devil_advocate.get("ok"):
+            observation["message"] = f"{observation['message']}\n{review_header}"
         ok = observation["ok"]
         step_completed = bool(action_type == "complete" and ok)
         error_type = None if ok else observation.get("error_type", "execution_error")
@@ -378,6 +554,38 @@ class Executor:
                     f"{observation['message']}\nPRINCE2 closure gate failed: {'; '.join(assessment.reasons)}"
                 )
 
+        response_quality: ResponseQualityAssessment | None = None
+        if ok and action_type == "complete":
+            response_quality = self._assess_response_quality(
+                task=task,
+                step=step,
+                observation=observation["message"],
+                action_type=action_type,
+                step_completed=step_completed,
+                prince2_assessment=prince2_assessment,
+            )
+            if not response_quality.sufficient:
+                ok = False
+                step_completed = False
+                error_type = "response_insufficient"
+                observation["message"] = (
+                    f"{observation['message']}\nResponse quality gate failed: "
+                    f"score={response_quality.score:.3f} threshold={response_quality.threshold:.3f}; "
+                    f"{'; '.join(response_quality.reasons)}"
+                )
+
+        if response_quality is not None:
+            self._record_tool_transcript(
+                iteration=iteration,
+                step_id=step.id,
+                tool="model",
+                action_type="response_quality_assessment",
+                success=response_quality.sufficient,
+                summary=f"quality={response_quality.score:.3f}/{response_quality.threshold:.3f}",
+                detail=dumps_ascii(response_quality.as_dict()),
+                error_type=None if response_quality.sufficient else "response_insufficient",
+            )
+
         if not ok and self.memory.failure_count(step.id) >= self.config.max_retries_per_step:
             escalated_model = self.router.escalate(model)
             return StepOutcome(
@@ -393,6 +601,7 @@ class Executor:
                 error_type=error_type,
                 prince2_assessment=prince2_assessment,
                 prince2_role=prince2_role,
+                response_quality=response_quality.as_dict() if response_quality is not None else None,
             )
 
         return StepOutcome(
@@ -408,6 +617,26 @@ class Executor:
             error_type=error_type,
             prince2_assessment=prince2_assessment,
             prince2_role=prince2_role,
+            response_quality=response_quality.as_dict() if response_quality is not None else None,
+        )
+
+    def _assess_response_quality(
+        self,
+        *,
+        task: str,
+        step: PlanStep,
+        observation: str,
+        action_type: str,
+        step_completed: bool,
+        prince2_assessment: dict[str, Any] | None,
+    ) -> ResponseQualityAssessment:
+        return assess_response_quality(
+            task=task,
+            step=step,
+            observation=observation,
+            action_type=action_type,
+            step_completed=step_completed,
+            prince2_assessment=prince2_assessment,
         )
 
     def _extract_usage_metadata(self, payload: object) -> dict[str, int | None]:
@@ -527,7 +756,15 @@ class Executor:
             return "project_support"
         return "project_manager"
 
-    def _role_assignment_for_step(self, prefs: ModelPreferences, role: str, *, task: str, step: PlanStep) -> dict[str, Any] | None:
+    def _role_assignment_for_step(
+        self,
+        prefs: ModelPreferences,
+        role: str,
+        *,
+        task: str,
+        step: PlanStep,
+        failure_count: int = 0,
+    ) -> dict[str, Any] | None:
         node = self._role_tree_node_for_step(task=task, step=step, role=role)
         assignment = {}
         if node:
@@ -538,12 +775,25 @@ class Executor:
             assignment = prefs.prince2_role_assignment(role)
         if not assignment:
             return None
+        if str(assignment.get("mode", "")).strip().lower() == "blocked":
+            return self._fallback_assignment_for_node(prefs, node)
         provider = str(assignment.get("provider", "")).strip()
         if provider not in prefs.active_models():
             fallback = self._fallback_assignment_for_node(prefs, node)
             if fallback:
                 return fallback
             return None
+        if self._attempt_requires_model_escalation(step.id):
+            escalated = self._escalate_role_assignment(
+                prefs,
+                assignment,
+                node=node,
+                task=task,
+                step=step,
+                failure_count=failure_count,
+            )
+            if escalated:
+                return escalated
         return assignment
 
     def _fallback_assignment_for_node(self, prefs: ModelPreferences, node: dict[str, Any]) -> dict[str, Any] | None:
@@ -552,10 +802,137 @@ class Executor:
         for route in routes:
             if not isinstance(route, dict):
                 continue
+            if str(route.get("mode", "")).strip().lower() == "blocked":
+                continue
             provider = str(route.get("provider", "")).strip()
             if provider in prefs.active_models():
                 return dict(route)
         return None
+
+    def _attempt_requires_model_escalation(self, step_id: str) -> bool:
+        attempts = self.memory.recent_attempts(step_id, limit=1)
+        if not attempts:
+            return False
+        latest = attempts[-1]
+        if latest.success:
+            return False
+        if latest.error_type in {"critic_rejection", "critic_invalid_output", "prince2_closure_failure", "invalid_output", "wet_run_required", "response_insufficient", "verification_failed"}:
+            return True
+        combined = " ".join(
+            part for part in (latest.action_type, latest.observation, latest.error_type or "") if part
+        ).lower()
+        return any(
+            marker in combined
+            for marker in (
+                "does not clearly confirm",
+                "missing a valid verdict",
+                "no validation evidence",
+                "weak closure evidence",
+                "insufficient",
+                "too vague",
+                "not sufficient",
+                "unclear",
+            )
+        )
+
+    def _escalate_role_assignment(
+        self,
+        prefs: ModelPreferences,
+        assignment: dict[str, Any],
+        *,
+        node: dict[str, Any],
+        task: str,
+        step: PlanStep,
+        failure_count: int,
+    ) -> dict[str, Any] | None:
+        current_provider = str(assignment.get("provider", "")).strip()
+        current_variant = str(assignment.get("provider_model", "")).strip()
+        if not current_provider:
+            return None
+
+        escalated_variant = self.router.choose_variant(current_provider, task, step.instruction, failure_count=failure_count)
+        if escalated_variant and escalated_variant != current_variant:
+            return self._synthesized_role_assignment(
+                assignment,
+                provider=current_provider,
+                provider_model=escalated_variant,
+                account=self._select_account(current_provider),
+                pool="escalated",
+                source="router",
+            )
+
+        if failure_count >= 2 and current_provider in {"cheap", "chatgpt", "openai"}:
+            next_provider = self.router.escalate(current_provider)
+            if next_provider and next_provider != current_provider and next_provider in prefs.active_models():
+                fallback = self._assignment_for_provider_in_pool(node, next_provider)
+                if fallback:
+                    return fallback
+                recommended = self.router.recommend_route(task, step.instruction, failure_count=failure_count)
+                return self._synthesized_role_assignment(
+                    assignment,
+                    provider=next_provider,
+                    provider_model=recommended.provider_model
+                    if recommended.provider == next_provider
+                    else self.router.choose_variant(next_provider, task, step.instruction, failure_count=failure_count),
+                    account=self._select_account(next_provider),
+                    pool="escalated",
+                    source="router",
+                )
+
+        escalation_provider = self.router.recommend_route(task, step.instruction, failure_count=failure_count).provider
+        if escalation_provider and escalation_provider != current_provider and escalation_provider in prefs.active_models():
+            fallback = self._assignment_for_provider_in_pool(node, escalation_provider)
+            if fallback:
+                return fallback
+            recommended = self.router.recommend_route(task, step.instruction, failure_count=failure_count)
+            return self._synthesized_role_assignment(
+                assignment,
+                provider=recommended.provider,
+                provider_model=recommended.provider_model or self.router.choose_variant(
+                    recommended.provider,
+                    task,
+                    step.instruction,
+                    failure_count=failure_count,
+                ),
+                account=self._select_account(recommended.provider),
+                pool="escalated",
+                source="router",
+            )
+
+        return None
+
+    def _assignment_for_provider_in_pool(self, node: dict[str, Any], provider: str) -> dict[str, Any] | None:
+        pools = node.get("assignment_pool", {}) if isinstance(node, dict) else {}
+        routes = pools.get("fallback", []) if isinstance(pools, dict) and isinstance(pools.get("fallback", []), list) else []
+        for route in routes:
+            if not isinstance(route, dict):
+                continue
+            if str(route.get("provider", "")).strip() == provider:
+                return dict(route)
+        return None
+
+    def _synthesized_role_assignment(
+        self,
+        assignment: dict[str, Any],
+        *,
+        provider: str,
+        provider_model: str | None,
+        account: str | None,
+        pool: str,
+        source: str,
+    ) -> dict[str, Any]:
+        escalated = dict(assignment)
+        escalated.update(
+            {
+                "provider": provider,
+                "provider_model": provider_model or assignment.get("provider_model", ""),
+                "account": account if account is not None else assignment.get("account"),
+                "pool": pool,
+                "source": source,
+                "mode": "auto",
+            }
+        )
+        return escalated
 
     def _role_tree_nodes(self) -> list[dict[str, Any]]:
         baseline = self.project_handoff.prince2_role_tree_baseline or {}
@@ -612,6 +989,87 @@ class Executor:
             result = self.handoff.execute(format_run_model(model, prompt, account=current_account))
         return result, current_account
 
+    def _run_devil_advocate_review(
+        self,
+        *,
+        iteration: int,
+        task: str,
+        step: PlanStep,
+        plan: list[PlanStep],
+        model: str,
+        account: str | None,
+        primary_payload: dict[str, Any],
+        primary_action: dict[str, Any],
+        primary_output: str,
+        primary_observation: str,
+    ) -> dict[str, Any]:
+        try:
+            prefs = ModelPreferences.load(self.config.model_prefs_path)
+        except (OSError, ValueError, TypeError):
+            prefs = ModelPreferences.default()
+        self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})
+        critic_role = "project_assurance"
+        critic_assignment = self._role_assignment_for_step(prefs, critic_role, task=task, step=step)
+        critic_model = model
+        critic_account = account
+        if critic_assignment:
+            candidate_model = str(critic_assignment.get("provider", "")).strip()
+            if candidate_model:
+                critic_model = candidate_model
+            critic_account = str(critic_assignment.get("account", "")).strip() or self._select_account(critic_model)
+            self._configure_handoff_variant(
+                prefs=prefs,
+                model=critic_model,
+                task=task,
+                step_text=step.instruction,
+                failure_count=self.memory.failure_count(step.id),
+                role_assignment=critic_assignment,
+            )
+        else:
+            alternatives = self._available_alternative_models(model)
+            if alternatives:
+                critic_model = alternatives[0]
+                critic_account = self._select_account(critic_model)
+        prompt = self._build_devil_advocate_prompt(
+            task=task,
+            step=step,
+            plan=plan,
+            primary_payload=primary_payload,
+            primary_action=primary_action,
+            primary_output=primary_output,
+            primary_observation=primary_observation,
+        )
+        result, critic_account = self._execute_with_account_failover(model=critic_model, prompt=prompt, account=critic_account)
+        review = self._parse_devil_advocate_json(result.output)
+        summary = review.get("error") if not review.get("ok") else str(review["payload"].get("verdict", "accept"))
+        self._record_tool_transcript(
+            iteration=iteration,
+            step_id=step.id,
+            tool="model",
+            action_type="devil_advocate_review",
+            success=bool(review.get("ok")),
+            summary=summary or "devil advocate review",
+            detail=result.output[:2000],
+            error_type=None if review.get("ok") else "critic_invalid_output",
+        )
+        if not review.get("ok"):
+            return {
+                "ok": False,
+                "model": critic_model,
+                "account": critic_account,
+                "result": result,
+                "review": review.get("payload", {}),
+                "error": review.get("error", "Devil advocate review is invalid."),
+            }
+        return {
+            "ok": bool(review.get("ok")),
+            "model": critic_model,
+            "account": critic_account,
+            "result": result,
+            "review": review.get("payload", {}),
+            "error": "",
+        }
+
     def _accounts_configured(self, model: str) -> bool:
         try:
             prefs = ModelPreferences.load(self.config.model_prefs_path)
@@ -646,6 +1104,44 @@ class Executor:
             return "stop"
         decision = self.config.rate_limit_decider(model, until, alternatives)
         return str(decision or "stop").strip().lower()
+
+    def _is_transient_network_failure(self, message: str | None) -> bool:
+        if not message:
+            return False
+        lowered = message.lower()
+        patterns = (
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "network is unreachable",
+            "temporary failure in name resolution",
+            "name or service not known",
+            "no route to host",
+            "host unreachable",
+            "timed out",
+            "timeout",
+            "request timed out",
+            "read timed out",
+            "write timed out",
+            "ssl",
+            "tls",
+            "certificate verify failed",
+            "proxy error",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
+            "network error",
+            "network unavailable",
+            "network outage",
+            "outage",
+            "blackout",
+            "fetch failed",
+            "failed to connect",
+            "provider unavailable",
+            "service outage",
+            "maintenance",
+        )
+        return any(pattern in lowered for pattern in patterns)
 
     def _record_model_block_if_present(self, model: str, message: str, *, account: str | None = None) -> None:
         until = extract_blocked_until(message)
@@ -685,12 +1181,77 @@ class Executor:
         plan: list[PlanStep],
         last_observation: str,
     ) -> str:
+        packet = self._build_model_communication_packet(task=task, step=step, plan=plan, last_observation=last_observation)
+        return self._render_model_communication_packet(packet)
+
+    def _build_devil_advocate_prompt(
+        self,
+        *,
+        task: str,
+        step: PlanStep,
+        plan: list[PlanStep],
+        primary_payload: dict[str, Any],
+        primary_action: dict[str, Any],
+        primary_output: str,
+        primary_observation: str,
+    ) -> str:
         packet = self._build_model_communication_packet(
             task=task,
             step=step,
             plan=plan,
-            last_observation=last_observation,
+            last_observation=primary_observation,
         )
+        critic_sections = [
+            PromptSection(
+                "Devil advocate mission",
+                "\n".join(
+                    [
+                        "You are the devil's advocate / Project Assurance critic.",
+                        "Challenge the primary model response instead of agreeing with it.",
+                        "Return strict JSON only.",
+                        "Required keys: verdict, contradictions, missing_evidence, counter_argument, must_escalate, confidence.",
+                        "Allowed verdict values: accept, revise, block.",
+                    ]
+                ),
+            ),
+            PromptSection(
+                "Retrospettiva prospettica",
+                "\n".join(
+                    [
+                        "Assume the plan already failed: say why it failed before execution.",
+                        "Work backward from the failure and identify the earliest missing evidence, assumptions, or control gaps.",
+                        "Treat this as a forward-looking postmortem, not a reassurance pass.",
+                        "Return strict JSON only.",
+                        "Required keys: verdict, contradictions, missing_evidence, counter_argument, must_escalate, confidence.",
+                        "Allowed verdict values: accept, revise, block.",
+                    ]
+                ),
+            ),
+            PromptSection(
+                "Primary model response",
+                "\n".join(
+                    [
+                        f"summary={primary_payload.get('summary', '')}",
+                        f"validation={primary_payload.get('validation', '')}",
+                        f"confidence={primary_payload.get('confidence', '')}",
+                        f"action={dumps_ascii(primary_action, sort_keys=True)}",
+                        "raw_output:",
+                        primary_output,
+                    ]
+                ),
+            ),
+            PromptSection(
+                "Critic focus",
+                "\n".join(
+                    [
+                        "Find unsupported assumptions, missing wet-run evidence, unsafe shortcuts, hidden scope creep, and contradictions with the plan.",
+                        "If the response depends on unproven claims, set verdict=revise or block.",
+                        "If the response is sound but still risky, list the risk and keep verdict=accept with counter_argument.",
+                    ]
+                ),
+            ),
+        ]
+        packet.sections = list(packet.sections) + critic_sections
         return self._render_model_communication_packet(packet)
 
     def _build_model_communication_packet(
@@ -700,27 +1261,48 @@ class Executor:
         step: PlanStep,
         plan: list[PlanStep],
         last_observation: str,
+        provider_limits: dict[str, object] | None = None,
     ) -> ModelCommunicationPacket:
         plan_lines = "\n".join(
             f"- {item.id}: {item.title} [{item.status}] validation={item.validation} wet_run_required={item.wet_run_required}"
             for item in plan
         )
-        memory_summary = self._bounded_context("memory_summary", self.memory.summarize(), 2000)
-        execution_log = self._bounded_context("execution_log", self.memory.detailed_summary(), 4000)
-        handoff_log = self._bounded_context("handoff_log", self.project_handoff.detailed_summary(), 4000)
+        memory_summary = _executor_prompting.bounded_context(self.memory.summarize(), 2000, label="memory_summary")
+        execution_log = _executor_prompting.bounded_context(self.memory.detailed_summary(), 4000, label="execution_log")
+        handoff_log = _executor_prompting.bounded_context(self.project_handoff.detailed_summary(), 4000, label="handoff_log")
         active_role = self._role_for_step(task=task, step=step)
-        scoped = self._role_scoped_context(active_role)
-        risk_register = self._bounded_context("risk_register", scoped["risks"], 2500)
-        issue_register = self._bounded_context("issue_register", scoped["issues"], 2500)
-        quality_register = self._bounded_context("quality_register", scoped["quality"], 2500)
-        lessons_log = self._bounded_context("lessons_log", scoped["lessons"], 2500)
-        exception_plan = self._bounded_context("exception_plan", scoped["exception_plan"], 2000)
-        model_context = self._model_context_files_section()
-        role_context = self._bounded_context("prince2_role_automation", self._prince2_role_automation_section(task, step), 2500)
-        node_context_packet = self._bounded_context("prince2_node_context_packet", self._prince2_node_context_packet(task, step), 5000)
-        tool_schema_report = self._bounded_context("model_visible_tool_schema", self._model_visible_tool_schema_section(), 6000)
-        scoped_handoff_log = self._bounded_context("handoff_log", handoff_log if scoped["handoff_log"] else "Omitted by PRINCE2 role scope.", 4000)
-        scoped_execution_log = self._bounded_context("execution_log", execution_log if scoped["execution_log"] else "Omitted by PRINCE2 role scope.", 4000)
+        scoped = _executor_prompting.role_scoped_context(self, active_role)
+        risk_register = _executor_prompting.bounded_context(scoped["risks"], 2500, label="risk_register")
+        issue_register = _executor_prompting.bounded_context(scoped["issues"], 2500, label="issue_register")
+        quality_register = _executor_prompting.bounded_context(scoped["quality"], 2500, label="quality_register")
+        lessons_log = _executor_prompting.bounded_context(scoped["lessons"], 2500, label="lessons_log")
+        exception_plan = _executor_prompting.bounded_context(scoped["exception_plan"], 2000, label="exception_plan")
+        model_context = _executor_prompting.model_context_files_section(self)
+        role_context = _executor_prompting.bounded_context(
+            _executor_prompting.prince2_role_automation_section(self, task, step),
+            2500,
+            label="prince2_role_automation",
+        )
+        node_context_packet = _executor_prompting.bounded_context(
+            _executor_prompting.prince2_node_context_packet(self, task, step),
+            5000,
+            label="prince2_node_context_packet",
+        )
+        tool_schema_report = _executor_prompting.bounded_context(
+            _executor_prompting.model_visible_tool_schema_section(self),
+            6000,
+            label="model_visible_tool_schema",
+        )
+        scoped_handoff_log = _executor_prompting.bounded_context(
+            handoff_log if scoped["handoff_log"] else "Omitted by PRINCE2 role scope.",
+            4000,
+            label="handoff_log",
+        )
+        scoped_execution_log = _executor_prompting.bounded_context(
+            execution_log if scoped["execution_log"] else "Omitted by PRINCE2 role scope.",
+            4000,
+            label="execution_log",
+        )
         selected_backend = self.shell._selected_shell_backend()
         thread_start = "\n".join(
             [
@@ -780,6 +1362,9 @@ class Executor:
             ),
             PromptSection("Recent memory", memory_summary),
         ]
+        rag_context = self._bounded_context("rag_context", self.rag.render_context(query=f"{task} {step.title} {step.instruction}", limit=5, max_chars=2500), 2500)
+        if rag_context:
+            sections.append(PromptSection("Design knowledge (RAG)", rag_context))
         transcript_items = [
             PromptTranscriptItem("handoff_log", scoped_handoff_log),
             PromptTranscriptItem("execution_log", scoped_execution_log),
@@ -827,6 +1412,7 @@ class Executor:
             sections=sections,
             transcript_items=transcript_items,
             contract_sections=contract_sections,
+            telemetry=provider_limits,
         )
 
     def _render_model_communication_packet(self, packet: ModelCommunicationPacket) -> str:
@@ -841,344 +1427,40 @@ class Executor:
         return "\n\n".join(blocks) + "\n"
 
     def _model_visible_tool_schema_report(self) -> dict[str, Any]:
-        allowed = set(ALLOWED_MODEL_ACTIONS)
-        schema_actions = set(MODEL_ACTION_SCHEMAS)
-        executor_actions = self._executor_action_branches()
-        missing_schema = sorted(allowed - schema_actions)
-        extra_schema = sorted(schema_actions - allowed)
-        missing_executor = sorted(allowed - executor_actions)
-        extra_executor = sorted(executor_actions - allowed)
-        status = "ok" if not (missing_schema or extra_schema or missing_executor or extra_executor) else "invalid"
-        tools: dict[str, list[str]] = {}
-        for action_name, schema in sorted(MODEL_ACTION_SCHEMAS.items()):
-            tools.setdefault(str(schema.get("tool", "unknown")), []).append(action_name)
-        return {
-            "status": status,
-            "action_count": len(allowed),
-            "tools": tools,
-            "missing_schema": missing_schema,
-            "extra_schema": extra_schema,
-            "missing_executor": missing_executor,
-            "extra_executor": extra_executor,
-            "rule": "Only actions listed here may be emitted by the model; required fields must be present before execution.",
-        }
+        return _executor_prompting.model_visible_tool_schema_report(self)
 
     def _model_visible_tool_schema_section(self) -> str:
-        report = self._model_visible_tool_schema_report()
-        lines = [
-            f"- status: {report['status']}",
-            f"- action_count: {report['action_count']}",
-            f"- validation_rule: {report['rule']}",
-        ]
-        for issue_key in ("missing_schema", "extra_schema", "missing_executor", "extra_executor"):
-            values = report[issue_key]
-            lines.append(f"- {issue_key}: {', '.join(values) if values else 'none'}")
-        tools = report.get("tools", {})
-        if isinstance(tools, dict):
-            for tool_name, actions in sorted(tools.items()):
-                action_list = ", ".join(str(action) for action in actions)
-                lines.append(f"- tool {tool_name}: {action_list}")
-        return "\n".join(lines)
+        return _executor_prompting.model_visible_tool_schema_section(self)
 
     def _model_action_examples_section(self) -> str:
-        lines = []
-        for index, action_name in enumerate(sorted(MODEL_ACTION_SCHEMAS), start=1):
-            schema = MODEL_ACTION_SCHEMAS[action_name]
-            required = list(schema.get("required", []))
-            optional = list(schema.get("optional", []))
-            example: dict[str, Any] = {"type": action_name}
-            for field in required:
-                example[str(field)] = self._example_value_for_action_field(str(field))
-            for field in optional:
-                if field in {"dry_run", "overwrite", "recursive", "stat"}:
-                    example[str(field)] = False
-                elif field in {"limit", "count", "occurrence"}:
-                    example[str(field)] = 1
-                elif field in {"start_line", "end_line", "line_number"}:
-                    example[str(field)] = 1
-            lines.append(f"{index}. {action_name} -> {dumps_ascii(example)}")
-        return "\n".join(lines)
+        return _executor_prompting.model_action_examples_section(self)
 
     def _example_value_for_action_field(self, field: str) -> Any:
-        examples = {
-            "command": "git status --short",
-            "session_id": "session id",
-            "path": "relative/path",
-            "content": "text",
-            "search": "old text",
-            "replace": "new text",
-            "start_line": 1,
-            "end_line": 1,
-            "count": 1,
-            "target_encoding": "utf-8",
-            "newline": "lf",
-            "source": "relative/source",
-            "destination": "relative/destination",
-            "mode": "0644",
-            "diff": "unified diff",
-            "pattern": "regex",
-            "message": "why the current step is done",
-        }
-        return examples.get(field, f"{field} value")
+        return _executor_prompting.example_value_for_action_field(field)
 
     def _executor_action_branches(self) -> set[str]:
-        source = ""
-        try:
-            source = self.__class__._run_action.__code__.co_consts.__repr__()
-        except (AttributeError, TypeError):
-            source = ""
-        discovered = {
-            item
-            for item in ALLOWED_MODEL_ACTIONS
-            if f"'{item}'" in source or f'"{item}"' in source
-        }
-        return discovered
+        return _executor_prompting.executor_action_branches(self)
 
     def _prince2_role_automation_section(self, task: str, step: PlanStep) -> str:
-        active_role = self._role_for_step(task=task, step=step)
-        active_node = self._role_tree_node_for_step(task=task, step=step, role=active_role)
-        context_rule = active_node.get("context_rule", {}) if active_node else {}
-        context_include = context_rule.get("include", []) if isinstance(context_rule, dict) else []
-        context_exclude = context_rule.get("exclude", []) if isinstance(context_rule, dict) else []
-        lines = [
-            f"- active_role: {active_role}",
-            f"- active_role_node: {active_node.get('node_id', 'unbaselined') if active_node else 'unbaselined'}",
-            f"- active_role_parent_node: {active_node.get('parent_id') or 'none' if active_node else 'none'}",
-            f"- active_role_level: {active_node.get('level', 'unbaselined') if active_node else 'unbaselined'}",
-            f"- active_role_responsibility: {PRINCE2_ROLE_AUTOMATION_RULES.get(active_role, 'controlled project work')}",
-            f"- active_node_accountability_boundary: {active_node.get('accountability_boundary', 'static role fallback') if active_node else 'static role fallback'}",
-            f"- active_node_delegated_authority: {active_node.get('delegated_authority', 'static role fallback') if active_node else 'static role fallback'}",
-            "- automation_rule: plan via Project Manager, deliver via Team Manager, validate via Project Assurance, escalate exceptions or tolerance breaches via Change Authority.",
-            "- governance_rule: do not bypass accountability; record evidence in handoff and use Project Executive for business/cost/benefit stop-go decisions.",
-            f"- context_scope: {self._role_scope_description(active_role, active_node)}",
-            f"- context_include: {', '.join(str(item) for item in context_include) if context_include else 'static role fallback'}",
-            f"- context_exclude: {', '.join(str(item) for item in context_exclude) if context_exclude else 'static role fallback'}",
-            self._active_flow_context(active_node),
-        ]
-        assignment = active_node.get("assignment", {}) if active_node else {}
-        if not isinstance(assignment, dict) or not assignment:
-            assignment = self.project_handoff.prince2_roles.get(active_role, {})
-        pools = active_node.get("assignment_pool", {}) if active_node and isinstance(active_node.get("assignment_pool"), dict) else {}
-        if assignment:
-            params = assignment.get("params", {})
-            params_text = ",".join(f"{key}={value}" for key, value in sorted(params.items())) if isinstance(params, dict) else ""
-            lines.append(
-                f"- active_role_route: provider={assignment.get('provider', 'unknown')} "
-                f"provider_model={assignment.get('provider_model', 'unknown')} "
-                f"account={assignment.get('account') or 'none'}"
-                + (f" params={params_text}" if params_text else "")
-            )
-        else:
-            lines.append("- active_role_route: unassigned; use router default and preserve role accountability in reasoning.")
-        for pool_name in ("reviewer", "fallback"):
-            routes = pools.get(pool_name, []) if isinstance(pools.get(pool_name, []), list) else []
-            if routes:
-                rendered = []
-                for route in routes:
-                    if not isinstance(route, dict):
-                        continue
-                    rendered.append(
-                        f"{route.get('provider', 'unknown')}:{route.get('provider_model', 'provider-default')}"
-                        + (f":{route.get('account')}" if route.get("account") else "")
-                    )
-                lines.append(f"- active_role_{pool_name}_pool: {', '.join(rendered) if rendered else 'none'}")
-        return "\n".join(lines)
+        return _executor_prompting.prince2_role_automation_section(self, task, step)
 
     def _prince2_node_context_packet(self, task: str, step: PlanStep) -> str:
-        active_role = self._role_for_step(task=task, step=step)
-        active_node = self._role_tree_node_for_step(task=task, step=step, role=active_role)
-        runtime = self.project_handoff.prince2_node_runtime if isinstance(self.project_handoff.prince2_node_runtime, dict) else {}
-        runtime_nodes = [node for node in runtime.get("nodes", []) if isinstance(node, dict)]
-        runtime_node = None
-        if active_node:
-            node_id = str(active_node.get("node_id", "")).strip()
-            runtime_node = next((item for item in runtime_nodes if str(item.get("node_id", "")).strip() == node_id), None)
-        node = runtime_node or active_node or {}
-        context_rule = node.get("context_rule", {}) if isinstance(node.get("context_rule"), dict) else {}
-        assignment = node.get("assignment", {}) if isinstance(node.get("assignment"), dict) else {}
-        flow = build_prince2_role_flow()
-        edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
-        node_id = str(node.get("node_id", "")).strip()
-        incoming = [edge for edge in edges if str(edge.get("target_node", "")).strip() == node_id]
-        outgoing = [edge for edge in edges if str(edge.get("source_node", "")).strip() == node_id]
-        runtime_capabilities = detect_runtime_capabilities(self.config.workspace_root)
-        selected_backend = self.shell._selected_shell_backend()
-        lines = [
-            f"- node_id: {node_id or 'unbaselined'}",
-            f"- node_label: {node.get('label', 'unbaselined')}",
-            f"- role_type: {node.get('role_type', active_role)}",
-            f"- runtime_state: {node.get('state', 'unknown')}",
-            f"- wait_status: {node.get('wait_status', 'none')}",
-            f"- wait_reason: {node.get('wait_reason') or 'none'}",
-            f"- wake_triggers: {', '.join(str(item) for item in node.get('wake_triggers', [])) if isinstance(node.get('wake_triggers', []), list) and node.get('wake_triggers', []) else 'none'}",
-            f"- inbox_count: {node.get('inbox_count', 0)} outbox_count: {node.get('outbox_count', 0)}",
-            f"- transcript_refs: {', '.join(str(item) for item in node.get('transcript_refs', [])) if isinstance(node.get('transcript_refs', []), list) and node.get('transcript_refs', []) else 'none'}",
-            f"- provider: {assignment.get('provider', 'unknown') if assignment else 'unassigned'}",
-            f"- provider_model: {assignment.get('provider_model', 'unknown') if assignment else 'unassigned'}",
-            f"- account: {assignment.get('account') or 'none' if assignment else 'none'}",
-            f"- responsibility_domain: {node.get('responsibility_domain', PRINCE2_ROLE_AUTOMATION_RULES.get(active_role, 'controlled project work'))}",
-            f"- context_scope: {node.get('context_scope', PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(active_role, 'controlled project work'))}",
-            f"- accountability_boundary: {node.get('accountability_boundary', 'static role fallback')}",
-            f"- delegated_authority: {node.get('delegated_authority', 'static role fallback')}",
-            f"- context_include: {', '.join(str(item) for item in context_rule.get('include', [])) if isinstance(context_rule.get('include', []), list) and context_rule.get('include', []) else 'none'}",
-            f"- context_exclude: {', '.join(str(item) for item in context_rule.get('exclude', [])) if isinstance(context_rule.get('exclude', []), list) and context_rule.get('exclude', []) else 'none'}",
-            f"- communication_incoming_edges: {', '.join(str(edge.get('edge_id')) for edge in incoming) if incoming else 'none'}",
-            f"- communication_outgoing_edges: {', '.join(str(edge.get('edge_id')) for edge in outgoing) if outgoing else 'none'}",
-            "- communication_commands: roles active [--json] | roles control [--json] | roles queues [--json] | roles messages [node_id] | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text> | role wake <node_id> trigger=<name> | role tick <node_id> | roles tick [max_nodes]",
-            f"- workspace: {self.config.workspace_root}",
-            f"- os_family: {runtime_capabilities.get('os_family', 'unknown')}",
-            f"- recommended_shell: {runtime_capabilities.get('recommended_shell', 'unknown')}",
-            f"- shell_backend_selected: {selected_backend.get('selected') or 'unknown'}",
-            f"- core_agent_capabilities: shell=true files=true git=true wet_run_required=true",
-            f"- model_actions: {', '.join(sorted(ALLOWED_MODEL_ACTIONS))}",
-            "- file_operations: read_file, inspect_file, inspect_metadata_file, write_file, apply_patch, search_replace_file, insert_text_file, delete_range_file, delete_backward_file, replace_range_file, convert_encoding_file, normalize_line_endings_file, copy_path_file, move_path_file, delete_path_file, chmod_path_file, chown_path_file, patch_file, patch_files, preview_patch_files, list_files, search_files",
-            "- git_operations: git_status, git_diff, git_log, git_show, git_file_history, git_commit",
-            "- shell_operations: shell, shell_session_create, shell_session_send, shell_session_close",
-            f"- project_task: {self.project_handoff.task or 'none'}",
-            f"- project_status: {self.project_handoff.status or 'idle'}",
-            f"- current_step: {self.project_handoff.current_step_id or 'none'} [{self.project_handoff.current_step_status or 'none'}]",
-        ]
-        return "\n".join(lines)
+        return _executor_prompting.prince2_node_context_packet(self, task, step)
 
     def _active_flow_context(self, active_node: dict[str, Any]) -> str:
-        node_id = str(active_node.get("node_id", "")) if active_node else ""
-        flow = build_prince2_role_flow()
-        edges = [edge for edge in flow.get("edges", []) if isinstance(edge, dict)]
-        incoming = [edge for edge in edges if edge.get("target_node") == node_id]
-        outgoing = [edge for edge in edges if edge.get("source_node") == node_id]
-        if not node_id:
-            return "- active_flow_edges: none; context expansion requires formal PRINCE2 event."
-        lines = [
-            "- active_flow_rule: context moves only through approved PRINCE2 flow edges; fallback changes route, not context scope.",
-            f"- active_flow_incoming: {', '.join(str(edge.get('edge_id')) for edge in incoming) if incoming else 'none'}",
-            f"- active_flow_outgoing: {', '.join(str(edge.get('edge_id')) for edge in outgoing) if outgoing else 'none'}",
-        ]
-        for edge in incoming + outgoing:
-            payload = edge.get("payload_scope", [])
-            payload_text = ", ".join(str(item) for item in payload) if isinstance(payload, list) else str(payload)
-            lines.append(
-                f"- flow_edge {edge.get('edge_id')}: trigger={edge.get('trigger')} "
-                f"type={edge.get('flow_type')} payload_scope={payload_text} "
-                f"validation={edge.get('validation_condition')}"
-            )
-        return "\n".join(lines)
+        return _executor_prompting.active_flow_context(self, active_node)
 
     def _role_scoped_context(self, role: str) -> dict[str, str | bool]:
-        rendered = {
-            "risks": self.project_handoff.rendered_risks(),
-            "issues": self.project_handoff.rendered_issues(),
-            "quality": self.project_handoff.rendered_quality(),
-            "lessons": self.project_handoff.rendered_lessons(),
-            "exception_plan": self.project_handoff.rendered_exception_plan(),
-        }
-        omitted = "Omitted by PRINCE2 role scope."
-        if role == "team_manager":
-            return {
-                "risks": omitted,
-                "issues": omitted,
-                "quality": rendered["quality"],
-                "lessons": rendered["lessons"],
-                "exception_plan": omitted,
-                "handoff_log": False,
-                "execution_log": False,
-            }
-        if role == "project_assurance":
-            return {
-                "risks": rendered["risks"],
-                "issues": rendered["issues"],
-                "quality": rendered["quality"],
-                "lessons": rendered["lessons"],
-                "exception_plan": omitted,
-                "handoff_log": True,
-                "execution_log": True,
-            }
-        if role == "change_authority":
-            return {
-                "risks": rendered["risks"],
-                "issues": rendered["issues"],
-                "quality": rendered["quality"],
-                "lessons": rendered["lessons"],
-                "exception_plan": rendered["exception_plan"],
-                "handoff_log": True,
-                "execution_log": False,
-            }
-        if role == "project_executive":
-            return {
-                "risks": rendered["risks"],
-                "issues": rendered["issues"],
-                "quality": omitted,
-                "lessons": rendered["lessons"],
-                "exception_plan": rendered["exception_plan"],
-                "handoff_log": True,
-                "execution_log": False,
-            }
-        if role in {"senior_user", "senior_supplier"}:
-            return {
-                "risks": rendered["risks"],
-                "issues": rendered["issues"],
-                "quality": rendered["quality"],
-                "lessons": rendered["lessons"],
-                "exception_plan": omitted,
-                "handoff_log": False,
-                "execution_log": False,
-            }
-        if role == "project_support":
-            return {
-                "risks": omitted,
-                "issues": rendered["issues"],
-                "quality": rendered["quality"],
-                "lessons": rendered["lessons"],
-                "exception_plan": rendered["exception_plan"],
-                "handoff_log": True,
-                "execution_log": True,
-            }
-        return {
-            "risks": rendered["risks"],
-            "issues": rendered["issues"],
-            "quality": rendered["quality"],
-            "lessons": rendered["lessons"],
-            "exception_plan": rendered["exception_plan"],
-            "handoff_log": True,
-            "execution_log": True,
-        }
+        return _executor_prompting.role_scoped_context(self, role)
 
     def _role_scope_description(self, role: str, node: dict[str, Any] | None = None) -> str:
-        node = node or self._role_tree_node_for_role(role)
-        if node.get("context_scope"):
-            return str(node["context_scope"])
-        return PRINCE2_ROLE_SCOPE_DESCRIPTIONS.get(role, "controlled project work")
+        return _executor_prompting.role_scope_description(self, role, node=node)
 
     def _model_context_files_section(self) -> str:
-        status = self.git.status()
-        porcelain = self.git.status_porcelain()
-        dirty_state = "unknown"
-        status_preview = status.stdout or status.error
-        if porcelain.ok:
-            dirty_state = "dirty" if porcelain.stdout.strip() else "clean"
-        elif status.ok:
-            dirty_state = "dirty" if status.stdout and any(line and not line.startswith("##") for line in status.stdout.splitlines()) else "clean"
-        view = self.project_handoff.stage_view()
-        backlog = view["backlog_statuses"]
-        git_boundary = view["git_boundary"]
-        lines = [
-            f"- handoff_file: {self.config.handoff_path.name}",
-            f"- memory_file: {self.config.memory_path.name}",
-            f"- trace_file: {self.config.trace_path.name}",
-            f"- recovery_state: {view['recovery_state']}",
-            f"- backlog_status: ready={backlog['ready']} planned={backlog['planned']} in_progress={backlog['in_progress']} blocked={backlog['blocked']} done={backlog['done']}",
-            f"- git_boundary: baseline={git_boundary['baseline']} current={git_boundary['current']}",
-            f"- git_dirty_state: {dirty_state}",
-            f"- git_status: {self._bounded_context('git_status', status_preview or 'No git status available.', 1200)}",
-            "- context_boundaries: sections are truncated with explicit markers; consult files through read_file when exact full context is needed.",
-        ]
-        return "\n".join(lines)
+        return _executor_prompting.model_context_files_section(self)
 
     def _bounded_context(self, label: str, text: str, limit: int) -> str:
-        clean = text if text else ""
-        if len(clean) <= limit:
-            return clean
-        remaining = len(clean) - limit
-        return f"{clean[:limit]}\n[truncated {label}: {remaining} chars omitted]"
+        return _executor_prompting.bounded_context(text, limit, label=label)
 
     def _parse_model_json(self, raw: str) -> dict[str, Any]:
         text = raw.strip()
@@ -1203,6 +1485,53 @@ class Executor:
         if schema_error:
             return {"ok": False, "error": schema_error}
         return {"ok": True, "action": action, "payload": payload}
+
+    def _parse_devil_advocate_json(self, raw: str) -> dict[str, Any]:
+        text = raw.strip()
+        candidates = self._json_candidates(text)
+        payload = None
+        last_error: Exception | None = None
+        for candidate in candidates:
+            try:
+                payload = loads_text(candidate)
+                break
+            except ValueError as exc:
+                last_error = exc
+
+        if payload is None:
+            error = f"Devil advocate review did not return valid JSON: {last_error}" if last_error else "No JSON object found."
+            return {"ok": False, "error": error}
+
+        verdict = str(payload.get("verdict", "")).strip().lower()
+        if verdict not in {"accept", "revise", "block"}:
+            return {"ok": False, "error": "Devil advocate review is missing a valid verdict."}
+
+        contradictions = payload.get("contradictions")
+        if contradictions is not None and not (isinstance(contradictions, list) and all(isinstance(item, str) for item in contradictions)):
+            return {"ok": False, "error": "Devil advocate review field 'contradictions' must be a list of strings."}
+
+        missing_evidence = payload.get("missing_evidence")
+        if missing_evidence is not None and not (
+            isinstance(missing_evidence, list) and all(isinstance(item, str) for item in missing_evidence)
+        ):
+            return {"ok": False, "error": "Devil advocate review field 'missing_evidence' must be a list of strings."}
+
+        counter_argument = payload.get("counter_argument")
+        if counter_argument is not None and not isinstance(counter_argument, str):
+            return {"ok": False, "error": "Devil advocate review field 'counter_argument' must be a string."}
+
+        must_escalate = payload.get("must_escalate")
+        if must_escalate is not None and not isinstance(must_escalate, bool):
+            return {"ok": False, "error": "Devil advocate review field 'must_escalate' must be boolean."}
+
+        confidence = payload.get("confidence")
+        if confidence is not None:
+            if not isinstance(confidence, int | float) or isinstance(confidence, bool):
+                return {"ok": False, "error": "Devil advocate review field 'confidence' must be a number from 0.0 to 1.0."}
+            if confidence < 0 or confidence > 1:
+                return {"ok": False, "error": "Devil advocate review field 'confidence' must be a number from 0.0 to 1.0."}
+
+        return {"ok": True, "payload": payload}
 
     def _validate_model_result_schema(self, payload: dict[str, Any], action: dict[str, Any]) -> str:
         summary = payload.get("summary")
@@ -1294,22 +1623,32 @@ class Executor:
     def _run_action(self, action: dict[str, Any], *, iteration: int = 0, step_id: str = "") -> dict[str, Any]:
         action_type = action.get("type")
         if action_type == "shell":
+            command = str(action.get("command", ""))
+            status_before = self.git.status_porcelain().stdout.strip() if self._is_shell_command_likely_mutating(command) else ""
+            head_before = self.git.head().stdout.strip() if "git commit" in command.lower() else ""
             result = self.shell.run(action.get("command", ""), cwd=action.get("cwd"))
+            verification_ok, verification_message = self._verify_shell_action(command, result, status_before=status_before, head_before=head_before)
             observation = {
                 "ok": result.ok,
                 "message": result.output_preview or result.error or "Shell command executed.",
                 "error_type": "runtime_error",
             }
+            if result.ok and verification_message:
+                observation["message"] = f"{observation['message']}\n{verification_message}"
+            if result.ok and not verification_ok:
+                observation["ok"] = False
+                observation["message"] = f"{observation['message']}\n{verification_message}"
+                observation["error_type"] = "verification_failed"
             self._record_tool_transcript(
                 iteration=iteration,
                 step_id=step_id,
                 tool="shell",
                 action_type=str(action_type),
-                success=result.ok,
-                summary=action.get("command", ""),
-                detail=result.output_preview or result.error,
+                success=bool(observation["ok"]),
+                summary=command,
+                detail=observation["message"],
                 duration_ms=result.duration_ms,
-                error_type=None if result.ok else "runtime_error",
+                error_type=None if observation["ok"] else observation["error_type"],
             )
             return observation
 
@@ -1320,9 +1659,19 @@ class Executor:
             return observation
 
         if action_type == "shell_session_send":
-            result = self.shell.send_session(action.get("session_id", ""), action.get("command", ""))
-            observation = {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary=action.get("command", ""), detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error")
+            command = str(action.get("command", ""))
+            status_before = self.git.status_porcelain().stdout.strip() if self._is_shell_command_likely_mutating(command) else ""
+            head_before = self.git.head().stdout.strip() if "git commit" in command.lower() else ""
+            result = self.shell.send_session(action.get("session_id", ""), command)
+            verification_ok, verification_message = self._verify_shell_action(command, result, status_before=status_before, head_before=head_before)
+            observation = {"ok": result.ok, "message": result.output_preview or result.error or "Shell session command executed.", "error_type": "runtime_error"}
+            if result.ok and verification_message:
+                observation["message"] = f"{observation['message']}\n{verification_message}"
+            if result.ok and not verification_ok:
+                observation["ok"] = False
+                observation["message"] = f"{observation['message']}\n{verification_message}"
+                observation["error_type"] = "verification_failed"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=bool(observation["ok"]), summary=command, detail=observation["message"], duration_ms=result.duration_ms, error_type=None if observation["ok"] else observation["error_type"])
             return observation
 
         if action_type == "shell_session_close":
@@ -1357,9 +1706,15 @@ class Executor:
 
         if action_type == "write_file":
             result = self.files.write(action.get("path", ""), action.get("content", ""))
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
             message = f"Wrote file {result.path}" if result.ok else result.error
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "apply_patch":
             result = self.files.apply_patch(
@@ -1367,9 +1722,15 @@ class Executor:
                 action.get("search", ""),
                 action.get("replace", ""),
             )
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
             message = f"Patched file {result.path}" if result.ok else result.error
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "search_replace_file":
             result = self.files.search_replace(
@@ -1380,8 +1741,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("search-replaced", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "insert_text_file":
             result = self.files.insert_text(
@@ -1394,8 +1761,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_range_file":
             result = self.files.delete_range(
@@ -1405,8 +1778,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_backward_file":
             result = self.files.delete_backward(
@@ -1418,8 +1797,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "replace_range_file":
             result = self.files.replace_range(
@@ -1430,8 +1815,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("edited", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "convert_encoding_file":
             result = self.files.convert_encoding(
@@ -1441,8 +1832,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("converted", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "normalize_line_endings_file":
             result = self.files.normalize_line_endings(
@@ -1451,10 +1848,17 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("normalized", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "copy_path_file":
+            source_snapshot = self._snapshot_workspace_path(action.get("source", ""))
             result = self.files.copy_path(
                 action.get("source", ""),
                 action.get("destination", ""),
@@ -1462,10 +1866,17 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("copied", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result, source_snapshot=source_snapshot)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "move_path_file":
+            source_snapshot = self._snapshot_workspace_path(action.get("source", ""))
             result = self.files.move_path(
                 action.get("source", ""),
                 action.get("destination", ""),
@@ -1473,8 +1884,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("moved", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result, source_snapshot=source_snapshot)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_path_file":
             result = self.files.delete_path(
@@ -1483,8 +1900,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("deleted", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "chmod_path_file":
             result = self.files.chmod_path(
@@ -1494,8 +1917,14 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("chmod-updated", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "chown_path_file":
             result = self.files.chown_path(
@@ -1506,20 +1935,40 @@ class Executor:
                 dry_run=bool(action.get("dry_run", False)),
             )
             message = self._file_edit_message("chown-updated", result, dry_run=bool(action.get("dry_run", False)))
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "patch_file":
             result = self.files.patch(action.get("path", ""), action.get("diff", ""))
             message = f"Patched file {result.path}" if result.ok else result.error
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "patch_files":
+            patch_plan = self._snapshot_patch_plan(action.get("diff", ""))
+            status_before = self.git.status_porcelain().stdout.strip()
             result = self.files.patch_files(action.get("diff", ""))
             message = f"Patched files:\n{result.content}" if result.ok else result.error
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary="multi-file patch", detail=message, error_type=None if result.ok else "file_error")
-            return {"ok": result.ok, "message": message, "error_type": "file_error"}
+            verification_ok, verification_message = self._verify_file_action(action_type, action, result, git_status_before=status_before, patch_plan=patch_plan)
+            if result.ok and verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            if result.ok and not verification_ok:
+                message = f"{message}\n{verification_message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary="multi-file patch", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "preview_patch_files":
             result = self.files.preview_patch_files(action.get("diff", ""))
@@ -1569,13 +2018,146 @@ class Executor:
             return self._git_observation(iteration, step_id, str(action_type), action.get("path", ""), result.stdout or result.error or "No file history.", result.ok)
 
         if action_type == "git_commit":
+            head_before = self._git_head()
             result = self.git.commit(action.get("message", "Agent commit"))
-            return self._git_observation(iteration, step_id, str(action_type), action.get("message", "Agent commit"), result.stdout or result.error or "Committed.", result.ok)
+            verification_ok, verification_message = self._verify_git_commit_action(result, head_before=head_before)
+            message = result.stdout or result.error or "Committed."
+            if verification_message:
+                message = f"{message}\n{verification_message}"
+            ok = bool(result.ok and verification_ok)
+            self._record_tool_transcript(
+                iteration=iteration,
+                step_id=step_id,
+                tool="git",
+                action_type=str(action_type),
+                success=ok,
+                summary=action.get("message", "Agent commit"),
+                detail=message,
+                error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "git_error"),
+            )
+            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "git_error"}
+
+        if action_type == "rag_search":
+            query = str(action.get("query", ""))
+            phase = action.get("phase")
+            tags = action.get("tags")
+            try:
+                limit = max(1, int(action.get("limit", 5)))
+            except (TypeError, ValueError):
+                message = "rag_search limit must be an integer."
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
+                return {"ok": False, "message": message, "error_type": "invalid_output"}
+            mode = str(action.get("mode", "hybrid"))
+            if mode not in {"lexical", "vector", "hybrid"}:
+                message = "rag_search mode must be lexical, vector, or hybrid."
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_search: {query}", detail=message, error_type="invalid_output")
+                return {"ok": False, "message": message, "error_type": "invalid_output"}
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(",") if t.strip()]
+            results = self.rag.search(query, phase=str(phase) if phase else None, tags=tags, limit=limit, mode=mode)
+            if results:
+                lines = ["Design knowledge search results (untrusted reference data):"]
+                for r in results:
+                    entry_id = _prompt_safe_inline(r.entry_id)
+                    phase_text = _prompt_safe_inline(r.phase)
+                    title = _prompt_safe_inline(r.title)
+                    tags_text = ", ".join(_prompt_safe_inline(tag) for tag in r.tags)
+                    content = _prompt_safe_block(r.content[:500])
+                    lines.append(f"- [{entry_id}] [{phase_text}] {title} (tags: {tags_text})\n  ```text\n{content}\n  ```")
+                message = "\n".join(lines)
+            else:
+                message = "No design knowledge entries found."
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_search: {query} mode={mode}", detail=message, error_type=None)
+            return {"ok": True, "message": message, "error_type": None}
+
+        if action_type == "rag_add":
+            phase = str(action.get("phase", ""))
+            title = str(action.get("title", ""))
+            content = str(action.get("content", ""))
+            tags = action.get("tags", [])
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(",") if t.strip()]
+            metadata = action.get("metadata", {})
+            if not phase or not title or not content:
+                message = "rag_add requires phase, title, and content fields."
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary="rag_add: missing fields", detail=message, error_type="invalid_output")
+                return {"ok": False, "message": message, "error_type": "invalid_output"}
+            snapshot = self._rag_state_snapshot()
+            entry = self.rag.add(phase=phase, tags=list(tags) if isinstance(tags, list) else [], title=title, content=content, metadata=dict(metadata) if isinstance(metadata, dict) else {})
+            save_error = self._save_rag_action_error()
+            if save_error:
+                self._restore_rag_state(snapshot)
+                message = f"Failed to persist design knowledge entry {entry.entry_id}: {save_error}"
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_add: {title}", detail=message, error_type="persistence_error")
+                return {"ok": False, "message": message, "error_type": "persistence_error"}
+            message = f"Added design knowledge entry {entry.entry_id}: [{phase}] {title}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_add: {title}", detail=message, error_type=None)
+            return {"ok": True, "message": message, "error_type": None}
+
+        if action_type == "rag_update":
+            entry_id = str(action.get("entry_id", ""))
+            tags = action.get("tags")
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(",") if t.strip()]
+            metadata = action.get("metadata")
+            snapshot = self._rag_state_snapshot()
+            entry = self.rag.update(
+                entry_id,
+                phase=str(action["phase"]) if action.get("phase") is not None else None,
+                title=str(action["title"]) if action.get("title") is not None else None,
+                content=str(action["content"]) if action.get("content") is not None else None,
+                tags=list(tags) if isinstance(tags, list) else None,
+                metadata=dict(metadata) if isinstance(metadata, dict) else None,
+            )
+            if entry is None:
+                message = f"Design knowledge entry not found: {entry_id}"
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_update: {entry_id}", detail=message, error_type="not_found")
+                return {"ok": False, "message": message, "error_type": "not_found"}
+            save_error = self._save_rag_action_error()
+            if save_error:
+                self._restore_rag_state(snapshot)
+                message = f"Failed to persist design knowledge entry {entry.entry_id}: {save_error}"
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_update: {entry_id}", detail=message, error_type="persistence_error")
+                return {"ok": False, "message": message, "error_type": "persistence_error"}
+            message = f"Updated design knowledge entry {entry.entry_id}: [{entry.phase}] {entry.title}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=True, summary=f"rag_update: {entry_id}", detail=message, error_type=None)
+            return {"ok": True, "message": message, "error_type": None}
+
+        if action_type == "rag_remove":
+            entry_id = str(action.get("entry_id", ""))
+            snapshot = self._rag_state_snapshot()
+            removed = self.rag.remove(entry_id)
+            if removed:
+                save_error = self._save_rag_action_error()
+                if save_error:
+                    self._restore_rag_state(snapshot)
+                    message = f"Failed to persist removal for design knowledge entry {entry_id}: {save_error}"
+                    self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=False, summary=f"rag_remove: {entry_id}", detail=message, error_type="persistence_error")
+                    return {"ok": False, "message": message, "error_type": "persistence_error"}
+            message = f"Removed design knowledge entry {entry_id}." if removed else f"Design knowledge entry not found: {entry_id}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="rag", action_type=str(action_type), success=removed, summary=f"rag_remove: {entry_id}", detail=message, error_type=None if removed else "not_found")
+            return {"ok": removed, "message": message, "error_type": None if removed else "not_found"}
 
         if action_type == "complete":
             return {"ok": True, "message": action.get("message", "Step completed.")}
 
         return {"ok": False, "message": f"Unsupported action type: {action_type}", "error_type": "invalid_output"}
+
+    def _rag_state_snapshot(self) -> tuple[list[object], dict[str, list[float]], int]:
+        return (deepcopy(self.rag.entries), {key: list(value) for key, value in self.rag.vector_index.items()}, self.rag._next_id)
+
+    def _restore_rag_state(self, snapshot: tuple[list[object], dict[str, list[float]], int]) -> None:
+        entries, vector_index, next_id = snapshot
+        self.rag.entries = deepcopy(entries)
+        self.rag.vector_index = {key: list(value) for key, value in vector_index.items()}
+        self.rag._next_id = next_id
+
+    def _save_rag_action_error(self) -> str:
+        try:
+            self.rag.save(self.config.rag_path)
+        except OSError as exc:
+            return str(exc)
+        return ""
 
     def _record_tool_transcript(
         self,
@@ -1625,6 +2207,257 @@ class Executor:
             error_type=None if ok else "git_error",
         )
         return {"ok": ok, "message": message, "error_type": "git_error"}
+
+    def _is_shell_command_likely_mutating(self, command: str) -> bool:
+        lowered = command.lower().strip()
+        if not lowered:
+            return False
+        if ">" in command or ">>" in command or "| tee" in lowered:
+            return True
+        mutation_tokens = (
+            "git add",
+            "git commit",
+            "git rm",
+            "git mv",
+            "git merge",
+            "git rebase",
+            "git reset",
+            "mkdir ",
+            "touch ",
+            "cp ",
+            "mv ",
+            "rm ",
+            "ln ",
+            "chmod ",
+            "chown ",
+            "truncate",
+            "sed -i",
+            "perl -i",
+            "install ",
+        )
+        return any(token in lowered for token in mutation_tokens)
+
+    def _snapshot_workspace_path(self, path: str) -> dict[str, Any] | None:
+        candidate = str(path).strip()
+        if not candidate:
+            return None
+        read_result = self.files.read(candidate)
+        if read_result.ok:
+            return {
+                "kind": "file",
+                "path": read_result.path,
+                "content": read_result.content,
+            }
+        metadata = self.files.inspect_metadata(candidate)
+        if metadata.ok and isinstance(metadata.report, dict):
+            report = dict(metadata.report)
+            return {
+                "kind": str(report.get("kind", "other")),
+                "path": metadata.path,
+                "report": report,
+            }
+        return None
+
+    def _normalize_for_verification(self, content: str) -> str:
+        return content.replace("\r\n", "\n").replace("\r", "\n")
+
+    def _snapshot_patch_plan(self, diff: str) -> list[dict[str, Any]]:
+        plan: list[dict[str, Any]] = []
+        for patch in self.files._parse_file_patches(diff):  # noqa: SLF001
+            target = self.files._target_path(str(patch["old_path"]), str(patch["new_path"]))  # noqa: SLF001
+            if target is None:
+                continue
+            operation = str(patch["operation"])
+            try:
+                original_exists = target.exists()
+                original_content = self.files.read(str(target)).content if original_exists else ""
+            except OSError:
+                original_exists = False
+                original_content = ""
+            plan.append(
+                {
+                    "target": str(target),
+                    "operation": operation,
+                    "hunks": patch["hunks"],
+                    "original_exists": original_exists,
+                    "original_content": original_content,
+                }
+            )
+        return plan
+
+    def _verify_shell_action(self, command: str, result: object, *, status_before: str, head_before: str = "") -> tuple[bool, str]:
+        if not bool(getattr(result, "ok", False)):
+            return False, str(getattr(result, "error", "")) or "Shell command failed."
+        preview = str(getattr(result, "output_preview", "")) or str(getattr(result, "error", "")) or ""
+        if not self._is_shell_command_likely_mutating(command):
+            return True, "Verified shell command output."
+        lowered = command.lower()
+        if "git commit" in lowered:
+            if "No changes to commit." in preview:
+                return True, "Verified shell git commit: no changes to commit."
+            head_after = self.git.head()
+            if not head_after.ok:
+                return False, f"Verification failed: unable to read git HEAD after shell git commit: {head_after.error or head_after.stderr or 'unknown'}"
+            if not head_before:
+                return False, "Verification failed: git HEAD before shell git commit was unavailable."
+            if head_after.stdout.strip() == head_before.strip():
+                return False, "Verification failed: shell git commit did not advance HEAD."
+            return True, f"Verified shell git commit at {head_after.stdout.strip()[:12]}."
+        status_after = self.git.status_porcelain()
+        if not status_after.ok:
+            return False, f"Verification failed: unable to inspect git status after shell command: {status_after.error or status_after.stderr or 'unknown'}"
+        if status_after.stdout.strip() != status_before.strip():
+            return True, "Verified shell command via workspace change."
+        if any(token in preview.lower() for token in ("wrote", "created", "updated", "copied", "moved", "deleted", "removed", "installed", "saved", "committed")):
+            return True, "Verified shell command via output evidence."
+        return False, "Verification failed: shell command reported success but left no concrete workspace evidence."
+
+    def _verify_file_action(
+        self,
+        action_type: str,
+        action: dict[str, Any],
+        result: object,
+        *,
+        source_snapshot: dict[str, Any] | None = None,
+        git_status_before: str = "",
+        patch_plan: list[dict[str, Any]] | None = None,
+    ) -> tuple[bool, str]:
+        if not bool(getattr(result, "ok", False)):
+            return False, str(getattr(result, "error", "")) or "File action failed."
+
+        report = getattr(result, "report", None)
+        if not isinstance(report, dict):
+            report = {}
+        dry_run = bool(action.get("dry_run", False)) or bool(report.get("dry_run", False))
+        if dry_run:
+            return True, f"Verified dry-run preview for {action_type}."
+
+        if action_type == "delete_path_file":
+            target = str(action.get("path", "")).strip()
+            if not target:
+                return False, "Verification failed: delete_path_file is missing the target path."
+            target_state = self.files.inspect_metadata(target)
+            if target_state.ok:
+                return False, f"Verification failed: path still exists after delete_path_file: {target_state.path}."
+            return True, f"Verified delete_path_file removed {target}."
+
+        if action_type in {"copy_path_file", "move_path_file"}:
+            source = str(action.get("source", "")).strip()
+            destination = str(action.get("destination", "")).strip()
+            if not source or not destination:
+                return False, "Verification failed: copy/move path is missing source or destination."
+            destination_state = self.files.inspect_metadata(destination)
+            if not destination_state.ok or not isinstance(destination_state.report, dict):
+                return False, f"Verification failed: destination could not be inspected after {action_type}: {destination_state.error or getattr(destination_state, 'stderr', '') or 'unknown'}."
+            source_state_after = self.files.inspect_metadata(source)
+            if action_type == "move_path_file":
+                if source_state_after.ok:
+                    return False, f"Verification failed: move_path_file left the source present: {source_state_after.path}."
+            elif not source_state_after.ok:
+                return False, f"Verification failed: copy_path_file removed or hid the source unexpectedly: {source_state_after.error or getattr(source_state_after, 'stderr', '') or 'unknown'}."
+
+            if source_snapshot and source_snapshot.get("kind") == "file":
+                destination_read = self.files.read(destination)
+                if not destination_read.ok:
+                    return False, f"Verification failed: unable to read copied/moved file {destination}: {destination_read.error}."
+                if self._normalize_for_verification(destination_read.content) != self._normalize_for_verification(str(source_snapshot.get("content", ""))):
+                    return False, f"Verification failed: {action_type} destination content does not match the source snapshot."
+            elif source_snapshot:
+                destination_kind = str(destination_state.report.get("kind", ""))
+                if destination_kind != str(source_snapshot.get("kind", "")):
+                    return False, f"Verification failed: {action_type} destination kind {destination_kind!r} does not match source kind {source_snapshot.get('kind')!r}."
+            return True, f"Verified {action_type} from {source} to {destination}."
+
+        if action_type == "chmod_path_file":
+            target = str(action.get("path", "")).strip()
+            if not target:
+                return False, "Verification failed: chmod_path_file is missing the target path."
+            expected_mode = str(report.get("mode", "")).strip()
+            metadata = self.files.inspect_metadata(target)
+            if not metadata.ok or not isinstance(metadata.report, dict):
+                return False, f"Verification failed: unable to inspect metadata for chmod_path_file: {metadata.error or getattr(metadata, 'stderr', '') or 'unknown'}."
+            actual_mode = str(metadata.report.get("mode_octal", "")).strip()
+            if expected_mode and actual_mode != expected_mode:
+                return False, f"Verification failed: chmod_path_file mode mismatch expected={expected_mode} actual={actual_mode}."
+            return True, f"Verified chmod_path_file on {target}."
+
+        if action_type == "chown_path_file":
+            target = str(action.get("path", "")).strip()
+            if not target:
+                return False, "Verification failed: chown_path_file is missing the target path."
+            metadata = self.files.inspect_metadata(target)
+            if not metadata.ok or not isinstance(metadata.report, dict):
+                return False, f"Verification failed: unable to inspect metadata for chown_path_file: {metadata.error or getattr(metadata, 'stderr', '') or 'unknown'}."
+            expected_uid = report.get("uid")
+            expected_gid = report.get("gid")
+            actual_uid = metadata.report.get("uid")
+            actual_gid = metadata.report.get("gid")
+            if expected_uid is not None and actual_uid != expected_uid:
+                return False, f"Verification failed: chown_path_file uid mismatch expected={expected_uid} actual={actual_uid}."
+            if expected_gid is not None and actual_gid != expected_gid:
+                return False, f"Verification failed: chown_path_file gid mismatch expected={expected_gid} actual={actual_gid}."
+            return True, f"Verified chown_path_file on {target}."
+
+        if action_type == "patch_files":
+            if patch_plan is not None:
+                for item in patch_plan:
+                    target = str(item.get("target", ""))
+                    operation = str(item.get("operation", ""))
+                    hunks = item.get("hunks", [])
+                    original_content = str(item.get("original_content", ""))
+                    expected = self.files._apply_unified_patch(original_content, hunks)  # noqa: SLF001
+                    if expected is None:
+                        return False, f"Verification failed: unable to replay patch plan for {target}."
+                    target_state = self.files.inspect_metadata(target)
+                    if operation == "delete":
+                        if target_state.ok:
+                            return False, f"Verification failed: patch_files did not delete {target}."
+                        continue
+                    target_read = self.files.read(target)
+                    if not target_read.ok:
+                        return False, f"Verification failed: unable to read patched file {target}: {target_read.error}."
+                    if self._normalize_for_verification(target_read.content) != self._normalize_for_verification(expected):
+                        return False, f"Verification failed: patch_files content mismatch for {target}."
+                return True, "Verified patch_files through replayed file snapshots."
+            status = self.git.status_porcelain()
+            if not status.ok:
+                return False, f"Verification failed: unable to inspect git status after patch_files: {status.error or status.stderr or 'unknown'}."
+            if not status.stdout.strip():
+                return False, "Verification failed: patch_files reported success but left no git-visible changes."
+            if git_status_before.strip() == status.stdout.strip():
+                return False, "Verification failed: patch_files left the workspace status unchanged."
+            return True, "Verified patch_files through workspace status changes."
+
+        path = str(action.get("path", "")).strip() or str(getattr(result, "path", "")).strip()
+        if not path:
+            return False, f"Verification failed: {action_type} is missing the target path."
+        readback = self.files.read(path)
+        if not readback.ok:
+            return False, f"Verification failed: unable to read back {path}: {readback.error}."
+        if report.get("changed") is False:
+            return True, f"Verified {action_type} no-op on {path}."
+        expected_content = str(getattr(result, "content", ""))
+        if self._normalize_for_verification(readback.content) != self._normalize_for_verification(expected_content):
+            return False, f"Verification failed: read-back content mismatch for {path}."
+        return True, f"Verified {action_type} by reading back {path}."
+
+    def _verify_git_commit_action(self, result: object, *, head_before: str) -> tuple[bool, str]:
+        if not bool(getattr(result, "ok", False)):
+            return False, str(getattr(result, "error", "")) or "Git commit failed."
+        message = str(getattr(result, "stdout", "")) or str(getattr(result, "error", "")) or ""
+        if "No changes to commit." in message:
+            return True, "Verified git commit: no changes to commit."
+        head_after = self.git.head()
+        if not head_after.ok:
+            return False, f"Verification failed: unable to read git HEAD after commit: {head_after.error or head_after.stderr or 'unknown'}"
+        if not head_before:
+            return False, "Verification failed: git HEAD before commit was unavailable."
+        if head_after.stdout.strip() == head_before.strip():
+            return False, "Verification failed: git commit did not advance HEAD."
+        status = self.git.status_porcelain()
+        if status.ok and status.stdout.strip():
+            return False, "Verification failed: git commit left the workspace dirty."
+        return True, f"Verified git commit at {head_after.stdout.strip()[:12]}."
 
     def _check_validation(self, step: PlanStep, observation: str, *, action_type: str = "") -> bool:
         if not self._has_wet_run_evidence(action_type, observation):

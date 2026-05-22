@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "defaultMode": "plan",
+    "allow": ["shell:git status"],
+    "ask": ["file:secrets.txt"],
+    "deny": ["shell:rm"]
+  },
+  "shell": {
+    "backend": "auto"
+  },
+  "catalog": {
+    "refresh": {
+      "command": "catalog refresh --aa",
+      "pricing_source": "artificial_analysis",
+      "api_key_env": "STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY"
+    }
+  }
+}

@@ -15,6 +15,8 @@ Agent policy artifacts:
 - `AGENT_MANIFESTO.md`: short operating manifesto
 - `AGENT_POLICY.md`: formal human-readable policy
 - `AGENT_POLICY.json`: machine-readable policy baseline
+- `AGENTS.md`: multi-agent startup and handoff protocol
+- `AGENT_HANDOFF.md`: compatibility handoff for Codex CLI, Kilo CLI, and human maintainers
 
 Caratteristiche principali:
 
@@ -107,6 +109,9 @@ PRINCE2 handoff behavior:
 - `handoff actions` shows durable action/audit entries recorded in runtime handoff; `handoff actions 50 --json` exposes the same history for tooling.
 - `stagewarden status --json` and `stagewarden boundary --json` expose operational posture and boundary control state for automation.
 - `status`, `status --json`, and `statusline --json` surface the latest durable handoff action so the user can immediately see the most recent tracked operation.
+- `status --json`, `statusline --json`, `overview --json`, `health --json`, `preflight --json`, `report --json`, `handoff --json`, `boundary --json`, and `board --json` include versioned `schema` blocks so other agents can validate the payload contracts explicitly.
+- Those schema blocks are centralized in `stagewarden/json_schema_registry.py`, which now covers the stable JSON CLI surfaces for status, help, commands, catalog, goal, models, git, sessions, and the register views.
+- `status` and `status --json` expose the active pricing source for the current routed model, so you can see whether pricing came from `openrouter`, `artificial_analysis`, or the local fallback path.
 - `statusline --json` also exposes token/context-window usage when a provider returns safe usage metadata.
 - `status` and `status --json` now also expose current multiprovider limit posture: model lockouts, blocked accounts, classified provider lockout reason, last known provider message, and latest routed success/failure context.
 - `stagewarden board --json` or `stagewarden "stage review" --json` exposes the PRINCE2 board-level authorization recommendation.
@@ -114,6 +119,7 @@ PRINCE2 handoff behavior:
 - `stagewarden health --json` exposes a compact readiness snapshot for automation: authorization, boundary decision, open controls, recovery state, and minimal model/transcript signals.
 - `stagewarden report --json` exposes a compact closure/shareable summary with governance state, next action, recent lessons, backlog preview, model activity, and provider-limit posture.
 - `stagewarden risks|issues|quality|exception|lessons|todo --json` exposes PRINCE2 registers and backlog in machine-readable form.
+- `risks close <resolution>`, `issues close <resolution>`, and `quality close <resolution>` close open governance records after explicit mitigation or acceptance.
 - The executor prompt includes only the PRINCE2 registers allowed by the active role domain, preventing a role-specific model from seeing unrelated governance context by default.
 - The planner also reuses those registers to shape the next active step, so resumed work carries forward open risks, issues, quality evidence, lessons, and exception actions.
 - `handoff` shows the full persisted project context, while `boundary` shows only the current PRINCE2 stage-boundary recommendation.
@@ -129,6 +135,7 @@ PRINCE2 handoff behavior:
 - The interactive views now also show a compact `stage health` indicator such as `active`, `at_risk`, `exception`, or `ready_to_close`.
 - The interactive views now also show a compact `next action` recommendation derived from the boundary decision and current stage state.
 - The final summary, `status`, and `handoff` now reuse the same compact `operational posture` block so the high-level reading stays consistent across views.
+- `help agent` documents the multi-agent startup/handoff protocol, including wet-run validation and synchronized handoff files.
 
 Validation behavior:
 
@@ -336,6 +343,10 @@ Model control:
 - `model limit-clear <model>` clears the stored limit snapshot, message, and temporary block.
 - `model unblock <model>` removes a temporary block.
 - `model clear` restores automatic routing.
+- `catalog refresh` regenerates the shared model catalog snapshot from OpenRouter-backed discovery.
+- `catalog refresh --aa` explicitly includes Artificial Analysis pricing refresh when `STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY` is available.
+- The GitHub Actions workflow `Refresh AI Model Catalog` runs the same refresh path and can pick up the Artificial Analysis API key from repository secrets.
+- A documented example workspace settings file lives in [`examples/stagewarden_settings.example.json`](examples/stagewarden_settings.example.json).
 - `account login chatgpt <profile>` follows the Codex-style browser flow and opens the browser automatically.
 - `account login openai <profile>` keeps the Stagewarden device-code/API-oriented flow.
 - `account login-device <chatgpt|openai> <profile>` forces the explicit device-code flow.
@@ -362,6 +373,7 @@ Project handoff:
 - `stagewarden "handoff export" --json` and `stagewarden "resume --clear" --json` expose structured operational results for export/reset workflows.
 - Every model prompt includes bounded references to `.stagewarden_handoff.json`, `.stagewarden_memory.json`, and `.stagewarden_trace.ljson`, plus recovery state, backlog status, git boundary, and dirty state.
 - `resume --show` previews the current handoff target, `resume --clear` archives and resets handoff, and `resume` reruns the task stored in handoff after reloading the context.
+- When the shell starts with a suspended `waiting` session, it auto-resumes the saved task before accepting new input.
 - `resume context` shows the latest implicit execution context: last model attempt, routed account/variant, tool evidence, and latest git snapshot.
 
 Tool transcript:
@@ -490,5 +502,6 @@ Acknowledgements:
 - Thanks to Julius Brussee for [caveman](https://github.com/JuliusBrussee/caveman), which influenced the Caveman mode and parts of the command ergonomics.
 - Thanks to the public OpenAI Codex CLI sources and documentation for clarifying authentication and provider-model selection patterns.
 - Thanks to the public Claude Code sources and Anthropic documentation for the provider-specific model aliasing and credential-handling references.
-- Stagewarden is an independent project and does not include source code from Caveman, Codex CLI, or Claude Code.
+- Thanks to the public KiloCode sources and documentation for clarifying gateway-based provider routing, model filtering, and CLI/extension synchronization patterns.
+- Stagewarden is an independent project and does not include source code from Caveman, Codex CLI, Claude Code, or KiloCode.
 - Stagewarden implementation, package structure, routing, handoff system, persistence, tests, and project integration are original work for this repository.
