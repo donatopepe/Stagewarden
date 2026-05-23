@@ -732,9 +732,11 @@ def run_cli() -> int:
                 )
             )
         else:
+            rag_context_nodes = len([key for key, value in rag_context_by_node.items() if key and isinstance(value, dict)])
             print(
                 f"Batch advanced PRINCE2 runtime: processed={result.get('processed')} "
-                f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')}.\n"
+                f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')} "
+                f"rag_context_nodes={rag_context_nodes}.\n"
                 + _project_role_runtime_views._render_prince2_role_runtime(config)
             )
         return 0
