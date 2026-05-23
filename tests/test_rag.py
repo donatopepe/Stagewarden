@@ -494,6 +494,30 @@ class RagTests(unittest.TestCase):
             self.assertIn("passed", latest_summary)
             self.assertIn("failing_count", latest_summary)
 
+            rag_command_report(f"rag benchmark history={history_path} max_entries=5", config)
+            rag_command_report(f"rag benchmark history={history_path} max_entries=5", config)
+
+            enforced_pass = rag_command_report(f"rag benchmark trend={history_path} latest=true latest_enforce=true", config)
+            self.assertTrue(enforced_pass["ok"])
+
+            payload = json.loads(history_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict) and isinstance(payload.get("entries"), list) and len(payload["entries"]) >= 2:
+                last = payload["entries"][-1]
+                report = last.get("report") if isinstance(last, dict) else None
+                if isinstance(report, dict) and isinstance(report.get("modes"), list) and report["modes"]:
+                    mode0 = report["modes"][0]
+                    if isinstance(mode0, dict) and isinstance(mode0.get("metrics"), dict):
+                        mode0["metrics"]["recall@1"] = 0.0
+                        mode0["metrics"]["recall@3"] = 0.0
+                history_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            enforced_fail = rag_command_report(
+                f"rag benchmark trend={history_path} latest=true latest_enforce=true warn_threshold=0.0",
+                config,
+            )
+            self.assertFalse(enforced_fail["ok"])
+            self.assertIn("failed configured gate", str(enforced_fail.get("error", "")))
+
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
             self.assertEqual(rag_command_report("rag list", config)["entries"], [])
