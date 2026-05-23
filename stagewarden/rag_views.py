@@ -81,6 +81,8 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         history_path = str(fields.get("history", "")).strip()
         latest_only = str(fields.get("latest", "")).strip().lower() in {"1", "true", "yes", "on"}
         latest_warn_threshold = 0.0
+        latest_major_threshold = 0.1
+        latest_critical_threshold = 0.2
         max_entries = 50
         threshold = 0.05
         if fields.get("threshold") is not None:
@@ -96,6 +98,16 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         if fields.get("warn_threshold") is not None:
             try:
                 latest_warn_threshold = max(0.0, float(str(fields.get("warn_threshold"))))
+            except ValueError:
+                return {"command": task, "ok": False, "error": _rag_usage()}
+        if fields.get("major_threshold") is not None:
+            try:
+                latest_major_threshold = max(0.0, float(str(fields.get("major_threshold"))))
+            except ValueError:
+                return {"command": task, "ok": False, "error": _rag_usage()}
+        if fields.get("critical_threshold") is not None:
+            try:
+                latest_critical_threshold = max(0.0, float(str(fields.get("critical_threshold"))))
             except ValueError:
                 return {"command": task, "ok": False, "error": _rag_usage()}
         if write_path:
@@ -130,13 +142,19 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     delta = float(item.get("delta", 0.0))
                     if delta < -abs(latest_warn_threshold):
                         enriched = dict(item)
-                        enriched["severity"] = _delta_severity(delta)
+                        enriched["severity"] = _delta_severity(
+                            delta,
+                            major_threshold=latest_major_threshold,
+                            critical_threshold=latest_critical_threshold,
+                        )
                         failing_deltas.append(enriched)
                 report["failing_deltas"] = failing_deltas
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
                 )
+                report["latest_major_threshold"] = latest_major_threshold
+                report["latest_critical_threshold"] = latest_critical_threshold
         elif str(fields.get("trend", "")).strip():
             trend_path = str(fields.get("trend", "")).strip()
             try:
@@ -156,13 +174,19 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     delta = float(item.get("delta", 0.0))
                     if delta < -abs(latest_warn_threshold):
                         enriched = dict(item)
-                        enriched["severity"] = _delta_severity(delta)
+                        enriched["severity"] = _delta_severity(
+                            delta,
+                            major_threshold=latest_major_threshold,
+                            critical_threshold=latest_critical_threshold,
+                        )
                         failing_deltas.append(enriched)
                 report["failing_deltas"] = failing_deltas
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
                 )
+                report["latest_major_threshold"] = latest_major_threshold
+                report["latest_critical_threshold"] = latest_critical_threshold
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -406,7 +430,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true] [warn_threshold=0.05]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true] [warn_threshold=0.05] [major_threshold=0.10] [critical_threshold=0.20]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:
@@ -439,10 +463,10 @@ def _parse_tags(raw: str) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
-def _delta_severity(delta: float) -> str:
+def _delta_severity(delta: float, *, major_threshold: float = 0.1, critical_threshold: float = 0.2) -> str:
     magnitude = abs(delta)
-    if magnitude >= 0.2:
+    if magnitude >= max(critical_threshold, major_threshold):
         return "critical"
-    if magnitude >= 0.1:
+    if magnitude >= major_threshold:
         return "major"
     return "minor"

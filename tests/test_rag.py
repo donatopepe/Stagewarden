@@ -471,6 +471,14 @@ class RagTests(unittest.TestCase):
             latest_warn_rendered = render_rag_report(latest_warn)
             self.assertIn("Latest snapshot samples=", latest_warn_rendered)
 
+            tuned = rag_command_report(
+                f"rag benchmark trend={history_path} latest=true warn_threshold=0.0 major_threshold=0.01 critical_threshold=0.02",
+                config,
+            )
+            self.assertTrue(tuned["ok"])
+            self.assertEqual(float(tuned.get("latest_major_threshold", -1.0)), 0.01)
+            self.assertEqual(float(tuned.get("latest_critical_threshold", -1.0)), 0.02)
+
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
             self.assertEqual(rag_command_report("rag list", config)["entries"], [])
