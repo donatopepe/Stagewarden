@@ -14,6 +14,10 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 
 ## Recent changes
+- `stagewarden/rag_benchmark.py`: added `summarize_rag_benchmark_latest(...)` to compute newest-vs-previous deltas for `recall@1`/`recall@3` across modes.
+- `stagewarden/rag_views.py`: `rag benchmark ... latest=true` now returns and renders a compact latest snapshot delta section.
+- `stagewarden/commands.py`: benchmark usage now includes `[latest=true]`.
+- `tests/test_rag.py`: added coverage for latest summary helper plus CLI `latest=true` report/render path.
 - `stagewarden/rag_benchmark.py`: trend summary now includes `first_recorded_at` and `last_recorded_at` derived from history envelope timestamps.
 - `stagewarden/rag_views.py`: benchmark rendering now prints a `Trend window` line with first/last recorded timestamps when available.
 - `tests/test_rag.py`: added trend-render assertion for `Trend window` output.
@@ -113,13 +117,13 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 
 ## Next implementation plan
 1. Optionally expose `policy_source` in non-JSON interactive shortcut outputs where only plain text is shown.
-2. Consider per-mode trend windows when future mode-specific history filtering is introduced.
+2. Consider optional thresholding/flagging in `latest=true` output for fast regression gate hints.
 
 ## Open issues
 - Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
-- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 14 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). v3.4 CLI/schema checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 14 OK). v3.5 role-policy checks passed (`python3 -m unittest tests.test_rag tests.test_executor.ExecutorTests.test_model_visible_tool_schema_matches_executor_actions -v` -> 15 OK), including executor role-fallback wiring. v3.6 history/trend checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK). trend-render detail follow-up passed (`python3 -m unittest tests.test_rag -v` -> 15 OK). policy-source introspection checks passed (`python3 -m unittest tests.test_rag tests.test_executor.ExecutorTests.test_model_visible_tool_schema_matches_executor_actions -v` -> 16 OK). retention-control checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK). search-render policy metadata checks passed (`python3 -m unittest tests.test_rag -v` -> 15 OK). timestamp-envelope history checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK). trend-window visibility checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK).
+- Full-suite follow-up: completed. RAG-focused suite revalidated (`python3 -m unittest tests.test_rag -v` -> 14 OK), extended impact validation passed (`python3 -m unittest tests.test_executor tests.test_agent_integration -v` -> 56 OK), trace CLI passed (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK), and full discovery passed (`python3 -m unittest discover -s tests -v` -> 426 OK). v3.4 CLI/schema checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 14 OK). v3.5 role-policy checks passed (`python3 -m unittest tests.test_rag tests.test_executor.ExecutorTests.test_model_visible_tool_schema_matches_executor_actions -v` -> 15 OK), including executor role-fallback wiring. v3.6 history/trend checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK). trend-render detail follow-up passed (`python3 -m unittest tests.test_rag -v` -> 15 OK). policy-source introspection checks passed (`python3 -m unittest tests.test_rag tests.test_executor.ExecutorTests.test_model_visible_tool_schema_matches_executor_actions -v` -> 16 OK). retention-control checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK). search-render policy metadata checks passed (`python3 -m unittest tests.test_rag -v` -> 15 OK). timestamp-envelope history checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK). trend-window visibility checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK). latest-delta mode checks passed (`python3 -m unittest tests.test_rag tests.test_json_schema_registry -v` -> 17 OK).
 
 ## Next steps
 1. No immediate follow-up is pending for the completed RAG/trace-regression slice.

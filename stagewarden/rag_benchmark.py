@@ -268,3 +268,54 @@ def summarize_rag_benchmark_trend(history: dict[str, Any]) -> dict[str, Any]:
         "first_recorded_at": recorded_at_values[0] if recorded_at_values else None,
         "last_recorded_at": recorded_at_values[-1] if recorded_at_values else None,
     }
+
+
+def summarize_rag_benchmark_latest(history: dict[str, Any]) -> dict[str, Any]:
+    entries = history.get("entries", []) if isinstance(history, dict) else []
+    if not isinstance(entries, list) or not entries:
+        return {"samples": 0, "latest": None, "previous": None, "deltas": []}
+
+    normalized: list[dict[str, Any]] = []
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        report = item.get("report") if isinstance(item.get("report"), dict) else item
+        if not isinstance(report, dict):
+            continue
+        normalized.append(
+            {
+                "recorded_at": item.get("recorded_at") if isinstance(item.get("recorded_at"), str) else None,
+                "report": report,
+                "modes": _mode_metrics_map(report),
+            }
+        )
+    if not normalized:
+        return {"samples": 0, "latest": None, "previous": None, "deltas": []}
+
+    latest = normalized[-1]
+    previous = normalized[-2] if len(normalized) >= 2 else None
+    deltas: list[dict[str, Any]] = []
+    if previous is not None:
+        mode_names = sorted(set(latest["modes"].keys()) | set(previous["modes"].keys()))
+        for mode in mode_names:
+            latest_metrics = latest["modes"].get(mode, {})
+            prev_metrics = previous["modes"].get(mode, {})
+            for metric_name in ("recall@1", "recall@3"):
+                latest_value = float(latest_metrics.get(metric_name, 0.0))
+                prev_value = float(prev_metrics.get(metric_name, 0.0))
+                deltas.append(
+                    {
+                        "mode": mode,
+                        "metric": metric_name,
+                        "previous": prev_value,
+                        "latest": latest_value,
+                        "delta": latest_value - prev_value,
+                    }
+                )
+
+    return {
+        "samples": len(normalized),
+        "latest": {"recorded_at": latest.get("recorded_at"), "modes": latest.get("modes", {})},
+        "previous": None if previous is None else {"recorded_at": previous.get("recorded_at"), "modes": previous.get("modes", {})},
+        "deltas": deltas,
+    }

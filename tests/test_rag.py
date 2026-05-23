@@ -18,6 +18,7 @@ from stagewarden.rag_benchmark import (
     append_rag_benchmark_history,
     compare_rag_benchmark_reports,
     run_rag_benchmark,
+    summarize_rag_benchmark_latest,
     summarize_rag_benchmark_trend,
 )
 from stagewarden.rag_views import rag_command_report, render_rag_report
@@ -94,6 +95,9 @@ class RagTests(unittest.TestCase):
             self.assertEqual(trend["samples"], 2)
             self.assertTrue(trend["modes"])
             self.assertGreaterEqual(int(trend["regressing"]), 1)
+            latest = summarize_rag_benchmark_latest(payload)
+            self.assertEqual(latest["samples"], 2)
+            self.assertIn("deltas", latest)
 
     def test_rag_min_score_policy_defaults(self) -> None:
         self.assertGreater(resolve_min_score_policy(phase="design", mode="hybrid", override=None), 0.0)
@@ -447,6 +451,12 @@ class RagTests(unittest.TestCase):
             self.assertIn("Trend: samples=", trend_rendered)
             self.assertIn("Trend window:", trend_rendered)
             self.assertIn("- trend lexical:", trend_rendered)
+
+            latest_report = rag_command_report(f"rag benchmark trend={history_path} latest=true", config)
+            self.assertTrue(latest_report["ok"])
+            self.assertIn("latest", latest_report)
+            latest_rendered = render_rag_report(latest_report)
+            self.assertIn("Latest snapshot samples=", latest_rendered)
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
