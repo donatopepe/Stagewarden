@@ -182,13 +182,25 @@ def append_rag_benchmark_history(path: Path, report: dict[str, Any], *, max_entr
 def summarize_rag_benchmark_trend(history: dict[str, Any]) -> dict[str, Any]:
     entries = history.get("entries", []) if isinstance(history, dict) else []
     if not isinstance(entries, list) or not entries:
-        return {"samples": 0, "modes": [], "improving": 0, "regressing": 0, "stable": 0}
+        return {
+            "samples": 0,
+            "modes": [],
+            "improving": 0,
+            "regressing": 0,
+            "stable": 0,
+            "first_recorded_at": None,
+            "last_recorded_at": None,
+        }
 
     mode_names: set[str] = set()
     mapped_entries: list[dict[str, dict[str, float]]] = []
+    recorded_at_values: list[str] = []
     for item in entries:
         if not isinstance(item, dict):
             continue
+        recorded_at = item.get("recorded_at")
+        if isinstance(recorded_at, str) and recorded_at.strip():
+            recorded_at_values.append(recorded_at)
         report = item.get("report") if isinstance(item.get("report"), dict) else item
         if not isinstance(report, dict):
             continue
@@ -253,4 +265,6 @@ def summarize_rag_benchmark_trend(history: dict[str, Any]) -> dict[str, Any]:
         "improving": improving,
         "regressing": regressing,
         "stable": stable,
+        "first_recorded_at": recorded_at_values[0] if recorded_at_values else None,
+        "last_recorded_at": recorded_at_values[-1] if recorded_at_values else None,
     }
