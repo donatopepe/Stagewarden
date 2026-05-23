@@ -13,6 +13,7 @@ from .rag_benchmark import (
     load_rag_benchmark_snapshot,
     run_rag_benchmark,
     save_rag_benchmark_snapshot,
+    summarize_rag_benchmark_latest,
     summarize_rag_benchmark_trend,
 )
 from .rag import DesignRag, RagEntry, resolve_min_score_policy_details
@@ -78,6 +79,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         baseline_path = str(fields.get("baseline", "")).strip()
         write_path = str(fields.get("write", "")).strip()
         history_path = str(fields.get("history", "")).strip()
+        latest_only = str(fields.get("latest", "")).strip().lower() in {"1", "true", "yes", "on"}
         max_entries = 50
         threshold = 0.05
         if fields.get("threshold") is not None:
@@ -110,6 +112,8 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 "max_entries": max_entries,
             }
             report["trend"] = summarize_rag_benchmark_trend(history_payload)
+            if latest_only:
+                report["latest"] = summarize_rag_benchmark_latest(history_payload)
         elif str(fields.get("trend", "")).strip():
             trend_path = str(fields.get("trend", "")).strip()
             try:
@@ -117,6 +121,8 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             except (OSError, ValueError, TypeError) as exc:
                 return {"command": task, "ok": False, "error": f"Unable to load benchmark trend history: {exc}"}
             report["trend"] = summarize_rag_benchmark_trend(history_payload)
+            if latest_only:
+                report["latest"] = summarize_rag_benchmark_latest(history_payload)
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -297,6 +303,16 @@ def render_rag_report(report: dict[str, Any]) -> str:
                 lines.append(
                     f"- trend {item.get('mode')}: type={item.get('trend')}, recall@1={float(recall1.get('first', 0.0)):.3f}->{float(recall1.get('last', 0.0)):.3f} (delta={float(recall1.get('delta', 0.0)):.3f}), recall@3={float(recall3.get('first', 0.0)):.3f}->{float(recall3.get('last', 0.0)):.3f} (delta={float(recall3.get('delta', 0.0)):.3f})"
                 )
+        latest = report.get("latest") if isinstance(report.get("latest"), dict) else None
+        if latest is not None:
+            lines.append(f"Latest snapshot samples={int(latest.get('samples', 0))}")
+            deltas = latest.get("deltas", []) if isinstance(latest.get("deltas"), list) else []
+            for item in deltas:
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"- latest delta {item.get('mode')} {item.get('metric')}: prev={float(item.get('previous', 0.0)):.3f}, latest={float(item.get('latest', 0.0)):.3f}, delta={float(item.get('delta', 0.0)):.3f}"
+                )
         return "\n".join(lines)
     entries = report.get("entries", [])
     if str(report.get("command", "")).startswith("rag search "):
@@ -336,7 +352,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:
