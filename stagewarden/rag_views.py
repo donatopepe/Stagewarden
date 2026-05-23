@@ -169,6 +169,16 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 )
                 report["latest_major_threshold"] = latest_major_threshold
                 report["latest_critical_threshold"] = latest_critical_threshold
+                report["latest_summary"] = {
+                    "samples": int(latest_payload.get("samples", 0)) if isinstance(latest_payload.get("samples"), int) else 0,
+                    "passed": bool(report["latest_passed"]),
+                    "warn_threshold": latest_warn_threshold,
+                    "major_threshold": latest_major_threshold,
+                    "critical_threshold": latest_critical_threshold,
+                    "failing_count": len(failing_deltas),
+                    "severity_counts": dict(report["severity_counts"]),
+                    "severity_percentages": dict(report["severity_percentages"]),
+                }
         elif str(fields.get("trend", "")).strip():
             trend_path = str(fields.get("trend", "")).strip()
             try:
@@ -215,6 +225,16 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 )
                 report["latest_major_threshold"] = latest_major_threshold
                 report["latest_critical_threshold"] = latest_critical_threshold
+                report["latest_summary"] = {
+                    "samples": int(latest_payload.get("samples", 0)) if isinstance(latest_payload.get("samples"), int) else 0,
+                    "passed": bool(report["latest_passed"]),
+                    "warn_threshold": latest_warn_threshold,
+                    "major_threshold": latest_major_threshold,
+                    "critical_threshold": latest_critical_threshold,
+                    "failing_count": len(failing_deltas),
+                    "severity_counts": dict(report["severity_counts"]),
+                    "severity_percentages": dict(report["severity_percentages"]),
+                }
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -401,6 +421,9 @@ def render_rag_report(report: dict[str, Any]) -> str:
             warn_threshold = float(report.get("latest_warn_threshold", 0.0)) if isinstance(report.get("latest_warn_threshold"), (int, float)) else 0.0
             if isinstance(report.get("latest_passed"), bool):
                 lines.append(f"Latest passed: {bool(report.get('latest_passed'))}")
+            latest_summary = report.get("latest_summary", {}) if isinstance(report.get("latest_summary"), dict) else {}
+            if latest_summary:
+                lines.append(f"Latest summary: failing_count={int(latest_summary.get('failing_count', 0))}")
             failing_deltas = report.get("failing_deltas", []) if isinstance(report.get("failing_deltas"), list) else []
             if failing_deltas:
                 lines.append(f"Latest failing deltas: {len(failing_deltas)}")

@@ -459,9 +459,11 @@ class RagTests(unittest.TestCase):
             self.assertIn("failing_deltas", latest_report)
             self.assertIn("severity_counts", latest_report)
             self.assertIn("severity_percentages", latest_report)
+            self.assertIn("latest_summary", latest_report)
             latest_rendered = render_rag_report(latest_report)
             self.assertIn("Latest snapshot samples=", latest_rendered)
             self.assertIn("Latest passed:", latest_rendered)
+            self.assertIn("Latest summary:", latest_rendered)
 
             latest_warn = rag_command_report(f"rag benchmark trend={history_path} latest=true warn_threshold=0.0", config)
             self.assertTrue(latest_warn["ok"])
@@ -488,6 +490,9 @@ class RagTests(unittest.TestCase):
             self.assertIn("minor_pct", severity_percentages)
             self.assertIn("major_pct", severity_percentages)
             self.assertIn("critical_pct", severity_percentages)
+            latest_summary = tuned.get("latest_summary", {})
+            self.assertIn("passed", latest_summary)
+            self.assertIn("failing_count", latest_summary)
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
