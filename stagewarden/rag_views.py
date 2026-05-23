@@ -80,6 +80,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         write_path = str(fields.get("write", "")).strip()
         history_path = str(fields.get("history", "")).strip()
         latest_only = str(fields.get("latest", "")).strip().lower() in {"1", "true", "yes", "on"}
+        latest_enforce = str(fields.get("latest_enforce", "")).strip().lower() in {"1", "true", "yes", "on"}
         latest_warn_threshold = 0.0
         latest_major_threshold = 0.1
         latest_critical_threshold = 0.2
@@ -179,6 +180,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     "severity_counts": dict(report["severity_counts"]),
                     "severity_percentages": dict(report["severity_percentages"]),
                 }
+                report["latest_enforce"] = latest_enforce
         elif str(fields.get("trend", "")).strip():
             trend_path = str(fields.get("trend", "")).strip()
             try:
@@ -235,6 +237,11 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     "severity_counts": dict(report["severity_counts"]),
                     "severity_percentages": dict(report["severity_percentages"]),
                 }
+                report["latest_enforce"] = latest_enforce
+        if latest_only and latest_enforce and isinstance(report.get("latest_passed"), bool) and not bool(report.get("latest_passed")):
+            report["ok"] = False
+            report["error"] = "Latest benchmark deltas failed configured gate."
+            return report
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -489,7 +496,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true] [warn_threshold=0.05] [major_threshold=0.10] [critical_threshold=0.20]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true] [latest_enforce=true] [warn_threshold=0.05] [major_threshold=0.10] [critical_threshold=0.20]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:
