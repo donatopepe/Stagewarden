@@ -428,6 +428,12 @@ class RagTests(unittest.TestCase):
             self.assertTrue(with_history["ok"])
             self.assertIn("history", with_history)
             self.assertIn("trend", with_history)
+            self.assertEqual(int(with_history["history"].get("max_entries", 0)), 50)
+
+            rag_command_report(f"rag benchmark history={history_path} max_entries=1", config)
+            retained = rag_command_report(f"rag benchmark trend={history_path}", config)
+            self.assertTrue(retained["ok"])
+            self.assertEqual(int(retained["trend"].get("samples", 0)), 1)
 
             trend_only = rag_command_report(f"rag benchmark trend={history_path}", config)
             self.assertTrue(trend_only["ok"])

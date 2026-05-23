@@ -78,10 +78,16 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         baseline_path = str(fields.get("baseline", "")).strip()
         write_path = str(fields.get("write", "")).strip()
         history_path = str(fields.get("history", "")).strip()
+        max_entries = 50
         threshold = 0.05
         if fields.get("threshold") is not None:
             try:
                 threshold = max(0.0, float(str(fields.get("threshold"))))
+            except ValueError:
+                return {"command": task, "ok": False, "error": _rag_usage()}
+        if fields.get("max_entries") is not None:
+            try:
+                max_entries = max(1, int(str(fields.get("max_entries"))))
             except ValueError:
                 return {"command": task, "ok": False, "error": _rag_usage()}
         if write_path:
@@ -95,12 +101,13 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             report["comparison"] = compare_rag_benchmark_reports(baseline, report, threshold=threshold)
         if history_path:
             try:
-                history_payload = append_rag_benchmark_history(Path(history_path), report)
+                history_payload = append_rag_benchmark_history(Path(history_path), report, max_entries=max_entries)
             except (OSError, ValueError, TypeError) as exc:
                 return {"command": task, "ok": False, "error": f"Unable to append benchmark history: {exc}"}
             report["history"] = {
                 "path": history_path,
                 "samples": len(history_payload.get("entries", [])),
+                "max_entries": max_entries,
             }
             report["trend"] = summarize_rag_benchmark_trend(history_payload)
         elif str(fields.get("trend", "")).strip():
@@ -305,7 +312,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:

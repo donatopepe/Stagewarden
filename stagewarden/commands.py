@@ -97,7 +97,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("rag remove", "core", "Remove a persisted design knowledge entry.", "rag remove <entry_id>", json=True, handler="rag"),
     CommandSpec("rag compact", "core", "Deduplicate persisted design knowledge entries.", "rag compact", json=True, handler="rag"),
     CommandSpec("rag rebuild-vectors", "core", "Rebuild persisted local RAG vector index.", "rag rebuild-vectors", json=True, handler="rag"),
-    CommandSpec("rag benchmark", "core", "Run deterministic RAG retrieval quality benchmark.", "rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>]", json=True, handler="rag"),
+    CommandSpec("rag benchmark", "core", "Run deterministic RAG retrieval quality benchmark.", "rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>]", json=True, handler="rag"),
     CommandSpec("preflight", "core", "Run read-only readiness checks before agent work.", "preflight [--json]", json=True, handler="status"),
     CommandSpec("stream on", "core", "Enable streaming output.", "stream on", handler="session"),
     CommandSpec("stream off", "core", "Disable streaming output.", "stream off", handler="session"),
