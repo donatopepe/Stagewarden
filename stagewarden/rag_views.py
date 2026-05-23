@@ -466,6 +466,9 @@ def render_rag_report(report: dict[str, Any]) -> str:
                 lines.append(
                     f"- latest delta {item.get('mode')} {item.get('metric')}: prev={float(item.get('previous', 0.0)):.3f}, latest={float(item.get('latest', 0.0)):.3f}, delta={delta:.3f}{severity}"
                 )
+        lines.append("CI examples:")
+        lines.append("- rag benchmark trend=./rag-history.json latest=true latest_enforce=true warn_threshold=0.05")
+        lines.append("- rag benchmark trend=./rag-history.json latest=true latest_enforce=true latest_enforce_exit_code=7 warn_threshold=0.05")
         return "\n".join(lines)
     entries = report.get("entries", [])
     if str(report.get("command", "")).startswith("rag search "):
