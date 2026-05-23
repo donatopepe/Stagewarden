@@ -517,6 +517,14 @@ class RagTests(unittest.TestCase):
             )
             self.assertFalse(enforced_fail["ok"])
             self.assertIn("failed configured gate", str(enforced_fail.get("error", "")))
+            self.assertEqual(int(enforced_fail.get("exit_code", 0)), 1)
+
+            enforced_fail_custom = rag_command_report(
+                f"rag benchmark trend={history_path} latest=true latest_enforce=true latest_enforce_exit_code=7 warn_threshold=0.0",
+                config,
+            )
+            self.assertFalse(enforced_fail_custom["ok"])
+            self.assertEqual(int(enforced_fail_custom.get("exit_code", 0)), 7)
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
@@ -535,6 +543,33 @@ class RagTests(unittest.TestCase):
             self.assertEqual(benchmark.returncode, 0, benchmark.stderr or benchmark.stdout)
             benchmark_payload = json.loads(benchmark.stdout)
             self.assertEqual(benchmark_payload["schema"]["name"], "stagewarden.rag_benchmark")
+
+            history_path = root / "rag-history-cli.json"
+            rag_command_report(f"rag benchmark history={history_path} max_entries=5", AgentConfig(workspace_root=root, enforce_git=False, auto_git_commit=False))
+            rag_command_report(f"rag benchmark history={history_path} max_entries=5", AgentConfig(workspace_root=root, enforce_git=False, auto_git_commit=False))
+            payload = json.loads(history_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict) and isinstance(payload.get("entries"), list) and payload["entries"]:
+                last = payload["entries"][-1]
+                report = last.get("report") if isinstance(last, dict) else None
+                if isinstance(report, dict) and isinstance(report.get("modes"), list) and report["modes"]:
+                    mode0 = report["modes"][0]
+                    if isinstance(mode0, dict) and isinstance(mode0.get("metrics"), dict):
+                        mode0["metrics"]["recall@1"] = 0.0
+                        mode0["metrics"]["recall@3"] = 0.0
+                history_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            enforced = run_main_capture(
+                root,
+                "--json",
+                "rag",
+                "benchmark",
+                f"trend={history_path}",
+                "latest=true",
+                "latest_enforce=true",
+                "latest_enforce_exit_code=7",
+                "warn_threshold=0.0",
+            )
+            self.assertEqual(enforced.returncode, 7, enforced.stderr or enforced.stdout)
 
             output = StringIO()
             code = run_interactive_shell(

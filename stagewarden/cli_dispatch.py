@@ -240,7 +240,10 @@ def run_cli() -> int:
             print(dumps_ascii(_json_schema_registry.with_json_schema(schema_command, report), indent=2))
         else:
             print(_rag_views.render_rag_report(report))
-        return 0 if report.get("ok", True) else 1
+        if report.get("ok", True):
+            return 0
+        exit_code = report.get("exit_code", 1)
+        return int(exit_code) if isinstance(exit_code, int) else 1
     if task == "browser" or task.startswith("browser "):
         result = _command_dispatch.execute_browser_command(task, config)
         if args.json:
