@@ -4640,6 +4640,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "--json",
             )
             batch_completed = run_main_capture(root, "roles tick", "--json")
+            batch_text = run_main_capture(root, "roles tick")
 
             self.assertEqual(wait_completed.returncode, 0, wait_completed.stderr)
             self.assertEqual(message_completed.returncode, 0, message_completed.stderr)
@@ -4661,6 +4662,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertGreater(int(rows["delivery.team_manager"]["business_case_input_token_count"]), 0)
             self.assertEqual(int(rows["delivery.team_manager"]["business_case_output_token_count"]), 0)
             self.assertEqual(payload["messages"]["nodes"][0]["inbox"], [])
+            self.assertEqual(batch_text.returncode, 0, batch_text.stderr)
+            self.assertIn("rag_context_nodes=", batch_text.stdout)
 
     def test_project_design_report_exposes_capability_spec_project_spec_and_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

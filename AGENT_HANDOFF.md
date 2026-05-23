@@ -26,6 +26,7 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - `stagewarden/cli_dispatch.py`: `roles tick --json` now includes top-level `rag_context_by_node` map for machine-readable batch retrieval context visibility.
 - `tests/test_trace_cli.py`: batch roles-tick JSON regression now asserts `rag_context_by_node` presence/type.
 - `stagewarden/cli_dispatch.py`: non-JSON `roles tick` summary line now reports `rag_context_nodes=<N>` to expose how many nodes consumed retrievable communication context in the batch.
+- `tests/test_trace_cli.py`: batch roles-tick regression now asserts non-JSON summary includes `rag_context_nodes=` alongside existing JSON assertions.
 - `stagewarden/rag_views.py`: added `percentage_precision` option (0..6) for latest severity percentage rendering/summary formatting.
 - `stagewarden/commands.py`: benchmark usage now documents `[percentage_precision=3]`.
 - `tests/test_rag.py`: added coverage for configured percentage precision propagation in `latest_summary`.
