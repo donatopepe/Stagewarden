@@ -4573,6 +4573,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("RAG context:", tick_text.stdout)
             self.assertEqual(tick_completed.returncode, 0, tick_completed.stderr)
             tick_payload = json.loads(tick_completed.stdout)
+            self.assertIn("rag_context", tick_payload)
             tick_rows = {
                 item["node_id"]: item
                 for item in tick_payload["runtime"]["runtime"]["nodes"]

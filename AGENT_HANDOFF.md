@@ -18,6 +18,8 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - `stagewarden/project/role_flow.py`: added selective RAG indexing for high-signal governed node messages (`role message`) and scoped RAG retrieval context injection on `role tick` when consuming inbox messages.
 - `stagewarden/project/role_command_flow.py`: role-message output now reports whether message was indexed into RAG; role-tick output now summarizes retrieved RAG context entries when present.
 - `tests/test_trace_cli.py`: role message/tick lifecycle tests now also assert communication-RAG CLI signals (`RAG indexed:` and `RAG context:`) and remain green.
+- `stagewarden/cli_dispatch.py`: `role tick --json` payload now includes a top-level `rag_context` field sourced from the latest matching `role_tick` handoff entry details.
+- `tests/test_trace_cli.py`: role lifecycle JSON test now asserts `rag_context` key presence in `role tick --json` response payload.
 - `stagewarden/rag_views.py`: added `percentage_precision` option (0..6) for latest severity percentage rendering/summary formatting.
 - `stagewarden/commands.py`: benchmark usage now documents `[percentage_precision=3]`.
 - `tests/test_rag.py`: added coverage for configured percentage precision propagation in `latest_summary`.
