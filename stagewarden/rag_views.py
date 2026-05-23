@@ -121,6 +121,12 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             if latest_only:
                 report["latest"] = summarize_rag_benchmark_latest(history_payload)
                 report["latest_warn_threshold"] = latest_warn_threshold
+                latest_payload = report.get("latest", {}) if isinstance(report.get("latest"), dict) else {}
+                deltas = latest_payload.get("deltas", []) if isinstance(latest_payload.get("deltas"), list) else []
+                report["latest_passed"] = not any(
+                    isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
+                    for item in deltas
+                )
         elif str(fields.get("trend", "")).strip():
             trend_path = str(fields.get("trend", "")).strip()
             try:
@@ -131,6 +137,12 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             if latest_only:
                 report["latest"] = summarize_rag_benchmark_latest(history_payload)
                 report["latest_warn_threshold"] = latest_warn_threshold
+                latest_payload = report.get("latest", {}) if isinstance(report.get("latest"), dict) else {}
+                deltas = latest_payload.get("deltas", []) if isinstance(latest_payload.get("deltas"), list) else []
+                report["latest_passed"] = not any(
+                    isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
+                    for item in deltas
+                )
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -315,6 +327,8 @@ def render_rag_report(report: dict[str, Any]) -> str:
         if latest is not None:
             lines.append(f"Latest snapshot samples={int(latest.get('samples', 0))}")
             warn_threshold = float(report.get("latest_warn_threshold", 0.0)) if isinstance(report.get("latest_warn_threshold"), (int, float)) else 0.0
+            if isinstance(report.get("latest_passed"), bool):
+                lines.append(f"Latest passed: {bool(report.get('latest_passed'))}")
             deltas = latest.get("deltas", []) if isinstance(latest.get("deltas"), list) else []
             for item in deltas:
                 if not isinstance(item, dict):
