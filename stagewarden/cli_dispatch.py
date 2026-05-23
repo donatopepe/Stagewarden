@@ -38,6 +38,7 @@ from . import rag_views as _rag_views
 from .model_inspection_views import _render_provider_model_inspection
 from .agent import Agent
 from .config import AgentConfig
+from .project_handoff import ProjectHandoff
 from .ljson import LJSONOptions, benchmark_sizes, dump_file, load_file
 from .textcodec import dumps_ascii, loads_text, read_text_utf8, write_text_utf8
 
@@ -53,6 +54,26 @@ def _default_ljson_decode_path(source: Path) -> Path:
         without_gzip = source.with_suffix("")
         return without_gzip.with_suffix(".json")
     return source.with_suffix(".json")
+
+
+def _latest_role_tick_rag_context(config: AgentConfig, *, node_id: str | None) -> dict[str, object] | None:
+    if not node_id:
+        return None
+    try:
+        handoff = ProjectHandoff.load(config.handoff_path)
+    except OSError:
+        return None
+    for entry in reversed(handoff.entries):
+        if getattr(entry, "phase", "") != "role_tick":
+            continue
+        if str(getattr(entry, "task", "")).strip() != f"role tick {node_id}":
+            continue
+        details = getattr(entry, "details", None)
+        if not isinstance(details, dict):
+            return None
+        rag_context = details.get("rag_context")
+        return rag_context if isinstance(rag_context, dict) else None
+    return None
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -724,6 +745,7 @@ def run_cli() -> int:
             elif task.startswith("role wait ") or task.startswith("role wake ") or task.startswith("role tick "):
                 parts = task.split()
                 node_id = parts[2] if len(parts) >= 3 else None
+                rag_context = _latest_role_tick_rag_context(config, node_id=node_id) if task.startswith("role tick ") else None
                 print(
                     dumps_ascii(
                         _json_schema_registry.with_json_schema(
@@ -733,6 +755,7 @@ def run_cli() -> int:
                             "message": response,
                             "runtime": _project_role_runtime_views._prince2_role_runtime_report(config),
                             "messages": _project_role_runtime_views._prince2_role_messages_report(config, node_id=node_id),
+                            "rag_context": rag_context,
                         },
                         ),
                         indent=2,
