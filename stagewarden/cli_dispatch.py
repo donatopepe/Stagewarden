@@ -99,35 +99,6 @@ def _latest_role_message_rag_entry(config: AgentConfig, *, source_node: str | No
     return None
 
 
-def _latest_roles_tick_rag_context_by_node(config: AgentConfig, *, node_ids: list[str]) -> dict[str, dict[str, object]]:
-    wanted = {node_id for node_id in node_ids if node_id}
-    if not wanted:
-        return {}
-    try:
-        handoff = ProjectHandoff.load(config.handoff_path)
-    except OSError:
-        return {}
-    collected: dict[str, dict[str, object]] = {}
-    for entry in reversed(handoff.entries):
-        if getattr(entry, "phase", "") != "role_tick":
-            continue
-        task = str(getattr(entry, "task", "")).strip()
-        if not task.startswith("role tick "):
-            continue
-        node_id = task.removeprefix("role tick ").strip()
-        if node_id not in wanted or node_id in collected:
-            continue
-        details = getattr(entry, "details", None)
-        if not isinstance(details, dict):
-            continue
-        rag_context = details.get("rag_context")
-        if isinstance(rag_context, dict):
-            collected[node_id] = rag_context
-        if len(collected) >= len(wanted):
-            break
-    return collected
-
-
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stagewarden", description="Stagewarden: production-grade CLI coding agent.")
     parser.add_argument("task", nargs="*", default=[], help='Task to execute, for example: stagewarden "fix the failing tests"')
@@ -708,12 +679,7 @@ def run_cli() -> int:
                     print(error_payload["error"])
                 return 1
         result = _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
-        node_ids = [
-            str(item.get("node_id", "")).strip()
-            for item in result.get("results", [])
-            if isinstance(item, dict)
-        ]
-        rag_context_by_node = _latest_roles_tick_rag_context_by_node(config, node_ids=node_ids)
+        rag_context_by_node = result.get("rag_context_by_node", {}) if isinstance(result.get("rag_context_by_node"), dict) else {}
         if args.json:
             print(
                 dumps_ascii(
@@ -837,12 +803,7 @@ def run_cli() -> int:
                     config,
                     max_nodes=int(task.split(maxsplit=2)[2]) if len(task.split(maxsplit=2)) == 3 else None,
                 )
-                node_ids = [
-                    str(item.get("node_id", "")).strip()
-                    for item in roles_tick_result.get("results", [])
-                    if isinstance(item, dict)
-                ]
-                rag_context_by_node = _latest_roles_tick_rag_context_by_node(config, node_ids=node_ids)
+                rag_context_by_node = roles_tick_result.get("rag_context_by_node", {}) if isinstance(roles_tick_result.get("rag_context_by_node"), dict) else {}
                 print(
                     dumps_ascii(
                         _json_schema_registry.with_json_schema(

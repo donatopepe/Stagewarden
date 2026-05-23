@@ -4650,6 +4650,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["result"]["command"], "roles tick")
             self.assertIn("rag_context_by_node", payload)
             self.assertIsInstance(payload["rag_context_by_node"], dict)
+            self.assertIn("delivery.team_manager", payload["rag_context_by_node"])
             self.assertEqual(payload["result"]["woken"], 0)
             self.assertEqual(payload["result"]["progressed"], 2)
             rows = {
