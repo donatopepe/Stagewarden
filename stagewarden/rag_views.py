@@ -295,6 +295,26 @@ def render_rag_report(report: dict[str, Any]) -> str:
                 )
         return "\n".join(lines)
     entries = report.get("entries", [])
+    if str(report.get("command", "")).startswith("rag search "):
+        mode = str(report.get("mode", "hybrid"))
+        min_score = float(report.get("min_score", 0.0)) if isinstance(report.get("min_score"), (int, float)) else 0.0
+        policy_source = str(report.get("policy_source", "default"))
+        lines = [f"RAG search: mode={mode}, min_score={min_score:.3f}, policy_source={policy_source}"]
+        if not isinstance(entries, list) or not entries:
+            lines.append("No design knowledge entries found.")
+            return "\n".join(lines)
+        lines.append("Design knowledge entries:")
+        for item in entries:
+            if not isinstance(item, dict):
+                continue
+            tags = ", ".join(str(tag) for tag in item.get("tags", []))
+            score = item.get("score")
+            score_text = f", score={float(score):.3f}" if isinstance(score, (int, float)) else ""
+            lines.append(f"- [{item.get('entry_id')}] [{item.get('phase')}] {item.get('title')} (tags: {tags}{score_text})")
+            content = str(item.get("content", ""))
+            if content:
+                lines.append(f"  {content[:500]}")
+        return "\n".join(lines)
     if not isinstance(entries, list) or not entries:
         return "No design knowledge entries found."
     lines = ["Design knowledge entries:"]
