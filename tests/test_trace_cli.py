@@ -4665,6 +4665,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["messages"]["nodes"][0]["inbox"], [])
             self.assertEqual(batch_text.returncode, 0, batch_text.stderr)
             self.assertIn("rag_context_nodes=", batch_text.stdout)
+            self.assertIn("rag_context_node_ids=", batch_text.stdout)
 
     def test_project_design_report_exposes_capability_spec_project_spec_and_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -29,6 +29,8 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - `tests/test_trace_cli.py`: batch roles-tick regression now asserts non-JSON summary includes `rag_context_nodes=` alongside existing JSON assertions.
 - `stagewarden/project/role_flow.py`: batch `roles tick` now computes deterministic `rag_context_by_node` directly from runtime tick results (consumed-message driven), then carries it in the returned result payload.
 - `stagewarden/cli_dispatch.py`: roles-tick JSON routes now source `rag_context_by_node` from the returned roles-tick result payload; obsolete handoff-scan helper removed.
+- `stagewarden/cli_dispatch.py`: non-JSON `roles tick` summary now includes `rag_context_node_ids=` for quick operator visibility of which nodes had RAG context in the batch.
+- `tests/test_trace_cli.py`: batch non-JSON regression now asserts `rag_context_node_ids=` appears in roles-tick summary output.
 - `tests/test_trace_cli.py`: batch roles-tick regression now asserts `delivery.team_manager` appears in `rag_context_by_node` under the governed message-consumption fixture.
 - `stagewarden/rag_views.py`: added `percentage_precision` option (0..6) for latest severity percentage rendering/summary formatting.
 - `stagewarden/commands.py`: benchmark usage now documents `[percentage_precision=3]`.
