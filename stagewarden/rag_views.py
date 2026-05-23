@@ -80,6 +80,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         write_path = str(fields.get("write", "")).strip()
         history_path = str(fields.get("history", "")).strip()
         latest_only = str(fields.get("latest", "")).strip().lower() in {"1", "true", "yes", "on"}
+        latest_warn_threshold = 0.0
         max_entries = 50
         threshold = 0.05
         if fields.get("threshold") is not None:
@@ -90,6 +91,11 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         if fields.get("max_entries") is not None:
             try:
                 max_entries = max(1, int(str(fields.get("max_entries"))))
+            except ValueError:
+                return {"command": task, "ok": False, "error": _rag_usage()}
+        if fields.get("warn_threshold") is not None:
+            try:
+                latest_warn_threshold = max(0.0, float(str(fields.get("warn_threshold"))))
             except ValueError:
                 return {"command": task, "ok": False, "error": _rag_usage()}
         if write_path:
@@ -114,6 +120,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             report["trend"] = summarize_rag_benchmark_trend(history_payload)
             if latest_only:
                 report["latest"] = summarize_rag_benchmark_latest(history_payload)
+                report["latest_warn_threshold"] = latest_warn_threshold
         elif str(fields.get("trend", "")).strip():
             trend_path = str(fields.get("trend", "")).strip()
             try:
@@ -123,6 +130,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             report["trend"] = summarize_rag_benchmark_trend(history_payload)
             if latest_only:
                 report["latest"] = summarize_rag_benchmark_latest(history_payload)
+                report["latest_warn_threshold"] = latest_warn_threshold
         report["ok"] = True
         return report
     if task.startswith("rag search "):
@@ -306,12 +314,15 @@ def render_rag_report(report: dict[str, Any]) -> str:
         latest = report.get("latest") if isinstance(report.get("latest"), dict) else None
         if latest is not None:
             lines.append(f"Latest snapshot samples={int(latest.get('samples', 0))}")
+            warn_threshold = float(report.get("latest_warn_threshold", 0.0)) if isinstance(report.get("latest_warn_threshold"), (int, float)) else 0.0
             deltas = latest.get("deltas", []) if isinstance(latest.get("deltas"), list) else []
             for item in deltas:
                 if not isinstance(item, dict):
                     continue
+                delta = float(item.get("delta", 0.0))
+                severity = " REGRESSION" if delta < -abs(warn_threshold) else ""
                 lines.append(
-                    f"- latest delta {item.get('mode')} {item.get('metric')}: prev={float(item.get('previous', 0.0)):.3f}, latest={float(item.get('latest', 0.0)):.3f}, delta={float(item.get('delta', 0.0)):.3f}"
+                    f"- latest delta {item.get('mode')} {item.get('metric')}: prev={float(item.get('previous', 0.0)):.3f}, latest={float(item.get('latest', 0.0)):.3f}, delta={delta:.3f}{severity}"
                 )
         return "\n".join(lines)
     entries = report.get("entries", [])
@@ -352,7 +363,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true] [warn_threshold=0.05]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:
