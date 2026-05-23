@@ -154,6 +154,15 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     "major_count": sum(1 for item in failing_deltas if str(item.get("severity", "")) == "major"),
                     "critical_count": sum(1 for item in failing_deltas if str(item.get("severity", "")) == "critical"),
                 }
+                total_deltas = len(deltas)
+                if total_deltas > 0:
+                    report["severity_percentages"] = {
+                        "minor_pct": float(report["severity_counts"]["minor_count"]) / float(total_deltas),
+                        "major_pct": float(report["severity_counts"]["major_count"]) / float(total_deltas),
+                        "critical_pct": float(report["severity_counts"]["critical_count"]) / float(total_deltas),
+                    }
+                else:
+                    report["severity_percentages"] = {"minor_pct": 0.0, "major_pct": 0.0, "critical_pct": 0.0}
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
@@ -191,6 +200,15 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     "major_count": sum(1 for item in failing_deltas if str(item.get("severity", "")) == "major"),
                     "critical_count": sum(1 for item in failing_deltas if str(item.get("severity", "")) == "critical"),
                 }
+                total_deltas = len(deltas)
+                if total_deltas > 0:
+                    report["severity_percentages"] = {
+                        "minor_pct": float(report["severity_counts"]["minor_count"]) / float(total_deltas),
+                        "major_pct": float(report["severity_counts"]["major_count"]) / float(total_deltas),
+                        "critical_pct": float(report["severity_counts"]["critical_count"]) / float(total_deltas),
+                    }
+                else:
+                    report["severity_percentages"] = {"minor_pct": 0.0, "major_pct": 0.0, "critical_pct": 0.0}
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
@@ -389,6 +407,10 @@ def render_rag_report(report: dict[str, Any]) -> str:
                 severity_counts = report.get("severity_counts", {}) if isinstance(report.get("severity_counts"), dict) else {}
                 lines.append(
                     f"Severity counts: minor={int(severity_counts.get('minor_count', 0))}, major={int(severity_counts.get('major_count', 0))}, critical={int(severity_counts.get('critical_count', 0))}"
+                )
+                severity_percentages = report.get("severity_percentages", {}) if isinstance(report.get("severity_percentages"), dict) else {}
+                lines.append(
+                    f"Severity percentages: minor={float(severity_percentages.get('minor_pct', 0.0)):.3f}, major={float(severity_percentages.get('major_pct', 0.0)):.3f}, critical={float(severity_percentages.get('critical_pct', 0.0)):.3f}"
                 )
                 for item in failing_deltas:
                     if not isinstance(item, dict):
