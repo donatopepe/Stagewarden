@@ -623,6 +623,17 @@ def _tick_prince2_role_runtime(
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     result = handoff.tick_prince2_runtime(max_nodes=max_nodes)
+    rag_context_by_node: dict[str, dict[str, object]] = {}
+    for item in result.get("results", []):
+        if not isinstance(item, dict):
+            continue
+        node_id = str(item.get("node_id", "")).strip()
+        if not node_id:
+            continue
+        rag_context = _rag_context_for_node_tick(config, handoff=handoff, node_id=node_id, result=item)
+        if rag_context is not None:
+            rag_context_by_node[node_id] = rag_context
+    result["rag_context_by_node"] = rag_context_by_node
     handoff.save(config.handoff_path)
     _model_views._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
     _project_handoff_views._record_handoff_action(
