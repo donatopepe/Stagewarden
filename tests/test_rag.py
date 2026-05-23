@@ -458,6 +458,7 @@ class RagTests(unittest.TestCase):
             self.assertIn("latest_passed", latest_report)
             self.assertIn("failing_deltas", latest_report)
             self.assertIn("severity_counts", latest_report)
+            self.assertIn("severity_percentages", latest_report)
             latest_rendered = render_rag_report(latest_report)
             self.assertIn("Latest snapshot samples=", latest_rendered)
             self.assertIn("Latest passed:", latest_rendered)
@@ -483,6 +484,10 @@ class RagTests(unittest.TestCase):
             self.assertIn("minor_count", severity_counts)
             self.assertIn("major_count", severity_counts)
             self.assertIn("critical_count", severity_counts)
+            severity_percentages = tuned.get("severity_percentages", {})
+            self.assertIn("minor_pct", severity_percentages)
+            self.assertIn("major_pct", severity_percentages)
+            self.assertIn("critical_pct", severity_percentages)
 
             remove_report = rag_command_report("rag remove rag-1", config)
             self.assertTrue(remove_report["ok"])
