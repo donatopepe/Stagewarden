@@ -381,6 +381,7 @@ def _handle_role_command(
         return (
             f"Queued PRINCE2 node message {message.get('message_id')} "
             f"{parts[2]} -> {parts[3]} edge={parts[4]}.\n"
+            f"RAG indexed: {message.get('rag_entry_id', 'no')}\n"
             + _project_role_runtime_views._render_prince2_role_messages(config, node_id=parts[3])
         )
     if len(parts) >= 4 and parts[1] == "wait":
@@ -438,6 +439,20 @@ def _handle_role_command(
             return str(exc)
         return (
             f"Node {result.get('node_id')} advanced to {result.get('state')}.\n"
+            + (
+                "RAG context: no relevant entries.\n"
+                if isinstance(result.get("rag_context"), dict)
+                and not (result.get("rag_context", {}) or {}).get("entries")
+                else "RAG context: "
+                + ", ".join(
+                    f"{item.get('entry_id')}:{item.get('title')}@{float(item.get('score', 0.0)):.3f}"
+                    for item in (result.get("rag_context", {}) or {}).get("entries", [])
+                    if isinstance(item, dict)
+                )
+                + "\n"
+                if isinstance(result.get("rag_context"), dict)
+                else ""
+            )
             + _project_role_runtime_views._render_prince2_role_messages(config, node_id=parts[2])
         )
     if len(parts) >= 2 and parts[1] == "configure":

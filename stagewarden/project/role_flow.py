@@ -32,12 +32,135 @@ from ..role_tree import (
     prince2_status_color,
 )
 from ..project_handoff import ProjectHandoff
+from ..rag import DesignRag, resolve_min_score_policy_details
 from .. import shell_views as _shell_views
 from .. import project_handoff_views as _project_handoff_views
 from . import model_recommendation as _project_model_recommendation
 from . import role_views as _project_role_views
 from . import role_tree_views as _project_role_tree_views
 from . import flow as _project_flow
+
+
+ROLE_RAG_HIGH_SIGNAL_TOKENS = {
+    "decision",
+    "exception",
+    "tolerance",
+    "escalation",
+    "validation",
+    "risk",
+    "issue",
+    "business_case",
+    "change",
+    "approval",
+}
+
+
+def _load_role_rag(config: AgentConfig) -> DesignRag | None:
+    try:
+        return DesignRag.load(config.rag_path)
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def _should_index_role_message(*, payload_scope: list[str], evidence_refs: list[str], summary: str) -> bool:
+    text = " ".join(payload_scope + evidence_refs + [summary]).lower()
+    if not text.strip():
+        return False
+    return any(token in text for token in ROLE_RAG_HIGH_SIGNAL_TOKENS)
+
+
+def _index_role_message_in_rag(
+    config: AgentConfig,
+    *,
+    message: dict[str, object],
+    payload_scope: list[str],
+    evidence_refs: list[str],
+    summary: str,
+) -> str | None:
+    rag = _load_role_rag(config)
+    if rag is None:
+        rag = DesignRag()
+    entry = rag.add(
+        phase="delivery",
+        tags=[
+            "prince2",
+            "node_message",
+            str(message.get("source_node", "")).strip(),
+            str(message.get("target_node", "")).strip(),
+            str(message.get("edge_id", "")).strip(),
+        ],
+        title=f"PRINCE2 message {message.get('message_id', 'unknown')}",
+        content=(
+            f"summary: {summary}\n"
+            f"source_node: {message.get('source_node')}\n"
+            f"target_node: {message.get('target_node')}\n"
+            f"edge_id: {message.get('edge_id')}\n"
+            f"payload_scope: {', '.join(payload_scope)}\n"
+            f"evidence_refs: {', '.join(evidence_refs)}"
+        ),
+        metadata={
+            "source": "role_message",
+            "message_id": str(message.get("message_id", "")),
+            "flow_type": str(message.get("flow_type", "")),
+        },
+    )
+    try:
+        rag.save(config.rag_path)
+    except OSError:
+        return None
+    return entry.entry_id
+
+
+def _node_role_type(handoff: ProjectHandoff, node_id: str) -> str | None:
+    runtime = handoff.prince2_node_runtime if isinstance(handoff.prince2_node_runtime, dict) else {}
+    nodes = runtime.get("nodes", []) if isinstance(runtime.get("nodes", []), list) else []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if str(node.get("node_id", "")).strip() == node_id:
+            role_type = str(node.get("role_type", "")).strip()
+            return role_type or None
+    return None
+
+
+def _rag_context_for_node_tick(config: AgentConfig, *, handoff: ProjectHandoff, node_id: str, result: dict[str, object]) -> dict[str, object] | None:
+    consumed = result.get("consumed_message") if isinstance(result.get("consumed_message"), dict) else None
+    if consumed is None:
+        return None
+    payload_scope = [str(item).strip() for item in consumed.get("payload_scope", []) if str(item).strip()]
+    summary = str(consumed.get("summary", "")).strip()
+    edge_id = str(consumed.get("edge_id", "")).strip()
+    query = " ".join(payload_scope + [summary, edge_id]).strip()
+    if not query:
+        return None
+    rag = _load_role_rag(config)
+    if rag is None:
+        return None
+    role_type = _node_role_type(handoff, node_id)
+    policy = resolve_min_score_policy_details(phase="delivery", role=role_type, mode="hybrid", override=None)
+    min_score = float(policy.get("min_score", 0.0))
+    entries = rag.search_diagnostics(query, phase="delivery", role=role_type, mode="hybrid", min_score=min_score, limit=3)
+    if not entries:
+        return {
+            "query": query,
+            "policy_source": str(policy.get("policy_source", "default")),
+            "min_score": min_score,
+            "entries": [],
+        }
+    compact_entries = [
+        {
+            "entry_id": item["entry"].entry_id,
+            "title": item["entry"].title,
+            "score": float(item.get("score", 0.0)),
+        }
+        for item in entries
+    ]
+    return {
+        "query": query,
+        "policy_source": str(policy.get("policy_source", "default")),
+        "min_score": min_score,
+        "entries": compact_entries,
+    }
 
 
 def _role_options() -> list[tuple[str, str]]:
@@ -372,6 +495,18 @@ def _send_prince2_role_message(
         evidence_refs=evidence_refs,
         summary=summary,
     )
+    rag_entry_id: str | None = None
+    summary_text = str(summary or message.get("summary", "")).strip()
+    if _should_index_role_message(payload_scope=payload_scope, evidence_refs=list(evidence_refs or []), summary=summary_text):
+        rag_entry_id = _index_role_message_in_rag(
+            config,
+            message=message,
+            payload_scope=list(payload_scope),
+            evidence_refs=list(evidence_refs or []),
+            summary=summary_text,
+        )
+        if rag_entry_id:
+            message["rag_entry_id"] = rag_entry_id
     handoff.save(config.handoff_path)
     _project_handoff_views._record_handoff_action(
         config,
@@ -441,6 +576,9 @@ def _tick_prince2_role_node(
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
     result = handoff.tick_prince2_node(node_id=node_id)
+    rag_context = _rag_context_for_node_tick(config, handoff=handoff, node_id=node_id, result=result)
+    if rag_context is not None:
+        result["rag_context"] = rag_context
     handoff.save(config.handoff_path)
     _model_views._sync_prince2_role_tree_baseline_back_to_preferences(config, prefs, handoff)
     _project_handoff_views._record_handoff_action(
