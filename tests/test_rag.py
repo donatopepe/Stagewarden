@@ -379,6 +379,9 @@ class RagTests(unittest.TestCase):
             self.assertTrue(role_policy_report["ok"])
             self.assertGreater(float(role_policy_report.get("min_score", 0.0)), 0.0)
             self.assertEqual(role_policy_report.get("policy_source"), "role")
+            role_policy_rendered = render_rag_report(role_policy_report)
+            self.assertIn("RAG search:", role_policy_rendered)
+            self.assertIn("policy_source=role", role_policy_rendered)
 
             rendered = render_rag_report(rag_command_report("rag list", config))
             self.assertIn("Boundary", rendered)
