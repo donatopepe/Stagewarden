@@ -82,6 +82,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
         latest_only = str(fields.get("latest", "")).strip().lower() in {"1", "true", "yes", "on"}
         latest_enforce = str(fields.get("latest_enforce", "")).strip().lower() in {"1", "true", "yes", "on"}
         latest_enforce_exit_code = 1
+        percentage_precision = 3
         latest_warn_threshold = 0.0
         latest_major_threshold = 0.1
         latest_critical_threshold = 0.2
@@ -118,6 +119,13 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
             except ValueError:
                 return {"command": task, "ok": False, "error": _rag_usage()}
             if latest_enforce_exit_code < 1 or latest_enforce_exit_code > 255:
+                return {"command": task, "ok": False, "error": _rag_usage()}
+        if fields.get("percentage_precision") is not None:
+            try:
+                percentage_precision = int(str(fields.get("percentage_precision")))
+            except ValueError:
+                return {"command": task, "ok": False, "error": _rag_usage()}
+            if percentage_precision < 0 or percentage_precision > 6:
                 return {"command": task, "ok": False, "error": _rag_usage()}
         if write_path:
             save_rag_benchmark_snapshot(Path(write_path), report)
@@ -187,6 +195,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     "failing_count": len(failing_deltas),
                     "severity_counts": dict(report["severity_counts"]),
                     "severity_percentages": dict(report["severity_percentages"]),
+                    "percentage_precision": percentage_precision,
                 }
                 report["latest_enforce"] = latest_enforce
         elif str(fields.get("trend", "")).strip():
@@ -244,6 +253,7 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                     "failing_count": len(failing_deltas),
                     "severity_counts": dict(report["severity_counts"]),
                     "severity_percentages": dict(report["severity_percentages"]),
+                    "percentage_precision": percentage_precision,
                 }
                 report["latest_enforce"] = latest_enforce
         if latest_only and latest_enforce and isinstance(report.get("latest_passed"), bool) and not bool(report.get("latest_passed")):
@@ -448,8 +458,12 @@ def render_rag_report(report: dict[str, Any]) -> str:
                     f"Severity counts: minor={int(severity_counts.get('minor_count', 0))}, major={int(severity_counts.get('major_count', 0))}, critical={int(severity_counts.get('critical_count', 0))}"
                 )
                 severity_percentages = report.get("severity_percentages", {}) if isinstance(report.get("severity_percentages"), dict) else {}
+                precision = int(report.get("latest_summary", {}).get("percentage_precision", percentage_precision)) if isinstance(report.get("latest_summary"), dict) else percentage_precision
                 lines.append(
-                    f"Severity percentages: minor={float(severity_percentages.get('minor_pct', 0.0)):.3f}, major={float(severity_percentages.get('major_pct', 0.0)):.3f}, critical={float(severity_percentages.get('critical_pct', 0.0)):.3f}"
+                    "Severity percentages: "
+                    f"minor={float(severity_percentages.get('minor_pct', 0.0)):.{precision}f}, "
+                    f"major={float(severity_percentages.get('major_pct', 0.0)):.{precision}f}, "
+                    f"critical={float(severity_percentages.get('critical_pct', 0.0)):.{precision}f}"
                 )
                 for item in failing_deltas:
                     if not isinstance(item, dict):
@@ -508,7 +522,7 @@ def render_rag_report(report: dict[str, Any]) -> str:
 
 
 def _rag_usage() -> str:
-    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true] [latest_enforce=true] [latest_enforce_exit_code=1] [warn_threshold=0.05] [major_threshold=0.10] [critical_threshold=0.20]"
+    return "Usage: rag | rag list | rag search <query> [phase=<phase>] [role=<role>] [tags=a,b] [limit=N] [mode=lexical|vector|hybrid] [min_score=0.0] | rag add phase=<phase> title='<title>' content='<content>' [tags=a,b] | rag update <entry_id> field=value [...] | rag remove <entry_id> | rag compact [mode=strict|balanced|aggressive] | rag rebuild-vectors | rag benchmark [baseline=<path>] [threshold=0.05] [write=<path>] [history=<path>] [trend=<path>] [max_entries=<N>] [latest=true] [latest_enforce=true] [latest_enforce_exit_code=1] [warn_threshold=0.05] [major_threshold=0.10] [critical_threshold=0.20] [percentage_precision=3]"
 
 
 def _parse_update_fields(tokens: list[str]) -> dict[str, Any]:
