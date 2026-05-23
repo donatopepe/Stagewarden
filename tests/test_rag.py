@@ -88,6 +88,8 @@ class RagTests(unittest.TestCase):
             payload = append_rag_benchmark_history(history_path, first)
             payload = append_rag_benchmark_history(history_path, second)
             self.assertEqual(len(payload["entries"]), 2)
+            self.assertIn("recorded_at", payload["entries"][0])
+            self.assertIn("report", payload["entries"][0])
             trend = summarize_rag_benchmark_trend(payload)
             self.assertEqual(trend["samples"], 2)
             self.assertTrue(trend["modes"])

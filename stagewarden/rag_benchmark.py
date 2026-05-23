@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -164,7 +165,12 @@ def load_rag_benchmark_history(path: Path) -> dict[str, Any]:
 def append_rag_benchmark_history(path: Path, report: dict[str, Any], *, max_entries: int = 50) -> dict[str, Any]:
     history = load_rag_benchmark_history(path)
     entries = list(history.get("entries", []))
-    entries.append(report)
+    entries.append(
+        {
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
+            "report": report,
+        }
+    )
     if max_entries > 0 and len(entries) > max_entries:
         entries = entries[-max_entries:]
     payload = {"version": 1, "entries": entries}
@@ -180,7 +186,10 @@ def summarize_rag_benchmark_trend(history: dict[str, Any]) -> dict[str, Any]:
 
     mode_names: set[str] = set()
     mapped_entries: list[dict[str, dict[str, float]]] = []
-    for report in entries:
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        report = item.get("report") if isinstance(item.get("report"), dict) else item
         if not isinstance(report, dict):
             continue
         mode_map = _mode_metrics_map(report)
