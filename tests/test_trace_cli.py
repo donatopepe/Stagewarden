@@ -4651,6 +4651,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("rag_context_by_node", payload)
             self.assertIsInstance(payload["rag_context_by_node"], dict)
             self.assertIn("delivery.team_manager", payload["rag_context_by_node"])
+            self.assertIn("rag_context_summary", payload)
+            self.assertEqual(int(payload["rag_context_summary"].get("count", -1)), len(payload["rag_context_summary"].get("node_ids", [])))
             self.assertEqual(payload["result"]["woken"], 0)
             self.assertEqual(payload["result"]["progressed"], 2)
             rows = {
