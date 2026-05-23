@@ -123,6 +123,11 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 report["latest_warn_threshold"] = latest_warn_threshold
                 latest_payload = report.get("latest", {}) if isinstance(report.get("latest"), dict) else {}
                 deltas = latest_payload.get("deltas", []) if isinstance(latest_payload.get("deltas"), list) else []
+                report["failing_deltas"] = [
+                    item
+                    for item in deltas
+                    if isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
+                ]
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
@@ -139,6 +144,11 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 report["latest_warn_threshold"] = latest_warn_threshold
                 latest_payload = report.get("latest", {}) if isinstance(report.get("latest"), dict) else {}
                 deltas = latest_payload.get("deltas", []) if isinstance(latest_payload.get("deltas"), list) else []
+                report["failing_deltas"] = [
+                    item
+                    for item in deltas
+                    if isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
+                ]
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
@@ -329,6 +339,9 @@ def render_rag_report(report: dict[str, Any]) -> str:
             warn_threshold = float(report.get("latest_warn_threshold", 0.0)) if isinstance(report.get("latest_warn_threshold"), (int, float)) else 0.0
             if isinstance(report.get("latest_passed"), bool):
                 lines.append(f"Latest passed: {bool(report.get('latest_passed'))}")
+            failing_deltas = report.get("failing_deltas", []) if isinstance(report.get("failing_deltas"), list) else []
+            if failing_deltas:
+                lines.append(f"Latest failing deltas: {len(failing_deltas)}")
             deltas = latest.get("deltas", []) if isinstance(latest.get("deltas"), list) else []
             for item in deltas:
                 if not isinstance(item, dict):
