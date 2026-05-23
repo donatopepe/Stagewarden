@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "role tick --json now exposes top-level rag_context for machine-readable communication retrieval context, sourced from latest role_tick handoff details. Validation passed: targeted lifecycle trace test (1 OK).",
+  "latest_observation": "role message --json now exposes rag_indexed/rag_entry_id telemetry, backed by persisted role_message handoff details. Validation passed: targeted role message+lifecycle trace tests (2 OK).",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "26f53f4ef419e1b22aade0b0cc9b7704cedd2428",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-23T05:00:00Z",
+  "updated_at": "2026-05-23T05:12:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",

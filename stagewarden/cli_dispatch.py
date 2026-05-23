@@ -76,6 +76,29 @@ def _latest_role_tick_rag_context(config: AgentConfig, *, node_id: str | None) -
     return None
 
 
+def _latest_role_message_rag_entry(config: AgentConfig, *, source_node: str | None, target_node: str | None, edge_id: str | None) -> str | None:
+    if not source_node or not target_node or not edge_id:
+        return None
+    try:
+        handoff = ProjectHandoff.load(config.handoff_path)
+    except OSError:
+        return None
+    expected_task = f"role message {source_node} {target_node} {edge_id}"
+    for entry in reversed(handoff.entries):
+        if getattr(entry, "phase", "") != "role_message":
+            continue
+        if str(getattr(entry, "task", "")).strip() != expected_task:
+            continue
+        details = getattr(entry, "details", None)
+        if not isinstance(details, dict):
+            return None
+        rag_entry_id = details.get("rag_entry_id")
+        if isinstance(rag_entry_id, str) and rag_entry_id.strip():
+            return rag_entry_id.strip()
+        return None
+    return None
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stagewarden", description="Stagewarden: production-grade CLI coding agent.")
     parser.add_argument("task", nargs="*", default=[], help='Task to execute, for example: stagewarden "fix the failing tests"')
@@ -729,6 +752,14 @@ def run_cli() -> int:
             if task.startswith("role message "):
                 parts = task.split()
                 node_id = parts[3] if len(parts) >= 4 else None
+                source_node = parts[2] if len(parts) >= 3 else None
+                edge_id = parts[4] if len(parts) >= 5 else None
+                rag_entry_id = _latest_role_message_rag_entry(
+                    config,
+                    source_node=source_node,
+                    target_node=node_id,
+                    edge_id=edge_id,
+                )
                 print(
                     dumps_ascii(
                         _json_schema_registry.with_json_schema(
@@ -736,6 +767,8 @@ def run_cli() -> int:
                         {
                             "command": task,
                             "message": response,
+                            "rag_entry_id": rag_entry_id,
+                            "rag_indexed": bool(rag_entry_id),
                             "messages": _project_role_runtime_views._prince2_role_messages_report(config, node_id=node_id),
                         },
                         ),

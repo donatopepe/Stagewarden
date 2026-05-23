@@ -541,6 +541,7 @@ def _send_prince2_role_message(
             "edge_id": edge_id,
             "payload_scope": list(payload_scope),
             "evidence_refs": list(evidence_refs or []),
+            "rag_entry_id": rag_entry_id,
         },
     )
     return message
