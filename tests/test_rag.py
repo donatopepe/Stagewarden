@@ -476,7 +476,7 @@ class RagTests(unittest.TestCase):
             self.assertIn("Latest snapshot samples=", latest_warn_rendered)
 
             tuned = rag_command_report(
-                f"rag benchmark trend={history_path} latest=true warn_threshold=0.0 major_threshold=0.01 critical_threshold=0.02",
+                f"rag benchmark trend={history_path} latest=true warn_threshold=0.0 major_threshold=0.01 critical_threshold=0.02 percentage_precision=4",
                 config,
             )
             self.assertTrue(tuned["ok"])
@@ -493,6 +493,7 @@ class RagTests(unittest.TestCase):
             latest_summary = tuned.get("latest_summary", {})
             self.assertIn("passed", latest_summary)
             self.assertIn("failing_count", latest_summary)
+            self.assertEqual(int(latest_summary.get("percentage_precision", -1)), 4)
 
             rag_command_report(f"rag benchmark history={history_path} max_entries=5", config)
             rag_command_report(f"rag benchmark history={history_path} max_entries=5", config)
