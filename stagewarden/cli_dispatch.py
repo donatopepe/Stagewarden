@@ -680,6 +680,7 @@ def run_cli() -> int:
                 return 1
         result = _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
         rag_context_by_node = result.get("rag_context_by_node", {}) if isinstance(result.get("rag_context_by_node"), dict) else {}
+        rag_context_node_ids = sorted(key for key, value in rag_context_by_node.items() if key and isinstance(value, dict))
         if args.json:
             print(
                 dumps_ascii(
@@ -690,6 +691,10 @@ def run_cli() -> int:
                         "ok": True,
                         "result": result,
                         "rag_context_by_node": rag_context_by_node,
+                        "rag_context_summary": {
+                            "count": len(rag_context_node_ids),
+                            "node_ids": rag_context_node_ids,
+                        },
                         "runtime": _project_role_runtime_views._prince2_role_runtime_report(config),
                         "messages": _project_role_runtime_views._prince2_role_messages_report(config),
                     },
@@ -805,6 +810,7 @@ def run_cli() -> int:
                     max_nodes=int(task.split(maxsplit=2)[2]) if len(task.split(maxsplit=2)) == 3 else None,
                 )
                 rag_context_by_node = roles_tick_result.get("rag_context_by_node", {}) if isinstance(roles_tick_result.get("rag_context_by_node"), dict) else {}
+                rag_context_node_ids = sorted(key for key, value in rag_context_by_node.items() if key and isinstance(value, dict))
                 print(
                     dumps_ascii(
                         _json_schema_registry.with_json_schema(
@@ -813,6 +819,10 @@ def run_cli() -> int:
                             "command": task,
                             "result": roles_tick_result,
                             "rag_context_by_node": rag_context_by_node,
+                            "rag_context_summary": {
+                                "count": len(rag_context_node_ids),
+                                "node_ids": rag_context_node_ids,
+                            },
                             "runtime": _project_role_runtime_views._prince2_role_runtime_report(config),
                             "messages": _project_role_runtime_views._prince2_role_messages_report(config),
                         },
