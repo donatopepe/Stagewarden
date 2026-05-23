@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "RAG node-communication v1 started: role message now selectively indexes high-signal governed node messages into RAG, and role tick now resolves scoped RAG context on consumed inbox messages. Validation passed: tests.test_rag + targeted role runtime trace tests.",
+  "latest_observation": "RAG node-communication v1.1: role tick now performs strict tag-scoped RAG retrieval (source/target/edge) before fallback delivery retrieval, improving context precision on busy runtimes. Validation passed: targeted role runtime trace tests (3 OK).",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "26f53f4ef419e1b22aade0b0cc9b7704cedd2428",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-23T04:18:00Z",
+  "updated_at": "2026-05-23T04:33:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",

@@ -130,6 +130,8 @@ def _rag_context_for_node_tick(config: AgentConfig, *, handoff: ProjectHandoff, 
     payload_scope = [str(item).strip() for item in consumed.get("payload_scope", []) if str(item).strip()]
     summary = str(consumed.get("summary", "")).strip()
     edge_id = str(consumed.get("edge_id", "")).strip()
+    source_node = str(consumed.get("source_node", "")).strip()
+    target_node = str(consumed.get("target_node", "")).strip()
     query = " ".join(payload_scope + [summary, edge_id]).strip()
     if not query:
         return None
@@ -139,12 +141,31 @@ def _rag_context_for_node_tick(config: AgentConfig, *, handoff: ProjectHandoff, 
     role_type = _node_role_type(handoff, node_id)
     policy = resolve_min_score_policy_details(phase="delivery", role=role_type, mode="hybrid", override=None)
     min_score = float(policy.get("min_score", 0.0))
-    entries = rag.search_diagnostics(query, phase="delivery", role=role_type, mode="hybrid", min_score=min_score, limit=3)
+    scoped_tags = [item for item in [source_node, target_node, edge_id] if item]
+    entries = rag.search_diagnostics(
+        query,
+        phase="delivery",
+        role=role_type,
+        tags=scoped_tags or None,
+        mode="hybrid",
+        min_score=min_score,
+        limit=3,
+    )
+    if not entries:
+        entries = rag.search_diagnostics(
+            query,
+            phase="delivery",
+            role=role_type,
+            mode="hybrid",
+            min_score=min_score,
+            limit=3,
+        )
     if not entries:
         return {
             "query": query,
             "policy_source": str(policy.get("policy_source", "default")),
             "min_score": min_score,
+            "scoped_tags": scoped_tags,
             "entries": [],
         }
     compact_entries = [
@@ -159,6 +180,7 @@ def _rag_context_for_node_tick(config: AgentConfig, *, handoff: ProjectHandoff, 
         "query": query,
         "policy_source": str(policy.get("policy_source", "default")),
         "min_score": min_score,
+        "scoped_tags": scoped_tags,
         "entries": compact_entries,
     }
 
