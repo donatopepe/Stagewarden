@@ -445,6 +445,7 @@ class RagTests(unittest.TestCase):
             self.assertIn("trend", trend_only)
             trend_rendered = render_rag_report(trend_only)
             self.assertIn("Trend: samples=", trend_rendered)
+            self.assertIn("Trend window:", trend_rendered)
             self.assertIn("- trend lexical:", trend_rendered)
 
             remove_report = rag_command_report("rag remove rag-1", config)

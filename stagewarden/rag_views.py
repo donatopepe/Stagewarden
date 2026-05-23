@@ -281,9 +281,13 @@ def render_rag_report(report: dict[str, Any]) -> str:
             lines.append(f"History samples: {int(history.get('samples', 0))}")
         trend = report.get("trend") if isinstance(report.get("trend"), dict) else None
         if trend is not None:
+            first_recorded_at = trend.get("first_recorded_at")
+            last_recorded_at = trend.get("last_recorded_at")
             lines.append(
                 f"Trend: samples={int(trend.get('samples', 0))}, improving={int(trend.get('improving', 0))}, regressing={int(trend.get('regressing', 0))}, stable={int(trend.get('stable', 0))}"
             )
+            if isinstance(first_recorded_at, str) and isinstance(last_recorded_at, str):
+                lines.append(f"Trend window: first={first_recorded_at}, last={last_recorded_at}")
             mode_trends = trend.get("modes", []) if isinstance(trend.get("modes"), list) else []
             for item in mode_trends:
                 if not isinstance(item, dict):
