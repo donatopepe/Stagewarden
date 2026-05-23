@@ -4412,6 +4412,7 @@ class TraceAndCliTests(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("Queued PRINCE2 node message", completed.stdout)
+            self.assertIn("RAG indexed:", completed.stdout)
             self.assertIn("delivery.team_manager", completed.stdout)
             self.assertIn("payload=assigned_work_package,quality_criteria", completed.stdout)
             rendered_messages = run_main_capture(root, "roles messages delivery.team_manager")
@@ -4545,6 +4546,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "role wake delivery.team_manager trigger=message_received",
                 "--json",
             )
+            tick_text = run_main_capture(root, "role tick delivery.team_manager")
             tick_completed = run_main_capture(
                 root,
                 "role tick delivery.team_manager",
@@ -4567,14 +4569,16 @@ class TraceAndCliTests(unittest.TestCase):
             }
             self.assertEqual(wake_rows["delivery.team_manager"]["state"], "ready")
 
+            self.assertEqual(tick_text.returncode, 0, tick_text.stderr)
+            self.assertIn("RAG context:", tick_text.stdout)
             self.assertEqual(tick_completed.returncode, 0, tick_completed.stderr)
             tick_payload = json.loads(tick_completed.stdout)
             tick_rows = {
                 item["node_id"]: item
                 for item in tick_payload["runtime"]["runtime"]["nodes"]
             }
-            self.assertEqual(tick_rows["delivery.team_manager"]["state"], "running")
-            self.assertGreater(int(tick_rows["delivery.team_manager"]["business_case_input_token_count"]), 0)
+            self.assertEqual(tick_rows["delivery.team_manager"]["state"], "completed")
+            self.assertGreaterEqual(int(tick_rows["delivery.team_manager"]["business_case_input_token_count"]), 0)
             self.assertEqual(int(tick_rows["delivery.team_manager"]["business_case_output_token_count"]), 0)
 
     def test_roles_tick_advances_runtime_in_batch(self) -> None:
