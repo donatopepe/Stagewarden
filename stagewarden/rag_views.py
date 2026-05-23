@@ -123,11 +123,16 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 report["latest_warn_threshold"] = latest_warn_threshold
                 latest_payload = report.get("latest", {}) if isinstance(report.get("latest"), dict) else {}
                 deltas = latest_payload.get("deltas", []) if isinstance(latest_payload.get("deltas"), list) else []
-                report["failing_deltas"] = [
-                    item
-                    for item in deltas
-                    if isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
-                ]
+                failing_deltas: list[dict[str, Any]] = []
+                for item in deltas:
+                    if not isinstance(item, dict):
+                        continue
+                    delta = float(item.get("delta", 0.0))
+                    if delta < -abs(latest_warn_threshold):
+                        enriched = dict(item)
+                        enriched["severity"] = _delta_severity(delta)
+                        failing_deltas.append(enriched)
+                report["failing_deltas"] = failing_deltas
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
@@ -144,11 +149,16 @@ def rag_command_report(task: str, config: AgentConfig) -> dict[str, Any]:
                 report["latest_warn_threshold"] = latest_warn_threshold
                 latest_payload = report.get("latest", {}) if isinstance(report.get("latest"), dict) else {}
                 deltas = latest_payload.get("deltas", []) if isinstance(latest_payload.get("deltas"), list) else []
-                report["failing_deltas"] = [
-                    item
-                    for item in deltas
-                    if isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
-                ]
+                failing_deltas: list[dict[str, Any]] = []
+                for item in deltas:
+                    if not isinstance(item, dict):
+                        continue
+                    delta = float(item.get("delta", 0.0))
+                    if delta < -abs(latest_warn_threshold):
+                        enriched = dict(item)
+                        enriched["severity"] = _delta_severity(delta)
+                        failing_deltas.append(enriched)
+                report["failing_deltas"] = failing_deltas
                 report["latest_passed"] = not any(
                     isinstance(item, dict) and float(item.get("delta", 0.0)) < -abs(latest_warn_threshold)
                     for item in deltas
@@ -342,6 +352,12 @@ def render_rag_report(report: dict[str, Any]) -> str:
             failing_deltas = report.get("failing_deltas", []) if isinstance(report.get("failing_deltas"), list) else []
             if failing_deltas:
                 lines.append(f"Latest failing deltas: {len(failing_deltas)}")
+                for item in failing_deltas:
+                    if not isinstance(item, dict):
+                        continue
+                    lines.append(
+                        f"- failing {item.get('mode')} {item.get('metric')}: delta={float(item.get('delta', 0.0)):.3f}, severity={item.get('severity', 'minor')}"
+                    )
             deltas = latest.get("deltas", []) if isinstance(latest.get("deltas"), list) else []
             for item in deltas:
                 if not isinstance(item, dict):
@@ -421,3 +437,12 @@ def _parse_key_value_fields(tokens: list[str]) -> dict[str, str]:
 
 def _parse_tags(raw: str) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _delta_severity(delta: float) -> str:
+    magnitude = abs(delta)
+    if magnitude >= 0.2:
+        return "critical"
+    if magnitude >= 0.1:
+        return "major"
+    return "minor"

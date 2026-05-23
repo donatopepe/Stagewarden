@@ -466,6 +466,8 @@ class RagTests(unittest.TestCase):
             self.assertEqual(float(latest_warn.get("latest_warn_threshold", -1.0)), 0.0)
             self.assertIsInstance(latest_warn.get("latest_passed"), bool)
             self.assertIsInstance(latest_warn.get("failing_deltas"), list)
+            if latest_warn["failing_deltas"]:
+                self.assertIn("severity", latest_warn["failing_deltas"][0])
             latest_warn_rendered = render_rag_report(latest_warn)
             self.assertIn("Latest snapshot samples=", latest_warn_rendered)
 
