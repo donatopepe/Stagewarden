@@ -14,6 +14,7 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Runtime RAG state is persisted to `.stagewarden_rag.json` and ignored by git.
 - Additional validation this session: full `tests.test_trace_cli` run completed with 1 intermittent failure in `test_openrouter_benchmark_cli_reports_multi_suite_baseline`; immediate isolated rerun of that test passed (`ok`), indicating likely flake in benchmark path rather than deterministic regression.
 - Post-hardening validation: full trace suite re-run now passes cleanly (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK).
+- Cross-cutting regression validation also passes post-hardening: `python3 -m unittest tests.test_rag tests.test_executor tests.test_json_schema_registry -v` -> 66 OK.
 
 ## Recent changes
 - `tests/test_trace_cli.py`: hardened live OpenRouter benchmark trace regression by adding one retry and transient-provider-error skip path (when benchmark returns non-zero and case-level provider/network errors are present), preserving strict failure for non-transient regressions.
