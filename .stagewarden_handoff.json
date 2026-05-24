@@ -118,7 +118,7 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "Trace lifecycle regression now accepts rag_context=None on second role tick after consumption, while still validating rag_context shape when present.",
+  "latest_observation": "Role-message JSON telemetry regression now enforces consistency between rag_indexed and rag_entry_id presence.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
   "git_head": "26f53f4ef419e1b22aade0b0cc9b7704cedd2428",
   "git_head_baseline": "a38597f",
@@ -176,7 +176,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-23T06:44:00Z",
+  "updated_at": "2026-05-23T06:55:00Z",
   "entries": [
     {
       "timestamp": "2026-05-21T01:00:00Z",

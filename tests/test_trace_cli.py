@@ -4426,6 +4426,7 @@ class TraceAndCliTests(unittest.TestCase):
             message_payload = json.loads(json_completed.stdout)
             self.assertIn("rag_indexed", message_payload)
             self.assertIn("rag_entry_id", message_payload)
+            self.assertEqual(bool(message_payload.get("rag_entry_id")), bool(message_payload.get("rag_indexed")))
             self.assertEqual(message_payload["messages"]["command"], "roles messages")
             self.assertEqual(message_payload["messages"]["nodes"][0]["node_id"], "delivery.team_manager")
             self.assertEqual(message_payload["messages"]["nodes"][0]["inbox"][0]["edge_id"], "issue.work_package")
