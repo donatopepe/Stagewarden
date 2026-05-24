@@ -18,6 +18,7 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 
 ## Recent changes
 - `tests/test_trace_cli.py`: hardened live OpenRouter benchmark trace regression by adding one retry and transient-provider-error skip path (when benchmark returns non-zero and case-level provider/network errors are present), preserving strict failure for non-transient regressions.
+- `tests/test_trace_cli.py`: fixed retry-side assertion drift by conditioning `history.previous` expectation on whether a retry occurred (retry writes first snapshot, so `previous` is legitimately non-null on second attempt).
 - `stagewarden/project/role_flow.py`: `role tick` RAG retrieval now applies strict scoped tag filtering (`source_node`, `target_node`, `edge_id`) first, then falls back to unscoped delivery retrieval if no scoped hits are found.
 - `stagewarden/project/role_flow.py`: added selective RAG indexing for high-signal governed node messages (`role message`) and scoped RAG retrieval context injection on `role tick` when consuming inbox messages.
 - `stagewarden/project/role_command_flow.py`: role-message output now reports whether message was indexed into RAG; role-tick output now summarizes retrieved RAG context entries when present.
