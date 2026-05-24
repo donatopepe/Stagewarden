@@ -274,6 +274,7 @@ class TraceAndCliTests(unittest.TestCase):
             output_path = root / "openrouter-benchmark.json"
             history_path = root / "openrouter-benchmark-history.jsonl"
             os.environ["RUN_MODEL_BIN"] = str(stub)
+            retried_after_failure = False
             try:
                 completed = run_main_capture(
                     root,
@@ -285,6 +286,7 @@ class TraceAndCliTests(unittest.TestCase):
                     timeout=300,
                 )
                 if completed.returncode != 0:
+                    retried_after_failure = True
                     completed = run_main_capture(
                         root,
                         "--openrouter-benchmark",
@@ -332,7 +334,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("history", payload)
             self.assertTrue(payload["history"]["enabled"])
             self.assertTrue(payload["history"]["appended"])
-            self.assertIsNone(payload["history"]["previous"])
+            if retried_after_failure:
+                self.assertIsNotNone(payload["history"]["previous"])
+            else:
+                self.assertIsNone(payload["history"]["previous"])
             self.assertFalse(payload["overall"]["regressed"])
             self.assertGreaterEqual(payload["suites"]["general"]["accuracy"], 1.0)
             self.assertGreaterEqual(payload["suites"]["reasoning"]["accuracy"], 1.0)
