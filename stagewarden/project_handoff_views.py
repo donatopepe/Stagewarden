@@ -140,6 +140,57 @@ def _pending_question_text(question: dict[str, Any]) -> str:
     return str(pending.get("question") or "none")
 
 
+def checkpoint_recovery_status(handoff: Any) -> dict[str, object]:
+    recovery_items: list[dict[str, object]] = []
+    for item in handoff.implementation_backlog:
+        if not isinstance(item, dict):
+            continue
+        step_id = str(item.get("step_id") or "")
+        if not step_id.startswith("checkpoint-recovery-step-"):
+            continue
+        status = handoff._normalize_backlog_status(str(item.get("status") or "planned"))
+        recovery_items.append(
+            {
+                "step_id": step_id,
+                "title": str(item.get("title") or ""),
+                "status": status,
+                "validation": str(item.get("validation") or ""),
+            }
+        )
+    active_items = [item for item in recovery_items if item["status"] in {"planned", "ready", "in_progress", "blocked"}]
+    completed_count = sum(1 for item in recovery_items if item["status"] == "completed")
+    latest_checkpoint: dict[str, object] | None = None
+    for entry in reversed(handoff.entries):
+        if entry.phase != "product_checkpoint":
+            continue
+        latest_checkpoint = {
+            "product_id": entry.details.get("product_id") or entry.step_id or "unknown",
+            "step_id": entry.step_id or "unknown",
+            "step_title": entry.step_title or "",
+            "checkpoint_status": entry.details.get("checkpoint_status") or entry.step_status or "unknown",
+            "quality_gate_evidence": entry.details.get("quality_gate_evidence") or "",
+            "timestamp": entry.timestamp,
+            "git_head": entry.git_head,
+        }
+        break
+    if active_items:
+        status = "active"
+    elif recovery_items:
+        status = "cleared"
+    elif latest_checkpoint:
+        status = "checkpoint_available"
+    else:
+        status = "none"
+    return {
+        "status": status,
+        "pending_count": len(active_items),
+        "completed_count": completed_count,
+        "total_count": len(recovery_items),
+        "active_items": active_items,
+        "latest_checkpoint": latest_checkpoint,
+    }
+
+
 def stage_view(handoff: Any) -> dict[str, object]:
     status_by_step = handoff._parse_plan_status(handoff.plan_status)
     closed_steps = [step_id for step_id, status in status_by_step.items() if status == "completed"]
@@ -168,6 +219,7 @@ def stage_view(handoff: Any) -> dict[str, object]:
     next_action = handoff._next_action(boundary_decision, active_step, stage_health, backlog_statuses, recovery_state)
     budget_view = handoff.project_budget_view()
     question_view = handoff.user_question_view()
+    checkpoint_recovery = checkpoint_recovery_status(handoff)
     return {
         "closed_steps": closed_steps,
         "active_step": active_step,
@@ -183,6 +235,7 @@ def stage_view(handoff: Any) -> dict[str, object]:
         "user_question": question_view,
         "session_state": "waiting_for_user" if handoff.status == "waiting" and handoff.waiting_reason == "clarification" else "suspended" if handoff.status == "waiting" else handoff.status,
         "session_recoverable": handoff.status == "waiting",
+        "checkpoint_recovery": checkpoint_recovery,
         "node_runtime_summary": handoff.prince2_node_runtime_summary(),
     }
 
@@ -203,6 +256,7 @@ def rendered_stage_view(handoff: Any) -> str:
     question = view["user_question"]
     session_state = view["session_state"]
     session_recoverable = bool(view["session_recoverable"])
+    checkpoint_recovery = view["checkpoint_recovery"] if isinstance(view.get("checkpoint_recovery"), dict) else {}
     lines = ["Stage view:"]
     if closed_steps:
         lines.append(f"- closed_stages: {', '.join(closed_steps)}")
@@ -237,6 +291,17 @@ def rendered_stage_view(handoff: Any) -> str:
     )
     lines.append(f"- session_state: {session_state}")
     lines.append(f"- session_recoverable: {str(session_recoverable).lower()}")
+    latest_checkpoint = checkpoint_recovery.get("latest_checkpoint") if isinstance(checkpoint_recovery, dict) else None
+    latest_checkpoint_id = "none"
+    if isinstance(latest_checkpoint, dict):
+        latest_checkpoint_id = str(latest_checkpoint.get("product_id") or latest_checkpoint.get("step_id") or "none")
+    lines.append(
+        "- checkpoint_recovery: "
+        f"status={checkpoint_recovery.get('status', 'none')} "
+        f"pending={checkpoint_recovery.get('pending_count', 0)} "
+        f"completed={checkpoint_recovery.get('completed_count', 0)} "
+        f"latest_checkpoint={latest_checkpoint_id}"
+    )
     lines.append(f"- recovery_state: {recovery_state}")
     lines.append(f"- boundary_decision: {boundary_decision}")
     lines.append(f"- next_action: {next_action}")

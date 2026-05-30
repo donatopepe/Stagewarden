@@ -236,9 +236,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Add a first-class persisted status for checkpoint-recovery steps if operators need stronger reporting than the current implementation-backlog and handoff action entries.
-2. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
-3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
+1. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
+2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note
 - Start from `main` with a clean worktree.
