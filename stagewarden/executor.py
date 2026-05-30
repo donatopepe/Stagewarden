@@ -510,6 +510,18 @@ class Executor:
         ok = observation["ok"]
         step_completed = bool(action_type == "complete" and ok)
         error_type = None if ok else observation.get("error_type", "execution_error")
+        if ok and step_completed and self._requires_prior_tool_evidence(step) and not self._has_prior_successful_tool_evidence(
+            step.id,
+            iteration=iteration,
+        ):
+            ok = False
+            step_completed = False
+            error_type = "wet_run_required"
+            observation["message"] = (
+                f"{observation['message']}\n"
+                "Wet-run gate failed: coding work package completion requires prior successful tool evidence "
+                "for the same step before the model may use complete."
+            )
 
         self.memory.record_attempt(
             iteration=iteration,
@@ -2503,6 +2515,41 @@ class Executor:
         if step.validation.lower().startswith("a command") and observation:
             return True
         if "wrote file" in lower or "patched file" in lower or "edited file" in lower:
+            return True
+        return False
+
+    def _requires_prior_tool_evidence(self, step: PlanStep) -> bool:
+        if not step.wet_run_required:
+            return False
+        combined = " ".join([step.title, step.instruction, step.validation]).lower()
+        coding_markers = (
+            "code and test",
+            "code and tests",
+            "coding",
+            "pytest",
+            "unittest",
+            "test_",
+            "tests/",
+            ".py",
+            ".js",
+            ".ts",
+            ".go",
+            ".rs",
+        )
+        return any(marker in combined for marker in coding_markers)
+
+    def _has_prior_successful_tool_evidence(self, step_id: str, *, iteration: int) -> bool:
+        for item in reversed(self.memory.tool_transcript):
+            if item.step_id != step_id:
+                continue
+            if item.iteration > iteration:
+                continue
+            if not item.success:
+                continue
+            if item.tool == "model":
+                continue
+            if not self._has_wet_run_evidence(item.action_type, f"{item.summary}\n{item.detail}"):
+                continue
             return True
         return False
 

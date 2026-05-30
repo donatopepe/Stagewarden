@@ -663,6 +663,102 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertTrue(outcome.step_completed)
 
+    def test_executor_rejects_coding_completion_without_prior_tool_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "code complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "claimed unittest pass",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Implemented parser change and ran python3.11 -m unittest tests.test_parser -v; passed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="step-1",
+                title="Implement parser change",
+                instruction="modify parser code and tests",
+                validation="python3.11 -m unittest tests.test_parser -v",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(task="modify parser code", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertFalse(outcome.ok)
+            self.assertFalse(outcome.step_completed)
+            self.assertEqual(outcome.error_type, "wet_run_required")
+            self.assertIn("prior successful tool evidence", outcome.observation)
+
+    def test_executor_accepts_coding_completion_with_prior_tool_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="step-1",
+                tool="shell",
+                action_type="shell",
+                success=True,
+                summary="python3.11 -m unittest tests.test_parser -v",
+                detail="Ran 3 tests in 0.01s\nOK\nexit_code=0",
+            )
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "code complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "unittest pass",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Implemented parser change; validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="step-1",
+                title="Implement parser change",
+                instruction="modify parser code and tests",
+                validation="python3.11 -m unittest tests.test_parser -v",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(task="modify parser code", step=step, plan=[step], iteration=1, last_observation="none")
+
+            self.assertTrue(outcome.ok)
+            self.assertTrue(outcome.step_completed)
+            self.assertNotEqual(outcome.error_type, "wet_run_required")
+
     def test_executor_rejects_invalid_model_result_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
