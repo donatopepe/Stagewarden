@@ -1,7 +1,7 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "agent-refactor-slice",
+  "task": "prince2-coding-agent-evolution",
   "goal": {},
   "project_budget": {},
   "user_question": {
@@ -112,15 +112,20 @@
       "answer": null
     }
   ],
-  "project_brief": {},
-  "status": "waiting",
-  "waiting_reason": "clarification",
-  "current_step_id": "agent-refactor-slice",
-  "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
-  "current_step_status": "waiting",
-  "latest_observation": "Session follow-up fixed test subprocess interpreter portability by switching helper invocations from python3 to sys.executable; targeted wet-run tests passed on python3.11.",
-  "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "4ff0624",
+  "project_brief": {
+    "objective": "Evolve Stagewarden into a stronger PRINCE2-oriented agent for designing and writing code.",
+    "scope": "First tranche: executor prompt-level product delivery controls for coding work packages.",
+    "expected_outputs": "Coding steps carry explicit product focus, acceptance criteria, TDD/wet-run evidence, scope control, and exception escalation guidance.",
+    "delivery_mode": "iterative TDD with wet-run validation"
+  },
+  "status": "active",
+  "waiting_reason": "",
+  "current_step_id": "prince2-coding-work-package-controls",
+  "current_step_title": "Inject PRINCE2 coding work package controls into executor prompts",
+  "current_step_status": "validated",
+  "latest_observation": "PRINCE2/coding-agent evolution tranche implemented: executor prompt packets now include Coding work package controls (product focus, expected output, acceptance criteria, quality gates, TDD/failing-test control, minimal implementation, focused wet-run evidence, scope control, and escalation). Focused validation passed: py_compile executor/executor_prompting/test_executor, tests.test_executor (50 OK), tests.test_rag (15 OK).",
+  "plan_status": "prince2-study:completed,architecture-map:completed,coding-work-package-controls:validated,handoff-validation:in_progress",
+  "git_head": "5abfa03",
   "git_head_baseline": "a38597f",
   "risk_register": [
     {
@@ -176,7 +181,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-30T13:16:35Z",
+  "updated_at": "2026-05-30T13:33:23Z",
   "entries": [
     {
       "timestamp": "2026-05-30T13:16:35Z",
@@ -1982,6 +1987,25 @@
           "rejected_nodes": []
         },
         "next_missing_field": "objective"
+      }
+    },
+    {
+      "timestamp": "2026-05-30T13:33:23Z",
+      "event": "handoff_update",
+      "summary": "PRINCE2/coding-agent evolution tranche implemented: executor prompt packets now include Coding work package controls (product focus, expected output, acceptance criteria, quality gates, TDD/failing-test control, minimal implementation, focused wet-run evidence, scope control, and escalation). Focused validation passed: py_compile executor/executor_prompting/test_executor, tests.test_executor (50 OK), tests.test_rag (15 OK).",
+      "details": {
+        "files": [
+          "stagewarden/executor.py",
+          "stagewarden/executor_prompting.py",
+          "tests/test_executor.py",
+          "AGENT_HANDOFF.md",
+          "HANDOFF.md"
+        ],
+        "validation": [
+          "python3.11 -m py_compile stagewarden/executor.py stagewarden/executor_prompting.py tests/test_executor.py",
+          "python3.11 -m unittest tests.test_executor -v -> 50 OK",
+          "python3.11 -m unittest tests.test_rag -v -> 15 OK"
+        ]
       }
     }
   ]
