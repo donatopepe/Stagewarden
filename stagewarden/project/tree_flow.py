@@ -96,6 +96,7 @@ def _project_tree_proposal_report(config: AgentConfig, *, agent: Agent | None = 
     for required in ("objective", "scope", "expected_outputs", "delivery_mode"):
         if not brief.get(required):
             gaps.append({"code": f"missing_{required}", "message": f"Project brief is missing {required}."})
+    gaps.extend(_project_flow.project_brief_ambiguous_gaps(brief))
     report = {
         "command": "project tree propose",
         "status": "ready_for_review" if not gaps and check.get("status") != "error" else "needs_clarification",

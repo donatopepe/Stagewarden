@@ -8,6 +8,7 @@ from .. import shell_views as _shell_views
 from .. import status_views as _status_views
 from ..runtime_env import detect_runtime_capabilities
 from . import role_tree_views as _project_role_tree_views
+from .brief import project_brief_ambiguous_gaps
 
 
 def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
@@ -98,6 +99,7 @@ def _project_design_report(agent: Agent, config: AgentConfig) -> dict[str, objec
         gaps.append({"code": "missing_expected_outputs", "message": "Project brief is missing the expected_outputs field."})
     if not handoff.project_brief.get("delivery_mode"):
         gaps.append({"code": "missing_delivery_mode", "message": "Project brief is missing the delivery_mode field."})
+    gaps.extend(project_brief_ambiguous_gaps(handoff.project_brief))
     if not enabled_providers and not proposal_local_candidates:
         gaps.append({"code": "no_enabled_providers", "message": "No enabled providers are available for AI-assisted design."})
     if shell_backend["selected"] in {None, ""}:

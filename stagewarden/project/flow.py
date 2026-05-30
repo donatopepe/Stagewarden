@@ -6,6 +6,7 @@ from ..prince2 import Prince2ToleranceProfile
 from ..project_handoff import ProjectHandoff
 from .brief import (
     handle_project_brief_command,
+    project_brief_ambiguous_gaps,
     project_brief_report,
     project_gap_to_brief_field,
     render_project_brief,

@@ -5095,6 +5095,31 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["next_missing_field"], "objective")
             self.assertEqual(payload["next_missing_gap"]["code"], "missing_objective")
 
+    def test_project_start_requests_clarification_for_ambiguous_brief_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            handoff = ProjectHandoff(task="Build a governed backend API")
+            handoff.save(root / ".stagewarden_handoff.json")
+            self.assertEqual(run_main_capture(root, "project brief set objective TBD").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope backend API").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs tests and CLI").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+
+            completed = run_main_capture(root, "project start")
+            json_completed = run_main_capture(root, "project start", "--json")
+
+            self.assertEqual(completed.returncode, 1, completed.stdout)
+            self.assertIn("Clarification question:", completed.stdout)
+            self.assertIn("objective is ambiguous", completed.stdout)
+            handoff = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            self.assertEqual(handoff.status, "waiting")
+            self.assertEqual(handoff.waiting_reason, "clarification")
+            self.assertEqual(handoff.user_question_view()["status"], "pending")
+            self.assertEqual(json_completed.returncode, 1, json_completed.stdout)
+            payload = json.loads(json_completed.stdout)
+            self.assertEqual(payload["next_missing_field"], "objective")
+            self.assertEqual(payload["next_missing_gap"]["code"], "ambiguous_objective")
+
     def test_project_start_requests_clarification_for_missing_brief(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
