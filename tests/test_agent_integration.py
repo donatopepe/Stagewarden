@@ -221,6 +221,17 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertIn("[PRINCE2", log.stdout)
             self.assertIn("boundary=", log.stdout)
             self.assertIn("task=create a file named hello.txt", log.stdout)
+            saved = ProjectHandoff.load(root / ".stagewarden_handoff.json")
+            checkpoints = [entry for entry in saved.entries if entry.phase == "product_checkpoint"]
+            self.assertTrue(checkpoints)
+            checkpoint = checkpoints[0]
+            self.assertEqual(checkpoint.step_status, "completed")
+            self.assertIn("Product description:", checkpoint.summary)
+            self.assertIn("Checkpoint summary:", checkpoint.summary)
+            self.assertEqual(checkpoint.details.get("product_id"), checkpoint.step_id)
+            self.assertIn("acceptance_criteria", checkpoint.details)
+            self.assertIn("quality_gate_evidence", checkpoint.details)
+            self.assertIn("checkpoint_status", checkpoint.details)
 
     def test_agent_failure_summary_contains_exception_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

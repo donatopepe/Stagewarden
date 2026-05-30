@@ -327,6 +327,53 @@ class ProjectHandoff:
             )
         )
 
+    def record_product_checkpoint(
+        self,
+        *,
+        iteration: int,
+        task: str,
+        step_id: str,
+        step_title: str,
+        product_description: str,
+        acceptance_criteria: str,
+        quality_gate_evidence: str,
+        checkpoint_status: str,
+        model: str,
+        action_type: str,
+        git_head: str | None,
+    ) -> None:
+        self.current_step_id = step_id
+        self.current_step_title = step_title
+        self.current_step_status = checkpoint_status
+        self.git_head = git_head
+        self.updated_at = utc_now()
+        summary = (
+            f"Product description: {product_description[:220]}\n"
+            f"Checkpoint summary: {checkpoint_status}; quality evidence captured for controlled handoff."
+        )
+        self.entries.append(
+            HandoffEntry(
+                timestamp=self.updated_at,
+                phase="product_checkpoint",
+                iteration=iteration,
+                task=task,
+                summary=summary[:500],
+                step_id=step_id,
+                step_title=step_title,
+                step_status=checkpoint_status,
+                model=model,
+                action_type=action_type,
+                git_head=git_head,
+                details={
+                    "product_id": step_id,
+                    "product_description": product_description[:1000],
+                    "acceptance_criteria": acceptance_criteria[:1000],
+                    "quality_gate_evidence": quality_gate_evidence[:1000],
+                    "checkpoint_status": checkpoint_status,
+                },
+            )
+        )
+
     def record_git_snapshot(
         self,
         *,
