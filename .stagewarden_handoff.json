@@ -2110,6 +2110,25 @@
           "HANDOFF.md"
         ]
       }
+    },
+    {
+      "phase": "quality",
+      "summary": "PRINCE2 non-coding product-evidence slice validated: design/documentation/specification artifact closures now require prior same-step non-model tool evidence before complete.",
+      "details": {
+        "red_test": "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence -v failed before implementation because narrative-only ADR/design closure was accepted",
+        "green_tests": [
+          "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence tests.test_executor.ExecutorTests.test_executor_accepts_design_work_package_completion_with_prior_tool_evidence tests.test_executor.ExecutorTests.test_executor_rejects_coding_completion_without_prior_tool_evidence tests.test_executor.ExecutorTests.test_executor_accepts_coding_completion_with_prior_tool_evidence -v -> OK",
+          "python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v -> 62 OK"
+        ],
+        "changed_files": [
+          "stagewarden/executor.py",
+          "tests/test_executor.py",
+          "AGENT_HANDOFF.md",
+          "HANDOFF.md"
+        ],
+        "scope_note": "Gate matches concrete artifact markers (design, architecture, ADR, documentation, docs/, .md, specification/spec) and intentionally avoids generic work-package/plan/report terms to prevent false positives on routing/control steps."
+      },
+      "created_at": "2026-05-30T14:57:46.957800+00:00"
     }
   ]
 }

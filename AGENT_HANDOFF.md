@@ -29,13 +29,17 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - PRINCE2 checkpoint recovery slice completed: on resume after a failed completion/quality gate, the planner now uses the latest `product_checkpoint` to insert a dedicated `checkpoint-recovery-step-*` before retrying the blocked work package, so Stagewarden captures the missing non-model evidence instead of immediately repeating the same closure prompt.
 - PRINCE2 live checkpoint recovery slice completed: during the same agent run, failed completion/quality gates (`wet_run_required`, `prince2_closure_failure`, `response_insufficient`) now insert a ready `checkpoint-recovery-step-*` from the latest `product_checkpoint`, demote the blocked work package back to planned, and sync the implementation backlog so the next iteration captures missing evidence before retrying closure.
 - Validation for checkpoint recovery slices: RED observed in `tests.test_planner.PlannerTests.test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate` because no recovery step was generated; RED observed in `tests.test_agent_integration.AgentIntegrationTests.test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure` because the live insertion hook did not exist. GREEN focused runs passed, `python3 -m py_compile stagewarden/agent.py stagewarden/planner.py tests/test_agent_integration.py tests/test_planner.py` passed, `python3 -m unittest tests.test_planner tests.test_executor <5 non-live agent integration tests> -v` -> 65 OK.
+- PRINCE2 non-coding product-evidence enforcement slice completed: `complete` now also requires prior successful same-step non-model tool evidence for wet-run-required design/documentation/specification artifacts, not only explicit code/test work packages. The broadening is intentionally limited to concrete artifact markers (`design`, `architecture`, `ADR`, `documentation`, `docs/`, `.md`, `specification`, etc.) so routing/planning control steps can still flow to response-quality gates instead of being misclassified as product closure.
+- Validation for non-coding evidence slice: RED observed in `tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence` because a narrative-only ADR/design closure was accepted; GREEN focused reject/accept design tests passed; `python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v` -> 62 OK.
 
 ## Recent changes
 - `stagewarden/executor_prompting.py`: added `coding_work_package_controls_section(...)`, a PRINCE2/product-delivery control block for coding work packages (product focus, expected output, acceptance criteria, quality gates, TDD, minimal implementation, focused wet-run, scope control, evidence rule, escalation boundary).
 - `stagewarden/executor.py`: `_build_model_communication_packet(...)` now injects a bounded `Coding work package controls` section into model prompts before the broader model-context/handoff sections.
 - `tests/test_executor.py`: added `test_executor_prompt_includes_coding_work_package_controls_for_code_steps`, written and observed failing first, then passing after implementation.
 - `stagewarden/executor.py`: added a completion enforcement gate for explicit coding/test work packages so `complete` requires prior successful same-step non-model tool transcript evidence; this prevents narrative-only claims of executed tests from closing the step.
+- `stagewarden/executor.py`: broadened the same prior-tool-evidence closure gate to wet-run-required non-coding product artifacts such as design docs, architecture decisions, ADRs, documentation, and specifications while avoiding generic planning/routing terms.
 - `tests/test_executor.py`: added reject/accept coverage for coding completion evidence: one RED test proving narrative-only completion is blocked, and one positive test proving prior shell/tool evidence allows completion.
+- `tests/test_executor.py`: added RED/GREEN reject/accept coverage for design/ADR work-package completion evidence, proving narrative-only design closure is blocked unless same-step file/tool evidence exists.
 - `stagewarden/project_handoff.py`: added `record_product_checkpoint(...)`, persisting PRINCE2-style product/checkpoint handoff entries with structured details.
 - `stagewarden/agent.py`: records a `product_checkpoint` immediately after a completed code/product-mutating work package before indexing the step-completed RAG phase; also injects a live `checkpoint-recovery-step-*` when a completion/quality gate fails and a prior product checkpoint can guide missing-evidence recovery.
 - `stagewarden/planner.py`: injects a `checkpoint-recovery-step-*` from the latest `product_checkpoint` when a resumed run starts from a failed completion/quality gate, carrying the blocked stage, failed gate text, product description, acceptance criteria, and prior evidence into the next executable step.
@@ -193,7 +197,10 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
   - Trade-offs: controls guide model behavior but do not yet hard-fail every non-coding step that omits evidence; explicit coding/test work packages now have a narrow hard gate.
 - Decision: Require same-step successful tool transcript evidence before accepting `complete` on explicit coding/test work packages.
   - Reason: a model can otherwise claim `ran tests` or `exit_code=0` in text without Stagewarden having executed or recorded the validation.
-  - Trade-offs: the first enforcement slice uses conservative code/test markers to avoid breaking non-coding routing/status tests; future slices can broaden enforcement as more flows record structured product evidence.
+  - Trade-offs: the first enforcement slice used conservative code/test markers to avoid breaking non-coding routing/status tests.
+- Decision: Broaden same-step tool-evidence enforcement to concrete non-coding product artifacts (design docs, architecture decisions, ADRs, documentation, specifications) without matching generic control terms like `work package` or `plan` alone.
+  - Reason: non-code products can be fabricated narratively too; closure needs a real file/tool transcript once the step explicitly asks for a product artifact.
+  - Trade-offs: generic planning/review steps still rely on response-quality and PRINCE2 closure gates until they emit structured artifact evidence consistently.
 - Decision: Persist completed coding/product-mutating work packages as explicit PRINCE2 `product_checkpoint` handoff entries.
   - Reason: downstream agents need a compact product description, acceptance criteria, quality evidence, and checkpoint status, not only raw observation text.
   - Trade-offs: checkpoint creation is intentionally limited to code/product-mutating action types or explicit code/test markers to avoid noisy handoff entries for purely analytical steps.
@@ -229,8 +236,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Broaden evidence enforcement from explicit code/test steps to all work-package closures once non-coding flows produce structured product evidence.
-2. Add a first-class persisted status for checkpoint-recovery steps if operators need stronger reporting than the current implementation-backlog and handoff action entries.
+1. Add a first-class persisted status for checkpoint-recovery steps if operators need stronger reporting than the current implementation-backlog and handoff action entries.
+2. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
 3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note

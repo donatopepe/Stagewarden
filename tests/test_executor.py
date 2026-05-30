@@ -759,6 +759,114 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.step_completed)
             self.assertNotEqual(outcome.error_type, "wet_run_required")
 
+    def test_executor_rejects_design_work_package_completion_without_prior_tool_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "architecture design complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "claimed review evidence",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Architecture decision record drafted and reviewed; validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="design-step-1",
+                title="Design authentication architecture work package",
+                instruction="produce the architecture decision record and design documentation",
+                validation="ADR exists and review evidence is captured",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(
+                task="design authentication architecture",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertFalse(outcome.ok)
+            self.assertFalse(outcome.step_completed)
+            self.assertEqual(outcome.error_type, "wet_run_required")
+            self.assertIn("prior successful tool evidence", outcome.observation)
+            self.assertIn("work package completion", outcome.observation)
+
+    def test_executor_accepts_design_work_package_completion_with_prior_tool_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="design-step-1",
+                tool="files",
+                action_type="write_file",
+                success=True,
+                summary="wrote file docs/auth-architecture.md",
+                detail="Wrote file docs/auth-architecture.md with architecture decision record content.",
+            )
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "architecture design complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "ADR file evidence captured",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Architecture decision record exists and validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="design-step-1",
+                title="Design authentication architecture work package",
+                instruction="produce the architecture decision record and design documentation",
+                validation="ADR exists and review evidence is captured",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(
+                task="design authentication architecture",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertTrue(outcome.ok)
+            self.assertTrue(outcome.step_completed)
+
     def test_executor_rejects_invalid_model_result_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
