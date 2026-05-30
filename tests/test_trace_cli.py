@@ -5195,6 +5195,46 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(len(payload["entries"]), 1)
             self.assertEqual(payload["entries"][0]["phase"], "project_start_blocked")
 
+    def test_stage_view_reports_checkpoint_recovery_status(self) -> None:
+        handoff = ProjectHandoff(task="repair evidence gate")
+        handoff.implementation_backlog = [
+            {
+                "step_id": "checkpoint-recovery-step-1",
+                "title": "Recover failed completion evidence",
+                "status": "ready",
+                "validation": "requires non-model evidence",
+            },
+            {
+                "step_id": "deliver-product",
+                "title": "Retry blocked product delivery",
+                "status": "blocked",
+                "validation": "quality gate",
+            },
+        ]
+        handoff.record_product_checkpoint(
+            iteration=3,
+            task="repair evidence gate",
+            step_id="deliver-product",
+            step_title="Retry blocked product delivery",
+            product_description="CLI evidence artifact",
+            acceptance_criteria="Show real tool output before completion",
+            quality_gate_evidence="Prior checkpoint captured incomplete evidence",
+            checkpoint_status="completed",
+            model="openai:gpt-5.4",
+            action_type="complete",
+            git_head="abc123",
+        )
+
+        view = handoff.stage_view()
+        rendered = handoff.rendered_stage_view()
+
+        self.assertEqual(view["checkpoint_recovery"]["status"], "active")
+        self.assertEqual(view["checkpoint_recovery"]["pending_count"], 1)
+        self.assertEqual(view["checkpoint_recovery"]["latest_checkpoint"]["product_id"], "deliver-product")
+        self.assertEqual(view["checkpoint_recovery"]["active_items"][0]["step_id"], "checkpoint-recovery-step-1")
+        self.assertIn("checkpoint_recovery: status=active pending=1", rendered)
+        self.assertIn("latest_checkpoint=deliver-product", rendered)
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
