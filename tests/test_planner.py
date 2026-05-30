@@ -86,6 +86,51 @@ class PlannerTests(unittest.TestCase):
         self.assertIn("lesson=inspect git state before patching", steps[1].instruction)
         self.assertIn("PRINCE2 register context", steps[1].validation)
 
+    def test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate(self) -> None:
+        planner = Planner()
+        handoff = ProjectHandoff(
+            task="inspect the repo and implement a fix and validate the result",
+            status="executing",
+            current_step_id="step-2",
+            current_step_title="2. Implement a fix",
+            current_step_status="in_progress",
+            latest_observation="Wet-run gate failed: coding work package completion requires prior successful tool evidence",
+            plan_status="step-1:completed,step-2:in_progress,step-3:planned",
+        )
+        handoff.record_product_checkpoint(
+            iteration=1,
+            task="inspect the repo and implement a fix and validate the result",
+            step_id="step-1",
+            step_title="1. Inspect the repo",
+            product_description="Repository inspection findings for parser change",
+            acceptance_criteria="Find the touched parser files before implementation",
+            quality_gate_evidence="read_file and search_files output captured",
+            checkpoint_status="completed",
+            model="local",
+            action_type="write_file",
+            git_head="abc123",
+        )
+        handoff.current_step_id = "step-2"
+        handoff.current_step_title = "2. Implement a fix"
+        handoff.current_step_status = "in_progress"
+        handoff.latest_observation = "Wet-run gate failed: coding work package completion requires prior successful tool evidence"
+        handoff.plan_status = "step-1:completed,step-2:in_progress,step-3:planned"
+
+        steps = planner.create_plan(
+            "inspect the repo and implement a fix and validate the result",
+            project_handoff=handoff,
+        )
+
+        recovery = [step for step in steps if step.id.startswith("checkpoint-recovery-step-")]
+        self.assertEqual(len(recovery), 1)
+        self.assertEqual(recovery[0].status, "ready")
+        self.assertIn("prior successful tool evidence", recovery[0].instruction)
+        self.assertIn("Repository inspection findings", recovery[0].instruction)
+        self.assertIn("real non-model tool evidence", recovery[0].validation)
+        original = next(step for step in steps if step.id == "step-2")
+        self.assertEqual(original.status, "planned")
+        self.assertFalse(original.title.startswith("Resume "))
+
     def test_create_plan_includes_exception_plan_when_project_in_exception(self) -> None:
         planner = Planner()
         handoff = ProjectHandoff(

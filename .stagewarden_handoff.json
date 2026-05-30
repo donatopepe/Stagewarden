@@ -120,10 +120,10 @@
   },
   "status": "active",
   "waiting_reason": "",
-  "current_step_id": "prince2-product-checkpoint-handoff",
-  "current_step_title": "Record PRINCE2 product checkpoints for completed coding work packages",
+  "current_step_id": "prince2-live-checkpoint-recovery",
+  "current_step_title": "Insert live recovery step after checkpoint gate failure",
   "current_step_status": "validated",
-  "latest_observation": "Completed PRINCE2 product checkpoint slice: coding/product-mutating work package completions now persist product_checkpoint handoff entries with product description, acceptance criteria, quality evidence, checkpoint status, model/action metadata, and product id. RED observed in stub backend integration; focused validation 57 OK.",
+  "latest_observation": "Live and resume checkpoint recovery slices validated with targeted tests.",
   "plan_status": "prince2-coding-completion-evidence-gate:completed,prince2-product-checkpoint-handoff:validated,next-enforcement-broadening:planned",
   "git_head": "5abfa03",
   "git_head_baseline": "a38597f",
@@ -194,7 +194,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-30T14:22:10Z",
+  "updated_at": "2026-05-30T14:38:37Z",
   "entries": [
     {
       "timestamp": "2026-05-30T13:16:35Z",
@@ -2052,6 +2052,63 @@
         "red_evidence": "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_completes_task_with_stub_backend -v failed because checkpoints == []",
         "green_evidence": "python3 -m py_compile stagewarden/agent.py stagewarden/project_handoff.py tests/test_agent_integration.py && python3 -m unittest <5 non-live agent integration tests> tests.test_executor -v -> 57 OK",
         "known_blocker": "Full tests.test_agent_integration tests.test_executor still fails at test_agent_verbose_output_shows_handoff_runtime_details when OPENROUTER_API_KEY is unavailable before product code runs."
+      }
+    },
+    {
+      "timestamp": "2026-05-30T14:35:41Z",
+      "phase": "quality",
+      "iteration": 40,
+      "task": "prince2-coding-agent-evolution",
+      "summary": "Checkpoint recovery planner slice validated: product_checkpoint entries now drive checkpoint-recovery-step generation after failed completion gates on resume.",
+      "step_id": "prince2-checkpoint-recovery-planner",
+      "step_title": "Use product checkpoints to generate recovery steps",
+      "step_status": "validated",
+      "model": "hermes",
+      "action_type": "patch_and_test",
+      "git_head": "7a0043bd0602098286d1eea31c069fc3c5fcf901",
+      "details": {
+        "red_test": "python3 -m unittest tests.test_planner.PlannerTests.test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate -v failed before implementation (0 recovery steps)",
+        "green_tests": [
+          "python3 -m unittest tests.test_planner.PlannerTests.test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate -v -> OK",
+          "python3 -m py_compile stagewarden/planner.py tests/test_planner.py -> OK",
+          "python3 -m unittest tests.test_planner tests.test_executor -v -> 60 OK",
+          "4 non-live AgentIntegrationTests smoke -> OK"
+        ],
+        "changed_files": [
+          "stagewarden/planner.py",
+          "tests/test_planner.py",
+          "AGENT_HANDOFF.md",
+          "HANDOFF.md"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-05-30T14:38:37Z",
+      "phase": "quality",
+      "iteration": 41,
+      "task": "prince2-coding-agent-evolution",
+      "summary": "Live checkpoint recovery validated: failed completion gates now insert checkpoint-recovery-step entries in the active plan from prior product_checkpoint evidence.",
+      "step_id": "prince2-live-checkpoint-recovery",
+      "step_title": "Insert live recovery step after checkpoint gate failure",
+      "step_status": "validated",
+      "model": "hermes",
+      "action_type": "patch_and_test",
+      "git_head": "809987cef4ce60ca6a58b26ad9dc450b36b1543e",
+      "details": {
+        "red_test": "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure -v errored before implementation (missing hook)",
+        "green_tests": [
+          "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure -v -> OK",
+          "python3 -m py_compile stagewarden/agent.py stagewarden/planner.py tests/test_agent_integration.py tests/test_planner.py -> OK",
+          "python3 -m unittest tests.test_planner tests.test_executor <5 non-live AgentIntegrationTests> -v -> 65 OK"
+        ],
+        "changed_files": [
+          "stagewarden/agent.py",
+          "stagewarden/planner.py",
+          "tests/test_agent_integration.py",
+          "tests/test_planner.py",
+          "AGENT_HANDOFF.md",
+          "HANDOFF.md"
+        ]
       }
     }
   ]

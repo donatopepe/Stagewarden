@@ -26,6 +26,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Validation for enforcement slice: RED observed with `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_coding_completion_without_prior_tool_evidence -v` failing because the narrative completion was accepted; after implementation, the new reject/accept evidence tests pass, `py_compile` passes, and `python3 -m unittest tests.test_executor -v` -> 52 OK.
 - PRINCE2 product checkpoint slice completed: completed coding/product-mutating steps now write `product_checkpoint` handoff entries with product description, acceptance criteria, quality-gate evidence, checkpoint status, model/action metadata, and product id for downstream continuation.
 - Validation for checkpoint slice: RED observed in `tests.test_agent_integration.AgentIntegrationTests.test_agent_completes_task_with_stub_backend` because no `product_checkpoint` entries existed; GREEN focused run passed, and `python3 -m py_compile stagewarden/agent.py stagewarden/project_handoff.py tests/test_agent_integration.py && python3 -m unittest <5 non-live agent integration tests> tests.test_executor -v` -> 57 OK. Full `tests.test_agent_integration tests.test_executor` still hits the known OpenRouter API-key failure in `test_agent_verbose_output_shows_handoff_runtime_details` before product code.
+- PRINCE2 checkpoint recovery slice completed: on resume after a failed completion/quality gate, the planner now uses the latest `product_checkpoint` to insert a dedicated `checkpoint-recovery-step-*` before retrying the blocked work package, so Stagewarden captures the missing non-model evidence instead of immediately repeating the same closure prompt.
+- PRINCE2 live checkpoint recovery slice completed: during the same agent run, failed completion/quality gates (`wet_run_required`, `prince2_closure_failure`, `response_insufficient`) now insert a ready `checkpoint-recovery-step-*` from the latest `product_checkpoint`, demote the blocked work package back to planned, and sync the implementation backlog so the next iteration captures missing evidence before retrying closure.
+- Validation for checkpoint recovery slices: RED observed in `tests.test_planner.PlannerTests.test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate` because no recovery step was generated; RED observed in `tests.test_agent_integration.AgentIntegrationTests.test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure` because the live insertion hook did not exist. GREEN focused runs passed, `python3 -m py_compile stagewarden/agent.py stagewarden/planner.py tests/test_agent_integration.py tests/test_planner.py` passed, `python3 -m unittest tests.test_planner tests.test_executor <5 non-live agent integration tests> -v` -> 65 OK.
 
 ## Recent changes
 - `stagewarden/executor_prompting.py`: added `coding_work_package_controls_section(...)`, a PRINCE2/product-delivery control block for coding work packages (product focus, expected output, acceptance criteria, quality gates, TDD, minimal implementation, focused wet-run, scope control, evidence rule, escalation boundary).
@@ -34,8 +37,10 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - `stagewarden/executor.py`: added a completion enforcement gate for explicit coding/test work packages so `complete` requires prior successful same-step non-model tool transcript evidence; this prevents narrative-only claims of executed tests from closing the step.
 - `tests/test_executor.py`: added reject/accept coverage for coding completion evidence: one RED test proving narrative-only completion is blocked, and one positive test proving prior shell/tool evidence allows completion.
 - `stagewarden/project_handoff.py`: added `record_product_checkpoint(...)`, persisting PRINCE2-style product/checkpoint handoff entries with structured details.
-- `stagewarden/agent.py`: records a `product_checkpoint` immediately after a completed code/product-mutating work package before indexing the step-completed RAG phase.
-- `tests/test_agent_integration.py`: extended the stub-backend happy-path test to assert persisted product checkpoint entries and structured detail fields.
+- `stagewarden/agent.py`: records a `product_checkpoint` immediately after a completed code/product-mutating work package before indexing the step-completed RAG phase; also injects a live `checkpoint-recovery-step-*` when a completion/quality gate fails and a prior product checkpoint can guide missing-evidence recovery.
+- `stagewarden/planner.py`: injects a `checkpoint-recovery-step-*` from the latest `product_checkpoint` when a resumed run starts from a failed completion/quality gate, carrying the blocked stage, failed gate text, product description, acceptance criteria, and prior evidence into the next executable step.
+- `tests/test_agent_integration.py`: extended the stub-backend happy-path test to assert persisted product checkpoint entries and structured detail fields; added live checkpoint-recovery insertion coverage.
+- `tests/test_planner.py`: added RED/GREEN coverage for checkpoint-driven recovery step generation after a failed wet-run/completion gate.
 - `tests/test_rag.py`: `run_main_capture(...)` now uses `sys.executable` instead of hardcoded `python3` for interpreter consistency across environments.
 - `tests/test_trace_cli.py`: `run_main_in_cwd(...)` and `run_main_capture(...)` now use `sys.executable` instead of hardcoded `python3`.
 - `tests/test_trace_cli.py`: hardened live OpenRouter benchmark trace regression by adding one retry and transient-provider-error skip path (when benchmark returns non-zero and case-level provider/network errors are present), preserving strict failure for non-transient regressions.
@@ -192,6 +197,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Decision: Persist completed coding/product-mutating work packages as explicit PRINCE2 `product_checkpoint` handoff entries.
   - Reason: downstream agents need a compact product description, acceptance criteria, quality evidence, and checkpoint status, not only raw observation text.
   - Trade-offs: checkpoint creation is intentionally limited to code/product-mutating action types or explicit code/test markers to avoid noisy handoff entries for purely analytical steps.
+- Decision: Use product checkpoints to create a recovery lane after failed completion/quality gates both during the live run and on resume.
+  - Reason: a failed closure with incomplete evidence should produce a concrete next work package for capturing missing evidence instead of repeating the same prompt or relying on narrative retry.
+  - Trade-offs: recovery requires at least one prior `product_checkpoint`; projects with no completed/checkpointed product still fall back to the existing issue/exception controls.
 - Decision: Use stdlib-only JSON-backed RAG with deterministic lexical, trigram, fuzzy-subsequence, and local hashed-vector scoring, not an external vector DB.
   - Reason: keeps Stagewarden dependency-free and portable.
   - Trade-offs: local vectors improve semantic-ish recall without services, but are not as strong as model-generated embeddings.
@@ -222,7 +230,7 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 
 ## Next steps
 1. Broaden evidence enforcement from explicit code/test steps to all work-package closures once non-coding flows produce structured product evidence.
-2. Use `product_checkpoint` entries to drive automatic next-step generation when a completion gate fails or evidence is incomplete.
+2. Add a first-class persisted status for checkpoint-recovery steps if operators need stronger reporting than the current implementation-backlog and handoff action entries.
 3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note
