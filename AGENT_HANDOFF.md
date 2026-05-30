@@ -22,11 +22,15 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Post-hardening validation: full trace suite re-run now passes cleanly (`python3 -m unittest tests.test_trace_cli -v` -> 200 OK).
 - Cross-cutting regression validation also passes post-hardening: `python3 -m unittest tests.test_rag tests.test_executor tests.test_json_schema_registry -v` -> 66 OK.
 - Full discovery now passes after live-benchmark drift guard update: `python3 -m unittest discover -s tests -v` -> 431 OK.
+- PRINCE2 enforcement slice completed: coding work-package `complete` actions now require prior successful non-model tool evidence for the same step when the step explicitly involves code/tests (`pytest`, `unittest`, `tests/`, file extensions, or code-and-tests wording). Narrative claims such as `passed exit_code=0` are rejected without tool transcript evidence.
+- Validation for enforcement slice: RED observed with `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_coding_completion_without_prior_tool_evidence -v` failing because the narrative completion was accepted; after implementation, the new reject/accept evidence tests pass, `py_compile` passes, and `python3 -m unittest tests.test_executor -v` -> 52 OK.
 
 ## Recent changes
 - `stagewarden/executor_prompting.py`: added `coding_work_package_controls_section(...)`, a PRINCE2/product-delivery control block for coding work packages (product focus, expected output, acceptance criteria, quality gates, TDD, minimal implementation, focused wet-run, scope control, evidence rule, escalation boundary).
 - `stagewarden/executor.py`: `_build_model_communication_packet(...)` now injects a bounded `Coding work package controls` section into model prompts before the broader model-context/handoff sections.
 - `tests/test_executor.py`: added `test_executor_prompt_includes_coding_work_package_controls_for_code_steps`, written and observed failing first, then passing after implementation.
+- `stagewarden/executor.py`: added a completion enforcement gate for explicit coding/test work packages so `complete` requires prior successful same-step non-model tool transcript evidence; this prevents narrative-only claims of executed tests from closing the step.
+- `tests/test_executor.py`: added reject/accept coverage for coding completion evidence: one RED test proving narrative-only completion is blocked, and one positive test proving prior shell/tool evidence allows completion.
 - `tests/test_rag.py`: `run_main_capture(...)` now uses `sys.executable` instead of hardcoded `python3` for interpreter consistency across environments.
 - `tests/test_trace_cli.py`: `run_main_in_cwd(...)` and `run_main_capture(...)` now use `sys.executable` instead of hardcoded `python3`.
 - `tests/test_trace_cli.py`: hardened live OpenRouter benchmark trace regression by adding one retry and transient-provider-error skip path (when benchmark returns non-zero and case-level provider/network errors are present), preserving strict failure for non-transient regressions.
@@ -176,7 +180,10 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
   - Trade-offs: slightly more prompt budget per step; mitigated by bounding the section to 2500 chars and deriving content from existing brief/step fields.
 - Decision: Keep the first tranche prompt-level and TDD-covered rather than adding a new command or persistence format.
   - Reason: prompt packet assembly is the highest-leverage path shared by primary execution and assurance flows, and avoids schema churn while proving behavior.
-  - Trade-offs: controls guide model behavior but do not yet hard-fail steps that omit TDD evidence; that can be a later enforcement slice.
+  - Trade-offs: controls guide model behavior but do not yet hard-fail every non-coding step that omits evidence; explicit coding/test work packages now have a narrow hard gate.
+- Decision: Require same-step successful tool transcript evidence before accepting `complete` on explicit coding/test work packages.
+  - Reason: a model can otherwise claim `ran tests` or `exit_code=0` in text without Stagewarden having executed or recorded the validation.
+  - Trade-offs: the first enforcement slice uses conservative code/test markers to avoid breaking non-coding routing/status tests; future slices can broaden enforcement as more flows record structured product evidence.
 - Decision: Use stdlib-only JSON-backed RAG with deterministic lexical, trigram, fuzzy-subsequence, and local hashed-vector scoring, not an external vector DB.
   - Reason: keeps Stagewarden dependency-free and portable.
   - Trade-offs: local vectors improve semantic-ish recall without services, but are not as strong as model-generated embeddings.
@@ -206,8 +213,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Consider enforcement slice: reject or escalate model completions that claim code changes complete without concrete executed validation evidence.
-2. Consider adding PRINCE2 product-description/checkpoint summaries to handoff entries after each completed code step.
+1. Consider adding PRINCE2 product-description/checkpoint summaries to handoff entries after each completed code step.
+2. Broaden evidence enforcement from explicit code/test steps to all work-package closures once non-coding flows produce structured product evidence.
 3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note

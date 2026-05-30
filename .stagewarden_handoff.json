@@ -120,11 +120,11 @@
   },
   "status": "active",
   "waiting_reason": "",
-  "current_step_id": "prince2-coding-work-package-controls",
-  "current_step_title": "Inject PRINCE2 coding work package controls into executor prompts",
-  "current_step_status": "validated_with_full_suite_environment_blocker",
-  "latest_observation": "PRINCE2/coding-agent tranche validated on touched paths: py_compile passed, tests.test_executor -> 50 OK, tests.test_rag -> 15 OK. Full unittest discover was attempted but timed out at 600s after three missing-OpenRouter-key live/provider failures; isolated rerun confirmed those fail at _openrouter_env_name() before product code executes.",
-  "plan_status": "prince2-study:completed,architecture-map:completed,coding-work-package-controls:validated,handoff-validation:completed,full-discovery:blocked_missing_openrouter_key",
+  "current_step_id": "prince2-coding-completion-evidence-gate",
+  "current_step_title": "Require same-step tool evidence before coding completion",
+  "current_step_status": "validated",
+  "latest_observation": "PRINCE2 enforcement slice validated: narrative-only coding complete claiming unittest/exit_code=0 was rejected in RED, then same-step prior tool evidence gate implemented; py_compile passed and tests.test_executor -> 52 OK.",
+  "plan_status": "prince2-study:completed,architecture-map:completed,coding-work-package-controls:validated,coding-completion-evidence-gate:validated,handoff-validation:completed",
   "git_head": "5abfa03",
   "git_head_baseline": "a38597f",
   "risk_register": [
@@ -142,6 +142,11 @@
       "risk": "Continuing after business justification has weakened.",
       "status": "open",
       "recorded_at": "2026-04-29T07:19:12+00:00"
+    },
+    {
+      "risk": "Evidence enforcement may need broader non-coding product-proof coverage.",
+      "status": "open",
+      "recorded_at": "2026-05-30T00:00:00Z"
     }
   ],
   "issue_register": [
@@ -189,8 +194,28 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-30T13:45:19Z",
+  "updated_at": "2026-05-30T00:00:00Z",
   "entries": [
+    {
+      "timestamp": "2026-05-30T00:00:00Z",
+      "phase": "quality",
+      "iteration": 1,
+      "task": "prince2-coding-agent-evolution",
+      "summary": "Implemented a narrow PRINCE2 evidence enforcement gate: explicit coding/test work-package complete actions require prior successful same-step non-model tool transcript evidence; narrative claims alone are rejected.",
+      "step_id": "prince2-coding-completion-evidence-gate",
+      "details": {
+        "files": [
+          "stagewarden/executor.py",
+          "tests/test_executor.py"
+        ],
+        "red_test": "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_coding_completion_without_prior_tool_evidence -v failed before implementation because outcome.ok was True",
+        "validation": [
+          "python3 -m py_compile stagewarden/executor.py tests/test_executor.py",
+          "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_coding_completion_without_prior_tool_evidence tests.test_executor.ExecutorTests.test_executor_accepts_coding_completion_with_prior_tool_evidence -v",
+          "python3 -m unittest tests.test_executor -v -> 52 OK"
+        ]
+      }
+    },
     {
       "timestamp": "2026-05-30T13:16:35Z",
       "phase": "finish",
