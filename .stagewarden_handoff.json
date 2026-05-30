@@ -122,9 +122,9 @@
   "waiting_reason": "",
   "current_step_id": "prince2-coding-work-package-controls",
   "current_step_title": "Inject PRINCE2 coding work package controls into executor prompts",
-  "current_step_status": "validated",
-  "latest_observation": "PRINCE2/coding-agent evolution tranche implemented: executor prompt packets now include Coding work package controls (product focus, expected output, acceptance criteria, quality gates, TDD/failing-test control, minimal implementation, focused wet-run evidence, scope control, and escalation). Focused validation passed: py_compile executor/executor_prompting/test_executor, tests.test_executor (50 OK), tests.test_rag (15 OK).",
-  "plan_status": "prince2-study:completed,architecture-map:completed,coding-work-package-controls:validated,handoff-validation:in_progress",
+  "current_step_status": "validated_with_full_suite_environment_blocker",
+  "latest_observation": "PRINCE2/coding-agent tranche validated on touched paths: py_compile passed, tests.test_executor -> 50 OK, tests.test_rag -> 15 OK. Full unittest discover was attempted but timed out at 600s after three missing-OpenRouter-key live/provider failures; isolated rerun confirmed those fail at _openrouter_env_name() before product code executes.",
+  "plan_status": "prince2-study:completed,architecture-map:completed,coding-work-package-controls:validated,handoff-validation:completed,full-discovery:blocked_missing_openrouter_key",
   "git_head": "5abfa03",
   "git_head_baseline": "a38597f",
   "risk_register": [
@@ -144,7 +144,15 @@
       "recorded_at": "2026-04-29T07:19:12+00:00"
     }
   ],
-  "issue_register": [],
+  "issue_register": [
+    {
+      "issue": "full_discovery_missing_openrouter_key",
+      "status": "open",
+      "severity": "medium",
+      "recorded_at": "2026-05-30T13:45:19Z",
+      "description": "Full unittest discover requires OpenRouter credentials for three live/provider tests in this environment; focused touched-path tests pass."
+    }
+  ],
   "quality_register": [],
   "lessons_log": [],
   "exception_plan": [
@@ -181,7 +189,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-30T13:33:23Z",
+  "updated_at": "2026-05-30T13:45:19Z",
   "entries": [
     {
       "timestamp": "2026-05-30T13:16:35Z",
@@ -2005,6 +2013,21 @@
           "python3.11 -m py_compile stagewarden/executor.py stagewarden/executor_prompting.py tests/test_executor.py",
           "python3.11 -m unittest tests.test_executor -v -> 50 OK",
           "python3.11 -m unittest tests.test_rag -v -> 15 OK"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-05-30T13:45:19Z",
+      "event": "validation_update",
+      "summary": "PRINCE2/coding-agent tranche validated on touched paths: py_compile passed, tests.test_executor -> 50 OK, tests.test_rag -> 15 OK. Full unittest discover was attempted but timed out at 600s after three missing-OpenRouter-key live/provider failures; isolated rerun confirmed those fail at _openrouter_env_name() before product code executes.",
+      "details": {
+        "passed": [
+          "python3.11 -m py_compile stagewarden/executor.py stagewarden/executor_prompting.py tests/test_executor.py",
+          "python3.11 -m unittest tests.test_executor -v -> 50 OK",
+          "python3.11 -m unittest tests.test_rag -v -> 15 OK"
+        ],
+        "blocked": [
+          "python3.11 -m unittest discover -s tests -v -> timeout after missing OpenRouter API key failures"
         ]
       }
     }
