@@ -519,7 +519,7 @@ class Executor:
             error_type = "wet_run_required"
             observation["message"] = (
                 f"{observation['message']}\n"
-                "Wet-run gate failed: coding work package completion requires prior successful tool evidence "
+                "Wet-run gate failed: work package completion requires prior successful tool evidence "
                 "for the same step before the model may use complete."
             )
 
@@ -2536,7 +2536,22 @@ class Executor:
             ".go",
             ".rs",
         )
-        return any(marker in combined for marker in coding_markers)
+        product_evidence_markers = (
+            "deliverable",
+            "artifact",
+            "artefact",
+            "design",
+            "architecture",
+            "adr",
+            "decision record",
+            "documentation",
+            "document",
+            "docs/",
+            ".md",
+            "specification",
+            "spec",
+        )
+        return any(marker in combined for marker in coding_markers + product_evidence_markers)
 
     def _has_prior_successful_tool_evidence(self, step_id: str, *, iteration: int) -> bool:
         for item in reversed(self.memory.tool_transcript):
