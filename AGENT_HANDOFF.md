@@ -1,9 +1,11 @@
 # Agent Handoff
 
 ## Current objective
-Implement RAG as a first-class design-knowledge base for the Stagewarden agent: persisted locally, injected into model prompts, queryable/updatable/removable by model actions and CLI commands, automatically indexed during agent lifecycle events, deduplicated, and retrievable with deterministic lexical/fuzzy/vector matching.
+Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every non-trivial coding step should be governed as a product-focused work package with acceptance criteria, TDD/wet-run evidence, scope control, and exception escalation when tolerances are threatened.
 
 ## Current state
+- PRINCE2 study pass completed against `/Users/donato/study/PRINCE2_Agent_Project_Spec.md`, `/Users/donato/study/PRINCE2_Agent_Exam_Cram.md`, and `/Users/donato/study/PRINCE2_Archivio_Studio.md`; external AXELOS/PeopleCert PRINCE2 pages were checked as institutional references.
+- First PRINCE2+coding tranche is implemented: executor prompt packets now include explicit `Coding work package controls` so model steps must define product focus, acceptance criteria, failing-test/TDD control, minimal implementation, focused wet-run, evidence rule, and escalation boundary.
 - Session-resume follow-up found one remaining portability gap: test subprocess helpers invoked `python3` directly, which can select Python 3.9 on macOS and break on `dataclass(slots=True)`.
 - Portability fix is now in place: subprocess CLI test helpers use `sys.executable` so spawned runs use the same interpreter as the parent test process.
 - PR `#1` was merged into `main` (`merge commit 26f53f4ef419e1b22aade0b0cc9b7704cedd2428`) and the feature branch `pr/p4-p5-updates` was deleted locally/remotely.
@@ -20,6 +22,9 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Full discovery now passes after live-benchmark drift guard update: `python3 -m unittest discover -s tests -v` -> 431 OK.
 
 ## Recent changes
+- `stagewarden/executor_prompting.py`: added `coding_work_package_controls_section(...)`, a PRINCE2/product-delivery control block for coding work packages (product focus, expected output, acceptance criteria, quality gates, TDD, minimal implementation, focused wet-run, scope control, evidence rule, escalation boundary).
+- `stagewarden/executor.py`: `_build_model_communication_packet(...)` now injects a bounded `Coding work package controls` section into model prompts before the broader model-context/handoff sections.
+- `tests/test_executor.py`: added `test_executor_prompt_includes_coding_work_package_controls_for_code_steps`, written and observed failing first, then passing after implementation.
 - `tests/test_rag.py`: `run_main_capture(...)` now uses `sys.executable` instead of hardcoded `python3` for interpreter consistency across environments.
 - `tests/test_trace_cli.py`: `run_main_in_cwd(...)` and `run_main_capture(...)` now use `sys.executable` instead of hardcoded `python3`.
 - `tests/test_trace_cli.py`: hardened live OpenRouter benchmark trace regression by adding one retry and transient-provider-error skip path (when benchmark returns non-zero and case-level provider/network errors are present), preserving strict failure for non-transient regressions.
@@ -153,6 +158,9 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - `tests/test_rag.py`: added coverage for RAG search/persistence, dedupe, fuzzy retrieval, local vector search, vector rebuild, compaction, executor RAG actions, prompt injection, and CLI report helpers.
 
 ## Important files
+- `stagewarden/executor_prompting.py`: owns prompt sections/schemas; new PRINCE2 coding-work-package control text lives here.
+- `stagewarden/executor.py`: prompt packet assembly path; now injects the bounded coding work package controls into every step prompt.
+- `tests/test_executor.py`: regression coverage for executor prompt contracts including the new coding-work-package controls.
 - `stagewarden/rag.py`: canonical RAG store and retrieval implementation; prompt rendering escapes embedded fences and rebuilds vectors on load to avoid stale persisted embeddings.
 - `stagewarden/agent.py`: lifecycle auto-indexing and RAG ownership for agent runs.
 - `stagewarden/executor.py`: prompt injection and model action execution path.
@@ -161,6 +169,12 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - `.stagewarden_rag.json`: local runtime design-knowledge store, intentionally gitignored.
 
 ## Technical decisions
+- Decision: Treat coding steps as PRINCE2-style work packages in the executor prompt, not only as generic model tasks.
+  - Reason: the delivery agent must optimize for concrete products, explicit acceptance criteria, quality evidence, and exception escalation, which directly supports designing and writing better code.
+  - Trade-offs: slightly more prompt budget per step; mitigated by bounding the section to 2500 chars and deriving content from existing brief/step fields.
+- Decision: Keep the first tranche prompt-level and TDD-covered rather than adding a new command or persistence format.
+  - Reason: prompt packet assembly is the highest-leverage path shared by primary execution and assurance flows, and avoids schema churn while proving behavior.
+  - Trade-offs: controls guide model behavior but do not yet hard-fail steps that omit TDD evidence; that can be a later enforcement slice.
 - Decision: Use stdlib-only JSON-backed RAG with deterministic lexical, trigram, fuzzy-subsequence, and local hashed-vector scoring, not an external vector DB.
   - Reason: keeps Stagewarden dependency-free and portable.
   - Trade-offs: local vectors improve semantic-ish recall without services, but are not as strong as model-generated embeddings.
@@ -189,8 +203,9 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. No immediate follow-up is pending for the completed RAG/trace-regression slice.
-2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
+1. Consider enforcement slice: reject or escalate model completions that claim code changes complete without concrete executed validation evidence.
+2. Consider adding PRINCE2 product-description/checkpoint summaries to handoff entries after each completed code step.
+3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note
 - Start from `main` with a clean worktree.
@@ -200,6 +215,11 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 ## Commands
 ```bash
 # test
+python3.11 -m py_compile stagewarden/executor.py stagewarden/executor_prompting.py tests/test_executor.py
+python3.11 -m unittest tests.test_executor.ExecutorTests.test_executor_prompt_includes_coding_work_package_controls_for_code_steps -v
+python3.11 -m unittest tests.test_executor -v
+python3.11 -m unittest tests.test_rag -v
+python3.11 -m unittest discover -s tests -v
 python3.11 -m unittest tests.test_rag.RagTests.test_rag_cli_json_schema_and_interactive_route -v
 python3.11 -m unittest tests.test_rag -v
 python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_overview_and_board_commands -v

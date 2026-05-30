@@ -303,6 +303,29 @@ def active_flow_context(executor: Any, active_node: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def coding_work_package_controls_section(executor: Any, task: str, step: PlanStep) -> str:
+    brief = executor.project_handoff.project_brief if isinstance(executor.project_handoff.project_brief, dict) else {}
+    expected_outputs = str(brief.get("expected_outputs") or "derive the smallest verifiable product output from the task and current step")
+    quality_gates = str(brief.get("quality_gates") or step.validation or "define a focused wet-run before claiming completion")
+    active_role = executor._role_for_step(task=task, step=step)
+    validation = step.validation or "not specified"
+    wet_run = "required" if step.wet_run_required else "proportionate to product risk"
+    lines = [
+        "- product focus: define the concrete product or code behavior to deliver before editing; avoid activity-only progress.",
+        f"- expected product output: {expected_outputs}",
+        f"- current work package: id={step.id} title={step.title} instruction={step.instruction}",
+        "- acceptance criteria: translate expected outputs and quality gates into observable pass/fail checks before marking complete.",
+        f"- quality gates: {quality_gates}",
+        "- TDD control: for code or behavior changes, write or identify a failing test/check first when a reasonable test surface exists.",
+        "- delivery loop: inspect the existing design, run/record the failing test or baseline check, make the minimal implementation, then run the focused wet-run.",
+        "- scope control: keep implementation limited to this work package product; open an issue/change request for new products or refactors outside scope.",
+        "- evidence rule: complete only after real validation evidence from executed tests, commands, observed files, or real tool output.",
+        f"- validation target: {validation}; wet_run={wet_run}.",
+        f"- role boundary: active_role={active_role}; deliver as Team Manager, validate via Project Assurance, escalate tolerance breaches or blocked wet-runs.",
+    ]
+    return "\n".join(lines)
+
+
 def prince2_role_automation_section(executor: Any, task: str, step: PlanStep) -> str:
     active_role = executor._role_for_step(task=task, step=step)
     active_node = executor._role_tree_node_for_step(task=task, step=step, role=active_role)

@@ -1332,10 +1332,16 @@ class Executor:
                 last_observation or "None",
             ]
         )
+        coding_work_package_controls = _executor_prompting.bounded_context(
+            _executor_prompting.coding_work_package_controls_section(self, task, step),
+            2500,
+            label="coding_work_package_controls",
+        )
         sections = [
             PromptSection("Thread Start", thread_start),
             PromptSection("Task", task),
             PromptSection("Turn Context", turn_context),
+            PromptSection("Coding work package controls", coding_work_package_controls),
             PromptSection("Model context files", model_context),
             PromptSection(
                 "Implicit project handoff context",

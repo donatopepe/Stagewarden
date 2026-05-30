@@ -1170,6 +1170,50 @@ class ExecutorTests(unittest.TestCase):
             self.assertIn("openai:work", updated.blocked_until_by_account or {})
             self.assertIn("openai:personal", updated.blocked_until_by_account or {})
 
+    def test_executor_prompt_includes_coding_work_package_controls_for_code_steps(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root)
+            project_handoff = ProjectHandoff(task="implement API parser")
+            project_handoff.update_project_brief(
+                {
+                    "expected_outputs": "Parser handles JSON payloads and typed errors",
+                    "quality_gates": "unit tests and focused CLI wet-run",
+                }
+            )
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=FakeHandoff([]),
+                memory=MemoryStore(),
+                project_handoff=project_handoff,
+            )
+            step = PlanStep(
+                id="step-1",
+                title="Implement parser",
+                instruction="modify parser code and tests",
+                validation="python3.11 -m unittest tests.test_parser -v",
+                wet_run_required=True,
+            )
+
+            packet = executor._build_model_communication_packet(
+                task="implement API parser",
+                step=step,
+                plan=[step],
+                last_observation="none",
+            )
+            controls = next((section.body for section in packet.sections if section.title == "Coding work package controls"), "")
+
+            self.assertIn("product focus", controls)
+            self.assertIn("Parser handles JSON payloads and typed errors", controls)
+            self.assertIn("acceptance criteria", controls)
+            self.assertIn("unit tests and focused CLI wet-run", controls)
+            self.assertIn("failing test", controls)
+            self.assertIn("minimal implementation", controls)
+            self.assertIn("focused wet-run", controls)
+            self.assertIn("complete only after real validation evidence", controls)
+            self.assertIn("escalate", controls)
+
     def test_executor_routes_step_through_configured_prince2_role(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
