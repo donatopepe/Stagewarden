@@ -6,6 +6,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 ## Current state
 - PRINCE2 study pass completed against `/Users/donato/study/PRINCE2_Agent_Project_Spec.md`, `/Users/donato/study/PRINCE2_Agent_Exam_Cram.md`, and `/Users/donato/study/PRINCE2_Archivio_Studio.md`; external AXELOS/PeopleCert PRINCE2 pages were checked as institutional references.
 - First PRINCE2+coding tranche is implemented: executor prompt packets now include explicit `Coding work package controls` so model steps must define product focus, acceptance criteria, failing-test/TDD control, minimal implementation, focused wet-run, evidence rule, and escalation boundary.
+- Validation passed for touched paths: `python3.11 -m py_compile stagewarden/executor.py stagewarden/executor_prompting.py tests/test_executor.py`, `python3.11 -m unittest tests.test_executor -v` -> 50 OK, and `python3.11 -m unittest tests.test_rag -v` -> 15 OK.
+- Full discovery was attempted with `python3.11 -m unittest discover -s tests -v`; it timed out at 600s after exposing three environment-gated failures caused by missing OpenRouter API key (`tests.test_agent_integration.AgentIntegrationTests.test_agent_verbose_output_shows_handoff_runtime_details`, `tests.test_handoff.HandoffTests.test_handoff_passes_openrouter_api_key_to_backend`, `tests.test_handoff.HandoffTests.test_handoff_runs_mmlu_benchmark_suite_against_openrouter`). Focused rerun confirmed all three fail before exercising product code because `_openrouter_env_name()` calls `self.fail("OpenRouter API key is required for this test.")`.
 - Session-resume follow-up found one remaining portability gap: test subprocess helpers invoked `python3` directly, which can select Python 3.9 on macOS and break on `dataclass(slots=True)`.
 - Portability fix is now in place: subprocess CLI test helpers use `sys.executable` so spawned runs use the same interpreter as the parent test process.
 - PR `#1` was merged into `main` (`merge commit 26f53f4ef419e1b22aade0b0cc9b7704cedd2428`) and the feature branch `pr/p4-p5-updates` was deleted locally/remotely.
@@ -197,6 +199,7 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 
 ## Open issues
 - Bugs: No known deterministic bugs in touched paths after validation; `python3` vs interpreter mismatch in subprocess tests is fixed.
+- Risks: Full `unittest discover` currently requires OpenRouter credentials for three live/provider tests and timed out at 600s in this environment; focused touched-path validation is green, but full-suite green requires providing `OPENROUTER_API_KEY` or adjusting those tests to skip when credentials are absent.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Risks: `openrouter benchmark` trace test appears intermittently flaky under full-suite load; keep monitoring and re-run isolated test before treating as product regression.
 - Risks: Live OpenRouter benchmark remains externally dependent (provider/network/rate limits); test now treats explicit case-level provider errors as transient skips.
