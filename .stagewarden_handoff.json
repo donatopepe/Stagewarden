@@ -118,9 +118,9 @@
   "current_step_id": "agent-refactor-slice",
   "current_step_title": "Refactor agent/main/command dispatch into smaller modules",
   "current_step_status": "waiting",
-  "latest_observation": "AGENT_HANDOFF.md cleaned: removed duplicated full-suite validation bullet block; handoff remains aligned.",
+  "latest_observation": "Session follow-up fixed test subprocess interpreter portability by switching helper invocations from python3 to sys.executable; targeted wet-run tests passed on python3.11.",
   "plan_status": "step-1:completed,step-2:completed,step-3:completed",
-  "git_head": "26f53f4ef419e1b22aade0b0cc9b7704cedd2428",
+  "git_head": "4ff0624",
   "git_head_baseline": "a38597f",
   "risk_register": [
     {
@@ -176,8 +176,24 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-24T17:20:00Z",
+  "updated_at": "2026-05-30T13:16:35Z",
   "entries": [
+    {
+      "timestamp": "2026-05-30T13:16:35Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "agent-refactor-slice",
+      "summary": "Patched test subprocess helpers to use sys.executable (instead of python3) to avoid Python 3.9 fallback failures; validated with focused RAG and trace CLI tests.",
+      "step_id": "agent-refactor-slice",
+      "step_title": "Refactor agent/main/command dispatch into smaller modules",
+      "step_status": "waiting",
+      "model": null,
+      "action_type": null,
+      "git_head": "4ff0624",
+      "details": {
+        "validation": "python3.11 -m unittest tests.test_rag -v; python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_overview_and_board_commands -v; python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_openrouter_benchmark_cli_reports_multi_suite_baseline -v (skipped: API key required)"
+      }
+    },
     {
       "timestamp": "2026-05-21T01:00:00Z",
       "phase": "finish",

@@ -4,6 +4,8 @@
 Implement RAG as a first-class design-knowledge base for the Stagewarden agent: persisted locally, injected into model prompts, queryable/updatable/removable by model actions and CLI commands, automatically indexed during agent lifecycle events, deduplicated, and retrievable with deterministic lexical/fuzzy/vector matching.
 
 ## Current state
+- Session-resume follow-up found one remaining portability gap: test subprocess helpers invoked `python3` directly, which can select Python 3.9 on macOS and break on `dataclass(slots=True)`.
+- Portability fix is now in place: subprocess CLI test helpers use `sys.executable` so spawned runs use the same interpreter as the parent test process.
 - PR `#1` was merged into `main` (`merge commit 26f53f4ef419e1b22aade0b0cc9b7704cedd2428`) and the feature branch `pr/p4-p5-updates` was deleted locally/remotely.
 - Current branch: `main`.
 - RAG implementation is complete for this slice and focused tests pass, including hardening found during deep review.
@@ -18,6 +20,8 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 - Full discovery now passes after live-benchmark drift guard update: `python3 -m unittest discover -s tests -v` -> 431 OK.
 
 ## Recent changes
+- `tests/test_rag.py`: `run_main_capture(...)` now uses `sys.executable` instead of hardcoded `python3` for interpreter consistency across environments.
+- `tests/test_trace_cli.py`: `run_main_in_cwd(...)` and `run_main_capture(...)` now use `sys.executable` instead of hardcoded `python3`.
 - `tests/test_trace_cli.py`: hardened live OpenRouter benchmark trace regression by adding one retry and transient-provider-error skip path (when benchmark returns non-zero and case-level provider/network errors are present), preserving strict failure for non-transient regressions.
 - `tests/test_trace_cli.py`: fixed retry-side assertion drift by conditioning `history.previous` expectation on whether a retry occurred (retry writes first snapshot, so `previous` is legitimately non-null on second attempt).
 - `stagewarden/project/role_flow.py`: `role tick` RAG retrieval now applies strict scoped tag filtering (`source_node`, `target_node`, `edge_id`) first, then falls back to unscoped delivery retrieval if no scoped hits are found.
@@ -178,7 +182,7 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 2. Consider adding percentage rounding/precision controls for dashboard-specific formatting needs.
 
 ## Open issues
-- Bugs: No known RAG, battery, trace-CLI, or full-suite bugs after validation.
+- Bugs: No known deterministic bugs in touched paths after validation; `python3` vs interpreter mismatch in subprocess tests is fixed.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Risks: `openrouter benchmark` trace test appears intermittently flaky under full-suite load; keep monitoring and re-run isolated test before treating as product regression.
 - Risks: Live OpenRouter benchmark remains externally dependent (provider/network/rate limits); test now treats explicit case-level provider errors as transient skips.
@@ -196,6 +200,10 @@ Implement RAG as a first-class design-knowledge base for the Stagewarden agent: 
 ## Commands
 ```bash
 # test
+python3.11 -m unittest tests.test_rag.RagTests.test_rag_cli_json_schema_and_interactive_route -v
+python3.11 -m unittest tests.test_rag -v
+python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_overview_and_board_commands -v
+python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_openrouter_benchmark_cli_reports_multi_suite_baseline -v
 python3 -m py_compile stagewarden/ui_views.py stagewarden/cli_dispatch.py stagewarden/command_dispatch.py stagewarden/model_views.py stagewarden/main.py stagewarden/rag.py stagewarden/executor.py stagewarden/status_limits_views.py stagewarden/status_dashboard_views.py stagewarden/modelprefs.py stagewarden/project/role_flow.py stagewarden/project/role_views.py stagewarden/project/tree_flow.py tests/test_rag.py
 python3 -m unittest tests.test_rag -v
 python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration tests.test_rag tests.test_json_schema_registry -v

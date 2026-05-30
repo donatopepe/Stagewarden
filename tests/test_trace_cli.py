@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -174,7 +175,7 @@ def run_main_in_cwd(cwd: Path, *args: str) -> int:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT)
     completed = subprocess.run(
-        ["python3", "-m", "stagewarden.main", *args],
+        [sys.executable, "-m", "stagewarden.main", *args],
         cwd=cwd,
         env=env,
         capture_output=True,
@@ -191,7 +192,7 @@ def run_main_capture(cwd: Path, *args: str, timeout: int = 20) -> subprocess.Com
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT)
     return subprocess.run(
-        ["python3", "-m", "stagewarden.main", *args],
+        [sys.executable, "-m", "stagewarden.main", *args],
         cwd=cwd,
         env=env,
         capture_output=True,
