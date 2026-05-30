@@ -24,6 +24,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Full discovery now passes after live-benchmark drift guard update: `python3 -m unittest discover -s tests -v` -> 431 OK.
 - PRINCE2 enforcement slice completed: coding work-package `complete` actions now require prior successful non-model tool evidence for the same step when the step explicitly involves code/tests (`pytest`, `unittest`, `tests/`, file extensions, or code-and-tests wording). Narrative claims such as `passed exit_code=0` are rejected without tool transcript evidence.
 - Validation for enforcement slice: RED observed with `python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_coding_completion_without_prior_tool_evidence -v` failing because the narrative completion was accepted; after implementation, the new reject/accept evidence tests pass, `py_compile` passes, and `python3 -m unittest tests.test_executor -v` -> 52 OK.
+- PRINCE2 product checkpoint slice completed: completed coding/product-mutating steps now write `product_checkpoint` handoff entries with product description, acceptance criteria, quality-gate evidence, checkpoint status, model/action metadata, and product id for downstream continuation.
+- Validation for checkpoint slice: RED observed in `tests.test_agent_integration.AgentIntegrationTests.test_agent_completes_task_with_stub_backend` because no `product_checkpoint` entries existed; GREEN focused run passed, and `python3 -m py_compile stagewarden/agent.py stagewarden/project_handoff.py tests/test_agent_integration.py && python3 -m unittest <5 non-live agent integration tests> tests.test_executor -v` -> 57 OK. Full `tests.test_agent_integration tests.test_executor` still hits the known OpenRouter API-key failure in `test_agent_verbose_output_shows_handoff_runtime_details` before product code.
 
 ## Recent changes
 - `stagewarden/executor_prompting.py`: added `coding_work_package_controls_section(...)`, a PRINCE2/product-delivery control block for coding work packages (product focus, expected output, acceptance criteria, quality gates, TDD, minimal implementation, focused wet-run, scope control, evidence rule, escalation boundary).
@@ -31,6 +33,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - `tests/test_executor.py`: added `test_executor_prompt_includes_coding_work_package_controls_for_code_steps`, written and observed failing first, then passing after implementation.
 - `stagewarden/executor.py`: added a completion enforcement gate for explicit coding/test work packages so `complete` requires prior successful same-step non-model tool transcript evidence; this prevents narrative-only claims of executed tests from closing the step.
 - `tests/test_executor.py`: added reject/accept coverage for coding completion evidence: one RED test proving narrative-only completion is blocked, and one positive test proving prior shell/tool evidence allows completion.
+- `stagewarden/project_handoff.py`: added `record_product_checkpoint(...)`, persisting PRINCE2-style product/checkpoint handoff entries with structured details.
+- `stagewarden/agent.py`: records a `product_checkpoint` immediately after a completed code/product-mutating work package before indexing the step-completed RAG phase.
+- `tests/test_agent_integration.py`: extended the stub-backend happy-path test to assert persisted product checkpoint entries and structured detail fields.
 - `tests/test_rag.py`: `run_main_capture(...)` now uses `sys.executable` instead of hardcoded `python3` for interpreter consistency across environments.
 - `tests/test_trace_cli.py`: `run_main_in_cwd(...)` and `run_main_capture(...)` now use `sys.executable` instead of hardcoded `python3`.
 - `tests/test_trace_cli.py`: hardened live OpenRouter benchmark trace regression by adding one retry and transient-provider-error skip path (when benchmark returns non-zero and case-level provider/network errors are present), preserving strict failure for non-transient regressions.
@@ -184,6 +189,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Decision: Require same-step successful tool transcript evidence before accepting `complete` on explicit coding/test work packages.
   - Reason: a model can otherwise claim `ran tests` or `exit_code=0` in text without Stagewarden having executed or recorded the validation.
   - Trade-offs: the first enforcement slice uses conservative code/test markers to avoid breaking non-coding routing/status tests; future slices can broaden enforcement as more flows record structured product evidence.
+- Decision: Persist completed coding/product-mutating work packages as explicit PRINCE2 `product_checkpoint` handoff entries.
+  - Reason: downstream agents need a compact product description, acceptance criteria, quality evidence, and checkpoint status, not only raw observation text.
+  - Trade-offs: checkpoint creation is intentionally limited to code/product-mutating action types or explicit code/test markers to avoid noisy handoff entries for purely analytical steps.
 - Decision: Use stdlib-only JSON-backed RAG with deterministic lexical, trigram, fuzzy-subsequence, and local hashed-vector scoring, not an external vector DB.
   - Reason: keeps Stagewarden dependency-free and portable.
   - Trade-offs: local vectors improve semantic-ish recall without services, but are not as strong as model-generated embeddings.
@@ -213,8 +221,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Consider adding PRINCE2 product-description/checkpoint summaries to handoff entries after each completed code step.
-2. Broaden evidence enforcement from explicit code/test steps to all work-package closures once non-coding flows produce structured product evidence.
+1. Broaden evidence enforcement from explicit code/test steps to all work-package closures once non-coding flows produce structured product evidence.
+2. Use `product_checkpoint` entries to drive automatic next-step generation when a completion gate fails or evidence is incomplete.
 3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note

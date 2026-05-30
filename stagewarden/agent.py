@@ -375,6 +375,20 @@ class Agent:
                     lesson=outcome.observation,
                 )
                 if outcome.step_completed:
+                    if self._should_record_product_checkpoint(current, outcome.action_type):
+                        self.project_handoff.record_product_checkpoint(
+                            iteration=iterations,
+                            task=effective_task,
+                            step_id=current.id,
+                            step_title=current.title,
+                            product_description=self._product_description_for_step(current),
+                            acceptance_criteria=current.validation or "Step validation evidence is required before closure.",
+                            quality_gate_evidence=outcome.observation,
+                            checkpoint_status="completed",
+                            model=outcome.model,
+                            action_type=outcome.action_type,
+                            git_head=self._git_head(),
+                        )
                     self._index_project_phase(
                         phase="step_completed",
                         title=f"Step completed: {current.id} {current.title}",
@@ -642,6 +656,47 @@ class Agent:
             if step.status == "planned":
                 step.status = "ready"
                 return
+
+    def _should_record_product_checkpoint(self, step: PlanStep, action_type: str) -> bool:
+        action = str(action_type or "").strip().lower()
+        if action in {
+            "write_file",
+            "apply_patch",
+            "search_replace_file",
+            "insert_text_file",
+            "delete_range_file",
+            "delete_backward_file",
+            "replace_range_file",
+            "patch_file",
+            "patch_files",
+            "shell",
+        }:
+            return True
+        text = " ".join([step.id, step.title, step.instruction, step.validation]).lower()
+        return any(
+            marker in text
+            for marker in (
+                "code and test",
+                "code and tests",
+                "coding",
+                "pytest",
+                "unittest",
+                "test_",
+                "tests/",
+                ".py",
+                ".js",
+                ".ts",
+                ".go",
+                ".rs",
+            )
+        )
+
+    def _product_description_for_step(self, step: PlanStep) -> str:
+        instruction = step.instruction.strip()
+        if instruction:
+            return instruction
+        title = step.title.strip()
+        return title or step.id
 
     def _close_recovery_gate_if_ready(self, plan: list[PlanStep], observation: str) -> None:
         recovery_steps = [step for step in plan if step.id.startswith("recovery-step-")]
