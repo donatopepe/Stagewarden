@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from copy import deepcopy
@@ -47,7 +48,7 @@ def run_main_capture(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT)
     return subprocess.run(
-        ["python3", "-m", "stagewarden.main", *args],
+        [sys.executable, "-m", "stagewarden.main", *args],
         cwd=cwd,
         env=env,
         capture_output=True,

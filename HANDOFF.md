@@ -2,6 +2,8 @@
 
 ## Current State
 
+- Validation follow-up (2026-05-30): fixed Python interpreter portability in test subprocess helpers by replacing hardcoded `python3` with `sys.executable` in `tests/test_rag.py` and `tests/test_trace_cli.py`; this removes macOS Python 3.9 fallback failures (`dataclass(slots=True)`) when parent tests run on Python 3.11+.
+- Validation follow-up (2026-05-30): `python3.11 -m unittest tests.test_rag -v` passed (`15 OK`), `python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_overview_and_board_commands -v` passed (`1 OK`), and live OpenRouter benchmark test remained environment-gated (`skipped: API key required`).
 - Validation follow-up (2026-05-24): ran `python3 -m unittest tests.test_trace_cli -v`; suite reported 1 failure at `test_openrouter_benchmark_cli_reports_multi_suite_baseline` (return code mismatch). Immediate isolated rerun (`python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_openrouter_benchmark_cli_reports_multi_suite_baseline -v`) passed, suggesting an intermittent benchmark-path flake rather than a deterministic CLI contract break.
 - Stability hardening (2026-05-24): `tests/test_trace_cli.py` OpenRouter benchmark regression now retries once and skips only when non-zero results include explicit case-level provider/network errors; non-transient failures still fail normally.
 - Validation follow-up (2026-05-24): full `python3 -m unittest tests.test_trace_cli -v` re-run after hardening passed (`200 OK`).
