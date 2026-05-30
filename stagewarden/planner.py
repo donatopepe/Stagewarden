@@ -44,6 +44,7 @@ class Planner:
 
         self._inject_recovery_lane(steps, project_handoff=project_handoff)
         self._apply_handoff_context(steps, task=task, project_handoff=project_handoff)
+        self._inject_checkpoint_recovery_lane(steps, project_handoff=project_handoff)
         self._promote_ready_step(steps)
         return self._compress_completed_prefix(steps)
 
@@ -155,6 +156,72 @@ class Planner:
         if notes:
             target.instruction = f"{target.instruction} | {' | '.join(notes)}"
             target.validation = f"{target.validation} Use PRINCE2 register context to close open risks, issues, and quality gaps."
+
+    def _inject_checkpoint_recovery_lane(self, steps: list[PlanStep], *, project_handoff: ProjectHandoff | None) -> None:
+        if not project_handoff or not steps:
+            return
+        if not self._completion_gate_failed(project_handoff.latest_observation):
+            return
+        current_step_id = (project_handoff.current_step_id or "").strip()
+        if not current_step_id:
+            return
+        if any(step.id.startswith("checkpoint-recovery-step-") for step in steps):
+            return
+        latest_checkpoint = self._latest_product_checkpoint(project_handoff)
+        if latest_checkpoint is None:
+            return
+
+        current_index = next((index for index, step in enumerate(steps) if step.id == current_step_id), None)
+        if current_index is None:
+            return
+        current = steps[current_index]
+        if current.status in {"ready", "in_progress"}:
+            current.status = "planned"
+            if current.title.lower().startswith("resume "):
+                current.title = current.title[7:]
+
+        details = latest_checkpoint.details or {}
+        product_description = str(details.get("product_description") or latest_checkpoint.summary or "latest product checkpoint").strip()
+        product_id = str(details.get("product_id") or latest_checkpoint.step_id or "unknown-product").strip()
+        acceptance = str(details.get("acceptance_criteria") or "acceptance criteria unavailable").strip()
+        evidence = str(details.get("quality_gate_evidence") or "quality evidence unavailable").strip()
+        failed_gate = project_handoff.latest_observation.strip()
+        recovery_step = PlanStep(
+            id="checkpoint-recovery-step-1",
+            title=f"Checkpoint recovery for {current_step_id}",
+            instruction=(
+                f"resolve blocked completion gate before retrying blocked stage {current_step_id}: {current.title}. "
+                f"Failed gate: {failed_gate[:220]}. "
+                f"Use latest product_checkpoint {product_id}: {product_description[:220]}. "
+                f"Acceptance criteria: {acceptance[:220]}. Previous evidence: {evidence[:220]}. "
+                "Capture the missing real non-model tool evidence, then retry original step closure."
+            ),
+            validation=(
+                "A real non-model tool evidence transcript resolves the completion gate and is suitable for the "
+                "original work package quality record before closure is retried."
+            ),
+            status="ready",
+            wet_run_required=True,
+        )
+        steps.insert(current_index, recovery_step)
+
+    def _completion_gate_failed(self, observation: str) -> bool:
+        text = (observation or "").lower()
+        markers = (
+            "wet-run gate failed",
+            "completion requires prior successful tool evidence",
+            "dry-run or narrative completion is not valid evidence",
+            "prince2 closure gate failed",
+            "response quality gate failed",
+            "missing evidence",
+        )
+        return any(marker in text for marker in markers)
+
+    def _latest_product_checkpoint(self, project_handoff: ProjectHandoff):
+        for entry in reversed(project_handoff.entries):
+            if entry.phase == "product_checkpoint":
+                return entry
+        return None
 
     def _extract_chunks(self, task: str) -> list[str]:
         normalized = re.sub(r"\s+", " ", task).strip()

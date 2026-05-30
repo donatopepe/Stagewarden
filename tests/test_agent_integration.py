@@ -10,6 +10,8 @@ from pathlib import Path
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
+from stagewarden.executor import StepOutcome
+from stagewarden.planner import PlanStep
 from stagewarden.provider_registry import model_token_env
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
@@ -232,6 +234,56 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertIn("acceptance_criteria", checkpoint.details)
             self.assertIn("quality_gate_evidence", checkpoint.details)
             self.assertIn("checkpoint_status", checkpoint.details)
+
+    def test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            agent = Agent(AgentConfig(workspace_root=root, max_steps=5, verbose=False))
+            plan = [
+                PlanStep("step-1", "1. Inspect", "inspect repository", "inspection evidence", status="completed"),
+                PlanStep("step-2", "2. Implement", "modify parser code and tests", "python3 -m unittest tests.test_parser -v", status="in_progress"),
+                PlanStep("step-3", "3. Validate", "validate the result", "wet-run evidence", status="planned"),
+            ]
+            agent.project_handoff.record_product_checkpoint(
+                iteration=1,
+                task="modify parser code",
+                step_id="step-1",
+                step_title="1. Inspect",
+                product_description="Parser inspection checkpoint",
+                acceptance_criteria="Parser files identified",
+                quality_gate_evidence="search_files output captured",
+                checkpoint_status="completed",
+                model="local",
+                action_type="write_file",
+                git_head="abc123",
+            )
+            outcome = StepOutcome(
+                ok=False,
+                step_completed=False,
+                model="local",
+                action_type="complete",
+                observation="Wet-run gate failed: coding work package completion requires prior successful tool evidence",
+                account=None,
+                variant=None,
+                git_head_before="abc123",
+                git_head_after="abc123",
+                error_type="wet_run_required",
+                prince2_assessment=None,
+            )
+
+            inserted = agent._insert_live_checkpoint_recovery_step(
+                plan=plan,
+                current=plan[1],
+                outcome=outcome,
+            )
+
+            self.assertTrue(inserted)
+            self.assertEqual(plan[1].id, "checkpoint-recovery-step-1")
+            self.assertEqual(plan[1].status, "ready")
+            self.assertIn("Parser inspection checkpoint", plan[1].instruction)
+            self.assertIn("prior successful tool evidence", plan[1].instruction)
+            self.assertEqual(plan[2].id, "step-2")
+            self.assertEqual(plan[2].status, "planned")
 
     def test_agent_failure_summary_contains_exception_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

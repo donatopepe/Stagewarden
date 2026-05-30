@@ -410,6 +410,12 @@ class Agent:
                     )
                     self.project_handoff.clear_exception_plan_if_recovered()
             else:
+                if self._insert_live_checkpoint_recovery_step(
+                    plan=plan,
+                    current=current,
+                    outcome=outcome,
+                ):
+                    self._sync_implementation_backlog(plan)
                 severity = "high" if current.status == "failed" else "medium"
                 self.project_handoff.record_issue(
                     step_id=current.id,
@@ -656,6 +662,62 @@ class Agent:
             if step.status == "planned":
                 step.status = "ready"
                 return
+
+    def _insert_live_checkpoint_recovery_step(self, *, plan: list[PlanStep], current: PlanStep, outcome: Any) -> bool:
+        if outcome.ok or outcome.step_completed:
+            return False
+        if outcome.error_type not in {"wet_run_required", "prince2_closure_failure", "response_insufficient"}:
+            return False
+        if any(step.id.startswith("checkpoint-recovery-step-") and step.status in {"ready", "in_progress", "planned"} for step in plan):
+            return False
+        latest_checkpoint = next(
+            (entry for entry in reversed(self.project_handoff.entries) if entry.phase == "product_checkpoint"),
+            None,
+        )
+        if latest_checkpoint is None:
+            return False
+        try:
+            current_index = plan.index(current)
+        except ValueError:
+            return False
+        details = latest_checkpoint.details or {}
+        product_description = str(details.get("product_description") or latest_checkpoint.summary or "latest product checkpoint").strip()
+        product_id = str(details.get("product_id") or latest_checkpoint.step_id or "unknown-product").strip()
+        acceptance = str(details.get("acceptance_criteria") or current.validation or "acceptance criteria unavailable").strip()
+        evidence = str(details.get("quality_gate_evidence") or "quality evidence unavailable").strip()
+        current.status = "planned"
+        recovery_index = 1 + sum(1 for step in plan if step.id.startswith("checkpoint-recovery-step-"))
+        recovery_step = PlanStep(
+            id=f"checkpoint-recovery-step-{recovery_index}",
+            title=f"Checkpoint recovery for {current.id}",
+            instruction=(
+                f"resolve failed completion gate before retrying blocked work package {current.id}: {current.title}. "
+                f"Failed gate: {outcome.observation[:220]}. "
+                f"Use product_checkpoint {product_id}: {product_description[:220]}. "
+                f"Acceptance criteria: {acceptance[:220]}. Previous quality evidence: {evidence[:220]}. "
+                "Capture real non-model tool evidence for the missing validation, then retry the original closure."
+            ),
+            validation=(
+                "A real non-model tool transcript proves the missing validation evidence and can be used to close "
+                "the original PRINCE2 work package gate."
+            ),
+            status="ready",
+            wet_run_required=True,
+        )
+        plan.insert(current_index, recovery_step)
+        self.project_handoff.record_action(
+            phase="checkpoint_recovery_plan",
+            summary=f"Inserted checkpoint recovery step before retrying {current.id}.",
+            task=self.project_handoff.task,
+            git_head=self._git_head(),
+            details={
+                "blocked_step_id": current.id,
+                "recovery_step_id": recovery_step.id,
+                "error_type": outcome.error_type,
+                "product_checkpoint_id": product_id,
+            },
+        )
+        return True
 
     def _should_record_product_checkpoint(self, step: PlanStep, action_type: str) -> bool:
         action = str(action_type or "").strip().lower()
