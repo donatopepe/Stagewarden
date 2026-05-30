@@ -30,6 +30,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - PRINCE2 live checkpoint recovery slice completed: during the same agent run, failed completion/quality gates (`wet_run_required`, `prince2_closure_failure`, `response_insufficient`) now insert a ready `checkpoint-recovery-step-*` from the latest `product_checkpoint`, demote the blocked work package back to planned, and sync the implementation backlog so the next iteration captures missing evidence before retrying closure.
 - Validation for checkpoint recovery slices: RED observed in `tests.test_planner.PlannerTests.test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate` because no recovery step was generated; RED observed in `tests.test_agent_integration.AgentIntegrationTests.test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure` because the live insertion hook did not exist. GREEN focused runs passed, `python3 -m py_compile stagewarden/agent.py stagewarden/planner.py tests/test_agent_integration.py tests/test_planner.py` passed, `python3 -m unittest tests.test_planner tests.test_executor <5 non-live agent integration tests> -v` -> 65 OK.
 - PRINCE2 non-coding product-evidence enforcement slice completed: `complete` now also requires prior successful same-step non-model tool evidence for wet-run-required design/documentation/specification artifacts, not only explicit code/test work packages. The broadening is intentionally limited to concrete artifact markers (`design`, `architecture`, `ADR`, `documentation`, `docs/`, `.md`, `specification`, etc.) so routing/planning control steps can still flow to response-quality gates instead of being misclassified as product closure.
+- Ambiguous-brief clarification slice completed: required project-brief fields that contain placeholder values (`TBD`, `unknown`, `to be decided`, `da definire`, etc.) now become explicit `ambiguous_<field>` clarification gaps in project design/tree/start flows, preventing Stagewarden from approving startup from placeholders or assumptions.
+- Validation for ambiguous-brief slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_project_start_requests_clarification_for_ambiguous_brief_values` because `objective=TBD` still approved startup; GREEN focused run passed with py_compile plus project-start/tree clarification regressions, persistence/PRINCE2 coverage, and ready-project startup regressions.
+- Full regression validation after ambiguous-brief slice passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 440 OK in 1064.353s.
 - Validation for non-coding evidence slice: RED observed in `tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence` because a narrative-only ADR/design closure was accepted; GREEN focused reject/accept design tests passed; `python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v` -> 62 OK.
 
 ## Recent changes
@@ -229,7 +232,7 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 
 ## Open issues
 - Bugs: No known deterministic bugs in touched paths after validation; `python3` vs interpreter mismatch in subprocess tests is fixed.
-- Risks: Full `unittest discover` currently requires OpenRouter credentials for three live/provider tests and timed out at 600s in this environment; focused touched-path validation is green, but full-suite green requires providing `OPENROUTER_API_KEY` or adjusting those tests to skip when credentials are absent.
+- Risks: Full `unittest discover` requires explicit environment sourcing for OpenRouter-backed tests in this Hermes process; current full suite is green when run as `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q`.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Risks: `openrouter benchmark` trace test appears intermittently flaky under full-suite load; keep monitoring and re-run isolated test before treating as product regression.
 - Risks: Live OpenRouter benchmark remains externally dependent (provider/network/rate limits); test now treats explicit case-level provider errors as transient skips.
@@ -252,6 +255,7 @@ python3.11 -m unittest tests.test_executor.ExecutorTests.test_executor_prompt_in
 python3.11 -m unittest tests.test_executor -v
 python3.11 -m unittest tests.test_rag -v
 python3.11 -m unittest discover -s tests -v
+set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q
 python3.11 -m unittest tests.test_rag.RagTests.test_rag_cli_json_schema_and_interactive_route -v
 python3.11 -m unittest tests.test_rag -v
 python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_overview_and_board_commands -v

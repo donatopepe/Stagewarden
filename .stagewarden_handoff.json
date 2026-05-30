@@ -120,12 +120,12 @@
   },
   "status": "active",
   "waiting_reason": "",
-  "current_step_id": "prince2-live-checkpoint-recovery",
-  "current_step_title": "Insert live recovery step after checkpoint gate failure",
+  "current_step_id": "ambiguous-brief-clarification",
+  "current_step_title": "Block project startup/planning on ambiguous brief placeholder values",
   "current_step_status": "validated",
-  "latest_observation": "Live and resume checkpoint recovery slices validated with targeted tests.",
-  "plan_status": "prince2-coding-completion-evidence-gate:completed,prince2-product-checkpoint-handoff:validated,next-enforcement-broadening:planned",
-  "git_head": "5abfa03",
+  "latest_observation": "Full regression validation passed after ambiguous-brief clarification slice: set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q -> 440 OK in 1064.353s.",
+  "plan_status": "ambiguous-brief-clarification:validated,checkpoint-recovery-status-reporting:validated,next-dynamic-project-change-cycle:planned",
+  "git_head": "ac993c6",
   "git_head_baseline": "a38597f",
   "risk_register": [
     {
@@ -152,10 +152,10 @@
   "issue_register": [
     {
       "issue": "full_discovery_missing_openrouter_key",
-      "status": "open",
+      "status": "closed",
       "severity": "medium",
       "recorded_at": "2026-05-30T13:45:19Z",
-      "description": "Full unittest discover requires OpenRouter credentials for three live/provider tests in this environment; focused touched-path tests pass."
+      "description": "Resolved for validation by explicitly sourcing ~/.hermes/.env before running full unittest discovery; latest full suite passed 440 OK."
     }
   ],
   "quality_register": [],
@@ -194,8 +194,24 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-30T14:38:37Z",
+  "updated_at": "2026-05-30T20:12:25Z",
   "entries": [
+    {
+      "timestamp": "2026-05-30T20:12:25Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "ambiguous-brief-clarification",
+      "summary": "Validated ambiguous-brief clarification slice with full unittest discovery after explicitly sourcing Hermes env; full suite passed 440 tests.",
+      "step_id": "ambiguous-brief-clarification",
+      "step_title": "Block project startup/planning on ambiguous brief placeholder values",
+      "step_status": "validated",
+      "model": null,
+      "action_type": null,
+      "git_head": "ac993c6",
+      "details": {
+        "validation": "set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q -> Ran 440 tests in 1064.353s, OK"
+      }
+    },
     {
       "timestamp": "2026-05-30T13:16:35Z",
       "phase": "finish",

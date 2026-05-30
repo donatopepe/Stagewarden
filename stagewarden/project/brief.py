@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from ..config import AgentConfig
 from ..project_handoff import ProjectHandoff
 
@@ -17,6 +19,44 @@ PROJECT_BRIEF_FIELDS: dict[str, str] = {
     "tolerance_margin_percent": "Default per-node tolerance margin, usually 25, before escalation is required.",
     "accountable_project_executive": "Human accountable owner for the Project Executive decision line; defaults to user.",
 }
+
+AMBIGUOUS_BRIEF_MARKERS = {
+    "?",
+    "tbd",
+    "todo",
+    "unknown",
+    "unclear",
+    "unsure",
+    "not sure",
+    "to decide",
+    "to be decided",
+    "decide later",
+    "da definire",
+    "da decidere",
+    "non so",
+}
+
+
+def project_brief_value_is_ambiguous(value: object) -> bool:
+    text = str(value or "").strip().lower()
+    if not text:
+        return False
+    compact = " ".join(text.replace("…", " ").split())
+    return compact in AMBIGUOUS_BRIEF_MARKERS
+
+
+def project_brief_ambiguous_gaps(fields: Mapping[str, object]) -> list[dict[str, str]]:
+    gaps: list[dict[str, str]] = []
+    for field_name in ("objective", "scope", "expected_outputs", "delivery_mode"):
+        value = fields.get(field_name)
+        if project_brief_value_is_ambiguous(value):
+            gaps.append(
+                {
+                    "code": f"ambiguous_{field_name}",
+                    "message": f"Project brief {field_name} is ambiguous ({value}); ask the user for a concrete value before planning.",
+                }
+            )
+    return gaps
 
 
 def project_brief_missing_fields(config: AgentConfig) -> list[str]:
@@ -37,6 +77,10 @@ def project_gap_to_brief_field(gap_code: str) -> str | None:
         "missing_delivery_mode": "delivery_mode",
         "missing_objective": "objective",
         "missing_scope": "scope",
+        "ambiguous_objective": "objective",
+        "ambiguous_scope": "scope",
+        "ambiguous_expected_outputs": "expected_outputs",
+        "ambiguous_delivery_mode": "delivery_mode",
     }
     return gap_map.get(gap_code)
 

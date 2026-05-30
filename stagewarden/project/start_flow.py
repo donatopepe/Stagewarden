@@ -58,6 +58,10 @@ def _project_start_clarification_record(
         "missing_project_scope": "What is in scope for this project?",
         "missing_expected_outputs": "What deliverables or outputs should exist at completion?",
         "missing_delivery_mode": "What delivery mode should I assume?",
+        "ambiguous_objective": gap_message,
+        "ambiguous_scope": gap_message,
+        "ambiguous_expected_outputs": gap_message,
+        "ambiguous_delivery_mode": gap_message,
     }
     question = question_map.get(gap_code, gap_message)
     record = handoff.ask_user(
@@ -104,6 +108,10 @@ def _project_tree_clarification_record(
         "missing_scope": "What is in scope for this project tree?",
         "missing_expected_outputs": "What outputs should this project tree deliver?",
         "missing_delivery_mode": "What delivery mode should I assume for the tree design?",
+        "ambiguous_objective": gap_message,
+        "ambiguous_scope": gap_message,
+        "ambiguous_expected_outputs": gap_message,
+        "ambiguous_delivery_mode": gap_message,
     }
     question = question_map.get(gap_code, gap_message)
     record = handoff.ask_user(
