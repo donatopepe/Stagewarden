@@ -120,12 +120,12 @@
   },
   "status": "active",
   "waiting_reason": "",
-  "current_step_id": "stale-baseline-supervision-views",
-  "current_step_title": "Annotate supervision-only views when project-tree baseline is stale",
+  "current_step_id": "noncoding-report-plan-evidence-gates",
+  "current_step_title": "Gate research/report/plan file artifact completions on tool evidence",
   "current_step_status": "validated",
-  "latest_observation": "Stale-baseline supervision views validated: roles active, roles queues, roles control, and roles messages remain non-blocking but text/JSON surface stale warning/context; full discovery passed 445 OK in 1167.000s.",
-  "plan_status": "ambiguous-brief-clarification:validated,project-brief-ambiguous-guidance:validated,stale-baseline-on-brief-change:validated,stale-baseline-execution-gates:validated,stale-baseline-supervision-views:validated,next-noncoding-evidence:planned",
-  "git_head": "current-head-after-stale-baseline-supervision-view-commit",
+  "latest_observation": "Research/report/plan file artifact completion gates are implemented and validated: focused evidence tests passed, executor/planner/agent-integration regression passed with env sourced (74 OK), and full discovery passed with explicit Hermes env sourcing (449 tests OK in 1136.235s).",
+  "plan_status": "ambiguous-brief-clarification:validated,project-brief-ambiguous-guidance:validated,stale-baseline-on-brief-change:validated,stale-baseline-execution-gates:validated,stale-baseline-supervision-views:validated,noncoding-report-plan-evidence-gates:validated",
+  "git_head": "uncommitted-noncoding-report-plan-evidence-gates",
   "git_head_baseline": "a38597f",
   "risk_register": [
     {
@@ -194,8 +194,24 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-31T12:51:16Z",
+  "updated_at": "2026-05-31T13:05:20Z",
   "entries": [
+    {
+      "timestamp": "2026-05-31T13:05:20Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "noncoding-report-plan-evidence-gates",
+      "summary": "Concrete research/report/plan file artifact completions now require prior same-step non-model tool evidence, with generic planning/review guarded from false positives; full discovery passed.",
+      "step_id": "noncoding-report-plan-evidence-gates",
+      "step_title": "Gate research/report/plan file artifact completions on tool evidence",
+      "step_status": "validated",
+      "model": null,
+      "action_type": null,
+      "git_head": "uncommitted-noncoding-report-plan-evidence-gates",
+      "details": {
+        "validation": "RED: research report file and implementation plan file completions without prior tool evidence were accepted. GREEN: focused 4-test evidence batch passed; executor/planner/agent-integration regression passed with env sourced (74 OK); full discovery passed with explicit Hermes env sourcing: set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q -> 449 tests OK in 1136.235s."
+      }
+    },
     {
       "timestamp": "2026-05-31T12:51:16Z",
       "phase": "finish",

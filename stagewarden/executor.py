@@ -2551,7 +2551,24 @@ class Executor:
             "specification",
             "spec",
         )
-        return any(marker in combined for marker in coding_markers + product_evidence_markers)
+        if any(marker in combined for marker in coding_markers + product_evidence_markers):
+            return True
+        report_plan_pattern = r"\b(research|report|dossier|study|plan|roadmap)\b"
+        explicit_artifact_ref_markers = (
+            " file",
+            "file ",
+            "path",
+            "named ",
+            " at ",
+            " under ",
+        )
+        artifact_action_pattern = r"\b(create|produce|write|draft|author|compile|save|persist)\b"
+        instruction = step.instruction.lower()
+        return (
+            re.search(report_plan_pattern, combined) is not None
+            and any(marker in combined for marker in explicit_artifact_ref_markers)
+            and re.search(artifact_action_pattern, instruction) is not None
+        )
 
     def _has_prior_successful_tool_evidence(self, step_id: str, *, iteration: int) -> bool:
         for item in reversed(self.memory.tool_transcript):

@@ -42,6 +42,7 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Stale-baseline supervision-view slice completed: `roles active`, `roles queues`, `roles control`, and `roles messages` stay non-blocking/readable on a stale approved baseline, but text and JSON now include stale-baseline warning/context so supervision cannot be mistaken for execution approval.
 - Validation for stale-baseline supervision-view slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_stale_project_tree_baseline_marks_supervision_views_without_blocking_them` because `roles active` lacked the warning; GREEN focused run passed, targeted 6-test runtime/supervision/persistence regression passed, and full discovery passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 445 tests OK in 1167.000s.
 - Validation for non-coding evidence slice: RED observed in `tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence` because a narrative-only ADR/design closure was accepted; GREEN focused reject/accept design tests passed; `python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v` -> 62 OK.
+- Non-coding evidence enforcement follow-up completed for research/report/plan artifacts: concrete report/plan file completions now require prior same-step non-model tool evidence, while generic planning/review steps without an explicit file/path artifact remain non-blocking. RED observed on research report file and implementation plan file completions; GREEN focused evidence tests passed; executor/planner/agent-integration regression passed with env sourced (`74 OK`), and full discovery passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 449 tests OK in 1136.235s.
 
 ## Recent changes
 - `stagewarden/project/role_flow.py`: added shared stale-baseline block payload/render helpers and guards for `roles tick` plus `role tick <node_id>` before runtime advancement.
@@ -51,6 +52,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - `stagewarden/project/role_command_flow.py` and `stagewarden/cli_dispatch.py`: role/roles runtime command surfaces now return non-zero status and machine-readable stale block payloads for blocked execution.
 - `tests/test_trace_cli.py`: added RED/GREEN coverage for stale-baseline execution gates across `roles runtime`, `roles tick`, `role tick`, and `project start`.
 - `tests/test_trace_cli.py`: added RED/GREEN coverage proving stale-baseline supervision views remain readable while surfacing warning/context.
+- `stagewarden/executor.py`: broadened wet-run completion gating to research/report/plan file artifacts using explicit artifact/action matching, avoiding false positives on generic planning/control/analysis steps.
+- `tests/test_executor.py`: added RED/GREEN coverage for research report file and implementation plan file evidence gates plus a generic planning non-blocking guard.
 - `stagewarden/project/brief.py`: marks an approved project-tree/role-tree baseline stale when `project brief set` or `project brief clear` changes fields compared with the approved proposal brief; CLI output tells the operator to rerun proposal/review/approval.
 - `stagewarden/project/role_tree_views.py`: `roles baseline` text/JSON now reports the baseline's actual status (`approved` or `stale`) and renders stale reason/changed fields/action.
 - `stagewarden/modelprefs.py`: preserves the structured `stale` payload in normalized persisted role-tree baselines.
@@ -232,6 +235,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Decision: Broaden same-step tool-evidence enforcement to concrete non-coding product artifacts (design docs, architecture decisions, ADRs, documentation, specifications) without matching generic control terms like `work package` or `plan` alone.
   - Reason: non-code products can be fabricated narratively too; closure needs a real file/tool transcript once the step explicitly asks for a product artifact.
   - Trade-offs: generic planning/review steps still rely on response-quality and PRINCE2 closure gates until they emit structured artifact evidence consistently.
+- Decision: Extend same-step tool-evidence enforcement to research/report/plan outputs only when the step explicitly asks to create/produce/write a concrete file/path/named artifact.
+  - Reason: research reports and plan files are product artifacts and should not close on narrative claims alone.
+  - Trade-offs: generic analysis, status reporting, and planning/control steps remain outside this hard gate to avoid blocking non-product decisions; the matcher uses whole-word report/plan markers plus explicit artifact references/actions.
 - Decision: Persist completed coding/product-mutating work packages as explicit PRINCE2 `product_checkpoint` handoff entries.
   - Reason: downstream agents need a compact product description, acceptance criteria, quality evidence, and checkpoint status, not only raw observation text.
   - Trade-offs: checkpoint creation is intentionally limited to code/product-mutating action types or explicit code/test markers to avoid noisy handoff entries for purely analytical steps.
@@ -267,7 +273,7 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
+1. Inspect repository status after the research/report/plan evidence-gate commit and choose the next narrow PRINCE2 governance slice only if a concrete gap remains.
 2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note
