@@ -35,9 +35,15 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Full regression validation after ambiguous-brief slice passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 440 OK in 1064.353s.
 - Project-brief guidance ambiguity slice completed: `project brief` and `project brief set` now surface ambiguous required values before later missing fields, expose `ambiguous_gaps` and `next_missing_gap` in JSON, and tell the operator to replace the ambiguous value with a concrete one.
 - Validation for project-brief guidance ambiguity slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_project_brief_set_reports_ambiguous_field_before_missing_fields` because `objective=TBD` guidance skipped to missing `scope`; GREEN focused run passed, then py_compile plus brief/start/design regressions and project-tree proposal/approval regressions passed.
+- Stale-baseline-on-brief-change slice completed: after a Project Board/project-tree approval, `project brief set` and `project brief clear` now mark the persisted PRINCE2 role-tree baseline `stale` when the current brief diverges from the approved proposal brief. `roles baseline` text/JSON now surfaces `status=stale`, changed fields, stale reason, and the required action to rerun proposal/review/approval before execution continues.
+- Validation for stale-baseline slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_project_brief_change_marks_approved_project_tree_baseline_stale` because a changed approved scope did not stale the baseline; RED observed in `test_project_brief_clear_marks_approved_project_tree_baseline_stale` because clearing an approved delivery mode did not stale the baseline. GREEN focused runs passed; `py_compile` plus 4 tree/baseline regressions passed; broader brief/start/tree/persistence/PRINCE2 regression passed (`30 OK`).
 - Validation for non-coding evidence slice: RED observed in `tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence` because a narrative-only ADR/design closure was accepted; GREEN focused reject/accept design tests passed; `python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v` -> 62 OK.
 
 ## Recent changes
+- `stagewarden/project/brief.py`: marks an approved project-tree/role-tree baseline stale when `project brief set` or `project brief clear` changes fields compared with the approved proposal brief; CLI output tells the operator to rerun proposal/review/approval.
+- `stagewarden/project/role_tree_views.py`: `roles baseline` text/JSON now reports the baseline's actual status (`approved` or `stale`) and renders stale reason/changed fields/action.
+- `stagewarden/modelprefs.py`: preserves the structured `stale` payload in normalized persisted role-tree baselines.
+- `tests/test_trace_cli.py`: added RED/GREEN coverage for brief set/clear invalidating approved baselines.
 - `stagewarden/executor_prompting.py`: added `coding_work_package_controls_section(...)`, a PRINCE2/product-delivery control block for coding work packages (product focus, expected output, acceptance criteria, quality gates, TDD, minimal implementation, focused wet-run, scope control, evidence rule, escalation boundary).
 - `stagewarden/executor.py`: `_build_model_communication_packet(...)` now injects a bounded `Coding work package controls` section into model prompts before the broader model-context/handoff sections.
 - `tests/test_executor.py`: added `test_executor_prompt_includes_coding_work_package_controls_for_code_steps`, written and observed failing first, then passing after implementation.
@@ -194,6 +200,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - `.stagewarden_rag.json`: local runtime design-knowledge store, intentionally gitignored.
 
 ## Technical decisions
+- Decision: Mark approved role-tree baselines stale when the project brief changes after approval.
+  - Reason: PRINCE2 execution must not continue against an obsolete baseline when the user's requirements have changed; the project should repeat propose/review/approve before delivery proceeds.
+  - Trade-offs: a brief typo/change creates an explicit stale state that may require reapproval; mitigated by surfacing changed fields and preserving the previous approved proposal for comparison.
 - Decision: Treat coding steps as PRINCE2-style work packages in the executor prompt, not only as generic model tasks.
   - Reason: the delivery agent must optimize for concrete products, explicit acceptance criteria, quality evidence, and exception escalation, which directly supports designing and writing better code.
   - Trade-offs: slightly more prompt budget per step; mitigated by bounding the section to 2500 chars and deriving content from existing brief/step fields.
@@ -241,7 +250,7 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Continue the dynamic project-change cycle: when a user changes a validated/approved brief, make stale approvals and node/stage baselines explicit before execution continues.
+1. Continue the dynamic project-change cycle by making stale-baseline execution gates stricter: runtime/tick/start flows should refuse to continue from a `stale` role-tree baseline until proposal/review/approval refreshes it.
 2. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
 3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 

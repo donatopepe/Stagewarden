@@ -4886,6 +4886,54 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["adaptation"]["status"], "refreshed")
             self.assertIn("scope", payload["adaptation"]["changed_fields"])
 
+    def test_project_brief_change_marks_approved_project_tree_baseline_stale(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a governed coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git and model routing").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests and wet-run evidence").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            approved = run_main_capture(root, "project tree approve")
+            self.assertEqual(approved.returncode, 0, approved.stderr)
+
+            changed = run_main_capture(root, "project brief set scope shell git model routing and release rollback")
+            baseline = run_main_capture(root, "roles baseline", "--json")
+            rendered = run_main_capture(root, "roles baseline")
+
+            self.assertEqual(changed.returncode, 0, changed.stderr)
+            self.assertIn("Project tree baseline marked stale", changed.stdout)
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            payload = json.loads(baseline.stdout)
+            self.assertEqual(payload["status"], "stale")
+            self.assertEqual(payload["baseline"]["status"], "stale")
+            self.assertIn("scope", payload["baseline"]["stale"]["changed_fields"])
+            self.assertEqual(payload["baseline"]["stale"]["action"], "rerun project tree propose, review, then project tree approve before execution continues")
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            self.assertIn("- status: stale", rendered.stdout)
+            self.assertIn("- stale_changed_fields: scope", rendered.stdout)
+
+    def test_project_brief_clear_marks_approved_project_tree_baseline_stale(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a governed coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git and model routing").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests and wet-run evidence").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            approved = run_main_capture(root, "project tree approve")
+            self.assertEqual(approved.returncode, 0, approved.stderr)
+
+            cleared = run_main_capture(root, "project brief clear delivery_mode")
+            baseline = run_main_capture(root, "roles baseline", "--json")
+
+            self.assertEqual(cleared.returncode, 0, cleared.stderr)
+            self.assertIn("Project tree baseline marked stale", cleared.stdout)
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            payload = json.loads(baseline.stdout)
+            self.assertEqual(payload["status"], "stale")
+            self.assertIn("delivery_mode", payload["baseline"]["stale"]["changed_fields"])
+
     def test_project_tree_propose_ai_attaches_local_execution_candidates_when_discovered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
