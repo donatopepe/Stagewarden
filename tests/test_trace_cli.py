@@ -4974,6 +4974,35 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertFalse(project_start_payload["ready"])
             self.assertIn("scope", project_start_payload["stale"]["changed_fields"])
 
+    def test_stale_project_tree_baseline_marks_supervision_views_without_blocking_them(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a governed coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git and model routing").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests and wet-run evidence").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            approved = run_main_capture(root, "project tree approve")
+            self.assertEqual(approved.returncode, 0, approved.stderr)
+            changed = run_main_capture(root, "project brief set scope shell git model routing and release rollback")
+            self.assertEqual(changed.returncode, 0, changed.stderr)
+
+            for command in ("roles active", "roles queues", "roles control", "roles messages"):
+                text_completed = run_main_capture(root, command)
+                json_completed = run_main_capture(root, command, "--json")
+
+                self.assertEqual(text_completed.returncode, 0, text_completed.stderr)
+                self.assertIn("stale baseline warning", text_completed.stdout)
+                self.assertIn("rerun project tree propose", text_completed.stdout)
+                self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
+                payload = json.loads(json_completed.stdout)
+                self.assertEqual(payload["baseline_status"], "stale")
+                self.assertIn("scope", payload["stale"]["changed_fields"])
+                self.assertEqual(
+                    payload["stale"]["action"],
+                    "rerun project tree propose, review, then project tree approve before execution continues",
+                )
+
     def test_project_tree_propose_ai_attaches_local_execution_candidates_when_discovered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

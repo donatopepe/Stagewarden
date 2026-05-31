@@ -28,32 +28,79 @@ def _render_prince2_role_runtime(config: AgentConfig) -> str:
     return handoff.rendered_prince2_node_runtime()
 
 
+def _stale_baseline_supervision_context(config: AgentConfig, command: str) -> dict[str, object] | None:
+    block = _project_role_flow._stale_role_tree_baseline_block_report(config, command=command)
+    if block is None:
+        return None
+    context: dict[str, object] = {
+        "baseline_status": block.get("baseline_status", "stale"),
+        "stale": block.get("stale", {}),
+        "stale_warning": True,
+    }
+    if block.get("action"):
+        context["action"] = block["action"]
+    return context
+
+
+def _with_stale_baseline_supervision_context(report: dict[str, object], config: AgentConfig, command: str) -> dict[str, object]:
+    context = _stale_baseline_supervision_context(config, command)
+    if context is None:
+        return report
+    annotated = dict(report)
+    annotated.update(context)
+    return annotated
+
+
+def _prepend_stale_baseline_supervision_warning(rendered: str, config: AgentConfig, command: str) -> str:
+    context = _stale_baseline_supervision_context(config, command)
+    if context is None:
+        return rendered
+    stale_obj = context.get("stale", {})
+    stale = stale_obj if isinstance(stale_obj, dict) else {}
+    changed_fields = stale.get("changed_fields", [])
+    if isinstance(changed_fields, list):
+        changed = ",".join(str(item) for item in changed_fields) or "unknown"
+    else:
+        changed = str(changed_fields or "unknown")
+    action = str(context.get("action") or stale.get("action") or "rerun project tree propose, review, then project tree approve before execution continues")
+    warning = "\n".join(
+        [
+            "PRINCE2 stale baseline warning:",
+            "- supervision_only: true",
+            f"- baseline_status: {context.get('baseline_status', 'stale')}",
+            f"- stale_changed_fields: {changed}",
+            f"- action: {action}",
+        ]
+    )
+    return f"{warning}\n{rendered}"
+
+
 def _prince2_role_active_report(config: AgentConfig) -> dict[str, object]:
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_active_report()
+    return _with_stale_baseline_supervision_context(handoff.prince2_node_active_report(), config, "roles active")
 
 
 def _render_prince2_role_active(config: AgentConfig) -> str:
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_active()
+    return _prepend_stale_baseline_supervision_warning(handoff.rendered_prince2_node_active(), config, "roles active")
 
 
 def _prince2_role_queue_report(config: AgentConfig) -> dict[str, object]:
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_queue_report()
+    return _with_stale_baseline_supervision_context(handoff.prince2_node_queue_report(), config, "roles queues")
 
 
 def _render_prince2_role_queues(config: AgentConfig) -> str:
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_queues()
+    return _prepend_stale_baseline_supervision_warning(handoff.rendered_prince2_node_queues(), config, "roles queues")
 
 
 def _prince2_role_control_report(config: AgentConfig) -> dict[str, object]:
@@ -62,7 +109,7 @@ def _prince2_role_control_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     report = handoff.prince2_node_control_report()
     report["local_fallback"] = _project_role_tree_views._delivery_local_fallback_report(config)
-    return report
+    return _with_stale_baseline_supervision_context(report, config, "roles control")
 
 
 def _render_prince2_role_control(config: AgentConfig) -> str:
@@ -109,18 +156,18 @@ def _render_prince2_role_control(config: AgentConfig) -> str:
                 lines.append(f"    switch_hint: role switch {node_record.get('node_id', node.get('node_id', 'unknown'))}")
     else:
         lines.append("- critical_nodes: none")
-    return "\n".join(lines)
+    return _prepend_stale_baseline_supervision_warning("\n".join(lines), config, "roles control")
 
 
 def _prince2_role_messages_report(config: AgentConfig, node_id: str | None = None) -> dict[str, object]:
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.prince2_node_messages_report(node_id=node_id)
+    return _with_stale_baseline_supervision_context(handoff.prince2_node_messages_report(node_id=node_id), config, "roles messages")
 
 
 def _render_prince2_role_messages(config: AgentConfig, node_id: str | None = None) -> str:
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
-    return handoff.rendered_prince2_node_messages(node_id=node_id)
+    return _prepend_stale_baseline_supervision_warning(handoff.rendered_prince2_node_messages(node_id=node_id), config, "roles messages")
