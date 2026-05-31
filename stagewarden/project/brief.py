@@ -86,6 +86,17 @@ def project_gap_to_brief_field(gap_code: str) -> str | None:
 
 
 def project_brief_guidance(config: AgentConfig) -> str:
+    handoff = ProjectHandoff.load(config.handoff_path)
+    ambiguous = project_brief_ambiguous_gaps(handoff.project_brief)
+    if ambiguous:
+        first_gap = ambiguous[0]
+        first = project_gap_to_brief_field(first_gap.get("code", "")) or "objective"
+        description = PROJECT_BRIEF_FIELDS.get(first, "Provide this field.")
+        return (
+            "Project brief field needs clarification: "
+            f"{first}\n- reason: {first_gap.get('message', 'Current value is ambiguous.')}"
+            f"\n- meaning: {description}\n- action: project brief set {first} <concrete value>"
+        )
     missing = project_brief_missing_fields(config)
     if not missing:
         return "Project brief is complete enough for structured gates."
@@ -100,12 +111,20 @@ def project_brief_guidance(config: AgentConfig) -> str:
 def project_brief_report(config: AgentConfig) -> dict[str, object]:
     handoff = ProjectHandoff.load(config.handoff_path)
     missing = project_brief_missing_fields(config)
+    ambiguous = project_brief_ambiguous_gaps(handoff.project_brief)
+    next_gap = ambiguous[0] if ambiguous else None
+    next_field = project_gap_to_brief_field(str(next_gap.get("code", ""))) if isinstance(next_gap, dict) else None
+    if not next_field and missing:
+        next_field = missing[0]
+        next_gap = {"code": f"missing_{next_field}", "message": f"Project brief is missing {next_field}."}
     return {
         "command": "project brief",
         "fields": dict(handoff.project_brief),
         "supported_fields": dict(PROJECT_BRIEF_FIELDS),
         "count": len(handoff.project_brief),
-        "next_missing_field": missing[0] if missing else None,
+        "ambiguous_gaps": ambiguous,
+        "next_missing_gap": next_gap,
+        "next_missing_field": next_field,
         "guidance": project_brief_guidance(config),
     }
 

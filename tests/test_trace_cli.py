@@ -4802,6 +4802,29 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(brief_payload["next_missing_field"], "scope")
             self.assertIn("Next missing project brief field: scope", brief_payload["guidance"])
 
+    def test_project_brief_set_reports_ambiguous_field_before_missing_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            completed = run_main_capture(root, "project brief set objective TBD")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Project brief updated: objective=TBD", completed.stdout)
+            self.assertIn("Project brief field needs clarification: objective", completed.stdout)
+            self.assertIn("project brief set objective <concrete value>", completed.stdout)
+            self.assertNotIn("Next missing project brief field: scope", completed.stdout)
+
+            brief = run_main_capture(root, "project brief")
+            self.assertEqual(brief.returncode, 0, brief.stderr)
+            self.assertIn("Project brief field needs clarification: objective", brief.stdout)
+            json_brief = run_main_capture(root, "project brief", "--json")
+            self.assertEqual(json_brief.returncode, 0, json_brief.stderr)
+            brief_payload = json.loads(json_brief.stdout)
+            self.assertEqual(brief_payload["next_missing_field"], "objective")
+            self.assertEqual(brief_payload["next_missing_gap"]["code"], "ambiguous_objective")
+            self.assertEqual(brief_payload["ambiguous_gaps"][0]["code"], "ambiguous_objective")
+            self.assertIn("Project brief field needs clarification: objective", brief_payload["guidance"])
+
     def test_project_tree_propose_builds_proportional_review_proposal_from_brief(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

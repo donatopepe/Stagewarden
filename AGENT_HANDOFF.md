@@ -33,6 +33,8 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Ambiguous-brief clarification slice completed: required project-brief fields that contain placeholder values (`TBD`, `unknown`, `to be decided`, `da definire`, etc.) now become explicit `ambiguous_<field>` clarification gaps in project design/tree/start flows, preventing Stagewarden from approving startup from placeholders or assumptions.
 - Validation for ambiguous-brief slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_project_start_requests_clarification_for_ambiguous_brief_values` because `objective=TBD` still approved startup; GREEN focused run passed with py_compile plus project-start/tree clarification regressions, persistence/PRINCE2 coverage, and ready-project startup regressions.
 - Full regression validation after ambiguous-brief slice passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 440 OK in 1064.353s.
+- Project-brief guidance ambiguity slice completed: `project brief` and `project brief set` now surface ambiguous required values before later missing fields, expose `ambiguous_gaps` and `next_missing_gap` in JSON, and tell the operator to replace the ambiguous value with a concrete one.
+- Validation for project-brief guidance ambiguity slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_project_brief_set_reports_ambiguous_field_before_missing_fields` because `objective=TBD` guidance skipped to missing `scope`; GREEN focused run passed, then py_compile plus brief/start/design regressions and project-tree proposal/approval regressions passed.
 - Validation for non-coding evidence slice: RED observed in `tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence` because a narrative-only ADR/design closure was accepted; GREEN focused reject/accept design tests passed; `python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v` -> 62 OK.
 
 ## Recent changes
@@ -239,8 +241,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
-2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
+1. Continue the dynamic project-change cycle: when a user changes a validated/approved brief, make stale approvals and node/stage baselines explicit before execution continues.
+2. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
+3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 
 ## Starting point note
 - Start from `main` with a clean worktree.
