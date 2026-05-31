@@ -120,12 +120,12 @@
   },
   "status": "active",
   "waiting_reason": "",
-  "current_step_id": "ambiguous-brief-clarification",
-  "current_step_title": "Block project startup/planning on ambiguous brief placeholder values",
+  "current_step_id": "project-brief-ambiguous-guidance",
+  "current_step_title": "Surface ambiguous project brief values before missing-field guidance",
   "current_step_status": "validated",
-  "latest_observation": "Full regression validation passed after ambiguous-brief clarification slice: set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q -> 440 OK in 1064.353s.",
-  "plan_status": "ambiguous-brief-clarification:validated,checkpoint-recovery-status-reporting:validated,next-dynamic-project-change-cycle:planned",
-  "git_head": "ac993c6",
+  "latest_observation": "Project brief guidance ambiguity slice validated: ambiguous objective=TBD now points back to objective clarification before missing scope; focused brief/tree regressions passed.",
+  "plan_status": "ambiguous-brief-clarification:validated,project-brief-ambiguous-guidance:validated,next-stale-baseline-on-brief-change:planned",
+  "git_head": "c3b0645",
   "git_head_baseline": "a38597f",
   "risk_register": [
     {
@@ -194,8 +194,24 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-30T20:12:25Z",
+  "updated_at": "2026-05-31T05:53:26Z",
   "entries": [
+    {
+      "timestamp": "2026-05-31T05:53:26Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "project-brief-ambiguous-guidance",
+      "summary": "Project brief guidance now prioritizes ambiguous placeholder values over later missing fields and exposes ambiguous_gaps/next_missing_gap in JSON.",
+      "step_id": "project-brief-ambiguous-guidance",
+      "step_title": "Surface ambiguous project brief values before missing-field guidance",
+      "step_status": "validated",
+      "model": null,
+      "action_type": null,
+      "git_head": "c3b0645",
+      "details": {
+        "validation": "RED: python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_brief_set_reports_ambiguous_field_before_missing_fields -v failed because project brief guidance skipped ambiguous objective=TBD and pointed to missing scope; GREEN: focused ambiguous guidance test passed; py_compile plus 4 brief/start/design tests passed; 5 project-tree approval/proposal regressions passed."
+      }
+    },
     {
       "timestamp": "2026-05-30T20:12:25Z",
       "phase": "finish",
