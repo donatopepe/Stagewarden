@@ -867,6 +867,210 @@ class ExecutorTests(unittest.TestCase):
             self.assertTrue(outcome.ok)
             self.assertTrue(outcome.step_completed)
 
+    def test_executor_rejects_research_report_file_completion_without_prior_tool_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "research report complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "claimed report evidence",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Vendor research report written to reports/vendor-options with validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="research-step-1",
+                title="Create supplier research report",
+                instruction="produce the vendor options report file at reports/vendor-options",
+                validation="report file exists and reviewed evidence is captured",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(
+                task="produce supplier research report",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertFalse(outcome.ok)
+            self.assertFalse(outcome.step_completed)
+            self.assertEqual(outcome.error_type, "wet_run_required")
+            self.assertIn("prior successful tool evidence", outcome.observation)
+
+    def test_executor_accepts_research_report_file_completion_with_prior_tool_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            memory.record_tool_transcript(
+                iteration=1,
+                step_id="research-step-1",
+                tool="files",
+                action_type="write_file",
+                success=True,
+                summary="wrote file reports/vendor-options",
+                detail="Wrote file reports/vendor-options containing supplier research report evidence.",
+            )
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "research report complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "report file evidence captured",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Vendor research report exists and validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="research-step-1",
+                title="Create supplier research report",
+                instruction="produce the vendor options report file at reports/vendor-options",
+                validation="report file exists and reviewed evidence is captured",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(
+                task="produce supplier research report",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertTrue(outcome.ok)
+            self.assertTrue(outcome.step_completed)
+
+    def test_executor_allows_generic_planning_completion_without_artifact_reference(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "planning complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "planning decision captured",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Reviewed plan and validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="planning-step-1",
+                title="Review delivery plan",
+                instruction="review the next delivery plan and decide scope",
+                validation="planning decision is clear",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(
+                task="review plan",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertTrue(outcome.ok)
+            self.assertTrue(outcome.step_completed)
+
+    def test_executor_rejects_plan_file_completion_without_prior_tool_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = AgentConfig(workspace_root=Path(tmp_dir))
+            memory = MemoryStore()
+            handoff = FakeHandoff(
+                [
+                    {
+                        "ok": True,
+                        "model": "local",
+                        "backend": "local/ollama",
+                        "prompt": "x",
+                        "command": "run_model local x",
+                        "output": json.dumps(
+                            {
+                                "summary": "implementation plan file complete",
+                                "confidence": 0.9,
+                                "risks": [],
+                                "validation": "claimed plan evidence",
+                                "action": {
+                                    "type": "complete",
+                                    "message": "Implementation plan file produced and validation completed exit_code=0",
+                                },
+                            }
+                        ),
+                        "error": "",
+                    }
+                ]
+            )
+            executor = Executor(config=config, router=ModelRouter(), handoff=handoff, memory=memory)
+            step = PlanStep(
+                id="plan-step-1",
+                title="Produce implementation plan file",
+                instruction="create a delivery plan file named release-plan",
+                validation="plan file exists and has acceptance criteria",
+                wet_run_required=True,
+            )
+
+            outcome = executor.execute_step(
+                task="produce implementation plan file",
+                step=step,
+                plan=[step],
+                iteration=1,
+                last_observation="none",
+            )
+
+            self.assertFalse(outcome.ok)
+            self.assertFalse(outcome.step_completed)
+            self.assertEqual(outcome.error_type, "wet_run_required")
+
     def test_executor_rejects_invalid_model_result_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))
