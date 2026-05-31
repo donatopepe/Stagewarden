@@ -661,11 +661,12 @@ def run_cli() -> int:
             print(_project_role_runtime_views._render_prince2_role_messages(config, node_id=node_id))
         return 0
     if task == "roles runtime":
+        report = _project_role_runtime_views._prince2_role_runtime_report(config)
         if args.json:
-            print(dumps_ascii(_json_schema_registry.with_json_schema("roles runtime", _project_role_runtime_views._prince2_role_runtime_report(config)), indent=2))
+            print(dumps_ascii(_json_schema_registry.with_json_schema("roles runtime", report), indent=2))
         else:
             print(_project_role_runtime_views._render_prince2_role_runtime(config))
-        return 0
+        return 0 if report.get("status") != "blocked_stale_baseline" else 1
     if task == "roles tick" or task.startswith("roles tick "):
         max_nodes = None
         if task != "roles tick":
@@ -679,6 +680,12 @@ def run_cli() -> int:
                     print(error_payload["error"])
                 return 1
         result = _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
+        if result.get("status") == "blocked_stale_baseline":
+            if args.json:
+                print(dumps_ascii(_json_schema_registry.with_json_schema("roles tick", result), indent=2))
+            else:
+                print(_project_role_flow._render_stale_role_tree_baseline_block(result))
+            return 1
         rag_context_by_node = result.get("rag_context_by_node", {}) if isinstance(result.get("rag_context_by_node"), dict) else {}
         rag_context_node_ids = sorted(key for key, value in rag_context_by_node.items() if key and isinstance(value, dict))
         if args.json:
@@ -758,6 +765,7 @@ def run_cli() -> int:
         if response is None:
             print("Usage: project brief | project brief set <field> <value> | project brief clear [field] | roles | roles domains | roles context <node_id> | roles tree | roles tree approve | roles baseline | roles baseline matrix | roles runtime | roles active | roles control | roles queues | roles messages [node_id] | roles tick [max_nodes] | roles check | roles flow | roles matrix | roles propose | roles setup | role configure [role] | role clear <role> | role message <source_node> <target_node> <edge_id> payload=<scope1,scope2> | role wait <node_id> reason=<text_with_underscores> | role wake <node_id> trigger=<name> | role tick <node_id> | project start [--ai]")
             return 1
+        stale_block = _project_role_flow._stale_role_tree_baseline_block_report(config, command=task) if task.startswith("role tick ") else None
         if args.json:
             if task.startswith("role message "):
                 parts = task.split()
@@ -786,6 +794,9 @@ def run_cli() -> int:
                     )
                 )
             elif task.startswith("role wait ") or task.startswith("role wake ") or task.startswith("role tick "):
+                if stale_block is not None:
+                    print(dumps_ascii(_json_schema_registry.with_json_schema("roles runtime", stale_block), indent=2))
+                    return 1
                 parts = task.split()
                 node_id = parts[2] if len(parts) >= 3 else None
                 rag_context = _latest_role_tick_rag_context(config, node_id=node_id) if task.startswith("role tick ") else None
@@ -834,6 +845,8 @@ def run_cli() -> int:
                 print(dumps_ascii(_json_schema_registry.with_json_schema("roles", {"command": task, "message": response, "roles": _project_role_views._prince2_roles_report(config)}), indent=2))
         else:
             print(response)
+        if stale_block is not None:
+            return 1
         return 1 if task.startswith("project start") and not _project_start_flow._project_start_ready(config) else 0
     if task in {"sources", "sources status"} or task.startswith("sources "):
         if args.json:

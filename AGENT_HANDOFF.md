@@ -37,9 +37,16 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Validation for project-brief guidance ambiguity slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_project_brief_set_reports_ambiguous_field_before_missing_fields` because `objective=TBD` guidance skipped to missing `scope`; GREEN focused run passed, then py_compile plus brief/start/design regressions and project-tree proposal/approval regressions passed.
 - Stale-baseline-on-brief-change slice completed: after a Project Board/project-tree approval, `project brief set` and `project brief clear` now mark the persisted PRINCE2 role-tree baseline `stale` when the current brief diverges from the approved proposal brief. `roles baseline` text/JSON now surfaces `status=stale`, changed fields, stale reason, and the required action to rerun proposal/review/approval before execution continues.
 - Validation for stale-baseline slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_project_brief_change_marks_approved_project_tree_baseline_stale` because a changed approved scope did not stale the baseline; RED observed in `test_project_brief_clear_marks_approved_project_tree_baseline_stale` because clearing an approved delivery mode did not stale the baseline. GREEN focused runs passed; `py_compile` plus 4 tree/baseline regressions passed; broader brief/start/tree/persistence/PRINCE2 regression passed (`30 OK`).
+- Stale-baseline execution-gate slice completed: `roles runtime`, `roles tick`, `role tick <node_id>`, and `project start` now refuse to continue from a `stale` role-tree/project-tree baseline, returning `blocked_stale_baseline` with changed fields and the rerun proposal/review/approval action in text and JSON.
+- Validation for stale-baseline execution-gate slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_stale_project_tree_baseline_blocks_runtime_and_tick_execution` because `roles runtime` returned 0 against a stale baseline and `project start` only returned generic `blocked`; GREEN focused run passed, then py_compile plus 6 runtime/start/baseline regressions passed, followed by 29-test broader project-start/runtime/PRINCE2/persistence regression passing. Full discovery validation also passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 444 tests OK, 1 skipped, in 1129.903s.
 - Validation for non-coding evidence slice: RED observed in `tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence` because a narrative-only ADR/design closure was accepted; GREEN focused reject/accept design tests passed; `python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v` -> 62 OK.
 
 ## Recent changes
+- `stagewarden/project/role_flow.py`: added shared stale-baseline block payload/render helpers and guards for `roles tick` plus `role tick <node_id>` before runtime advancement.
+- `stagewarden/project/role_runtime_views.py`: `roles runtime` text/JSON now returns `blocked_stale_baseline` instead of materializing runtime from a stale baseline.
+- `stagewarden/project/start_flow.py`: `project start` now blocks with `blocked_stale_baseline` when the approved project tree is stale, instead of silently approving/replanning from obsolete approval.
+- `stagewarden/project/role_command_flow.py` and `stagewarden/cli_dispatch.py`: role/roles runtime command surfaces now return non-zero status and machine-readable stale block payloads for blocked execution.
+- `tests/test_trace_cli.py`: added RED/GREEN coverage for stale-baseline execution gates across `roles runtime`, `roles tick`, `role tick`, and `project start`.
 - `stagewarden/project/brief.py`: marks an approved project-tree/role-tree baseline stale when `project brief set` or `project brief clear` changes fields compared with the approved proposal brief; CLI output tells the operator to rerun proposal/review/approval.
 - `stagewarden/project/role_tree_views.py`: `roles baseline` text/JSON now reports the baseline's actual status (`approved` or `stale`) and renders stale reason/changed fields/action.
 - `stagewarden/modelprefs.py`: preserves the structured `stale` payload in normalized persisted role-tree baselines.
@@ -200,6 +207,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - `.stagewarden_rag.json`: local runtime design-knowledge store, intentionally gitignored.
 
 ## Technical decisions
+- Decision: Block runtime/start execution from stale approved role-tree baselines.
+  - Reason: surfacing stale metadata is insufficient if runtime/tick/start paths can still advance work from obsolete governance approval.
+  - Trade-offs: operators must explicitly rerun proposal/review/approval after a brief change; this is safer and auditable, and the block payload includes changed fields and the exact recovery action.
 - Decision: Mark approved role-tree baselines stale when the project brief changes after approval.
   - Reason: PRINCE2 execution must not continue against an obsolete baseline when the user's requirements have changed; the project should repeat propose/review/approve before delivery proceeds.
   - Trade-offs: a brief typo/change creates an explicit stale state that may require reapproval; mitigated by surfacing changed fields and preserving the previous approved proposal for comparison.
@@ -243,14 +253,14 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 
 ## Open issues
 - Bugs: No known deterministic bugs in touched paths after validation; `python3` vs interpreter mismatch in subprocess tests is fixed.
-- Risks: Full `unittest discover` requires explicit environment sourcing for OpenRouter-backed tests in this Hermes process; current full suite is green when run as `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q`.
+- Risks: Full `unittest discover` requires explicit environment sourcing for OpenRouter-backed tests in this Hermes process; current full suite is green when run as `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 444 OK, skipped=1, 1129.903s.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
 - Risks: `openrouter benchmark` trace test appears intermittently flaky under full-suite load; keep monitoring and re-run isolated test before treating as product regression.
 - Risks: Live OpenRouter benchmark remains externally dependent (provider/network/rate limits); test now treats explicit case-level provider errors as transient skips.
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Continue the dynamic project-change cycle by making stale-baseline execution gates stricter: runtime/tick/start flows should refuse to continue from a `stale` role-tree baseline until proposal/review/approval refreshes it.
+1. Continue the dynamic project-change cycle by deciding whether stale baseline gates should also apply to supervision-only views (`roles active`, `roles queues`, `roles control`, `roles messages`) or remain informational there.
 2. Extend non-coding evidence enforcement to research/reports/plans only after those flows produce explicit artifact references, avoiding false positives on routing/control steps.
 3. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
 

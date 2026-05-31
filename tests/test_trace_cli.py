@@ -4934,6 +4934,46 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["status"], "stale")
             self.assertIn("delivery_mode", payload["baseline"]["stale"]["changed_fields"])
 
+    def test_stale_project_tree_baseline_blocks_runtime_and_tick_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+
+            self.assertEqual(run_main_capture(root, "project brief set objective Build a governed coding agent").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set scope shell git and model routing").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set expected_outputs CLI tests and wet-run evidence").returncode, 0)
+            self.assertEqual(run_main_capture(root, "project brief set delivery_mode hybrid").returncode, 0)
+            approved = run_main_capture(root, "project tree approve")
+            self.assertEqual(approved.returncode, 0, approved.stderr)
+            changed = run_main_capture(root, "project brief set scope shell git model routing and release rollback")
+            self.assertEqual(changed.returncode, 0, changed.stderr)
+
+            runtime_text = run_main_capture(root, "roles runtime")
+            runtime_json = run_main_capture(root, "roles runtime", "--json")
+            roles_tick = run_main_capture(root, "roles tick", "--json")
+            role_tick = run_main_capture(root, "role tick delivery.team_manager", "--json")
+            project_start = run_main_capture(root, "project start", "--json")
+
+            self.assertNotEqual(runtime_text.returncode, 0)
+            self.assertIn("blocked_stale_baseline", runtime_text.stdout)
+            self.assertIn("rerun project tree propose", runtime_text.stdout)
+            self.assertNotEqual(runtime_json.returncode, 0)
+            runtime_payload = json.loads(runtime_json.stdout)
+            self.assertEqual(runtime_payload["status"], "blocked_stale_baseline")
+            self.assertIn("scope", runtime_payload["stale"]["changed_fields"])
+            self.assertNotEqual(roles_tick.returncode, 0)
+            roles_tick_payload = json.loads(roles_tick.stdout)
+            self.assertFalse(roles_tick_payload["ok"])
+            self.assertEqual(roles_tick_payload["status"], "blocked_stale_baseline")
+            self.assertNotEqual(role_tick.returncode, 0)
+            role_tick_payload = json.loads(role_tick.stdout)
+            self.assertEqual(role_tick_payload["status"], "blocked_stale_baseline")
+            self.assertIn("scope", role_tick_payload["stale"]["changed_fields"])
+            self.assertNotEqual(project_start.returncode, 0)
+            project_start_payload = json.loads(project_start.stdout)
+            self.assertEqual(project_start_payload["status"], "blocked_stale_baseline")
+            self.assertFalse(project_start_payload["ready"])
+            self.assertIn("scope", project_start_payload["stale"]["changed_fields"])
+
     def test_project_tree_propose_ai_attaches_local_execution_candidates_when_discovered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -9,6 +9,9 @@ from . import role_flow as _project_role_flow
 
 
 def _prince2_role_runtime_report(config: AgentConfig) -> dict[str, object]:
+    block = _project_role_flow._stale_role_tree_baseline_block_report(config, command="roles runtime")
+    if block is not None:
+        return block
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -16,6 +19,9 @@ def _prince2_role_runtime_report(config: AgentConfig) -> dict[str, object]:
 
 
 def _render_prince2_role_runtime(config: AgentConfig) -> str:
+    block = _project_role_flow._stale_role_tree_baseline_block_report(config, command="roles runtime")
+    if block is not None:
+        return _project_role_flow._render_stale_role_tree_baseline_block(block)
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
