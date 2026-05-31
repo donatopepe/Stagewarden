@@ -62,6 +62,46 @@ def _load_role_rag(config: AgentConfig) -> DesignRag | None:
         return None
 
 
+def _stale_role_tree_baseline_block_report(config: AgentConfig, *, command: str) -> dict[str, object] | None:
+    prefs = _model_views._load_model_preferences(config)
+    baseline: dict[str, object] = dict(prefs.prince2_role_tree_baseline or {})
+    if str(baseline.get("status", "approved")).strip().lower() != "stale":
+        return None
+    raw_stale = baseline.get("stale", {})
+    stale: dict[str, object] = dict(raw_stale) if isinstance(raw_stale, dict) else {}
+    action = str(
+        stale.get("action")
+        or "rerun project tree propose, review, then project tree approve before execution continues"
+    )
+    raw_changed_fields = stale.get("changed_fields", [])
+    changed_fields = raw_changed_fields if isinstance(raw_changed_fields, list) else []
+    return {
+        "command": command,
+        "ok": False,
+        "status": "blocked_stale_baseline",
+        "error": "PRINCE2 role-tree baseline is stale after project brief changes.",
+        "baseline_status": "stale",
+        "stale": stale,
+        "changed_fields": [str(item) for item in changed_fields],
+        "action": action,
+    }
+
+
+def _render_stale_role_tree_baseline_block(block: dict[str, object]) -> str:
+    raw_stale = block.get("stale", {})
+    stale: dict[str, object] = dict(raw_stale) if isinstance(raw_stale, dict) else {}
+    raw_changed_fields = block.get("changed_fields", [])
+    changed_fields = raw_changed_fields if isinstance(raw_changed_fields, list) else []
+    return "\n".join(
+        [
+            "PRINCE2 runtime blocked: blocked_stale_baseline",
+            f"- reason: {stale.get('reason') or block.get('error') or 'baseline is stale'}",
+            f"- changed_fields: {', '.join(str(item) for item in changed_fields) if changed_fields else 'unknown'}",
+            f"- action: {block.get('action') or 'rerun project tree propose and approve'}",
+        ]
+    )
+
+
 def _should_index_role_message(*, payload_scope: list[str], evidence_refs: list[str], summary: str) -> bool:
     text = " ".join(payload_scope + evidence_refs + [summary]).lower()
     if not text.strip():
@@ -595,6 +635,9 @@ def _tick_prince2_role_node(
     *,
     node_id: str,
 ) -> dict[str, object]:
+    block = _stale_role_tree_baseline_block_report(config, command=f"role tick {node_id}")
+    if block is not None:
+        return block
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)
@@ -619,6 +662,9 @@ def _tick_prince2_role_runtime(
     *,
     max_nodes: int | None = None,
 ) -> dict[str, object]:
+    block = _stale_role_tree_baseline_block_report(config, command="roles tick")
+    if block is not None:
+        return block
     prefs = _model_views._load_model_preferences(config)
     _model_views._sync_prince2_roles_to_handoff(config, prefs)
     handoff = ProjectHandoff.load(config.handoff_path)

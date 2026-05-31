@@ -11,6 +11,7 @@ from . import flow as _project_flow
 from . import tree_flow as _project_tree_flow
 from . import role_views as _project_role_views
 from . import role_tree_views as _project_role_tree_views
+from . import role_flow as _project_role_flow
 
 
 def _project_tree_ai_needed(design: dict[str, object], proposal: dict[str, object]) -> bool:
@@ -138,6 +139,19 @@ def _project_tree_clarification_record(
 
 
 def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPreferences, *, force_ai: bool = False) -> dict[str, object]:
+    stale_block = _project_role_flow._stale_role_tree_baseline_block_report(config, command="project start")
+    if stale_block is not None:
+        report = dict(stale_block)
+        report["ready"] = False
+        report["force_ai"] = force_ai
+        _project_handoff_views._record_handoff_action(
+            config,
+            phase="project_start_blocked_stale_baseline",
+            summary="Project startup blocked because the approved project-tree baseline is stale.",
+            task="project start",
+            details=report,
+        )
+        return report
     design = _project_design_flow._project_design_report(agent, config)
     local_proposal = _project_tree_flow._project_tree_proposal_report(config)
     use_ai = force_ai or _project_tree_ai_needed(design, local_proposal)
@@ -225,6 +239,8 @@ def _project_start_report(agent: Agent, config: AgentConfig, prefs: ModelPrefere
 
 
 def _render_project_start_report(report: dict[str, object], agent: Agent, config: AgentConfig, prefs: ModelPreferences) -> str:
+    if report.get("status") == "blocked_stale_baseline":
+        return _project_role_flow._render_stale_role_tree_baseline_block(report)
     sections = [
         "Project startup design gate:",
         _project_design_flow._render_project_design(agent, config),

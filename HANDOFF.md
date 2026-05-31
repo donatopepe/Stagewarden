@@ -202,9 +202,11 @@
 - The `project tree propose --ai` gate now also persists a clarification question when the brief is incomplete and shows the pending question alongside the blocking gaps.
 - `project brief` now shows the next missing field so the brief can be completed step by step, and the same signal is available in JSON.
 - Approved project-tree/role-tree baselines are now marked `stale` when `project brief set` or `project brief clear` changes fields after approval; `roles baseline` text/JSON surfaces changed fields and instructs the operator to rerun proposal/review/approval before execution continues.
+- Stale approved baselines now block execution paths: `roles runtime`, `roles tick`, `role tick <node_id>`, and `project start` return `blocked_stale_baseline` with changed fields and the required rerun proposal/review/approval action.
+- Full discovery validation for the stale-baseline execution-gate slice passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 444 tests OK, 1 skipped, in 1129.903s.
 - `project start` and `project tree propose --ai` now also expose the next missing field or gap in JSON, matching the interactive guidance.
 - The latest broader regression batch covering `project brief`, `project start`, `project tree propose --ai`, and project-tree approval passed after the JSON guidance refactor.
-- The repository is on branch `pr/p4-p5-updates` at `HEAD a38597f`.
+- The repository is on branch `main`; the current HEAD is the stale-baseline execution-gate commit `stagewarden: block stale baseline execution`, with working tree clean after commit.
 - The live OpenRouter benchmark now uses three public suites: `general` (MMLU), `reasoning` (ARC-Challenge), and `truthfulness` (TruthfulQA-MC).
 - The benchmark runner emits a `suites` map and an optional `history` block, and the history path is opt-in through `--openrouter-benchmark-history`.
 - The local PRINCE2 benchmark now runs through `--prince2-benchmark` and `prince2 benchmark`, with prompt-driven `governance`, `assurance`, `recovery`, `advanced`, `stress`, `regulatory`, `regulatory_stress`, `legal_stress`, `incident_response`, `vendor_failure`, `multi_vendor_crisis`, `supply_chain_failure`, `regulatory_war_room`, and `board_crisis` suites.
@@ -298,7 +300,11 @@
 - `stagewarden/main.py`: added live tree decomposition nodes, continuous adaptation metadata, and richer project-tree reporting.
 - `stagewarden/prince2.py`: tightened the adaptation policy, stage plan, controls, and boundary review language toward smallest-task decomposition.
 - `stagewarden/modelprefs.py`: preserved decomposition and adaptation metadata when normalizing the approved role-tree baseline.
-- `tests/test_trace_cli.py`: added regression coverage for approved baseline staleness on project-brief set/clear changes, plus existing micro-task decomposition and refresh-on-brief-change behavior.
+- `tests/test_trace_cli.py`: added regression coverage for stale-baseline execution gates across `roles runtime`, `roles tick`, `role tick`, and `project start`, plus approved baseline staleness on project-brief set/clear changes and existing micro-task decomposition/refresh behavior.
+- `stagewarden/project/role_flow.py`: shared stale-baseline block payload/render helpers and guards for runtime tick paths.
+- `stagewarden/project/role_runtime_views.py`: `roles runtime` now reports `blocked_stale_baseline` instead of materializing stale runtime.
+- `stagewarden/project/start_flow.py`: `project start` now refuses stale approved baselines before approving/replanning.
+- `stagewarden/cli_dispatch.py` and `stagewarden/project/role_command_flow.py`: stale execution blocks return non-zero and machine-readable JSON where applicable.
 - `stagewarden/modelprefs.py`: persists the structured `stale` payload on role-tree baselines through normalization/save/load.
 - `stagewarden/project/role_tree_views.py`: `roles baseline` text/JSON now reports actual baseline status and stale details.
 - `stagewarden/project/brief.py`: marks approved role-tree baselines stale when brief updates/clears diverge from the approved proposal brief.

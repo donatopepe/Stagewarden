@@ -68,6 +68,8 @@ def _handle_project_and_roles_command(
             except ValueError:
                 return "Usage: roles tick [max_nodes]"
         result = _project_role_flow._tick_prince2_role_runtime(config, max_nodes=max_nodes)
+        if result.get("status") == "blocked_stale_baseline":
+            return _project_role_flow._render_stale_role_tree_baseline_block(result)
         return (
             f"Batch advanced PRINCE2 runtime: processed={result.get('processed')} "
             f"woken={result.get('woken')} progressed={result.get('progressed')} skipped={result.get('skipped')}.\n"
@@ -437,6 +439,8 @@ def _handle_role_command(
             result = _project_role_flow._tick_prince2_role_node(config, node_id=parts[2])
         except ValueError as exc:
             return str(exc)
+        if result.get("status") == "blocked_stale_baseline":
+            return _project_role_flow._render_stale_role_tree_baseline_block(result)
         return (
             f"Node {result.get('node_id')} advanced to {result.get('state')}.\n"
             + (
