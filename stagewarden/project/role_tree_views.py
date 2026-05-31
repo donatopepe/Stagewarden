@@ -97,9 +97,10 @@ def _render_prince2_role_matrix(config: AgentConfig) -> str:
 def _prince2_role_tree_baseline_report(config: AgentConfig) -> dict[str, object]:
     prefs = _model_views._load_model_preferences(config)
     baseline = dict(prefs.prince2_role_tree_baseline or {})
+    status = str(baseline.get("status", "approved")) if baseline else "missing"
     return {
         "command": "roles baseline",
-        "status": "approved" if baseline else "missing",
+        "status": status,
         "baseline": baseline,
         "decomposition": baseline.get("decomposition", {}) if isinstance(baseline.get("decomposition"), dict) else {},
         "adaptation": baseline.get("adaptation", {}) if isinstance(baseline.get("adaptation"), dict) else {},
@@ -142,6 +143,13 @@ def _render_prince2_role_tree_baseline(config: AgentConfig) -> str:
         lines.append(f"- reason: {adaptation.get('reason') or 'none'}")
         changed = adaptation.get("changed_fields", [])
         lines.append(f"- changed_fields: {', '.join(changed) if isinstance(changed, list) and changed else 'none'}")
+    stale = baseline.get("stale", {}) if isinstance(baseline.get("stale"), dict) else {}
+    if stale:
+        stale_changed = stale.get("changed_fields", [])
+        lines.append("Stale baseline:")
+        lines.append(f"- stale_reason: {stale.get('reason') or 'unknown'}")
+        lines.append(f"- stale_changed_fields: {', '.join(stale_changed) if isinstance(stale_changed, list) and stale_changed else 'none'}")
+        lines.append(f"- stale_action: {stale.get('action') or 'rerun project tree propose and approve'}")
     if local_execution:
         candidates = [item for item in local_execution.get("candidates", []) if isinstance(item, dict)]
         lines.append(

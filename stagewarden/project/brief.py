@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime, timezone
 
 from ..config import AgentConfig
+from ..modelprefs import ModelPreferences
 from ..project_handoff import ProjectHandoff
 
 
@@ -85,6 +87,71 @@ def project_gap_to_brief_field(gap_code: str) -> str | None:
     return gap_map.get(gap_code)
 
 
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _baseline_project_brief(baseline: Mapping[str, object]) -> dict[str, str]:
+    raw_proposal = baseline.get("proposal", {})
+    proposal = raw_proposal if isinstance(raw_proposal, dict) else {}
+    raw_project_brief = proposal.get("project_brief", {})
+    raw_brief = raw_project_brief if isinstance(raw_project_brief, dict) else {}
+    return {str(key): str(value) for key, value in raw_brief.items()}
+
+
+def _project_brief_changed_fields(previous: Mapping[str, object], current: Mapping[str, object]) -> list[str]:
+    return sorted(
+        {
+            str(key)
+            for key in set(previous) | set(current)
+            if str(previous.get(key, "")).strip() != str(current.get(key, "")).strip()
+        }
+    )
+
+
+def _mark_project_tree_baseline_stale_for_brief_change(config: AgentConfig, handoff: ProjectHandoff) -> dict[str, object] | None:
+    prefs = ModelPreferences.load(config.model_prefs_path)
+    baseline = dict(prefs.prince2_role_tree_baseline or {})
+    if not baseline:
+        return None
+    previous_brief = _baseline_project_brief(baseline)
+    if not previous_brief:
+        return None
+    changed_fields = _project_brief_changed_fields(previous_brief, handoff.project_brief)
+    if not changed_fields:
+        return None
+    stale = {
+        "reason": "project brief changed after role-tree baseline approval",
+        "changed_fields": changed_fields,
+        "previous_status": str(baseline.get("status", "approved")),
+        "marked_at": _utc_now(),
+        "action": "rerun project tree propose, review, then project tree approve before execution continues",
+    }
+    baseline["status"] = "stale"
+    baseline["stale"] = stale
+    prefs.set_prince2_role_tree_baseline(baseline)
+    prefs.normalize().save(config.model_prefs_path)
+    handoff.sync_prince2_role_tree_baseline(baseline)
+    handoff.record_action(
+        phase="project_tree_baseline_stale",
+        summary="Project tree baseline marked stale because the project brief changed after approval.",
+        task="project brief set",
+        details=stale,
+    )
+    return stale
+
+
+def _project_tree_baseline_stale_message(stale: Mapping[str, object] | None) -> str:
+    if not stale:
+        return ""
+    changed_fields = stale.get("changed_fields", [])
+    return (
+        "\nProject tree baseline marked stale: "
+        + (", ".join(str(item) for item in changed_fields) if isinstance(changed_fields, list) and changed_fields else "project brief changed")
+        + "\n- action: rerun project tree propose, review, then project tree approve before execution continues"
+    )
+
+
 def project_brief_guidance(config: AgentConfig) -> str:
     handoff = ProjectHandoff.load(config.handoff_path)
     ambiguous = project_brief_ambiguous_gaps(handoff.project_brief)
@@ -161,20 +228,24 @@ def handle_project_brief_command(command: str, config: AgentConfig) -> str | Non
         if not value:
             return "Usage: project brief set <field> <value>"
         handoff.update_project_brief({field_name: value})
+        stale = _mark_project_tree_baseline_stale_for_brief_change(config, handoff)
         handoff.save(config.handoff_path)
         return (
             f"Project brief updated: {field_name}={handoff.project_brief.get(field_name, '')}\n"
             f"{project_brief_guidance(config)}"
+            f"{_project_tree_baseline_stale_message(stale)}"
         )
     if len(parts) >= 3 and parts[2] == "clear":
         if len(parts) == 3:
             handoff.clear_project_brief()
+            stale = _mark_project_tree_baseline_stale_for_brief_change(config, handoff)
             handoff.save(config.handoff_path)
-            return "Project brief cleared."
+            return "Project brief cleared." + _project_tree_baseline_stale_message(stale)
         field_name = parts[3].strip().lower()
         if field_name not in PROJECT_BRIEF_FIELDS:
             return f"Unsupported project brief field '{field_name}'. Supported: {', '.join(sorted(PROJECT_BRIEF_FIELDS))}"
         handoff.clear_project_brief(field_name)
+        stale = _mark_project_tree_baseline_stale_for_brief_change(config, handoff)
         handoff.save(config.handoff_path)
-        return f"Project brief field cleared: {field_name}"
+        return f"Project brief field cleared: {field_name}" + _project_tree_baseline_stale_message(stale)
     return "Usage: project brief | project brief set <field> <value> | project brief clear [field]"

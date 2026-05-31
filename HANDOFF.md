@@ -201,6 +201,7 @@
 - The structured `project start` gate now persists a clarification question when the project brief is incomplete and shows the pending question alongside the blocking gaps.
 - The `project tree propose --ai` gate now also persists a clarification question when the brief is incomplete and shows the pending question alongside the blocking gaps.
 - `project brief` now shows the next missing field so the brief can be completed step by step, and the same signal is available in JSON.
+- Approved project-tree/role-tree baselines are now marked `stale` when `project brief set` or `project brief clear` changes fields after approval; `roles baseline` text/JSON surfaces changed fields and instructs the operator to rerun proposal/review/approval before execution continues.
 - `project start` and `project tree propose --ai` now also expose the next missing field or gap in JSON, matching the interactive guidance.
 - The latest broader regression batch covering `project brief`, `project start`, `project tree propose --ai`, and project-tree approval passed after the JSON guidance refactor.
 - The repository is on branch `pr/p4-p5-updates` at `HEAD a38597f`.
@@ -297,6 +298,10 @@
 - `stagewarden/main.py`: added live tree decomposition nodes, continuous adaptation metadata, and richer project-tree reporting.
 - `stagewarden/prince2.py`: tightened the adaptation policy, stage plan, controls, and boundary review language toward smallest-task decomposition.
 - `stagewarden/modelprefs.py`: preserved decomposition and adaptation metadata when normalizing the approved role-tree baseline.
+- `tests/test_trace_cli.py`: added regression coverage for approved baseline staleness on project-brief set/clear changes, plus existing micro-task decomposition and refresh-on-brief-change behavior.
+- `stagewarden/modelprefs.py`: persists the structured `stale` payload on role-tree baselines through normalization/save/load.
+- `stagewarden/project/role_tree_views.py`: `roles baseline` text/JSON now reports actual baseline status and stale details.
+- `stagewarden/project/brief.py`: marks approved role-tree baselines stale when brief updates/clears diverge from the approved proposal brief.
 - `tests/test_trace_cli.py`: added regression coverage for micro-task decomposition and refresh-on-brief-change behavior.
 - `stagewarden/openrouter_benchmark.py`: added JSONL history tracking and regression comparison.
 - `stagewarden/main.py`: added `--openrouter-benchmark-history`.

@@ -120,11 +120,11 @@
   },
   "status": "active",
   "waiting_reason": "",
-  "current_step_id": "project-brief-ambiguous-guidance",
-  "current_step_title": "Surface ambiguous project brief values before missing-field guidance",
+  "current_step_id": "stale-baseline-on-brief-change",
+  "current_step_title": "Mark approved project-tree baselines stale when project brief changes",
   "current_step_status": "validated",
-  "latest_observation": "Project brief guidance ambiguity slice validated: ambiguous objective=TBD now points back to objective clarification before missing scope; focused brief/tree regressions passed.",
-  "plan_status": "ambiguous-brief-clarification:validated,project-brief-ambiguous-guidance:validated,next-stale-baseline-on-brief-change:planned",
+  "latest_observation": "Stale-baseline slice validated: project brief set/clear after project-tree approval now marks the PRINCE2 role-tree baseline stale and roles baseline reports changed fields/action.",
+  "plan_status": "ambiguous-brief-clarification:validated,project-brief-ambiguous-guidance:validated,stale-baseline-on-brief-change:validated,next-stale-baseline-execution-gate:planned",
   "git_head": "c3b0645",
   "git_head_baseline": "a38597f",
   "risk_register": [
@@ -194,8 +194,24 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-31T05:53:26Z",
+  "updated_at": "2026-05-31T09:08:33Z",
   "entries": [
+    {
+      "timestamp": "2026-05-31T09:08:33Z",
+      "phase": "finish",
+      "iteration": 0,
+      "task": "stale-baseline-on-brief-change",
+      "summary": "Approved project-tree/role-tree baselines are now marked stale when project brief set/clear changes the approved proposal brief; roles baseline text/JSON exposes changed fields and reapproval action.",
+      "step_id": "stale-baseline-on-brief-change",
+      "step_title": "Mark approved project-tree baselines stale when project brief changes",
+      "step_status": "validated",
+      "model": null,
+      "action_type": null,
+      "git_head": "pending-this-commit",
+      "details": {
+        "validation": "RED: test_project_brief_change_marks_approved_project_tree_baseline_stale failed because changed approved scope did not stale the baseline; RED: test_project_brief_clear_marks_approved_project_tree_baseline_stale failed because clearing delivery_mode did not stale the baseline. GREEN: both focused tests passed; py_compile plus 4 project-tree/baseline tests passed; broader brief/start/tree/persistence/PRINCE2 regression passed (30 OK)."
+      }
+    },
     {
       "timestamp": "2026-05-31T05:53:26Z",
       "phase": "finish",
