@@ -42,9 +42,12 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Stale-baseline supervision-view slice completed: `roles active`, `roles queues`, `roles control`, and `roles messages` stay non-blocking/readable on a stale approved baseline, but text and JSON now include stale-baseline warning/context so supervision cannot be mistaken for execution approval.
 - Validation for stale-baseline supervision-view slice: RED observed in `tests.test_trace_cli.TraceAndCliTests.test_stale_project_tree_baseline_marks_supervision_views_without_blocking_them` because `roles active` lacked the warning; GREEN focused run passed, targeted 6-test runtime/supervision/persistence regression passed, and full discovery passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 445 tests OK in 1167.000s.
 - Validation for non-coding evidence slice: RED observed in `tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence` because a narrative-only ADR/design closure was accepted; GREEN focused reject/accept design tests passed; `python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v` -> 62 OK.
+- Evolution research roadmap completed and committed in current HEAD: `ROADMAP.md` now synthesizes internal repository gaps with OpenTelemetry GenAI spans, Anthropic agent workflow patterns, NIST AI RMF, and OWASP GenAI 2025 risks. Recommended first slice is Agent Run Ledger + OpenTelemetry-compatible trace export.
+- Validation for roadmap research follow-up: `python3.11 -m unittest tests.test_policy_docs tests.test_json_schema_registry -v` -> 6 OK.
 - Non-coding evidence enforcement follow-up completed for research/report/plan artifacts: concrete report/plan file completions now require prior same-step non-model tool evidence, while generic planning/review steps without an explicit file/path artifact remain non-blocking. RED observed on research report file and implementation plan file completions; GREEN focused evidence tests passed; executor/planner/agent-integration regression passed with env sourced (`74 OK`), and full discovery passed with explicit Hermes env sourcing: `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 449 tests OK in 1136.235s.
 
 ## Recent changes
+- `ROADMAP.md`: added a concrete staged evolution roadmap covering Agent Run Ledger/OpenTelemetry traces, policy-as-code gates, autonomy budgets, command/schema parity, evidence vault, agentic security controls, adaptive replanning, and governance dashboards.
 - `stagewarden/project/role_flow.py`: added shared stale-baseline block payload/render helpers and guards for `roles tick` plus `role tick <node_id>` before runtime advancement.
 - `stagewarden/project/role_runtime_views.py`: `roles runtime` text/JSON now returns `blocked_stale_baseline` instead of materializing runtime from a stale baseline.
 - `stagewarden/project/role_runtime_views.py`: supervision-only views (`roles active`, `roles queues`, `roles control`, `roles messages`) now prepend text warnings and add JSON stale context without changing their non-blocking exit behavior.
@@ -214,6 +217,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - `.stagewarden_rag.json`: local runtime design-knowledge store, intentionally gitignored.
 
 ## Technical decisions
+- Decision: Prioritize Agent Run Ledger before policy-as-code and budget expansion.
+  - Reason: a normalized append-only trace/evidence substrate makes later PRINCE2/NIST/OWASP gates auditable and testable without immediately changing runtime behavior.
+  - Trade-offs: initial slice adds persistence/CLI surface before deeper enforcement; mitigated by keeping the ledger append-only and read-only first.
 - Decision: Block runtime/start execution from stale approved role-tree baselines.
   - Reason: surfacing stale metadata is insufficient if runtime/tick/start paths can still advance work from obsolete governance approval.
   - Trade-offs: operators must explicitly rerun proposal/review/approval after a brief change; this is safer and auditable, and the block payload includes changed fields and the exact recovery action.
@@ -265,6 +271,7 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 2. Consider adding percentage rounding/precision controls for dashboard-specific formatting needs.
 
 ## Open issues
+- Push attempt blocked by local GitHub HTTPS authentication: `git push origin main` hung in `git credential-osxkeychain get`; non-interactive retry with helper disabled returned `fatal: could not read Username for 'https://github.com': terminal prompts disabled`. Local commit is ready and branch is ahead of origin by 1.
 - Bugs: No known deterministic bugs in touched paths after validation; `python3` vs interpreter mismatch in subprocess tests is fixed.
 - Risks: Full `unittest discover` requires explicit environment sourcing for OpenRouter-backed tests in this Hermes process; current full suite is green when run as `set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q` -> 445 OK, 1167.000s after the supervision-view slice.
 - Risks: Local hashed vectors can still miss deep semantic matches that require model-generated embeddings or an LLM reranker.
@@ -273,8 +280,9 @@ Evolve Stagewarden into a stronger PRINCE2-oriented coding/design agent: every n
 - Unknowns: Whether future project design flows should add structured domain-specific RAG entry types beyond generic phase/tags/title/content.
 
 ## Next steps
-1. Inspect repository status after the research/report/plan evidence-gate commit and choose the next narrow PRINCE2 governance slice only if a concrete gap remains.
-2. If semantic recall becomes insufficient, consider optional external embedding/reranker backend behind the current dependency-free vector fallback.
+1. Start the P0 Agent Run Ledger slice from `ROADMAP.md` with TDD: append/load/verify helpers, read-only `runs` CLI, JSON schemas, then narrow executor evidence-gate event writes.
+2. Follow with policy-as-code gate metadata and autonomy-budget tolerance enforcement once the ledger can record decisions.
+3. Fill command/schema parity gaps using an explicit text-only allowlist, starting with `cost`, `stream`, `resume`, role mutation/runtime, permission, and account commands.
 
 ## Starting point note
 - Start from `main` with a clean worktree.
