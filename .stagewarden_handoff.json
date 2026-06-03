@@ -120,12 +120,12 @@
   },
   "status": "active",
   "waiting_reason": "",
-  "current_step_id": "noncoding-report-plan-evidence-gates",
-  "current_step_title": "Gate research/report/plan file artifact completions on tool evidence",
-  "current_step_status": "validated",
-  "latest_observation": "Research/report/plan file artifact completion gates are implemented and validated: focused evidence tests passed, executor/planner/agent-integration regression passed with env sourced (74 OK), and full discovery passed with explicit Hermes env sourcing (449 tests OK in 1136.235s).",
+  "current_step_id": "stagewarden-evolution-roadmap",
+  "current_step_title": "Research and document Stagewarden evolution roadmap",
+  "current_step_status": "documented",
+  "latest_observation": "ROADMAP.md created and committed in local current HEAD; focused policy/schema validation passed (6 OK). Push to origin is blocked by GitHub HTTPS credential prompt/keychain in this non-interactive session; branch is ahead by 1.",
   "plan_status": "ambiguous-brief-clarification:validated,project-brief-ambiguous-guidance:validated,stale-baseline-on-brief-change:validated,stale-baseline-execution-gates:validated,stale-baseline-supervision-views:validated,noncoding-report-plan-evidence-gates:validated",
-  "git_head": "uncommitted-noncoding-report-plan-evidence-gates",
+  "git_head": "current HEAD after roadmap commit",
   "git_head_baseline": "a38597f",
   "risk_register": [
     {
@@ -156,6 +156,13 @@
       "severity": "medium",
       "recorded_at": "2026-05-30T13:45:19Z",
       "description": "Resolved for validation by explicitly sourcing ~/.hermes/.env before running full unittest discovery; latest full suite passed 445 OK in 1167.000s."
+    },
+    {
+      "issue": "github_push_auth_blocked",
+      "status": "open",
+      "severity": "medium",
+      "recorded_at": "2026-06-03T18:50:36Z",
+      "description": "git push origin main timed out in git credential-osxkeychain; GIT_TERMINAL_PROMPT=0 with helper disabled returned fatal could not read Username for https://github.com. Local roadmap commit is ready and main is ahead of origin by 1."
     }
   ],
   "quality_register": [],
@@ -194,7 +201,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-05-31T13:05:20Z",
+  "updated_at": "2026-06-03T18:50:36Z",
   "entries": [
     {
       "timestamp": "2026-05-31T13:05:20Z",
@@ -2225,6 +2232,17 @@
         "scope_note": "Gate matches concrete artifact markers (design, architecture, ADR, documentation, docs/, .md, specification/spec) and intentionally avoids generic work-package/plan/report terms to prevent false positives on routing/control steps."
       },
       "created_at": "2026-05-30T14:57:46.957800+00:00"
+    },
+    {
+      "timestamp": "2026-06-03T18:31:17Z",
+      "action": "roadmap_documented",
+      "summary": "Created ROADMAP.md from internal repository audit and external OpenTelemetry/Anthropic/NIST/OWASP research.",
+      "details": {
+        "file": "ROADMAP.md",
+        "first_slice": "Agent Run Ledger and OpenTelemetry-compatible traces",
+        "validation": "Committed roadmap and focused policy/schema validation passed: python3.11 -m unittest tests.test_policy_docs tests.test_json_schema_registry -v -> 6 OK.",
+        "commit": "current HEAD after roadmap commit"
+      }
     }
   ]
 }
