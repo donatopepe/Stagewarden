@@ -5,6 +5,8 @@ import shlex
 from pathlib import Path
 
 from . import extension_views as _extension_views
+from . import goal_loop_views as _goal_loop_views
+from . import goal_loop_orchestrator as _goal_loop_orchestrator
 from . import agent_setup_views as _agent_setup_views
 from . import battery_views as _battery_views
 from . import model_inspection_views as _model_inspection_views
@@ -626,6 +628,21 @@ def run_cli() -> int:
             print(_project_role_runtime_views._render_prince2_role_active(config))
         return 0
     if task == "goal" or task.startswith("goal "):
+        if task.startswith("goal loop run"):
+            orchestrator = _goal_loop_orchestrator.GoalLoopOrchestrator(config, task=task)
+            report = orchestrator.run_loop()
+            if args.json:
+                print(dumps_ascii(_json_schema_registry.with_json_schema("goal loop run", report), indent=2))
+            else:
+                print(_goal_loop_orchestrator.render_goal_loop_execution_report(report))
+            return 0
+        if task.startswith("goal loop"):
+            report = _goal_loop_views.build_goal_loop_report(config, task)
+            if args.json:
+                print(dumps_ascii(_json_schema_registry.with_json_schema("goal loop", report), indent=2))
+            else:
+                print(_goal_loop_views.render_goal_loop_report(report))
+            return 0
         report = _project_state_views.goal_command_report(task, config)
         if args.json:
             print(dumps_ascii(_json_schema_registry.with_json_schema("goal", report), indent=2))

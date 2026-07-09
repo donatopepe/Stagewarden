@@ -204,6 +204,9 @@ class ProjectHandoff:
     def _project_budget_spend_usd(self) -> float:
         return _project_handoff_state._project_budget_spend_usd(self)
 
+    def project_brief_view(self) -> dict[str, Any]:
+        return _project_handoff_state.project_brief_view(self)
+
     def project_budget_view(self) -> dict[str, Any]:
         return _project_handoff_state.project_budget_view(self)
 

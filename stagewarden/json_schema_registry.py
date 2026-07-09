@@ -33,6 +33,8 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "goal set": "stagewarden.goal_set",
     "goal status": "stagewarden.goal_status",
     "goal clear": "stagewarden.goal_clear",
+    "goal loop": "stagewarden.goal_loop",
+    "goal loop run": "stagewarden.goal_loop_run",
     "budget": "stagewarden.budget",
     "budget set": "stagewarden.budget_set",
     "budget status": "stagewarden.budget_status",

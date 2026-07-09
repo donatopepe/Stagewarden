@@ -16,6 +16,28 @@ def _project_budget_spend_usd(handoff: Any) -> float:
     return round_usd(total)
 
 
+def project_brief_view(handoff: Any) -> dict[str, Any]:
+    if not isinstance(handoff.project_brief, dict) or not handoff.project_brief:
+        return {
+            "status": "missing",
+            "objective": "",
+            "scope": "",
+            "expected_outputs": "",
+            "delivery_mode": "",
+            "constraints": "",
+            "quality_gates": "",
+            "stakeholders": "",
+            "uncertainty": "",
+            "risk_tolerance": "",
+            "tolerance_margin_percent": None,
+            "accountable_project_executive": "",
+            "next_action": "Set a project brief with `project brief set <field> <value>`.",
+        }
+    brief = dict(handoff.project_brief)
+    brief["status"] = "active"
+    brief["next_action"] = "Project brief defined."
+    return brief
+
 def project_budget_view(handoff: Any) -> dict[str, Any]:
     if not isinstance(handoff.project_budget, dict) or not handoff.project_budget:
         return {
