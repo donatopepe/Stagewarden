@@ -497,6 +497,60 @@ stagewarden> caveman compress notes.md
 stagewarden> caveman off
 ```
 
+## Goal Loop Orchestration
+
+Stagewarden includes a hierarchical multi-node goal loop system under the `goal loop` command family.
+
+### Commands
+
+```text
+stagewarden> goal loop <task>
+stagewarden> goal loop <task> --json
+stagewarden> goal loop run <task>
+stagewarden> goal loop run <task> --json
+stagewarden> goal loop status
+stagewarden> goal loop status --json
+```
+
+- **`goal loop <task>`**: generates a blueprint with scope, node graph, child prompts, execution order, tolerance matrix, exception policy, validation plan, and final report.
+- **`goal loop run <task>`**: executes the multi-node loop with dependency resolution, parallel fan-out, structured messaging, autonomy gates, and tolerance checks.
+- **`goal loop status`**: shows current loop execution state from handoff entries.
+
+### Execution Modes
+
+Set via `STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE` environment variable:
+
+- `mock` — deterministic canned responses for testing
+- `auto` (default) — try `pi --print`, fall back to mock if unavailable
+- `pi` — require real AI-powered node execution via `pi` CLI
+
+### Architecture
+
+- 8 nodes in dependency order: `root.scope` → `orchestrator.graph` → `subnode.generator` → `implementation.refactor` → `validation.wet_run` → `governance.tolerance` → `communication.bridge` → `learning.pi`
+- Each node sends structured messages (FROM/TO/TYPE/SUMMARY/PRIORITY/TOLERANCE IMPACT) via in-memory MessageBus.
+- Autonomy gate classifies decisions (low/medium/high risk) and prompts user interactively for high-risk choices.
+- Tolerance gate checks execution results against declared tolerances and marks nodes as blocked on violation.
+- Handoff recording persists every node status change with full details.
+
+### Prompt Templates
+
+Prompt templates live under `.pi/prompts/` and follow pi prompt-template format with YAML frontmatter.
+
+Templates used:
+- `goal-root.md` — root scope definition
+- `goal-loop-orchestrator.md` — graph decomposition
+- `subnode-generator.md` — child-node prompt generation
+- `refactor-complete.md` — TDD refactoring workflow
+- `validation-wet-run.md` — real wet-run evidence gate
+- `tolerance-exception.md` — deviation and exception policy
+- `node-communication.md` — structured message format
+- `autonomy-decision.md` — risk classification
+- `pi-learning-benchmark.md` — pi-agent benchmark study
+
+### Pi Agent Benchmark
+
+See `.pi/pi-learning-benchmark.md` for an 8-dimension study of pi agent compared to Stagewarden.
+
 Acknowledgements:
 
 - Thanks to Julius Brussee for [caveman](https://github.com/JuliusBrussee/caveman), which influenced the Caveman mode and parts of the command ergonomics.

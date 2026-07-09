@@ -1165,6 +1165,27 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("child_prompts", payload.get("report", {}))
 
 
+    def test_goal_loop_status_reports_state_from_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            env = os.environ.copy()
+            env["STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE"] = "mock"
+            # Run a loop first so status has data
+            run_main_capture(root, "goal loop run Build a multi-node Stagewarden loop", "--json", env=env)
+            # Then check status
+            completed = run_main_capture(root, "goal loop status", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "goal loop status")
+            self.assertIn("running", payload)
+            self.assertIn("completed", payload)
+            self.assertIn("node_statuses", payload)
+            self.assertGreaterEqual(len(payload["node_statuses"]), 6)
+            self.assertGreater(payload["total_goal_loop_actions"], 0)
+            self.assertEqual(payload["running"], False)
+            self.assertEqual(payload["completed"], True)
+
+
     def test_status_and_control_expose_local_fallback_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

@@ -499,14 +499,25 @@ Do NOT include any text before or after the JSON object.'''
                 if all(n.status == "completed"
                        for n in self.nodes.values()):
                     break
-                sys.stderr.write("[goal-loop] stalled – no ready nodes.\n")
+                # Check if any nodes are still running or pending
+                running_or_pending = [
+                    nid for nid, n in self.nodes.items()
+                    if n.status in ("running", "pending")
+                ]
+                if not running_or_pending:
+                    sys.stderr.write("[goal-loop] stalled – no ready, running, or pending nodes.\n")
+                else:
+                    sys.stderr.write(
+                        f"[goal-loop] stalled – {len(running_or_pending)} nodes "
+                        f"still running/pending but blocked by dependencies: "
+                        f"{', '.join(running_or_pending[:5])}\n"
+                    )
+                status_detail = {nid: n.status for nid, n in self.nodes.items()}
                 self.handoff.record_action(
                     phase="goal_loop_stalled",
                     task=self.task,
                     summary="Goal loop stalled.",
-                    details={"node_statuses":
-                             {nid: n.status
-                              for nid, n in self.nodes.items()}},
+                    details={"node_statuses": status_detail},
                 )
                 self.handoff.save(self.config.handoff_path)
                 break
