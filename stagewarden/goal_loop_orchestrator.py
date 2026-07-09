@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -115,12 +116,15 @@ class NodeState:
 @dataclass
 class MessageBus:
     messages: list[dict[str, Any]] = field(default_factory=list)
+    _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def send_message(self, message: dict[str, Any]) -> None:
-        self.messages.append(message)
+        with self._lock:
+            self.messages.append(message)
 
     def get_messages_for_node(self, node_id: str) -> list[dict[str, Any]]:
-        return [msg for msg in self.messages if msg.get("TO") == node_id]
+        with self._lock:
+            return [msg for msg in self.messages if msg.get("TO") == node_id]
 
 
 # ── orchestrator ─────────────────────────────────────────────────────────────

@@ -510,11 +510,17 @@ stagewarden> goal loop run <task>
 stagewarden> goal loop run <task> --json
 stagewarden> goal loop status
 stagewarden> goal loop status --json
+stagewarden> goal loop add-node <name> <skill_path> [purpose]
+stagewarden> goal loop add-node <name> <skill_path> [purpose] --json
+stagewarden> goal loop custom-nodes
+stagewarden> goal loop custom-nodes --json
 ```
 
 - **`goal loop <task>`**: generates a blueprint with scope, node graph, child prompts, execution order, tolerance matrix, exception policy, validation plan, and final report.
 - **`goal loop run <task>`**: executes the multi-node loop with dependency resolution, parallel fan-out, structured messaging, autonomy gates, and tolerance checks.
 - **`goal loop status`**: shows current loop execution state from handoff entries.
+- **`goal loop add-node <name> <skill_path>`**: registers a custom goal loop node from an extension skill file.
+- **`goal loop custom-nodes`**: lists registered custom goal loop nodes.
 
 ### Execution Modes
 
@@ -532,7 +538,29 @@ Set via `STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE` environment variable:
 - Tolerance gate checks execution results against declared tolerances and marks nodes as blocked on violation.
 - Handoff recording persists every node status change with full details.
 
-### Prompt Templates
+### Control Socket
+
+When `goal loop run` executes, a TCP control socket is started on `127.0.0.1:<random port>`.
+The port is written to `.stagewarden/goal_loop_control.txt` for external discovery.
+
+External tools can send structured messages (matching `node-communication.md` format) to inject decisions,
+dependency updates, or blockers into the running loop:
+
+```python
+from stagewarden.goal_loop_control import send_control_message, discover_control_port
+
+port = discover_control_port(workspace_root)
+if port:
+    send_control_message(port, {
+        "FROM": "external.tool",
+        "TO": "root.scope",
+        "TYPE": "decision",
+        "SUMMARY": "User approved the scope.",
+        "PRIORITY": "high",
+    })
+```
+
+### Custom Nodes
 
 Prompt templates live under `.pi/prompts/` and follow pi prompt-template format with YAML frontmatter.
 
