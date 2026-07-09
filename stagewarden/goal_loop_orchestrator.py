@@ -536,7 +536,30 @@ Do NOT include any text before or after the JSON object.'''
 
     # ── main loop ───────────────────────────────────────────────────────────
 
+    def _handle_control_message(self, msg: dict[str, Any]) -> None:
+        """Handle a message from the external control socket."""
+        self.message_bus.send_message(msg)
+        sys.stderr.write(
+            f"[goal-loop] control message: {msg.get('FROM')} -> "
+            f"{msg.get('TO')}: {msg.get('SUMMARY', '')}\n"
+        )
+        # If the target node is pending and the message unblocks it, mark ready
+        target_id = msg.get("TO", "")
+        if target_id in self.nodes:
+            node = self.nodes[target_id]
+            if node.status == "pending":
+                node.messages_received.append(msg)
+
     def run_loop(self) -> dict[str, Any]:
+        # Start control socket for external messages
+        from .goal_loop_control import GoalLoopControlServer
+        control = GoalLoopControlServer(
+            self.config.workspace_root,
+            on_message=self._handle_control_message,
+        )
+        control.start()
+        sys.stderr.write(f"[goal-loop] control socket on 127.0.0.1:{control.port}\n")
+
         self.handoff.record_action(
             phase="goal_loop_start",
             task=self.task,
@@ -547,72 +570,61 @@ Do NOT include any text before or after the JSON object.'''
         )
         self.handoff.save(self.config.handoff_path)
 
-        max_iterations = 10
-        for _ in range(max_iterations):
-            ready_nodes = self._get_ready_nodes()
-            if not ready_nodes:
+        try:
+            max_iterations = 10
+            for _ in range(max_iterations):
+                ready_nodes = self._get_ready_nodes()
+                if not ready_nodes:
+                    if all(n.status == "completed"
+                           for n in self.nodes.values()):
+                        self._sync_goal_loop_context()
+                        break
+                    # Check if any nodes are still running or pending
+                    running_or_pending = [
+                        nid for nid, n in self.nodes.items()
+                        if n.status in ("running", "pending")
+                    ]
+                    if not running_or_pending:
+                        sys.stderr.write("[goal-loop] stalled – no ready, running, or pending nodes.\n")
+                    else:
+                        sys.stderr.write(
+                            f"[goal-loop] stalled – {len(running_or_pending)} nodes "
+                            f"still running/pending but blocked by dependencies: "
+                            f"{', '.join(running_or_pending[:5])}\n"
+                        )
+                    status_detail = {nid: n.status for nid, n in self.nodes.items()}
+                    self._sync_goal_loop_context()
+                    self.handoff.record_action(
+                        phase="goal_loop_stalled",
+                        task=self.task,
+                        summary="Goal loop stalled.",
+                        details={"node_statuses": status_detail},
+                    )
+                    self.handoff.save(self.config.handoff_path)
+                    break
+
+                # Execute ready nodes in parallel if they have no cross-dependency
+                with ThreadPoolExecutor(max_workers=min(len(ready_nodes), 4)) as pool:
+                    fut_to_node = {pool.submit(self._execute_node, n): n
+                                   for n in ready_nodes}
+                    for fut in as_completed(fut_to_node):
+                        n = fut_to_node[fut]
+                        try:
+                            fut.result()
+                        except Exception as exc:
+                            sys.stderr.write(
+                                f"[goal-loop] node {n.node_id} raised: {exc}\n"
+                            )
+                            n.status = "blocked"
+                            n.error_message = str(exc)
+                            self._record_node_execution_to_handoff(n)
+
                 if all(n.status == "completed"
                        for n in self.nodes.values()):
                     self._sync_goal_loop_context()
                     break
-                # Check if any nodes are still running or pending
-                running_or_pending = [
-                    nid for nid, n in self.nodes.items()
-                    if n.status in ("running", "pending")
-                ]
-                if not running_or_pending:
-                    sys.stderr.write("[goal-loop] stalled – no ready, running, or pending nodes.\n")
-                else:
-                    sys.stderr.write(
-                        f"[goal-loop] stalled – {len(running_or_pending)} nodes "
-                        f"still running/pending but blocked by dependencies: "
-                        f"{', '.join(running_or_pending[:5])}\n"
-                    )
-                status_detail = {nid: n.status for nid, n in self.nodes.items()}
-                self._sync_goal_loop_context()
-                self.handoff.record_action(
-                    phase="goal_loop_stalled",
-                    task=self.task,
-                    summary="Goal loop stalled.",
-                    details={"node_statuses": status_detail},
-                )
-                self.handoff.save(self.config.handoff_path)
-                break
-
-            # Execute ready nodes in parallel if they have no cross-dependency
-            with ThreadPoolExecutor(max_workers=min(len(ready_nodes), 4)) as pool:
-                fut_to_node = {pool.submit(self._execute_node, n): n
-                               for n in ready_nodes}
-                for fut in as_completed(fut_to_node):
-                    n = fut_to_node[fut]
-                    try:
-                        fut.result()
-                    except Exception as exc:
-                        sys.stderr.write(
-                            f"[goal-loop] node {n.node_id} raised: {exc}\n"
-                        )
-                        n.status = "blocked"
-                        n.error_message = str(exc)
-                        self._record_node_execution_to_handoff(n)
-
-            if all(n.status == "completed"
-                   for n in self.nodes.values()):
-                # Persist context
-                self._sync_goal_loop_context()
-                break
-        else:
-            sys.stderr.write(
-                f"[goal-loop] max iterations ({max_iterations}) reached.\n"
-            )
-            self.handoff.record_action(
-                phase="goal_loop_max_iterations",
-                task=self.task,
-                summary=f"Reached max iterations ({max_iterations}).",
-                details={"node_statuses":
-                         {nid: n.status for nid, n in self.nodes.items()}},
-            )
-            self._sync_goal_loop_context()
-            self.handoff.save(self.config.handoff_path)
+        finally:
+            control.stop()
 
         final_status = (
             "completed"
@@ -637,8 +649,6 @@ Do NOT include any text before or after the JSON object.'''
             "report": self.blueprint,
         }
 
-
-# ── render ───────────────────────────────────────────────────────────────────
 
 def render_goal_loop_execution_report(report: dict[str, Any]) -> str:
     lines = ["Goal loop execution report:"]
