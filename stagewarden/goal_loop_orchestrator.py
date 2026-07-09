@@ -91,6 +91,8 @@ class NodeState:
     output_summary: str | None = None
     error_message: str | None = None
     pi_stdout: str = ""
+    retry_count: int = 0
+    max_retries: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -144,6 +146,7 @@ class GoalLoopOrchestrator:
     # ── initialisation ──────────────────────────────────────────────────────
 
     def _initialize_nodes(self) -> None:
+        default_retries = int(os.environ.get("STAGEWARDEN_GOAL_LOOP_MAX_RETRIES", "0"))
         for child in self.blueprint.get("child_prompts", []):
             node_id = child["node_id"]
             raw_tols = child.get("tolerances", {})
@@ -163,6 +166,7 @@ class GoalLoopOrchestrator:
                 tolerances=tolerances_parsed,
                 escalation_rule=child.get("escalation_rule", ""),
                 dependencies=child.get("dependencies", []),
+                max_retries=default_retries,
             )
 
     def _generate_node_prompt(self, child: dict[str, Any]) -> str:
@@ -314,6 +318,16 @@ Do NOT include any text before or after the JSON object.'''
         passes, tol_reason = self._tolerance_gate(node_state)
         if not passes:
             sys.stderr.write(f"[goal-loop] tolerance violation: {tol_reason}\n")
+
+        # retry logic
+        if node_state.status == "blocked" and node_state.retry_count < node_state.max_retries:
+            node_state.retry_count += 1
+            node_state.status = "pending"
+            node_state.error_message = f"{node_state.error_message or ''} (retry {node_state.retry_count}/{node_state.max_retries})"
+            sys.stderr.write(
+                f"[goal-loop] retrying node {node_state.node_id} "
+                f"({node_state.retry_count}/{node_state.max_retries})\n"
+            )
 
         self._record_node_execution_to_handoff(node_state)
 
@@ -479,6 +493,17 @@ Do NOT include any text before or after the JSON object.'''
         )
         self.handoff.save(self.config.handoff_path)
 
+    def _sync_goal_loop_context(self) -> None:
+        """Persist current goal loop state to handoff for status queries."""
+        self.handoff.goal_loop_context = {
+            "task": self.task,
+            "node_statuses": {nid: n.status for nid, n in self.nodes.items()},
+            "node_details": {nid: n.as_dict() for nid, n in self.nodes.items()},
+            "current_iteration": self.current_iteration,
+            "updated_at": utc_now(),
+        }
+        self.handoff.save(self.config.handoff_path)
+
     # ── main loop ───────────────────────────────────────────────────────────
 
     def run_loop(self) -> dict[str, Any]:
@@ -498,6 +523,7 @@ Do NOT include any text before or after the JSON object.'''
             if not ready_nodes:
                 if all(n.status == "completed"
                        for n in self.nodes.values()):
+                    self._sync_goal_loop_context()
                     break
                 # Check if any nodes are still running or pending
                 running_or_pending = [
@@ -513,6 +539,7 @@ Do NOT include any text before or after the JSON object.'''
                         f"{', '.join(running_or_pending[:5])}\n"
                     )
                 status_detail = {nid: n.status for nid, n in self.nodes.items()}
+                self._sync_goal_loop_context()
                 self.handoff.record_action(
                     phase="goal_loop_stalled",
                     task=self.task,
@@ -540,6 +567,8 @@ Do NOT include any text before or after the JSON object.'''
 
             if all(n.status == "completed"
                    for n in self.nodes.values()):
+                # Persist context
+                self._sync_goal_loop_context()
                 break
         else:
             sys.stderr.write(
@@ -552,6 +581,7 @@ Do NOT include any text before or after the JSON object.'''
                 details={"node_statuses":
                          {nid: n.status for nid, n in self.nodes.items()}},
             )
+            self._sync_goal_loop_context()
             self.handoff.save(self.config.handoff_path)
 
         final_status = (
@@ -559,6 +589,7 @@ Do NOT include any text before or after the JSON object.'''
             if all(n.status == "completed" for n in self.nodes.values())
             else "failed"
         )
+        self._sync_goal_loop_context()
         self.handoff.record_action(
             phase="goal_loop_end",
             task=self.task,
