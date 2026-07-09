@@ -28,7 +28,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-07-09T12:02:23+00:00",
+  "updated_at": "2026-07-09T12:30:53+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -349,6 +349,353 @@
           "governance.tolerance": "completed",
           "communication.bridge": "completed",
           "learning.pi": "completed"
+        }
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_start",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Goal loop initiated.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "objective": "run test"
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node root.scope completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "root.scope",
+        "purpose": "Define scope, out-of-scope, outputs, acceptance criteria, and risk posture.",
+        "status": "completed",
+        "dependencies": [],
+        "tolerances": {
+          "scope_drift": "none",
+          "ambiguity": "low"
+        },
+        "output_summary": "Root scope defined.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "root.scope",
+            "TO": "orchestrator.graph",
+            "TYPE": "status",
+            "SUMMARY": "Scope defined"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node custom.my-validator completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "custom.my-validator",
+        "purpose": "Custom validation",
+        "status": "completed",
+        "dependencies": [],
+        "tolerances": {},
+        "output_summary": "Node custom.my-validator completed.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": []
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node orchestrator.graph completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "orchestrator.graph",
+        "purpose": "Transform the scope into a graph of work, child nodes, and execution order.",
+        "status": "completed",
+        "dependencies": [
+          "root.scope"
+        ],
+        "tolerances": {
+          "graph_depth": "moderate",
+          "node_count": "configurable"
+        },
+        "output_summary": "Node graph created.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "orchestrator.graph",
+            "TO": "subnode.generator",
+            "TYPE": "status",
+            "SUMMARY": "Graph created"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node subnode.generator completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "subnode.generator",
+        "purpose": "Generate prompts for sub-nodes and attach inputs, outputs, and escalation rules.",
+        "status": "completed",
+        "dependencies": [
+          "orchestrator.graph"
+        ],
+        "tolerances": {
+          "prompt_length": "pragmatic",
+          "missing_contract": "none"
+        },
+        "output_summary": "Subnode prompts generated.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "subnode.generator",
+            "TO": "implementation.refactor",
+            "TYPE": "status",
+            "SUMMARY": "Prompts generated"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node implementation.refactor completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "implementation.refactor",
+        "purpose": "Apply any needed refactor with TDD before changing behavior.",
+        "status": "completed",
+        "dependencies": [
+          "subnode.generator"
+        ],
+        "tolerances": {
+          "regression": "zero",
+          "refactor_scope": "linked-only"
+        },
+        "output_summary": "Refactoring complete with TDD.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "implementation.refactor",
+            "TO": "validation.wet_run",
+            "TYPE": "status",
+            "SUMMARY": "Refactoring done"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node validation.wet_run completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "validation.wet_run",
+        "purpose": "Run real tests and wet-run commands with evidence.",
+        "status": "completed",
+        "dependencies": [
+          "implementation.refactor"
+        ],
+        "tolerances": {
+          "dry_run_only": "none",
+          "evidence_gap": "minor if environment-limited"
+        },
+        "output_summary": "Wet-run validation passed.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "validation.wet_run",
+            "TO": "governance.tolerance",
+            "TYPE": "status",
+            "SUMMARY": "Validation passed"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node learning.pi completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "learning.pi",
+        "purpose": "Benchmark Stagewarden against pi-agent patterns and adaptation opportunities.",
+        "status": "completed",
+        "dependencies": [
+          "validation.wet_run"
+        ],
+        "tolerances": {
+          "copying": "none",
+          "abstraction_required": "yes"
+        },
+        "output_summary": "pi benchmark compiled.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": []
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node governance.tolerance completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "governance.tolerance",
+        "purpose": "Classify deviations, exceptions, and escalation decisions.",
+        "status": "completed",
+        "dependencies": [
+          "validation.wet_run"
+        ],
+        "tolerances": {
+          "risk": "explicit",
+          "irreversibility": "zero"
+        },
+        "output_summary": "Tolerance check passed.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "governance.tolerance",
+            "TO": "communication.bridge",
+            "TYPE": "status",
+            "SUMMARY": "Tolerances OK"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Node communication.bridge completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "communication.bridge",
+        "purpose": "Emit structured node-to-node messages and dependency handoffs.",
+        "status": "completed",
+        "dependencies": [
+          "orchestrator.graph",
+          "governance.tolerance"
+        ],
+        "tolerances": {
+          "message_noise": "low",
+          "missing_fields": "none"
+        },
+        "output_summary": "Structured messages delivered.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "communication.bridge",
+            "TO": "learning.pi",
+            "TYPE": "status",
+            "SUMMARY": "Messages routed"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:30:53+00:00",
+      "phase": "goal_loop_end",
+      "iteration": 0,
+      "task": "goal loop run test",
+      "summary": "Goal loop completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "final_status": "completed",
+        "node_statuses": {
+          "root.scope": "completed",
+          "orchestrator.graph": "completed",
+          "subnode.generator": "completed",
+          "implementation.refactor": "completed",
+          "validation.wet_run": "completed",
+          "governance.tolerance": "completed",
+          "communication.bridge": "completed",
+          "learning.pi": "completed",
+          "custom.my-validator": "completed"
         }
       }
     }
