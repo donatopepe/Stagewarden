@@ -189,11 +189,15 @@ stagewarden> goal loop run <task>
 stagewarden> goal loop run <task> --json
 stagewarden> goal loop status
 stagewarden> goal loop status --json
+stagewarden> goal loop add-node <name> <skill_path> [purpose]
+stagewarden> goal loop custom-nodes
 ```
 
 - **`goal loop <task>`**: genera un blueprint con scope, node graph, child prompts, execution order, tolerance matrix, exception policy, validation plan, e final report.
 - **`goal loop run <task>`**: esegue il loop multi-nodo con dependency resolution, parallel fan-out, messaggi strutturati, autonomy gates, e tolerance checks.
 - **`goal loop status`**: mostra lo stato corrente dell'esecuzione del loop.
+- **`goal loop add-node <name> <skill_path>`**: registra un nodo custom da un file skill di un'estensione.
+- **`goal loop custom-nodes`**: elenca i nodi custom registrati.
 
 ### Modalità di Esecuzione
 
@@ -211,7 +215,29 @@ Impostabili via variabile d'ambiente `STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE`:
 - Tolerance gate verifica i risultati contro le tolleranze dichiarate.
 - Handoff recording persiste ogni cambiamento di stato.
 
-### Template Prompt
+### Control Socket
+
+Quando `goal loop run` è in esecuzione, un server TCP viene avviato su `127.0.0.1:<porta casuale>`.
+La porta è scritta in `.stagewarden/goal_loop_control.txt` per scoperta esterna.
+
+Strumenti esterni possono inviare messaggi strutturati (formato `node-communication.md`) per iniettare
+decisioni, aggiornamenti di dipendenza o blocchi nel loop in esecuzione:
+
+```python
+from stagewarden.goal_loop_control import send_control_message, discover_control_port
+
+port = discover_control_port(percorso_workspace)
+if port:
+    send_control_message(port, {
+        "FROM": "external.tool",
+        "TO": "root.scope",
+        "TYPE": "decision",
+        "SUMMARY": "User approved the scope.",
+        "PRIORITY": "high",
+    })
+```
+
+### Nodi Custom
 
 I template prompt vivono in `.pi/prompts/` e seguono il formato pi con frontmatter YAML.
 
