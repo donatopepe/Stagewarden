@@ -192,5 +192,96 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                           ("blocked", "pending"))
 
 
+class GoalLoopControlSocketTests(unittest.TestCase):
+    """Tests for goal loop TCP control socket."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        import shutil
+        shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+    def test_control_server_start_stop(self) -> None:
+        """Server starts and stops without error."""
+        from stagewarden.goal_loop_control import GoalLoopControlServer
+        server = GoalLoopControlServer(self.tmp_dir)
+        server.start()
+        self.assertGreater(server.port, 0)
+        server.stop()
+        # verify info file is removed after stop
+        info_file = self.tmp_dir / ".stagewarden" / "goal_loop_control.txt"
+        self.assertFalse(info_file.exists())
+
+    def test_control_server_writes_info_file(self) -> None:
+        """Info file is created with correct port and host."""
+        from stagewarden.goal_loop_control import GoalLoopControlServer
+        server = GoalLoopControlServer(self.tmp_dir)
+        server.start()
+        info_file = self.tmp_dir / ".stagewarden" / "goal_loop_control.txt"
+        self.assertTrue(info_file.exists())
+        import json
+        data = json.loads(info_file.read_text())
+        self.assertEqual(data["host"], "127.0.0.1")
+        self.assertEqual(data["port"], server.port)
+        self.assertEqual(data["pid"], os.getpid())
+        server.stop()
+
+    def test_control_server_receives_message(self) -> None:
+        """Message sent to control port is received via callback."""
+        from stagewarden.goal_loop_control import (
+            GoalLoopControlServer, send_control_message,
+        )
+        received: list[dict] = []
+
+        def on_msg(msg):
+            received.append(msg)
+
+        server = GoalLoopControlServer(self.tmp_dir, on_message=on_msg)
+        server.start()
+
+        msg = {
+            "FROM": "external.tool",
+            "TO": "root.scope",
+            "TYPE": "decision",
+            "SUMMARY": "User approved the scope.",
+            "PRIORITY": "high",
+            "TOLERANCE IMPACT": "none",
+        }
+        response = send_control_message(server.port, msg)
+        self.assertEqual(response, "OK")
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["FROM"], "external.tool")
+        self.assertEqual(received[0]["SUMMARY"], "User approved the scope.")
+        server.stop()
+
+    def test_control_server_rejects_invalid_message(self) -> None:
+        """Message without FROM/TO is rejected."""
+        from stagewarden.goal_loop_control import (
+            GoalLoopControlServer, send_control_message,
+        )
+        server = GoalLoopControlServer(self.tmp_dir)
+        server.start()
+
+        msg = {"TYPE": "status", "SUMMARY": "Missing FROM/TO"}
+        response = send_control_message(server.port, msg)
+        self.assertIn("ERROR", response)
+        self.assertIn("FROM", response)
+        server.stop()
+
+    def test_discover_control_port(self) -> None:
+        """discover_control_port reads port from info file."""
+        from stagewarden.goal_loop_control import (
+            GoalLoopControlServer, discover_control_port,
+        )
+        server = GoalLoopControlServer(self.tmp_dir)
+        server.start()
+        port = discover_control_port(self.tmp_dir)
+        self.assertEqual(port, server.port)
+        server.stop()
+        port = discover_control_port(self.tmp_dir)
+        self.assertIsNone(port)
+
+
 if __name__ == "__main__":
     unittest.main()
