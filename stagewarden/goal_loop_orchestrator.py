@@ -125,13 +125,15 @@ class MessageBus:
 
 class GoalLoopOrchestrator:
     def __init__(self, config: AgentConfig, task: str,
-                 execution_mode: str | None = None):
+                 execution_mode: str | None = None,
+                 json_mode: bool = False):
         if execution_mode is None:
             execution_mode = os.environ.get("STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE",
                                             EXECUTION_MODE_AUTO)
         self.config = config
         self.task = task
         self.execution_mode = execution_mode
+        self.json_mode = json_mode
         self.handoff = ProjectHandoff.load(config.handoff_path)
         self.blueprint = build_goal_loop_report(config, task)
         self.nodes: dict[str, NodeState] = {}
@@ -199,16 +201,34 @@ class GoalLoopOrchestrator:
 
     def _autonomy_gate(self, node_state: NodeState) -> tuple[bool, str | None]:
         """Classify the node execution decision.
-        Returns (proceed, reason)."""
+        Returns (proceed, reason).
+        In interactive mode (not json_mode), prompts user for high-risk decisions."""
         level, reason = classify_decision(node_state.purpose, "medium")
         if level == "stop":
             node_state.status = "blocked"
             node_state.error_message = reason
             return (False, reason)
         if level == "ask_user":
-            # In a real scenario we would prompt the user.
-            # For now record and proceed with caution.
             sys.stderr.write(f"[goal-loop] autonomy gate: {reason}\n")
+            if not self.json_mode:
+                # Interactive prompt
+                try:
+                    answer = input(f"High-risk decision for node '{node_state.node_id}':\n"
+                                   f"  {reason}\n"
+                                   f"  Proceed? [y/N] ")
+                    if answer.strip().lower() in ("y", "yes"):
+                        return (True, reason)
+                    sys.stderr.write(f"[goal-loop] user declined node {node_state.node_id}\n")
+                    node_state.status = "blocked"
+                    node_state.error_message = "User declined high-risk execution."
+                    return (False, "User declined.")
+                except (EOFError, KeyboardInterrupt):
+                    sys.stderr.write(f"[goal-loop] no user input, blocking node {node_state.node_id}\n")
+                    node_state.status = "blocked"
+                    node_state.error_message = "No user input for high-risk decision."
+                    return (False, "No user input.")
+            # JSON mode: record but proceed
+            sys.stderr.write(f"[goal-loop] autonomy gate (proceeding): {reason}\n")
             return (True, reason)
         if level == "report":
             sys.stderr.write(f"[goal-loop] autonomy gate: {reason}\n")
