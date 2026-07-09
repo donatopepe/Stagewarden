@@ -176,6 +176,60 @@ I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` re
 
 `extension scaffold <nome>` crea una struttura sicura sotto `.stagewarden/extensions/<nome>/` con `commands/`, `roles/`, `skills/`, `hooks/`, `mcp/` ed `extension.json`. Lo scaffold scrive anche `schema_version`, `entrypoints` ed `execution=disabled-by-default`. `extensions --json` scopre le estensioni in sola lettura, valida manifest e percorsi degli entrypoint, segnala directory mancanti e non esegue codice non fidato.
 
+## Goal Loop Orchestration
+
+Stagewarden include un sistema a loop multi-nodo gerarchico sotto il family di comandi `goal loop`.
+
+### Comandi
+
+```text
+stagewarden> goal loop <task>
+stagewarden> goal loop <task> --json
+stagewarden> goal loop run <task>
+stagewarden> goal loop run <task> --json
+stagewarden> goal loop status
+stagewarden> goal loop status --json
+```
+
+- **`goal loop <task>`**: genera un blueprint con scope, node graph, child prompts, execution order, tolerance matrix, exception policy, validation plan, e final report.
+- **`goal loop run <task>`**: esegue il loop multi-nodo con dependency resolution, parallel fan-out, messaggi strutturati, autonomy gates, e tolerance checks.
+- **`goal loop status`**: mostra lo stato corrente dell'esecuzione del loop.
+
+### Modalità di Esecuzione
+
+Impostabili via variabile d'ambiente `STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE`:
+
+- `mock` — risposte deterministiche per test
+- `auto` (default) — prova `pi --print`, fallback a mock se non disponibile
+- `pi` — richiede esecuzione reale via `pi` CLI
+
+### Architettura
+
+- 8 nodi in ordine di dipendenza: `root.scope` → `orchestrator.graph` → `subnode.generator` → `implementation.refactor` → `validation.wet_run` → `governance.tolerance` → `communication.bridge` → `learning.pi`
+- Ogni nodo invia messaggi strutturati (FROM/TO/TYPE/SUMMARY/PRIORITY/TOLERANCE IMPACT) via MessageBus in memoria.
+- Autonomy gate classifica le decisioni (basso/medio/alto rischio) e chiede all'utente per scelte ad alto rischio.
+- Tolerance gate verifica i risultati contro le tolleranze dichiarate.
+- Handoff recording persiste ogni cambiamento di stato.
+
+### Template Prompt
+
+I template prompt vivono in `.pi/prompts/` e seguono il formato pi con frontmatter YAML.
+
+Template usati:
+- `goal-root.md` — definizione scope radice
+- `goal-loop-orchestrator.md` — decomposizione grafo
+- `subnode-generator.md` — generazione prompt figli
+- `refactor-complete.md` — workflow refactoring TDD
+- `validation-wet-run.md` — gate evidenza wet-run
+- `tolerance-exception.md` — policy deviazioni/eccezioni
+- `node-communication.md` — formato messaggi strutturati
+- `autonomy-decision.md` — classificazione rischio
+- `pi-learning-benchmark.md` — studio benchmark pi agent
+
+### Benchmark Pi Agent
+
+Vedi `.pi/pi-learning-benchmark.md` per uno studio a 8 dimensioni di pi agent confrontato con Stagewarden.
+
 ## Crediti
 
 Stagewarden studia e riproduce, dove compatibile, pattern UX e architetturali ispirati a Codex CLI, Claude Code, KiloCode e Caveman. Le fonti locali servono come riferimento tecnico; non vengono vendorizzati contenuti protetti nel progetto.
