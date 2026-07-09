@@ -643,6 +643,28 @@ def run_cli() -> int:
             else:
                 print(_goal_loop_views.render_goal_loop_status(report))
             return 0
+        if task.startswith("goal loop add-node "):
+            rest = task.removeprefix("goal loop add-node ").strip()
+            parts = rest.split(maxsplit=2)
+            if len(parts) < 2:
+                print("Usage: goal loop add-node <name> <skill_path> [purpose]")
+                return 1
+            name = parts[0]
+            skill_path = parts[1]
+            purpose = parts[2] if len(parts) >= 3 else ""
+            result = _goal_loop_views.register_custom_node(name, skill_path, purpose)
+            if args.json:
+                print(dumps_ascii(result, indent=2))
+            else:
+                print(result.get("message", result.get("error", "Node registration failed.")))
+            return 0 if result.get("ok") else 1
+        if task == "goal loop custom-nodes":
+            nodes = _goal_loop_views.load_custom_nodes()
+            if args.json:
+                print(dumps_ascii({"command": "goal loop custom-nodes", "nodes": nodes}, indent=2))
+            else:
+                print(_goal_loop_views.render_custom_nodes_report(nodes))
+            return 0
         if task.startswith("goal loop"):
             report = _goal_loop_views.build_goal_loop_report(config, task)
             if args.json:

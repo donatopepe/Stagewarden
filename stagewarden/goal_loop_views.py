@@ -8,6 +8,7 @@ from .json_schema_registry import json_schema
 from .project_handoff import ProjectHandoff
 
 PROMPT_ROOT = Path(__file__).resolve().parents[1] / ".pi" / "prompts"
+CUSTOM_NODES_PATH = Path(__file__).resolve().parents[1] / ".stagewarden" / "goal_loop_custom_nodes.json"
 
 
 def _read_prompt_template(name: str) -> str:
@@ -460,4 +461,77 @@ def render_goal_loop_status(report: dict[str, object]) -> str:
         lines.append("  (no goal loop nodes recorded yet)")
     lines.append("")
     lines.append(f"Total goal loop actions: {report.get('total_goal_loop_actions', 0)}")
+    return "\n".join(lines)
+
+
+def load_custom_nodes() -> list[dict[str, Any]]:
+    """Load custom node definitions from .stagewarden/goal_loop_custom_nodes.json"""
+    try:
+        import json
+        data = json.loads(CUSTOM_NODES_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return data
+        return []
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def save_custom_nodes(nodes: list[dict[str, Any]]) -> None:
+    """Save custom node definitions to .stagewarden/goal_loop_custom_nodes.json"""
+    import json
+    CUSTOM_NODES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CUSTOM_NODES_PATH.write_text(
+        json.dumps(nodes, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def register_custom_node(name: str, skill_path: str, purpose: str = "") -> dict[str, object]:
+    """Register a custom goal loop node from an extension skill."""
+    nodes = load_custom_nodes()
+    # Check for duplicate
+    for n in nodes:
+        if n.get("node_id") == name or n.get("node_id") == f"custom.{name}":
+            return {"ok": False, "error": f"Node '{name}' already registered."}
+    # Read skill file to validate it exists
+    skill_file = Path(skill_path).resolve()
+    if not skill_file.exists():
+        return {"ok": False, "error": f"Skill file not found: {skill_path}"}
+    # Read first line for description
+    content = skill_file.read_text(encoding="utf-8").strip()
+    if not content:
+        return {"ok": False, "error": f"Skill file is empty: {skill_path}"}
+    node = {
+        "node_id": f"custom.{name}",
+        "purpose": purpose or f"Custom node: {name}",
+        "template": "custom",
+        "skill_path": str(skill_file.relative_to(Path.cwd()) if skill_file.is_relative_to(Path.cwd()) else skill_file),
+        "dependencies": [],
+        "tests": ["Custom node completes without error."],
+        "tolerances": {},
+        "escalation_rule": "Escalate on any error.",
+        "inputs": ["task"],
+        "outputs": ["summary", "messages"],
+        "acceptance_criteria": ["Node runs and returns a summary."],
+    }
+    nodes.append(node)
+    save_custom_nodes(nodes)
+    return {
+        "ok": True,
+        "node_id": node["node_id"],
+        "message": f"Custom node '{name}' registered from {skill_path}.",
+        "node": node,
+    }
+
+
+def render_custom_nodes_report(nodes: list[dict[str, Any]]) -> str:
+    """Render custom node list."""
+    if not nodes:
+        return "No custom goal loop nodes registered."
+    lines = ["Custom goal loop nodes:"]
+    for n in nodes:
+        lines.append(f"- {n.get('node_id')}: {n.get('purpose', '')}")
+        skill = n.get("skill_path", "")
+        if skill:
+            lines.append(f"  skill: {skill}")
     return "\n".join(lines)

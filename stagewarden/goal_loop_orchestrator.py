@@ -168,6 +168,36 @@ class GoalLoopOrchestrator:
                 dependencies=child.get("dependencies", []),
                 max_retries=default_retries,
             )
+        # Load custom nodes from .stagewarden/goal_loop_custom_nodes.json
+        from .goal_loop_views import load_custom_nodes
+        for cn in load_custom_nodes():
+            nid = cn["node_id"]
+            if nid in self.nodes:
+                continue
+            # Build prompt from skill file content
+            skill_path = cn.get("skill_path", "")
+            prompt_text = f"# Custom Node: {nid}\n\n"
+            if skill_path:
+                skill_file = Path(skill_path).resolve()
+                if skill_file.exists():
+                    prompt_text += skill_file.read_text(encoding="utf-8")
+                else:
+                    prompt_text += f"(skill file not found: {skill_path})"
+            prompt_text += f"\n\nTask: {self.task}\nNode: {nid}\nPurpose: {cn.get('purpose', '')}"
+            self.nodes[nid] = NodeState(
+                node_id=nid,
+                purpose=cn.get("purpose", f"Custom node: {nid}"),
+                prompt_template_name=cn.get("template", "custom"),
+                prompt=prompt_text,
+                inputs=cn.get("inputs", []),
+                outputs=cn.get("outputs", []),
+                acceptance_criteria=cn.get("acceptance_criteria", []),
+                tests=cn.get("tests", []),
+                tolerances={str(k): str(v) for k, v in cn.get("tolerances", {}).items() if isinstance(v, (str, int, float))},
+                escalation_rule=cn.get("escalation_rule", ""),
+                dependencies=cn.get("dependencies", []),
+                max_retries=default_retries,
+            )
 
     def _generate_node_prompt(self, child: dict[str, Any]) -> str:
         template = _read_prompt_template(child.get("template", ""))
