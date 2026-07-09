@@ -402,9 +402,26 @@ def render_goal_loop_report(report: dict[str, object]) -> str:
 def goal_loop_status_report(config: AgentConfig) -> dict[str, object]:
     """Report current goal-loop execution state from handoff."""
     handoff = ProjectHandoff.load(config.handoff_path)
+    # Prefer persisted context if available
+    ctx = handoff.goal_loop_context if isinstance(handoff.goal_loop_context, dict) else {}
+    if ctx and ctx.get("node_statuses"):
+        node_statuses = {str(k): str(v) for k, v in ctx.get("node_statuses", {}).items()}
+        running = any(s == "running" for s in node_statuses.values())
+        completed = all(s == "completed" for s in node_statuses.values()) if node_statuses else False
+        return {
+            "command": "goal loop status",
+            "schema": json_schema("goal loop"),
+            "running": running,
+            "completed": completed,
+            "latest_phase": "goal_loop_end" if completed else "goal_loop_running" if running else "goal_loop_idle",
+            "latest_summary": f"{sum(1 for s in node_statuses.values() if s == 'completed')}/{len(node_statuses)} nodes completed",
+            "node_statuses": node_statuses,
+            "total_goal_loop_actions": len(ctx.get("node_details", {})),
+            "current_iteration": ctx.get("current_iteration", 0),
+            "source": "persisted_context",
+        }
+    # Fallback: scan handoff entries
     entries = [e for e in handoff.entries if e.phase.startswith("goal_loop_")]
-    latest_goal_loop_entries = entries[-10:] if entries else []
-    # Build node status summary from entries
     node_statuses: dict[str, str] = {}
     for entry in entries:
         details = entry.details if isinstance(entry.details, dict) else {}
@@ -412,15 +429,18 @@ def goal_loop_status_report(config: AgentConfig) -> dict[str, object]:
         status = details.get("status", "")
         if node_id and status:
             node_statuses[node_id] = status
+    running = any(e.phase == "goal_loop_start" for e in entries) and not any(e.phase == "goal_loop_end" for e in entries)
+    completed = any(e.phase == "goal_loop_end" for e in entries)
     return {
         "command": "goal loop status",
         "schema": json_schema("goal loop"),
-        "running": any(e.phase == "goal_loop_start" for e in entries) and not any(e.phase == "goal_loop_end" for e in entries),
-        "completed": any(e.phase == "goal_loop_end" for e in entries),
+        "running": running,
+        "completed": completed,
         "latest_phase": entries[-1].phase if entries else "idle",
         "latest_summary": entries[-1].summary if entries else "",
         "node_statuses": node_statuses,
         "total_goal_loop_actions": len(entries),
+        "source": "handoff_scan",
     }
 
 

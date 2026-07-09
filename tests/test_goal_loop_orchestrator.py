@@ -133,6 +133,64 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         outcome, reason = check_tolerance_violation({}, {})
         self.assertEqual(outcome, "ok")
 
+    def test_pi_execution_via_mocked_subprocess(self) -> None:
+        """Full _pi_execution flow with mocked subprocess and shutil."""
+        import subprocess as _sp
+        import shutil as _sh
+        from unittest.mock import patch, PropertyMock
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+
+        mock_json = json.dumps({
+            "summary": "Node completed via pi mock.",
+            "messages": [{"FROM": "x", "TO": "y", "TYPE": "status",
+                           "SUMMARY": "done", "PRIORITY": "low",
+                           "TOLERANCE IMPACT": "none"}],
+        })
+        mock_process = _sp.CompletedProcess(
+            args=["pi", "--print", "--no-tools", "--no-session", "@test.md"],
+            returncode=0,
+            stdout=mock_json,
+            stderr="",
+        )
+
+        with patch('stagewarden.goal_loop_orchestrator.shutil.which',
+                   return_value="/usr/local/bin/pi"), \
+             patch('stagewarden.goal_loop_orchestrator.subprocess.run',
+                   return_value=mock_process):
+            config = AgentConfig(workspace_root=self.tmp_dir)
+            orch = GO(config, "test task", execution_mode="pi")
+            result = orch.run_loop()
+            self.assertEqual(result["final_status"], "completed")
+            # Check that first node completed via pi
+            first_node = list(result["node_details"].keys())[0]
+            self.assertEqual(result["node_details"][first_node]["status"],
+                             "completed")
+
+    def test_pi_execution_handles_nonzero_returncode(self) -> None:
+        """_pi_execution returns error on non-zero pi exit."""
+        import subprocess as _sp
+        from unittest.mock import patch
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+
+        mock_process = _sp.CompletedProcess(
+            args=["pi", "--print", "--no-tools", "--no-session", "@test.md"],
+            returncode=1,
+            stdout="",
+            stderr="Error: something went wrong",
+        )
+
+        with patch('stagewarden.goal_loop_orchestrator.shutil.which',
+                   return_value="/usr/local/bin/pi"), \
+             patch('stagewarden.goal_loop_orchestrator.subprocess.run',
+                   return_value=mock_process):
+            config = AgentConfig(workspace_root=self.tmp_dir)
+            orch = GO(config, "test task", execution_mode="pi")
+            result = orch.run_loop()
+            # With non-zero return code, nodes should block
+            first_node = list(result["node_details"].keys())[0]
+            self.assertIn(result["node_details"][first_node]["status"],
+                          ("blocked", "pending"))
+
 
 if __name__ == "__main__":
     unittest.main()

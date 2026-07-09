@@ -68,6 +68,7 @@ class ProjectHandoff:
     prince2_roles: dict[str, dict[str, Any]] = field(default_factory=dict)
     prince2_role_tree_baseline: dict[str, Any] = field(default_factory=dict)
     prince2_node_runtime: dict[str, Any] = field(default_factory=dict)
+    goal_loop_context: dict[str, Any] = field(default_factory=dict)
     updated_at: str = field(default_factory=utc_now)
     entries: list[HandoffEntry] = field(default_factory=list)
 
