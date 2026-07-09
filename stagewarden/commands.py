@@ -85,6 +85,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("goal clear", "core", "Clear the persisted project goal.", "goal clear", json=True, handler="status"),
     CommandSpec("goal loop", "core", "Build the hierarchical goal-loop blueprint and validation plan.", "goal loop <task>", json=True, handler="status"),
     CommandSpec("goal loop run", "core", "Execute the goal loop across its nodes.", "goal loop run <task>", json=True, handler="status"),
+    CommandSpec("goal loop status", "core", "Show goal-loop execution state from handoff.", "goal loop status", json=True, handler="status"),
     CommandSpec("budget", "core", "Show the persisted project budget and current spend.", "budget [--json]", json=True, handler="status"),
     CommandSpec("budget set", "core", "Set the project budget in currency units.", "budget set <amount> [currency]", json=True, handler="status"),
     CommandSpec("budget status", "core", "Update the project budget lifecycle status.", "budget status <active|paused|budget_limited|complete>", json=True, handler="status"),
@@ -370,8 +371,10 @@ HELP_TOPICS: tuple[HelpTopic, ...] = (
         extra_lines=(
             "- goal loop <task>",
             "- goal loop run <task>",
+            "- goal loop status",
             "- /goal loop <task>",
             "- /goal loop run <task>",
+            "- /goal loop status",
             "- Use scope summary, node graph, child prompts, tolerance matrix, exception policy, and validation plan.",
             "- Node messages must be structured and reversible decisions must be explicit.",
             "- Wet-run evidence is required whenever the environment allows it.",

@@ -629,12 +629,19 @@ def run_cli() -> int:
         return 0
     if task == "goal" or task.startswith("goal "):
         if task.startswith("goal loop run"):
-            orchestrator = _goal_loop_orchestrator.GoalLoopOrchestrator(config, task=task)
+            orchestrator = _goal_loop_orchestrator.GoalLoopOrchestrator(config, task=task, json_mode=args.json)
             report = orchestrator.run_loop()
             if args.json:
                 print(dumps_ascii(_json_schema_registry.with_json_schema("goal loop run", report), indent=2))
             else:
                 print(_goal_loop_orchestrator.render_goal_loop_execution_report(report))
+            return 0
+        if task == "goal loop status" or task.startswith("goal loop status "):
+            report = _goal_loop_views.goal_loop_status_report(config)
+            if args.json:
+                print(dumps_ascii(_json_schema_registry.with_json_schema("goal loop", report), indent=2))
+            else:
+                print(_goal_loop_views.render_goal_loop_status(report))
             return 0
         if task.startswith("goal loop"):
             report = _goal_loop_views.build_goal_loop_report(config, task)

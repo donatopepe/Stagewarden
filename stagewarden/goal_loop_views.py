@@ -397,3 +397,47 @@ def render_goal_loop_report(report: dict[str, object]) -> str:
         for key, value in final_report.items():
             lines.append(f"- {key}: {value}")
     return "\n".join(lines)
+
+
+def goal_loop_status_report(config: AgentConfig) -> dict[str, object]:
+    """Report current goal-loop execution state from handoff."""
+    handoff = ProjectHandoff.load(config.handoff_path)
+    entries = [e for e in handoff.entries if e.phase.startswith("goal_loop_")]
+    latest_goal_loop_entries = entries[-10:] if entries else []
+    # Build node status summary from entries
+    node_statuses: dict[str, str] = {}
+    for entry in entries:
+        details = entry.details if isinstance(entry.details, dict) else {}
+        node_id = details.get("node_id", "")
+        status = details.get("status", "")
+        if node_id and status:
+            node_statuses[node_id] = status
+    return {
+        "command": "goal loop status",
+        "schema": json_schema("goal loop"),
+        "running": any(e.phase == "goal_loop_start" for e in entries) and not any(e.phase == "goal_loop_end" for e in entries),
+        "completed": any(e.phase == "goal_loop_end" for e in entries),
+        "latest_phase": entries[-1].phase if entries else "idle",
+        "latest_summary": entries[-1].summary if entries else "",
+        "node_statuses": node_statuses,
+        "total_goal_loop_actions": len(entries),
+    }
+
+
+def render_goal_loop_status(report: dict[str, object]) -> str:
+    lines = ["Goal loop status:"]
+    lines.append(f"- running: {report.get('running', False)}")
+    lines.append(f"- completed: {report.get('completed', False)}")
+    lines.append(f"- latest_phase: {report.get('latest_phase', 'idle')}")
+    lines.append(f"- latest_summary: {report.get('latest_summary', '')}")
+    lines.append("")
+    lines.append("Node statuses:")
+    node_statuses = report.get("node_statuses", {})
+    if isinstance(node_statuses, dict) and node_statuses:
+        for node_id, status in node_statuses.items():
+            lines.append(f"- {node_id}: {status}")
+    else:
+        lines.append("  (no goal loop nodes recorded yet)")
+    lines.append("")
+    lines.append(f"Total goal loop actions: {report.get('total_goal_loop_actions', 0)}")
+    return "\n".join(lines)
