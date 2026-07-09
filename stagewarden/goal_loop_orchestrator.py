@@ -172,6 +172,27 @@ class GoalLoopOrchestrator:
             ", ".join(f"{k}={v}" for k, v in raw_tols.items())
             if isinstance(raw_tols, dict) else str(raw_tols)
         )
+        json_format = '''
+
+IMPORTANT: You MUST respond with a JSON object (and ONLY a JSON object, no other text) with exactly these fields:
+{
+  "summary": "Brief summary of what this node accomplished",
+  "messages": [
+    {
+      "FROM": "<your_node_id>",
+      "TO": "<next_node_id>",
+      "TYPE": "status|dependency|conflict|decision|blocker|result",
+      "SUMMARY": "<1-2 sentence summary>",
+      "DETAILS": "<optional details>",
+      "ACTIONS REQUIRED": "<optional actions>",
+      "PRIORITY": "low|medium|high|critical",
+      "TOLERANCE IMPACT": "none|minor|moderate|severe"
+    }
+  ],
+  "output": "<any raw text output from your operations>",
+  "error": null
+}
+Do NOT include any text before or after the JSON object.'''
         return (
             f"{template}\n\n"
             f"Task: {self.task}\n\n"
@@ -181,6 +202,7 @@ class GoalLoopOrchestrator:
             f"Tests: {'; '.join(child.get('tests', []))}\n\n"
             f"Tolerances: {tolerances_flat}\n\n"
             f"Escalation: {child.get('escalation_rule', '')}"
+            f"{json_format}"
         )
 
     # ── dependency resolution ───────────────────────────────────────────────
@@ -387,10 +409,17 @@ class GoalLoopOrchestrator:
                     "error": f"pi exited with code {proc.returncode}: {stderr[:500]}",
                     "messages": []}
 
-        # Parse JSON from stdout
+        # Strip ANSI escape sequences before JSON parsing
         import re as _re
-        # Try 1: full stdout as JSON
-        for candidate in (stdout,):
+        # Remove ANSI CSI sequences: ESC [ ... m
+        ansi_clean = _re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', stdout)
+        # Remove ANSI OSC sequences: ESC ] ... BEL or ESC ] ... ST
+        ansi_clean = _re.sub(r'\x1b\][^\x07]*\x07', '', ansi_clean)
+        ansi_clean = _re.sub(r'\x1b\\', '', ansi_clean)
+        ansi_clean = ansi_clean.strip()
+
+        # Try 1: full cleaned output as JSON
+        for candidate in (ansi_clean,):
             try:
                 data = __import__("json").loads(candidate)
                 if isinstance(data, dict) and "summary" in data:
@@ -402,7 +431,22 @@ class GoalLoopOrchestrator:
                     }
             except (ValueError, TypeError):
                 pass
-        # Try 2: find JSON object via regex
+        # Try 2: find all JSON objects and use the last one
+        json_objects = _re.findall(r'\{[^{}]*"summary"[^{}]*\}', ansi_clean)
+        if json_objects:
+            last = json_objects[-1]
+            try:
+                data = __import__("json").loads(last)
+                if isinstance(data, dict):
+                    return {
+                        "ok": True,
+                        "summary": data.get("summary", ansi_clean[:200]),
+                        "messages": data.get("messages", []),
+                        "output": data.get("output", ansi_clean),
+                    }
+            except (ValueError, TypeError):
+                pass
+        # Try 3: find JSON object via regex
         match = _re.search(r'\{.*\}', stdout, _re.DOTALL)
         if match:
             try:
