@@ -1,1806 +1,41 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "prince2-coding-agent-evolution",
-  "goal": {},
+  "task": "multi-node-goal-loop-orchestration",
+  "goal": {
+    "summary": "Multi-node goal loop with blueprint, parallel execution, autonomy gates, tolerance checks, structured messaging, pi benchmark.",
+    "status": "complete"
+  },
   "project_budget": {},
-  "user_question": {
-    "question_id": "question-1",
-    "question": "What is the objective of this project?",
-    "reason": "clarification",
-    "context": {
-      "source": "project start",
-      "gap_code": "missing_project_objective",
-      "design_gaps": [
-        {
-          "code": "missing_project_objective",
-          "message": "Project brief is missing the objective field."
-        },
-        {
-          "code": "missing_project_scope",
-          "message": "Project brief is missing the scope field."
-        },
-        {
-          "code": "missing_expected_outputs",
-          "message": "Project brief is missing the expected_outputs field."
-        },
-        {
-          "code": "missing_delivery_mode",
-          "message": "Project brief is missing the delivery_mode field."
-        },
-        {
-          "code": "no_enabled_providers",
-          "message": "No enabled providers are available for AI-assisted design."
-        }
-      ],
-      "proposal_gaps": [
-        {
-          "code": "missing_objective",
-          "message": "Project brief is missing objective."
-        },
-        {
-          "code": "missing_scope",
-          "message": "Project brief is missing scope."
-        },
-        {
-          "code": "missing_expected_outputs",
-          "message": "Project brief is missing expected_outputs."
-        },
-        {
-          "code": "missing_delivery_mode",
-          "message": "Project brief is missing delivery_mode."
-        }
-      ]
-    },
-    "status": "pending",
-    "asked_at": "2026-05-11T05:37:18+00:00",
-    "answered_at": null,
-    "answer": null
-  },
-  "user_question_log": [
-    {
-      "question_id": "question-1",
-      "question": "What is the objective of this project?",
-      "reason": "clarification",
-      "context": {
-        "source": "project start",
-        "gap_code": "missing_project_objective",
-        "design_gaps": [
-          {
-            "code": "missing_project_objective",
-            "message": "Project brief is missing the objective field."
-          },
-          {
-            "code": "missing_project_scope",
-            "message": "Project brief is missing the scope field."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing the expected_outputs field."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing the delivery_mode field."
-          },
-          {
-            "code": "no_enabled_providers",
-            "message": "No enabled providers are available for AI-assisted design."
-          }
-        ],
-        "proposal_gaps": [
-          {
-            "code": "missing_objective",
-            "message": "Project brief is missing objective."
-          },
-          {
-            "code": "missing_scope",
-            "message": "Project brief is missing scope."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing expected_outputs."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing delivery_mode."
-          }
-        ]
-      },
-      "status": "pending",
-      "asked_at": "2026-05-11T05:37:18+00:00",
-      "answered_at": null,
-      "answer": null
-    }
-  ],
-  "project_brief": {
-    "objective": "Evolve Stagewarden into a stronger PRINCE2-oriented agent for designing and writing code.",
-    "scope": "First tranche: executor prompt-level product delivery controls for coding work packages.",
-    "expected_outputs": "Coding steps carry explicit product focus, acceptance criteria, TDD/wet-run evidence, scope control, and exception escalation guidance.",
-    "delivery_mode": "iterative TDD with wet-run validation"
-  },
-  "status": "active",
+  "user_question": {},
+  "user_question_log": [],
+  "project_brief": {},
+  "status": "complete",
   "waiting_reason": "",
-  "current_step_id": "stagewarden-evolution-roadmap",
-  "current_step_title": "Research and document Stagewarden evolution roadmap",
-  "current_step_status": "documented",
-  "latest_observation": "ROADMAP.md created and committed in local current HEAD; focused policy/schema validation passed (6 OK). Push to origin is blocked by GitHub HTTPS credential prompt/keychain in this non-interactive session; branch is ahead by 1.",
-  "plan_status": "ambiguous-brief-clarification:validated,project-brief-ambiguous-guidance:validated,stale-baseline-on-brief-change:validated,stale-baseline-execution-gates:validated,stale-baseline-supervision-views:validated,noncoding-report-plan-evidence-gates:validated",
-  "git_head": "current HEAD after roadmap commit",
-  "git_head_baseline": "a38597f",
-  "risk_register": [
-    {
-      "risk": "Requirement misunderstanding.",
-      "status": "open",
-      "recorded_at": "2026-04-29T07:19:12+00:00"
-    },
-    {
-      "risk": "Regression from file, command, or patch execution.",
-      "status": "open",
-      "recorded_at": "2026-04-29T07:19:12+00:00"
-    },
-    {
-      "risk": "Continuing after business justification has weakened.",
-      "status": "open",
-      "recorded_at": "2026-04-29T07:19:12+00:00"
-    },
-    {
-      "risk": "Evidence enforcement may need broader non-coding product-proof coverage.",
-      "status": "open",
-      "recorded_at": "2026-05-30T00:00:00Z"
-    }
-  ],
-  "issue_register": [
-    {
-      "issue": "full_discovery_missing_openrouter_key",
-      "status": "closed",
-      "severity": "medium",
-      "recorded_at": "2026-05-30T13:45:19Z",
-      "description": "Resolved for validation by explicitly sourcing ~/.hermes/.env before running full unittest discovery; latest full suite passed 445 OK in 1167.000s."
-    },
-    {
-      "issue": "github_push_auth_blocked",
-      "status": "open",
-      "severity": "medium",
-      "recorded_at": "2026-06-03T18:50:36Z",
-      "description": "git push origin main timed out in git credential-osxkeychain; GIT_TERMINAL_PROMPT=0 with helper disabled returned fatal could not read Username for https://github.com. Local roadmap commit is ready and main is ahead of origin by 1."
-    }
-  ],
+  "current_step_id": null,
+  "current_step_title": null,
+  "current_step_status": null,
+  "latest_observation": "",
+  "plan_status": "",
+  "git_head": null,
+  "git_head_baseline": null,
+  "risk_register": [],
+  "issue_register": [],
   "quality_register": [],
   "lessons_log": [],
-  "exception_plan": [
-    "review boundary for unknown-step",
-    "inspect latest issue register and failed observations",
-    "prepare controlled corrective action with wet-run validation"
-  ],
-  "implementation_backlog": [
-    {
-      "step_id": "step-1",
-      "title": "1. Inspect the codebase or workspace relevant",
-      "status": "planned",
-      "validation": "The agent can state concrete findings and, where possible, verify them with a real command."
-    },
-    {
-      "step_id": "step-2",
-      "title": "2. Implement the requested changes",
-      "status": "planned",
-      "validation": "The target files or behavior exist and a real wet-run verifies the change."
-    },
-    {
-      "step_id": "step-3",
-      "title": "3. Validate the result with a direct",
-      "status": "planned",
-      "validation": "A real wet-run command or observable result confirms the step passed; dry-run alone is not valid."
-    },
-    {
-      "step_id": "agent-refactor-slice",
-      "title": "Refactor agent/main/command dispatch into smaller modules",
-      "status": "in_progress",
-      "validation": "The dispatch and tool wiring are split into smaller modules without changing observed CLI behavior, and the focused tests still pass."
-    }
-  ],
+  "exception_plan": [],
+  "implementation_backlog": [],
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-06-03T18:50:36Z",
+  "updated_at": "2026-07-09T12:02:23+00:00",
   "entries": [
     {
-      "timestamp": "2026-05-31T13:05:20Z",
-      "phase": "finish",
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_start",
       "iteration": 0,
-      "task": "noncoding-report-plan-evidence-gates",
-      "summary": "Concrete research/report/plan file artifact completions now require prior same-step non-model tool evidence, with generic planning/review guarded from false positives; full discovery passed.",
-      "step_id": "noncoding-report-plan-evidence-gates",
-      "step_title": "Gate research/report/plan file artifact completions on tool evidence",
-      "step_status": "validated",
-      "model": null,
-      "action_type": null,
-      "git_head": "uncommitted-noncoding-report-plan-evidence-gates",
-      "details": {
-        "validation": "RED: research report file and implementation plan file completions without prior tool evidence were accepted. GREEN: focused 4-test evidence batch passed; executor/planner/agent-integration regression passed with env sourced (74 OK); full discovery passed with explicit Hermes env sourcing: set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q -> 449 tests OK in 1136.235s."
-      }
-    },
-    {
-      "timestamp": "2026-05-31T12:51:16Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "stale-baseline-supervision-views",
-      "summary": "Supervision-only role views stay readable on stale approved project-tree baselines but expose stale-baseline warning/context in text and JSON.",
-      "step_id": "stale-baseline-supervision-views",
-      "step_title": "Annotate supervision-only views when project-tree baseline is stale",
-      "step_status": "validated",
-      "model": null,
-      "action_type": null,
-      "git_head": "current-head-after-stale-baseline-supervision-view-commit",
-      "details": {
-        "validation": "RED: test_stale_project_tree_baseline_marks_supervision_views_without_blocking_them failed because roles active lacked stale baseline warning. GREEN: focused test passed; 6-test runtime/supervision/persistence regression passed; full discovery passed with explicit Hermes env sourcing: 445 tests OK, 1167.000s."
-      }
-    },
-    {
-      "timestamp": "2026-05-31T11:03:14Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "stale-baseline-execution-gates",
-      "summary": "Runtime/start execution paths now block stale approved project-tree baselines: roles runtime, roles tick, role tick, and project start return blocked_stale_baseline with changed fields and rerun proposal/review/approval action.",
-      "step_id": "stale-baseline-execution-gates",
-      "step_title": "Block runtime/start execution from stale project-tree baselines",
-      "step_status": "validated",
-      "model": null,
-      "action_type": null,
-      "git_head": "current-head-after-stale-baseline-execution-gate-commit",
-      "details": {
-        "validation": "RED: test_stale_project_tree_baseline_blocks_runtime_and_tick_execution failed because roles runtime returned 0 against stale baseline and project start returned generic blocked. GREEN: focused test passed; py_compile plus 6 runtime/start/baseline tests passed; broader 29-test project-start/runtime/PRINCE2/persistence regression passed; full discovery passed with explicit Hermes env sourcing: 444 tests OK, skipped=1, 1129.903s."
-      }
-    },
-    {
-      "timestamp": "2026-05-31T09:08:33Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "stale-baseline-on-brief-change",
-      "summary": "Approved project-tree/role-tree baselines are now marked stale when project brief set/clear changes the approved proposal brief; roles baseline text/JSON exposes changed fields and reapproval action.",
-      "step_id": "stale-baseline-on-brief-change",
-      "step_title": "Mark approved project-tree baselines stale when project brief changes",
-      "step_status": "validated",
-      "model": null,
-      "action_type": null,
-      "git_head": "dc71969",
-      "details": {
-        "validation": "RED: test_project_brief_change_marks_approved_project_tree_baseline_stale failed because changed approved scope did not stale the baseline; RED: test_project_brief_clear_marks_approved_project_tree_baseline_stale failed because clearing delivery_mode did not stale the baseline. GREEN: both focused tests passed; py_compile plus 4 project-tree/baseline tests passed; broader brief/start/tree/persistence/PRINCE2 regression passed (30 OK)."
-      }
-    },
-    {
-      "timestamp": "2026-05-31T05:53:26Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "project-brief-ambiguous-guidance",
-      "summary": "Project brief guidance now prioritizes ambiguous placeholder values over later missing fields and exposes ambiguous_gaps/next_missing_gap in JSON.",
-      "step_id": "project-brief-ambiguous-guidance",
-      "step_title": "Surface ambiguous project brief values before missing-field guidance",
-      "step_status": "validated",
-      "model": null,
-      "action_type": null,
-      "git_head": "c3b0645",
-      "details": {
-        "validation": "RED: python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_brief_set_reports_ambiguous_field_before_missing_fields -v failed because project brief guidance skipped ambiguous objective=TBD and pointed to missing scope; GREEN: focused ambiguous guidance test passed; py_compile plus 4 brief/start/design tests passed; 5 project-tree approval/proposal regressions passed."
-      }
-    },
-    {
-      "timestamp": "2026-05-30T20:12:25Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "ambiguous-brief-clarification",
-      "summary": "Validated ambiguous-brief clarification slice with full unittest discovery after explicitly sourcing Hermes env; full suite passed 440 tests.",
-      "step_id": "ambiguous-brief-clarification",
-      "step_title": "Block project startup/planning on ambiguous brief placeholder values",
-      "step_status": "validated",
-      "model": null,
-      "action_type": null,
-      "git_head": "ac993c6",
-      "details": {
-        "validation": "set -a; . ~/.hermes/.env; set +a; python3.11 -m unittest discover -s tests -q -> Ran 440 tests in 1064.353s, OK"
-      }
-    },
-    {
-      "timestamp": "2026-05-30T13:16:35Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "agent-refactor-slice",
-      "summary": "Patched test subprocess helpers to use sys.executable (instead of python3) to avoid Python 3.9 fallback failures; validated with focused RAG and trace CLI tests.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "waiting",
-      "model": null,
-      "action_type": null,
-      "git_head": "4ff0624",
-      "details": {
-        "validation": "python3.11 -m unittest tests.test_rag -v; python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_overview_and_board_commands -v; python3.11 -m unittest tests.test_trace_cli.TraceAndCliTests.test_openrouter_benchmark_cli_reports_multi_suite_baseline -v (skipped: API key required)"
-      }
-    },
-    {
-      "timestamp": "2026-05-21T01:00:00Z",
-      "phase": "finish",
-      "iteration": 38,
-      "task": "agent-refactor-slice",
-      "summary": "Fixed NameError in auth.py, removed dead SUPPORTED_MODELS, extracted 6 duplicated literal groups to module-level constants across 7 files.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_memory tests.test_executor tests.test_agent_integration -v"
-      }
-    },
-    {
-      "timestamp": "2026-05-21T00:00:00Z",
-      "phase": "finish",
-      "iteration": 37,
-      "task": "agent-refactor-slice",
-      "summary": "Fixed critical dict indentation bug in memory.py model_usage_stats() early return. Removed unused subprocess import from status_dashboard_views.py, unused shutil import from model_inspection_views.py, and dead _catalog_entry_for_provider_spec from model_catalog.py.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_memory -v"
-      }
-    },
-    {
-      "timestamp": "2026-05-19T02:30:00Z",
-      "phase": "finish",
-      "iteration": 36,
-      "task": "agent-refactor-slice",
-      "summary": "Eliminated globals().update(main_module.__dict__) from shell_views.py, moved INTERACTIVE_COMMAND_PHRASES to shell_views.py, moved BASELINE_CAPABILITY_GROUPS to status_dashboard_views.py, updated all callers to direct imports, and updated test_trace_cli.py imports.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_preflight_reports_windows_shell_readiness_warning tests.test_trace_cli.TraceAndCliTests.test_auth_status_chatgpt_uses_codex_without_token_output tests.test_trace_cli.TraceAndCliTests.test_auth_status_claude_uses_json_status_without_token_output tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_status_full_cli_renders_remediations tests.test_trace_cli.TraceAndCliTests.test_project_tree_propose_builds_proportional_review_proposal_from_brief tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_model_list_shows_provider_model_reasoning_catalog tests.test_trace_cli.TraceAndCliTests.test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis tests.test_executor.ExecutorTests.test_executor_runs_devil_advocate_review_before_accepting_response tests.test_agent_integration.AgentIntegrationTests.test_agent_closes_recovery_gate_after_recovery_lane_wet_run"
-      }
-    },
-    {
-      "timestamp": "2026-05-22T05:48:01+00:00",
-      "phase": "",
-      "iteration": 0,
-      "task": "agent-refactor-slice",
-      "summary": "Moved sources/update routing to stagewarden.status_views and removed the corresponding main.py report bridges.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_reports_external_reference_metadata tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable"
-      }
-    },
-    {
-      "timestamp": "2026-05-19T01:15:00Z",
-      "phase": "finish",
-      "iteration": 34,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the remaining guided role wrappers from stagewarden.main and repointed role CLI call sites to stagewarden.project.role_flow.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_expand_workspace_paths tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_for_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_can_select_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_slash_palette tests.test_trace_cli.TraceAndCliTests.test_interactive_slash_choose_returns_selected_command_without_execution tests.test_trace_cli.TraceAndCliTests.test_cli_slash_choose_renders_candidates_and_json; python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_tree_renders_color_legend_and_shell_hint tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_shell_navigates_between_nodes"
-      }
-    },
-    {
-      "timestamp": "2026-05-19T00:45:00Z",
-      "phase": "finish",
-      "iteration": 33,
-      "task": "agent-refactor-slice",
-      "summary": "Repointed prompt selection and role-tree CLI paths to owner modules and removed the remaining prompt bridge from stagewarden.main.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_core_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_expand_workspace_paths tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_for_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_model_choice_can_select_provider tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_slash_palette tests.test_trace_cli.TraceAndCliTests.test_interactive_slash_choose_returns_selected_command_without_execution tests.test_trace_cli.TraceAndCliTests.test_cli_slash_choose_renders_candidates_and_json; python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_roles_tree_approve_persists_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_role_add_child_and_assign_updates_role_tree_baseline tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_role_node_add_child_and_assign tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_tree_renders_color_legend_and_shell_hint tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_role_shell_navigates_between_nodes"
-      }
-    },
-    {
-      "timestamp": "2026-05-19T00:00:00Z",
-      "phase": "finish",
-      "iteration": 32,
-      "task": "agent-refactor-slice",
-      "summary": "Adjusted the test success stub to emit stronger validation evidence so the recovery-gate integration test passes again.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_closes_recovery_gate_after_recovery_lane_wet_run"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T07:00:00Z",
-      "phase": "finish",
-      "iteration": 31,
-      "task": "agent-refactor-slice",
-      "summary": "Added the retrospettiva-prospettica control rule alongside devil's advocate in executor, PRINCE2, and runtime guidance, and updated the relevant prompt mocks/tests.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_runs_devil_advocate_review_before_accepting_response tests.test_executor.ExecutorTests.test_executor_blocks_when_devil_advocate_output_is_invalid tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_permissions_cli_json_output_is_machine_readable"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T06:30:00Z",
-      "phase": "finish",
-      "iteration": 30,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the _handle_mode_command bridge from stagewarden/main.py and moved shell mode routing directly to stagewarden.mode_views.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_permissions_cli_json_output_is_machine_readable"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T06:00:00Z",
-      "phase": "finish",
-      "iteration": 29,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the _refresh_runtime_permissions bridge from stagewarden/main.py and moved permission refresh callers in command/mode views directly to agent_setup_views.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_permissions_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T05:30:00Z",
-      "phase": "finish",
-      "iteration": 28,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the last model_status bridge from stagewarden/main.py and moved the pricing test patch target to stagewarden.status_views.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_status_pricing_report_exposes_pricing_source tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_model_usage_and_cost_alias tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T05:00:00Z",
-      "phase": "finish",
-      "iteration": 27,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the readonly agent setup bridge from stagewarden/main.py and moved CLI project-start setup calls directly to agent_setup_views.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_project_start_approves_ready_project_tree_proposal tests.test_trace_cli.TraceAndCliTests.test_project_start_blocks_when_design_or_brief_has_gaps tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T04:30:00Z",
-      "phase": "finish",
-      "iteration": 26,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the sources/update handler bridge wrappers from stagewarden/main.py and moved CLI/shell sources/update handling to status_views directly.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T04:00:00Z",
-      "phase": "finish",
-      "iteration": 25,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the extension report/handler bridge wrappers from stagewarden/main.py and moved extension handling to extension_views directly from CLI and shell paths.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_interactive_help_overview_uses_topic_catalog"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T03:30:00Z",
-      "phase": "finish",
-      "iteration": 24,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the help/slash palette bridge wrappers from stagewarden/main.py, moved shell/CLI help and slash rendering to ui_views directly, and kept the focused help/slash tests green.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_interactive_help_overview_uses_topic_catalog tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_completion_candidates_include_contextual_provider_role_and_backend_values"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T03:00:00Z",
-      "phase": "finish",
-      "iteration": 23,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the provider_limit_summary bridge from stagewarden/main.py, moved the dashboard to status_views directly, and verified the status/report/limit regressions after the fix.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_status_full_cli_renders_remediations tests.test_trace_cli.TraceAndCliTests.test_status_full_cli_json_exposes_dashboard_sections tests.test_trace_cli.TraceAndCliTests.test_model_limits_cli_json_outputs_persisted_snapshots tests.test_trace_cli.TraceAndCliTests.test_account_limit_record_cli_persists_sanitized_snapshot"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T02:30:00Z",
-      "phase": "finish",
-      "iteration": 22,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the pure boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges, moved cli_dispatch to the owner modules directly, and fixed model/account limit snapshot persistence to use model_prefs_path.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_actions_renders_action_entries_and_json tests.test_model_limits_cli_json_outputs_persisted_snapshots tests.test_trace_cli.TraceAndCliTests.test_model_limit_record_cli_persists_sanitized_snapshot tests.test_trace_cli.TraceAndCliTests.test_account_limit_record_cli_persists_sanitized_snapshot tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_handoff_export_cli_json_output_is_machine_readable"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T02:00:00Z",
-      "phase": "finish",
-      "iteration": 21,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the pure boundary/board/risks/issues/quality/exception/lessons/todo/handoff-actions report bridges from stagewarden/main.py and moved cli_dispatch to the owner modules directly.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_boundary_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_cli_json_output_is_machine_readable tests.test_trace_cli.TraceAndCliTests.test_handoff_actions_renders_action_entries_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_commands_catalog_cli_and_json tests.test_trace_cli.TraceAndCliTests.test_interactive_help_topics_use_registry_metadata_and_aliases tests.test_trace_cli.TraceAndCliTests.test_handoff_export_cli_json_output_is_machine_readable"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T01:30:00Z",
-      "phase": "finish",
-      "iteration": 20,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the pure sources/update render wrappers from stagewarden/main.py, then restored the small handler/report bridges still used by cli_dispatch and shell_views after validation.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_sources_status_strict_and_update_fast_forward tests.test_trace_cli.TraceAndCliTests.test_update_status_check_and_apply_fast_forward tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_renders_cost_sidebar_with_business_case_totals tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T01:00:00Z",
-      "phase": "finish",
-      "iteration": 19,
-      "task": "agent-refactor-slice",
-      "summary": "Moved agent setup, auth status, account rendering, and catalog/model helper call sites onto their owning modules and removed the matching stagewarden/main.py bridges.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_guided_account_choice tests.test_trace_cli.TraceAndCliTests.test_auth_status_chatgpt_uses_codex_without_token_output tests.test_trace_cli.TraceAndCliTests.test_model_list_shows_provider_model_reasoning_catalog tests.test_trace_cli.TraceAndCliTests.test_interactive_help_overview_uses_topic_catalog tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_logs_in_account_and_saves_token tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_logs_in_chatgpt_account_and_saves_session_token tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_logs_in_openai_account_with_device_code tests.test_trace_cli.TraceAndCliTests.test_battery_cli_runs_simulated_agent_scenarios"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T00:10:00Z",
-      "phase": "finish",
-      "iteration": 18,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the thin parser/help/model preset wrappers from stagewarden/main.py after confirming no remaining call sites.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_persists_provider_model_param"
-      }
-    },
-    {
-      "timestamp": "2026-05-18T00:00:00Z",
-      "phase": "finish",
-      "iteration": 17,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the provider-model inspection wrappers from stagewarden/main.py and moved the CLI render import to stagewarden.model_inspection_views.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "validation": "python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_model_inspect_local_uses_dynamic_catalog_and_ai_synthesis"
-      }
-    },
-    {
-      "timestamp": "2026-05-17T17:00:00Z",
-      "phase": "finish",
-      "iteration": 16,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the remaining readonly-agent setup call onto the owning module and fixed the resulting circular import with a lazy import in project_handoff_views.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-17T16:36:27Z",
-      "phase": "finish",
-      "iteration": 15,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the model inspection and cloud-priority selection path onto the owning modules and removed the matching stagewarden/main.py wrapper.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-17T05:28:26Z",
-      "phase": "finish",
-      "iteration": 14,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the status-remediation path onto stagewarden.status_dashboard_views and removed the matching stagewarden/main.py wrapper.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-17T05:01:04Z",
-      "phase": "finish",
-      "iteration": 13,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the resume-context and permissions rendering paths onto the owning modules and removed the matching stagewarden/main.py wrappers.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T21:45:10Z",
-      "phase": "finish",
-      "iteration": 12,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the board/transcript/log-error/report path onto the owning modules and fixed the status dashboard JSON dispatch.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T21:39:33Z",
-      "phase": "finish",
-      "iteration": 11,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the source-reference manifest and git helper logic into stagewarden/status_views.py and removed the matching stagewarden/main.py wrappers.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T21:30:28Z",
-      "phase": "finish",
-      "iteration": 10,
-      "task": "agent-refactor-slice",
-      "summary": "Restored the status/model compatibility seams in stagewarden/main.py and routed status pricing back through stagewarden.main._model_status_report so the existing test patch works.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T21:22:25Z",
-      "phase": "finish",
-      "iteration": 9,
-      "task": "agent-refactor-slice",
-      "summary": "Moved project/design_flow onto stagewarden/status_views.py for provider-limit reporting and restored the thin status wrappers in stagewarden/main.py for test compatibility.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T21:07:02Z",
-      "phase": "finish",
-      "iteration": 8,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the catalog-choice helpers into stagewarden/model_views.py and switched the roles baseline command path to stagewarden/project/role_tree_views.py directly.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T20:52:06Z",
-      "phase": "finish",
-      "iteration": 7,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the project design and local-execution discovery helpers off stagewarden/main.py and kept the project-tree/start regression batch green.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T20:26:22Z",
-      "phase": "finish",
-      "iteration": 6,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the project-tree proposal and approval bridges out of stagewarden/main.py, fixed the direct CLI callers, and aligned the generated assurance node name with the trace contract.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T20:11:43Z",
-      "phase": "finish",
-      "iteration": 5,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the remaining node model recommendation bridge out of stagewarden/main.py and into stagewarden/project/model_recommendation.py call sites.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T08:27:54Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "agent-refactor-slice",
-      "summary": "Moved the PRINCE2 roles summary report into stagewarden/project/role_views.py and kept main.py as a thin bridge for that slice.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T08:27:54Z",
-      "phase": "finish",
-      "iteration": 1,
-      "task": "agent-refactor-slice",
-      "summary": "Focused roles CLI paths execute again after the report move, but broader trace-cli assertions still fail on unrelated provider-selection and readiness expectations.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T08:27:54Z",
-      "phase": "finish",
-      "iteration": 2,
-      "task": "agent-refactor-slice",
-      "summary": "Validated the moved roles report with a direct `python3 -m stagewarden.main roles --json` smoke run.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T08:27:54Z",
-      "phase": "finish",
-      "iteration": 3,
-      "task": "agent-refactor-slice",
-      "summary": "Removed the interactive status shell-backend recursion and restored the provider-limit / last_attempt output expected by the focused CLI regression trio.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-16T08:27:54Z",
-      "phase": "finish",
-      "iteration": 4,
-      "task": "agent-refactor-slice",
-      "summary": "Moved goal dispatch back to project_state_views directly from cli_dispatch and removed the temporary main.py bridge.",
-      "step_id": "agent-refactor-slice",
-      "step_title": "Refactor agent/main/command dispatch into smaller modules",
-      "step_status": "in_progress",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-09T08:17:31Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "executor-action-verification",
-      "summary": "Validated post-action verification for file, shell, git-commit, and multi-file patch mutators on 2026-05-09.",
-      "step_id": "executor-action-verification",
-      "step_title": "Verify every mutating action after execution",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-09T06:14:26Z",
-      "phase": "finish",
-      "iteration": 3,
-      "task": "project-brief-guidance",
-      "summary": "Validated the project brief/start/tree JSON guidance with a broader regression batch on 2026-05-09.",
-      "step_id": "project-brief-guidance",
-      "step_title": "Make project brief suggest the next missing field",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T20:54:25Z",
-      "phase": "finish",
-      "iteration": 2,
-      "task": "project-brief-guidance",
-      "summary": "Extended project start and project tree propose --ai JSON reports so they expose the next missing field or gap alongside the interactive guidance.",
-      "step_id": "project-brief-guidance",
-      "step_title": "Make project brief suggest the next missing field",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T20:50:39Z",
-      "phase": "finish",
-      "iteration": 1,
-      "task": "project-brief-guidance",
-      "summary": "Extended project brief guidance into the JSON report so the next missing field is visible to both humans and automation.",
-      "step_id": "project-brief-guidance",
-      "step_title": "Make project brief suggest the next missing field",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T20:48:20Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "project-brief-guidance",
-      "summary": "Added next-field guidance to the project brief view and set command so users can complete the brief incrementally.",
-      "step_id": "project-brief-guidance",
-      "step_title": "Make project brief suggest the next missing field",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T16:10:27Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-governance-visibility",
-      "summary": "Added node-level cost breakdown to status full while keeping the cost sidebar, manual_min support, and chat-like node transcript rendering.",
-      "step_id": "prince2-governance-visibility",
-      "step_title": "Add node-level cost breakdown to status full",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T16:07:56Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-governance-visibility",
-      "summary": "Added manual_min role-mode support and a cost sidebar with business-case totals, active pricing, model usage, and top cost nodes.",
-      "step_id": "prince2-governance-visibility",
-      "step_title": "Add blocked/manual/manual_min node modes, mnemonic/team metadata, chat-style node transcripts, and cost sidebar",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T14:30:00Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-governance-visibility",
-      "summary": "Added blocked-mode routing support, mnemonic/team metadata, and chat-like node transcript rendering with cost visibility.",
-      "step_id": "prince2-governance-visibility",
-      "step_title": "Add blocked/manual/auto node modes, mnemonic/team metadata, and chat-style node transcripts",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T12:05:00Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-tree-dynamic-decomposition",
-      "summary": "The approved PRINCE2 role-tree baseline now preserves the same decomposition and adaptation metadata as the live tree proposal, and the tree proposal/baseline tests passed after the persistence fix.",
-      "step_id": "prince2-tree-dynamic-decomposition",
-      "step_title": "Make the PRINCE2 tree micro-task-first and continuously adaptive",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T11:53:30Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-tree-dynamic-decomposition",
-      "summary": "The PRINCE2 tree proposal now emits explicit micro-task decomposition nodes plus live adaptation metadata, and the checklist now tells the policy to split work into the smallest independently verifiable packages and refresh at each boundary.",
-      "step_id": "prince2-tree-dynamic-decomposition",
-      "step_title": "Make the PRINCE2 tree micro-task-first and continuously adaptive",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T11:05:00Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark now selects variants from catalog/runtime scores instead of hardcoded model-name tables, local model discovery is automatic across Ollama and LM Studio, and the benchmark still passes with 14 suites and 55 cases.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T11:00:05Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark now derives role defaults from dynamic provider-model scoring in modelprefs instead of hardcoded role-to-model tables, while the benchmark still passes with 14 suites and 55 cases and shows openai:gpt-5.4-nano plus one cheap:openai/gpt-5.4-nano assignment.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:51:33Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark now uses the router-derived active model set instead of a fixed local/openai whitelist, and the current run shows openai:gpt-5.4-nano plus one cheap:openai/gpt-5.4-nano assignment while the benchmark still passes with 14 suites and 55 cases.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:45:12Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark now derives the project-assurance assignment from the router instead of hardcoding gpt-5.4-mini, and the current run shows openai:gpt-5.4-nano while the benchmark still passes with 14 suites and 55 cases.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:38:57Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a board_crisis suite sourced from quorum failure, executive escalation, and board-authority traces, and the benchmark now passes with 14 suites and 55 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:33:44Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a regulatory_war_room suite sourced from live escalation, breach, vendor risk, legal hold, and continuity-control traces, and the benchmark now passes with 13 suites and 51 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:28:35Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a supply_chain_failure suite sourced from logistics, inventory, procurement, and continuity traces, and the benchmark now passes with 12 suites and 47 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:23:50Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a multi_vendor_crisis suite sourced from cascading supplier failure and shared-dependency traces, and the benchmark now passes with 11 suites and 43 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:18:40Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a vendor_failure suite sourced from supplier collapse, third-party risk, and contingency-planning traces, and the benchmark now passes with 10 suites and 39 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:14:58Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained an incident_response suite sourced from breach, outage, rollback, and incident-remediation traces, and the benchmark now passes with 9 suites and 35 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:09:45Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a legal_stress suite sourced from legal-hold, contract, disclosure, and evidence-preservation traces, and the benchmark now passes with 8 suites and 31 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T10:05:12Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a regulatory_stress suite sourced from privacy, audit, AI governance, and compliance wet-run traces, and the benchmark now passes with 7 suites and 27 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T09:58:59Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a regulatory suite sourced from secure-by-design, DPIA, AI governance, and wet-run compliance traces, and the benchmark now passes with 6 suites and 23 cases while the router chooses regulatory-aware routes dynamically.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T09:51:43Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained a stress suite sourced from combined governance, recovery, and stakeholder-pressure traces, and the benchmark now passes with 5 suites and 19 cases.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T09:48:18Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark gained an advanced suite sourced from public cloud-migration, records-governance, data-transformation, and procurement-delay traces, and the benchmark now passes with 4 suites and 15 cases.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T09:45:05Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The PRINCE2 benchmark prompt baselines were made more complex and the escalation case now includes explicit review/validate language, so the benchmark remains evaluative and passes the policy gate.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Keep the local PRINCE2 benchmark prompt-driven and evaluative",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T08:55:34Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The local PRINCE2 benchmark command now runs prompt-driven governance, assurance, and recovery suites, and the full unittest suite passes.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T08:48:53Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The local PRINCE2 benchmark command now runs prompt-driven governance and assurance suites, and the full unittest suite passes.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "abb43eb",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T07:45:48Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-benchmark-baseline",
-      "summary": "The new OpenRouter benchmark command now runs a live simple and extended MMLU-style baseline and writes a snapshot file when requested.",
-      "step_id": "openrouter-benchmark-baseline",
-      "step_title": "Add a live OpenRouter benchmark command with simple and complex public MMLU-style suites",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "ef771fd",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T07:21:00Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-smoke-script",
-      "summary": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN on a small public MMLU benchmark suite.",
-      "step_id": "openrouter-smoke-script",
-      "step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "becf608",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T07:15:43Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-smoke-script",
-      "summary": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN on a public MMLU benchmark prompt.",
-      "step_id": "openrouter-smoke-script",
-      "step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "4623391",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T06:47:26Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-smoke-script",
-      "summary": "The smoke flow and the OpenRouter transport tests now perform live OpenRouter API calls through RUN_MODEL_BIN and no longer rely on stubbed no-op output.",
-      "step_id": "openrouter-smoke-script",
-      "step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "4623391",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T06:27:54Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-smoke-script",
-      "summary": "The smoke script now verifies real OpenRouter API-key injection through RUN_MODEL_BIN and no longer relies on ChatGPT/device-login simulation or secret-store placeholders.",
-      "step_id": "openrouter-smoke-script",
-      "step_title": "Replace the ChatGPT smoke script with an OpenRouter API key check",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "4623391",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T06:15:00Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "critic-invalid-output-guard",
-      "summary": "Invalid devil's-advocate review payloads now block the step explicitly, and the battery/integration stubs emit valid critic JSON during simulations.",
-      "step_id": "critic-invalid-output-guard",
-      "step_title": "Block invalid devil's-advocate review payloads explicitly",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "ae8cab7",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T06:16:00Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-test-transport",
-      "summary": "Backend-injection tests now use the real OpenRouter API key from the environment instead of simulated account tokens.",
-      "step_id": "openrouter-test-transport",
-      "step_title": "Use the real OpenRouter API key in backend-injection tests",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "ae8cab7",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T18:55:00Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "node-token-cost-split",
-      "summary": "Node token accounting now tracks separate input and output buckets, with pricing sourced from the shared model catalog and Artificial Analysis when available.",
-      "step_id": "node-token-cost-split",
-      "step_title": "Split node tokens into input/output buckets and attach Artificial Analysis pricing",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "8aa58ab",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T17:07:52Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "external-io-fallback-command-contract",
-      "summary": "External IO JSON fallback now preserves the exact input command string and uses a shared schema.",
-      "step_id": "external-io-fallback-command-contract",
-      "step_title": "Preserve the exact input command in the external IO JSON fallback",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "b35a890",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T17:02:57Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "git-fallback-command-contract",
-      "summary": "Git JSON fallback now preserves the exact input command string and uses a shared schema.",
-      "step_id": "git-fallback-command-contract",
-      "step_title": "Preserve the exact input command in the git JSON fallback",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "35ad94a",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T16:59:01Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "update-fallback-command-contract",
-      "summary": "Update JSON fallback now preserves the exact input command string and uses a shared schema.",
-      "step_id": "update-fallback-command-contract",
-      "step_title": "Preserve the exact input command in the update JSON fallback",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "365594d",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T16:55:38Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "file-fallback-command-contract",
-      "summary": "File JSON fallback now preserves the exact input command string and uses a shared schema.",
-      "step_id": "file-fallback-command-contract",
-      "step_title": "Preserve the exact input command in the file JSON fallback",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "062aafc",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T16:51:10Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "catalog-fallback-command-contract",
-      "summary": "Catalog JSON fallback now preserves the exact input command string.",
-      "step_id": "catalog-fallback-command-contract",
-      "step_title": "Preserve the exact input command in the catalog JSON fallback",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "7cea232",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T18:55:00+00:00",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "catalog-command-contract",
-      "summary": "Catalog JSON payloads now use specific command names for status/search/refresh.",
-      "step_id": "catalog-command-contract",
-      "step_title": "Align catalog JSON command names with their specific subcommands",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "da61a4e",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T07:19:12+00:00",
-      "phase": "start",
-      "iteration": 0,
-      "task": "battery",
-      "summary": "Project context initialized.",
-      "step_id": null,
-      "step_title": null,
-      "step_status": null,
-      "model": null,
-      "action_type": null,
-      "git_head": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
-      "details": {
-        "plan_status": "step-1:ready,step-2:planned,step-3:planned"
-      }
-    },
-    {
-      "timestamp": "2026-04-29T07:19:12+00:00",
-      "phase": "plan",
-      "iteration": 0,
-      "task": "battery",
-      "summary": "Plan approved for controlled execution.",
-      "step_id": null,
-      "step_title": null,
-      "step_status": null,
-      "model": null,
-      "action_type": null,
-      "git_head": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
-      "details": {
-        "plan_status": "step-1:ready,step-2:planned,step-3:planned",
-        "controls": [
-          "Work stage-by-stage.",
-          "Use management by exception.",
-          "For small tasks, keep documentation and controls minimal but explicit.",
-          "For complex or risky tasks, increase formal controls, evidence, and boundary checks.",
-          "Keep trace, memory, and validation evidence."
-        ]
-      }
-    },
-    {
-      "timestamp": "2026-04-29T07:19:12+00:00",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "battery",
-      "summary": "Task rejected by PRINCE2 governance gate before execution.",
-      "step_id": null,
-      "step_title": null,
-      "step_status": "exception",
-      "model": null,
-      "action_type": null,
-      "git_head": "e73bdd58f91def4fe43a60b0461a6e8585e316df",
-      "details": {
-        "plan_status": "step-1:ready,step-2:planned,step-3:planned",
-        "success": false
-      }
-    },
-    {
-      "timestamp": "2026-05-08T08:08:46Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-benchmark-baseline",
-      "summary": "The live OpenRouter benchmark now runs three public suites covering MMLU, ARC-Challenge, and TruthfulQA-MC, and the smoke and transport tests use the same fixed-model real OpenRouter path.",
-      "step_id": "openrouter-benchmark-baseline",
-      "step_title": "Expand the live OpenRouter benchmark to general, reasoning, and truthfulness suites",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "6dede7e",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T08:21:13Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "openrouter-benchmark-history",
-      "summary": "The live OpenRouter benchmark now tracks optional JSONL history snapshots and fails on real regressions relative to the previous run.",
-      "step_id": "openrouter-benchmark-history",
-      "step_title": "Add historical snapshot comparison to the live OpenRouter benchmark",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "02260e0",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T09:06:38Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The local PRINCE2 benchmark report now includes default node runtime snapshots and transitions for every case, making analysis and statistics available from the main benchmark command.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T09:17:19Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The local PRINCE2 benchmark report now includes the full runtime payload and a rendered node/role/transition detail block for every case, and the full unittest suite passes.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-08T09:29:27Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "prince2-benchmark-baseline",
-      "summary": "The local PRINCE2 benchmark report now derives orchestration from the live runtime graph and includes provider, provider-model, token, and timing statistics per node.",
-      "step_id": "prince2-benchmark-baseline",
-      "step_title": "Add a local PRINCE2 benchmark command with prompt-driven suites and recovery coverage",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "c303af3",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-09T08:31:32Z",
-      "phase": "finish",
-      "iteration": 0,
-      "task": "tool-surface-expansion",
-      "summary": "Added cross-platform system utilities and hash/archive tool coverage with CLI and registry wiring.",
-      "step_id": "tool-surface-expansion",
-      "step_title": "Add cross-platform system and archive tools",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-09T08:31:32Z",
-      "phase": "finish",
-      "iteration": 1,
-      "task": "tool-surface-expansion",
-      "summary": "Added browser fetch/open/screenshot coverage on top of the cross-platform system and archive tool surface.",
-      "step_id": "tool-surface-expansion",
-      "step_title": "Add cross-platform system, archive, and browser tools",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-09T08:31:32Z",
-      "phase": "finish",
-      "iteration": 2,
-      "task": "tool-surface-expansion",
-      "summary": "Added watch filesystem observation alongside browser and system tool coverage.",
-      "step_id": "tool-surface-expansion",
-      "step_title": "Add cross-platform system, archive, browser, and watch tools",
-      "step_status": "completed",
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f",
-      "details": {
-        "plan_status": "step-1:completed,step-2:completed,step-3:completed"
-      }
-    },
-    {
-      "timestamp": "2026-05-11T05:37:18+00:00",
-      "phase": "user_question_asked",
-      "iteration": 3,
-      "task": "agent-refactor-slice",
-      "summary": "Question asked: What is the objective of this project?",
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Goal loop initiated.",
       "step_id": null,
       "step_title": null,
       "step_status": null,
@@ -1808,440 +43,313 @@
       "action_type": null,
       "git_head": null,
       "details": {
-        "question": {
-          "question_id": "question-1",
-          "question": "What is the objective of this project?",
-          "reason": "clarification",
-          "context": {
-            "source": "project start",
-            "gap_code": "missing_project_objective",
-            "design_gaps": [
-              {
-                "code": "missing_project_objective",
-                "message": "Project brief is missing the objective field."
-              },
-              {
-                "code": "missing_project_scope",
-                "message": "Project brief is missing the scope field."
-              },
-              {
-                "code": "missing_expected_outputs",
-                "message": "Project brief is missing the expected_outputs field."
-              },
-              {
-                "code": "missing_delivery_mode",
-                "message": "Project brief is missing the delivery_mode field."
-              },
-              {
-                "code": "no_enabled_providers",
-                "message": "No enabled providers are available for AI-assisted design."
-              }
-            ],
-            "proposal_gaps": [
-              {
-                "code": "missing_objective",
-                "message": "Project brief is missing objective."
-              },
-              {
-                "code": "missing_scope",
-                "message": "Project brief is missing scope."
-              },
-              {
-                "code": "missing_expected_outputs",
-                "message": "Project brief is missing expected_outputs."
-              },
-              {
-                "code": "missing_delivery_mode",
-                "message": "Project brief is missing delivery_mode."
-              }
-            ]
-          },
-          "status": "pending",
-          "asked_at": "2026-05-11T05:37:18+00:00",
-          "answered_at": null,
-          "answer": null
+        "objective": "run Build a multi-node Stagewarden goal loop"
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node root.scope completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "root.scope",
+        "purpose": "Define scope, out-of-scope, outputs, acceptance criteria, and risk posture.",
+        "status": "completed",
+        "dependencies": [],
+        "tolerances": {
+          "scope_drift": "none",
+          "ambiguity": "low"
+        },
+        "output_summary": "Root scope defined.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "root.scope",
+            "TO": "orchestrator.graph",
+            "TYPE": "status",
+            "SUMMARY": "Scope defined"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node orchestrator.graph completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "orchestrator.graph",
+        "purpose": "Transform the scope into a graph of work, child nodes, and execution order.",
+        "status": "completed",
+        "dependencies": [
+          "root.scope"
+        ],
+        "tolerances": {
+          "graph_depth": "moderate",
+          "node_count": "configurable"
+        },
+        "output_summary": "Node graph created.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "orchestrator.graph",
+            "TO": "subnode.generator",
+            "TYPE": "status",
+            "SUMMARY": "Graph created"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node subnode.generator completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "subnode.generator",
+        "purpose": "Generate prompts for sub-nodes and attach inputs, outputs, and escalation rules.",
+        "status": "completed",
+        "dependencies": [
+          "orchestrator.graph"
+        ],
+        "tolerances": {
+          "prompt_length": "pragmatic",
+          "missing_contract": "none"
+        },
+        "output_summary": "Subnode prompts generated.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "subnode.generator",
+            "TO": "implementation.refactor",
+            "TYPE": "status",
+            "SUMMARY": "Prompts generated"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node implementation.refactor completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "implementation.refactor",
+        "purpose": "Apply any needed refactor with TDD before changing behavior.",
+        "status": "completed",
+        "dependencies": [
+          "subnode.generator"
+        ],
+        "tolerances": {
+          "regression": "zero",
+          "refactor_scope": "linked-only"
+        },
+        "output_summary": "Refactoring complete with TDD.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "implementation.refactor",
+            "TO": "validation.wet_run",
+            "TYPE": "status",
+            "SUMMARY": "Refactoring done"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node validation.wet_run completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "validation.wet_run",
+        "purpose": "Run real tests and wet-run commands with evidence.",
+        "status": "completed",
+        "dependencies": [
+          "implementation.refactor"
+        ],
+        "tolerances": {
+          "dry_run_only": "none",
+          "evidence_gap": "minor if environment-limited"
+        },
+        "output_summary": "Wet-run validation passed.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "validation.wet_run",
+            "TO": "governance.tolerance",
+            "TYPE": "status",
+            "SUMMARY": "Validation passed"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node learning.pi completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "learning.pi",
+        "purpose": "Benchmark Stagewarden against pi-agent patterns and adaptation opportunities.",
+        "status": "completed",
+        "dependencies": [
+          "validation.wet_run"
+        ],
+        "tolerances": {
+          "copying": "none",
+          "abstraction_required": "yes"
+        },
+        "output_summary": "pi benchmark compiled.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": []
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node governance.tolerance completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "governance.tolerance",
+        "purpose": "Classify deviations, exceptions, and escalation decisions.",
+        "status": "completed",
+        "dependencies": [
+          "validation.wet_run"
+        ],
+        "tolerances": {
+          "risk": "explicit",
+          "irreversibility": "zero"
+        },
+        "output_summary": "Tolerance check passed.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "governance.tolerance",
+            "TO": "communication.bridge",
+            "TYPE": "status",
+            "SUMMARY": "Tolerances OK"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_node_completed",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Node communication.bridge completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "node_id": "communication.bridge",
+        "purpose": "Emit structured node-to-node messages and dependency handoffs.",
+        "status": "completed",
+        "dependencies": [
+          "orchestrator.graph",
+          "governance.tolerance"
+        ],
+        "tolerances": {
+          "message_noise": "low",
+          "missing_fields": "none"
+        },
+        "output_summary": "Structured messages delivered.",
+        "error_message": null,
+        "pi_stdout": "",
+        "messages_sent": [
+          {
+            "FROM": "communication.bridge",
+            "TO": "learning.pi",
+            "TYPE": "status",
+            "SUMMARY": "Messages routed"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-07-09T12:02:23+00:00",
+      "phase": "goal_loop_end",
+      "iteration": 0,
+      "task": "goal loop run Build a multi-node Stagewarden goal loop",
+      "summary": "Goal loop completed.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "final_status": "completed",
+        "node_statuses": {
+          "root.scope": "completed",
+          "orchestrator.graph": "completed",
+          "subnode.generator": "completed",
+          "implementation.refactor": "completed",
+          "validation.wet_run": "completed",
+          "governance.tolerance": "completed",
+          "communication.bridge": "completed",
+          "learning.pi": "completed"
         }
-      }
-    },
-    {
-      "timestamp": "2026-05-11T05:37:18+00:00",
-      "phase": "project_start_clarification_requested",
-      "iteration": 3,
-      "task": "project start",
-      "summary": "Project startup asked for clarification: What is the objective of this project?",
-      "step_id": null,
-      "step_title": null,
-      "step_status": null,
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f7a16300f031def40c42297f554018de08",
-      "details": {
-        "question": {
-          "question_id": "question-1",
-          "question": "What is the objective of this project?",
-          "reason": "clarification",
-          "context": {
-            "source": "project start",
-            "gap_code": "missing_project_objective",
-            "design_gaps": [
-              {
-                "code": "missing_project_objective",
-                "message": "Project brief is missing the objective field."
-              },
-              {
-                "code": "missing_project_scope",
-                "message": "Project brief is missing the scope field."
-              },
-              {
-                "code": "missing_expected_outputs",
-                "message": "Project brief is missing the expected_outputs field."
-              },
-              {
-                "code": "missing_delivery_mode",
-                "message": "Project brief is missing the delivery_mode field."
-              },
-              {
-                "code": "no_enabled_providers",
-                "message": "No enabled providers are available for AI-assisted design."
-              }
-            ],
-            "proposal_gaps": [
-              {
-                "code": "missing_objective",
-                "message": "Project brief is missing objective."
-              },
-              {
-                "code": "missing_scope",
-                "message": "Project brief is missing scope."
-              },
-              {
-                "code": "missing_expected_outputs",
-                "message": "Project brief is missing expected_outputs."
-              },
-              {
-                "code": "missing_delivery_mode",
-                "message": "Project brief is missing delivery_mode."
-              }
-            ]
-          },
-          "status": "pending",
-          "asked_at": "2026-05-11T05:37:18+00:00",
-          "answered_at": null,
-          "answer": null
-        },
-        "design_gaps": [
-          {
-            "code": "missing_project_objective",
-            "message": "Project brief is missing the objective field."
-          },
-          {
-            "code": "missing_project_scope",
-            "message": "Project brief is missing the scope field."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing the expected_outputs field."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing the delivery_mode field."
-          },
-          {
-            "code": "no_enabled_providers",
-            "message": "No enabled providers are available for AI-assisted design."
-          }
-        ],
-        "proposal_gaps": [
-          {
-            "code": "missing_objective",
-            "message": "Project brief is missing objective."
-          },
-          {
-            "code": "missing_scope",
-            "message": "Project brief is missing scope."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing expected_outputs."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing delivery_mode."
-          }
-        ]
-      }
-    },
-    {
-      "timestamp": "2026-05-11T05:37:18+00:00",
-      "phase": "project_start_blocked",
-      "iteration": 3,
-      "task": "project start",
-      "summary": "Project startup blocked by unresolved design/proposal clarification gaps.",
-      "step_id": null,
-      "step_title": null,
-      "step_status": null,
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f7a16300f031def40c42297f554018de08",
-      "details": {
-        "design_gaps": [
-          {
-            "code": "missing_project_objective",
-            "message": "Project brief is missing the objective field."
-          },
-          {
-            "code": "missing_project_scope",
-            "message": "Project brief is missing the scope field."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing the expected_outputs field."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing the delivery_mode field."
-          },
-          {
-            "code": "no_enabled_providers",
-            "message": "No enabled providers are available for AI-assisted design."
-          }
-        ],
-        "proposal_gaps": [
-          {
-            "code": "missing_objective",
-            "message": "Project brief is missing objective."
-          },
-          {
-            "code": "missing_scope",
-            "message": "Project brief is missing scope."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing expected_outputs."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing delivery_mode."
-          }
-        ],
-        "proposal_status": "needs_clarification",
-        "ai_requested": false,
-        "ai_assistance": {
-          "attempted": false,
-          "ok": null,
-          "model": null,
-          "account": null,
-          "message": "AI assistance was not requested.",
-          "valid_added_nodes": [],
-          "rejected_nodes": []
-        },
-        "next_missing_field": "objective"
-      }
-    },
-    {
-      "timestamp": "2026-05-11T05:37:30+00:00",
-      "phase": "project_start_blocked",
-      "iteration": 3,
-      "task": "project start",
-      "summary": "Project startup blocked by unresolved design/proposal clarification gaps.",
-      "step_id": null,
-      "step_title": null,
-      "step_status": null,
-      "model": null,
-      "action_type": null,
-      "git_head": "a38597f7a16300f031def40c42297f554018de08",
-      "details": {
-        "design_gaps": [
-          {
-            "code": "missing_project_objective",
-            "message": "Project brief is missing the objective field."
-          },
-          {
-            "code": "missing_project_scope",
-            "message": "Project brief is missing the scope field."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing the expected_outputs field."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing the delivery_mode field."
-          },
-          {
-            "code": "no_enabled_providers",
-            "message": "No enabled providers are available for AI-assisted design."
-          }
-        ],
-        "proposal_gaps": [
-          {
-            "code": "missing_objective",
-            "message": "Project brief is missing objective."
-          },
-          {
-            "code": "missing_scope",
-            "message": "Project brief is missing scope."
-          },
-          {
-            "code": "missing_expected_outputs",
-            "message": "Project brief is missing expected_outputs."
-          },
-          {
-            "code": "missing_delivery_mode",
-            "message": "Project brief is missing delivery_mode."
-          }
-        ],
-        "proposal_status": "needs_clarification",
-        "ai_requested": false,
-        "ai_assistance": {
-          "attempted": false,
-          "ok": null,
-          "model": null,
-          "account": null,
-          "message": "AI assistance was not requested.",
-          "valid_added_nodes": [],
-          "rejected_nodes": []
-        },
-        "next_missing_field": "objective"
-      }
-    },
-    {
-      "timestamp": "2026-05-30T13:33:23Z",
-      "event": "handoff_update",
-      "summary": "PRINCE2/coding-agent evolution tranche implemented: executor prompt packets now include Coding work package controls (product focus, expected output, acceptance criteria, quality gates, TDD/failing-test control, minimal implementation, focused wet-run evidence, scope control, and escalation). Focused validation passed: py_compile executor/executor_prompting/test_executor, tests.test_executor (50 OK), tests.test_rag (15 OK).",
-      "details": {
-        "files": [
-          "stagewarden/executor.py",
-          "stagewarden/executor_prompting.py",
-          "tests/test_executor.py",
-          "AGENT_HANDOFF.md",
-          "HANDOFF.md"
-        ],
-        "validation": [
-          "python3.11 -m py_compile stagewarden/executor.py stagewarden/executor_prompting.py tests/test_executor.py",
-          "python3.11 -m unittest tests.test_executor -v -> 50 OK",
-          "python3.11 -m unittest tests.test_rag -v -> 15 OK"
-        ]
-      }
-    },
-    {
-      "timestamp": "2026-05-30T13:45:19Z",
-      "event": "validation_update",
-      "summary": "PRINCE2/coding-agent tranche validated on touched paths: py_compile passed, tests.test_executor -> 50 OK, tests.test_rag -> 15 OK. Full unittest discover was attempted but timed out at 600s after three missing-OpenRouter-key live/provider failures; isolated rerun confirmed those fail at _openrouter_env_name() before product code executes.",
-      "details": {
-        "passed": [
-          "python3.11 -m py_compile stagewarden/executor.py stagewarden/executor_prompting.py tests/test_executor.py",
-          "python3.11 -m unittest tests.test_executor -v -> 50 OK",
-          "python3.11 -m unittest tests.test_rag -v -> 15 OK"
-        ],
-        "blocked": [
-          "python3.11 -m unittest discover -s tests -v -> timeout after missing OpenRouter API key failures"
-        ]
-      }
-    },
-    {
-      "timestamp": "2026-05-30T14:22:10Z",
-      "phase": "quality",
-      "iteration": 39,
-      "task": "prince2-coding-agent-evolution",
-      "summary": "PRINCE2 product checkpoint handoff slice validated.",
-      "step_id": "prince2-product-checkpoint-handoff",
-      "step_title": "Record PRINCE2 product checkpoints for completed coding work packages",
-      "step_status": "validated",
-      "model": null,
-      "action_type": "code_change",
-      "git_head": "5abfa03",
-      "details": {
-        "red_evidence": "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_completes_task_with_stub_backend -v failed because checkpoints == []",
-        "green_evidence": "python3 -m py_compile stagewarden/agent.py stagewarden/project_handoff.py tests/test_agent_integration.py && python3 -m unittest <5 non-live agent integration tests> tests.test_executor -v -> 57 OK",
-        "known_blocker": "Full tests.test_agent_integration tests.test_executor still fails at test_agent_verbose_output_shows_handoff_runtime_details when OPENROUTER_API_KEY is unavailable before product code runs."
-      }
-    },
-    {
-      "timestamp": "2026-05-30T14:35:41Z",
-      "phase": "quality",
-      "iteration": 40,
-      "task": "prince2-coding-agent-evolution",
-      "summary": "Checkpoint recovery planner slice validated: product_checkpoint entries now drive checkpoint-recovery-step generation after failed completion gates on resume.",
-      "step_id": "prince2-checkpoint-recovery-planner",
-      "step_title": "Use product checkpoints to generate recovery steps",
-      "step_status": "validated",
-      "model": "hermes",
-      "action_type": "patch_and_test",
-      "git_head": "7a0043bd0602098286d1eea31c069fc3c5fcf901",
-      "details": {
-        "red_test": "python3 -m unittest tests.test_planner.PlannerTests.test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate -v failed before implementation (0 recovery steps)",
-        "green_tests": [
-          "python3 -m unittest tests.test_planner.PlannerTests.test_create_plan_injects_checkpoint_recovery_for_failed_completion_gate -v -> OK",
-          "python3 -m py_compile stagewarden/planner.py tests/test_planner.py -> OK",
-          "python3 -m unittest tests.test_planner tests.test_executor -v -> 60 OK",
-          "4 non-live AgentIntegrationTests smoke -> OK"
-        ],
-        "changed_files": [
-          "stagewarden/planner.py",
-          "tests/test_planner.py",
-          "AGENT_HANDOFF.md",
-          "HANDOFF.md"
-        ]
-      }
-    },
-    {
-      "timestamp": "2026-05-30T14:38:37Z",
-      "phase": "quality",
-      "iteration": 41,
-      "task": "prince2-coding-agent-evolution",
-      "summary": "Live checkpoint recovery validated: failed completion gates now insert checkpoint-recovery-step entries in the active plan from prior product_checkpoint evidence.",
-      "step_id": "prince2-live-checkpoint-recovery",
-      "step_title": "Insert live recovery step after checkpoint gate failure",
-      "step_status": "validated",
-      "model": "hermes",
-      "action_type": "patch_and_test",
-      "git_head": "809987cef4ce60ca6a58b26ad9dc450b36b1543e",
-      "details": {
-        "red_test": "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure -v errored before implementation (missing hook)",
-        "green_tests": [
-          "python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_inserts_live_checkpoint_recovery_step_after_completion_gate_failure -v -> OK",
-          "python3 -m py_compile stagewarden/agent.py stagewarden/planner.py tests/test_agent_integration.py tests/test_planner.py -> OK",
-          "python3 -m unittest tests.test_planner tests.test_executor <5 non-live AgentIntegrationTests> -v -> 65 OK"
-        ],
-        "changed_files": [
-          "stagewarden/agent.py",
-          "stagewarden/planner.py",
-          "tests/test_agent_integration.py",
-          "tests/test_planner.py",
-          "AGENT_HANDOFF.md",
-          "HANDOFF.md"
-        ]
-      }
-    },
-    {
-      "phase": "quality",
-      "summary": "PRINCE2 non-coding product-evidence slice validated: design/documentation/specification artifact closures now require prior same-step non-model tool evidence before complete.",
-      "details": {
-        "red_test": "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence -v failed before implementation because narrative-only ADR/design closure was accepted",
-        "green_tests": [
-          "python3 -m unittest tests.test_executor.ExecutorTests.test_executor_rejects_design_work_package_completion_without_prior_tool_evidence tests.test_executor.ExecutorTests.test_executor_accepts_design_work_package_completion_with_prior_tool_evidence tests.test_executor.ExecutorTests.test_executor_rejects_coding_completion_without_prior_tool_evidence tests.test_executor.ExecutorTests.test_executor_accepts_coding_completion_with_prior_tool_evidence -v -> OK",
-          "python3 -m py_compile stagewarden/executor.py tests/test_executor.py && python3 -m unittest tests.test_executor tests.test_planner -v -> 62 OK"
-        ],
-        "changed_files": [
-          "stagewarden/executor.py",
-          "tests/test_executor.py",
-          "AGENT_HANDOFF.md",
-          "HANDOFF.md"
-        ],
-        "scope_note": "Gate matches concrete artifact markers (design, architecture, ADR, documentation, docs/, .md, specification/spec) and intentionally avoids generic work-package/plan/report terms to prevent false positives on routing/control steps."
-      },
-      "created_at": "2026-05-30T14:57:46.957800+00:00"
-    },
-    {
-      "timestamp": "2026-06-03T18:31:17Z",
-      "action": "roadmap_documented",
-      "summary": "Created ROADMAP.md from internal repository audit and external OpenTelemetry/Anthropic/NIST/OWASP research.",
-      "details": {
-        "file": "ROADMAP.md",
-        "first_slice": "Agent Run Ledger and OpenTelemetry-compatible traces",
-        "validation": "Committed roadmap and focused policy/schema validation passed: python3.11 -m unittest tests.test_policy_docs tests.test_json_schema_registry -v -> 6 OK.",
-        "commit": "current HEAD after roadmap commit"
       }
     }
   ]

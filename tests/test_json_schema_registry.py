@@ -48,6 +48,8 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "goal set",
             "goal status",
             "goal clear",
+            "goal loop",
+            "goal loop run",
             "budget",
             "budget set",
             "budget status",

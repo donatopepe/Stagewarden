@@ -3,6 +3,8 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -188,13 +190,16 @@ def run_main_in_cwd(cwd: Path, *args: str) -> int:
     return completed.returncode
 
 
-def run_main_capture(cwd: Path, *args: str, timeout: int = 20) -> subprocess.CompletedProcess[str]:
-    env = dict(os.environ)
-    env["PYTHONPATH"] = str(ROOT)
+def run_main_capture(cwd: Path, *args: str, timeout: int = 20,
+                      env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    base_env = dict(os.environ)
+    base_env["PYTHONPATH"] = str(ROOT)
+    if env:
+        base_env.update(env)
     return subprocess.run(
         [sys.executable, "-m", "stagewarden.main", *args],
         cwd=cwd,
-        env=env,
+        env=base_env,
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -1114,6 +1119,51 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(clear_completed.returncode, 0, clear_completed.stderr)
             cleared_payload = json.loads(run_main_capture(root, "goal", "--json").stdout)
             self.assertEqual(cleared_payload["goal"]["status"], "missing")
+
+    def test_goal_loop_blueprint_surfaces_scope_graph_validation_and_pi_benchmark(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "goal loop Build a hierarchical multi-node Stagewarden goal loop", "--json")
+            rendered = run_main_capture(root, "goal loop Build a hierarchical multi-node Stagewarden goal loop")
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(rendered.returncode, 0, rendered.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["command"], "goal loop")
+            self.assertEqual(payload["schema"]["name"], "stagewarden.goal_loop")
+            self.assertIn("scope_summary", payload)
+            self.assertIn("node_graph", payload)
+            self.assertIn("child_prompts", payload)
+            self.assertIn("execution_order", payload)
+            self.assertIn("tolerance_matrix", payload)
+            self.assertIn("exception_policy", payload)
+            self.assertIn("validation_plan", payload)
+            self.assertIn("final_report", payload)
+            self.assertIn("goal-root", payload["child_prompts"][0]["prompt"])
+            self.assertIn("goal-loop-orchestrator", payload["child_prompts"][1]["prompt"])
+            self.assertIn("pi-learning-benchmark", payload["child_prompts"][-1]["prompt"])
+            self.assertIn("Goal loop blueprint:", rendered.stdout)
+            self.assertIn("Node graph:", rendered.stdout)
+            self.assertIn("Tolerance matrix:", rendered.stdout)
+            self.assertIn("Validation plan:", rendered.stdout)
+
+
+    def test_goal_loop_run_executes_all_nodes_and_reports_final_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            env = os.environ.copy()
+            env["STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE"] = "mock"
+            completed = run_main_capture(root, "goal loop run Build a multi-node Stagewarden loop", "--json", env=env)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["final_status"], "completed")
+            node_statuses = payload.get("node_statuses", {})
+            self.assertGreaterEqual(len(node_statuses), 6)
+            for node_id, status in node_statuses.items():
+                self.assertEqual(status, "completed", f"Node {node_id} not completed")
+            self.assertIn("node_details", payload)
+            self.assertIn("child_prompts", payload.get("report", {}))
+
 
     def test_status_and_control_expose_local_fallback_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
