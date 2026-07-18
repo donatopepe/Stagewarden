@@ -10,7 +10,7 @@ Licenza: MIT
 
 Stagewarden is a production-grade CLI coding agent for controlled software delivery, with Codex-style agent loops, multi-model routing, PRINCE2-aligned governance, structured traces, and safe file/shell execution.
 
-Italian documentation: see [`README_IT.md`](README_IT.md).
+Italian documentation: see [`README_IT.md`](README_IT.md). Architecture and trust boundaries: [`docs/architecture.md`](docs/architecture.md).
 
 Agent policy artifacts:
 
