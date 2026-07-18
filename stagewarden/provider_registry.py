@@ -134,6 +134,23 @@ PROVIDER_CAPABILITIES: dict[str, ProviderCapability] = {
         login_hint="Use ANTHROPIC_API_KEY or import Claude Code credentials with account import claude <profile>.",
         source="Claude Code model configuration docs",
     ),
+    "kilo": ProviderCapability(
+        name="kilo",
+        provider_label="KiloCode",
+        backend_label="kilo/kilocode",
+        auth_type="kilo_api_key",
+        model_aliases=(),
+        default_model="provider-default",
+        context_assumption="KiloCode model context depends on its current provider catalog.",
+        supports_account_profiles=True,
+        supports_browser_login=True,
+        supports_api_key=True,
+        token_env="KILOCODE_API_KEY",
+        model_env="KILOCODE_MODEL",
+        login_url="https://app.kilo.ai/",
+        login_hint="Use KILOCODE_API_KEY or KiloCode login; an optional snapshot extends model metadata.",
+        source="stable KiloCode integration baseline",
+    ),
 }
 
 
@@ -781,6 +798,17 @@ def provider_model_specs(model: str) -> tuple[ProviderModelSpec, ...]:
             return snapshot_specs
         if model in _snapshot_provider_ids():
             return _snapshot_provider_model_specs(model)
+        if model == "kilo":
+            return (
+                ProviderModelSpec(
+                    id="kilo-auto",
+                    label="KiloCode automatic routing",
+                    reasoning_efforts=("low", "medium", "high"),
+                    reasoning_default="medium",
+                    availability="provider-default",
+                    source="stable KiloCode integration baseline",
+                ),
+            )
         return ()
     except KeyError as exc:
         raise ValueError(f"Unsupported model '{model}'.") from exc
@@ -857,9 +885,9 @@ def provider_model_preset(model: str, preset: str) -> tuple[str, dict[str, str]]
 
 
 def _build_supported_models() -> tuple[str, ...]:
-    # Keep every built-in provider available even when an optional provider
-    # snapshot is stale or omits it. Snapshot providers extend this baseline.
-    ordered = ["local", "cheap", "chatgpt", "claude", "openai", *list(_snapshot_provider_ids())]
+    # Keep built-in integrations available when optional provider snapshots
+    # are stale or not vendored in a source distribution.
+    ordered = ["local", "cheap", "chatgpt", "claude", "openai", "kilo", *list(_snapshot_provider_ids())]
     return tuple(dict.fromkeys(ordered))
 
 

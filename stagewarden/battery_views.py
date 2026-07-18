@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 import tempfile
 import time
 from pathlib import Path
@@ -366,6 +367,13 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
         }
 
     def executor_write_permission_denied_simulation() -> dict[str, object]:
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            return {
+                "ok": True,
+                "message": "write permission denial simulation skipped for root",
+                "skipped": True,
+                "reason": "root bypasses POSIX mode bits",
+            }
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             locked = root / "locked.txt"
@@ -386,6 +394,13 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
             }
 
     def executor_shell_permission_denied_simulation() -> dict[str, object]:
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            return {
+                "ok": True,
+                "message": "shell permission denial simulation skipped for root",
+                "skipped": True,
+                "reason": "root bypasses POSIX mode bits",
+            }
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             locked = root / "locked"

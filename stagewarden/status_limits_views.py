@@ -272,7 +272,7 @@ def _provider_limit_status_report(agent: Agent, config: AgentConfig) -> dict[str
                 "auth": capability.auth_type,
                 "profiles": capability.supports_account_profiles,
                 "backend": MODEL_BACKENDS[provider]["label"],
-                "enabled": provider in capabilities.get("providers", []),
+                "enabled": provider in (prefs.enabled_models or []),
             }
         )
     return {
