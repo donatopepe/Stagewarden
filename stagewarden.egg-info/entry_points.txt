@@ -1,2 +1,0 @@
-[console_scripts]
-stagewarden = stagewarden.main:main
