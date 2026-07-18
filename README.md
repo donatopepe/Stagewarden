@@ -37,6 +37,17 @@ Install locally:
 python3 -m pip install -e .
 ```
 
+Local OmniRoute with free models:
+
+```bash
+export RUN_MODEL_BIN="$PWD/scripts/run_model_omniroute.py"
+export STAGEWARDEN_OMNIROUTE_MODEL="auto/coding:free"
+./scripts/test_omniroute_free.sh
+stagewarden agent "inspect this repository and propose the next safe change"
+```
+
+Adapter defaults to `http://127.0.0.1:20128/v1` and keeps external credentials outside repository. Override endpoint with `OMNIROUTE_BASE_URL`. Verified free local routes include `auto/coding:free`, `auto/best-free`, and `coding-free-fallback`. Paid/pro routes stay outside automated tests unless explicitly requested.
+
 Prerequisites:
 
 - Python 3.11+
