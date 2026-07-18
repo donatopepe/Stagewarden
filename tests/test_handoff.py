@@ -21,7 +21,7 @@ class HandoffTests(unittest.TestCase):
             return candidate
         if candidate != "OPENROUTER_API_KEY" and os.environ.get("OPENROUTER_API_KEY"):
             return "OPENROUTER_API_KEY"
-        self.fail("OpenRouter API key is required for this test.")
+        self.skipTest("OpenRouter API key is required for this live integration test.")
 
     def _write_openrouter_live_runner(self, tmp_dir: str) -> Path:
         stub = Path(tmp_dir) / "run_model_openrouter_live_stub.py"
