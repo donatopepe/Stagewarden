@@ -857,7 +857,9 @@ def provider_model_preset(model: str, preset: str) -> tuple[str, dict[str, str]]
 
 
 def _build_supported_models() -> tuple[str, ...]:
-    ordered = ["local", "cheap", "chatgpt", "claude", *list(_snapshot_provider_ids())]
+    # Keep every built-in provider available even when an optional provider
+    # snapshot is stale or omits it. Snapshot providers extend this baseline.
+    ordered = [*PROVIDER_CAPABILITIES.keys(), *list(_snapshot_provider_ids())]
     return tuple(dict.fromkeys(ordered))
 
 
