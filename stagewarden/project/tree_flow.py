@@ -170,8 +170,24 @@ def _project_tree_ai_prompt(design: dict[str, object], local_report: dict[str, o
                 }
             ],
         },
-        "project_design_packet": design,
-        "local_proposal": local_report,
+        # Send bounded source data, not duplicate rendered matrices/checks. The
+        # full report can exceed OS argv limits after prior handoff entries.
+        "project_design_packet": {
+            "ready_for_ai_design": design.get("ready_for_ai_design"),
+            "agent_capability_specification": design.get("agent_capability_specification", {}),
+            "project_specification": design.get("project_specification", {}),
+            "clarification_gaps": design.get("clarification_gaps", []),
+        },
+        "local_proposal": {
+            "project_brief": local_report.get("project_brief", {}),
+            "assumptions": local_report.get("assumptions", []),
+            "added_nodes": local_report.get("added_nodes", []),
+            "tree": local_report.get("tree", {}),
+            "decomposition": local_report.get("decomposition", {}),
+            "adaptation": local_report.get("adaptation", {}),
+            "local_execution": local_report.get("local_execution", {}),
+            "clarification_gaps": local_report.get("clarification_gaps", []),
+        },
     }
     return dumps_ascii(packet)
 
