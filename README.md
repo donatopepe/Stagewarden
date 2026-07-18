@@ -1,6 +1,8 @@
 # Stagewarden
 
+[![Tests](https://github.com/donatopepe/Stagewarden/actions/workflows/tests.yml/badge.svg)](https://github.com/donatopepe/Stagewarden/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Tests](https://img.shields.io/badge/tests-470%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 Autore: Donato Pepe
