@@ -16,6 +16,8 @@ from stagewarden.provider_registry import model_token_env
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def write_success_stub(root: Path) -> Path:
     path = root / "run_model_success_stub.py"
