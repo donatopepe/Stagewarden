@@ -3907,6 +3907,7 @@ class TraceAndCliTests(unittest.TestCase):
                 "switch-agent\n"
                 "2\n"
                 "1\n"
+                "1\n"
                 "back\n"
             )
             output_stream = StringIO()
@@ -3932,10 +3933,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("Switch agent/model for this node", rendered)
             self.assertIn("model_recommendation:", rendered)
             self.assertIn("KiloCode-style switch agent:", rendered)
-            self.assertIn("Assigned role node delivery.team_manager: provider=302ai provider_model=MiniMax-M1 account=none", rendered)
-            self.assertEqual(team_node["assignment"]["provider"], "302ai")
-            self.assertEqual(team_node["assignment"]["provider_model"], "MiniMax-M1")
-            self.assertFalse(team_node["assignment"].get("params"))
+            self.assertIn("Assigned role node delivery.team_manager: provider=chatgpt provider_model=codex-mini-latest account=none", rendered)
+            self.assertEqual(team_node["assignment"]["provider"], "chatgpt")
+            self.assertEqual(team_node["assignment"]["provider_model"], "codex-mini-latest")
+            self.assertEqual(team_node["assignment"].get("params"), {"reasoning_effort": "low"})
 
     def test_interactive_shell_role_switch_agent_command_switches_model(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -3945,6 +3946,7 @@ class TraceAndCliTests(unittest.TestCase):
             agent = Agent(AgentConfig(workspace_root=root, max_steps=1))
             input_stream = StringIO(
                 "2\n"
+                "1\n"
                 "1\n"
             )
             output_stream = StringIO()
@@ -3967,10 +3969,10 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIsInstance(result, str)
             self.assertIn("KiloCode-style switch agent:", rendered)
             self.assertIn("switch_summary:", rendered)
-            self.assertIn("Assigned role node delivery.team_manager: provider=302ai provider_model=MiniMax-M1 account=none", result)
-            self.assertEqual(team_node["assignment"]["provider"], "302ai")
-            self.assertEqual(team_node["assignment"]["provider_model"], "MiniMax-M1")
-            self.assertFalse(team_node["assignment"].get("params"))
+            self.assertIn("Assigned role node delivery.team_manager: provider=chatgpt provider_model=codex-mini-latest account=none", result)
+            self.assertEqual(team_node["assignment"]["provider"], "chatgpt")
+            self.assertEqual(team_node["assignment"]["provider_model"], "codex-mini-latest")
+            self.assertEqual(team_node["assignment"].get("params"), {"reasoning_effort": "low"})
 
     def test_interactive_shell_role_assign_prioritizes_local_fallback_candidates_for_delivery_node(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -5212,7 +5214,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(json_completed.returncode, 0, json_completed.stderr)
             payload = json.loads(json_completed.stdout)
             self.assertTrue(payload["ai_requested"])
-            self.assertTrue(payload["ai_assistance"]["ok"])
+            self.assertTrue(payload["ai_assistance"]["ok"], payload["ai_assistance"])
             self.assertEqual(payload["ai_assistance"]["model"], "chatgpt")
             self.assertIn("delivery.release_manager", payload["ai_assistance"]["valid_added_nodes"])
             self.assertIn("delivery.release_manager", payload["added_nodes"])
