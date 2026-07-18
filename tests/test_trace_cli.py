@@ -2570,7 +2570,7 @@ class TraceAndCliTests(unittest.TestCase):
     def test_interactive_shell_executes_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             original = os.environ.get("RUN_MODEL_BIN")
-            os.environ["RUN_MODEL_BIN"] = "/Users/donato/Stagewarden/run_model_stub"
+            os.environ["RUN_MODEL_BIN"] = str(ROOT / "run_model_stub")
             try:
                 config = AgentConfig(workspace_root=Path(tmp_dir), max_steps=6)
                 input_stream = StringIO("create a file named hello.txt\ntranscript\nquit\n")
@@ -2696,7 +2696,7 @@ class TraceAndCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             original = os.environ.get("RUN_MODEL_BIN")
-            os.environ["RUN_MODEL_BIN"] = "/Users/donato/Stagewarden/run_model_stub"
+            os.environ["RUN_MODEL_BIN"] = str(ROOT / "run_model_stub")
             try:
                 config = AgentConfig(workspace_root=root, max_steps=6)
                 input_stream = StringIO(
@@ -2728,7 +2728,7 @@ class TraceAndCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             original = os.environ.get("RUN_MODEL_BIN")
-            os.environ["RUN_MODEL_BIN"] = "/Users/donato/Stagewarden/run_model_stub"
+            os.environ["RUN_MODEL_BIN"] = str(ROOT / "run_model_stub")
             try:
                 config = AgentConfig(workspace_root=root, max_steps=6)
                 input_stream = StringIO(

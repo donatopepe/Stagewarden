@@ -289,7 +289,7 @@ class AgentIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             original = os.environ.get("RUN_MODEL_BIN")
-            os.environ["RUN_MODEL_BIN"] = "/Users/donato/run_model_stub"
+            os.environ["RUN_MODEL_BIN"] = str(ROOT / "run_model_stub")
             try:
                 agent = Agent(
                     AgentConfig(
