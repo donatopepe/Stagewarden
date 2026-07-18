@@ -181,7 +181,7 @@ class AgentIntegrationTests(unittest.TestCase):
             return candidate
         if candidate != "OPENROUTER_API_KEY" and os.environ.get("OPENROUTER_API_KEY"):
             return "OPENROUTER_API_KEY"
-        self.fail("OpenRouter API key is required for this test.")
+        self.skipTest("OpenRouter API key is required for this live integration test.")
 
     def test_agent_completes_task_with_stub_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
