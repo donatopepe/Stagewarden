@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-03T06:37:56+00:00",
+  "generated_at": "2026-08-10T04:56:21+00:00",
   "models": [
     {
       "aliases": [
@@ -167,7 +167,6 @@
         "output:text",
         "reasoning",
         "stop",
-        "structured_output",
         "temperature",
         "text",
         "tool_use",
@@ -1521,10 +1520,10 @@
         "google: gemma 4 26b a4b ",
         "google:gemma-4-26b-a4b-it"
       ],
-      "blended_price_usd_per_1m_tokens": 0.14,
+      "blended_price_usd_per_1m_tokens": 0.19,
       "context_window": 262144,
-      "cost_per_input_token_usd": 7e-08,
-      "cost_per_output_token_usd": 3.4e-07,
+      "cost_per_input_token_usd": 1.2e-07,
+      "cost_per_output_token_usd": 4e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -1975,9 +1974,9 @@
         "minimax: minimax m2.5",
         "minimax:minimax-m2.5"
       ],
-      "blended_price_usd_per_1m_tokens": 0.34,
+      "blended_price_usd_per_1m_tokens": 0.39,
       "context_window": 204800,
-      "cost_per_input_token_usd": 1.5e-07,
+      "cost_per_input_token_usd": 2.2e-07,
       "cost_per_output_token_usd": 9e-07,
       "features": [
         "frequency_penalty",
@@ -2037,10 +2036,10 @@
         "minimax: minimax m2.7",
         "minimax:minimax-m2.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.44,
+      "blended_price_usd_per_1m_tokens": 0.53,
       "context_window": 204800,
-      "cost_per_input_token_usd": 2.5e-07,
-      "cost_per_output_token_usd": 1e-06,
+      "cost_per_input_token_usd": 3e-07,
+      "cost_per_output_token_usd": 1.2e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -2339,10 +2338,10 @@
         "mistralai/mistral-small-3.2-24b-instruct",
         "mistralai:mistral-small-3.2-24b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.11,
+      "blended_price_usd_per_1m_tokens": 0.13,
       "context_window": 256000,
-      "cost_per_input_token_usd": 7.5e-08,
-      "cost_per_output_token_usd": 2e-07,
+      "cost_per_input_token_usd": 9.375e-08,
+      "cost_per_output_token_usd": 2.5e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -3928,10 +3927,10 @@
         "qwen: qwen2.5 vl 72b instruct",
         "qwen:qwen2.5-vl-72b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.85,
+      "blended_price_usd_per_1m_tokens": 0.38,
       "context_window": 128000,
-      "cost_per_input_token_usd": 8e-07,
-      "cost_per_output_token_usd": 1e-06,
+      "cost_per_input_token_usd": 2.5e-07,
+      "cost_per_output_token_usd": 7.5e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -4143,7 +4142,7 @@
       "blended_price_usd_per_1m_tokens": 0.12,
       "context_window": 262144,
       "cost_per_input_token_usd": 7e-08,
-      "cost_per_output_token_usd": 2.8e-07,
+      "cost_per_output_token_usd": 2.7e-07,
       "features": [
         "frequency_penalty",
         "logprobs",
@@ -4269,9 +4268,9 @@
         "qwen: qwen3 next 80b a3b instruct",
         "qwen:qwen3-next-80b-a3b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.35,
+      "blended_price_usd_per_1m_tokens": 0.34,
       "context_window": 262144,
-      "cost_per_input_token_usd": 1e-07,
+      "cost_per_input_token_usd": 9e-08,
       "cost_per_output_token_usd": 1.1e-06,
       "features": [
         "frequency_penalty",
@@ -5066,6 +5065,7 @@
         "temperature",
         "text",
         "tool_use",
+        "top_a",
         "top_k",
         "top_logprobs",
         "top_p"
@@ -5201,10 +5201,10 @@
         "z-ai:glm-5.1",
         "z.ai: glm 5.1"
       ],
-      "blended_price_usd_per_1m_tokens": 1.48,
+      "blended_price_usd_per_1m_tokens": 2.15,
       "context_window": 204800,
-      "cost_per_input_token_usd": 9.66e-07,
-      "cost_per_output_token_usd": 3.036e-06,
+      "cost_per_input_token_usd": 1.4e-06,
+      "cost_per_output_token_usd": 4.4e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
