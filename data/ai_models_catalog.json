@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-10T04:56:21+00:00",
+  "generated_at": "2026-08-17T04:04:27+00:00",
   "models": [
     {
       "aliases": [
@@ -661,7 +661,7 @@
         "deepseek:deepseek-r1"
       ],
       "blended_price_usd_per_1m_tokens": 1.15,
-      "context_window": 163840,
+      "context_window": 64000,
       "cost_per_input_token_usd": 7e-07,
       "cost_per_output_token_usd": 2.5e-06,
       "features": [
@@ -732,10 +732,10 @@
         "deepseek: deepseek v3.1 terminus",
         "deepseek:deepseek-v3.1-terminus"
       ],
-      "blended_price_usd_per_1m_tokens": 0.45,
+      "blended_price_usd_per_1m_tokens": 0.44,
       "context_window": 163840,
       "cost_per_input_token_usd": 2.7e-07,
-      "cost_per_output_token_usd": 1e-06,
+      "cost_per_output_token_usd": 9.5e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1520,10 +1520,10 @@
         "google: gemma 4 26b a4b ",
         "google:gemma-4-26b-a4b-it"
       ],
-      "blended_price_usd_per_1m_tokens": 0.19,
+      "blended_price_usd_per_1m_tokens": 0.14,
       "context_window": 262144,
-      "cost_per_input_token_usd": 1.2e-07,
-      "cost_per_output_token_usd": 4e-07,
+      "cost_per_input_token_usd": 7e-08,
+      "cost_per_output_token_usd": 3.4e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -1625,7 +1625,6 @@
         "temperature",
         "text",
         "tool_use",
-        "top_a",
         "top_k",
         "top_logprobs",
         "top_p",
@@ -3586,7 +3585,7 @@
       ],
       "blended_price_usd_per_1m_tokens": 0.07,
       "context_window": 131072,
-      "cost_per_input_token_usd": 3.7e-08,
+      "cost_per_input_token_usd": 3e-08,
       "cost_per_output_token_usd": 1.7e-07,
       "features": [
         "frequency_penalty",
@@ -3840,6 +3839,7 @@
         "image",
         "include_reasoning",
         "logprobs",
+        "min_p",
         "output:text",
         "presence_penalty",
         "reasoning",
@@ -3927,10 +3927,10 @@
         "qwen: qwen2.5 vl 72b instruct",
         "qwen:qwen2.5-vl-72b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.38,
+      "blended_price_usd_per_1m_tokens": 0.85,
       "context_window": 128000,
-      "cost_per_input_token_usd": 2.5e-07,
-      "cost_per_output_token_usd": 7.5e-07,
+      "cost_per_input_token_usd": 8e-07,
+      "cost_per_output_token_usd": 1e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -4142,7 +4142,7 @@
       "blended_price_usd_per_1m_tokens": 0.12,
       "context_window": 262144,
       "cost_per_input_token_usd": 7e-08,
-      "cost_per_output_token_usd": 2.7e-07,
+      "cost_per_output_token_usd": 2.8e-07,
       "features": [
         "frequency_penalty",
         "logprobs",
@@ -4268,9 +4268,9 @@
         "qwen: qwen3 next 80b a3b instruct",
         "qwen:qwen3-next-80b-a3b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.34,
+      "blended_price_usd_per_1m_tokens": 0.35,
       "context_window": 262144,
-      "cost_per_input_token_usd": 9e-08,
+      "cost_per_input_token_usd": 1e-07,
       "cost_per_output_token_usd": 1.1e-06,
       "features": [
         "frequency_penalty",
@@ -5128,10 +5128,10 @@
         "z-ai:glm-5",
         "z.ai: glm 5"
       ],
-      "blended_price_usd_per_1m_tokens": 1.35,
+      "blended_price_usd_per_1m_tokens": 0.93,
       "context_window": 204800,
-      "cost_per_input_token_usd": 9.5e-07,
-      "cost_per_output_token_usd": 2.55e-06,
+      "cost_per_input_token_usd": 6e-07,
+      "cost_per_output_token_usd": 1.92e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -5201,10 +5201,10 @@
         "z-ai:glm-5.1",
         "z.ai: glm 5.1"
       ],
-      "blended_price_usd_per_1m_tokens": 2.15,
+      "blended_price_usd_per_1m_tokens": 1.48,
       "context_window": 204800,
-      "cost_per_input_token_usd": 1.4e-06,
-      "cost_per_output_token_usd": 4.4e-06,
+      "cost_per_input_token_usd": 9.66e-07,
+      "cost_per_output_token_usd": 3.036e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
