@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-17T04:04:27+00:00",
+  "generated_at": "2026-08-24T04:07:33+00:00",
   "models": [
     {
       "aliases": [
@@ -582,13 +582,14 @@
         "deepseek: deepseek v3 0324",
         "deepseek:deepseek-chat-v3-0324"
       ],
-      "blended_price_usd_per_1m_tokens": 0.48,
+      "blended_price_usd_per_1m_tokens": 0.44,
       "context_window": 163840,
-      "cost_per_input_token_usd": 2.7e-07,
-      "cost_per_output_token_usd": 1.12e-06,
+      "cost_per_input_token_usd": 2.5e-07,
+      "cost_per_output_token_usd": 1e-06,
       "features": [
         "frequency_penalty",
         "logit_bias",
+        "logprobs",
         "min_p",
         "output:text",
         "presence_penalty",
@@ -600,6 +601,7 @@
         "text",
         "tool_use",
         "top_k",
+        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -619,10 +621,10 @@
         "deepseek: deepseek v3.1",
         "deepseek:deepseek-chat-v3.1"
       ],
-      "blended_price_usd_per_1m_tokens": 0.43,
+      "blended_price_usd_per_1m_tokens": 0.83,
       "context_window": 163840,
-      "cost_per_input_token_usd": 2.5e-07,
-      "cost_per_output_token_usd": 9.5e-07,
+      "cost_per_input_token_usd": 5.5e-07,
+      "cost_per_output_token_usd": 1.65e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -732,10 +734,10 @@
         "deepseek: deepseek v3.1 terminus",
         "deepseek:deepseek-v3.1-terminus"
       ],
-      "blended_price_usd_per_1m_tokens": 0.44,
+      "blended_price_usd_per_1m_tokens": 0.45,
       "context_window": 163840,
       "cost_per_input_token_usd": 2.7e-07,
-      "cost_per_output_token_usd": 9.5e-07,
+      "cost_per_output_token_usd": 1e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -791,10 +793,10 @@
         "deepseek: deepseek v3.2",
         "deepseek:deepseek-v3.2"
       ],
-      "blended_price_usd_per_1m_tokens": 0.3,
+      "blended_price_usd_per_1m_tokens": 0.29,
       "context_window": 163840,
-      "cost_per_input_token_usd": 2.69e-07,
-      "cost_per_output_token_usd": 4e-07,
+      "cost_per_input_token_usd": 2.6e-07,
+      "cost_per_output_token_usd": 3.8e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1568,22 +1570,15 @@
       "cost_per_input_token_usd": 0.0,
       "cost_per_output_token_usd": 0.0,
       "features": [
-        "frequency_penalty",
         "image",
         "include_reasoning",
-        "logprobs",
         "output:text",
-        "presence_penalty",
         "reasoning",
-        "repetition_penalty",
         "seed",
-        "stop",
         "structured_output",
         "temperature",
         "text",
         "tool_use",
-        "top_k",
-        "top_logprobs",
         "top_p",
         "video"
       ],
@@ -1973,10 +1968,10 @@
         "minimax: minimax m2.5",
         "minimax:minimax-m2.5"
       ],
-      "blended_price_usd_per_1m_tokens": 0.39,
+      "blended_price_usd_per_1m_tokens": 0.47,
       "context_window": 204800,
-      "cost_per_input_token_usd": 2.2e-07,
-      "cost_per_output_token_usd": 9e-07,
+      "cost_per_input_token_usd": 2.7e-07,
+      "cost_per_output_token_usd": 1.08e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1984,7 +1979,6 @@
         "logprobs",
         "min_p",
         "output:text",
-        "parallel_tool_calls",
         "presence_penalty",
         "reasoning",
         "repetition_penalty",
@@ -2035,10 +2029,10 @@
         "minimax: minimax m2.7",
         "minimax:minimax-m2.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.53,
+      "blended_price_usd_per_1m_tokens": 0.42,
       "context_window": 204800,
-      "cost_per_input_token_usd": 3e-07,
-      "cost_per_output_token_usd": 1.2e-06,
+      "cost_per_input_token_usd": 2.4e-07,
+      "cost_per_output_token_usd": 9.6e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -2337,10 +2331,10 @@
         "mistralai/mistral-small-3.2-24b-instruct",
         "mistralai:mistral-small-3.2-24b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.13,
-      "context_window": 256000,
-      "cost_per_input_token_usd": 9.375e-08,
-      "cost_per_output_token_usd": 2.5e-07,
+      "blended_price_usd_per_1m_tokens": 0.11,
+      "context_window": 131072,
+      "cost_per_input_token_usd": 7.5e-08,
+      "cost_per_output_token_usd": 2e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -2505,10 +2499,10 @@
         "moonshotai: kimi k2.5",
         "moonshotai:kimi-k2.5"
       ],
-      "blended_price_usd_per_1m_tokens": 1.14,
+      "blended_price_usd_per_1m_tokens": 0.9,
       "context_window": 262144,
-      "cost_per_input_token_usd": 5.7e-07,
-      "cost_per_output_token_usd": 2.85e-06,
+      "cost_per_input_token_usd": 4.5e-07,
+      "cost_per_output_token_usd": 2.25e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -3585,7 +3579,7 @@
       ],
       "blended_price_usd_per_1m_tokens": 0.07,
       "context_window": 131072,
-      "cost_per_input_token_usd": 3e-08,
+      "cost_per_input_token_usd": 3.7e-08,
       "cost_per_output_token_usd": 1.7e-07,
       "features": [
         "frequency_penalty",
@@ -3702,37 +3696,18 @@
     },
     {
       "aliases": [
-        "gpt-oss-20b (free)",
         "openai/gpt-oss-20b:free",
         "openai:gpt-oss-20b:free"
       ],
-      "blended_price_usd_per_1m_tokens": 0.0,
-      "context_window": 131072,
-      "cost_per_input_token_usd": 0.0,
-      "cost_per_output_token_usd": 0.0,
-      "features": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "output:text",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "openai/gpt-oss-20b:free",
-      "model_name": "gpt-oss-20b (free)",
+      "model_name": "openai/gpt-oss-20b:free",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -4347,10 +4322,10 @@
         "qwen: qwen3.5 397b a17b",
         "qwen:qwen3.5-397b-a17b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.88,
+      "blended_price_usd_per_1m_tokens": 1.28,
       "context_window": 262144,
-      "cost_per_input_token_usd": 3.9e-07,
-      "cost_per_output_token_usd": 2.34e-06,
+      "cost_per_input_token_usd": 5e-07,
+      "cost_per_output_token_usd": 3.6e-06,
       "features": [
         "frequency_penalty",
         "image",
