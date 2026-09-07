@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-31T09:49:24+00:00",
+  "generated_at": "2026-09-07T08:22:41+00:00",
   "models": [
     {
       "aliases": [
@@ -427,22 +427,13 @@
       "cost_per_input_token_usd": 2.5e-07,
       "cost_per_output_token_usd": 8e-07,
       "features": [
-        "frequency_penalty",
         "include_reasoning",
-        "logit_bias",
-        "logprobs",
         "output:text",
-        "presence_penalty",
         "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "structured_output",
         "temperature",
         "text",
         "tool_use",
         "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -3865,10 +3856,10 @@
         "qwen: qwen2.5 vl 72b instruct",
         "qwen:qwen2.5-vl-72b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.38,
+      "blended_price_usd_per_1m_tokens": 0.85,
       "context_window": 128000,
-      "cost_per_input_token_usd": 2.5e-07,
-      "cost_per_output_token_usd": 7.5e-07,
+      "cost_per_input_token_usd": 8e-07,
+      "cost_per_output_token_usd": 1e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -4204,9 +4195,9 @@
         "qwen: qwen3 next 80b a3b instruct",
         "qwen:qwen3-next-80b-a3b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.34,
+      "blended_price_usd_per_1m_tokens": 0.35,
       "context_window": 262144,
-      "cost_per_input_token_usd": 9e-08,
+      "cost_per_input_token_usd": 1e-07,
       "cost_per_output_token_usd": 1.1e-06,
       "features": [
         "frequency_penalty",
