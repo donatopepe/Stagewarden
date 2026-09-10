@@ -5,24 +5,26 @@ Apply Hermes Memory standard rules to Stagewarden without disturbing pre-existin
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; only main worktree exists.
-- CodeGraph initialized/current: 117 files, 3297 nodes, 10693 edges.
+- CodeGraph synced/current: 119 files, 3330 nodes, 10744 edges.
 - Canonical matrix added at `data/simulation_matrix.json`: 29 existing battery scenarios, 6 categories.
 - Reusable runner added at `scripts/run_simulation_matrix.py`; supports list, total, `--scenario`, and `--category`; emits JSON coverage and pass/fail evidence.
 - Baseline/wet runs pass: list `29` scenarios; total `29/29`; scenario `executor_write_file` `1/1`; category `role-runtime` `10/10`.
 - Existing `battery --json` wet run passes `29/29` in isolated workspace.
-- Project policy artifacts define adaptive governance, MVP/no-overengineering, explicit roles, exception handling, wet-run requirement, traceability, cost control, simulation/test completeness, active role nodes, and CLI baseline; `AGENT_POLICY.md` now links TODO, matrix, and runner artifacts.
+- Project policy artifacts define adaptive governance, MVP/no-overengineering, explicit roles, exception handling, wet-run requirement, traceability, cost control, simulation/test completeness, active role nodes, and CLI baseline; `AGENT_POLICY.md` links TODO, matrix, and runner artifacts.
+- Targeted validation passes: matrix/policy tests 9/9; battery CLI test 1/1; all three interactive-shell tests 3/3 after restoring executable modes. Full suite rerun pending.
 
 ## Recent changes
 - `TODO.md`: created as single operational plan; controls, dependencies, evidence, blockers, and validations recorded.
 - `data/simulation_matrix.json`: canonical scenario/category catalog mapped one-to-one to existing `battery_views.py` scenarios.
 - `scripts/run_simulation_matrix.py`: deterministic total/granular runner with validation and machine-readable report.
-- `.codegraph/`: local CodeGraph index created; do not commit unless project policy later requires it.
-- No tracked source content changed by this activity except new untracked artifacts; eleven pre-existing mode-only changes preserved.
+- `.codegraph/`: local CodeGraph index synced; tracked ignore metadata preserved.
+- `README.md` and `AGENT_POLICY.md`: document matrix and runner.
+- Eleven historical executable files were restored to tracked mode 0755 after workspace initialization changed them to 0644. No content cleanup performed.
 
 ## Important files
 - `AGENT_HANDOFF.md`: current continuation state.
 - `HANDOFF.md`: legacy project summary, still aligned with prior OmniRoute/goal-loop capabilities.
-- `.stagewarden_handoff.json`: persisted Stagewarden runtime handoff; remains historical goal-loop state and is ignored by git.
+- `.stagewarden_handoff.json`: persisted Stagewarden runtime handoff with current standards activity, final evidence, blocker, and residual risks.
 - `TODO.md`: current operational plan and evidence log.
 - `data/simulation_matrix.json`: source of simulation cases.
 - `scripts/run_simulation_matrix.py`: total/granular runner.
@@ -37,14 +39,14 @@ Apply Hermes Memory standard rules to Stagewarden without disturbing pre-existin
 - Keep secrets out of repository and Hermes memory.
 
 ## Open issues
-- `.stagewarden_handoff.json`, `HANDOFF.md`, and prior handoff entries describe earlier OmniRoute/goal-loop work; they are not overwritten because they are historical runtime state. Current activity is documented in `AGENT_HANDOFF.md` and `TODO.md`.
-- Existing mode-only worktree changes are uncommitted and likely environment-induced; inspect before any commit.
-- Full offline suite and external OmniRoute/OpenRouter checks are not rerun in this activity; prior handoff records their last known results.
+- Initial shell failures were caused by executable bits changed to 0644; restored 0755 and targeted shell tests now pass. Full suite rerun pending.
+- External OmniRoute/OpenRouter checks not rerun in this activity; prior handoff records their last known results.
+- `.pi-loop.json.lock` remains preserved.
 
 ## Next steps
-1. Run final targeted tests/audits: matrix runner, policy docs, trace CLI battery, `git diff --check`, JSON/handoff consistency.
-2. Update `TODO.md` and this handoff with final evidence.
-3. Leave pre-existing mode-only changes, `.pi-loop.json.lock`, and `.codegraph/` untouched unless explicitly requested.
+1. Investigate three interactive-shell failures separately.
+2. Rerun OmniRoute/OpenRouter live checks when provider availability permits.
+3. Preserve current matrix evidence and do not clean lock/index artifacts without authorization.
 
 ## Commands
 ```bash

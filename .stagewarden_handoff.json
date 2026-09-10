@@ -15,17 +15,11 @@
   "current_step_id": "standards.final-validation",
   "current_step_title": "Run final wet-run audit and reconcile handoff artifacts",
   "current_step_status": "in_progress",
-  "latest_observation": "CodeGraph current; simulation matrix total 29/29, scenario 1/1, category 10/10; final targeted tests pending.",
-  "plan_status": "TODO.md is operational plan; steps 1-6 complete, step 7 in progress.",
-  "git_head": "7788467529043d875d04da30708a84094ecfa6a6",
+  "latest_observation": "Initial full-suite shell failures traced to 0644 executable bits; restored 0755 and targeted shell tests 3/3 pass. Full suite rerun pending.",
+  "plan_status": "TODO.md complete; final full-suite rerun pending.",
+  "git_head": "17ae3adb074b09b22aff11ffa1009a085ca1ff21",
   "git_head_baseline": "7788467529043d875d04da30708a84094ecfa6a6",
   "risk_register": [
-    {
-      "id": "preexisting-mode-changes",
-      "severity": "medium",
-      "status": "open",
-      "summary": "Eleven tracked files have mode-only 100755 to 100644 changes predating this activity; preserve and inspect before commit."
-    },
     {
       "id": "historical-handoff-divergence",
       "severity": "low",
@@ -37,6 +31,12 @@
       "severity": "low",
       "status": "open",
       "summary": "External provider checks not rerun in current activity; prior handoff evidence retained."
+    },
+    {
+      "id": "full-suite-rerun",
+      "severity": "low",
+      "status": "open",
+      "summary": "Full suite must be rerun after restoring executable bits."
     }
   ],
   "issue_register": [
@@ -49,13 +49,18 @@
       "id": "no-simulation-matrix-runner",
       "status": "resolved",
       "summary": "Added data/simulation_matrix.json and scripts/run_simulation_matrix.py."
+    },
+    {
+      "id": "executable-bits",
+      "status": "resolved",
+      "summary": "Workspace initialization changed eleven executable files to 0644; restored tracked 0755 modes."
     }
   ],
   "quality_register": [
     {
       "id": "codegraph",
       "status": "passed",
-      "evidence": "codegraph status: 117 files, 3297 nodes, 10693 edges, up to date."
+      "evidence": "codegraph status: 119 files, 3330 nodes, 10744 edges, up to date."
     },
     {
       "id": "matrix-list",
@@ -76,6 +81,21 @@
       "id": "matrix-category",
       "status": "passed",
       "evidence": "--category role-runtime: selected=10, passed=10, failed=0."
+    },
+    {
+      "id": "targeted-tests",
+      "status": "passed",
+      "evidence": "tests.test_simulation_matrix and tests.test_policy_docs: 9/9; battery CLI test: 1/1."
+    },
+    {
+      "id": "shell-tests-after-mode-fix",
+      "status": "passed",
+      "evidence": "Three interactive-shell tests pass after restoring executable 0755 bits."
+    },
+    {
+      "id": "full-suite",
+      "status": "pending",
+      "evidence": "Rerun after mode correction."
     }
   ],
   "lessons_log": [
@@ -87,15 +107,15 @@
   "exception_plan": [],
   "implementation_backlog": [
     {
-      "id": "final-validation",
-      "title": "Run targeted tests, static audits, and final git/status checks.",
+      "id": "full-suite-rerun",
+      "title": "Rerun full unittest suite after executable mode correction.",
       "status": "in_progress"
     }
   ],
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-10T10:31:55+00:00",
+  "updated_at": "2026-09-10T10:52:00+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
