@@ -1,34 +1,101 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "multi-node-goal-loop-orchestration",
+  "task": "hermes-memory-standard-alignment",
   "goal": {
-    "summary": "Multi-node goal loop with blueprint, parallel execution, autonomy gates, tolerance checks, structured messaging, pi benchmark.",
-    "status": "complete"
+    "summary": "Apply Hermes Memory standard rules; add reproducible simulation matrix and runners without disturbing existing changes.",
+    "status": "in_progress"
   },
   "project_budget": {},
   "user_question": {},
   "user_question_log": [],
   "project_brief": {},
-  "status": "complete",
+  "status": "in_progress",
   "waiting_reason": "",
-  "current_step_id": null,
-  "current_step_title": null,
-  "current_step_status": null,
-  "latest_observation": "",
-  "plan_status": "",
-  "git_head": null,
-  "git_head_baseline": null,
-  "risk_register": [],
-  "issue_register": [],
-  "quality_register": [],
-  "lessons_log": [],
+  "current_step_id": "standards.final-validation",
+  "current_step_title": "Run final wet-run audit and reconcile handoff artifacts",
+  "current_step_status": "in_progress",
+  "latest_observation": "CodeGraph current; simulation matrix total 29/29, scenario 1/1, category 10/10; final targeted tests pending.",
+  "plan_status": "TODO.md is operational plan; steps 1-6 complete, step 7 in progress.",
+  "git_head": "7788467529043d875d04da30708a84094ecfa6a6",
+  "git_head_baseline": "7788467529043d875d04da30708a84094ecfa6a6",
+  "risk_register": [
+    {
+      "id": "preexisting-mode-changes",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Eleven tracked files have mode-only 100755 to 100644 changes predating this activity; preserve and inspect before commit."
+    },
+    {
+      "id": "historical-handoff-divergence",
+      "severity": "low",
+      "status": "accepted",
+      "summary": "Persisted runtime handoff contains historical completed goal-loop entries; current activity is recorded in AGENT_HANDOFF.md, HANDOFF.md, and TODO.md."
+    },
+    {
+      "id": "live-provider-not-rerun",
+      "severity": "low",
+      "status": "open",
+      "summary": "External provider checks not rerun in current activity; prior handoff evidence retained."
+    }
+  ],
+  "issue_register": [
+    {
+      "id": "no-project-todo",
+      "status": "resolved",
+      "summary": "Created TODO.md as single operational plan."
+    },
+    {
+      "id": "no-simulation-matrix-runner",
+      "status": "resolved",
+      "summary": "Added data/simulation_matrix.json and scripts/run_simulation_matrix.py."
+    }
+  ],
+  "quality_register": [
+    {
+      "id": "codegraph",
+      "status": "passed",
+      "evidence": "codegraph status: 117 files, 3297 nodes, 10693 edges, up to date."
+    },
+    {
+      "id": "matrix-list",
+      "status": "passed",
+      "evidence": "run_simulation_matrix.py --list: 29 scenarios, 6 categories."
+    },
+    {
+      "id": "matrix-total",
+      "status": "passed",
+      "evidence": "run_simulation_matrix.py: selected=29, passed=29, failed=0."
+    },
+    {
+      "id": "matrix-scenario",
+      "status": "passed",
+      "evidence": "--scenario executor_write_file: selected=1, passed=1, failed=0."
+    },
+    {
+      "id": "matrix-category",
+      "status": "passed",
+      "evidence": "--category role-runtime: selected=10, passed=10, failed=0."
+    }
+  ],
+  "lessons_log": [
+    {
+      "timestamp": "2026-09-10T10:31:55Z",
+      "summary": "Existing battery already provided 29 executable simulations; standards gap was catalog/runner observability, not new capability implementation."
+    }
+  ],
   "exception_plan": [],
-  "implementation_backlog": [],
+  "implementation_backlog": [
+    {
+      "id": "final-validation",
+      "title": "Run targeted tests, static audits, and final git/status checks.",
+      "status": "in_progress"
+    }
+  ],
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-07-18T17:55:00+00:00",
+  "updated_at": "2026-09-10T10:31:55+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",

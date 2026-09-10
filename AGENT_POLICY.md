@@ -97,3 +97,6 @@ The policy is reflected in:
 - `stagewarden/prince2.py`
 - `README.md`
 - `HANDOFF.md`
+- `TODO.md`: current operational plan, dependencies, acceptance checks, and evidence log
+- `data/simulation_matrix.json`: canonical simulation/scenario matrix
+- `scripts/run_simulation_matrix.py`: reusable total and granular simulation runner

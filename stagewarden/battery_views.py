@@ -19,7 +19,15 @@ from .planner import PlanStep
 from .textcodec import dumps_ascii
 
 
-def _battery_report(config: AgentConfig) -> dict[str, object]:
+def _battery_report(
+    config: AgentConfig,
+    *,
+    selected_scenarios: set[str] | None = None,
+) -> dict[str, object]:
+    if selected_scenarios is None:
+        configured = os.environ.get("STAGEWARDEN_BATTERY_SCENARIOS", "").strip()
+        if configured:
+            selected_scenarios = {item.strip() for item in configured.split(",") if item.strip()}
 
     class _BatteryHandoffStub:
         def __init__(self, outputs: list[dict[str, object]]) -> None:
@@ -89,6 +97,10 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
         }
 
     simulations: list[dict[str, object]] = []
+
+    def record_simulation(name: str, runner) -> None:  # noqa: ANN001
+        if selected_scenarios is None or name in selected_scenarios:
+            simulations.append(_run_simulation(name, runner))
 
     def bootstrap_simulation() -> dict[str, object]:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -976,39 +988,43 @@ def _battery_report(config: AgentConfig) -> dict[str, object]:
                 "commit": committed.stdout.strip() if committed.ok else committed.error,
             }
 
-    simulations.append(_run_simulation("agent_bootstrap", bootstrap_simulation))
-    simulations.append(_run_simulation("executor_write_file", executor_write_file_simulation))
-    simulations.append(_run_simulation("executor_read_file", executor_read_file_simulation))
-    simulations.append(_run_simulation("executor_inspect_file", executor_inspect_file_simulation))
-    simulations.append(_run_simulation("executor_search_replace", executor_search_replace_simulation))
-    simulations.append(_run_simulation("executor_list_search", executor_list_search_simulation))
-    simulations.append(_run_simulation("filesystem_mutation", filesystem_mutation_simulation))
-    simulations.append(_run_simulation("executor_shell_command", executor_shell_command_simulation))
-    simulations.append(_run_simulation("git_workflow", git_workflow_simulation))
-    simulations.append(_run_simulation("executor_shell_session", executor_shell_session_simulation))
-    simulations.append(_run_simulation("executor_complete_action", executor_complete_action_simulation))
-    simulations.append(_run_simulation("provider_limit_snapshot", provider_limit_snapshot_simulation))
-    simulations.append(_run_simulation("executor_write_permission_denied", executor_write_permission_denied_simulation))
-    simulations.append(_run_simulation("executor_shell_permission_denied", executor_shell_permission_denied_simulation))
-    simulations.append(_run_simulation("role_runtime", role_runtime_simulation))
-    simulations.append(_run_simulation("role_runtime_missing_baseline", role_runtime_missing_baseline_simulation))
-    simulations.append(_run_simulation("role_shell", role_shell_simulation))
-    simulations.append(_run_simulation("role_switch_agent", role_switch_agent_simulation))
-    simulations.append(_run_simulation("role_message_cycle", role_message_cycle_simulation))
-    simulations.append(_run_simulation("role_wait_wake_guard", role_wait_wake_guard_simulation))
-    simulations.append(_run_simulation("role_escalation_guard", role_escalation_guard_simulation))
-    simulations.append(_run_simulation("role_antagonist_guard", role_antagonist_guard_simulation))
-    simulations.append(_run_simulation("role_devil_advocate_review", role_devil_advocate_review_simulation))
-    simulations.append(_run_simulation("role_unauthorized_edge", role_unauthorized_edge_simulation))
-    simulations.append(_run_simulation("action_validation_guard", action_validation_guard_simulation))
-    simulations.append(_run_simulation("health_guard", health_guard_simulation))
-    simulations.append(_run_simulation("preflight_guard", preflight_guard_simulation))
-    simulations.append(_run_simulation("log_detection", log_detection_simulation))
-    simulations.append(_run_simulation("git_roundtrip", git_roundtrip_simulation))
+    record_simulation("agent_bootstrap", bootstrap_simulation)
+    record_simulation("executor_write_file", executor_write_file_simulation)
+    record_simulation("executor_read_file", executor_read_file_simulation)
+    record_simulation("executor_inspect_file", executor_inspect_file_simulation)
+    record_simulation("executor_search_replace", executor_search_replace_simulation)
+    record_simulation("executor_list_search", executor_list_search_simulation)
+    record_simulation("filesystem_mutation", filesystem_mutation_simulation)
+    record_simulation("executor_shell_command", executor_shell_command_simulation)
+    record_simulation("git_workflow", git_workflow_simulation)
+    record_simulation("executor_shell_session", executor_shell_session_simulation)
+    record_simulation("executor_complete_action", executor_complete_action_simulation)
+    record_simulation("provider_limit_snapshot", provider_limit_snapshot_simulation)
+    record_simulation("executor_write_permission_denied", executor_write_permission_denied_simulation)
+    record_simulation("executor_shell_permission_denied", executor_shell_permission_denied_simulation)
+    record_simulation("role_runtime", role_runtime_simulation)
+    record_simulation("role_runtime_missing_baseline", role_runtime_missing_baseline_simulation)
+    record_simulation("role_shell", role_shell_simulation)
+    record_simulation("role_switch_agent", role_switch_agent_simulation)
+    record_simulation("role_message_cycle", role_message_cycle_simulation)
+    record_simulation("role_wait_wake_guard", role_wait_wake_guard_simulation)
+    record_simulation("role_escalation_guard", role_escalation_guard_simulation)
+    record_simulation("role_antagonist_guard", role_antagonist_guard_simulation)
+    record_simulation("role_devil_advocate_review", role_devil_advocate_review_simulation)
+    record_simulation("role_unauthorized_edge", role_unauthorized_edge_simulation)
+    record_simulation("action_validation_guard", action_validation_guard_simulation)
+    record_simulation("health_guard", health_guard_simulation)
+    record_simulation("preflight_guard", preflight_guard_simulation)
+    record_simulation("log_detection", log_detection_simulation)
+    record_simulation("git_roundtrip", git_roundtrip_simulation)
 
     failures = [item for item in simulations if not item["ok"]]
     return {
         "command": "battery",
+        "selection": {
+            "mode": "total" if selected_scenarios is None else "granular",
+            "scenario_ids": sorted(selected_scenarios) if selected_scenarios is not None else None,
+        },
         "ready": not failures,
         "total": len(simulations),
         "passed": len(simulations) - len(failures),

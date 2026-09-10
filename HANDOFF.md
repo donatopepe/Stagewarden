@@ -1,24 +1,24 @@
 # Stagewarden Handoff Summary
 
 ## Current State
-- Local model execution can use `scripts/run_model_omniroute.py` with free routes `auto/coding:free`, `auto/best-free`, and `coding-free-fallback`; smoke and opt-in live tests pass.
-- External OpenRouter integration tests skip when no external key exists; remaining full-suite failures are unrelated deterministic test issues.
+- Hermes Memory standard alignment activity active on `main`; current operational plan is `TODO.md`.
+- CodeGraph index current: 117 files, 3297 nodes, 10693 edges.
+- Local model execution can use `scripts/run_model_omniroute.py` with free routes `auto/coding:free`, `auto/best-free`, and `coding-free-fallback`; prior smoke and opt-in live tests pass.
 - `goal loop <task>` produces blueprint with scope, node graph, child prompts, execution order, tolerance matrix, exception policy, validation plan, final report.
 - `goal loop run <task>` executes multi-node loop with dependency resolution, parallel execution, autonomy gates, tolerance checks, structured messaging, handoff recording.
-- Configurable execution mode: mock / auto / pi.
-- pi learning benchmark compiled.
+- Existing battery wet run passes 29/29.
+- Canonical simulation matrix and reusable runner now cover all 29 battery simulations and 6 categories; total and granular runs pass.
 
 ## Recent Changes
-- `scripts/run_model_omniroute.py`: local OpenAI-compatible adapter with free route fallback.
-- `scripts/test_omniroute_free.sh`, `tests/test_omniroute_adapter.py`: smoke, fallback, and opt-in live coverage.
-- `stagewarden/goal_loop_orchestrator.py`: _execute_node, _mock_execution, _pi_execution, _autonomy_gate, _tolerance_gate, ThreadPoolExecutor parallel execution, env var config.
-- `stagewarden/cli_dispatch.py`: goal loop run routing.
-- `stagewarden/commands.py`: goal loop run spec.
-- `stagewarden/json_schema_registry.py`: goal loop run schema.
-- `tests/test_trace_cli.py`: env-aware run_main_capture, mock-mode execution test.
-- `.pi/pi-learning-benchmark.md`: 8-dimension pi agent benchmark.
+- `TODO.md`: operational standards plan and evidence log.
+- `data/simulation_matrix.json`: canonical 29-case/6-category matrix.
+- `scripts/run_simulation_matrix.py`: list, total, scenario, and category execution with JSON coverage.
+- `AGENT_HANDOFF.md`: current detailed continuation state.
+- `AGENT_POLICY.md`, `AGENT_POLICY.json`, `AGENT_MANIFESTO.md`: existing governance artifacts reviewed; no secrets added.
 
 ## Notes
 - Set `RUN_MODEL_BIN=$PWD/scripts/run_model_omniroute.py` for local model calls; free routes only by default.
-- Use `STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE=mock` for deterministic test execution.
-- Use `pi` mode for real AI-powered node execution (requires working provider).
+- Use `STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE=mock` for deterministic goal-loop tests.
+- Use pi mode for real AI-powered node execution (requires working provider).
+- Preserve eleven pre-existing mode-only tracked changes, active `.pi-loop.json.lock`, and local `.codegraph/` index; no cleanup authorized.
+- `.stagewarden_handoff.json` remains historical runtime state for completed goal-loop work; current standards activity is tracked in `AGENT_HANDOFF.md` and `TODO.md`.

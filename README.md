@@ -32,6 +32,7 @@ Caratteristiche principali:
 - cross-platform shell execution on macOS, Linux, and Windows
 - governed external IO: web search, HTTP/HTTPS download, checksum evidence, gzip compression, and archive verification
 - local stub support for smoke tests
+- canonical 29-case simulation matrix with total/scenario/category runner
 
 Install locally:
 
@@ -49,6 +50,17 @@ stagewarden agent "inspect this repository and propose the next safe change"
 ```
 
 Adapter defaults to `http://127.0.0.1:20128/v1` and keeps external credentials outside repository. Override endpoint with `OMNIROUTE_BASE_URL`. Verified free local routes include `auto/coding:free`, `auto/best-free`, and `coding-free-fallback`. Paid/pro routes stay outside automated tests unless explicitly requested.
+
+Simulation matrix:
+
+```bash
+./scripts/run_simulation_matrix.py --list
+./scripts/run_simulation_matrix.py
+./scripts/run_simulation_matrix.py --scenario executor_write_file
+./scripts/run_simulation_matrix.py --category role-runtime
+```
+
+Matrix source is `data/simulation_matrix.json`. Runner invokes real `stagewarden battery --json` execution and emits machine-readable coverage and pass/fail evidence.
 
 Prerequisites:
 

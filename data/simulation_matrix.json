@@ -1,0 +1,103 @@
+{
+  "_format": "stagewarden_simulation_matrix",
+  "_version": 1,
+  "command": "battery",
+  "source": "stagewarden/battery_views.py::_battery_report",
+  "description": "Canonical catalog for Stagewarden battery simulations. Each case maps to one existing battery scenario and is executable through scripts/run_simulation_matrix.py.",
+  "categories": [
+    {
+      "id": "bootstrap",
+      "label": "Agent bootstrap",
+      "scenario_ids": ["agent_bootstrap"]
+    },
+    {
+      "id": "executor-files",
+      "label": "Executor file operations",
+      "scenario_ids": [
+        "executor_write_file",
+        "executor_read_file",
+        "executor_inspect_file",
+        "executor_search_replace",
+        "executor_list_search",
+        "filesystem_mutation"
+      ]
+    },
+    {
+      "id": "executor-shell-git",
+      "label": "Executor shell and git",
+      "scenario_ids": [
+        "executor_shell_command",
+        "git_workflow",
+        "executor_shell_session",
+        "executor_complete_action"
+      ]
+    },
+    {
+      "id": "permissions-limits",
+      "label": "Limits and permission guards",
+      "scenario_ids": [
+        "provider_limit_snapshot",
+        "executor_write_permission_denied",
+        "executor_shell_permission_denied"
+      ]
+    },
+    {
+      "id": "role-runtime",
+      "label": "PRINCE2 role runtime",
+      "scenario_ids": [
+        "role_runtime",
+        "role_runtime_missing_baseline",
+        "role_shell",
+        "role_switch_agent",
+        "role_message_cycle",
+        "role_wait_wake_guard",
+        "role_escalation_guard",
+        "role_antagonist_guard",
+        "role_devil_advocate_review",
+        "role_unauthorized_edge"
+      ]
+    },
+    {
+      "id": "governance-guards",
+      "label": "Governance, health and evidence guards",
+      "scenario_ids": [
+        "action_validation_guard",
+        "health_guard",
+        "preflight_guard",
+        "log_detection",
+        "git_roundtrip"
+      ]
+    }
+  ],
+  "scenarios": [
+    {"id": "agent_bootstrap", "category": "bootstrap", "label": "Agent bootstrap", "runner": "battery"},
+    {"id": "executor_write_file", "category": "executor-files", "label": "Executor write file", "runner": "battery"},
+    {"id": "executor_read_file", "category": "executor-files", "label": "Executor read file", "runner": "battery"},
+    {"id": "executor_inspect_file", "category": "executor-files", "label": "Executor inspect file", "runner": "battery"},
+    {"id": "executor_search_replace", "category": "executor-files", "label": "Executor search/replace", "runner": "battery"},
+    {"id": "executor_list_search", "category": "executor-files", "label": "Executor list/search", "runner": "battery"},
+    {"id": "filesystem_mutation", "category": "executor-files", "label": "Filesystem mutation", "runner": "battery"},
+    {"id": "executor_shell_command", "category": "executor-shell-git", "label": "Executor shell command", "runner": "battery"},
+    {"id": "git_workflow", "category": "executor-shell-git", "label": "Git workflow", "runner": "battery"},
+    {"id": "executor_shell_session", "category": "executor-shell-git", "label": "Executor shell session", "runner": "battery"},
+    {"id": "executor_complete_action", "category": "executor-shell-git", "label": "Executor complete action", "runner": "battery"},
+    {"id": "provider_limit_snapshot", "category": "permissions-limits", "label": "Provider limit snapshot", "runner": "battery"},
+    {"id": "executor_write_permission_denied", "category": "permissions-limits", "label": "Executor write permission denied", "runner": "battery"},
+    {"id": "executor_shell_permission_denied", "category": "permissions-limits", "label": "Executor shell permission denied", "runner": "battery"},
+    {"id": "role_runtime", "category": "role-runtime", "label": "Role runtime", "runner": "battery"},
+    {"id": "role_runtime_missing_baseline", "category": "role-runtime", "label": "Role runtime missing baseline", "runner": "battery"},
+    {"id": "role_shell", "category": "role-runtime", "label": "Role shell", "runner": "battery"},
+    {"id": "role_switch_agent", "category": "role-runtime", "label": "Role switch agent", "runner": "battery"},
+    {"id": "role_message_cycle", "category": "role-runtime", "label": "Role message cycle", "runner": "battery"},
+    {"id": "role_wait_wake_guard", "category": "role-runtime", "label": "Role wait/wake guard", "runner": "battery"},
+    {"id": "role_escalation_guard", "category": "role-runtime", "label": "Role escalation guard", "runner": "battery"},
+    {"id": "role_antagonist_guard", "category": "role-runtime", "label": "Role antagonist guard", "runner": "battery"},
+    {"id": "role_devil_advocate_review", "category": "role-runtime", "label": "Role devil advocate review", "runner": "battery"},
+    {"id": "role_unauthorized_edge", "category": "role-runtime", "label": "Role unauthorized edge", "runner": "battery"},
+    {"id": "action_validation_guard", "category": "governance-guards", "label": "Action validation guard", "runner": "battery"},
+    {"id": "health_guard", "category": "governance-guards", "label": "Health guard", "runner": "battery"},
+    {"id": "preflight_guard", "category": "governance-guards", "label": "Preflight guard", "runner": "battery"},
+    {"id": "log_detection", "category": "governance-guards", "label": "Log detection", "runner": "battery"},
+    {"id": "git_roundtrip", "category": "governance-guards", "label": "Git roundtrip", "runner": "battery"}
+  ]
+}
