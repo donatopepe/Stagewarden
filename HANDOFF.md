@@ -8,12 +8,12 @@
 - `goal loop <task>` produces blueprint with scope, node graph, child prompts, execution order, tolerance matrix, exception policy, validation plan, final report.
 - `goal loop run <task>` executes multi-node loop with dependency resolution, parallel execution, autonomy gates, tolerance checks, structured messaging, handoff recording.
 - Existing battery wet run passes 29/29; targeted matrix/policy tests pass 9/9 and battery CLI test passes 1/1.
-- Full suite passes 475/475 with 5 intentional skips after restoring executable modes 0755.
+- Full suite passes 487/487 with 5 intentional skips after restoring executable modes 0755.
 - Canonical simulation matrix and reusable runner cover all 29 battery simulations and 6 categories; total and granular runs pass.
-- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #9 reconfirmed route inventory and all local gates; auto/best-coding route-only retry remained blocked, so retry stopped.
+- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #10 reconfirmed stable inventory (`2059` models; five expected routes present; SHA-256 `689904c7393b3f5cf4e5c54638aa2f0f551fdc3b001b721ce32d52d5416a45ca`) and all local gates; prior auto/best-coding route-only retry remained blocked, so no retry. Full suite now `487/487` with `5` intentional skips.
 
 ## Recent Changes
-- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan.
+- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iteration #10 evidence.
 - `data/simulation_matrix.json`: canonical 29-case/6-category matrix.
 - `scripts/run_simulation_matrix.py`: list, total, scenario, and category execution with JSON coverage.
 - `models/providers/index.json`, `models/providers/*.json`: provider tree.

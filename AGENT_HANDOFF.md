@@ -9,16 +9,16 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - Canonical matrix added at `data/simulation_matrix.json`: 29 existing battery scenarios, 6 categories.
 - Reusable runner added at `scripts/run_simulation_matrix.py`; supports list, total, `--scenario`, and `--category`; emits JSON coverage and pass/fail evidence.
 - Baseline/wet runs pass: list `29` scenarios; total `29/29`; scenario `executor_write_file` `1/1`; category `role-runtime` `10/10`.
-- Existing `battery --json` wet run passes `29/29` in isolated workspace.
+- Existing `battery --json` wet run passes `29/29` in isolated workspace; current full suite passes `487/487` with `5` intentional skips.
 - Project policy artifacts define adaptive governance, MVP/no-overengineering, explicit roles, exception handling, wet-run requirement, traceability, cost control, simulation/test completeness, active role nodes, and CLI baseline; `AGENT_POLICY.md` links TODO, matrix, and runner artifacts.
 - Provider tree MVP passes: `models/providers/index.json` plus five provider JSON files, 238 records conserved; provider-tree tests 3/3.
 - Runtime provider integration passes: valid tree precedence, malformed/missing fallback to legacy catalog, registry override; provider/model/router/runtime tests 30/30.
-- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #9 confirmed unchanged route inventory; all local gates passed; route-only `auto/best-coding` retry remained `ok=false`, `steps=2`; same blocker persists. Fixed local runtime evidence is 3/4; fail-closed critic parser retained.
+- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #10 confirmed unchanged route inventory (`2059` advertised models; expected five routes present; inventory SHA-256 `689904c7393b3f5cf4e5c54638aa2f0f551fdc3b001b721ce32d52d5416a45ca`); all local gates passed. Prior route-only `auto/best-coding` retry remained `ok=false`, `steps=2`; same blocker persists, so no retry without route/model change. Fixed local runtime evidence is 3/4; fail-closed critic parser retained.
 - Hermes/Obsidian memory MVP passes: read-only Markdown roots/files, root traversal rejection, max-char bound, prompt integration, `memory status` CLI/schema. Memory context 5/5; combined memory/executor/parser 75/75.
 - Standard memory controls applied: CodeGraph first, TODO operational source, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
 
 ## Recent changes
-- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; local OmniRoute evidence and bounded Agent blocker recorded.
+- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iteration #10 evidence and bounded Agent blocker recorded.
 - `data/simulation_matrix.json`: canonical scenario/category catalog mapped one-to-one to existing `battery_views.py` scenarios.
 - `models/providers/index.json`, `models/providers/*.json`: provider model tree generated from legacy catalog.
 - `models/providers/README.md`: provider-tree layout and regeneration contract.
@@ -51,15 +51,14 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - Keep secrets out of repository and Hermes memory.
 
 ## Open issues
-- Runtime provider registry still reads legacy catalog; explicit `models/providers` precedence/fallback remains open.
 - External OmniRoute/OpenRouter checks not rerun; prior evidence retained.
-- External OmniRoute/OpenRouter checks not rerun; prior handoff records their last known results.
+- Bounded real-Agent completion remains blocked by repeated non-terminal free-route behavior; wait for route/model state change.
 - `.pi-loop.json.lock` remains preserved.
 
 ## Next steps
-1. Loop iteration #9 completed: route inventory, targeted regressions, and OmniRoute adapter/smoke/live checks pass; route-only coding retry failed bounded completion; same blocker persists.
-2. Stop retries until stable route/model changes; preserve fail-closed critic parser.
-3. Preserve current matrix evidence and do not clean lock/index artifacts without authorization.
+1. Loop iteration #10 completed: targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, source-text UTF-8/no-BOM scan `180/180`, and diff check pass.
+2. Stop bounded Agent retries until route/model state changes; preserve fail-closed critic parser.
+3. Preserve current uncommitted tree and do not clean lock/index artifacts without authorization.
 
 ## Loop contract
 - Loop prompt: continue Stagewarden work from `TODO.md`; one bounded iteration per trigger.

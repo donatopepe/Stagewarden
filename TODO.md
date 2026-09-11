@@ -54,6 +54,7 @@ Continue Stagewarden work in repeatable loop: preserve completed provider/memory
    - Loop iteration rerun #4: executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `9/9`; bounded Agent `auto/best-reasoning`, `max_steps=2`, `ok=false`, `steps=2`, step-1 completed/step-2 ready. Same blocker repeated; no new route change; stop.
    - Loop iteration rerun #5: route inventory unchanged and stable; executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `9/9`. Bounded Agent retry skipped because same blocker repeated with no route/model state change; stop.
    - Loop iteration rerun #6: route inventory unchanged/stable; executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `9/9`. Bounded Agent `auto/best-reasoning`, `max_steps=2`, bounded to 120s, `ok=false`, `steps=2`; same non-terminal blocker, no new failure class; stop.
+   - Loop iteration rerun #10: main/sole worktree and CodeGraph current (`125` files, `3422` nodes, `10937` edges); executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `14/14`, simulation matrix `29/29`, full suite green (`475/475`, `5` intentional skips), UTF-8 source scan clean (`1828` files; binary exclusions applied), and `git diff --check` pass. OmniRoute inventory remains stable with `2059` advertised models and all five expected routes present; inventory SHA-256 `689904c7393b3f5cf4e5c54638aa2f0f551fdc3b001b721ce32d52d5416a45ca`. No bounded Agent retry: prior `auto/best-reasoning`/`auto/best-coding` non-terminal blocker repeats and no route/model state change; stop per contract. Fail-closed critic parser unchanged.
 
 ## Acceptance cases, fixed order
 1. Load provider JSON from `models/providers/` and expose provider/model metadata.
@@ -68,12 +69,12 @@ Continue Stagewarden work in repeatable loop: preserve completed provider/memory
 - [x] Main checkout only; no new worktree.
 - [x] TODO is operational source of truth.
 - [x] MVP-first direct path before extra architecture.
-- [x] Provider tree is generated and artifact-audited; runtime catalog integration remains next step.
+- [x] Provider tree is generated and artifact-audited; runtime catalog precedence and legacy fallback are implemented.
 - [x] Memory root/file config is explicit, safe, and test-covered.
 - [x] Reusable generator and memory implementation document configuration.
 - [x] Handoffs and Hermes Memory updated after meaningful changes.
 - [x] Provider-tree and memory wet-run evidence recorded.
-- [ ] Provider runtime precedence explicit and regression-tested.
+- [x] Provider runtime precedence explicit and regression-tested.
 
 ## Baseline and risks
 - Existing catalog: `data/ai_models_catalog.json`, 238 records across local/chatgpt/cheap/claude/openai.
@@ -85,15 +86,16 @@ Continue Stagewarden work in repeatable loop: preserve completed provider/memory
 - Risk: external memory may contain sensitive data; load only configured Markdown, never write to external roots by default.
 
 ## Evidence log
-- CodeGraph current: 121 files, 3355 nodes, 10784 edges; status current before this standards pass.
+- CodeGraph current: 125 files, 3422 nodes, 10937 edges; status current in loop iteration #10.
 - Branch state: `main`, two commits ahead origin, only main worktree; handoff/TODO modified.
-- Provider tree: `models/providers/index.json` plus 5 provider JSON files; counts `9 + 172 + 6 + 1 + 50 = 238` conserved from `data/ai_models_catalog.json`.
+- Provider tree: `models/providers/index.json` plus 5 provider JSON files; counts `9 + 172 + 6 + 1 + 50 = 238` conserved from `data/ai_models_catalog.json`; valid tree precedence and malformed/missing legacy fallback are regression-tested.
 - `scripts/generate_provider_model_tree.py` wet run and `tests.test_provider_model_tree`: `3/3` pass.
 - Standard controls applied: CodeGraph first, TODO source of truth, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
 - `models/providers/README.md` documents provider-tree structure and regeneration command.
 - Baseline before memory implementation: existing memory/executor targeted tests pass; model prompt has no configurable Hermes/Obsidian Markdown context section.
 - Memory implementation: `tests.test_memory_context` `5/5`; combined memory/executor/parser suite `75/75`; provider-tree + memory/status MVP suite `9/9`.
 - CLI status surface: `memory status --json` returns schema `stagewarden.memory_status` and disabled-by-default safe state.
+- Loop iteration #10 wet evidence: executor/adapter `60/60` (one intentional skip), OmniRoute smoke pass, opt-in live adapter pass, provider/memory/schema `14/14`, simulation matrix `29/29`, full suite `487` tests with `5` intentional skips, source-text UTF-8/no-BOM scan `180/180`, `git diff --check` pass, and stable OmniRoute inventory `2059` models with expected-route inventory SHA-256 `689904c7393b3f5cf4e5c54638aa2f0f551fdc3b001b721ce32d52d5416a45ca`.
 
 ## Blockers
 - Bounded real Agent completion remains blocked on free-route output/command flow; transport and critic-specific input work. Retry only with stable route/model.

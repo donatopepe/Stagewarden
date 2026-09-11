@@ -15,8 +15,8 @@
   "current_step_id": "loop-setup",
   "current_step_title": "Recurring bounded Stagewarden work loop",
   "current_step_status": "blocked",
-  "latest_observation": "Loop iteration #9: all 5 OmniRoute routes advertised/unchanged; executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory regression 9/9. Route-only retry auto/best-coding with max_steps=2 bounded 120s: ok=false steps=2; no closure. Blocker persists across free coding route; stopped.",
-  "plan_status": "Loop iteration complete; stop retries on repeated blocker per loop contract.",
+  "latest_observation": "Loop iteration #10: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory regression 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8 source scan clean (180 text files; binary exclusions applied), and git diff --check pass. OmniRoute inventory stable at 2059 advertised models with all five expected routes present; inventory SHA-256 689904c7393b3f5cf4e5c54638aa2f0f551fdc3b001b721ce32d52d5416a45ca. No bounded Agent retry: repeated auto/best-reasoning and auto/best-coding non-terminal blocker with no route/model state change; stopped. Fail-closed critic parser unchanged.",
+  "plan_status": "Loop iteration #10 complete; stop retries on repeated blocker per loop contract.",
   "git_head": "d532c9fc8e6eaa2471ed39d3e897648d1cd9ae70",
   "git_head_baseline": "d532c9fc8e6eaa2471ed39d3e897648d1cd9ae70",
   "risk_register": [
@@ -121,7 +121,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-11T19:20:00+00:00",
+  "updated_at": "2026-09-11T15:22:54+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
