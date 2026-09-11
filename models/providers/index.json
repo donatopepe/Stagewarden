@@ -1,0 +1,35 @@
+{
+  "_format": "stagewarden_provider_model_manifest",
+  "_version": 1,
+  "generated_at": "2026-08-31T09:49:24+00:00",
+  "model_count": 238,
+  "provider_directory": "models/providers",
+  "providers": [
+    {
+      "file": "chatgpt.json",
+      "id": "chatgpt",
+      "model_count": 9
+    },
+    {
+      "file": "cheap.json",
+      "id": "cheap",
+      "model_count": 172
+    },
+    {
+      "file": "claude.json",
+      "id": "claude",
+      "model_count": 6
+    },
+    {
+      "file": "local.json",
+      "id": "local",
+      "model_count": 1
+    },
+    {
+      "file": "openai.json",
+      "id": "openai",
+      "model_count": 50
+    }
+  ],
+  "source": "data/ai_models_catalog.json"
+}

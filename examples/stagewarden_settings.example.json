@@ -8,6 +8,12 @@
   "shell": {
     "backend": "auto"
   },
+  "memory": {
+    "enabled": true,
+    "roots": ["/home/public/HermesVault/Memory"],
+    "files": ["MEMORY.md", "pi-memory.md", "preferences.md", "projects.md", "decisions.md", "conversation-log.md"],
+    "max_chars": 12000
+  },
   "catalog": {
     "refresh": {
       "command": "catalog refresh --aa",

@@ -143,5 +143,10 @@ class AgentConfig:
         return (self.workspace_root / self.settings_filename).resolve()
 
     @property
+    def memory_context(self):
+        from .memory_context import load_memory_context
+        return load_memory_context(self.workspace_root, self.settings_path)
+
+    @property
     def history_path(self) -> Path:
         return (self.workspace_root / self.history_filename).resolve()

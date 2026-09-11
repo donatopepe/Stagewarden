@@ -1,0 +1,28 @@
+{
+  "_format": "stagewarden_provider_models",
+  "_version": 1,
+  "generated_at": "2026-08-31T09:49:24+00:00",
+  "models": [
+    {
+      "aliases": [
+        "provider-default"
+      ],
+      "blended_price_usd_per_1m_tokens": "local",
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
+      "intelligence_rank": null,
+      "latency_rank": null,
+      "model_id": "provider-default",
+      "model_name": "provider-default",
+      "openness": "self_hosted",
+      "pricing_source": "local",
+      "provider": "local",
+      "source": "local:provider-default",
+      "speed_rank": null
+    }
+  ],
+  "provider": "local",
+  "source": "data/ai_models_catalog.json"
+}

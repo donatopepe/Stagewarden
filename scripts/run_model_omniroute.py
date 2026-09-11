@@ -40,10 +40,19 @@ def main() -> int:
     requested = os.environ.get("STAGEWARDEN_PROVIDER_MODEL") or MODEL_MAP.get(provider, DEFAULT_MODEL)
     models = tuple(dict.fromkeys((requested, *FREE_FALLBACKS)))
     errors: list[dict[str, str]] = []
+    is_critic = "devil advocate" in prompt.lower() or "project assurance critic" in prompt.lower()
+    messages = (
+        [
+            {"role": "system", "content": "You are a strict JSON critic. Return exactly one JSON object with top-level verdict equal to accept, revise, or block. Never repeat the primary action."},
+            {"role": "user", "content": prompt},
+        ]
+        if is_critic
+        else [{"role": "user", "content": prompt}]
+    )
     for model in models:
         payload = json.dumps({
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
             "temperature": 0,
             "max_tokens": int(os.environ.get("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", "4096")),
             "stream": False,

@@ -23,6 +23,8 @@ CATALOG_OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "ai_models_
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 ARTIFICIAL_ANALYSIS_LLM_MODELS_URL = "https://artificialanalysis.ai/api/v2/data/llms/models"
 CATALOG_PATH_ENV = "STAGEWARDEN_AI_MODELS_CATALOG_PATH"
+PROVIDER_TREE_PATH_ENV = "STAGEWARDEN_PROVIDER_MODELS_PATH"
+PROVIDER_TREE_DEFAULT_PATH = Path(__file__).resolve().parents[1] / "models" / "providers"
 ARTIFICIAL_ANALYSIS_API_KEY_ENV = "STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY"
 
 
@@ -51,6 +53,14 @@ def _catalog_path(path: str | Path | None = None) -> Path:
 
 def catalog_path(path: str | Path | None = None) -> Path:
     return _catalog_path(path)
+
+def provider_tree_path(path: str | Path | None = None) -> Path:
+    if path is not None:
+        return Path(path)
+    override = os.environ.get(PROVIDER_TREE_PATH_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return PROVIDER_TREE_DEFAULT_PATH
 
 
 def _safe_float(value: object) -> float | None:
@@ -418,7 +428,55 @@ def write_ai_models_catalog(
     return catalog
 
 
+def _valid_provider_tree_payload(payload: object, provider: str) -> bool:
+    if not isinstance(payload, dict) or payload.get("_format") != "stagewarden_provider_models":
+        return False
+    if str(payload.get("provider", "")).strip() != provider:
+        return False
+    models = payload.get("models")
+    return isinstance(models, list) and all(isinstance(item, dict) for item in models)
+
+
+def load_provider_tree_catalog(path: str | Path | None = None) -> dict[str, Any]:
+    root = provider_tree_path(path)
+    index_path = root / "index.json"
+    try:
+        manifest = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(manifest, dict) or manifest.get("_format") != "stagewarden_provider_model_manifest":
+        return {}
+    providers = manifest.get("providers")
+    if not isinstance(providers, list) or not providers:
+        return {}
+    records: list[dict[str, Any]] = []
+    for item in providers:
+        if not isinstance(item, dict):
+            return {}
+        provider = str(item.get("id", "")).strip()
+        filename = str(item.get("file", "")).strip()
+        if not provider or not filename or Path(filename).name != filename or Path(filename).suffix != ".json" or filename == "index.json":
+            return {}
+        try:
+            payload = json.loads((root / filename).read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return {}
+        if not _valid_provider_tree_payload(payload, provider):
+            return {}
+        rows = payload["models"]
+        if len(rows) != int(item.get("model_count", -1)):
+            return {}
+        records.extend(rows)
+    expected_count = manifest.get("model_count")
+    if not isinstance(expected_count, int) or expected_count != len(records):
+        return {}
+    return {"generated_at": manifest.get("generated_at", ""), "source_urls": {}, "models": records, "provider_tree": {"path": str(root), "manifest": str(index_path)}}
+
+
 def load_ai_models_catalog(path: str | Path = CATALOG_OUTPUT_PATH) -> dict[str, Any]:
+    tree = load_provider_tree_catalog()
+    if tree:
+        return tree
     catalog_path = _catalog_path(path)
     try:
         payload = json.loads(catalog_path.read_text(encoding="utf-8"))

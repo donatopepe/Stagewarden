@@ -55,6 +55,7 @@ JSON_SCHEMA_REGISTRY: Final[dict[str, str]] = {
     "battery": "stagewarden.battery",
     "prince2 benchmark": "stagewarden.prince2_benchmark",
     "shell backend": "stagewarden.shell_backend",
+    "memory status": "stagewarden.memory_status",
     "auth status": "stagewarden.auth_status",
     "project brief": "stagewarden.project_brief",
     "project brief set": "stagewarden.project_brief_set",

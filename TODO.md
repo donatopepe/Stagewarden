@@ -1,73 +1,106 @@
 # Stagewarden TODO operativo
 
-## Objective
-Allineare repository a regole standard Hermes Memory, preservando modifiche già presenti e verificando ogni risultato con evidenza reale.
+## Current objective
+Continue Stagewarden work in repeatable loop: preserve completed provider/memory MVP, retry blocked local Agent validation when safe, and run regression gates.
 
 ## Metric and threshold
-- Metric: controlli applicabili completati / controlli applicabili identificati.
-- Threshold: 100%.
+- Metric: loop iteration completed with all targeted gates green or blocker recorded.
+- Threshold: 100% of executable gates; blocked external/model gates explicitly recorded.
 
 ## Scope and assumptions
-- Checkout operativo: `/home/public/Stagewarden`, branch `main`.
-- Non creare worktree nuovi; non rimuovere worktree esistenti.
-- Non alterare o ripristinare modifiche preesistenti non attribuibili a questa attività.
-- Non salvare segreti in repository o memoria.
-- Interpretare “simulazioni” come capability/demo/agent-runner eseguibili già presenti nel repository; catalogare casi reali, non inventare copertura cosmetica.
+- Checkout: `/home/public/Stagewarden`, branch `main`, only main worktree.
+- Preserve existing capabilities and current uncommitted handoff state.
+- No secrets, API keys, tokens, certificates, `.env`, or live sessions in repository/memory.
+- MVP first: static provider JSON catalog loading plus configured memory path resolution; no network sync or Obsidian plugin dependency.
 
 ## Ordered work
-1. [x] Inventory: branch, status, handoff, tests, scripts, CodeGraph availability.
-   - Done when: current state and risks recorded.
-   - Validation: `git status --short --branch`, file inventory.
-2. [x] Define applicable standard controls from Hermes memory and project policy.
-   - Depends on: inventory.
-   - Done when: controls mapped to concrete files/checks.
-   - Validation: checklist below; `AGENT_POLICY.md`, `AGENT_POLICY.json`, and `AGENT_MANIFESTO.md` reviewed.
-3. [x] Initialize/update CodeGraph.
-   - Depends on: repository inventory.
-   - Done when: index exists and is current.
-   - Validation: `codegraph status /home/public/Stagewarden`.
-4. [x] Keep operational handoff artifacts aligned.
-   - Depends on: control mapping and current state.
-   - Files: `AGENT_HANDOFF.md`, `HANDOFF.md`, `.stagewarden_handoff.json`.
-   - Done when: objective, state, risks, next steps, and validation evidence agree.
-   - Validation: JSON parse, handoff cross-check, and `git diff --check`.
-   - Result: current handoffs describe prior completed goal-loop work, not this standards-alignment activity; update required before closure.
-5. [x] Add or document complete simulation/scenario matrix and reusable runners.
-   - Depends on: inventory of existing capabilities and tests.
-   - Done when: matrix is source of cases and runners support total plus granular scenario/category execution with observable results.
-   - Validation: `./scripts/run_simulation_matrix.py --list`, total, `--scenario executor_write_file`, and `--category role-runtime` all pass; total `29/29`, category `10/10`.
-6. [x] Encode applicable global standards in project documentation without secrets.
-   - Depends on: control mapping.
-   - Done when: project rules cover MVP-first, CodeGraph, TODO, main checkout, scenario matrix/runners, automation, UTF-8, handoff, and wet-run evidence.
-   - Validation: `AGENT_MANIFESTO.md`, `AGENT_POLICY.md`, `AGENT_POLICY.json`, and this TODO cover governance/wet-run/traceability; new matrix and runner document scenario coverage.
-7. [x] Run final wet-run test/audit and update all handoff artifacts.
-   - Depends on: steps 2–6.
-   - Done when: all applicable controls pass or have explicit blocker/exception evidence.
-   - Validation: targeted tests, runner commands, CodeGraph status, git status.
-   - Result: targeted matrix/policy tests 9/9 pass; battery CLI test 1/1 pass. Root cause of three interactive-shell failures identified as executable bits accidentally changed to 0644 by workspace initialization; restored 0755 and reran all three shell tests 3/3 pass. Full suite rerun pending.
+1. [x] Inventory current model catalog, config, memory store, tests, branch/status, worktrees, and CodeGraph.
+   - Validation: startup protocol, CodeGraph status, source inspection.
+2. [x] Define contract and acceptance cases.
+   - Model tree: `models/providers/*.json`; provider ID from filename or payload; stable schema.
+   - Memory config: workspace config selects one or more Markdown roots/files for Hermes/Obsidian context.
+   - Safety: configured paths resolve explicitly; missing/invalid config fails closed or returns clear diagnostics; no secrets loaded into persisted project artifacts.
+3. [x] Generate provider model tree.
+   - Files: `models/providers/index.json`, `models/providers/*.json`, `scripts/generate_provider_model_tree.py`.
+   - Baseline: no `models/` tree; current source is monolithic `data/ai_models_catalog.json` with 238 records across 5 provider keys.
+   - Fixed cases/order: directory; manifest; `chatgpt.json`; `cheap.json`; `claude.json`; `local.json`; `openai.json`; JSON validity; record conservation; secret-field scan.
+   - Result: generator wet run created one manifest and five provider JSON files; records conserve `238`; no credential fields introduced.
+   - Validation: `./scripts/generate_provider_model_tree.py` passed; deterministic tree audit passed.
+4. [x] Implement configurable Hermes/Obsidian memory.
+   - Files: `stagewarden/memory_context.py`, `stagewarden/config.py`, `stagewarden/executor.py`, settings example.
+   - Contract: `.stagewarden_settings.json` `memory` block with `enabled`, `roots`, `files`, `max_chars`; Markdown read-only; relative files stay under configured roots; missing files warn, malformed config reports error.
+   - Result: fixed cases pass: disabled/default; multiple roots/files; missing optional file; malformed config; traversal/non-Markdown rejection; max-char bound; prompt integration; no external-root writes.
+   - Validation: `tests.test_memory_context` `5/5`; memory/executor/parser suite `75/75`.
+5. [x] Add user-facing config/status surfaces and docs.
+   - Files: README, settings example, `memory status` JSON/text report.
+   - Result: `memory status --json` machine-readable; schema registered; CLI test pass.
+   - Validation: `tests.test_memory_status_cli` `1/1`, schema tests pass.
+   - Files: README, settings example, command/status report if needed.
+   - Tests: machine-readable config/status output.
+6. [x] Run wet validation and update handoffs/memory.
+   - Commands: targeted tests, full relevant suite, real CLI/config smoke tests, `git diff --check`, CodeGraph sync/status, Hermes UTF-8 validator.
+   - Result: memory MVP targeted `11/11`; combined memory/executor/parser `75/75`; provider tree + simulation total pass; UTF-8 validator `41/41`; CodeGraph current.
+7. [x] Integrate provider tree into runtime catalog/registry.
+   - Contract: explicit env/settings override path; provider-tree files load first only when valid; legacy `data/ai_models_catalog.json` fallback unchanged.
+   - Result: valid tree precedence, malformed/missing fallback, registry override, and no-secret cases pass.
+   - Validation: provider/model/router/runtime suite `30/30`; final regression subset `38/38`.
+8. [x] Validate local OmniRoute free-model runtime path.
+   - Fixed cases/order: adapter fallback unit; free-route shell smoke; opt-in live adapter; one real `Agent.run` with `RUN_MODEL_BIN=scripts/run_model_omniroute.py`.
+   - Baseline: adapter fallback, shell smoke, and live adapter pass; real Agent run failed because critic repeated primary action JSON and omitted `verdict`.
+   - Iterations 1-5: prompt contract, critic-specific adapter input, max-step increase, route switch, and fail-closed cleanup. Valid critic/tool evidence observed; bounded completion still blocked.
+   - Final result: 3/4 fixed local cases pass; fourth bounded real-Agent case explicitly blocked by free-route output/command flow. Accepted exception; no parser weakening.
+   - Loop iteration rerun #2: executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `9/9`; bounded Agent `ok=false`, `steps=2`, step-1 completed and step-2 ready. Same blocker repeated; stop retry loop.
+   - Loop iteration rerun #3: OmniRoute model inventory confirms `auto/best-reasoning`, `auto/best-coding`, `auto/coding:free`, `auto/best-free`, and `coding-free-fallback` advertised; executor/adapter `60/60`, smoke, live adapter, and provider/memory regression `9/9` pass. No bounded Agent retry: same blocker and no route-state change; stop.
+   - Loop iteration rerun #4: executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `9/9`; bounded Agent `auto/best-reasoning`, `max_steps=2`, `ok=false`, `steps=2`, step-1 completed/step-2 ready. Same blocker repeated; no new route change; stop.
+   - Loop iteration rerun #5: route inventory unchanged and stable; executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `9/9`. Bounded Agent retry skipped because same blocker repeated with no route/model state change; stop.
+   - Loop iteration rerun #6: route inventory unchanged/stable; executor/adapter `60/60` (one intentional skip), smoke pass, opt-in live adapter pass, provider/memory regression `9/9`. Bounded Agent `auto/best-reasoning`, `max_steps=2`, bounded to 120s, `ok=false`, `steps=2`; same non-terminal blocker, no new failure class; stop.
 
-## Applicable-control checklist
-- [x] CodeGraph initialized/current before code work.
-- [x] Only main checkout used; existing worktree changes inventoried and preserved.
-- [x] TODO is the single operational plan and updated after each meaningful step/blocker.
-- [x] Project documents global standard rules.
-- [x] Scenario matrix covers applicable simulations/capabilities.
-- [x] Reusable runner supports total and granular scenario/category execution.
-- [x] Handoff files remain aligned.
-- [x] UTF-8/text audit performed; no secrets stored.
-- [x] Wet-run evidence recorded; dry-run never sole closure evidence.
+## Acceptance cases, fixed order
+1. Load provider JSON from `models/providers/` and expose provider/model metadata.
+2. Preserve current `data/ai_models_catalog.json` behavior when no provider-tree override exists.
+3. Configure Hermes/Obsidian Markdown roots/files through workspace JSON without changing source code.
+4. Load existing `MEMORY.md`, `pi-memory.md`, `preferences.md`, `projects.md`, `decisions.md`, and `conversation-log.md` style files when configured.
+5. Ignore missing optional files with observable diagnostics; reject malformed config clearly.
+6. Never persist credentials or raw secrets through memory configuration.
+
+## Applicable standards
+- [x] CodeGraph first and current.
+- [x] Main checkout only; no new worktree.
+- [x] TODO is operational source of truth.
+- [x] MVP-first direct path before extra architecture.
+- [x] Provider tree is generated and artifact-audited; runtime catalog integration remains next step.
+- [x] Memory root/file config is explicit, safe, and test-covered.
+- [x] Reusable generator and memory implementation document configuration.
+- [x] Handoffs and Hermes Memory updated after meaningful changes.
+- [x] Provider-tree and memory wet-run evidence recorded.
+- [ ] Provider runtime precedence explicit and regression-tested.
+
+## Baseline and risks
+- Existing catalog: `data/ai_models_catalog.json`, 238 records across local/chatgpt/cheap/claude/openai.
+- Provider tree result: `models/providers/index.json` plus `chatgpt.json` (9), `cheap.json` (172), `claude.json` (6), `local.json` (1), `openai.json` (50); total 238.
+- Existing model resolution: `stagewarden/model_catalog.py` and `stagewarden/provider_registry.py`.
+- Existing runtime memory: `stagewarden/memory.py` stores agent attempts/tool transcript in workspace `.stagewarden_memory.json`; this is distinct from Hermes/Obsidian Markdown context and must remain compatible.
+- Existing workspace settings: `.stagewarden_settings.json`, parsed by shell views for shell backend and permissions.
+- Risk: changing catalog precedence can alter routing; preserve current catalog as fallback and add explicit override behavior.
+- Risk: external memory may contain sensitive data; load only configured Markdown, never write to external roots by default.
 
 ## Evidence log
-- Baseline: `TODO.md` absent; CodeGraph initially uninitialized; branch `main`; worktree had 11 mode-only modifications plus `.pi-loop.json.lock`.
-- CodeGraph: synced and indexed 119 files, 3330 nodes, 10744 edges; status current.
-- Baseline wet run: `battery --json` in isolated temp workspace returned `ready=true`, `passed=29`, `total=29`, `failed=0`, exit 0. Existing battery now supports filtered execution through `STAGEWARDEN_BATTERY_SCENARIOS`.
-- Matrix wet runs: list `29` scenarios/`6` categories; total `29/29`; scenario `executor_write_file` `1/1`; category `role-runtime` `10/10`; unknown scenario fails closed.
-- Targeted tests: `tests.test_simulation_matrix` and `tests.test_policy_docs` `9/9`; battery CLI test `1/1`.
-- Initial full suite: `472` pass, `3` failures, `5` skips. Root cause was tracked executable bits changed from 0755 to 0644; restoring 0755 makes all three shell tests pass in targeted rerun.
-- Existing worktree inventory: only main checkout; eleven historical mode-only changes were corrected back to executable 0755 after workspace initialization had recorded 0644.
-- Handoff files aligned to current standards activity; `.stagewarden_handoff.json` records final validation and residual risks.
+- CodeGraph current: 121 files, 3355 nodes, 10784 edges; status current before this standards pass.
+- Branch state: `main`, two commits ahead origin, only main worktree; handoff/TODO modified.
+- Provider tree: `models/providers/index.json` plus 5 provider JSON files; counts `9 + 172 + 6 + 1 + 50 = 238` conserved from `data/ai_models_catalog.json`.
+- `scripts/generate_provider_model_tree.py` wet run and `tests.test_provider_model_tree`: `3/3` pass.
+- Standard controls applied: CodeGraph first, TODO source of truth, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
+- `models/providers/README.md` documents provider-tree structure and regeneration command.
+- Baseline before memory implementation: existing memory/executor targeted tests pass; model prompt has no configurable Hermes/Obsidian Markdown context section.
+- Memory implementation: `tests.test_memory_context` `5/5`; combined memory/executor/parser suite `75/75`; provider-tree + memory/status MVP suite `9/9`.
+- CLI status surface: `memory status --json` returns schema `stagewarden.memory_status` and disabled-by-default safe state.
 
-## Blockers / exceptions
-- Existing `.pi-loop.json.lock` is preserved; do not remove without explicit authorization.
-- Initial full-suite issue resolved: executable runner/stub/setup files were 0644; restored 0755. Three interactive-shell tests now pass targeted.
-- External OmniRoute/OpenRouter checks not rerun in current activity; prior handoff evidence retained.
+## Blockers
+- Bounded real Agent completion remains blocked on free-route output/command flow; transport and critic-specific input work. Retry only with stable route/model.
+- External OpenRouter checks remain outside MVP scope.
+
+## Loop contract
+- Each loop run starts by reading this TODO, handoff, CodeGraph, and Hermes memory.
+- Each iteration runs targeted regression and local OmniRoute checks before attempting blocked Agent case.
+- No parser weakening, no secrets, no new worktree.
+- Stop loop when blocked case passes, environment/model blocker repeats, or user cancels.

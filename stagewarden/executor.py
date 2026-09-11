@@ -1215,6 +1215,10 @@ class Executor:
         )
         critic_sections = [
             PromptSection(
+                "Devil advocate output contract",
+                "Return one JSON object only. Do not repeat the primary action. Required top-level key `verdict`; allowed values: `accept`, `revise`, `block`. Also return `contradictions` (array), `missing_evidence` (array), `counter_argument` (string), `must_escalate` (boolean), and `confidence` (number).",
+            ),
+            PromptSection(
                 "Devil advocate mission",
                 "\n".join(
                     [
@@ -1280,6 +1284,7 @@ class Executor:
             for item in plan
         )
         memory_summary = _executor_prompting.bounded_context(self.memory.summarize(), 2000, label="memory_summary")
+        external_memory = self.config.memory_context
         execution_log = _executor_prompting.bounded_context(self.memory.detailed_summary(), 4000, label="execution_log")
         handoff_log = _executor_prompting.bounded_context(self.project_handoff.detailed_summary(), 4000, label="handoff_log")
         active_role = self._role_for_step(task=task, step=step)
@@ -1352,6 +1357,11 @@ class Executor:
         sections = [
             PromptSection("Thread Start", thread_start),
             PromptSection("Task", task),
+            PromptSection("Configured Hermes/Obsidian memory", _executor_prompting.bounded_context(
+                _executor_prompting.render_external_memory_context(external_memory),
+                external_memory.max_chars,
+                label="hermes_obsidian_memory",
+            )),
             PromptSection("Turn Context", turn_context),
             PromptSection("Coding work package controls", coding_work_package_controls),
             PromptSection("Model context files", model_context),

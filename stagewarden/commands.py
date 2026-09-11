@@ -109,6 +109,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("stream status", "core", "Show streaming mode.", "stream status", handler="session"),
     CommandSpec("doctor", "core", "Validate local prerequisites and configuration.", "doctor [--json]", json=True, handler="doctor"),
     CommandSpec("shell backend", "core", "Show configured shell backend.", "shell backend", json=True, handler="shell"),
+    CommandSpec("memory status", "core", "Show configured Hermes/Obsidian Markdown memory roots and load diagnostics.", "memory status [--json]", json=True, handler="status"),
     CommandSpec("shell backend use", "core", "Set configured shell backend.", "shell backend use <auto|bash|zsh|powershell|cmd>", handler="shell"),
     CommandSpec("models", "models", "Show configured providers and provider-model selections.", "models", json=True, handler="models"),
     CommandSpec("models usage", "models", "Show recent model usage.", "models usage", json=True, handler="models"),

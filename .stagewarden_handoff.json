@@ -1,101 +1,97 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "hermes-memory-standard-alignment",
+  "task": "stagewarden-recurring-loop",
   "goal": {
-    "summary": "Apply Hermes Memory standard rules; add reproducible simulation matrix and runners without disturbing existing changes.",
-    "status": "in_progress"
+    "summary": "Continue Stagewarden TODO in bounded recurring iterations with regression and local OmniRoute evidence.",
+    "status": "blocked"
   },
   "project_budget": {},
   "user_question": {},
   "user_question_log": [],
   "project_brief": {},
-  "status": "in_progress",
-  "waiting_reason": "",
-  "current_step_id": "standards.final-validation",
-  "current_step_title": "Run final wet-run audit and reconcile handoff artifacts",
-  "current_step_status": "in_progress",
-  "latest_observation": "Initial full-suite shell failures traced to 0644 executable bits; restored 0755 and targeted shell tests 3/3 pass. Full suite rerun pending.",
-  "plan_status": "TODO.md complete; final full-suite rerun pending.",
-  "git_head": "17ae3adb074b09b22aff11ffa1009a085ca1ff21",
-  "git_head_baseline": "7788467529043d875d04da30708a84094ecfa6a6",
+  "status": "blocked",
+  "waiting_reason": "Same bounded real-Agent blocker persists across auto/best-reasoning and auto/best-coding; wait for route/model state change.",
+  "current_step_id": "loop-setup",
+  "current_step_title": "Recurring bounded Stagewarden work loop",
+  "current_step_status": "blocked",
+  "latest_observation": "Loop iteration #9: all 5 OmniRoute routes advertised/unchanged; executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory regression 9/9. Route-only retry auto/best-coding with max_steps=2 bounded 120s: ok=false steps=2; no closure. Blocker persists across free coding route; stopped.",
+  "plan_status": "Loop iteration complete; stop retries on repeated blocker per loop contract.",
+  "git_head": "d532c9fc8e6eaa2471ed39d3e897648d1cd9ae70",
+  "git_head_baseline": "d532c9fc8e6eaa2471ed39d3e897648d1cd9ae70",
   "risk_register": [
     {
-      "id": "historical-handoff-divergence",
-      "severity": "low",
-      "status": "accepted",
-      "summary": "Persisted runtime handoff contains historical completed goal-loop entries; current activity is recorded in AGENT_HANDOFF.md, HANDOFF.md, and TODO.md."
+      "id": "omniroute-agent-completion",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Free local route can produce valid but non-terminal actions, command-prefix rejection, and checkpoint recovery; bounded Agent case does not close."
     },
     {
-      "id": "live-provider-not-rerun",
+      "id": "provider-catalog-precedence",
       "severity": "low",
-      "status": "open",
-      "summary": "External provider checks not rerun in current activity; prior handoff evidence retained."
+      "status": "mitigated",
+      "summary": "Provider tree validated with legacy fallback."
     },
     {
-      "id": "full-suite-rerun",
+      "id": "external-memory-sensitivity",
+      "severity": "medium",
+      "status": "mitigated",
+      "summary": "Memory loader read-only, Markdown-only, root-bounded, max-char bounded."
+    },
+    {
+      "id": "external-provider-not-rerun",
       "severity": "low",
       "status": "open",
-      "summary": "Full suite must be rerun after restoring executable bits."
+      "summary": "OpenRouter external check not run."
     }
   ],
   "issue_register": [
     {
-      "id": "no-project-todo",
-      "status": "resolved",
-      "summary": "Created TODO.md as single operational plan."
+      "id": "omniroute-agent-completion",
+      "status": "open",
+      "summary": "Real Agent acceptance case remains blocked under free routes; raw behavior recorded in TODO."
     },
     {
-      "id": "no-simulation-matrix-runner",
+      "id": "provider-tree-runtime",
       "status": "resolved",
-      "summary": "Added data/simulation_matrix.json and scripts/run_simulation_matrix.py."
+      "summary": "Provider runtime tree precedence/fallback implemented."
     },
     {
-      "id": "executable-bits",
+      "id": "memory-config",
       "status": "resolved",
-      "summary": "Workspace initialization changed eleven executable files to 0644; restored tracked 0755 modes."
+      "summary": "Hermes/Obsidian memory MVP implemented."
     }
   ],
   "quality_register": [
     {
-      "id": "codegraph",
+      "id": "omni-route-inventory",
       "status": "passed",
-      "evidence": "codegraph status: 119 files, 3330 nodes, 10744 edges, up to date."
+      "evidence": "All five configured routes advertised and unchanged."
     },
     {
-      "id": "matrix-list",
+      "id": "targeted-executor-adapter",
       "status": "passed",
-      "evidence": "run_simulation_matrix.py --list: 29 scenarios, 6 categories."
+      "evidence": "60 tests OK, one intentional skip."
     },
     {
-      "id": "matrix-total",
+      "id": "omni-smoke",
       "status": "passed",
-      "evidence": "run_simulation_matrix.py: selected=29, passed=29, failed=0."
+      "evidence": "Free route shell smoke OK."
     },
     {
-      "id": "matrix-scenario",
+      "id": "omni-live",
       "status": "passed",
-      "evidence": "--scenario executor_write_file: selected=1, passed=1, failed=0."
+      "evidence": "Opt-in live adapter test OK."
     },
     {
-      "id": "matrix-category",
+      "id": "provider-memory-regression",
       "status": "passed",
-      "evidence": "--category role-runtime: selected=10, passed=10, failed=0."
+      "evidence": "9 tests OK."
     },
     {
-      "id": "targeted-tests",
-      "status": "passed",
-      "evidence": "tests.test_simulation_matrix and tests.test_policy_docs: 9/9; battery CLI test: 1/1."
-    },
-    {
-      "id": "shell-tests-after-mode-fix",
-      "status": "passed",
-      "evidence": "Three interactive-shell tests pass after restoring executable 0755 bits."
-    },
-    {
-      "id": "full-suite",
-      "status": "pending",
-      "evidence": "Rerun after mode correction."
+      "id": "bounded-agent",
+      "status": "blocked",
+      "evidence": "Loop #9 route-only auto/best-coding retry, max_steps=2 bounded 120s: ok=false, steps=2; no closure; blocker persists."
     }
   ],
   "lessons_log": [
@@ -107,15 +103,25 @@
   "exception_plan": [],
   "implementation_backlog": [
     {
-      "id": "full-suite-rerun",
-      "title": "Rerun full unittest suite after executable mode correction.",
+      "id": "recurring-loop",
+      "title": "Continue bounded Stagewarden work every 15 minutes.",
       "status": "in_progress"
+    },
+    {
+      "id": "real-agent-free-route",
+      "title": "Retry bounded Agent case when stable route/model available.",
+      "status": "blocked"
+    },
+    {
+      "id": "external-openrouter",
+      "title": "Run external OpenRouter check when explicitly available.",
+      "status": "open"
     }
   ],
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-10T10:52:00+00:00",
+  "updated_at": "2026-09-11T19:20:00+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",

@@ -9,6 +9,20 @@ from .runtime_env import detect_runtime_capabilities
 from .textcodec import dumps_ascii
 
 
+def render_external_memory_context(context: Any) -> str:
+    from .memory_context import render_memory_context
+    rendered = render_memory_context(context)
+    issues = getattr(context, "issues", ())
+    if issues:
+        issue_lines = [
+            f"- {getattr(issue, 'level', 'unknown')}: {getattr(issue, 'message', '')}"
+            f"{(' [' + getattr(issue, 'path', '') + ']') if getattr(issue, 'path', '') else ''}"
+            for issue in issues
+        ]
+        rendered += "\n\nMemory diagnostics:\n" + "\n".join(issue_lines)
+    return rendered
+
+
 ALLOWED_MODEL_ACTIONS = {
     "shell",
     "shell_session_create",
@@ -460,6 +474,7 @@ def model_context_files_section(executor: Any) -> str:
     lines = [
         f"- handoff_file: {executor.config.handoff_path.name}",
         f"- memory_file: {executor.config.memory_path.name}",
+        f"- configured_markdown_memory: enabled={executor.config.memory_context.enabled} files={len(executor.config.memory_context.files)} issues={len(executor.config.memory_context.issues)}",
         f"- trace_file: {executor.config.trace_path.name}",
         f"- recovery_state: {view['recovery_state']}",
         f"- backlog_status: ready={backlog['ready']} planned={backlog['planned']} in_progress={backlog['in_progress']} blocked={backlog['blocked']} done={backlog['done']}",

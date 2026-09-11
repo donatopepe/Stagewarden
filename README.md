@@ -51,6 +51,25 @@ stagewarden agent "inspect this repository and propose the next safe change"
 
 Adapter defaults to `http://127.0.0.1:20128/v1` and keeps external credentials outside repository. Override endpoint with `OMNIROUTE_BASE_URL`. Verified free local routes include `auto/coding:free`, `auto/best-free`, and `coding-free-fallback`. Paid/pro routes stay outside automated tests unless explicitly requested.
 
+Configured Hermes/Obsidian Markdown memory:
+
+```json
+{
+  "memory": {
+    "enabled": true,
+    "roots": ["/home/public/HermesVault/Memory"],
+    "files": ["pi-memory.md", "preferences.md", "projects.md", "decisions.md", "conversation-log.md"],
+    "max_chars": 12000
+  }
+}
+```
+
+Memory loading is read-only, Markdown-only, bounded by `max_chars`, and rejects paths escaping configured roots. Inspect status with:
+
+```bash
+stagewarden memory status --json
+```
+
 Simulation matrix:
 
 ```bash
@@ -61,6 +80,13 @@ Simulation matrix:
 ```
 
 Matrix source is `data/simulation_matrix.json`. Runner invokes real `stagewarden battery --json` execution and emits machine-readable coverage and pass/fail evidence.
+
+Provider runtime catalog:
+
+- `models/providers/index.json` and provider files are preferred when manifest/files validate.
+- Legacy `data/ai_models_catalog.json` remains automatic fallback.
+- Override provider tree path with `STAGEWARDEN_PROVIDER_MODELS_PATH`.
+- Malformed or incomplete provider trees fail closed to legacy catalog.
 
 Prerequisites:
 

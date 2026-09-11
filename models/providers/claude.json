@@ -1,0 +1,141 @@
+{
+  "_format": "stagewarden_provider_models",
+  "_version": 1,
+  "generated_at": "2026-08-31T09:49:24+00:00",
+  "models": [
+    {
+      "aliases": [
+        "anthropic/default",
+        "claude/default",
+        "claude:default",
+        "default"
+      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
+      "intelligence_rank": null,
+      "latency_rank": null,
+      "model_id": "default",
+      "model_name": "default",
+      "openness": "proprietary",
+      "pricing_source": "openrouter",
+      "provider": "claude",
+      "source": "anthropic/default",
+      "speed_rank": null
+    },
+    {
+      "aliases": [
+        "anthropic/sonnet",
+        "claude/sonnet",
+        "claude:sonnet",
+        "sonnet"
+      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
+      "intelligence_rank": null,
+      "latency_rank": null,
+      "model_id": "sonnet",
+      "model_name": "sonnet",
+      "openness": "proprietary",
+      "pricing_source": "openrouter",
+      "provider": "claude",
+      "source": "anthropic/sonnet",
+      "speed_rank": null
+    },
+    {
+      "aliases": [
+        "anthropic/opus",
+        "claude/opus",
+        "claude:opus",
+        "opus"
+      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
+      "intelligence_rank": null,
+      "latency_rank": null,
+      "model_id": "opus",
+      "model_name": "opus",
+      "openness": "proprietary",
+      "pricing_source": "openrouter",
+      "provider": "claude",
+      "source": "anthropic/opus",
+      "speed_rank": null
+    },
+    {
+      "aliases": [
+        "anthropic/haiku",
+        "claude/haiku",
+        "claude:haiku",
+        "haiku"
+      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
+      "intelligence_rank": null,
+      "latency_rank": null,
+      "model_id": "haiku",
+      "model_name": "haiku",
+      "openness": "proprietary",
+      "pricing_source": "openrouter",
+      "provider": "claude",
+      "source": "anthropic/haiku",
+      "speed_rank": null
+    },
+    {
+      "aliases": [
+        "anthropic/sonnet[1m]",
+        "claude/sonnet[1m]",
+        "claude:sonnet[1m]",
+        "sonnet[1m]"
+      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
+      "intelligence_rank": null,
+      "latency_rank": null,
+      "model_id": "sonnet[1m]",
+      "model_name": "sonnet[1m]",
+      "openness": "proprietary",
+      "pricing_source": "openrouter",
+      "provider": "claude",
+      "source": "anthropic/sonnet[1m]",
+      "speed_rank": null
+    },
+    {
+      "aliases": [
+        "anthropic/opusplan",
+        "claude/opusplan",
+        "claude:opusplan",
+        "opusplan"
+      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
+      "intelligence_rank": null,
+      "latency_rank": null,
+      "model_id": "opusplan",
+      "model_name": "opusplan",
+      "openness": "proprietary",
+      "pricing_source": "openrouter",
+      "provider": "claude",
+      "source": "anthropic/opusplan",
+      "speed_rank": null
+    }
+  ],
+  "provider": "claude",
+  "source": "data/ai_models_catalog.json"
+}

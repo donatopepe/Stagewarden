@@ -16,6 +16,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "baseline",
             "battery",
             "shell backend",
+            "memory status",
             "auth status",
             "project brief",
             "project brief set",

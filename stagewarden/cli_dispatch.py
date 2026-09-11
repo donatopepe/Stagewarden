@@ -383,6 +383,18 @@ def run_cli() -> int:
         else:
             print(_shell_views._render_shell_backend(config))
         return 0
+    if task == "memory status":
+        report = config.memory_context.report()
+        report["command"] = "memory status"
+        if args.json:
+            print(dumps_ascii(_json_schema_registry.with_json_schema("memory status", report), indent=2))
+        else:
+            print("Memory status:")
+            print(f"- enabled: {str(report['enabled']).lower()}")
+            print(f"- ok: {str(report['ok']).lower()}")
+            print(f"- files: {len(report['files'])}")
+            print(f"- issues: {report['issue_count']}")
+        return 0 if report.get("ok") else 1
     if task.startswith("shell backend use "):
         response = _command_views._handle_shell_command(task.split(), config)
         payload = _json_schema_registry.with_json_schema("shell backend use", {"command": "shell backend use", "message": response, "report": _shell_views._shell_backend_report(config)})
