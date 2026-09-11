@@ -10,10 +10,10 @@
 - Existing battery wet run passes 29/29; targeted matrix/policy tests pass 9/9 and battery CLI test passes 1/1.
 - Full suite passes 487/487 with 5 intentional skips after restoring executable modes 0755.
 - Canonical simulation matrix and reusable runner cover all 29 battery simulations and 6 categories; total and granular runs pass.
-- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #32 reconfirmed stable inventory at `2057` models (SHA-256 `c680b976e7a0d41b1355d6bb74eabd344cc14e9f3fae81bca2733c8183a2b308`), all five expected routes present, and all local gates green. No bounded Agent retry: inventory fluctuation did not alter route behavior; prior `auto/best-coding-fast` blocker remains. Full suite remains `487/487` with `5` intentional skips.
+- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #34 reconfirmed stable inventory at `2060` models (SHA-256 `76e45187d90f41469bfd680ae7d974352ec40c76ee04b97c7abf7cadb891cf2c`), all five expected routes present, and all local gates green. No bounded Agent retry: route/model behavior unchanged; prior `auto/best-coding-fast` blocker remains. Full suite remains `487/487` with `5` intentional skips.
 
 ## Recent Changes
-- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iteration #32 evidence.
+- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iteration #34 evidence.
 - `data/simulation_matrix.json`: canonical 29-case/6-category matrix.
 - `scripts/run_simulation_matrix.py`: list, total, scenario, and category execution with JSON coverage.
 - `models/providers/index.json`, `models/providers/*.json`: provider tree.
