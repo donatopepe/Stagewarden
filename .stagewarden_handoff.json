@@ -15,10 +15,10 @@
   "current_step_id": "loop-setup",
   "current_step_title": "Recurring bounded Stagewarden work loop",
   "current_step_status": "blocked",
-  "latest_observation": "Loop iteration #76: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory stable across three snapshots at 2103 models, SHA-256 7d62cd1ef86cf6fea10a1a58ee7f4e04d12432c8deaba3cff4d30002ee060bae, all five expected routes present. Two advertised models returned; no route behavior changed. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM source scan 183/183, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
-  "plan_status": "Loop iteration #76 complete; route inventory and behavior unchanged; stop retries per loop contract.",
-  "git_head": "923fc029da6e01b5006f746cfe49aca2f28d3cfb",
-  "git_head_baseline": "923fc029da6e01b5006f746cfe49aca2f28d3cfb",
+  "latest_observation": "Loop iteration #78: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory stable across three snapshots at 2103 models, SHA-256 80b00a1688b6e6de1036ab66d4687ddac4cee03e13073d3752623b66c4ed6f4f, all five expected routes present. Two advertised models returned; no route behavior changed. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM source scan 183/183, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
+  "plan_status": "Loop iteration #78 complete; route inventory and behavior unchanged; stop retries per loop contract.",
+  "git_head": "b89d47b7a6bb23e0c0571c78ea06e725b2ab80cd",
+  "git_head_baseline": "b89d47b7a6bb23e0c0571c78ea06e725b2ab80cd",
   "risk_register": [
     {
       "id": "omniroute-agent-completion",
@@ -73,32 +73,32 @@
     {
       "id": "omni-route-inventory",
       "status": "passed",
-      "evidence": "Loop #76: three stable snapshots at 2103 models; SHA-256 7d62cd1ef86cf6fea10a1a58ee7f4e04d12432c8deaba3cff4d30002ee060bae; all five configured routes advertised."
+      "evidence": "Loop #78: three stable snapshots at 2103 models; SHA-256 80b00a1688b6e6de1036ab66d4687ddac4cee03e13073d3752623b66c4ed6f4f; all five configured routes advertised."
     },
     {
       "id": "targeted-executor-adapter",
       "status": "passed",
-      "evidence": "Loop #76: 60 tests OK, one intentional skip."
+      "evidence": "Loop #78: 60 tests OK, one intentional skip."
     },
     {
       "id": "omni-smoke",
       "status": "passed",
-      "evidence": "Loop #76: free route shell smoke OK (FREE_OK)."
+      "evidence": "Loop #78: free route shell smoke OK (FREE_OK)."
     },
     {
       "id": "omni-live",
       "status": "passed",
-      "evidence": "Loop #76: opt-in live adapter 2/2 tests OK (FREE_OK)."
+      "evidence": "Loop #78: opt-in live adapter 2/2 tests OK (FREE_OK)."
     },
     {
       "id": "provider-memory-regression",
       "status": "passed",
-      "evidence": "Loop #76: provider/memory/schema 14 tests OK."
+      "evidence": "Loop #78: provider/memory/schema 14 tests OK."
     },
     {
       "id": "bounded-agent",
       "status": "blocked",
-      "evidence": "Loop #76: no retry; route inventory and behavior unchanged. Prior meaningful-change auto/best-coding-fast retry (max_steps=2, timeout 120s) returned ok=false, steps=2, one failed model call; blocker persists."
+      "evidence": "Loop #78: no retry; route inventory and behavior unchanged. Prior meaningful-change auto/best-coding-fast retry (max_steps=2, timeout 120s) returned ok=false, steps=2, one failed model call; blocker persists."
     },
     {
       "step_id": "step-1",
@@ -147,7 +147,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-12T12:01:08+00:00",
+  "updated_at": "2026-09-12T12:15:51+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
