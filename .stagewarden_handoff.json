@@ -15,10 +15,10 @@
   "current_step_id": "loop-setup",
   "current_step_title": "Recurring bounded Stagewarden work loop",
   "current_step_status": "blocked",
-  "latest_observation": "Loop iteration #62: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory changed from prior 2115 state to 2116 models, then stabilized across three snapshots, SHA-256 8f0b2c6da982871ce6c17db3810526c280e075fe0bbf5e0376bc7d90d866aa4a, all five expected routes present. One advertised model returned; no route behavior changed. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM source scan 183/183, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
-  "plan_status": "Loop iteration #62 complete; catalog fluctuation did not alter route behavior; stop retries per loop contract.",
-  "git_head": "0c4fbe9fc10f5803e2dd098bbeeb9cfc6454fe35",
-  "git_head_baseline": "0c4fbe9fc10f5803e2dd098bbeeb9cfc6454fe35",
+  "latest_observation": "Loop iteration #64: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory returned from prior 2114 state to 2116 models, then stabilized across three snapshots, SHA-256 8f0b2c6da982871ce6c17db3810526c280e075fe0bbf5e0376bc7d90d866aa4a, all five expected routes present. Two advertised models returned; no route behavior changed. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM source scan 183/183, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
+  "plan_status": "Loop iteration #64 complete; catalog fluctuation did not alter route behavior; stop retries per loop contract.",
+  "git_head": "c59c5ca64f7ec460f16cfc853a70549a34273382",
+  "git_head_baseline": "c59c5ca64f7ec460f16cfc853a70549a34273382",
   "risk_register": [
     {
       "id": "omniroute-agent-completion",
@@ -147,7 +147,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-13T17:00:00+00:00",
+  "updated_at": "2026-09-13T19:00:00+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
