@@ -15,8 +15,8 @@
   "current_step_id": "loop-setup",
   "current_step_title": "Recurring bounded Stagewarden work loop",
   "current_step_status": "blocked",
-  "latest_observation": "Loop iteration #36: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory changed from prior 2060 state to 2059 models, then stabilized across three snapshots, SHA-256 d4d4b21f57471e4e80a90613aea2dd0362a91509adebdf62b719209147f25146, all five expected routes present. One advertised model disappeared; no route behavior changed. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM source scan 180/180, and git diff --check pass. No bounded Agent retry: prior auto/best-coding-fast blocker repeats, stop per contract. Fail-closed critic parser unchanged.",
-  "plan_status": "Loop iteration #36 complete; stop retries on repeated blocker per loop contract.",
+  "latest_observation": "Loop iteration #37: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory returned from prior 2059 state to 2060 models, then stabilized across three snapshots, SHA-256 76e45187d90f41469bfd680ae7d974352ec40c76ee04b97c7abf7cadb891cf2c, all five expected routes present. One advertised model returned; no route behavior changed. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM source scan 180/180, and git diff --check pass. No bounded Agent retry: prior auto/best-coding-fast blocker repeats, stop per contract. Fail-closed critic parser unchanged.",
+  "plan_status": "Loop iteration #37 complete; stop retries on repeated blocker per loop contract.",
   "git_head": "344544872812b99f1ef0e9cc58b57cac465d1b58",
   "git_head_baseline": "344544872812b99f1ef0e9cc58b57cac465d1b58",
   "risk_register": [
@@ -121,7 +121,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-12T15:00:00+00:00",
+  "updated_at": "2026-09-12T16:00:00+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
