@@ -13,7 +13,7 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - Project policy artifacts define adaptive governance, MVP/no-overengineering, explicit roles, exception handling, wet-run requirement, traceability, cost control, simulation/test completeness, active role nodes, and CLI baseline; `AGENT_POLICY.md` links TODO, matrix, and runner artifacts.
 - Provider tree MVP passes: `models/providers/index.json` plus five provider JSON files, 238 records conserved; provider-tree tests 3/3.
 - Runtime provider integration passes: valid tree precedence, malformed/missing fallback to legacy catalog, registry override; provider/model/router/runtime tests 30/30.
-- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #39 observed a meaningful inventory change to `2104` models; stable SHA-256 `ae7a300ab0a1423fd261007ce40af9a8c7b4c1777b4d01b0b3bcec3ff81a1c5b`, five expected routes present. Prior `auto/best-coding-fast` retry remained `ok=false`, `steps=2`; same non-terminal action-flow blocker persists, so no retry. Fixed local runtime evidence is 3/4; fail-closed critic parser retained.
+- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #39 observed a meaningful inventory change to `2104` models; stable SHA-256 `ae7a300ab0a1423fd261007ce40af9a8c7b4c1777b4d01b0b3bcec3ff81a1c5b`, five expected routes present; bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) returned `ok=false`, `steps=2`, with one failed model call and the same non-terminal action-flow blocker. Prior `auto/best-coding-fast` retry remained `ok=false`, `steps=2`; same non-terminal action-flow blocker persists, so no retry. Fixed local runtime evidence is 3/4; fail-closed critic parser retained.
 - Hermes/Obsidian memory MVP passes: read-only Markdown roots/files, root traversal rejection, max-char bound, prompt integration, `memory status` CLI/schema. Memory context 5/5; combined memory/executor/parser 75/75.
 - Standard memory controls applied: CodeGraph first, TODO operational source, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
 
@@ -56,7 +56,7 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - `.pi-loop.json.lock` remains preserved.
 
 ## Next steps
-1. Loop iteration #39 completed: stable route inventory, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, source-text UTF-8/no-BOM scan `180/180`, and diff check pass.
+1. Loop iteration #39 completed: meaningful route inventory change, bounded `auto/best-coding-fast` Agent retry (`ok=false`, `steps=2`, one failed model call, same blocker), targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, source-text UTF-8/no-BOM scan `180/180`, and diff check pass.
 2. Stop bounded Agent retries until route/model behavior changes; preserve fail-closed critic parser.
 3. Preserve current uncommitted tree and do not clean lock/index artifacts without authorization.
 

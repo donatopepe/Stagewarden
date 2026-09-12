@@ -10,7 +10,7 @@
 - Existing battery wet run passes 29/29; targeted matrix/policy tests pass 9/9 and battery CLI test passes 1/1.
 - Full suite passes 487/487 with 5 intentional skips after restoring executable modes 0755.
 - Canonical simulation matrix and reusable runner cover all 29 battery simulations and 6 categories; total and granular runs pass.
-- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #39 observed a meaningful inventory change to `2104` models (SHA-256 `ae7a300ab0a1423fd261007ce40af9a8c7b4c1777b4d01b0b3bcec3ff81a1c5b`), all five expected routes present, and all local gates green. No bounded Agent retry in this iteration; prior `auto/best-coding-fast` blocker remains pending deliberate retry. Full suite remains `487/487` with `5` intentional skips.
+- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #39 observed a meaningful inventory change to `2104` models (SHA-256 `ae7a300ab0a1423fd261007ce40af9a8c7b4c1777b4d01b0b3bcec3ff81a1c5b`), all five expected routes present, and all local gates green. Bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) returned `ok=false`, `steps=2`, with one failed model call and same non-terminal action-flow blocker; stop retries now. Full suite remains `487/487` with `5` intentional skips.
 
 ## Recent Changes
 - `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iteration #39 evidence.
