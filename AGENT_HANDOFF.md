@@ -18,7 +18,7 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - Standard memory controls applied: CodeGraph first, TODO operational source, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
 
 ## Recent changes
-- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iteration #46 evidence and bounded Agent blocker recorded.
+- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iteration #47 evidence and bounded Agent blocker recorded.
 - `data/simulation_matrix.json`: canonical scenario/category catalog mapped one-to-one to existing `battery_views.py` scenarios.
 - `models/providers/index.json`, `models/providers/*.json`: provider model tree generated from legacy catalog.
 - `models/providers/README.md`: provider-tree layout and regeneration contract.
@@ -56,7 +56,7 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - `.pi-loop.json.lock` remains preserved.
 
 ## Next steps
-1. Loop iteration #46 completed: stable `2104`-model inventory, no new bounded Agent retry after repeated blocker, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, source-text UTF-8/no-BOM scan `183/183`, and diff check pass.
+1. Loop iteration #47 completed: stable `2104`-model inventory, no new bounded Agent retry after repeated blocker, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, source-text UTF-8/no-BOM scan `183/183`, and diff check pass.
 2. Stop bounded Agent retries until route/model behavior changes; preserve fail-closed critic parser.
 3. Preserve current uncommitted tree and do not clean lock/index artifacts without authorization.
 
