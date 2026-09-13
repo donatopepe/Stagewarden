@@ -10,10 +10,10 @@
 - Existing battery wet run passes 29/29; targeted matrix/policy tests pass 9/9 and battery CLI test passes 1/1.
 - Full suite passes 487/487 with 5 intentional skips after restoring executable modes 0755.
 - Canonical simulation matrix and reusable runner cover all 29 battery simulations and 6 categories; total and granular runs pass.
-- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #185 reconfirmed stable `2102`-model inventory (SHA-256 `05b51038bede2a129101f6ea2e0c7bafedb93fda0dd62b83e09855520b843adc`), all five expected routes present, and all local gates green. No route behavior change was observed. Prior bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) returned `ok=false`, `steps=2`, with one failed model call and same non-terminal action-flow blocker; no new retry. Full suite remains `487/487` with `5` intentional skips.
+- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #186 reconfirmed stable `2104`-model inventory (SHA-256 `01db4be891f3f3c24b32e5cf4ec7d9d8b99867ed0df83c45c5f38a229d03bd67`), all five expected routes present, and all local gates green. No route behavior change was observed. Prior bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) returned `ok=false`, `steps=2`, with one failed model call and same non-terminal action-flow blocker; no new retry. Full suite remains `487/487` with `5` intentional skips.
 
 ## Recent Changes
-- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iteration #185 evidence.
+- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iteration #186 evidence.
 - `data/simulation_matrix.json`: canonical 29-case/6-category matrix.
 - `scripts/run_simulation_matrix.py`: list, total, scenario, and category execution with JSON coverage.
 - `models/providers/index.json`, `models/providers/*.json`: provider tree.
