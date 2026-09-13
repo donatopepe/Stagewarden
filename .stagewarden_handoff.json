@@ -15,10 +15,10 @@
   "current_step_id": "loop-setup",
   "current_step_title": "Recurring bounded Stagewarden work loop",
   "current_step_status": "blocked",
-  "latest_observation": "Loop iteration #194: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory stable across three snapshots at 2104 models, SHA-256 b932968e5f7f5613bc88b362ba79daba34e0f4ac0b34066d777ee80a0667ec28, all five expected routes present. No route behavior change was observed. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter 2/2 pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM scan 184/184, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
-  "plan_status": "Loop iteration #194 complete; route behavior unchanged; stop retries per loop contract.",
-  "git_head": "5445d3e747502b9f1335df2b247ed4c6cea72e51",
-  "git_head_baseline": "5445d3e747502b9f1335df2b247ed4c6cea72e51",
+  "latest_observation": "Loop iteration #195: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory stable across three snapshots at 2104 models, SHA-256 b932968e5f7f5613bc88b362ba79daba34e0f4ac0b34066d777ee80a0667ec28, all five expected routes present. No route behavior change was observed. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter 2/2 pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM scan 184/184, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
+  "plan_status": "Loop iteration #195 complete; route behavior unchanged; stop retries per loop contract.",
+  "git_head": "8b614d29edede0037c7ca1e2ca448833d9118c53",
+  "git_head_baseline": "8b614d29edede0037c7ca1e2ca448833d9118c53",
   "risk_register": [
     {
       "id": "omniroute-agent-completion",
@@ -73,32 +73,32 @@
     {
       "id": "omni-route-inventory",
       "status": "passed",
-      "evidence": "Loop #194: three stable snapshots at 2104 models; SHA-256 b932968e5f7f5613bc88b362ba79daba34e0f4ac0b34066d777ee80a0667ec28; all five configured routes advertised; no route behavior change."
+      "evidence": "Loop #195: three stable snapshots at 2104 models; SHA-256 b932968e5f7f5613bc88b362ba79daba34e0f4ac0b34066d777ee80a0667ec28; all five configured routes advertised; no route behavior change."
     },
     {
       "id": "targeted-executor-adapter",
       "status": "passed",
-      "evidence": "Loop #194: 60 tests OK, one intentional skip."
+      "evidence": "Loop #195: 60 tests OK, one intentional skip."
     },
     {
       "id": "omni-smoke",
       "status": "passed",
-      "evidence": "Loop #194: free route shell smoke OK (FREE_OK)."
+      "evidence": "Loop #195: free route shell smoke OK (FREE_OK)."
     },
     {
       "id": "omni-live",
       "status": "passed",
-      "evidence": "Loop #194: opt-in live adapter 2/2 tests OK (FREE_OK)."
+      "evidence": "Loop #195: opt-in live adapter 2/2 tests OK (FREE_OK)."
     },
     {
       "id": "provider-memory-regression",
       "status": "passed",
-      "evidence": "Loop #194: provider/memory/schema 14 tests OK."
+      "evidence": "Loop #195: provider/memory/schema 14 tests OK."
     },
     {
       "id": "bounded-agent",
       "status": "blocked",
-      "evidence": "Loop #194: no retry; stable 2104-model inventory did not change routes or behavior. Prior meaningful-change auto/best-coding-fast retry (max_steps=2, timeout 120s) returned ok=false, steps=2, one failed model call; blocker persists."
+      "evidence": "Loop #195: no retry; stable 2104-model inventory did not change routes or behavior. Prior meaningful-change auto/best-coding-fast retry (max_steps=2, timeout 120s) returned ok=false, steps=2, one failed model call; blocker persists."
     },
     {
       "step_id": "step-1",
@@ -147,7 +147,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-13T18:12:42+00:00",
+  "updated_at": "2026-09-13T18:27:56+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -1083,6 +1083,41 @@
       "model": null,
       "action_type": null,
       "git_head": "5445d3e747502b9f1335df2b247ed4c6cea72e51",
+      "details": {
+        "route_snapshots": "3 stable snapshots, 2104 models, SHA-256 b932968e5f7f5613bc88b362ba79daba34e0f4ac0b34066d777ee80a0667ec28",
+        "expected_routes": [
+          "auto/best-coding",
+          "auto/best-free",
+          "auto/best-reasoning",
+          "auto/coding:free",
+          "coding-free-fallback"
+        ],
+        "targeted_executor_adapter": "60/60, one intentional skip",
+        "omni_smoke": "FREE_OK",
+        "omni_live_adapter": "2/2, FREE_OK",
+        "provider_memory_schema": "14/14",
+        "simulation_matrix": "29/29",
+        "full_suite": "487/487, five intentional skips",
+        "utf8": "184/184 clean",
+        "diff_check": "pass",
+        "agent_retry": "withheld; unchanged non-terminal auto/best-coding-fast blocker",
+        "parser": "fail-closed critic parsing unchanged",
+        "secrets": "none added",
+        "worktree": "main only"
+      }
+    },
+    {
+      "timestamp": "2026-09-13T18:27:56+00:00",
+      "phase": "loop_iteration",
+      "iteration": 195,
+      "task": "Continue Stagewarden TODO in bounded recurring iterations with regression and local OmniRoute evidence.",
+      "summary": "Loop #195 completed; route behavior unchanged; bounded Agent retry withheld.",
+      "step_id": "loop-setup",
+      "step_title": "Recurring bounded Stagewarden work loop",
+      "step_status": "blocked",
+      "model": null,
+      "action_type": null,
+      "git_head": "8b614d29edede0037c7ca1e2ca448833d9118c53",
       "details": {
         "route_snapshots": "3 stable snapshots, 2104 models, SHA-256 b932968e5f7f5613bc88b362ba79daba34e0f4ac0b34066d777ee80a0667ec28",
         "expected_routes": [
