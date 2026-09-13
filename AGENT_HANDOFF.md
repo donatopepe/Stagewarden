@@ -13,12 +13,12 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - Project policy artifacts define adaptive governance, MVP/no-overengineering, explicit roles, exception handling, wet-run requirement, traceability, cost control, simulation/test completeness, active role nodes, and CLI baseline; `AGENT_POLICY.md` links TODO, matrix, and runner artifacts.
 - Provider tree MVP passes: `models/providers/index.json` plus five provider JSON files, 238 records conserved; provider-tree tests 3/3.
 - Runtime provider integration passes: valid tree precedence, malformed/missing fallback to legacy catalog, registry override; provider/model/router/runtime tests 30/30.
-- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #191 found a stable `2103`-model inventory across three snapshots; SHA-256 `a3a509809eae33a9f9763c608e37c6285ec1e668fb3b66269019d54a4811fd65`, five expected routes present. Count/hash churn from #190 did not change route behavior. The loop #39 bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) already returned `ok=false`, `steps=2`, with one failed model call and the same non-terminal action-flow blocker; no new retry. Fixed local runtime evidence remains 3/4; fail-closed critic parser retained.
+- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #192 found a stable `2104`-model inventory across three snapshots; SHA-256 `b932968e5f7f5613bc88b362ba79daba34e0f4ac0b34066d777ee80a0667ec28`, five expected routes present. Inventory churn from #191 did not change route behavior. The loop #39 bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) already returned `ok=false`, `steps=2`, with one failed model call and the same non-terminal action-flow blocker; no new retry. Fixed local runtime evidence remains 3/4; fail-closed critic parser retained.
 - Hermes/Obsidian memory MVP passes: read-only Markdown roots/files, root traversal rejection, max-char bound, prompt integration, `memory status` CLI/schema. Memory context 5/5; combined memory/executor/parser 75/75.
 - Standard memory controls applied: CodeGraph first, TODO operational source, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
 
 ## Recent changes
-- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iterations #190/#191 evidence and bounded Agent blocker recorded.
+- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iterations #190–#192 evidence and bounded Agent blocker recorded.
 - `data/simulation_matrix.json`: canonical scenario/category catalog mapped one-to-one to existing `battery_views.py` scenarios.
 - `models/providers/index.json`, `models/providers/*.json`: provider model tree generated from legacy catalog.
 - `models/providers/README.md`: provider-tree layout and regeneration contract.
@@ -56,7 +56,7 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; local
 - `.pi-loop.json.lock` remains preserved.
 
 ## Next steps
-1. Loop iteration #191 completed: stable `2103`-model inventory, no route behavior change, no new bounded Agent retry after repeated blocker, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, UTF-8/no-BOM scan `184/184`, and diff check pass.
+1. Loop iteration #192 completed: stable `2104`-model inventory, no route behavior change, no new bounded Agent retry after repeated blocker, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, UTF-8/no-BOM scan `184/184`, and diff check pass.
 2. Stop bounded Agent retries until route/model behavior changes; preserve fail-closed critic parser.
 3. Preserve current uncommitted tree and do not clean lock/index artifacts without authorization.
 
