@@ -1,5 +1,10 @@
 # Stagewarden Handoff Summary
 
+## Latest loop evidence
+- Loop #214: stable local OmniRoute inventory across three snapshots at `2116` models, SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a26`; all five expected routes present. Inventory hash churn did not change route behavior, so bounded real-Agent retry withheld.
+- Wet gates: executor/adapter `60/60` with one intentional skip; shell smoke `FREE_OK`; opt-in live adapter `2/2` `FREE_OK`; provider/memory/schema `14/14`; simulation `29/29`; full suite `487/487` with five intentional skips; UTF-8/no-BOM `184/184`; `git diff --check` pass.
+- CodeGraph current: 125 files, 3422 nodes, 10937 edges. Branch `main`, sole worktree preserved, no secrets added. Fail-closed critic parser unchanged.
+
 ## Current State
 - Provider model tree/runtime and Hermes/Obsidian memory activity recorded on `main`; current operational plan is `TODO.md`.
 - CodeGraph index current: 125 files, 3422 nodes, 10937 edges.
@@ -10,10 +15,10 @@
 - Existing battery wet run passes 29/29; targeted matrix/policy tests pass 9/9 and battery CLI test passes 1/1.
 - Full suite passes 487/487 with 5 intentional skips after restoring executable modes 0755.
 - Canonical simulation matrix and reusable runner cover all 29 battery simulations and 6 categories; total and granular runs pass.
-- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #213 found stable `2116`-model inventory across three snapshots (SHA-256 `c7a9f1ab02bfde8db004388bd4e6a6bd0c89a3587aa9f4f5776557d7e4a76ef9`), all five expected routes present, and all local gates green. Inventory count/hash churn from #212 did not change route behavior. Prior bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) returned `ok=false`, `steps=2`, with one failed model call and same non-terminal action-flow blocker; no new retry. Full suite remains `487/487` with `5` intentional skips.
+- Hermes/Obsidian Markdown memory MVP and provider runtime integration are complete; valid provider tree takes precedence and malformed/missing tree falls back to legacy catalog. Local OmniRoute fixed evidence is 3/4; loop #214 found stable `2116`-model inventory across three snapshots (SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a26`), all five expected routes present, and all local gates green. Inventory hash churn from #213 did not change route behavior. Prior bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) returned `ok=false`, `steps=2`, with one failed model call and same non-terminal action-flow blocker; no new retry. Full suite remains `487/487` with `5` intentional skips.
 
 ## Recent Changes
-- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iterations #190–#213 evidence.
+- `TODO.md`: current provider-tree and Hermes/Obsidian memory plan, including loop iterations #190–#214 and bounded blocker evidence. #190–#213 evidence.
 - `data/simulation_matrix.json`: canonical 29-case/6-category matrix.
 - `scripts/run_simulation_matrix.py`: list, total, scenario, and category execution with JSON coverage.
 - `models/providers/index.json`, `models/providers/*.json`: provider tree.
