@@ -1,7 +1,7 @@
 # Agent Handoff
 
 ## Current objective
-Provider tree runtime integration and Hermes/Obsidian memory MVP complete; loop #215 local OmniRoute transport validated 3/4 cases, bounded real-Agent completion explicitly blocked.
+Provider tree runtime integration and Hermes/Obsidian memory MVP complete; loop #216 local OmniRoute transport validated 3/4 cases, bounded real-Agent completion explicitly blocked.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; only main worktree exists.
@@ -13,12 +13,12 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; loop 
 - Project policy artifacts define adaptive governance, MVP/no-overengineering, explicit roles, exception handling, wet-run requirement, traceability, cost control, simulation/test completeness, active role nodes, and CLI baseline; `AGENT_POLICY.md` links TODO, matrix, and runner artifacts.
 - Provider tree MVP passes: `models/providers/index.json` plus five provider JSON files, 238 records conserved; provider-tree tests 3/3.
 - Runtime provider integration passes: valid tree precedence, malformed/missing fallback to legacy catalog, registry override; provider/model/router/runtime tests 30/30.
-- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #215 found a stable `2116`-model inventory across three snapshots; SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a26`, five expected routes present. No route behavior change from #214. The loop #39 bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) already returned `ok=false`, `steps=2`, with one failed model call and the same non-terminal action-flow blocker; no new retry. Fixed local runtime evidence remains 3/4; fail-closed critic parser retained.
+- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #216 found a stable `2116`-model inventory across three snapshots; SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a26`, five expected routes present. No route behavior change from #215. The loop #39 bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) already returned `ok=false`, `steps=2`, with one failed model call and the same non-terminal action-flow blocker; no new retry. Fixed local runtime evidence remains 3/4; fail-closed critic parser retained.
 - Hermes/Obsidian memory MVP passes: read-only Markdown roots/files, root traversal rejection, max-char bound, prompt integration, `memory status` CLI/schema. Memory context 5/5; combined memory/executor/parser 75/75.
 - Standard memory controls applied: CodeGraph first, TODO operational source, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
 
 ## Recent changes
-- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iterations #190–#215 evidence and bounded Agent blocker recorded.
+- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iterations #190–#216 evidence and bounded Agent blocker recorded.
 - `data/simulation_matrix.json`: canonical scenario/category catalog mapped one-to-one to existing `battery_views.py` scenarios.
 - `models/providers/index.json`, `models/providers/*.json`: provider model tree generated from legacy catalog.
 - `models/providers/README.md`: provider-tree layout and regeneration contract.
@@ -52,12 +52,12 @@ Provider tree runtime integration and Hermes/Obsidian memory MVP complete; loop 
 
 ## Open issues
 - External OmniRoute/OpenRouter checks not rerun; prior evidence retained.
-- Loop #215 reconfirmed bounded real-Agent completion blocked by repeated non-terminal free-route behavior; wait for route/model state change.
+- Loop #216 reconfirmed bounded real-Agent completion blocked by repeated non-terminal free-route behavior; wait for route/model state change.
 - `.pi-loop.json.lock` remains preserved.
 - Handoff artifacts remain intentionally dirty; automatic workspace commits may advance `HEAD`; `.stagewarden_handoff.json` must stay aligned with actual `HEAD` before stopping.
 
 ## Next steps
-1. Loop iteration #215 completed: stable `2116`-model inventory, SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a26`, no route behavior change, no new bounded Agent retry after repeated blocker, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, UTF-8/no-BOM scan `184/184`, and diff check pass.
+1. Loop iteration #216 completed: stable `2116`-model inventory, SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a26`, no route behavior change, no new bounded Agent retry after repeated blocker, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, UTF-8/no-BOM scan `184/184`, and diff check pass.
 2. Stop bounded Agent retries until route/model behavior changes; preserve fail-closed critic parser.
 3. Preserve current uncommitted tree and do not clean lock/index artifacts without authorization.
 
