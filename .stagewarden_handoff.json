@@ -15,10 +15,10 @@
   "current_step_id": "loop-setup",
   "current_step_title": "Recurring bounded Stagewarden work loop",
   "current_step_status": "blocked",
-  "latest_observation": "Loop iteration #211: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory stable across three snapshots at 2103 models, SHA-256 44208e7f8d4ae2191dc7f233873a2d6416387f0a635c34acb23f091f2bac1dfa, all five expected routes present. Inventory count/hash churn from #210 did not change route behavior. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter 2/2 pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM scan 184/184, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
-  "plan_status": "Loop iteration #211 complete; model inventory churn did not alter route behavior; stop retries per loop contract.",
-  "git_head": "e5c933c36e0a607e0fcb2a7d6df585435a827f20",
-  "git_head_baseline": "e5c933c36e0a607e0fcb2a7d6df585435a827f20",
+  "latest_observation": "Loop iteration #212: main/sole worktree and CodeGraph current (125 files, 3422 nodes, 10937 edges); route inventory stable across three snapshots at 2103 models, SHA-256 1bffda25872c093dcf9aeec056748efda4b80206f6f4eff5b40d7c3066d8424c, all five expected routes present. Inventory count/hash churn from #211 did not change route behavior. No bounded Agent retry: prior meaningful-change auto/best-coding-fast retry already returned ok=false, steps=2, one failed model call, same non-terminal action-flow blocker. Executor/adapter 60/60 (one skip), smoke pass, opt-in live adapter 2/2 pass, provider/memory/schema 14/14, simulation matrix 29/29, full suite 487/487 with 5 intentional skips, UTF-8/no-BOM scan 184/184, and git diff --check pass. Fail-closed critic parser unchanged; stop on repeated blocker.",
+  "plan_status": "Loop iteration #212 complete; model inventory churn did not alter route behavior; stop retries per loop contract.",
+  "git_head": "8c450bccf3b12e4761e45cdcf6b50230d3d64bd7",
+  "git_head_baseline": "8c450bccf3b12e4761e45cdcf6b50230d3d64bd7",
   "risk_register": [
     {
       "id": "omniroute-agent-completion",
@@ -73,32 +73,32 @@
     {
       "id": "omni-route-inventory",
       "status": "passed",
-      "evidence": "Loop #211: three stable snapshots at 2103 models; SHA-256 44208e7f8d4ae2191dc7f233873a2d6416387f0a635c34acb23f091f2bac1dfa; all five configured routes advertised; no route behavior change."
+      "evidence": "Loop #212: three stable snapshots at 2103 models; SHA-256 1bffda25872c093dcf9aeec056748efda4b80206f6f4eff5b40d7c3066d8424c; all five configured routes advertised; no route behavior change."
     },
     {
       "id": "targeted-executor-adapter",
       "status": "passed",
-      "evidence": "Loop #211: 60 tests OK, one intentional skip."
+      "evidence": "Loop #212: 60 tests OK, one intentional skip."
     },
     {
       "id": "omni-smoke",
       "status": "passed",
-      "evidence": "Loop #211: free route shell smoke OK (FREE_OK)."
+      "evidence": "Loop #212: free route shell smoke OK (FREE_OK)."
     },
     {
       "id": "omni-live",
       "status": "passed",
-      "evidence": "Loop #211: opt-in live adapter 2/2 tests OK (FREE_OK)."
+      "evidence": "Loop #212: opt-in live adapter 2/2 tests OK (FREE_OK)."
     },
     {
       "id": "provider-memory-regression",
       "status": "passed",
-      "evidence": "Loop #211: provider/memory/schema 14 tests OK."
+      "evidence": "Loop #212: provider/memory/schema 14 tests OK."
     },
     {
       "id": "bounded-agent",
       "status": "blocked",
-      "evidence": "Loop #211: no retry; 2103-model inventory churn did not change routes or behavior. Prior meaningful-change auto/best-coding-fast retry (max_steps=2, timeout 120s) returned ok=false, steps=2, one failed model call; blocker persists."
+      "evidence": "Loop #212: no retry; 2103-model inventory churn did not change routes or behavior. Prior meaningful-change auto/best-coding-fast retry (max_steps=2, timeout 120s) returned ok=false, steps=2, one failed model call; blocker persists."
     },
     {
       "step_id": "step-1",
@@ -147,7 +147,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-13T23:01:01+00:00",
+  "updated_at": "2026-09-13T23:13:23+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -1680,6 +1680,41 @@
       "git_head": "e5c933c36e0a607e0fcb2a7d6df585435a827f20",
       "details": {
         "route_snapshots": "3 stable snapshots, 2103 models, SHA-256 44208e7f8d4ae2191dc7f233873a2d6416387f0a635c34acb23f091f2bac1dfa",
+        "expected_routes": [
+          "auto/best-coding",
+          "auto/best-free",
+          "auto/best-reasoning",
+          "auto/coding:free",
+          "coding-free-fallback"
+        ],
+        "targeted_executor_adapter": "60/60, one intentional skip",
+        "omni_smoke": "FREE_OK",
+        "omni_live_adapter": "2/2, FREE_OK",
+        "provider_memory_schema": "14/14",
+        "simulation_matrix": "29/29",
+        "full_suite": "487/487, five intentional skips",
+        "utf8": "184/184 clean",
+        "diff_check": "pass",
+        "agent_retry": "withheld; unchanged non-terminal auto/best-coding-fast blocker",
+        "parser": "fail-closed critic parsing unchanged",
+        "secrets": "none added",
+        "worktree": "main only"
+      }
+    },
+    {
+      "timestamp": "2026-09-13T23:13:23+00:00",
+      "phase": "loop_iteration",
+      "iteration": 212,
+      "task": "Continue Stagewarden TODO in bounded recurring iterations with regression and local OmniRoute evidence.",
+      "summary": "Loop #212 completed; route inventory churn did not change behavior; bounded Agent retry withheld.",
+      "step_id": "loop-setup",
+      "step_title": "Recurring bounded Stagewarden work loop",
+      "step_status": "blocked",
+      "model": null,
+      "action_type": null,
+      "git_head": "8c450bccf3b12e4761e45cdcf6b50230d3d64bd7",
+      "details": {
+        "route_snapshots": "3 stable snapshots, 2103 models, SHA-256 1bffda25872c093dcf9aeec056748efda4b80206f6f4eff5b40d7c3066d8424c",
         "expected_routes": [
           "auto/best-coding",
           "auto/best-free",
