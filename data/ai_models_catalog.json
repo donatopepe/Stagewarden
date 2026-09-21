@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T08:59:45+00:00",
+  "generated_at": "2026-09-21T09:01:07+00:00",
   "models": [
     {
       "aliases": [
@@ -1011,35 +1011,18 @@
     },
     {
       "aliases": [
-        "Google: Gemini 2.5 Pro Preview 05-06",
         "google/gemini-2.5-pro-preview-05-06",
-        "google: gemini 2.5 pro preview 05-06",
         "google:gemini-2.5-pro-preview-05-06"
       ],
-      "blended_price_usd_per_1m_tokens": 3.44,
-      "context_window": 1048576,
-      "cost_per_input_token_usd": 1.25e-06,
-      "cost_per_output_token_usd": 1e-05,
-      "features": [
-        "audio",
-        "file",
-        "image",
-        "include_reasoning",
-        "output:text",
-        "reasoning",
-        "seed",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_p",
-        "video"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "google/gemini-2.5-pro-preview-05-06",
-      "model_name": "Google: Gemini 2.5 Pro Preview 05-06",
+      "model_name": "google/gemini-2.5-pro-preview-05-06",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1832,9 +1815,9 @@
         "minimax: minimax m1",
         "minimax:minimax-m1"
       ],
-      "blended_price_usd_per_1m_tokens": 0.96,
+      "blended_price_usd_per_1m_tokens": 0.85,
       "context_window": 1000000,
-      "cost_per_input_token_usd": 5.5e-07,
+      "cost_per_input_token_usd": 4e-07,
       "cost_per_output_token_usd": 2.2e-06,
       "features": [
         "frequency_penalty",
@@ -2263,7 +2246,6 @@
         "temperature",
         "text",
         "tool_use",
-        "top_k",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -2300,6 +2282,7 @@
         "stop",
         "temperature",
         "text",
+        "tool_use",
         "top_k",
         "top_logprobs",
         "top_p"
@@ -2321,10 +2304,10 @@
         "mistralai/mistral-small-3.2-24b-instruct",
         "mistralai:mistral-small-3.2-24b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.11,
+      "blended_price_usd_per_1m_tokens": 0.13,
       "context_window": 256000,
-      "cost_per_input_token_usd": 7.5e-08,
-      "cost_per_output_token_usd": 2e-07,
+      "cost_per_input_token_usd": 9.375e-08,
+      "cost_per_output_token_usd": 2.5e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -2625,10 +2608,10 @@
         "nvidia: nemotron 3 super",
         "nvidia:nemotron-3-super-120b-a12b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.16,
+      "blended_price_usd_per_1m_tokens": 0.17,
       "context_window": 262144,
-      "cost_per_input_token_usd": 8.5e-08,
-      "cost_per_output_token_usd": 4e-07,
+      "cost_per_input_token_usd": 8e-08,
+      "cost_per_output_token_usd": 4.5e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -3517,10 +3500,10 @@
         "openai/gpt-oss-120b",
         "openai:gpt-oss-120b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.07,
+      "blended_price_usd_per_1m_tokens": 0.26,
       "context_window": 131072,
-      "cost_per_input_token_usd": 3.7e-08,
-      "cost_per_output_token_usd": 1.7e-07,
+      "cost_per_input_token_usd": 1.5e-07,
+      "cost_per_output_token_usd": 6e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -3820,6 +3803,7 @@
         "repetition_penalty",
         "seed",
         "stop",
+        "structured_output",
         "temperature",
         "text",
         "top_k",
