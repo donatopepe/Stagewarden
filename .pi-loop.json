@@ -1,14 +1,3 @@
 {
-  "tasks": [
-    {
-      "id": "9291629e",
-      "cron": "*/15 * * * *",
-      "prompt": "Continue Stagewarden work from TODO.md in one bounded iteration. First read AGENTS.md, AGENT_HANDOFF.md, TODO.md, canonical Hermes memory (pi-memory.md, decisions.md, projects.md, project-state.md, conversation-log.md), verify main worktree and CodeGraph. Run targeted regression gates and local OmniRoute adapter/smoke/live checks; retry bounded real Agent case only if route stable. Preserve fail-closed critic parser, no secrets, no new worktree. Update TODO, AGENT_HANDOFF.md, HANDOFF.md, and .stagewarden_handoff.json with evidence. Stop if acceptance green, same blocker repeats, or user cancels.",
-      "createdAt": 1789129653961,
-      "recurring": true,
-      "durable": true,
-      "label": "stagewarden-continue-work",
-      "lastFiredAt": 1789373058554
-    }
-  ]
+  "tasks": []
 }
