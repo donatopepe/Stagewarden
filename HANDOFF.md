@@ -37,7 +37,7 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Baseline: no dedicated six-case matrix; partial node/file tests existed.
 - Change: added Node Knowledge Store acceptance matrix covering node isolation, citations, code lines, compaction and stale/fresh reindex.
 - Wet evidence: Node Knowledge/index matrix `6/6`; Node Knowledge/file/context/event suite `19/19 OK`; goal-loop/event/tools suite passed; OmniRoute free smoke `OmniRoute free route OK (auto/coding:free)`; `py_compile`, `git diff --check` passed. CodeGraph current `137 files / 3685 nodes / 12326 edges`.
-- Current bounded sub-gate: unified fixed-order runner passes `6/6`. Simulation `29/29`; targeted MVP `103/103`; full discovery `588/588 OK (5 skipped)`; CLI JSON `3/3`; OmniRoute direct smoke green; docs `17/17`, `0` link errors. External multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
+- Current bounded sub-gate: Node Knowledge relation/freshness matrix `6/6`; targeted MVP now `104/104`; unified fixed-order runner remains `6/6`. Simulation `29/29`; full discovery `588/588 OK (5 skipped)`; CLI JSON `3/3`; OmniRoute direct smoke green; docs `17/17`, `0` link errors. External multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
 
 ## Full v3 approval gate
 MVP runtime testing is authorized. User must still review v3 section 21 before full v3 extensions on:
@@ -106,10 +106,11 @@ No runtime feature work before approval.
 ## Current bounded evidence
 - Status CLI fix: updated one stale test expectation from automatic routing to persisted manual provider policy; runtime policy unchanged.
 - Unified runner: `python3 scripts/run_unified_validation.py --timeout 1800` → `6/6` gates green; bounded report tailing preserves JSON evaluation.
+- Node Knowledge relation gate: `python3 -m unittest tests.test_node_knowledge -q` → `6/6 OK` including module/import/call/read/write relations, unchanged freshness and changed-version replacement. Targeted aggregate → `104/104 OK`.
 - Full discovery: `/tmp/full-unittest-after-status-20260923.log` → `588` tests, `OK (skipped=5)`.
 - CLI smoke: `baseline --json`, `model limits --json`, `events replay --json` all exit `0`; JSON output valid. `scripts/test_omniroute_free.sh` → `OmniRoute free route OK (auto/coding:free)`.
 - Documentation/link audit: `17` Markdown files checked, `0` link errors, UTF-8/no-BOM pass.
-- CodeGraph after runner additions: `139 files / 3715 nodes / 12455 edges`, up to date.
+- CodeGraph after runner and index additions: `139 files / 3723 nodes / 12503 edges`, up to date.
 - Provider suspension sub-gate: `python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_suspended_network_session_from_persisted_handoff tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_after_token_reset_from_persisted_handoff -v` → `2/2 OK`.
 - Regression targeted aggregate: Agent/executor/router/model-policy/policy-doc tests → `94` tests, `OK (skipped=1)`.
 - Simulation wet total: `test_total_run_is_wet_and_fail_closed` → `1/1 OK`.
