@@ -71,6 +71,8 @@ def _provider_model_display(prefs: ModelPreferences, provider: str) -> tuple[str
     pinned = prefs.variant_for_model(provider)
     if pinned:
         return pinned, "pinned", capability.default_model
+    if prefs.selection_mode == "manual":
+        return capability.default_model, "manual-provider-default", capability.default_model
     if provider in {"chatgpt", "openai", "claude"}:
         return "automatic-by-task", "automatic", capability.default_model
     return capability.default_model, "provider-default", capability.default_model
@@ -189,6 +191,9 @@ def _apply_model_preferences(agent: Agent, config: AgentConfig) -> ModelPreferen
     agent.router.configure(
         enabled_models=prefs.enabled_models,
         preferred_model=prefs.preferred_model,
+        selection_mode=prefs.selection_mode,
+        allow_provider_fallback=prefs.allow_provider_fallback,
+        allow_paid_provider=prefs.allow_paid_provider,
         blocked_until_by_model=prefs.blocked_until_by_model or {},
     )
     _sync_handoff_preferences(agent, prefs)
@@ -441,6 +446,22 @@ def _handle_model_command(
     if len(parts) < 2:
         return _model_usage()
     prefs = _load_model_preferences(config)
+    if parts[1] == "policy":
+        if len(parts) == 2:
+            return f"selection_mode={prefs.selection_mode} allow_provider_fallback={prefs.allow_provider_fallback} allow_paid_provider={prefs.allow_paid_provider}"
+        if len(parts) == 4 and parts[2] in {"selection", "fallback", "paid"} and parts[3] in {"manual", "auto", "on", "off"}:
+            value = parts[3]
+            if parts[2] == "selection":
+                prefs.selection_mode = value
+            elif parts[2] == "fallback":
+                prefs.allow_provider_fallback = value == "on"
+            else:
+                prefs.allow_paid_provider = value == "on"
+            prefs.normalize()
+            _save_model_preferences(config, prefs)
+            _apply_model_preferences(agent, config)
+            return f"Model policy updated: selection_mode={prefs.selection_mode} allow_provider_fallback={prefs.allow_provider_fallback} allow_paid_provider={prefs.allow_paid_provider}"
+        return "Usage: model policy | model policy selection <manual|auto> | model policy fallback <on|off> | model policy paid <on|off>"
     if command.startswith("model limit-record "):
         fields = command[len("model limit-record ") :].split(maxsplit=1)
         if len(fields) != 2:

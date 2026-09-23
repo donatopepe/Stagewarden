@@ -1,61 +1,22 @@
 ---
-description: Generate prompts for child nodes in a hierarchical goal loop
-argument-hint: "<parent-goal>"
+description: Generate bounded child nodes for bottom-up execution
+argument-hint: "<parent-work-packet>"
 ---
-# Sub-node Prompt Generator
+# Child-node generator
 
-Sei un generatore di prompt per sotto-nodi.
+Create the smallest independently verifiable child nodes needed by the parent.
 
-Input:
-- obiettivo padre
-- contesto
-- dipendenze
-- limiti
-- stato del sistema
+For each child return:
 
-Compito:
-- scomponi il lavoro in sotto-nodi indipendenti
-- assegna responsabilità singole
-- crea prompt operativi pronti all’uso
-- definisci test, output e tolleranze per ciascun figlio
-- indica come i nodi comunicano tra loro
+- stable `node_id`, `parent_node_id`, purpose and owner;
+- atomic work packet;
+- inputs and cited Node Knowledge Store entries;
+- file/tool scope;
+- provider/model/context policy;
+- outputs and evidence contract;
+- acceptance criteria and wet-run tests;
+- tolerances, retry and escalation rules;
+- dependencies and readiness condition;
+- terminal purpose reminder.
 
-Per ogni sotto-nodo produci:
-- node id
-- purpose
-- prompt
-- inputs
-- outputs
-- acceptance criteria
-- tests
-- tolerances
-- escalation rule
-- dependencies
-
-Output format:
-Your final output MUST be a JSON object with at least "summary" and "messages" fields.
-- `summary`: string, a brief summary of the node's execution.
-- `messages`: array of objects, where each object follows the Node-to-Node Communication template.
-- `output` (optional): string, any raw text output from your operations.
-- `error` (optional): string, an error message if the node encountered an issue.
-
-Example output JSON:
-```json
-{
-  "summary": "Node X completed its task and sent a message.",
-  "messages": [
-    {
-      "FROM": "node.id",
-      "TO": "target.node.id",
-      "TYPE": "status",
-      "SUMMARY": "Task Y completed",
-      "DETAILS": "Details of task Y",
-      "ACTIONS REQUIRED": "None",
-      "PRIORITY": "low",
-      "TOLERANCE IMPACT": "none"
-    }
-  ],
-  "output": "Some raw output from a tool call.",
-  "error": null
-}
-```
+Do not create speculative nodes, hidden parallelism, or lateral communication edges. Default child count and execution are serial unless policy says otherwise.

@@ -26,6 +26,11 @@ class ModelRouter:
     def __init__(self) -> None:
         self.enabled_models = set(self.ORDER)
         self.preferred_model: str | None = None
+        self.selection_mode = "auto"
+        self.allow_provider_fallback = True
+        # Direct router callers retain legacy heuristic behavior until an
+        # explicit persisted policy configures paid-provider authorization.
+        self.allow_paid_provider = True
         self.blocked_until_by_model: dict[str, str] = {}
 
     def configure(
@@ -33,14 +38,24 @@ class ModelRouter:
         *,
         enabled_models: list[str] | tuple[str, ...],
         preferred_model: str | None = None,
+        selection_mode: str | None = None,
+        allow_provider_fallback: bool | None = None,
+        allow_paid_provider: bool | None = None,
         blocked_until_by_model: dict[str, str] | None = None,
     ) -> None:
         enabled = [item for item in enabled_models if item in self.ORDER]
         self.enabled_models = set(enabled or self.ORDER)
+        if selection_mode is not None:
+            normalized_mode = str(selection_mode).strip().lower()
+            self.selection_mode = normalized_mode if normalized_mode in {"manual", "auto"} else "manual"
+        if allow_provider_fallback is not None:
+            self.allow_provider_fallback = bool(allow_provider_fallback)
+        if allow_paid_provider is not None:
+            self.allow_paid_provider = bool(allow_paid_provider)
         self.blocked_until_by_model = {
             str(key): str(value) for key, value in (blocked_until_by_model or {}).items() if key in self.ORDER
         }
-        self.preferred_model = preferred_model if preferred_model in self._active_models() else None
+        self.preferred_model = preferred_model if preferred_model in self.enabled_models else None
 
     def enable_model(self, model: str) -> None:
         if model not in self.ORDER:
@@ -69,10 +84,17 @@ class ModelRouter:
             "enabled_models": [item for item in self.ORDER if item in self.enabled_models],
             "active_models": [item for item in self.ORDER if item in self._active_models()],
             "preferred_model": self.preferred_model,
+            "selection_mode": self.selection_mode,
+            "allow_provider_fallback": self.allow_provider_fallback,
+            "allow_paid_provider": self.allow_paid_provider,
             "blocked_until_by_model": dict(self.blocked_until_by_model),
         }
 
     def choose_model(self, task: str, step_text: str, failure_count: int = 0) -> str:
+        if self.selection_mode == "manual":
+            # Manual mode may use only explicit preference. With no preference,
+            # retain deterministic legacy entry provider without task heuristics.
+            return self.preferred_model or self._best_available("cheap")
         if self.preferred_model and self.preferred_model in self._active_models():
             return self.preferred_model
         if failure_count >= 3:
@@ -107,6 +129,8 @@ class ModelRouter:
         return self._best_available("openai")
 
     def escalate(self, current: str) -> str:
+        if self.selection_mode == "manual" and not self.allow_provider_fallback:
+            return current
         if current == "chatgpt":
             return self._best_available("openai")
         if current == "openai":
@@ -114,6 +138,8 @@ class ModelRouter:
         return self._next_available_after(current, fallback="cheap")
 
     def fallback_for_api_failure(self, current: str) -> str:
+        if self.selection_mode == "manual" and not self.allow_provider_fallback:
+            return current
         if current == "chatgpt":
             return self._best_available("openai")
         if current == "openai":
@@ -125,6 +151,8 @@ class ModelRouter:
         return self._next_available_after(current, fallback="local")
 
     def choose_variant(self, model: str, task: str, step_text: str, failure_count: int = 0) -> str | None:
+        if self.selection_mode == "manual":
+            return None
         profile = self._task_profile(task, step_text)
         preset = self._variant_preset(profile, failure_count=failure_count)
         try:
@@ -134,10 +162,20 @@ class ModelRouter:
         return variant
 
     def recommend_route(self, task: str, step_text: str, failure_count: int = 0) -> RouteRecommendation:
+        if self.selection_mode == "manual":
+            provider = self.preferred_model or self._best_available("cheap")
+            return RouteRecommendation(
+                provider=provider,
+                provider_model=None,
+                score=0.0,
+                rationale="manual provider selection",
+            )
         profile = self._task_profile(task, step_text)
         catalog = self._catalog()
         best: RouteRecommendation | None = None
-        for provider in [item for item in self.ORDER if item in self._active_models()]:
+        for provider in [item for item in self.ORDER if item in self._active_models() and item != "local"]:
+            if not self.allow_paid_provider and self._provider_has_paid_route(provider, catalog):
+                continue
             specs = self._provider_specs(provider)
             if not specs:
                 continue
@@ -220,6 +258,25 @@ class ModelRouter:
             return list(provider_model_specs(provider))
         except ValueError:
             return []
+
+    def _provider_has_paid_route(self, provider: str, catalog: dict[str, object]) -> bool:
+        entries = [
+            entry for entry in catalog.get("models", [])
+            if isinstance(entry, dict) and str(entry.get("provider", "")).strip() == provider
+        ] if isinstance(catalog, dict) else []
+        if not entries:
+            return False
+        prices: list[float] = []
+        unknown_price = False
+        for entry in entries:
+            value = entry.get("blended_price_usd_per_1m_tokens")
+            if value == "local":
+                continue
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                prices.append(float(value))
+            elif value is None and str(entry.get("model_id", "")) != "provider-default":
+                unknown_price = True
+        return any(price > 0 for price in prices) or unknown_price
 
     def _variant_score(self, provider: str, spec, profile: dict[str, object], *, failure_count: int, catalog: dict[str, object]) -> float:
         entry = catalog_entry_for_provider_model(provider, spec.id, catalog) if catalog else None

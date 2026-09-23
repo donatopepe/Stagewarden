@@ -507,6 +507,29 @@ def catalog_entry_for_provider_model(
             return item
     return None
 
+def context_limits_for_provider_model(provider: str, provider_model: str, catalog: dict[str, Any] | None = None) -> dict[str, int | None | str]:
+    """Return explicit context limits; unknown values stay unknown."""
+    entry = catalog_entry_for_provider_model(provider, provider_model, catalog)
+    if not isinstance(entry, dict):
+        return {"context_window": None, "input_limit": None, "max_output_tokens": None, "source": "unknown"}
+    context = entry.get("context_window")
+    input_limit = entry.get("max_input_tokens") or entry.get("input_limit")
+    output_limit = entry.get("max_output_tokens") or entry.get("output_limit")
+    def positive(value: object) -> int | None:
+        if isinstance(value, bool):
+            return None
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number > 0 else None
+    return {
+        "context_window": positive(context),
+        "input_limit": positive(input_limit) or positive(context),
+        "max_output_tokens": positive(output_limit),
+        "source": str(entry.get("source") or "catalog"),
+    }
+
 
 def search_ai_models_catalog(
     query: str,

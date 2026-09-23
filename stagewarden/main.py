@@ -16,7 +16,7 @@ BASELINE_CAPABILITY_GROUPS: tuple[dict[str, object], ...] = (
     {
         "id": "model_provider_control",
         "source": "codex_cli+claude_code",
-        "required_commands": ("models", "model list", "model choose", "model params", "model limits", "model use"),
+        "required_commands": ("models", "model list", "model choose", "model params", "model limits", "model policy", "model use"),
         "description": "Provider/model selection, parameter visibility, usage limits, and routing control.",
     },
     {

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import difflib
 import fnmatch
+import hashlib
 import os
 import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from ..config import AgentConfig
 from ..permissions import PermissionPolicy
@@ -43,6 +44,44 @@ class FileTool:
             return FileResult(True, path=str(resolved), content=read_text_utf8(resolved))
         except (OSError, UnicodeDecodeError) as exc:
             return FileResult(False, path=str(resolved), error=str(exc))
+
+    def read_chunk(self, path: str, *, start: int = 0, size: int | None = None) -> FileResult:
+        resolved = self.config.resolve_path(path)
+        if not self.config.is_within_workspace(resolved):
+            return FileResult(False, path=str(resolved), error="Path is outside the workspace.")
+        if not resolved.exists():
+            return FileResult(False, path=str(resolved), error="File does not exist.")
+        try:
+            text = read_text_utf8(resolved)
+        except (OSError, UnicodeDecodeError) as exc:
+            return FileResult(False, path=str(resolved), error=str(exc))
+        offset = max(0, int(start))
+        length = max(1, int(size if size is not None else self.config.file_chunk_chars))
+        chunk = text[offset : offset + length]
+        end = offset + len(chunk)
+        return FileResult(
+            True,
+            path=str(resolved),
+            content=chunk,
+            report={
+                "start": offset,
+                "end": end,
+                "total_chars": len(text),
+                "has_more": end < len(text),
+                "complete": offset == 0 and end >= len(text),
+                "encoding": "utf-8",
+                "content_hash": "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            },
+        )
+
+    def iter_chunks(self, path: str, *, chunk_chars: int | None = None) -> Iterator[FileResult]:
+        start = 0
+        while True:
+            result = self.read_chunk(path, start=start, size=chunk_chars)
+            yield result
+            if not result.ok or not result.report or not result.report.get("has_more"):
+                return
+            start = int(result.report["end"])
 
     def inspect(self, path: str) -> FileResult:
         resolved = self.config.resolve_path(path)

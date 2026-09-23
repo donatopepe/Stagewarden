@@ -1,32 +1,22 @@
 ---
-description: Root goal definition, scope and acceptance criteria
+description: Define root purpose and node-tree contract
 argument-hint: "<task>"
 ---
-# Root Goal Definition
+# Root node definition
 
-Analizza il task e definisci il nodo root del lavoro.
+Define:
 
-Devi produrre:
-- objective statement
-- scope in / scope out
-- deliverables
-- acceptance criteria
-- constraints
-- assumptions
-- risks
-- open questions
-- child-node plan
+- `tree_id` and root `node_id`;
+- objective and user purpose;
+- scope in/out;
+- deliverables;
+- constraints and permissions;
+- provider/model/account policy;
+- context and compaction policy;
+- acceptance criteria;
+- risks, assumptions and open questions;
+- child-node plan with parent/child edges;
+- bottom-up execution order;
+- terminal visibility and recovery requirements.
 
-Regole:
-- non assumere requisiti non espliciti
-- se il dubbio impatta architettura, sicurezza, compatibilità o test fondamentali, chiedi all’utente
-- se il dubbio è locale, reversibile e a basso impatto, decidi autonomamente e segnala la scelta
-- il root deve essere abbastanza preciso da guidare rifattorizzazione completa e test
-
-Output finale:
-1. Scope summary
-2. Out of scope
-3. Acceptance criteria
-4. Test strategy
-5. Risk strategy
-6. Child nodes
+Do not create children without a single purpose, owner, scope, dependency and acceptance contract. Architecture, security, compatibility, data and fundamental test decisions require user escalation.

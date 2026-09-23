@@ -1,39 +1,20 @@
-# LJSON
+# LJSON utility
 
-`LJSON` (Lightweight JSON) serializza array di oggetti omogenei riducendo la ridondanza delle chiavi.
+LJSON is a compact JSON representation for arrays of homogeneous objects. It is a storage/transport utility, not a work orchestration model.
 
-## Formati supportati
+## v3 role
 
-Formato posizionale:
+LJSON may serialize event streams, evidence indexes, benchmark fixtures, and export/import bundles when schema stability makes it useful. It must not replace the node/event/knowledge contracts, and it must not hide provenance or redactability.
 
-```json
-{
-  "_version": 1,
-  "_fields": ["id", "name"],
-  "data": [
-    [1, "Mario"],
-    [2, "Luigi"]
-  ]
-}
-```
+Every LJSON artifact used by Stagewarden must retain:
 
-Formato con chiavi numeriche:
+- schema/version;
+- tree/node/work/event identifiers when applicable;
+- timestamps and source;
+- sensitivity/redaction state;
+- enough metadata for replay or rejection.
 
-```json
-{
-  "_version": 1,
-  "_fields": {
-    "1": "id",
-    "2": "name"
-  },
-  "data": [
-    {"1": 1, "2": "Mario"},
-    {"1": 2, "2": "Luigi"}
-  ]
-}
-```
-
-## API
+## Supported API
 
 - `encode(records, options=None)`
 - `decode(payload)`
@@ -45,49 +26,23 @@ Formato con chiavi numeriche:
 - `stream_decode(chunks)`
 - `benchmark_sizes(records, numeric_keys=False, gzip_enabled=False)`
 
-## Proprietà
+## Properties and limits
 
-- `decode(encode(x)) == x` per record JSON object-based
-- campi mancanti normalizzati a `null`
-- ordine dei campi preservato
-- complessità lineare rispetto al numero di record
-- supporto a valori annidati JSON come valore di campo
+- `decode(encode(x)) == x` for supported record arrays;
+- missing fields normalize to `null`;
+- field order is preserved;
+- complexity is linear in record count;
+- nested JSON values remain values;
+- compression helps stable, repeated schemas;
+- LJSON reduces key redundancy, not semantic content;
+- streaming chunks are valid chunks, not one implicit transaction.
 
-## Limiti e trade-off
-
-- la compressione funziona bene su dataset con molte righe e schema stabile
-- su dataset piccoli il vantaggio può essere minimo
-- LJSON comprime solo la ridondanza delle chiavi top-level, non i valori
-- la modalità streaming produce chunk JSON validi, non un singolo documento unico continuo
-- in `strict_schema=True` gli oggetti devono avere schema identico e stesso ordine chiavi
-
-## Uso predefinito nel progetto
-
-L’agente usa LJSON di default per:
-
-- persistenza dei tentativi in `MemoryStore`
-- snapshot di simulazione dell’`Executor`
-- trace del loop agente in `.stagewarden_trace.ljson`
-- benchmark dimensione vs JSON standard
-
-## CLI
+## Legacy CLI
 
 ```bash
 stagewarden --ljson-encode records.json
-stagewarden --ljson-encode records.json --ljson-numeric --ljson-output records.ljson
 stagewarden --ljson-decode records.ljson
 stagewarden --ljson-benchmark records.json
 ```
 
-## JavaScript
-
-Porta Node.js disponibile in:
-
-- [js/ljson.js](/Users/donato/js/ljson.js)
-- [js/ljson.test.mjs](/Users/donato/js/ljson.test.mjs)
-
-Test:
-
-```bash
-node --test /Users/donato/js/ljson.test.mjs
-```
+These commands belong to the legacy runtime. The canonical v3 plan is [`TODO.md`](TODO.md).

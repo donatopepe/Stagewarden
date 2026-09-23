@@ -1,80 +1,275 @@
 # Agent Handoff
 
 ## Current objective
-Provider tree runtime integration and Hermes/Obsidian memory MVP complete; loop #229 local OmniRoute transport validated 3/4 cases, bounded real-Agent completion explicitly blocked.
+Implement and validate node-first MVP through OmniRoute free. Automatic bounded continuation loop is active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Continue incrementally toward v3; full v3 extensions remain gated by unresolved approval decisions.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; only main worktree exists.
-- CodeGraph synced/current: 125 files, 3422 nodes, 10937 edges.
-- Canonical matrix added at `data/simulation_matrix.json`: 29 existing battery scenarios, 6 categories.
-- Reusable runner added at `scripts/run_simulation_matrix.py`; supports list, total, `--scenario`, and `--category`; emits JSON coverage and pass/fail evidence.
-- Baseline/wet runs pass: list `29` scenarios; total `29/29`; scenario `executor_write_file` `1/1`; category `role-runtime` `10/10`.
-- Existing `battery --json` wet run passes `29/29` in isolated workspace; current full suite passes `487/487` with `5` intentional skips.
-- Project policy artifacts define adaptive governance, MVP/no-overengineering, explicit roles, exception handling, wet-run requirement, traceability, cost control, simulation/test completeness, active role nodes, and CLI baseline; `AGENT_POLICY.md` links TODO, matrix, and runner artifacts.
-- Provider tree MVP passes: `models/providers/index.json` plus five provider JSON files, 238 records conserved; provider-tree tests 3/3.
-- Runtime provider integration passes: valid tree precedence, malformed/missing fallback to legacy catalog, registry override; provider/model/router/runtime tests 30/30.
-- Local OmniRoute adapter/smoke/opt-in live tests pass; loop iteration #229 found a stable `2116`-model inventory across three snapshots; SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a76ef9`, five expected routes present. No route behavior change from #228. The loop #39 bounded `auto/best-coding-fast` retry (`max_steps=2`, timeout `120s`) already returned `ok=false`, `steps=2`, with one failed model call and the same non-terminal action-flow blocker; no new retry. Fixed local runtime evidence remains 3/4; fail-closed critic parser retained.
-- Hermes/Obsidian memory MVP passes: read-only Markdown roots/files, root traversal rejection, max-char bound, prompt integration, `memory status` CLI/schema. Memory context 5/5; combined memory/executor/parser 75/75.
-- Standard memory controls applied: CodeGraph first, TODO operational source, main checkout only, MVP-first, reusable automation, UTF-8/no secrets, handoff continuity, wet-run evidence.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
+- CodeGraph verified current: 137 files, 3685 nodes, 12326 edges (Node Knowledge Store/index acceptance matrix added after tree/packet matrix).
+- Latest bounded gate passed: Node Knowledge Store/index acceptance matrix is 6/6; tree/packet 6/6, context 6/6, mutation journal 16/16 coverage, provider/model policy and serial execution unchanged.
+- Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
+- MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
+- Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`.
+- Each node now carries bounded local-cycle state: `cycle_id`, `cycle_phase`, `context_revision`, `last_checkpoint`, and cycle budgets; cycle start/checkpoint events are emitted in JSONL. Serial execution unchanged.
+- `NodeExecutionCapsule` is persisted node-scoped in Node Knowledge Store after node events and restored on orchestrator reopen; capsule contains cycle state, checkpoint, budget, status, purpose and packet reference.
+- File mutation recovery now recognizes `in_flight` journal entries, emits `mutation_recovery`, resumes execution once, and appends terminal status without duplicating the in-flight marker.
+- `allow_paid_provider` is enforced at `ModelRouter` catalog boundary: paid/unknown-priced providers are skipped without authorization; persisted policy propagates through `Agent`, model views and goal-loop WorkPacket.
+- Goal-loop tree validator enforces one `root.scope`, known parent/dependency edges, root dependency absence and cycle rejection before capsule restore; blueprint now assigns explicit parent edges.
+- Ready-node selection is deterministic by parent depth then `node_id`; dependency completion remains mandatory and execution remains serial.
+- ResultPacket edge MVP is parent-scoped with evidence list; successful child results are forwarded only to declared parent through typed result message.
+- EventStream replay now projects cycle_id, cycle_phase, context_revision and last_checkpoint from node snapshots, plus context_compaction metadata and mutation_recovery key/status.
+- `file_chunk` events now record available input tokens, prompt chars before/after and auto-compaction state for context-aware replay.
+- `context_compaction` events now record available input tokens, max_chars and prompt chars before/after.
+- Goal-loop control path rejects lateral/unknown sender-target messages; only declared parent↔child edges can append node message state.
+- WorkPacket delegation fails closed for non-root nodes without known parent or acceptance criteria; valid packet carries parent edge, dependencies and acceptance contract.
+- Child completion forwards exactly one typed result message to declared parent with work ID and evidence list.
+- Blocked node requeue emits bounded `node_retry` event with retry_count/max_retries; retry cap remains fail-closed.
+- `insert_text_file` now participates in MutationJournal in_flight/completed recovery and completed replay.
+- Canonical formal protocol stack documented across TODO, architecture, v3 spec, README and README_IT: Markdown, JSON/Schema, Tree/DAG, FSM, invariants/gates, NodeExecutionCapsule, JSONL and Node Knowledge Store.
+- Node Knowledge Store persists SQLite node context/events and indexes Python classes/functions with source lines.
+- OmniRoute adapter unit path passes; live route is available through `scripts/run_model_omniroute.py` but full live multi-node run is currently blocked by free-model malformed/truncated JSON output after initial nodes.
+- Context-aware file reading now persists checkpoints in Node Knowledge Store: session, content hash, chunk offsets, next offset, completion status and reconstruction after reopen.
+- `read_file_chunk` caps chunk by remaining budget and auto-compacts when no budget remains; `read_file_complete` reconstructs full file outside model prompt and returns persistent content reference.
+- Terminal JSONL event stream and deterministic replay MVP now exist in `stagewarden/event_stream.py`; CLI commands `events` and `events replay` expose them.
+- Executor now emits JSONL events for tool results, file chunks, complete-file reads and automatic context compaction.
+- Node Knowledge Store connections now close explicitly and via destructor safety path; resource leak warnings removed in focused suite.
+- `events` and `events replay` are now registered in command catalog/help metadata.
+- Event stream/replay supports node filtering via `events node <id>` and `events replay <id>`.
+- `EventStream.follow(node_id)` now exposes ordered node-filtered events for live/polling multiplexer consumers.
+- File mutation idempotency MVP now exists via `MutationJournal`: completed `write_file` and `apply_patch` actions replay safely by stable key and emit `mutation_replay` event.
+- Model selection policy MVP now persists `selection_mode`, `allow_provider_fallback`, and `allow_paid_provider`; fallback is blocked by default.
+- CLI `model policy` now shows/updates ownership and fallback authorization explicitly; `model limits --json` includes selection policy.
+- Capability baseline now includes `model policy` in provider/model control.
+- Mutation journal inspection is available through CLI `mutations`, `mutations completed`, and `mutations failed`.
+- Full v3 remains incremental; richer live multiplexer/UI remains open.
 
 ## Recent changes
-- `TODO.md`: current operational plan; provider tree and Hermes/Obsidian memory MVP complete; loop iterations #190–#229 evidence and bounded Agent blocker recorded.
-- `data/simulation_matrix.json`: canonical scenario/category catalog mapped one-to-one to existing `battery_views.py` scenarios.
-- `models/providers/index.json`, `models/providers/*.json`: provider model tree generated from legacy catalog.
-- `models/providers/README.md`: provider-tree layout and regeneration contract.
-- `stagewarden/memory_context.py`: read-only configured Markdown context loader.
-- `tests/test_memory_context.py`, `tests/test_memory_status_cli.py`: memory behavior/status tests.
-- `scripts/generate_provider_model_tree.py`: reproducible provider-tree generator.
-- `tests/test_provider_model_tree.py`: provider-tree validity/conservation/secret-field tests.
-- `scripts/run_simulation_matrix.py`: deterministic total/granular runner with validation and machine-readable report.
-- `.codegraph/`: local CodeGraph index synced; tracked ignore metadata preserved.
-- `README.md` and `AGENT_POLICY.md`: document matrix and runner.
-- Eleven historical executable files are tracked at 0755 after workspace initialization changed them to 0644. No content cleanup performed.
+- `TODO.md`: single re-engineering/MVP plan; MVP node/RAG/OmniRoute tasks marked.
+- `stagewarden/goal_loop_orchestrator.py`: serial bottom-up execution, visible purpose events, WorkPacket/ResultPacket, OmniRoute free backend.
+- `stagewarden/node_knowledge.py`: SQLite Node Knowledge Store, node-scoped retrieval, Python code index and deterministic compaction helper.
+- `stagewarden/tools/files.py`: context-aware chunk iterator and complete-file reconstruction boundary.
+- `stagewarden/executor.py`: new read actions, model context budget, automatic chunk capping/compaction and persistent complete-file references.
+- `tests/test_file_read_recovery.py`: reopen/resume, offset integrity and content-hash recovery tests.
+- `stagewarden/event_stream.py`: append-only redacted JSONL events and replay projection.
+- `tests/test_event_stream.py`: redaction and replay tests.
+- `tests/test_executor_event_stream.py`: tool/chunk/compaction event coverage.
+- `stagewarden/mutation_journal.py`, `tests/test_mutation_journal.py`, `tests/test_mutation_execution.py`: idempotent mutation journal and recovery tests for all 16 declared mutation actions.
+- `tests/test_modelprefs.py`: manual model ownership and fallback policy round-trip/validation tests.
+- `tests/test_model_policy_cli.py`: explicit policy CLI show/update/invalid-input tests.
+- `tests/test_goal_loop_orchestrator.py`, `tests/test_node_knowledge.py`: MVP acceptance tests.
+- `docs/specs/stagewarden-v3.md`: new canonical node-first specification.
+- `docs/specs/stagewarden-v2.md`: reduced to superseded pointer.
+- `docs/architecture.md`: rewritten for tree/node scheduler, packets, Node Knowledge Store, code-aware index, event terminal and trust boundaries.
+- `README.md`, `README_IT.md`, `ROADMAP.md`, `docs/README.md`: rewritten as product/navigation docs; roadmap now points to TODO only.
+- `AGENT_MANIFESTO.md`, `AGENT_POLICY.md`, `AGENT_POLICY.json`: aligned to bottom-up/packet/evidence/node/RAG/terminal/context ownership rules.
+- `.pi/prompts/*.md`: rewritten to prohibit implicit delegation/lateral messaging and define WorkPacket/ResultPacket flow.
+- `models/*`, `examples/stagewarden_settings.example.json`, `docs/*` references: marked legacy/reference or aligned to v3.
 
 ## Important files
-- `AGENT_HANDOFF.md`: current continuation state.
-- `HANDOFF.md`: legacy project summary, still aligned with prior OmniRoute/goal-loop capabilities.
-- `.stagewarden_handoff.json`: persisted runtime handoff with provider-tree evidence, open memory/config work, and residual risks.
-- `TODO.md`: current operational plan and evidence log.
-- `data/simulation_matrix.json`: source of simulation cases.
-- `scripts/run_simulation_matrix.py`: total/granular runner.
-- `stagewarden/battery_views.py`: implementation source for 29 simulations.
-- `AGENT_MANIFESTO.md`, `AGENT_POLICY.md`, `AGENT_POLICY.json`: governance rules and repository artifact map.
-- `README.md`: user-facing matrix commands and wet-run behavior.
-- `/home/public/HermesVault/Memory/pi-memory.md`, `decisions.md`, `projects.md`, `conversation-log.md`: canonical memory context read before this activity; no secrets copied.
+- `TODO.md`: only project plan/backlog.
+- `docs/specs/stagewarden-v3.md`: canonical product contract pending approval.
+- `docs/architecture.md`: target architecture.
+- `stagewarden/goal_loop_orchestrator.py`: legacy parallel goal loop; must be redesigned, not treated as v3 behavior.
+- `stagewarden/rag.py`: legacy DesignRag; target is Node Knowledge Store.
+- `stagewarden/project_handoff.py`: legacy recovery/audit state; target runtime state moves to node/event stores.
+- `stagewarden/project/`: legacy role/tree views; source evidence for migration.
+- `stagewarden/executor.py`: legacy prompt/tool executor; target must attach work/context/evidence to nodes.
+- `.pi/prompts/`: prompt references aligned with target model.
 
 ## Technical decisions
-- Preserve active `.pi-loop.json.lock`; executable mode correction was required for tests and is now tracked at 0755.
-- Use existing battery implementation as MVP baseline; matrix catalogs real scenarios rather than inventing new cases.
-- Generate provider files from `data/ai_models_catalog.json`; preserve legacy catalog until runtime precedence is explicitly implemented.
-- Runner invokes real `stagewarden battery --json` execution in a temporary workspace, then filters selected cases; no mock-only closure.
-- Keep secrets out of repository and Hermes memory.
+- Decision: tree is primary work unit.
+  - Reason: reduces multi-agent dispersion and makes scope, purpose, context, evidence and ownership observable.
+  - Trade-off: scheduler and persistence become explicit architectural components.
+- Decision: top-down planning, bottom-up execution.
+  - Reason: leaves produce evidence before parents aggregate or delegate further work.
+  - Trade-off: parent latency increases; this is accepted for traceability.
+- Decision: serial by default; isolated parallel leaves opt-in only.
+  - Reason: interleaved multi-agent work is hard to follow and risks conflicts/cost duplication.
+  - Trade-off: lower peak throughput for safer supervision.
+- Decision: parent→child `WorkPacket`; child→parent `ResultPacket` + `EvidencePacket`; lateral messages denied by default.
+  - Reason: forwarding and return paths become typed, auditable and bounded.
+- Decision: Node Knowledge Store replaces DesignRag as target RAG concept and includes node history plus code-aware index.
+  - Reason: CodeGraph alone lacks purpose, context history, evidence, ownership, freshness and retrieval scope.
+- Decision: terminal purpose/activity observability is mandatory.
+  - Reason: user must always know node identity, purpose and current work.
+- Decision: provider/model/context ownership remains explicit and user-controlled.
+  - Reason: context size and provider/model/cost are essential user responsibilities.
+
+## Validation evidence
+- Objective: validate Node Knowledge Store/index acceptance across context isolation, citation, Python symbols, compaction, freshness and file-read recovery.
+- Metric/threshold: 6/6 fixed Node Knowledge Store/index cases pass.
+- Baseline: `/tmp/node-knowledge-coverage-baseline.log` recorded partial node/file tests but no explicit stale/fresh or cross-node matrix.
+- TDD change: added Node Knowledge Store matrix case for node isolation, citations, code lines, compaction and stale/fresh reindex; retained checkpoint/reopen recovery tests.
+- Wet validation: matrix `6/6`; Node Knowledge/file/context/event suite `19/19 OK`; goal-loop/event/tools suite passed; OmniRoute free smoke green; `py_compile`, `git diff --check` passed; CodeGraph `137/3685/12326`.
+- Fixed cases: context remains node-scoped; citation/source metadata persists; Python symbols/line ranges retrieve; compaction deterministic; reindex surfaces fresh symbols; file-read checkpoint survives reopen.
+- Next bounded gate: broader acceptance/full matrix.
+- Metric/threshold: 6/6 fixed tree/packet cases pass.
+- Baseline: `/tmp/tree-packet-coverage-baseline.log` recorded partial goal-loop coverage but no explicit six-case matrix.
+- TDD change: added fixed goal-loop matrix for root/cycle invariants, ready ordering, WorkPacket rejection, ResultPacket evidence/parent scope, lateral message rejection and serial projection.
+- Wet validation: matrix `6/6`; goal-loop `32/32 OK`; goal/event/node/context/recovery aggregate `115/115 OK`; executor-event + tools `56/56 OK`; OmniRoute free smoke green; `py_compile`, `git diff --check` passed; CodeGraph `137/3684/12316`.
+- Fixed cases: root/cycle invariants fail closed; ready ordering deterministic; unknown parent WorkPacket rejected; ResultPacket remains parent-scoped with evidence; lateral messages rejected; serial run/replay projection remains intact.
+- Next bounded gate: Node Knowledge Store/index acceptance matrix.
+- Metric/threshold: 6/6 fixed context cases pass: provider budget, node/user prompt budget, chunk cap, compaction reduction, JSONL metadata/replay and recovery persistence.
+- Baseline: `/tmp/context-budget-coverage-baseline.log` recorded base context tests but no explicit six-case matrix.
+- TDD change: added context budget matrix case covering user budget, node-scoped prompt, chunk event metadata and replay projection; retained existing file recovery/compaction tests.
+- Wet validation: matrix `6/6`; `python3 -m unittest tests.test_context_file_reading tests.test_executor_event_stream tests.test_event_stream tests.test_file_read_recovery -q` → `15/15 OK`; executor/goal/node knowledge suite passed; OmniRoute free smoke green; `py_compile`, `git diff --check` and handoff checks passed; CodeGraph `137/3683/12305`.
+- Fixed cases: available budget preserves reserved output/safety margin; node prompt budget compacts/caps chunks; file_chunk/context_compaction metadata measurable; replay retains node event projection; persisted file-read recovery remains intact.
+- Next bounded gate: broader tree/packet acceptance matrix.
+- Objective: extend MutationJournal idempotency/recovery to `chown_path_file` without repeated chown or provider/model changes.
+- Metric/threshold: 3/3 fixed chown-path cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/chown-path-journal-baseline.log`; existing branch repeated chown, left `in_flight` open and did not record unknown-owner failure.
+- Wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `43/43 OK`; aggregate mutation/executor/event/file-recovery → `111/111 OK`; `tests.test_executor_event_stream tests.test_tools` → `56/56 OK`; `scripts/test_omniroute_free.sh` → `OmniRoute free route OK (auto/coding:free)`; `git diff --check` and `py_compile` passed; CodeGraph `137/3676/12231` current.
+- Fixed cases: repeated `chown_path_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; unknown owner records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: coverage audit for all 14 declared mutation action types.
+- Objective: extend MutationJournal idempotency/recovery to `chmod_path_file` without repeated chmod or provider/model changes.
+- Metric/threshold: 3/3 fixed chmod-path cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/chmod-path-journal-baseline.log`; existing branch repeated chmod, left `in_flight` open and did not record invalid-mode failure.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `40/40 OK`; aggregate mutation/executor/event/file-recovery → `108/108 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3673/12194`.
+- Fixed cases: repeated `chmod_path_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; invalid mode records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `chown_path_file`, then remaining path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `delete_path_file` without repeated deletion or provider/model changes.
+- Metric/threshold: 3/3 fixed delete-path cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/delete-path-journal-baseline.log`; existing branch deleted once then replay failed on missing path, left `in_flight` open and did not record failure.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `37/37 OK`; aggregate mutation/executor/event/file-recovery → `105/105 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3670/12157`.
+- Fixed cases: repeated `delete_path_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; missing target records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `chmod_path_file`, then remaining path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `move_path_file` without repeated moving or provider/model changes.
+- Metric/threshold: 3/3 fixed move-path cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/move-path-journal-baseline.log`; existing branch moved once then replay failed on missing source, left `in_flight` open and did not record failure.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `34/34 OK`; aggregate mutation/executor/event/file-recovery → `102/102 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3667/12120`.
+- Fixed cases: repeated `move_path_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; missing source records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `delete_path_file`, then remaining path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `copy_path_file` without repeated copying or provider/model changes.
+- Metric/threshold: 3/3 fixed copy-path cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/copy-path-journal-baseline.log`; existing branch copied once then failed replay, left `in_flight` open and did not record missing-source failure.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `31/31 OK`; aggregate mutation/executor/event/file-recovery → `99/99 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3664/12082`.
+- Fixed cases: repeated `copy_path_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; missing source records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `move_path_file`, then remaining path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `normalize_line_endings_file` without repeated normalization or provider/model changes.
+- Metric/threshold: 3/3 fixed normalize-line-endings cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/normalize-line-endings-journal-baseline.log`; existing branch repeated no-op normalization, left `in_flight` open and did not record invalid-newline failure.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `28/28 OK`; aggregate mutation/executor/event/file-recovery → `96/96 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3661/12044`.
+- Fixed cases: repeated normalization returns `replayed`; existing `in_flight` resumes and closes `completed`; invalid newline records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `copy_path_file`, then remaining path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `convert_encoding_file` without repeated conversion or provider/model changes.
+- Metric/threshold: 3/3 fixed convert-encoding cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/convert-encoding-journal-baseline.log`; existing branch had no journal, UTF-8 readback failed after Latin-1 output, and unknown encoding raised `LookupError`.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `25/25 OK`; aggregate mutation/executor/event/file-recovery → `93/93 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3658/12007`.
+- Fixed cases: repeated conversion returns `replayed`; existing `in_flight` resumes and closes `completed`; unknown encoding records `failed` without propagating; encoding-aware verification and serial/provider policy unchanged.
+- Next bounded mutation gate: `normalize_line_endings_file`, then remaining path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `replace_range_file` without repeated replacement or provider/model changes.
+- Metric/threshold: 3/3 fixed replace-range cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/replace-range-journal-baseline.log`; existing branch repeated a no-op replacement, left `in_flight` open and did not record failures.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `22/22 OK`; aggregate mutation/executor/event/file-recovery → `90/90 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3655/11968`.
+- Fixed cases: repeated `replace_range_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; invalid line range records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `convert_encoding_file`, then remaining range/path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `delete_backward_file` without repeated deletion or provider/model changes.
+- Metric/threshold: 3/3 fixed delete-backward cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/delete-backward-journal-baseline.log`; existing branch reapplied deletion, left `in_flight` open and did not record failures.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `19/19 OK`; aggregate mutation/executor/event/file-recovery → `87/87 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3652/11931`.
+- Fixed cases: repeated `delete_backward_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; invalid anchor records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `replace_range_file`, then remaining range/path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `delete_range_file` without repeated deletion or provider/model changes.
+- Metric/threshold: 3/3 fixed delete-range cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/delete-range-journal-baseline.log`; existing branch repeated deletion, left `in_flight` open and did not record failures.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `16/16 OK`; aggregate mutation/executor/event/file-recovery → `84/84 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3649/11894`.
+- Fixed cases: repeated `delete_range_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; invalid line range records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `delete_backward_file`, then remaining range/path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `patch_files` without repeated multi-file application or provider/model changes.
+- Metric/threshold: 3/3 fixed patch-files cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/patch-files-journal-baseline.log`; existing branch applied the first multi-file patch, then failed replay, left `in_flight` open and did not record failures.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `13/13 OK`; aggregate mutation/executor/event/file-recovery → `81/81 OK`; tools/event → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3646/11857`.
+- Fixed cases: repeated `patch_files` returns `replayed`; existing `in_flight` resumes and closes `completed`; invalid multi-file patch records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: remaining range/path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `patch_file` without repeated application or provider/model changes.
+- Metric/threshold: 3/3 fixed patch-file cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/patch-file-journal-baseline.log`; existing branch reapplied valid patches, left `in_flight` open and did not record failures.
+- Historical wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `10/10 OK`; aggregate mutation/executor/event/file-recovery → `78/78 OK`; `tests.test_executor_event_stream tests.test_tools` → `56/56 OK`; OmniRoute free smoke green; CodeGraph `137/3643/11818`.
+- Fixed cases: repeated `patch_file` returns `replayed`; existing `in_flight` resumes and closes `completed`; invalid patch records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `delete_range_file`, then remaining range/path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `search_replace_file` without repeated replacement or provider/model changes.
+- Metric/threshold: 3/3 fixed search-replace cases pass: completed replay, `in_flight` recovery and failed terminal status.
+- Baseline: 0/3 in `/tmp/search-replace-journal-baseline.log`; existing branch lacked journal writes for this action.
+- Wet validation: `python3 -m unittest tests.test_mutation_execution -q` → `10/10 OK`; aggregate `tests.test_mutation_execution tests.test_mutation_journal tests.test_executor tests.test_event_stream tests.test_file_read_recovery` → `78/78 OK`; `tests.test_executor_event_stream tests.test_tools` → `56/56 OK`; `scripts/test_omniroute_free.sh` → `OmniRoute free route OK (auto/coding:free)`; `git diff --check` and `py_compile` passed; CodeGraph `137/3643/11818` current.
+- Fixed cases: repeated `search_replace_file` returns `replayed` and does not apply second replacement; an existing `in_flight` entry resumes and closes `completed`; execution failure records `failed`; serial execution and provider/model policy unchanged.
+- Next bounded mutation gate: `patch_file(s)` and remaining range/path mutations.
+- Objective: extend MutationJournal idempotency/recovery to `insert_text_file` without duplicate insertion or provider/model changes.
+- Metric/threshold: insert mutation recovery cases pass at 100%; baseline `6` mutation journal/execution tests green; post-change focused mutation/executor/event/file suite `72/72` green.
+- Fixed cases: insert records in_flight; completion records terminal status; repeated same action replays without modifying file; existing write/patch recovery remains green.
+- Fixed cases: blocked node requeues once within max_retries; retry_count/max_retries emitted; second completion emits no duplicate retry; serial scheduler unchanged.
+- Fixed cases: completed child yields one parent-targeted result; FROM/TO and work ID are correct; evidence is list; lateral/control guards remain green.
+- Fixed cases: all canonical documents name same stack; prompt is not source of truth; NodeExecutionCapsule and event/knowledge layers are distinct; no blackboard/lateral/implicit parallelism added.
+- Wet validation: `python3 -m unittest tests.test_goal_loop_orchestrator tests.test_event_stream tests.test_node_knowledge tests.test_context_file_reading tests.test_file_read_recovery -q` → `45` tests, `OK`; CodeGraph `137/3634/11716`; Markdown UTF-8/no-BOM and diff checks passed.
+- Metric/threshold: delegation-contract acceptance cases pass at 100%; baseline `44` focused goal/event/knowledge/file/context tests green; post-change `45/45` green.
+- Fixed cases: valid child packet contains known parent/dependencies/acceptance; unknown parent rejects; missing acceptance rejects; root remains executable; lateral guard and result packet tests remain green.
+- Metric/threshold: lateral-message acceptance cases pass at 100%; baseline `43` focused goal/event/knowledge/file/context tests green; post-change `44/44` green.
+- Fixed cases: lateral sender/target rejected; unknown endpoints rejected; authorized edge remains admissible; rejection does not alter target messages; serial execution unchanged.
+- Metric/threshold: compaction-event metadata acceptance cases pass at 100%; baseline `12` context/file/event/executor tests green; post-change `13/13` focused tests green.
+- Fixed cases: compaction event records available input tokens, max chars and prompt chars before/after; after < before; file-chunk/recovery/redaction tests remain green.
+- Metric/threshold: context-event metadata acceptance cases pass at 100%; baseline `11` context/file/event tests green; post-change `12/12` focused tests green.
+- Fixed cases: file_chunk records available input tokens, prompt chars before/after and auto_compacted; existing compaction/file recovery/redaction tests remain green.
+- Metric/threshold: replay metadata acceptance cases pass at 100%; baseline `35` focused event/executor/goal/knowledge tests green; post-change `36/36` green.
+- Fixed cases: replay keeps context revision, summary reference and remaining input budget; mutation recovery exposes key/status; secret redaction remains intact; existing cycle projection remains green.
+- Metric/threshold: replay projection acceptance cases pass at 100%; baseline `30` event/executor/goal tests green; post-change `35/35` focused event/executor/goal/knowledge tests green.
+- Fixed cases: replay preserves cycle id, phase, context revision and checkpoint; redaction and node filtering remain intact; existing file/goal event paths remain green.
+- Metric/threshold: packet-edge acceptance cases pass at 100%; baseline `34` focused goal/event/knowledge/file-recovery tests green; post-change `35/35` green.
+- Fixed cases: ResultPacket carries declared parent/child IDs; evidence is list; packet has no lateral messages; successful child result reaches only declared parent; existing ordering/tree tests remain green.
+- Metric/threshold: ordering acceptance cases pass at 100%; baseline `33` focused goal/event/knowledge/file-recovery tests green; post-change `34/34` green.
+- Fixed cases: root is first; child becomes ready only after dependency completion; same-depth ready nodes sort by `node_id`; parent-cycle detection remains fail-closed; valid blueprint runs unchanged.
+- Metric/threshold: tree invariant acceptance cases pass at 100%; baseline `29` focused goal/event/knowledge tests green; post-change `33/33` focused goal/event/knowledge/file-recovery tests green.
+- Fixed cases: one root; explicit parent edges; dependencies/parents exist; root has no dependency; dependency/parent cycles reject before execution; valid blueprint still runs serially.
+- Wet validation: focused suite `33 OK`; direct OmniRoute free smoke green; CodeGraph `137/3625/11670`; diff/Markdown checks passed.
+- Metric/threshold: paid-policy acceptance cases pass at 100%; baseline `25` policy/router tests green before change; post-change focused policy/goal/mutation/executor suite `115/115` green.
+- Fixed cases: paid/unknown-priced provider skipped without authorization; explicit authorization retains route candidates; persisted policy reaches router; WorkPacket includes selection policy; existing manual/fallback and mutation tests remain green.
+- Metric/threshold: fixed policy/router/executor/CLI cases pass at 100%; result `26/26` focused policy cases green after TDD change. Baseline before edit: `18/18` existing router/model-policy cases green, with manual mode not wired to router.
+- Fixed cases: manual preferred provider beats task heuristic; auto mode preserves heuristic; manual variants and fallback stay blocked; explicit authorization remains usable; CLI/report reflect state; executor performs no second provider call.
+- Wet validation: `python3 -m unittest tests.test_executor tests.test_router tests.test_modelprefs tests.test_model_policy_cli tests.test_agent_integration -q` passed `90` with `1` intentional skip before final test additions; focused policy suite passed `26`; `scripts/test_omniroute_free.sh` returned `OmniRoute free route OK (auto/coding:free)`.
+
+## Validation evidence
+- Objective: recover an interrupted file mutation from an `in_flight` journal entry exactly once, with terminal journal status and recovery event, without changing serial execution or provider/model routing.
+- Metric/threshold: fixed mutation-recovery cases pass at 100%; baseline `4/4` mutation journal/execution tests green; post-change focused mutation/recovery suite `69/69` green.
+- Fixed cases: `in_flight` entry is visible; rerun does not replay as completed; write executes once; journal becomes `completed`; `mutation_recovery` event is emitted; existing completed idempotency remains green.
+- Wet validation: `python3 -m unittest tests.test_goal_loop_orchestrator tests.test_event_stream tests.test_node_knowledge tests.test_file_read_recovery tests.test_context_file_reading -q` → `45` tests, `OK`; `scripts/test_omniroute_free.sh` returned `OmniRoute free route OK (auto/coding:free)`; CodeGraph `137/3634/11716`; diff/Markdown checks passed.
+- OmniRoute smoke failed contract this cycle: prose-wrapped `Stagewarden_Free_OK` instead of exact expected marker. External route blocker recorded; adapter/parser unchanged.
+- OmniRoute retry in this iteration returned structurally valid but semantically wrong JSON (`summary/keyDecisions/taskProgress/activeEntities` instead of required `STAGEWARDEN_FREE_OK`); recorded as external route-contract blocker. No adapter/parser weakening.
+- Metric/threshold: capsule round-trip/reopen acceptance cases pass at 100%; baseline `28` focused goal/knowledge/file/event tests green before this change; post-change `30` focused tests green.
+- Fixed cases: capsule survives SQLite reopen; orchestrator writes capsule on node event; reopen restores non-terminal status, cycle id and checkpoint; node scope remains isolated.
+- Wet validation: `python3 -m unittest tests.test_node_knowledge tests.test_goal_loop_orchestrator tests.test_event_stream tests.test_file_read_recovery -q` → `30` tests, `OK`; `scripts/test_omniroute_free.sh` returned `OmniRoute free route OK (auto/coding:free)`; CodeGraph `137/3614/11615`; `git diff --check` and Markdown UTF-8/no-BOM passed.
+- Metric/threshold: cycle-state acceptance cases green at 100%; baseline `24` focused goal/event/knowledge tests green before change; post-change `26` focused tests green.
+- Fixed cases: default cycle state serializes; cycle/context revisions survive projection; cycle-start and checkpoint events include node purpose, cycle and context metadata; cycle budget exhaustion blocks rather than loops indefinitely.
+- Wet validation: `python3 -m unittest tests.test_goal_loop_orchestrator tests.test_event_stream tests.test_node_knowledge -q` → `26` tests, `OK`; CodeGraph synced at `137/3606/11557`; `git diff --check` passed.
 
 ## Open issues
-- External OmniRoute/OpenRouter checks not rerun; prior evidence retained.
-- Loop #229 reconfirmed bounded real-Agent completion blocked by repeated non-terminal free-route behavior; wait for route/model state change.
-- `.pi-loop.json.lock` remains preserved.
-- Handoff artifacts remain intentionally dirty; automatic workspace commits may advance `HEAD`; `.stagewarden_handoff.json` must stay aligned with actual `HEAD` before stopping.
+- User approval still required for `docs/specs/stagewarden-v3.md`.
+- Open decisions are in v3 section 21: bottom-up exceptions, serial/parallel policy, retention, storage backend, code languages, prompt visibility, active-node UX, dynamic child creation, repeat forwarding, and v2 archival handling.
+- Runtime v3 implementation not started.
+- Legacy full suite remains historical evidence; documentation validation must be run after this rewrite.
+- Live multi-node OmniRoute free remains blocked by repeated malformed/truncated JSON after initial nodes; direct adapter smoke remains green. Parser stays fail-closed.
+- Paid-provider authorization is persisted and surfaced but not yet enforced by catalog/provider price classification; this iteration enforced manual selection and fallback only.
+- Live multi-node OmniRoute free remains blocked by repeated malformed/truncated JSON after initial nodes; direct adapter smoke remains green. Parser stays fail-closed.
+- Paid-provider authorization is persisted and surfaced but not yet enforced by catalog/provider price classification; this iteration enforced manual selection and fallback only.
+- Do not restart recurring implementation loops.
+- Live free-route contract is currently unstable: direct smoke failed once with wrong JSON shape, in addition to prior multi-node malformed/truncated JSON.
 
 ## Next steps
-1. Loop iteration #229 completed: stable `2116`-model inventory, SHA-256 `0fb53ad202661a4368fdeda65f928658c9b24c08937d80cd2e68029120542a76ef9`, no route behavior change, no new bounded Agent retry after repeated blocker, targeted regressions, local OmniRoute adapter/smoke/live checks, simulation matrix `29/29`, full suite `487/487` with `5` intentional skips, UTF-8/no-BOM scan `184/184`, and diff check pass.
-2. Stop bounded Agent retries until route/model behavior changes; preserve fail-closed critic parser.
-3. Preserve current uncommitted tree and do not clean lock/index artifacts without authorization.
-
-## Loop contract
-- Loop prompt: continue Stagewarden work from `TODO.md`; one bounded iteration per trigger.
-- Re-read TODO, handoff, CodeGraph, and Hermes memory each iteration.
-- Stop on repeated model/environment blocker, green acceptance, or user cancellation.
-- No new worktree, secrets, parser weakening, or unverified completion claims.
+1. Run documentation validation: UTF-8/no-BOM, links/terminology audit, `git diff --check`, CodeGraph status/sync.
+2. Complete paid-provider classification/enforcement and then tree invariants.
+2. Complete paid-provider classification/enforcement and then tree invariants.
+3. User reviews and approves/corrects `docs/specs/stagewarden-v3.md` and section 21 decisions.
+4. After approval, derive implementation-level TODO entries from the approved spec; only then modify runtime.
+5. Implement in order: event/node store, validator, serial bottom-up scheduler, packet protocol, terminal events, Node Knowledge Store/code index, per-node context/compaction, provider ownership, migration.
 
 ## Commands
 ```bash
-python3 -m pip install -e .
-./scripts/run_simulation_matrix.py --list
-./scripts/run_simulation_matrix.py
-./scripts/run_simulation_matrix.py --scenario executor_write_file
-./scripts/run_simulation_matrix.py --category role-runtime
-python3 -m unittest tests.test_simulation_matrix tests.test_policy_docs
-python3 -m unittest tests.test_trace_cli.TraceAndCliTests.test_battery_cli_runs_simulated_agent_scenarios
-python3 -m unittest discover -s tests
+codegraph status .
+codegraph sync .
+git diff --check
+python3 - <<'PY'
+from pathlib import Path
+for path in Path('.').rglob('*.md'):
+    data = path.read_bytes()
+    data.decode('utf-8')
+    assert not data.startswith(b'\xef\xbb\xbf'), path
+print('markdown UTF-8/no-BOM: OK')
+PY
 ```

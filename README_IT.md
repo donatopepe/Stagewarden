@@ -1,261 +1,135 @@
 # Stagewarden
 
-Autore: Donato Pepe
-Licenza: MIT
+Stagewarden è un runtime per coding agent governato da un albero operativo di nodi.
 
-Stagewarden e un agente CLI per coding controllato: loop stile Codex, routing multi-provider, governance PRINCE2, handoff persistente, strumenti shell/file/git e tracciamento verificabile.
-Include anche IO esterno governato: ricerca web, download HTTP/HTTPS, checksum, compressione gzip e verifica archivio con evidenza tracciata.
+**Stato attuale:** architettura e documentazione v3 in reingegnerizzazione. L'implementazione runtime è congelata fino all'approvazione della specifica v3. Il runtime Python esistente resta evidenza legacy, non architettura target.
 
-## Installazione
+## Modello di prodotto
+
+Stagewarden non tratta il lavoro come insieme indistinto di agenti. Il lavoro vive in un albero:
+
+```text
+scopo root
+└── scopo parent
+    ├── work packet leaf -> evidence
+    └── work packet leaf -> evidence
+        ^ aggregazione risultati
+    risultato parent
+^ decisione root
+```
+
+- La pianificazione è top-down.
+- L'esecuzione è bottom-up.
+- L'esecuzione seriale è il default.
+- Il parallelismo è opt-in e limitato a foglie isolate e verificabili indipendentemente.
+- Il parent delega tramite `WorkPacket` tipizzato.
+- Il child restituisce `ResultPacket` con `EvidencePacket` verificabili.
+- La comunicazione laterale libera è negata per default.
+- Un nodo non può completare senza evidenza rispetto ai criteri di accettazione.
+
+## Stack del protocollo formale
+
+Stagewarden usa un insieme limitato di strutture formalizzate:
+
+```text
+Markdown                 regole e specifica
+JSON + JSON Schema       WorkPacket/ResultPacket/EvidencePacket/tool action
+tree + DAG                decomposizione e dipendenze
+FSM                       lifecycle del nodo e del ciclo
+invarianti + gate        completion fail-closed
+NodeExecutionCapsule     contesto, checkpoint e recovery del nodo
+JSONL                     audit append-only e replay
+SQLite Node Knowledge    memoria per nodo e retrieval code-aware
+```
+
+Il prompt è input dell'inferenza, non source of truth operativo. Nessun blackboard implicito, messaggio laterale o parallelismo legacy.
+
+## Cosa deve vedere l'utente
+
+Il terminale deve rispondere sempre a queste domande:
+
+1. Quale nodo sta lavorando?
+2. Qual è lo scopo di quel nodo?
+3. Quale work packet ha ricevuto?
+4. Cosa sta facendo adesso?
+5. Quali file, tool e test sono coinvolti?
+6. Quanto contesto resta?
+7. Quale evidenza è stata prodotta?
+8. Perché il nodo è in attesa, bloccato, delegato o completato?
+
+Il contratto v3 prevede banner persistente del nodo, promemoria dello scopo dopo resume/compaction, eventi live, eventi JSONL e replay.
+
+## Node Knowledge Store
+
+Il RAG diventa un Node Knowledge Store operativo. Conserva con scope di nodo e provenienza:
+
+- purpose, work packet, risultati, decisioni, blocker e recovery;
+- snapshot del contesto e summary di compaction;
+- evidenze di tool, file, test e provider;
+- file, moduli, classi, procedure, funzioni, metodi, test e relazioni del codice;
+- path, intervalli di riga, hash del contenuto, freschezza e sensibilità.
+
+CodeGraph può aiutare l'ispezione dei simboli, ma resta un indice ausiliario di sviluppo. Non è source of truth per contesto, storia, evidenza, ownership, permessi o retrieval del nodo.
+
+## Contesto e ownership dei modelli
+
+Context window, input budget, output riservato, overhead, safety margin, metodo di misura, fonte e freschezza sono dati di prima classe.
+
+La compattazione automatica è comportamento core del nodo. Riduce il contesto attivo prima di superare il limite del provider/modello selezionato, persiste e valida il summary e non cambia mai provider, modello, account o policy di costo in modo implicito.
+
+La lettura dei file è context-aware: Stagewarden legge automaticamente a chunk in base al contesto residuo. Se il chunk successivo non entra, compatta il contesto e continua da offset persistito. Un file può essere letto completamente anche oltre la finestra del modello: il contenuto completo resta fuori dal prompt, in cache/evidence persistente, e viene ricostruito per chunk senza perdita.
+
+Provider, modello, account, credenziali, quote, costi e autorizzazione dei fallback appartengono all'utente. Stagewarden può mostrarli e applicare i vincoli, ma non può scegliere silenziosamente un servizio a pagamento o sostituire il modello selezionato.
+
+## Documentazione
+
+- [`TODO.md`](TODO.md) — unico piano di progetto e unico backlog.
+- [`docs/specs/stagewarden-v3.md`](docs/specs/stagewarden-v3.md) — specifica canonica in bozza.
+- [`docs/architecture.md`](docs/architecture.md) — architettura node-first e trust boundary.
+- [`AGENT_MANIFESTO.md`](AGENT_MANIFESTO.md) — principi operativi.
+- [`AGENT_POLICY.md`](AGENT_POLICY.md) — policy formale.
+- [`AGENTS.md`](AGENTS.md) — protocollo di continuità degli agenti.
+- [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) — handoff corrente.
+- [`docs/README.md`](docs/README.md) — mappa documentazione.
+
+La precedente specifica v2 è conservata solo come documento superato: [`docs/specs/stagewarden-v2.md`](docs/specs/stagewarden-v2.md).
+
+## Confine dell'implementazione attuale
+
+In questa fase non si implementano feature runtime v3. Non dedurre il contratto v3 dai moduli esistenti: goal loop legacy, router, project handoff, message bus o `DesignRag`.
+
+Piano di migrazione:
+
+1. contratti eventi e stato nodo;
+2. validazione dell'albero;
+3. scheduler bottom-up seriale;
+4. work/result/evidence packet;
+5. stream eventi osservabile nel terminale;
+6. Node Knowledge Store e indice code-aware;
+7. accounting e compattazione per nodo;
+8. ownership provider/modello controllata;
+9. migrazione legacy e rimozione dei percorsi paralleli/free-message non sicuri.
+
+## Installazione del runtime legacy per ispezione
 
 ```bash
 python3 -m pip install -e .
 ```
 
-Prerequisiti:
+La CLI installata è il runtime legacy attuale finché non viene chiuso il gate di approvazione v3. Il lavoro futuro deve seguire [`TODO.md`](TODO.md).
 
-- Python 3.11+
-- Git installato e disponibile in `PATH`
-
-Git e obbligatorio. Se la workspace non ha `.git`, Stagewarden inizializza il repository e crea snapshot locali delle azioni dell'agente.
-
-## Avvio
+## Validazione della fase documentale
 
 ```bash
-stagewarden
+codegraph status .
+codegraph sync .
+git diff --check
+python3 - <<'PY'
+from pathlib import Path
+for path in Path('.').rglob('*.md'):
+    data = path.read_bytes()
+    data.decode('utf-8')
+    assert not data.startswith(b'\xef\xbb\xbf'), path
+print('markdown UTF-8/no-BOM: OK')
+PY
 ```
-
-Oppure:
-
-```bash
-stagewarden "fix failing tests"
-```
-
-Nella shell interattiva i comandi iniziano con `/`. Tutto cio che non inizia con `/` viene trattato come richiesta/task per l'agente.
-
-## UX Stile Codex/Claude
-
-Stagewarden usa Codex CLI, Claude Code e KiloCode come baseline di esperienza utente:
-
-- `/help` mostra le categorie principali.
-- `/slash [prefisso]` mostra una palette comandi con descrizioni.
-- `/slash choose [query]` apre un menu guidato portabile e restituisce il comando selezionato senza eseguirlo.
-- `/slash mo` mostra i comandi relativi ai modelli.
-- `stagewarden "slash mo" --json` espone la stessa palette in formato strutturato.
-- La ricerca slash usa anche fuzzy matching ed esempi: `slash scarica` trova `download`, `slash upgrade stagewarden` trova `update apply`.
-- Il completamento slash suggerisce provider, ruoli PRINCE2, backend shell, account configurati, provider-model e valori `reasoning_effort`.
-- La palette mostra anche contesto operativo: provider abilitati, account attivi, provider bloccati e hint sui parametri.
-- `/help agent` mostra il protocollo di compatibilita multi-agente, con AGENTS.md, AGENT_HANDOFF.md, handoff runtime e validazione wet-run.
-- `/risks close <risoluzione>`, `/issues close <risoluzione>` e `/quality close <risoluzione>` chiudono i registri di governance aperti dopo una mitigazione o accettazione esplicita.
-
-Esempi:
-
-```text
-stagewarden> /slash
-stagewarden> /slash mo
-stagewarden> /model choose
-stagewarden> /model choose chatgpt
-stagewarden> /model preset chatgpt
-stagewarden> /role configure project_manager
-stagewarden> /status
-stagewarden> /resume context
-```
-
-## Modelli E Provider
-
-Comandi principali:
-
-- `/models` mostra provider abilitati, attivi, preferiti e provider-model correnti.
-- `/model choose [provider]` apre un menu guidato per provider, provider-model e parametri.
-- `/model preset <provider>` senza preset apre il picker guidato.
-- `/model list <provider>` mostra catalogo provider-model e parametri supportati.
-- `/model variant <provider> <provider_model>` fissa un modello del provider.
-- `/model param set <provider> reasoning_effort <low|medium|high>` salva il livello di ragionamento quando supportato.
-- `/model limits` mostra blocchi, reset time e limiti conosciuti.
-- `catalog refresh` rigenera lo snapshot condiviso del catalogo modelli partendo dal discovery OpenRouter.
-- `catalog refresh --aa` include esplicitamente il refresh dei prezzi da Artificial Analysis quando `STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY` è disponibile.
-- `catalog search <query> [provider=<provider>] [feature=<feature>]` cerca nello snapshot per nome, alias, provider o capacita.
-- Il catalogo viene anche rigenerato in modo schedulato dal workflow GitHub Actions `Refresh AI Model Catalog`, che prova a fare commit e push dello snapshot aggiornato quando cambia.
-- Un file di esempio della workspace settings si trova in [`examples/stagewarden_settings.example.json`](examples/stagewarden_settings.example.json).
-
-I menu guidati mostrano il contesto corrente prima della scelta: provider abilitati, provider preferito, account attivi, provider bloccati, provider-model corrente, reasoning effort corrente e account configurati.
-
-## PRINCE2 E Handoff
-
-Stagewarden tratta l'handoff come contesto vivo del progetto, non come semplice resume opzionale.
-
-- `.stagewarden_handoff.json` contiene lo stato operativo.
-- `HANDOFF.md` contiene roadmap e decisioni umane.
-- `AGENTS.md` contiene il protocollo di startup e handoff condiviso tra agenti.
-- `AGENT_HANDOFF.md` contiene il handoff compatibile tra agenti.
-- `/handoff` mostra il contesto persistente.
-- `/resume --show` mostra il target di resume.
-- Se la shell parte con una sessione `waiting`, il task salvato viene ripreso automaticamente prima di accettare nuovo input.
-- `/resume context` mostra ultimo tentativo modello, route, evidenza tool e snapshot git.
-- `/roles domains` mostra responsabilita e perimetro dei ruoli.
-- `/role configure [role]` mostra responsabilita PRINCE2 e scope del ruolo prima di assegnare provider/modello/account.
-- `/roles menu` apre il menu guidato del tree PRINCE2 per aggiungere o rimuovere nodi, aprire la shell di un nodo e approvare la baseline.
-- `/roles shell [node_id]` apre la shell navigabile di un nodo PRINCE2 con parent, sibling e child hop.
-- `/role menu [node_id]` apre il menu guidato di un nodo, con cambio agente/modello in stile KiloCode, update tolleranza, shell del nodo e rimozione.
-- `/role shell [node_id]` apre direttamente la shell navigabile di un nodo PRINCE2.
-- `/role switch [node_id]` apre direttamente il flusso guidato di switch agente/modello per un nodo.
-- `/role model <node_id> ...` cambia il modello del nodo; il chooser mostra prima le alternative piu forti, piu deboli e poi il resto del catalogo.
-- `/role tolerance set <node_id> <percent>` e `/role tolerance reset <node_id>` aggiornano o ricalcolano il margine di tolleranza del nodo.
-- `/role remove <node_id> [reparent_children=<yes|no>]` rimuove un nodo dalla baseline dinamica.
-- `/roles tree approve` salva l'albero PRINCE2 corrente come baseline approvata in `.stagewarden_models.json` e `.stagewarden_handoff.json`.
-- `/roles baseline` mostra la baseline approvata che guidera i futuri handoff di contesto per ruolo.
-- `/roles baseline matrix` mostra la matrice della baseline approvata, inclusi nodi delegati e pool reviewer/fallback.
-- `/project brief` mostra la specifica progetto strutturata salvata nell'handoff runtime; usa `/project brief set <campo> <valore>` e `/project brief clear [campo]` per gestirla.
-- `/project design` mostra il pacchetto preliminare che un futuro planner IA PRINCE2 deve ricevere: capability reali dell'agente, specifica di progetto corrente e gap di chiarimento.
-- `/project tree propose` crea una proposta review-only di albero organizzativo PRINCE2 proporzionale alla brief strutturata; `/project tree propose --ai` chiede a un modello disponibile patch aggiuntive validate tramite `RUN_MODEL`, senza persistere nulla fino all'approvazione.
-- `/project tree approve` persiste la proposta revisionata come baseline approvata; blocca i gap aperti salvo uso esplicito di `/project tree approve --force`.
-- `/project start` esegue ora il gate controllato di startup: pacchetto design, proposta proporzionale di albero e approvazione. Blocca i gap di chiarimento invece di applicare silenziosamente la baseline statica; `/project start --ai` forza la proposta IA prima dell'approvazione.
-- `/role add-child` apre un menu guidato, oppure `/role add-child <parent_node> <role_type> [node_id]` aggiunge nodi PRINCE2 delegati/subordinati alla baseline approvata.
-- `/role assign` apre un menu guidato, oppure `/role assign <node_id> <provider> <provider_model> [reasoning_effort=<valore>] [account=<nome>] [pool=<primary|reviewer|fallback>]` assegna rotte primary, reviewer o fallback a un nodo specifico dell'albero.
-- I prompt modello instradati per ruolo includono edge PRINCE2 attivi, payload scope e condizioni di validazione, cosi il fallback non puo allargare silenziosamente il contesto del ruolo.
-- `/handoff actions` mostra le azioni operative tracciate nell'handoff; `/handoff actions 50 --json` espone la stessa cronologia in formato macchina.
-- `/status`, `/status --json` e `/statusline --json` mostrano anche l'ultima azione handoff tracciata, cosi l'utente vede subito l'ultima operazione eseguita o bloccata.
-- `/status --json`, `/statusline --json`, `/overview --json`, `/health --json`, `/preflight --json`, `/report --json`, `/handoff --json`, `/boundary --json` e `/board --json` includono un blocco `schema` versionato, cosi gli altri agenti possono validare i contratti dei payload in modo esplicito.
-- Questi blocchi `schema` sono centralizzati in `stagewarden/json_schema_registry.py`, che copre ora le superfici JSON stabili di status, help, commands, catalog, goal, models, git, sessions e dei registri.
-- `/status` e `/status --json` espongono anche la pricing source attiva del modello instradato corrente, cosi puoi vedere se il pricing arriva da `openrouter`, `artificial_analysis` o dal fallback locale.
-
-Il contesto passato ai modelli e limitato al dominio del ruolo PRINCE2 assegnato.
-
-## Validazione
-
-Regole operative:
-
-- ogni modifica deve avere test o verifica reale
-- dry-run da solo non e checkpoint valido
-- serve wet-run: test eseguiti, comandi reali, file osservati o output reale di tool
-- se un wet-run diretto non e possibile, Stagewarden deve trovare una verifica alternativa concreta
-
-## Comandi Utili
-
-```text
-stagewarden> /doctor
-stagewarden> /preflight
-stagewarden> /battery
-stagewarden> /health
-stagewarden> /report
-stagewarden> /transcript
-stagewarden> /git status
-stagewarden> /sources status
-stagewarden> /sources status --strict
-stagewarden> /update status
-stagewarden> /update check --json
-stagewarden> /web search Stagewarden coding agent
-stagewarden> /download https://example.com/file.txt artifacts/file.txt
-stagewarden> /checksum artifacts/file.txt
-stagewarden> /compress artifacts/file.txt
-stagewarden> /archive verify artifacts/file.txt.gz
-```
-
-Per output JSON:
-
-```bash
-stagewarden status --json
-stagewarden "slash mo" --json
-stagewarden "model limits" --json
-stagewarden "roles matrix" --json
-stagewarden statusline --json
-stagewarden "resume context" --json
-```
-
-`statusline --json` espone anche uso token/finestra di contesto quando il provider restituisce metadati sicuri.
-
-## IO Esterno Governato
-
-I comandi `web search`, `download`, `checksum`, `compress` e `archive verify` registrano evidenza in transcript e handoff actions. I download accettano solo HTTP/HTTPS, scrivono solo dentro la workspace e rispettano `--max-bytes` per evitare acquisizioni incontrollate.
-
-## Aggiornamento Governato
-
-`update status` mostra branch, HEAD, upstream, ahead/behind e stato dirty. `update check --json` aggiorna i metadati upstream e segnala se esiste una nuova versione. `update apply --yes` applica solo fast-forward, richiede conferma esplicita, rifiuta worktree sporco e registra evidenza prima/dopo nell'handoff.
-
-## Estensioni
-
-`extension scaffold <nome>` crea una struttura sicura sotto `.stagewarden/extensions/<nome>/` con `commands/`, `roles/`, `skills/`, `hooks/`, `mcp/` ed `extension.json`. Lo scaffold scrive anche `schema_version`, `entrypoints` ed `execution=disabled-by-default`. `extensions --json` scopre le estensioni in sola lettura, valida manifest e percorsi degli entrypoint, segnala directory mancanti e non esegue codice non fidato.
-
-## Goal Loop Orchestration
-
-Stagewarden include un sistema a loop multi-nodo gerarchico sotto il family di comandi `goal loop`.
-
-### Comandi
-
-```text
-stagewarden> goal loop <task>
-stagewarden> goal loop <task> --json
-stagewarden> goal loop run <task>
-stagewarden> goal loop run <task> --json
-stagewarden> goal loop status
-stagewarden> goal loop status --json
-stagewarden> goal loop add-node <name> <skill_path> [purpose]
-stagewarden> goal loop custom-nodes
-```
-
-- **`goal loop <task>`**: genera un blueprint con scope, node graph, child prompts, execution order, tolerance matrix, exception policy, validation plan, e final report.
-- **`goal loop run <task>`**: esegue il loop multi-nodo con dependency resolution, parallel fan-out, messaggi strutturati, autonomy gates, e tolerance checks.
-- **`goal loop status`**: mostra lo stato corrente dell'esecuzione del loop.
-- **`goal loop add-node <name> <skill_path>`**: registra un nodo custom da un file skill di un'estensione.
-- **`goal loop custom-nodes`**: elenca i nodi custom registrati.
-
-### Modalità di Esecuzione
-
-Impostabili via variabile d'ambiente `STAGEWARDEN_GOAL_LOOP_EXECUTION_MODE`:
-
-- `mock` — risposte deterministiche per test
-- `auto` (default) — prova `pi --print`, fallback a mock se non disponibile
-- `pi` — richiede esecuzione reale via `pi` CLI
-
-### Architettura
-
-- 8 nodi in ordine di dipendenza: `root.scope` → `orchestrator.graph` → `subnode.generator` → `implementation.refactor` → `validation.wet_run` → `governance.tolerance` → `communication.bridge` → `learning.pi`
-- Ogni nodo invia messaggi strutturati (FROM/TO/TYPE/SUMMARY/PRIORITY/TOLERANCE IMPACT) via MessageBus in memoria.
-- Autonomy gate classifica le decisioni (basso/medio/alto rischio) e chiede all'utente per scelte ad alto rischio.
-- Tolerance gate verifica i risultati contro le tolleranze dichiarate.
-- Handoff recording persiste ogni cambiamento di stato.
-
-### Control Socket
-
-Quando `goal loop run` è in esecuzione, un server TCP viene avviato su `127.0.0.1:<porta casuale>`.
-La porta è scritta in `.stagewarden/goal_loop_control.txt` per scoperta esterna.
-
-Strumenti esterni possono inviare messaggi strutturati (formato `node-communication.md`) per iniettare
-decisioni, aggiornamenti di dipendenza o blocchi nel loop in esecuzione:
-
-```python
-from stagewarden.goal_loop_control import send_control_message, discover_control_port
-
-port = discover_control_port(percorso_workspace)
-if port:
-    send_control_message(port, {
-        "FROM": "external.tool",
-        "TO": "root.scope",
-        "TYPE": "decision",
-        "SUMMARY": "User approved the scope.",
-        "PRIORITY": "high",
-    })
-```
-
-### Nodi Custom
-
-I template prompt vivono in `.pi/prompts/` e seguono il formato pi con frontmatter YAML.
-
-Template usati:
-- `goal-root.md` — definizione scope radice
-- `goal-loop-orchestrator.md` — decomposizione grafo
-- `subnode-generator.md` — generazione prompt figli
-- `refactor-complete.md` — workflow refactoring TDD
-- `validation-wet-run.md` — gate evidenza wet-run
-- `tolerance-exception.md` — policy deviazioni/eccezioni
-- `node-communication.md` — formato messaggi strutturati
-- `autonomy-decision.md` — classificazione rischio
-- `pi-learning-benchmark.md` — studio benchmark pi agent
-
-### Benchmark Pi Agent
-
-Vedi `.pi/pi-learning-benchmark.md` per uno studio a 8 dimensioni di pi agent confrontato con Stagewarden.
-
-## Crediti
-
-Stagewarden studia e riproduce, dove compatibile, pattern UX e architetturali ispirati a Codex CLI, Claude Code, KiloCode e Caveman. Le fonti locali servono come riferimento tecnico; non vengono vendorizzati contenuti protetti nel progetto.

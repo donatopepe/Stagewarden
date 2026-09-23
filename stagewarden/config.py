@@ -14,6 +14,11 @@ class AgentConfig:
     max_retries_per_step: int = 2
     model_timeout_seconds: int = 120
     shell_timeout_seconds: int = 120
+    context_window_tokens: int | None = None
+    context_reserved_output_tokens: int = 4096
+    context_safety_margin_tokens: int = 1024
+    context_chars_per_token: float = 4.0
+    file_chunk_chars: int = 12000
     shell_backend: str = "auto"
     verbose: bool = False
     prefer_local: bool = True
@@ -26,6 +31,8 @@ class AgentConfig:
     memory_filename: str = ".stagewarden_memory.json"
     caveman_state_filename: str = ".stagewarden_caveman.json"
     trace_filename: str = ".stagewarden_trace.ljson"
+    event_filename: str = ".stagewarden/events.jsonl"
+    mutation_journal_filename: str = ".stagewarden/mutations.jsonl"
     prince2_pid_filename: str = ".stagewarden_prince2_pid.json"
     model_prefs_filename: str = ".stagewarden_models.json"
     handoff_filename: str = ".stagewarden_handoff.json"
@@ -146,6 +153,14 @@ class AgentConfig:
     def memory_context(self):
         from .memory_context import load_memory_context
         return load_memory_context(self.workspace_root, self.settings_path)
+
+    @property
+    def event_path(self) -> Path:
+        return (self.workspace_root / self.event_filename).resolve()
+
+    @property
+    def mutation_journal_path(self) -> Path:
+        return (self.workspace_root / self.mutation_journal_filename).resolve()
 
     @property
     def history_path(self) -> Path:

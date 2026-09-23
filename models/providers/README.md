@@ -1,11 +1,22 @@
-# Provider model catalog
+# Provider model metadata
 
-One JSON file per provider. `index.json` is manifest. Generated from `data/ai_models_catalog.json` by:
+`providers/` contains provider metadata and model records. `index.json` is a manifest; each provider file is a generated snapshot.
+
+These files are not secrets, authorization, or user selection. They may be stale and must expose source/freshness when consumed by runtime.
+
+The v3 provider contract requires:
+
+- exact provider and model ID;
+- explicit alias/route resolution;
+- context window, input limit and output limit when known;
+- measurement/source/timestamp/staleness;
+- capability and parameter metadata;
+- no credentials.
+
+Runtime must fail closed or request a user decision when metadata is missing or contradictory. See [`../../docs/specs/stagewarden-v3.md`](../../docs/specs/stagewarden-v3.md).
+
+Legacy regeneration:
 
 ```bash
-./scripts/generate_provider_model_tree.py
+python3 scripts/generate_provider_model_tree.py
 ```
-
-No credentials in files.
-
-Runtime loader validates `index.json`, each provider file, provider IDs, filenames, and record counts. Valid tree takes precedence; malformed/missing tree falls back to `data/ai_models_catalog.json`. Override path with `STAGEWARDEN_PROVIDER_MODELS_PATH`.

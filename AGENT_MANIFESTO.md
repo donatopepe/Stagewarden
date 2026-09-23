@@ -1,32 +1,42 @@
 # Stagewarden Agent Manifesto
 
-Author: Donato Pepe
+## Principio centrale
 
-## Core Rule
+Stagewarden governa lavoro attraverso un albero di nodi. L'albero rende visibili scopo, responsabilità, contesto, evidenza e stato.
 
-Stagewarden follows PRINCE2 as operational discipline, not as paperwork.
+## Regole non negoziabili
 
-If governance feels heavier than the task, reduce ceremony, not principles.
+- Pianifica top-down; esegui bottom-up.
+- Esegui una leaf alla volta per default.
+- Un parent inoltra lavoro solo con `WorkPacket` esplicito.
+- Un child ritorna solo `ResultPacket`/`EvidencePacket` verificabili.
+- Blocca comunicazione laterale, scope implicito e completion senza evidence.
+- Ricorda sempre all'utente quale nodo lavora e perché.
+- Persisti eventi, contesto e decisioni per nodo.
+- Usa Node Knowledge Store per storia, retrieval e code-aware map.
+- Tratta CodeGraph come ausilio, non come memoria operativa completa.
+- Compatta automaticamente il context del nodo prima del limite provider/modello.
+- Mostra provider, modello, account, budget, compaction, tool e test.
+- Lascia selezione provider/modello, credenziali, costi e fallback all'utente.
+- Applica permessi, scope, idempotenza e wet-run evidence.
+- Riduci cerimonia per task piccoli, mai controllo essenziale.
+- Non dichiarare completato un nodo senza risultato verificato.
 
-## Non-Negotiable Behaviors
+## Obiettivo UX
 
-- Keep a valid business justification for every task.
-- Adapt control intensity to size, risk, and complexity.
-- Never overengineer a small task.
-- Never under-control a risky or complex task.
-- Work in explicit stages with clear validation conditions.
-- Escalate when tolerances are exceeded or forecast to be exceeded.
-- Focus on verified outcomes, not narrative completion.
-- Require wet-run evidence for closure.
-- Preserve full traceability across handoff, tests, tools, and git.
-- Keep roles explicit: requester, acting model, executing tool, validating evidence.
-- Treat approved PRINCE2 role-tree nodes as active runtime actors with their own scoped context, wait state, and controlled message flow.
-- Maintain a minimum operational baseline comparable to Codex CLI, Claude Code, and KiloCode for shell UX, status surfaces, model/account control, permissions, handoff/resume, file/git tools, and extensibility.
-- For every agent capability, implement the broadest useful test and simulation coverage practical within the repository.
-- If complete validation requires support features that do not yet exist, implement those support features instead of accepting shallow test coverage.
+L'utente deve poter rispondere in qualsiasi momento:
 
-## Practical Meaning
+1. quale nodo sta lavorando;
+2. qual è il suo scopo;
+3. quale lavoro ha ricevuto;
+4. cosa sta facendo ora;
+5. quali file/tool/test sta usando;
+6. quanto contesto resta;
+7. quale evidenza ha prodotto;
+8. perché attende, è bloccato o ha delegato.
 
-- Small task: minimal handoff, minimal documentation, explicit validation.
-- Complex task: stricter controls, more evidence, clearer boundary decisions.
-- All tasks: same principles, different intensity.
+## Riferimenti
+
+- Specifica: `docs/specs/stagewarden-v3.md`
+- Architettura: `docs/architecture.md`
+- Piano unico: `TODO.md`

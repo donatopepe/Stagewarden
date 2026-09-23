@@ -1,30 +1,24 @@
 ---
-description: End-to-end execution prompt for the full goal loop using the other templates
+description: Execute one governed node-tree task
 argument-hint: "<task>"
 ---
-# Goal Loop Execution Prompt
+# Node-tree execution
 
-Usa questo prompt quando vuoi avviare il loop principale.
+Use this prompt to execute a Stagewarden task under the v3 node contract.
 
-Istruzioni:
-- leggi prima il task
-- usa goal-root per definire scopo e confini
-- usa goal-loop-orchestrator per costruire il grafo
-- usa subnode-generator per creare i prompt dei figli
-- usa autonomy-decision per decidere se chiedere all’utente o agire autonomamente
-- usa tolerance-exception per tutte le deviazioni
-- usa validation-wet-run per ogni cambiamento non banale
-- usa node-communication per i messaggi tra nodi
-- usa pi-learning-benchmark per aggiornare le basi di apprendimento
+Order:
 
-Obiettivo finale:
-portare il sistema alla massima potenza utile, con controllo del loop, rifattorizzazione completa, test reali, e gestione rigorosa delle eccezioni.
+1. Define root purpose, scope, deliverables, constraints and acceptance.
+2. Build/validate the tree top-down.
+3. Select ready leaves and execute bottom-up.
+4. Use serial execution unless user policy explicitly enables isolated parallel leaves.
+5. Forward work only through `WorkPacket`.
+6. Return only `ResultPacket` with verifiable `EvidencePacket`.
+7. Persist node context, events, decisions and recovery.
+8. Show active node, parent, purpose, work, tool, file, test, context and status in terminal.
+9. Compact only the active node context before its provider/model budget is exceeded.
+10. Do not change provider/model/account/fallback without user-authorized policy.
 
-Output richiesto:
-1. scope
-2. node graph
-3. child prompts
-4. execution plan
-5. validation plan
-6. exception policy
-7. final report
+Completion requires acceptance evidence. A narrative summary alone is not completion.
+
+Canonical plan: `TODO.md`. Canonical specification: `docs/specs/stagewarden-v3.md`.

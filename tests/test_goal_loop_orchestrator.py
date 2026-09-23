@@ -10,7 +10,8 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from stagewarden.config import AgentConfig
-from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator
+from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator, NodeState
+from stagewarden.goal_loop_views import build_goal_loop_report
 
 
 class GoalLoopPiExecutionTests(unittest.TestCase):
@@ -28,6 +29,208 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             stdout=stdout,
             stderr=stderr,
         )
+
+    def test_tree_packet_acceptance_matrix_has_six_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "matrix", execution_mode="mock", json_mode=True)
+            self.assertEqual(len([node for node in orchestrator.nodes.values() if node.parent_node_id is None]), 1)
+            self.assertEqual(orchestrator._get_ready_nodes()[0].node_id, "root.scope")
+            root = orchestrator.nodes["root.scope"]
+            packet = orchestrator._build_work_packet(root)
+            self.assertEqual(packet["packet_type"], "WorkPacket")
+            self.assertEqual(packet["child_node_id"], "root.scope")
+            with self.assertRaises(ValueError):
+                orchestrator._build_work_packet(NodeState(node_id="invalid", parent_node_id="missing", purpose="x", prompt_template_name="", prompt="", inputs=[], outputs=[], acceptance_criteria=["x"], tests=[], tolerances={}, escalation_rule="", dependencies=[]))
+            child = next(node for node in orchestrator.nodes.values() if node.parent_node_id == "root.scope")
+            child_packet = orchestrator._build_work_packet(child)
+            child_packet["result_packet"] = {"packet_type": "ResultPacket", "parent_node_id": child.parent_node_id, "child_node_id": child.node_id, "evidence": [{"kind": "test", "value": "ok"}]}
+            self.assertEqual(child_packet["result_packet"]["parent_node_id"], "root.scope")
+            before = len(orchestrator.nodes["root.scope"].messages_received)
+            orchestrator._handle_control_message({"FROM": child.node_id, "TO": "validation.wet_run", "TYPE": "status", "SUMMARY": "lateral"})
+            self.assertEqual(len(orchestrator.nodes["root.scope"].messages_received), before)
+            self.assertEqual(orchestrator._node_depth(child.node_id), 1)
+            orchestrator.knowledge.close()
+
+    def test_goal_blueprint_has_single_root_and_authorized_parent_edges(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = build_goal_loop_report(AgentConfig(workspace_root=Path(tmp)), "validate tree")
+            graph = report["node_graph"]
+            self.assertEqual(graph["root"]["id"], "root.scope")
+            self.assertEqual(sum(1 for node in graph["children"] if node["parent_id"] is None), 1)
+            node_ids = {node["id"] for node in graph["children"]}
+            for node in graph["children"]:
+                for dependency in node["depends_on"]:
+                    self.assertIn(dependency, node_ids)
+                    self.assertIn(dependency, {"root.scope", "orchestrator.graph", "subnode.generator", "implementation.refactor", "validation.wet_run", "governance.tolerance"})
+
+    def test_blocked_node_retries_once_and_emits_retry_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "retry", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            node.max_retries = 1
+            with patch.object(
+                orchestrator,
+                "_mock_execution",
+                side_effect=[
+                    {"ok": False, "error": "temporary blocker", "messages": []},
+                    {"ok": True, "summary": "recovered", "messages": []},
+                ],
+            ):
+                orchestrator._execute_node(node)
+                self.assertEqual(node.status, "pending")
+                self.assertEqual(node.retry_count, 1)
+                retry_events = orchestrator.events.read(event="node_retry")
+                self.assertEqual(len(retry_events), 1)
+                orchestrator._execute_node(node)
+            self.assertEqual(node.status, "completed")
+            self.assertEqual(node.retry_count, 1)
+            self.assertEqual(len(orchestrator.events.read(event="node_retry")), 1)
+            orchestrator.knowledge.close()
+
+    def test_parent_receives_typed_result_only_after_child_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "typed result", execution_mode="mock", json_mode=True)
+            parent = orchestrator.nodes["orchestrator.graph"]
+            child = orchestrator.nodes["subnode.generator"]
+            parent.status = "completed"
+            orchestrator._execute_node(child)
+            results = [item for item in parent.messages_received if item.get("TYPE") == "result"]
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["FROM"], child.node_id)
+            self.assertEqual(results[0]["TO"], parent.node_id)
+            self.assertIsInstance(results[0]["EVIDENCE"], list)
+            orchestrator.knowledge.close()
+
+    def test_work_packet_contains_parent_edge_and_acceptance_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "contract", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["orchestrator.graph"]
+            packet = orchestrator._build_work_packet(node)
+            self.assertEqual(packet["parent_node_id"], "root.scope")
+            self.assertEqual(packet["child_node_id"], node.node_id)
+            self.assertTrue(packet["acceptance_criteria"])
+            self.assertEqual(packet["dependencies"], ["root.scope"])
+            orchestrator.knowledge.close()
+
+    def test_result_forwarding_rejects_lateral_message(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "lateral", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            node.messages_received.clear()
+            orchestrator._handle_control_message({"FROM": "orchestrator.graph", "TO": "implementation.refactor", "TYPE": "result", "SUMMARY": "lateral"})
+            self.assertEqual(orchestrator.nodes["implementation.refactor"].messages_received, [])
+            self.assertTrue(any(item.get("TYPE") == "result" for item in orchestrator.message_bus.messages))
+            orchestrator.knowledge.close()
+            orchestrator.knowledge.close()
+
+    def test_result_packet_is_parent_scoped_and_has_evidence_list(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "packet edge", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            orchestrator._execute_node(node)
+            packet = orchestrator._pending_parent_packets[node.node_id]["result_packet"]
+            self.assertEqual(packet["parent_node_id"], node.parent_node_id)
+            self.assertEqual(packet["child_node_id"], node.node_id)
+            self.assertIsInstance(packet["evidence"], list)
+            self.assertNotIn("messages", packet)
+            orchestrator.knowledge.close()
+
+    def test_ready_nodes_follow_dependency_rank_and_are_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "ready order", execution_mode="mock", json_mode=True)
+            ready = orchestrator._get_ready_nodes()
+            self.assertEqual([node.node_id for node in ready], ["root.scope"])
+            orchestrator.nodes["root.scope"].status = "completed"
+            ready = orchestrator._get_ready_nodes()
+            self.assertEqual([node.node_id for node in ready], ["orchestrator.graph"])
+            orchestrator.knowledge.close()
+
+    def test_tree_validator_rejects_dependency_cycle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "cycle", execution_mode="mock", json_mode=True)
+            orchestrator.nodes["root.scope"].dependencies = ["orchestrator.graph"]
+            with self.assertRaises(ValueError):
+                orchestrator._validate_tree_invariants()
+            orchestrator.knowledge.close()
+
+    def test_work_packet_defaults_to_manual_selection_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "packet policy", execution_mode="mock", json_mode=True)
+            node = next(iter(orchestrator.nodes.values()))
+            packet = orchestrator._build_work_packet(node)
+            self.assertEqual(packet["selection_policy"], "manual")
+            orchestrator.knowledge.close()
+
+    def test_node_cycle_state_defaults_and_serializes(self) -> None:
+        node = NodeState(
+            node_id="leaf",
+            purpose="Inspect source",
+            prompt_template_name="goal-loop-execution",
+            prompt="prompt",
+            inputs=[],
+            outputs=[],
+            acceptance_criteria=["evidence"],
+            tests=["tests"],
+            tolerances={},
+            escalation_rule="stop",
+            dependencies=[],
+        )
+        self.assertEqual(node.cycle_id, 0)
+        self.assertEqual(node.cycle_phase, "ready")
+        self.assertEqual(node.context_revision, 0)
+        self.assertTrue(node.cycle_budget["max_cycles"] > 0)
+        serialized = node.as_dict()
+        self.assertEqual(serialized["cycle_id"], 0)
+        self.assertEqual(serialized["cycle_phase"], "ready")
+        self.assertEqual(serialized["context_revision"], 0)
+
+    def test_node_cycle_checkpoint_persists_cycle_and_context_revision(self) -> None:
+        node = NodeState(
+            node_id="leaf",
+            purpose="Inspect source",
+            prompt_template_name="goal-loop-execution",
+            prompt="prompt",
+            inputs=[],
+            outputs=[],
+            acceptance_criteria=[],
+            tests=[],
+            tolerances={},
+            escalation_rule="stop",
+            dependencies=[],
+        )
+        node.cycle_id = 2
+        node.cycle_phase = "verify"
+        node.context_revision = 3
+        node.last_checkpoint = "event-7"
+        node.output_summary = "tests passed"
+        serialized = node.as_dict()
+        self.assertEqual(serialized["cycle_id"], 2)
+        self.assertEqual(serialized["cycle_phase"], "verify")
+        self.assertEqual(serialized["context_revision"], 3)
+        self.assertEqual(serialized["last_checkpoint"], "event-7")
+
+    def test_orchestrator_persists_capsule_after_node_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = AgentConfig(workspace_root=Path(tmp))
+            orchestrator = GoalLoopOrchestrator(config, "bounded cycle capsule", execution_mode="mock", json_mode=True)
+            node = next(iter(orchestrator.nodes.values()))
+            orchestrator.current_iteration = 1
+            node.status = "running"
+            node.cycle_id = 1
+            node.cycle_phase = "verify"
+            node.context_revision = 1
+            orchestrator._emit_node_event(node, "node_cycle_checkpoint", "checkpoint")
+            saved = orchestrator.knowledge.load_node_execution_capsule("goal-loop", node.node_id)
+            self.assertEqual(saved["capsule"]["cycle_phase"], "verify")
+            self.assertEqual(saved["capsule"]["context_revision"], 1)
+            orchestrator.knowledge.close()
+
+            resumed = GoalLoopOrchestrator(config, "bounded cycle capsule", execution_mode="mock", json_mode=True)
+            resumed_node = resumed.nodes[node.node_id]
+            self.assertEqual(resumed_node.status, "running")
+            self.assertEqual(resumed_node.cycle_id, 1)
+            self.assertEqual(resumed_node.last_checkpoint, "node_cycle_checkpoint:1:1")
+            resumed.knowledge.close()
 
     def test_pi_execution_parses_clean_json(self) -> None:
         """Valid JSON output with summary/messages is parsed correctly."""
@@ -165,6 +368,46 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             first_node = list(result["node_details"].keys())[0]
             self.assertEqual(result["node_details"][first_node]["status"],
                              "completed")
+
+    def test_omniroute_backend_uses_free_adapter_and_requires_packet_summary(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        node = GO(self.config, "test task", execution_mode="pi").nodes["root.scope"]
+        adapter = Path(__file__).parents[1] / "scripts" / "run_model_omniroute.py"
+        completed = subprocess.CompletedProcess(
+            args=["python", str(adapter), "cheap", node.prompt],
+            returncode=0,
+            stdout=json.dumps({"summary": "free node done", "messages": [], "output": "evidence"}),
+            stderr="",
+        )
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run", return_value=completed
+        ):
+            result = GO(self.config, "test task", execution_mode="pi")._pi_execution(node)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["summary"], "free node done")
+
+    def test_work_and_result_packets_preserve_node_purpose(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="mock")
+        node = orch.nodes["root.scope"]
+        packet = orch._build_work_packet(node)
+        self.assertEqual(packet["packet_type"], "WorkPacket")
+        self.assertEqual(packet["purpose"], node.purpose)
+        orch._execute_node(node)
+        stored = orch._pending_parent_packets[node.node_id]
+        self.assertEqual(stored["result_packet"]["packet_type"], "ResultPacket")
+        self.assertEqual(stored["result_packet"]["child_node_id"], node.node_id)
+
+    def test_omniroute_backend_fails_closed_without_summary(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        node = GO(self.config, "test task", execution_mode="pi").nodes["root.scope"]
+        completed = subprocess.CompletedProcess(args=["adapter"], returncode=0, stdout="{}", stderr="")
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run", return_value=completed
+        ):
+            result = GO(self.config, "test task", execution_mode="pi")._pi_execution(node)
+        self.assertFalse(result["ok"])
+        self.assertIn("summary", result["error"])
 
     def test_pi_execution_handles_nonzero_returncode(self) -> None:
         """_pi_execution returns error on non-zero pi exit."""

@@ -55,6 +55,15 @@ class Agent:
     def refresh_permissions(self) -> None:
         self.executor.refresh_permissions()
 
+    def close(self) -> None:
+        self.executor.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
     def run(self, task: str) -> AgentResult:
         self.executor.config.system_prompt = self.base_system_prompt
         directive = self.caveman.parse(task)
@@ -576,6 +585,9 @@ class Agent:
         self.router.configure(
             enabled_models=prefs.enabled_models,
             preferred_model=prefs.preferred_model,
+            selection_mode=prefs.selection_mode,
+            allow_provider_fallback=prefs.allow_provider_fallback,
+            allow_paid_provider=prefs.allow_paid_provider,
             blocked_until_by_model=prefs.blocked_until_by_model or {},
         )
         self.handoff.account_env_by_target = dict(prefs.env_var_by_account or {})

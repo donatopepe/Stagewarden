@@ -742,10 +742,16 @@ def _model_status_report(agent: Agent, config: AgentConfig) -> dict[str, object]
 
 def _model_limits_report(agent: Agent, config: AgentConfig) -> dict[str, object]:
     report = _provider_limit_status_report(agent, config)
+    prefs = _model_views._load_model_preferences(config)
     return {
         "command": "model limits",
         "schema": json_schema("model limits"),
         "summary": _provider_limit_summary_report(report),
+        "selection_policy": {
+            "selection_mode": prefs.selection_mode,
+            "allow_provider_fallback": prefs.allow_provider_fallback,
+            "allow_paid_provider": prefs.allow_paid_provider,
+        },
         "providers": [_provider_limit_entry_view(item, include_accounts=True) for item in report["providers"]],
     }
 

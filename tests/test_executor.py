@@ -593,6 +593,51 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual(action_types[-2], "chown_path_file")
             self.assertEqual(action_types[-1], "delete_path_file")
 
+    def test_executor_blocks_fallback_in_manual_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config = AgentConfig(workspace_root=root, max_retries_per_step=0)
+            prefs = ModelPreferences.default()
+            prefs.enabled_models = ["chatgpt", "openai"]
+            prefs.preferred_model = "chatgpt"
+            prefs.selection_mode = "manual"
+            prefs.allow_provider_fallback = False
+            prefs.save(config.model_prefs_path)
+            handoff = FakeHandoff(
+                [{
+                    "ok": False,
+                    "model": "chatgpt",
+                    "backend": "chatgpt/mock",
+                    "prompt": "x",
+                    "command": "run_model chatgpt x",
+                    "output": "",
+                    "error": "provider rejected request",
+                }, {
+                    "ok": False,
+                    "model": "chatgpt",
+                    "backend": "chatgpt/mock",
+                    "prompt": "x",
+                    "command": "run_model chatgpt x",
+                    "output": "",
+                    "error": "provider rejected request",
+                }]
+            )
+            router = ModelRouter()
+            router.configure(
+                enabled_models=prefs.enabled_models,
+                preferred_model=prefs.preferred_model,
+                selection_mode=prefs.selection_mode,
+                allow_provider_fallback=prefs.allow_provider_fallback,
+            )
+            executor = Executor(config=config, router=router, handoff=handoff, memory=MemoryStore())
+            step = PlanStep(id="step-1", title="Manual", instruction="implement", validation="check")
+            outcome = executor.execute_step(task="implement a fix", step=step, plan=[step], iteration=1, last_observation="none")
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.error_type, "fallback_not_authorized")
+            self.assertEqual(len(handoff.calls), 1)
+            self.assertIn("blocks silent fallback", outcome.observation)
+            executor.close()
+
     def test_executor_tracks_invalid_output_as_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = AgentConfig(workspace_root=Path(tmp_dir))

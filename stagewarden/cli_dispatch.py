@@ -639,6 +639,36 @@ def run_cli() -> int:
         else:
             print(_project_role_runtime_views._render_prince2_role_active(config))
         return 0
+    if task == "mutations" or task.startswith("mutations "):
+        from .mutation_journal import MutationJournal
+        journal = MutationJournal(config.mutation_journal_path)
+        parts = task.split()
+        status = parts[1] if len(parts) == 2 and parts[1] in {"completed", "failed"} else None
+        report = {"command": "mutations", "path": str(config.mutation_journal_path), "status": status, "mutations": journal.list(status=status)}
+        if args.json:
+            print(dumps_ascii(_json_schema_registry.with_json_schema("mutations", report), indent=2))
+        else:
+            print(dumps_ascii(report, indent=2))
+        return 0
+    if task == "events" or task.startswith("events "):
+        from .event_stream import EventStream
+        stream = EventStream(config.event_path)
+        event_parts = task.split()
+        node_filter = event_parts[2] if len(event_parts) == 3 and event_parts[1] in {"node", "follow"} else None
+        is_replay = task == "events replay" or task.startswith("events replay ")
+        if is_replay:
+            report = stream.replay(node_id=node_filter)
+        else:
+            report = {"command": "events", "path": str(config.event_path), "node_id": node_filter, "events": stream.read(node_id=node_filter)}
+        if args.json:
+            print(dumps_ascii(_json_schema_registry.with_json_schema("events", report), indent=2))
+        else:
+            if task == "events replay":
+                print(dumps_ascii(report, indent=2))
+            else:
+                for event in report["events"]:
+                    print(dumps_ascii(event))
+        return 0
     if task == "goal" or task.startswith("goal "):
         if task.startswith("goal loop run"):
             orchestrator = _goal_loop_orchestrator.GoalLoopOrchestrator(config, task=task, json_mode=args.json)

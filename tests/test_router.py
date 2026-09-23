@@ -11,6 +11,79 @@ class RouterTests(unittest.TestCase):
         router = ModelRouter()
         self.assertEqual(router.choose_model("list files", "inspect workspace"), "cheap")
 
+    def test_manual_selection_blocks_task_heuristic(self) -> None:
+        router = ModelRouter()
+        router.configure(
+            enabled_models=["cheap", "chatgpt", "openai"],
+            preferred_model="cheap",
+            selection_mode="manual",
+        )
+        self.assertEqual(router.choose_model("debug a complex traceback", "implement fix"), "cheap")
+        self.assertEqual(router.status()["selection_mode"], "manual")
+
+    def test_auto_selection_keeps_task_heuristic(self) -> None:
+        router = ModelRouter()
+        router.configure(
+            enabled_models=["cheap", "chatgpt", "openai"],
+            selection_mode="auto",
+        )
+        self.assertEqual(router.choose_model("debug a complex traceback", "implement fix"), "chatgpt")
+
+    def test_manual_selection_does_not_choose_task_variant(self) -> None:
+        router = ModelRouter()
+        router.configure(
+            enabled_models=["cheap", "chatgpt"],
+            preferred_model="chatgpt",
+            selection_mode="manual",
+        )
+        self.assertIsNone(router.choose_variant("chatgpt", "debug a complex traceback", "implement fix"))
+
+    def test_manual_policy_blocks_fallback_even_when_requested(self) -> None:
+        router = ModelRouter()
+        router.configure(
+            enabled_models=["chatgpt", "openai"],
+            preferred_model="chatgpt",
+            selection_mode="manual",
+            allow_provider_fallback=False,
+        )
+        self.assertEqual(router.escalate("chatgpt"), "chatgpt")
+        self.assertEqual(router.fallback_for_api_failure("chatgpt"), "chatgpt")
+
+    def test_auto_policy_allows_fallback_when_enabled(self) -> None:
+        router = ModelRouter()
+        router.configure(
+            enabled_models=["chatgpt", "openai"],
+            selection_mode="auto",
+            allow_provider_fallback=True,
+        )
+        self.assertEqual(router.escalate("chatgpt"), "openai")
+
+    def test_paid_provider_is_blocked_without_authorization(self) -> None:
+        router = ModelRouter()
+        router.configure(
+            enabled_models=["cheap", "openai"],
+            selection_mode="auto",
+            allow_paid_provider=False,
+        )
+        recommendation = router.recommend_route("simple task", "inspect workspace")
+        self.assertNotEqual(recommendation.provider, "openai")
+        self.assertNotIn("paid", recommendation.rationale)
+
+    def test_paid_provider_is_allowed_when_authorized(self) -> None:
+        router = ModelRouter()
+        router.configure(
+            enabled_models=["cheap", "openai"],
+            selection_mode="auto",
+            allow_paid_provider=True,
+        )
+        router._catalog = lambda: {
+            "models": [
+                {"provider": "cheap", "model_id": "provider-default", "blended_price_usd_per_1m_tokens": 0.0},
+                {"provider": "openai", "model_id": "gpt-test", "blended_price_usd_per_1m_tokens": 1.0},
+            ]
+        }
+        self.assertIn(router.recommend_route("simple task", "inspect workspace").provider, {"cheap", "openai"})
+
     def test_complex_debug_task_prefers_gpt(self) -> None:
         router = ModelRouter()
         model = router.choose_model("debug a complex traceback in production", "implement fix")

@@ -1,88 +1,44 @@
 {
   "_format": "stagewarden_agent_policy",
-  "_version": 1,
-  "author": "Donato Pepe",
-  "framework": "adaptive_prince2",
-  "core_rule": "If governance feels heavier than the task, reduce ceremony, not principles.",
-  "principles": [
-    {
-      "id": "continuous_business_justification",
-      "required": true,
-      "rule": "Every task must have a valid objective and remain worth time, cost, and risk."
-    },
-    {
-      "id": "adaptive_governance",
-      "required": true,
-      "rule": "Control intensity must scale with size, risk, and complexity."
-    },
-    {
-      "id": "no_overengineering",
-      "required": true,
-      "rule": "Small tasks must use lightweight governance and minimal ceremony."
-    },
-    {
-      "id": "strong_control_for_complex_work",
-      "required": true,
-      "rule": "Complex or risky tasks must use stronger staging, evidence, and boundary checks."
-    },
-    {
-      "id": "explicit_roles",
-      "required": true,
-      "rule": "Requester, model, tool, stage, fallback, and validator must remain traceable."
-    },
-    {
-      "id": "management_by_exception",
-      "required": true,
-      "rule": "Tolerance breaches must trigger escalation, not silent continuation."
-    },
-    {
-      "id": "product_focus",
-      "required": true,
-      "rule": "The agent must optimize for verified deliverables, not narrative progress."
-    },
-    {
-      "id": "wet_run_required",
-      "required": true,
-      "rule": "Dry-run only evidence is insufficient for closure."
-    },
-    {
-      "id": "traceability",
-      "required": true,
-      "rule": "Handoff, git boundary, issues, risks, quality evidence, and lessons must be persisted."
-    },
-    {
-      "id": "cost_control",
-      "required": true,
-      "rule": "Prefer local, then cheap, then expensive models only when justified."
-    },
-    {
-      "id": "simulation_and_test_completeness",
-      "required": true,
-      "rule": "Every agent capability must have the broadest practical simulation, targeted test, integration test, and wet-run coverage; if support features are missing, implement them instead of accepting shallow validation."
-    },
-    {
-      "id": "active_prince2_role_nodes",
-      "required": true,
-      "rule": "Approved PRINCE2 role-tree nodes must behave as active runtime actors with scoped context, wait state, and governed message flow; node communication may occur only through approved PRINCE2 flow edges without unauthorized context widening."
-    },
-    {
-      "id": "codex_claude_kilocode_minimum_baseline",
-      "required": true,
-      "rule": "Stagewarden must preserve a minimum practical Codex CLI, Claude Code, and KiloCode baseline for interactive shell UX, slash discovery, status/statusline, provider and account control, permissions, handoff/resume, transcript visibility, file and shell tools, git history, source/extension management, and rate-limit visibility."
-    }
-  ],
-  "artifacts": {
-    "handoff_file": ".stagewarden_handoff.json",
-    "memory_file": ".stagewarden_memory.json",
-    "trace_file": ".stagewarden_trace.ljson",
-    "pid_file": ".stagewarden_prince2_pid.json"
+  "_version": 3,
+  "status": "specification_pending_user_approval",
+  "canonical_spec": "docs/specs/stagewarden-v3.md",
+  "canonical_plan": "TODO.md",
+  "principles": {
+    "tree_is_primary_work_unit": true,
+    "planning_direction": "top_down",
+    "execution_direction": "bottom_up",
+    "default_execution_mode": "serial",
+    "parallel_execution": "opt_in_isolated_leaves_only",
+    "parent_to_child": "versioned_work_packet_only",
+    "child_to_parent": "result_and_evidence_packet_only",
+    "lateral_communication": "deny_by_default",
+    "completion_requires_evidence": true,
+    "purpose_visible_in_terminal": true,
+    "node_scoped_context_history": true,
+    "node_knowledge_store": true,
+    "code_aware_index": true,
+    "codegraph_is_auxiliary": true,
+    "automatic_per_node_compaction": true,
+    "provider_model_user_owned": true,
+    "fallback_requires_authorization": true,
+    "secrets_in_persisted_context": false,
+    "wet_run_required": true
   },
-  "closure_requirements": {
-    "product_outcome_verified": true,
-    "wet_run_evidence": true,
-    "simulation_and_test_coverage": true,
-    "residual_risks_communicated": true,
-    "handoff_updated": true,
-    "git_boundary_recorded": true
-  }
+  "required_node_fields": [
+    "node_id",
+    "parent_node_id",
+    "purpose",
+    "owner",
+    "scope",
+    "acceptance_criteria",
+    "dependencies",
+    "status",
+    "context_policy",
+    "provider_model_policy"
+  ],
+  "required_packet_types": ["WorkPacket", "ResultPacket", "EvidencePacket"],
+  "knowledge_namespaces": ["tree", "node", "context", "event", "decision", "evidence", "code", "relation", "provider", "recovery"],
+  "terminal_modes": ["tty", "non_tty", "json", "jsonl_events", "replay"],
+  "deferred_until_approval": ["runtime implementation", "subagents", "plugin parity", "legacy parallel message bus"]
 }

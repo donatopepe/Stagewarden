@@ -1,6 +1,7 @@
 """Stagewarden goal loop orchestrator for multi-node, hierarchical execution."""
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -8,7 +9,6 @@ import sys
 import tempfile
 import threading
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -17,6 +17,8 @@ from .config import AgentConfig
 from .project_handoff import ProjectHandoff
 from .textcodec import utc_now
 from .goal_loop_views import build_goal_loop_report, _read_prompt_template
+from .node_knowledge import NodeKnowledgeStore
+from .event_stream import EventStream
 
 # ── execution mode ──────────────────────────────────────────────────────────
 EXECUTION_MODE_MOCK = "mock"
@@ -85,6 +87,8 @@ class NodeState:
     escalation_rule: str
     dependencies: list[str]
     status: str = "pending"
+    parent_node_id: str | None = None
+    active_work: str = ""
     messages_received: list[dict[str, Any]] = field(default_factory=list)
     messages_sent: list[dict[str, Any]] = field(default_factory=list)
     session_id: str | None = None
@@ -94,17 +98,33 @@ class NodeState:
     pi_stdout: str = ""
     retry_count: int = 0
     max_retries: int = 0
+    cycle_id: int = 0
+    cycle_phase: str = "ready"
+    context_revision: int = 0
+    last_checkpoint: str | None = None
+    cycle_budget: dict[str, int] = field(default_factory=lambda: {
+        "max_cycles": 20,
+        "max_tool_calls": 40,
+        "max_mutations": 20,
+    })
 
     def as_dict(self) -> dict[str, object]:
         return {
             "node_id": self.node_id,
+            "parent_node_id": self.parent_node_id,
             "purpose": self.purpose,
             "status": self.status,
+            "active_work": self.active_work,
             "dependencies": list(self.dependencies),
             "tolerances": dict(self.tolerances) if isinstance(self.tolerances, dict) else {},
             "output_summary": self.output_summary or "",
             "error_message": self.error_message,
             "pi_stdout": self.pi_stdout[:500] if self.pi_stdout else "",
+            "cycle_id": self.cycle_id,
+            "cycle_phase": self.cycle_phase,
+            "context_revision": self.context_revision,
+            "last_checkpoint": self.last_checkpoint,
+            "cycle_budget": dict(self.cycle_budget),
             "messages_sent": [
                 {"FROM": m.get("FROM"), "TO": m.get("TO"),
                  "TYPE": m.get("TYPE"), "SUMMARY": m.get("SUMMARY")}
@@ -143,11 +163,69 @@ class GoalLoopOrchestrator:
         self.handoff = ProjectHandoff.load(config.handoff_path)
         self.blueprint = build_goal_loop_report(config, task)
         self.nodes: dict[str, NodeState] = {}
+        self._pending_parent_packets: dict[str, dict[str, Any]] = {}
+        self.knowledge = NodeKnowledgeStore(config.workspace_root / ".stagewarden" / "node-knowledge.sqlite")
+        self.events = EventStream(config.event_path)
         self.message_bus = MessageBus()
         self.current_iteration = 0
         self._initialize_nodes()
+        self._validate_tree_invariants()
+        self._restore_node_capsules()
 
     # ── initialisation ──────────────────────────────────────────────────────
+
+    def _validate_tree_invariants(self) -> None:
+        if not self.nodes:
+            raise ValueError("Goal loop tree must contain at least one node.")
+        roots = [node for node in self.nodes.values() if node.parent_node_id is None]
+        if len(roots) != 1 or roots[0].node_id != "root.scope":
+            raise ValueError("Goal loop tree requires one root.scope node.")
+        for node in self.nodes.values():
+            if node.node_id == "root.scope":
+                if node.dependencies:
+                    raise ValueError("Root node cannot have dependencies.")
+                continue
+            if node.parent_node_id not in self.nodes:
+                raise ValueError(f"Node {node.node_id} has unknown parent {node.parent_node_id}.")
+            for dependency in node.dependencies:
+                if dependency not in self.nodes:
+                    raise ValueError(f"Node {node.node_id} has unknown dependency {dependency}.")
+        visiting: set[str] = set()
+        visited: set[str] = set()
+        def visit(node_id: str) -> None:
+            if node_id in visiting:
+                raise ValueError(f"Goal loop tree contains a cycle at {node_id}.")
+            if node_id in visited:
+                return
+            visiting.add(node_id)
+            for dependency in self.nodes[node_id].dependencies:
+                visit(dependency)
+            parent = self.nodes[node_id].parent_node_id
+            if parent is not None:
+                visit(parent)
+            visiting.remove(node_id)
+            visited.add(node_id)
+        for node_id in self.nodes:
+            visit(node_id)
+
+    def _restore_node_capsules(self) -> None:
+        for node_id, node in self.nodes.items():
+            try:
+                saved = self.knowledge.load_node_execution_capsule("goal-loop", node_id).get("capsule", {})
+            except KeyError:
+                continue
+            if not isinstance(saved, dict) or saved.get("status") in {"completed", "failed"}:
+                continue
+            for name in (
+                "status", "active_work", "session_id", "last_run_at", "output_summary",
+                "error_message", "retry_count", "cycle_id", "cycle_phase", "context_revision",
+                "last_checkpoint",
+            ):
+                if name in saved:
+                    setattr(node, name, saved[name])
+            budget = saved.get("cycle_budget")
+            if isinstance(budget, dict):
+                node.cycle_budget = {str(k): int(v) for k, v in budget.items() if isinstance(v, (int, float))}
 
     def _initialize_nodes(self) -> None:
         default_retries = int(os.environ.get("STAGEWARDEN_GOAL_LOOP_MAX_RETRIES", "0"))
@@ -170,6 +248,7 @@ class GoalLoopOrchestrator:
                 tolerances=tolerances_parsed,
                 escalation_rule=child.get("escalation_rule", ""),
                 dependencies=child.get("dependencies", []),
+                parent_node_id=child.get("parent_id"),
                 max_retries=default_retries,
             )
         # Load custom nodes from .stagewarden/goal_loop_custom_nodes.json
@@ -200,8 +279,34 @@ class GoalLoopOrchestrator:
                 tolerances={str(k): str(v) for k, v in cn.get("tolerances", {}).items() if isinstance(v, (str, int, float))},
                 escalation_rule=cn.get("escalation_rule", ""),
                 dependencies=cn.get("dependencies", []),
+                parent_node_id=cn.get("parent_id"),
                 max_retries=default_retries,
             )
+
+    def _build_work_packet(self, node_state: NodeState) -> dict[str, Any]:
+        if node_state.node_id != "root.scope" and node_state.parent_node_id not in self.nodes:
+            raise ValueError(f"Cannot delegate {node_state.node_id}: unknown parent {node_state.parent_node_id}.")
+        if node_state.node_id != "root.scope" and not node_state.acceptance_criteria:
+            raise ValueError(f"Cannot delegate {node_state.node_id}: acceptance criteria required.")
+        packet = {
+            "packet_type": "WorkPacket",
+            "version": 1,
+            "work_id": f"work-{self.current_iteration + 1}-{node_state.node_id}",
+            "tree_id": "goal-loop",
+            "parent_node_id": node_state.parent_node_id,
+            "child_node_id": node_state.node_id,
+            "purpose": node_state.purpose,
+            "task": self.task,
+            "dependencies": list(node_state.dependencies),
+            "acceptance_criteria": list(node_state.acceptance_criteria),
+            "tests": list(node_state.tests),
+            "tolerances": dict(node_state.tolerances),
+            "provider": os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap"),
+            "model": os.environ.get("STAGEWARDEN_PROVIDER_MODEL", os.environ.get("STAGEWARDEN_OMNIROUTE_MODEL", "auto/coding:free")),
+            "selection_policy": "manual" if os.environ.get("STAGEWARDEN_GOAL_LOOP_SELECTION_MODE", "manual").strip().lower() == "manual" else "auto",
+        }
+        self._pending_parent_packets[node_state.node_id] = packet
+        return packet
 
     def _generate_node_prompt(self, child: dict[str, Any]) -> str:
         template = _read_prompt_template(child.get("template", ""))
@@ -231,8 +336,24 @@ IMPORTANT: You MUST respond with a JSON object (and ONLY a JSON object, no other
   "error": null
 }
 Do NOT include any text before or after the JSON object.'''
+        packet = {
+            "packet_type": "WorkPacket",
+            "version": 1,
+            "tree_id": "goal-loop",
+            "parent_node_id": child.get("parent_id"),
+            "child_node_id": child["node_id"],
+            "purpose": child["purpose"],
+            "task": self.task,
+            "dependencies": list(child.get("dependencies", [])),
+            "acceptance_criteria": list(child.get("acceptance_criteria", [])),
+            "tests": list(child.get("tests", [])),
+            "tolerances": child.get("tolerances", {}),
+            "provider": os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap"),
+            "model": os.environ.get("STAGEWARDEN_PROVIDER_MODEL", os.environ.get("STAGEWARDEN_OMNIROUTE_MODEL", "auto/coding:free")),
+        }
         return (
             f"{template}\n\n"
+            f"WorkPacket: {json.dumps(packet, ensure_ascii=True, sort_keys=True)}\n\n"
             f"Task: {self.task}\n\n"
             f"Node: {child['node_id']}\n\n"
             f"Purpose: {child['purpose']}\n\n"
@@ -255,7 +376,19 @@ Do NOT include any text before or after the JSON object.'''
                 )
                 if all_deps_ok:
                     ready.append(node)
-        return ready
+        return sorted(ready, key=lambda node: (self._node_depth(node.node_id), node.node_id))
+
+    def _node_depth(self, node_id: str) -> int:
+        depth = 0
+        seen: set[str] = set()
+        current = self.nodes[node_id]
+        while current.parent_node_id is not None:
+            if current.node_id in seen:
+                raise ValueError(f"Goal loop tree contains a parent cycle at {current.node_id}.")
+            seen.add(current.node_id)
+            depth += 1
+            current = self.nodes[current.parent_node_id]
+        return depth
 
     # ── autonomy / tolerance gates ──────────────────────────────────────────
 
@@ -310,11 +443,66 @@ Do NOT include any text before or after the JSON object.'''
 
     # ── execution ───────────────────────────────────────────────────────────
 
+    def _persist_node_capsule(self, node_state: NodeState) -> str:
+        capsule = node_state.as_dict()
+        capsule["prompt_ref"] = f"node:{node_state.node_id}:prompt"
+        capsule["work_packet_ref"] = self._pending_parent_packets.get(node_state.node_id, {}).get("work_id")
+        return self.knowledge.save_node_execution_capsule(
+            tree_id="goal-loop",
+            node_id=node_state.node_id,
+            parent_node_id=node_state.parent_node_id,
+            purpose=node_state.purpose,
+            capsule=capsule,
+        )
+
+    def _emit_node_event(self, node_state: NodeState, event: str, message: str = "", **details: Any) -> None:
+        node_state.last_checkpoint = f"{event}:{self.current_iteration}:{node_state.cycle_id}"
+        purpose = node_state.purpose.strip()
+        line = (
+            f"[node] tree=goal-loop node={node_state.node_id} "
+            f"parent={node_state.parent_node_id or '-'} status={node_state.status} "
+            f"purpose={purpose}"
+        )
+        if message:
+            line += f" work={message}"
+        sys.stderr.write(line + "\n")
+        capsule_entry_id = self._persist_node_capsule(node_state)
+        details.setdefault("capsule_entry_id", capsule_entry_id)
+        self.events.append(
+            event,
+            tree_id="goal-loop",
+            node_id=node_state.node_id,
+            parent_node_id=node_state.parent_node_id,
+            purpose=purpose,
+            message=message,
+            node=node_state.as_dict(),
+            **details,
+        )
+        self.handoff.record_action(
+            phase=f"goal_loop_node_{event}",
+            task=self.task,
+            summary=f"Node {node_state.node_id}: {message or event}.",
+            details={"event": event, "node": node_state.as_dict(), **details},
+        )
+
     def _execute_node(self, node_state: NodeState) -> None:
         self.current_iteration += 1
+        node_state.cycle_id += 1
+        node_state.cycle_phase = "observe"
+        node_state.context_revision += 1
+        if node_state.cycle_id > int(node_state.cycle_budget.get("max_cycles", 20)):
+            node_state.status = "blocked"
+            node_state.cycle_phase = "blocked"
+            node_state.error_message = "Node cycle budget exhausted."
+            self._emit_node_event(node_state, "node_cycle_blocked", node_state.error_message)
+            self._record_node_execution_to_handoff(node_state)
+            return
         node_state.status = "running"
+        node_state.active_work = "preparing WorkPacket"
+        self._build_work_packet(node_state)
         node_state.last_run_at = utc_now()
         node_state.session_id = str(uuid.uuid4())
+        self._emit_node_event(node_state, "start", node_state.active_work)
 
         # autonomy gate before execution
         proceed, reason = self._autonomy_gate(node_state)
@@ -322,7 +510,11 @@ Do NOT include any text before or after the JSON object.'''
             self._record_node_execution_to_handoff(node_state)
             return
 
-        # execute
+        # execute one ready node at a time; this is deliberately serial for traceability.
+        node_state.cycle_phase = "execute"
+        node_state.active_work = "executing selected WorkPacket"
+        self._emit_node_event(node_state, "node_cycle_started", node_state.active_work, cycle_id=node_state.cycle_id, context_revision=node_state.context_revision)
+        self._emit_node_event(node_state, "work", node_state.active_work, cycle_id=node_state.cycle_id, context_revision=node_state.context_revision)
         if self.execution_mode == EXECUTION_MODE_MOCK:
             result = self._mock_execution(node_state.node_id)
         elif self.execution_mode == EXECUTION_MODE_PI:
@@ -338,14 +530,39 @@ Do NOT include any text before or after the JSON object.'''
                 result = self._mock_execution(node_state.node_id)
 
         # apply result
+        node_state.cycle_phase = "verify"
         if result.get("ok"):
             node_state.status = "completed"
+            node_state.active_work = "returning ResultPacket/EvidencePacket to parent"
             node_state.output_summary = result.get("summary", "Node completed.")
+            result_packet = {
+                "packet_type": "ResultPacket",
+                "version": 1,
+                "work_id": self._pending_parent_packets.get(node_state.node_id, {}).get("work_id"),
+                "tree_id": "goal-loop",
+                "parent_node_id": node_state.parent_node_id,
+                "child_node_id": node_state.node_id,
+                "status": "completed",
+                "summary": node_state.output_summary,
+                "evidence": result.get("evidence", []),
+            }
+            self._pending_parent_packets[node_state.node_id]["result_packet"] = result_packet
+            if node_state.parent_node_id:
+                parent = self.nodes[node_state.parent_node_id]
+                parent.messages_received.append({
+                    "TYPE": "result",
+                    "FROM": node_state.node_id,
+                    "TO": parent.node_id,
+                    "SUMMARY": node_state.output_summary,
+                    "EVIDENCE": list(result_packet["evidence"]),
+                    "WORK_ID": result_packet["work_id"],
+                })
             for msg in result.get("messages", []):
                 self.message_bus.send_message(msg)
                 node_state.messages_sent.append(msg)
         else:
             node_state.status = "blocked"
+            node_state.active_work = "blocked; awaiting parent/user decision"
             node_state.error_message = result.get("error", "Node execution failed.")
 
         # tolerance gate after execution
@@ -362,7 +579,26 @@ Do NOT include any text before or after the JSON object.'''
                 f"[goal-loop] retrying node {node_state.node_id} "
                 f"({node_state.retry_count}/{node_state.max_retries})\n"
             )
+            self._emit_node_event(
+                node_state,
+                "node_retry",
+                node_state.error_message,
+                retry_count=node_state.retry_count,
+                max_retries=node_state.max_retries,
+            )
 
+        node_state.last_checkpoint = f"result:{self.current_iteration}:{node_state.cycle_id}"
+        self._emit_node_event(
+            node_state,
+            "node_cycle_checkpoint",
+            node_state.active_work,
+            cycle_id=node_state.cycle_id,
+            cycle_phase=node_state.cycle_phase,
+            context_revision=node_state.context_revision,
+            checkpoint=node_state.last_checkpoint,
+            packet=self._pending_parent_packets.get(node_state.node_id, {}),
+        )
+        self._emit_node_event(node_state, "result", node_state.active_work, packet=self._pending_parent_packets.get(node_state.node_id, {}))
         self._record_node_execution_to_handoff(node_state)
 
     def _mock_execution(self, node_id: str) -> dict[str, Any]:
@@ -419,7 +655,12 @@ Do NOT include any text before or after the JSON object.'''
                               "messages": []})
 
     def _pi_execution(self, node_state: NodeState) -> dict[str, Any]:
-        """Execute a node via `pi --print --no-tools --no-session @file`."""
+        """Execute one node through the selected user-owned model boundary."""
+        backend = os.environ.get("STAGEWARDEN_GOAL_LOOP_BACKEND", "pi").strip().lower()
+        if backend == "omniroute":
+            return self._omniroute_execution(node_state)
+        if backend not in {"pi", ""}:
+            return {"ok": False, "error": f"unsupported goal-loop backend '{backend}'", "messages": []}
         pi_bin = shutil.which("pi")
         if not pi_bin:
             return {"ok": False, "error": "pi executable not found", "messages": []}
@@ -508,12 +749,52 @@ Do NOT include any text before or after the JSON object.'''
                     }
             except (ValueError, TypeError):
                 pass
-        # Fallback: treat raw stdout as summary
+        # Fallback: preserve legacy behavior for Pi text output.
         return {
             "ok": True,
             "summary": stdout[:500],
             "messages": [],
             "output": stdout,
+        }
+
+    def _omniroute_execution(self, node_state: NodeState) -> dict[str, Any]:
+        """Run one node through the repository's OpenAI-compatible free adapter."""
+        adapter = Path(__file__).resolve().parents[1] / "scripts" / "run_model_omniroute.py"
+        if not adapter.exists():
+            return {"ok": False, "error": f"OmniRoute adapter not found: {adapter}", "messages": []}
+        provider = os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap").strip() or "cheap"
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(adapter), provider, node_state.prompt],
+                capture_output=True,
+                text=True,
+                timeout=self.config.model_timeout_seconds,
+                env=dict(os.environ),
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "error": f"OmniRoute execution timed out ({self.config.model_timeout_seconds}s)", "messages": []}
+        except OSError as exc:
+            return {"ok": False, "error": f"OmniRoute execution failed: {exc}", "messages": []}
+        stdout = (proc.stdout or "").strip()
+        stderr = (proc.stderr or "").strip()
+        node_state.pi_stdout = stdout[:2000]
+        if proc.returncode != 0:
+            return {"ok": False, "error": f"OmniRoute exited with code {proc.returncode}: {(stderr or stdout)[:500]}", "messages": []}
+        try:
+            payload = json.loads(stdout)
+        except (TypeError, ValueError) as exc:
+            return {"ok": False, "error": f"OmniRoute node output was not JSON: {exc}", "messages": [], "output": stdout[:2000]}
+        if not isinstance(payload, dict) or not str(payload.get("summary", "")).strip():
+            return {"ok": False, "error": "OmniRoute node output missing non-empty summary", "messages": [], "output": stdout[:2000]}
+        messages = payload.get("messages", [])
+        if not isinstance(messages, list):
+            return {"ok": False, "error": "OmniRoute node messages must be an array", "messages": [], "output": stdout[:2000]}
+        return {
+            "ok": True,
+            "summary": str(payload["summary"]),
+            "messages": [item for item in messages if isinstance(item, dict)],
+            "output": payload.get("output", ""),
         }
 
     # ── handoff ─────────────────────────────────────────────────────────────
@@ -526,13 +807,30 @@ Do NOT include any text before or after the JSON object.'''
             details=node_state.as_dict(),
         )
         self.handoff.save(self.config.handoff_path)
+        self.knowledge.record_context(
+            tree_id="goal-loop",
+            node_id=node_state.node_id,
+            parent_node_id=node_state.parent_node_id,
+            purpose=node_state.purpose,
+            status=node_state.status,
+            content=f"{node_state.active_work}\n{node_state.output_summary or node_state.error_message or ''}",
+            title=f"Node event: {node_state.status}",
+            kind="node_event",
+        )
 
     def _sync_goal_loop_context(self) -> None:
         """Persist current goal loop state to handoff for status queries."""
+        self.events.append(
+            "tree_status",
+            tree_id="goal-loop",
+            message="goal loop state synchronized",
+            node_statuses={nid: n.status for nid, n in self.nodes.items()},
+        )
         self.handoff.goal_loop_context = {
             "task": self.task,
             "node_statuses": {nid: n.status for nid, n in self.nodes.items()},
             "node_details": {nid: n.as_dict() for nid, n in self.nodes.items()},
+            "work_packets": {nid: packet for nid, packet in self._pending_parent_packets.items()},
             "current_iteration": self.current_iteration,
             "updated_at": utc_now(),
         }
@@ -547,12 +845,18 @@ Do NOT include any text before or after the JSON object.'''
             f"[goal-loop] control message: {msg.get('FROM')} -> "
             f"{msg.get('TO')}: {msg.get('SUMMARY', '')}\n"
         )
-        # If the target node is pending and the message unblocks it, mark ready
-        target_id = msg.get("TO", "")
-        if target_id in self.nodes:
-            node = self.nodes[target_id]
-            if node.status == "pending":
-                node.messages_received.append(msg)
+        # Only parent→child or child→parent typed edges are allowed.
+        target_id = str(msg.get("TO", ""))
+        sender_id = str(msg.get("FROM", ""))
+        if target_id not in self.nodes or sender_id not in self.nodes:
+            return
+        target = self.nodes[target_id]
+        sender = self.nodes[sender_id]
+        allowed = target.parent_node_id == sender_id or sender.parent_node_id == target_id
+        if allowed and target.status == "pending":
+            target.messages_received.append(msg)
+        elif not allowed:
+            sys.stderr.write(f"[goal-loop] rejected lateral message {sender_id} -> {target_id}\n")
 
     def run_loop(self) -> dict[str, Any]:
         # Start control socket for external messages
@@ -607,21 +911,18 @@ Do NOT include any text before or after the JSON object.'''
                     self.handoff.save(self.config.handoff_path)
                     break
 
-                # Execute ready nodes in parallel if they have no cross-dependency
-                with ThreadPoolExecutor(max_workers=min(len(ready_nodes), 4)) as pool:
-                    fut_to_node = {pool.submit(self._execute_node, n): n
-                                   for n in ready_nodes}
-                    for fut in as_completed(fut_to_node):
-                        n = fut_to_node[fut]
-                        try:
-                            fut.result()
-                        except Exception as exc:
-                            sys.stderr.write(
-                                f"[goal-loop] node {n.node_id} raised: {exc}\n"
-                            )
-                            n.status = "blocked"
-                            n.error_message = str(exc)
-                            self._record_node_execution_to_handoff(n)
+                # Serial bottom-up execution: choose one deterministic ready node.
+                # This avoids interleaved multi-agent output and keeps one purpose visible.
+                node = ready_nodes[0]
+                try:
+                    self._execute_node(node)
+                except Exception as exc:
+                    sys.stderr.write(f"[goal-loop] node {node.node_id} raised: {exc}\n")
+                    node.status = "blocked"
+                    node.active_work = "blocked by orchestrator exception"
+                    node.error_message = str(exc)
+                    self._emit_node_event(node, "error", node.active_work)
+                    self._record_node_execution_to_handoff(node)
 
                 if all(n.status == "completed"
                        for n in self.nodes.values()):
@@ -645,6 +946,8 @@ Do NOT include any text before or after the JSON object.'''
                      {nid: n.status for nid, n in self.nodes.items()}},
         )
         self.handoff.save(self.config.handoff_path)
+        self.events.append("tree_end", tree_id="goal-loop", message=f"Goal loop {final_status}", final_status=final_status)
+        self.knowledge.close()
 
         return {
             "final_status": final_status,

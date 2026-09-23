@@ -10,6 +10,7 @@ from .config import AgentConfig
 from .handoff import HandoffManager, format_run_model
 from .memory import MemoryStore
 from .modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until, limit_snapshot_from_message
+from .model_catalog import context_limits_for_provider_model, catalog_entry_for_provider_model, load_ai_models_catalog
 from .planner import PlanStep
 from .prince2 import Prince2Checklist, Prince2AgentPolicy
 from .project_handoff import ProjectHandoff
@@ -21,6 +22,9 @@ from .tools.shell import ShellTool
 from .executor_quality import ResponseQualityAssessment, assess_response_quality
 from . import executor_prompting as _executor_prompting
 from .rag import DesignRag, _prompt_safe_block, _prompt_safe_inline, resolve_min_score_policy_details
+from .node_knowledge import NodeKnowledgeStore
+from .event_stream import EventStream
+from .mutation_journal import MutationJournal
 
 
 @dataclass(slots=True)
@@ -82,6 +86,8 @@ ALLOWED_MODEL_ACTIONS = {
     "shell_session_send",
     "shell_session_close",
     "read_file",
+    "read_file_chunk",
+    "read_file_complete",
     "inspect_file",
     "inspect_metadata_file",
     "write_file",
@@ -122,6 +128,8 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
     "shell_session_send": {"tool": "shell", "required": ["session_id", "command"], "optional": [], "mutates": "depends_on_command"},
     "shell_session_close": {"tool": "shell", "required": ["session_id"], "optional": [], "mutates": False},
     "read_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
+    "read_file_chunk": {"tool": "files", "required": ["path"], "optional": ["start", "size"], "mutates": False},
+    "read_file_complete": {"tool": "files", "required": ["path"], "optional": ["chunk_size"], "mutates": False},
     "inspect_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
     "inspect_metadata_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
     "write_file": {"tool": "files", "required": ["path", "content"], "optional": [], "mutates": True},
@@ -180,6 +188,23 @@ class Executor:
         self.files = FileTool(config)
         self.git = GitTool(config)
         self.prince2 = Prince2AgentPolicy()
+        self._context_chars_per_token = max(1.0, float(config.context_chars_per_token))
+        self._file_content_cache: dict[str, str] = {}
+        self._context_compaction_count = 0
+        self._active_context_budget: dict[str, object] | None = None
+        self._active_prompt_chars = 0
+        self.knowledge = NodeKnowledgeStore(config.workspace_root / ".stagewarden" / "node-knowledge.sqlite")
+        self.events = EventStream(config.event_path)
+        self.mutations = MutationJournal(config.mutation_journal_path)
+
+    def close(self) -> None:
+        self.knowledge.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def refresh_permissions(self) -> None:
         self.shell.refresh_permissions()
@@ -210,7 +235,10 @@ class Executor:
         if role_assignment:
             model = str(role_assignment["provider"])
             self._configure_handoff_role_route(role_assignment)
-        prompt = self._build_prompt(task=task, step=step, plan=plan, last_observation=last_observation)
+        context_budget = self._context_budget(model)
+        self._active_context_budget = context_budget
+        prompt = self._build_prompt(task=task, step=step, plan=plan, last_observation=last_observation, context_budget=context_budget)
+        self._active_prompt_chars = len(prompt)
 
         self._configure_handoff_variant(
             prefs=prefs,
@@ -222,7 +250,25 @@ class Executor:
         )
         account = str(role_assignment["account"]) if role_assignment and role_assignment.get("account") else self._select_account(model)
         if self._accounts_configured(model) and account is None:
-            model = self.router.fallback_for_api_failure(model)
+            fallback_model = self.router.fallback_for_api_failure(model)
+            if fallback_model == model:
+                return StepOutcome(
+                    ok=False,
+                    step_completed=False,
+                    model=model,
+                    action_type="model_account_missing",
+                    observation=(
+                        f"Provider {model} has no available configured account; "
+                        "manual provider selection blocks silent account fallback."
+                    ),
+                    account=None,
+                    variant=self.handoff.model_variant_by_model.get(model),
+                    git_head_before=git_head_before,
+                    git_head_after=self._git_head(),
+                    error_type="fallback_not_authorized",
+                    prince2_role=prince2_role,
+                )
+            model = fallback_model
             role_assignment = None
             self._configure_handoff_variant(
                 prefs=prefs,
@@ -239,6 +285,37 @@ class Executor:
             rate_limit_until = extract_blocked_until(response_text)
             limit_reason = classify_limit_reason(response_text)
             fallback_model = self._fallback_model_after_failure(model)
+            if self.router.selection_mode == "manual" and not self.router.allow_provider_fallback:
+                fallback_model = model
+                observation = (
+                    f"Provider {model} failed; manual provider selection blocks silent fallback. "
+                    f"Original error: {response_text or 'unknown'}"
+                )
+                self.memory.record_attempt(
+                    iteration=iteration,
+                    step_id=step.id,
+                    model=model,
+                    account=account,
+                    variant=self.handoff.model_variant_by_model.get(model),
+                    action_type="model_fallback_blocked",
+                    action_signature=f"fallback-blocked:{model}",
+                    success=False,
+                    observation=observation,
+                    error_type="fallback_not_authorized",
+                )
+                return StepOutcome(
+                    ok=False,
+                    step_completed=False,
+                    model=model,
+                    action_type="model_fallback_blocked",
+                    observation=observation,
+                    account=account,
+                    variant=self.handoff.model_variant_by_model.get(model),
+                    git_head_before=git_head_before,
+                    git_head_after=self._git_head(),
+                    error_type="fallback_not_authorized",
+                    prince2_role=prince2_role,
+                )
             if rate_limit_until or limit_reason in {"usage_limit", "credits_exhausted"}:
                 alternatives = self._available_alternative_models(model)
                 if alternatives:
@@ -599,6 +676,26 @@ class Executor:
             )
 
         if not ok and self.memory.failure_count(step.id) >= self.config.max_retries_per_step:
+            try:
+                allow_fallback = ModelPreferences.load(self.config.model_prefs_path).allow_provider_fallback
+            except (OSError, ValueError, TypeError):
+                allow_fallback = False
+            if not allow_fallback:
+                return StepOutcome(
+                    ok=False,
+                    step_completed=False,
+                    model=model,
+                    action_type=action_type,
+                    observation=observation["message"],
+                    account=account,
+                    variant=self.handoff.model_variant_by_model.get(model),
+                    git_head_before=git_head_before,
+                    git_head_after=self._git_head(),
+                    error_type=error_type or "fallback_not_authorized",
+                    prince2_assessment=prince2_assessment,
+                    prince2_role=prince2_role,
+                    response_quality=response_quality.as_dict() if response_quality is not None else None,
+                )
             escalated_model = self.router.escalate(model)
             return StepOutcome(
                 ok=False,
@@ -788,9 +885,13 @@ class Executor:
         if not assignment:
             return None
         if str(assignment.get("mode", "")).strip().lower() == "blocked":
+            if self.router.selection_mode == "manual" and not self.router.allow_provider_fallback:
+                return None
             return self._fallback_assignment_for_node(prefs, node)
         provider = str(assignment.get("provider", "")).strip()
         if provider not in prefs.active_models():
+            if self.router.selection_mode == "manual" and not self.router.allow_provider_fallback:
+                return None
             fallback = self._fallback_assignment_for_node(prefs, node)
             if fallback:
                 return fallback
@@ -873,7 +974,11 @@ class Executor:
                 source="router",
             )
 
-        if failure_count >= 2 and current_provider in {"cheap", "chatgpt", "openai"}:
+        if (
+            failure_count >= 2
+            and current_provider in {"cheap", "chatgpt", "openai"}
+            and not (self.router.selection_mode == "manual" and not self.router.allow_provider_fallback)
+        ):
             next_provider = self.router.escalate(current_provider)
             if next_provider and next_provider != current_provider and next_provider in prefs.active_models():
                 fallback = self._assignment_for_provider_in_pool(node, next_provider)
@@ -1185,6 +1290,20 @@ class Executor:
         except OSError:
             return
 
+    def _context_budget(self, model: str) -> dict[str, object]:
+        provider = model
+        variant = self.handoff.model_variant_by_model.get(model, "provider-default")
+        try:
+            limits = context_limits_for_provider_model(provider, variant, load_ai_models_catalog())
+        except (OSError, TypeError, ValueError):
+            limits = {"context_window": None, "input_limit": None, "max_output_tokens": None, "source": "unknown"}
+        context_window = self.config.context_window_tokens or limits.get("context_window")
+        input_limit = limits.get("input_limit") or context_window
+        reserved = max(0, int(self.config.context_reserved_output_tokens))
+        margin = max(0, int(self.config.context_safety_margin_tokens))
+        available = max(0, int(input_limit) - reserved - margin) if input_limit else None
+        return {"provider": provider, "model": variant, "context_window": context_window, "input_limit": input_limit, "reserved_output": reserved, "safety_margin": margin, "available_input": available, "measurement": "catalog_or_user" if available is not None else "unknown"}
+
     def _build_prompt(
         self,
         *,
@@ -1192,9 +1311,39 @@ class Executor:
         step: PlanStep,
         plan: list[PlanStep],
         last_observation: str,
+        context_budget: dict[str, object] | None = None,
     ) -> str:
-        packet = self._build_model_communication_packet(task=task, step=step, plan=plan, last_observation=last_observation)
-        return self._render_model_communication_packet(packet)
+        packet = self._build_model_communication_packet(task=task, step=step, plan=plan, last_observation=last_observation, provider_limits=context_budget)
+        rendered = self._render_model_communication_packet(packet)
+        available = context_budget.get("available_input") if context_budget else None
+        if isinstance(available, int):
+            max_chars = max(100, int(available * self._context_chars_per_token))
+            if len(rendered) > max_chars:
+                self._context_compaction_count += 1
+                self.events.append(
+                    "context_compaction",
+                    tree_id="executor",
+                    purpose="automatic node context compaction",
+                    message="prompt compacted",
+                    before_chars=len(rendered),
+                    after_chars=max_chars,
+                    max_chars=max_chars,
+                    available_input_tokens=available,
+                    prompt_chars_before=len(rendered),
+                    prompt_chars_after=max_chars,
+                )
+                compacted = self._compact_prompt_text(rendered, max_chars)
+                return compacted
+        return rendered
+
+    def _compact_prompt_text(self, text: str, max_chars: int) -> str:
+        marker = "\n[automatic node-context compaction: omitted prompt history; retrieve persisted evidence/chunks by path and offset]\n"
+        if max_chars <= len(marker) + 100:
+            return text[:max_chars]
+        keep = max_chars - len(marker)
+        head = keep // 2
+        tail = keep - head
+        return text[:head] + marker + text[-tail:]
 
     def _build_devil_advocate_prompt(
         self,
@@ -1657,6 +1806,17 @@ class Executor:
         prince2_role: str | None = None,
     ) -> dict[str, Any]:
         action_type = action.get("type")
+        mutation_types = {"write_file", "apply_patch", "search_replace_file", "patch_file", "patch_files", "insert_text_file", "delete_range_file", "delete_backward_file", "replace_range_file", "convert_encoding_file", "normalize_line_endings_file", "delete_path_file", "copy_path_file", "move_path_file", "chmod_path_file", "chown_path_file"}
+        mutation_key = self.mutations.key(str(action_type), action) if action_type in mutation_types and not action.get("dry_run", False) else None
+        recovered_in_flight = False
+        if mutation_key:
+            prior = self.mutations.get(mutation_key)
+            if prior and prior.get("status") == "completed":
+                self.events.append("mutation_replay", tree_id="executor", node_id=step_id or None, purpose="idempotent mutation recovery", message=prior.get("message", ""), mutation_key=mutation_key, action_type=action_type)
+                return {"ok": True, "message": f"Idempotent replay: {prior.get('message', '')}", "mutation_key": mutation_key, "replayed": True, "error_type": ""}
+            if prior and prior.get("status") == "in_flight":
+                recovered_in_flight = True
+                self.events.append("mutation_recovery", tree_id="executor", node_id=step_id or None, purpose="recover in-flight mutation", message=prior.get("message", ""), mutation_key=mutation_key, action_type=action_type)
         if action_type == "shell":
             command = str(action.get("command", ""))
             status_before = self.git.status_porcelain().stdout.strip() if self._is_shell_command_likely_mutating(command) else ""
@@ -1721,6 +1881,103 @@ class Executor:
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
+        if action_type == "read_file_chunk":
+            requested_size = max(1, int(action.get("size", self.config.file_chunk_chars)))
+            auto_compacted = False
+            prompt_chars_before = self._active_prompt_chars
+            budget = self._active_context_budget or {}
+            available = budget.get("available_input")
+            if isinstance(available, int):
+                raw_remaining_chars = int(available * self._context_chars_per_token) - self._active_prompt_chars
+                if raw_remaining_chars <= 0:
+                    self._context_compaction_count += 1
+                    self.events.append("context_compaction", tree_id="executor", node_id=step_id or None, purpose="automatic node context compaction", message="file chunk budget compacted", before_chars=self._active_prompt_chars, after_chars=max(100, self._active_prompt_chars // 2))
+                    self._active_prompt_chars = max(100, self._active_prompt_chars // 2)
+                    auto_compacted = True
+                    raw_remaining_chars = int(available * self._context_chars_per_token) - self._active_prompt_chars
+                requested_size = min(requested_size, max(100, raw_remaining_chars))
+            result = self.files.read_chunk(action.get("path", ""), start=int(action.get("start", 0)), size=requested_size)
+            message = result.content or result.error or "File chunk read."
+            report = dict(result.report or {})
+            report["requested_size"] = int(action.get("size", self.config.file_chunk_chars))
+            report["effective_size"] = requested_size
+            report["auto_compacted"] = auto_compacted
+            if result.ok:
+                prompt_chars_after = self._active_prompt_chars + len(result.content)
+                available_input_tokens = budget.get("available_input") if isinstance(budget, dict) else None
+                self.events.append(
+                    "file_chunk",
+                    tree_id="executor",
+                    node_id=step_id or None,
+                    purpose="context-aware file chunk",
+                    message=f"{action.get('path', '')} {report.get('start', 0)}:{report.get('end', 0)}",
+                    path=action.get("path", ""),
+                    offset=report.get("start", 0),
+                    end=report.get("end", 0),
+                    total_chars=report.get("total_chars", 0),
+                    auto_compacted=auto_compacted,
+                    available_input_tokens=available_input_tokens,
+                    prompt_chars_before=prompt_chars_before,
+                    prompt_chars_after=prompt_chars_after,
+                )
+                self._active_prompt_chars += len(result.content)
+                self.events.append(
+                    "file_chunk",
+                    tree_id="executor",
+                    node_id=step_id or None,
+                    purpose="context-aware file read",
+                    message=f"{action.get('path', '')} {report.get('start', 0)}:{report.get('end', 0)}",
+                    path=action.get("path", ""),
+                    offset=report.get("start", 0),
+                    end=report.get("end", 0),
+                    total_chars=report.get("total_chars", 0),
+                    auto_compacted=auto_compacted,
+                )
+                message = f"FILE_CHUNK {report.get('start', 0)}:{report.get('end', 0)}/{report.get('total_chars', 0)} has_more={report.get('has_more', False)} auto_compacted={auto_compacted}\\n{message}"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
+            return {"ok": result.ok, "message": message, "content": result.content, "report": report, "error_type": "file_error"}
+
+        if action_type == "read_file_complete":
+            path = action.get("path", "")
+            first = self.files.read_chunk(path, start=0, size=1)
+            if not first.ok:
+                return {"ok": False, "message": first.error, "error_type": "file_error"}
+            first_report = first.report or {}
+            content_hash = str(first_report.get("content_hash", ""))
+            session = self.knowledge.begin_file_read(
+                tree_id="executor",
+                node_id=step_id,
+                path=str(path),
+                purpose="complete file read",
+                chunk_size=int(action.get("chunk_size", self.config.file_chunk_chars)),
+                total_chars=int(first_report.get("total_chars", 0)),
+                content_hash=content_hash,
+            )
+            while session["status"] == "active" and int(session["next_offset"]) < int(session["total_chars"]):
+                chunk = self.files.read_chunk(path, start=int(session["next_offset"]), size=int(session["chunk_size"]))
+                if not chunk.ok:
+                    return {"ok": False, "message": chunk.error, "error_type": "file_error"}
+                report = chunk.report or {}
+                session = self.knowledge.checkpoint_file_chunk(session["session_id"], start=int(report["start"]), content=chunk.content, content_hash=content_hash)
+            self.knowledge.complete_file_read(session["session_id"], content_hash=content_hash)
+            content = self.knowledge.read_file_content(session["session_id"])
+            chunk_count = self.knowledge.file_read_chunk_count(session["session_id"])
+            self.events.append(
+                "file_complete",
+                tree_id="executor",
+                node_id=step_id or None,
+                purpose="complete file read",
+                message=f"{path} complete",
+                path=path,
+                content_ref=f"file-read:{session['session_id']}",
+                chunks=chunk_count,
+                total_chars=session["total_chars"],
+            )
+            content_ref = f"file-read:{session['session_id']}"
+            message = f"FILE_COMPLETE ref={content_ref} chars={len(content)} chunks={chunk_count} total_chars={session['total_chars']} content persisted outside prompt"
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=True, summary=str(path), detail=message)
+            return {"ok": True, "message": message, "report": {**session, "chunks": chunk_count, "complete": True, "content_ref": content_ref}, "content": content, "error_type": "file_error"}
+
         if action_type == "inspect_file":
             result = self.files.inspect(action.get("path", ""))
             if result.ok and isinstance(result.report, dict):
@@ -1740,6 +1997,8 @@ class Executor:
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "write_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.write(action.get("path", ""), action.get("content", ""))
             verification_ok, verification_message = self._verify_file_action(action_type, action, result)
             message = f"Wrote file {result.path}" if result.ok else result.error
@@ -1748,10 +2007,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "apply_patch":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.apply_patch(
                 action.get("path", ""),
                 action.get("search", ""),
@@ -1764,10 +2027,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "search_replace_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.search_replace(
                 action.get("path", ""),
                 action.get("search", ""),
@@ -1782,10 +2049,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "insert_text_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.insert_text(
                 action.get("path", ""),
                 action.get("content", ""),
@@ -1802,10 +2073,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_range_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.delete_range(
                 action.get("path", ""),
                 int(action.get("start_line", 0)),
@@ -1819,10 +2094,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_backward_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.delete_backward(
                 action.get("path", ""),
                 int(action.get("count", 0)),
@@ -1838,10 +2117,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "replace_range_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.replace_range(
                 action.get("path", ""),
                 int(action.get("start_line", 0)),
@@ -1856,16 +2139,27 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "convert_encoding_file":
-            result = self.files.convert_encoding(
-                action.get("path", ""),
-                action.get("target_encoding", ""),
-                source_encoding=action.get("source_encoding"),
-                dry_run=bool(action.get("dry_run", False)),
-            )
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
+            try:
+                result = self.files.convert_encoding(
+                    action.get("path", ""),
+                    action.get("target_encoding", ""),
+                    source_encoding=action.get("source_encoding"),
+                    dry_run=bool(action.get("dry_run", False)),
+                )
+            except (LookupError, UnicodeError, OSError) as exc:
+                message = str(exc)
+                if mutation_key:
+                    self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="failed", message=message)
+                self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=False, summary=action.get("path", ""), detail=message, error_type="file_error")
+                return {"ok": False, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "file_error"}
             message = self._file_edit_message("converted", result, dry_run=bool(action.get("dry_run", False)))
             verification_ok, verification_message = self._verify_file_action(action_type, action, result)
             if result.ok and verification_message:
@@ -1873,10 +2167,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "normalize_line_endings_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.normalize_line_endings(
                 action.get("path", ""),
                 action.get("newline", ""),
@@ -1889,10 +2187,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "copy_path_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("destination", "")), status="in_flight", message="mutation execution started")
             source_snapshot = self._snapshot_workspace_path(action.get("source", ""))
             result = self.files.copy_path(
                 action.get("source", ""),
@@ -1907,10 +2209,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("destination", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "move_path_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("destination", "")), status="in_flight", message="mutation execution started")
             source_snapshot = self._snapshot_workspace_path(action.get("source", ""))
             result = self.files.move_path(
                 action.get("source", ""),
@@ -1925,10 +2231,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("destination", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_path_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.delete_path(
                 action.get("path", ""),
                 recursive=bool(action.get("recursive", False)),
@@ -1941,10 +2251,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "chmod_path_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.chmod_path(
                 action.get("path", ""),
                 action.get("mode", ""),
@@ -1958,10 +2272,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "chown_path_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.chown_path(
                 action.get("path", ""),
                 user=action.get("user"),
@@ -1976,10 +2294,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "patch_file":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.patch(action.get("path", ""), action.get("diff", ""))
             message = f"Patched file {result.path}" if result.ok else result.error
             verification_ok, verification_message = self._verify_file_action(action_type, action, result)
@@ -1988,10 +2310,14 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "patch_files":
+            if mutation_key and not recovered_in_flight:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path="", status="in_flight", message="mutation execution started")
             patch_plan = self._snapshot_patch_plan(action.get("diff", ""))
             status_before = self.git.status_porcelain().stdout.strip()
             result = self.files.patch_files(action.get("diff", ""))
@@ -2002,8 +2328,10 @@ class Executor:
             ok = bool(result.ok and verification_ok)
             if result.ok and not verification_ok:
                 message = f"{message}\n{verification_message}"
+            if mutation_key:
+                self.mutations.append(key=mutation_key, action_type=str(action_type), path="", status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary="multi-file patch", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
-            return {"ok": ok, "message": message, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
+            return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "preview_patch_files":
             result = self.files.preview_patch_files(action.get("diff", ""))
@@ -2227,6 +2555,19 @@ class Executor:
         duration_ms: int = 0,
         error_type: str | None = None,
     ) -> None:
+        self.events.append(
+            "tool_result",
+            tree_id="executor",
+            node_id=step_id or None,
+            purpose="node tool execution",
+            message=summary,
+            tool=tool,
+            action_type=action_type,
+            success=success,
+            duration_ms=duration_ms,
+            error_type=error_type,
+            detail=detail,
+        )
         self.memory.record_tool_transcript(
             iteration=iteration,
             step_id=step_id or "-",
@@ -2603,6 +2944,8 @@ class Executor:
             "shell",
             "shell_session_send",
             "read_file",
+            "read_file_chunk",
+            "read_file_complete",
             "inspect_file",
             "inspect_metadata_file",
             "write_file",

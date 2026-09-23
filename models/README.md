@@ -1,11 +1,13 @@
-# Model catalog tree
+# Model metadata
 
-`providers/` contains one JSON file per configured provider plus `index.json` manifest.
+Model metadata is input to capability and limit discovery. It is not a routing decision and never contains credentials.
 
-- `providers/index.json`: provider list and total model count.
-- `providers/<provider>.json`: provider metadata and model records.
-- `scripts/generate_provider_model_tree.py`: regenerate tree from `data/ai_models_catalog.json`.
+In v3, model metadata must be attached to a provider/model identity with source, timestamp, freshness, exact ID, alias distinction, context/input/output limits, tokenizer/measurement method, and supported parameters.
 
-Current tree is generated from legacy catalog and preserves 238 records. Runtime provider precedence is intentionally still open; legacy catalog remains fallback until integration is implemented and tested.
+The user owns provider, model, account, credentials, cost, quota and fallback choices. A catalog can inform or validate a node work packet; it cannot silently select a service.
 
-No credentials belong in these files.
+See:
+
+- [`providers/README.md`](providers/README.md)
+- [`../docs/specs/stagewarden-v3.md`](../docs/specs/stagewarden-v3.md)
+- [`../TODO.md`](../TODO.md)

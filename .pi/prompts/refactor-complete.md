@@ -1,30 +1,28 @@
 ---
-description: Full refactoring plan with safety, modularity, and non-regression tests
-argument-hint: "<codebase-or-module>"
+description: Plan a safe node-scoped refactor
+argument-hint: "<node-scope>"
 ---
-# Full Refactoring
+# Node-scoped refactor
 
-Obiettivo:
-rifattorizzare completamente il modulo o la base indicata senza perdere comportamento utile.
+Before editing:
 
-Metodo:
-1. identifica i blocchi più complessi
-2. separa responsabilità
-3. riduci coupling
-4. estrai funzioni o moduli solo se utile
-5. preserva semantica e compatibilità dove possibile
-6. crea o aggiorna test di non regressione
-7. esegui wet-run reale
+1. identify parent purpose and child work packet;
+2. retrieve code map entries for files/classes/procedures/functions/tests;
+3. record current contracts and dependencies;
+4. define smallest change and acceptance evidence;
+5. confirm file/tool/provider/model/context policy.
 
-Vincoli:
-- niente refactor gratuiti
-- ogni modifica deve essere motivata
-- ogni cambiamento deve avere test
-- se la modifica impatta protocollo, API o governance, segnala eccezione
+During work:
 
-Deliverable:
-- before/after
-- lista cambiamenti
-- impatto architetturale
-- test aggiunti/aggiornati
-- evidenza di esecuzione
+- stay inside scope;
+- emit file/tool/test events;
+- keep one active mutation or use explicit lock;
+- update Node Knowledge Store with decisions and evidence;
+- compact node context before budget exhaustion.
+
+After work:
+
+- run wet tests;
+- verify diff and behavior;
+- return ResultPacket/EvidencePacket;
+- let parent aggregate; do not claim whole-tree completion.

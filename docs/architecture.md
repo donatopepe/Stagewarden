@@ -1,73 +1,95 @@
-# Stagewarden architecture
+# Stagewarden — Architettura node-first
 
-Stagewarden separates delivery governance from model execution. Model output is treated as a proposal; policy, execution, evidence, and project state remain deterministic application concerns.
+**Stato:** direzione v3 in approvazione; runtime attuale legacy fino al gate di migrazione.
+**Piano unico:** [`../TODO.md`](../TODO.md)
+**Specifica canonica:** [`specs/stagewarden-v3.md`](specs/stagewarden-v3.md)
 
-```mermaid
-flowchart LR
-    U[CLI / interactive shell] --> A[Agent loop]
-    A --> P[Planner]
-    P --> R[Model router]
-    R --> H[Handoff adapter]
-    H --> O[Local OmniRoute free routes]
-    H --> X[Optional external providers]
-    A --> E[Executor]
-    E --> G[Permission and policy gates]
-    G --> T[File / shell / git tools]
-    T --> V[Verification and evidence]
-    V --> M[Memory and structured trace]
-    M --> A
-    A --> C[Project handoff]
-    C --> Q[PRINCE2-aligned roles, risks, issues, quality]
+## Modello
+
+Stagewarden tratta albero e nodi come sistema operativo del lavoro:
+
+```text
+root purpose
+└── parent purpose
+    ├── leaf work packet → evidence
+    └── leaf work packet → evidence
+        ↑ result aggregation
+    parent result
+↑ root decision
 ```
 
-## Main boundaries
+Pianificazione è top-down. Esecuzione è bottom-up. Parent prepara lavoro e aggrega risultati; leaf esegue lavoro concreto. Default seriale. Parallelismo solo opt-in tra foglie isolate.
 
-| Boundary | Responsibility | Safety property |
-|---|---|---|
-| CLI and command dispatch | Parse requests and choose governed workflow | Commands have explicit schemas and usage paths |
-| Agent loop | Plan, execute, validate, stop or escalate | Bounded iterations and explicit completion |
-| Model router/handoff | Select provider/model/account and invoke adapter | Provider state separated from execution policy |
-| Executor | Run typed actions | Workspace confinement, permission checks, timeout and verification |
-| Trace/memory | Record attempts, outcomes and evidence | Persistent, inspectable delivery history |
-| Project handoff | Preserve delivery context across sessions | Explicit stage, decision, risk, issue and quality state |
-| Role runtime | Route bounded context among PRINCE2-aligned nodes | Accountability and context slices stay explicit |
+## Piani architetturali
 
-## Model execution
+### Tree Store
 
-`RUN_MODEL_BIN` is the adapter boundary. Production-like local checks can use:
+Conserva tree version, node contracts, parent/child edges, purpose, ownership, acceptance, scope, dependencies e status.
 
-```bash
-export RUN_MODEL_BIN="$PWD/scripts/run_model_omniroute.py"
-export STAGEWARDEN_OMNIROUTE_MODEL="auto/coding:free"
-```
+### Scheduler
 
-The bundled OmniRoute adapter defaults to free routes and falls back only across:
+Seleziona una leaf `ready`, crea active event, inoltra work packet, attende result/evidence, aggiorna knowledge store e rivaluta parent. Nessun parent può completare senza child evidence obbligatoria.
 
-1. `auto/coding:free`
-2. `auto/best-free`
-3. `coding-free-fallback`
+### Packet protocol
 
-External live-provider tests are opt-in. Offline CI does not require credentials or network model calls.
+- `WorkPacket`: parent → child;
+- `ResultPacket`: child → parent;
+- `EvidencePacket`: riferimenti verificabili a tool, file, test e provider usage.
 
-## Mutation path
+Comunicazioni laterali sono negate per default.
 
-1. Planner proposes typed action.
-2. Policy layer classifies operation and permission requirement.
-3. Executor validates workspace target and runtime constraints.
-4. Tool performs mutation.
-5. Executor reads back or otherwise verifies result.
-6. Trace and handoff persist evidence and next state.
-7. Agent either continues, completes, or emits exception/escalation information.
+### Protocollo formale minimo
 
-## Test strategy
+Runtime usa composizione limitata di strutture formalizzate:
 
-- Full offline suite: 470 tests.
-- Live OmniRoute smoke test: opt-in with `RUN_OMNIROUTE_LIVE_TEST=1`.
-- External provider tests: skipped unless credentials are intentionally supplied.
-- GitHub Actions runs only deterministic offline suite on push and pull request.
+- Markdown per regole e specifica;
+- JSON/JSON Schema per packet e tool action;
+- tree/DAG per piano e dipendenze;
+- FSM per lifecycle e ciclo locale del nodo;
+- invarianti, pre/postcondizioni e gate per completion;
+- NodeExecutionCapsule per stato persistente e recovery;
+- JSONL append-only per audit e replay.
 
-## Known limits
+Non sono source of truth DSL proprietarie, blackboard globale, parallelismo implicito o formalismi aggiuntivi non approvati.
 
-- Provider catalogs can change independently; dynamic metadata needs periodic refresh.
-- Interactive role selection depends on current catalog ordering, so tests assert stable semantic choices rather than retired providers.
-- Stagewarden assists delivery governance; it does not replace accountable human approval for high-impact production changes.
+### Node Execution Capsule e contesto
+
+Ogni nodo mantiene capsula persistente con identità, purpose, parent, packet reference, ciclo, fase FSM, revisione contesto, checkpoint, budget, stato e next action. Il contesto è separato in active context, node working state, node history e storage; retrieval è una vista temporanea, non memoria concorrente.
+
+### Node Knowledge Store
+
+RAG persistente con namespace per tree/node/context/event/decision/evidence/code/relation/provider/recovery. Include storia del contesto per nodo e indice code-aware di file, classi, procedure, funzioni, metodi, test e relazioni con path/linee/hash/freshness.
+
+CodeGraph può fornire analisi ausiliaria. Non è source of truth: non contiene automaticamente purpose, work packet, evidenze, ownership, compaction o policy.
+
+### Event Store e terminale
+
+Ogni cambio importante produce evento persistente. TTY mostra banner pinned con tree, node, parent, purpose, stato, lavoro e context budget; stream mostra tool, file, test, forwarding, result, compaction, blocker e decisioni. JSONL consente replay e integrazione machine-readable.
+
+### Context manager
+
+Ogni nodo ha context budget. Prompt, retrieved knowledge, child summaries, tool schema, output reserve, overhead e margine vengono contabilizzati. Compaction automatica agisce sul nodo attivo prima del superamento del limite del provider/modello selezionato.
+
+Provider, modello, account, credenziali, costi e fallback sono selezionati/autorizzati dall'utente. Nessun cambio implicito.
+
+## Trust boundaries
+
+- RAG è dati non fidati, non istruzioni eseguibili.
+- Retrieval non concede permessi.
+- Evidence abilita completion solo dopo verifica.
+- Tool mutanti richiedono scope, permission e idempotency key.
+- Eventi persistiti devono redigere segreti.
+- Limit/provider metadata devono avere fonte, timestamp e freshness.
+
+## Stato migrazione
+
+1. Specifica v3 e documentazione.
+2. Event/node state shadow layer.
+3. Scheduler bottom-up seriale.
+4. Packet protocol.
+5. Terminal event stream.
+6. Node Knowledge Store/code index.
+7. Context compaction per nodo.
+8. Switch default e rimozione graduale message bus legacy.
+
+Vedere `TODO.md` per ordine e gate.

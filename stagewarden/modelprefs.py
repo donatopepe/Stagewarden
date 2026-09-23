@@ -242,6 +242,9 @@ def _valid_iso_date(value: object) -> bool:
 class ModelPreferences:
     enabled_models: list[str]
     preferred_model: str | None = None
+    selection_mode: str = "manual"
+    allow_provider_fallback: bool = False
+    allow_paid_provider: bool = False
     blocked_until_by_model: dict[str, str] | None = None
     last_limit_message_by_model: dict[str, str] | None = None
     variant_by_model: dict[str, str] | None = None
@@ -261,6 +264,9 @@ class ModelPreferences:
         return cls(
             enabled_models=list(SUPPORTED_MODELS),
             preferred_model=None,
+            selection_mode="manual",
+            allow_provider_fallback=False,
+            allow_paid_provider=False,
             blocked_until_by_model={},
             last_limit_message_by_model={},
             variant_by_model={},
@@ -281,6 +287,12 @@ class ModelPreferences:
         if not enabled:
             enabled = list(SUPPORTED_MODELS)
         preferred = self.preferred_model if self.preferred_model in enabled else None
+        selection_mode = str(self.selection_mode or "manual").strip().lower()
+        if selection_mode not in {"manual", "auto"}:
+            selection_mode = "manual"
+        self.selection_mode = selection_mode
+        self.allow_provider_fallback = bool(self.allow_provider_fallback)
+        self.allow_paid_provider = bool(self.allow_paid_provider)
         blocked = {
             str(model): str(until)
             for model, until in (self.blocked_until_by_model or {}).items()
@@ -635,6 +647,9 @@ class ModelPreferences:
             "_version": 7,
             "enabled_models": list(self.enabled_models),
             "preferred_model": self.preferred_model,
+            "selection_mode": self.selection_mode,
+            "allow_provider_fallback": self.allow_provider_fallback,
+            "allow_paid_provider": self.allow_paid_provider,
             "blocked_until_by_model": dict(self.blocked_until_by_model or {}),
             "last_limit_message_by_model": dict(self.last_limit_message_by_model or {}),
             "variant_by_model": dict(self.variant_by_model or {}),
@@ -662,6 +677,9 @@ class ModelPreferences:
         return cls(
             enabled_models=[str(item) for item in payload.get("enabled_models", [])],
             preferred_model=str(payload["preferred_model"]) if payload.get("preferred_model") else None,
+            selection_mode=str(payload.get("selection_mode", "manual")),
+            allow_provider_fallback=bool(payload.get("allow_provider_fallback", False)),
+            allow_paid_provider=bool(payload.get("allow_paid_provider", False)),
             blocked_until_by_model={
                 str(key): str(value) for key, value in payload.get("blocked_until_by_model", {}).items()
             },

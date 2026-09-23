@@ -1,15 +1,15 @@
 ---
-description: Decide autonomously or ask the user based on risk and reversibility
-argument-hint: "<decision-point>"
+description: Decide node autonomy and escalation
+argument-hint: "<node-decision>"
 ---
-# Autonomy vs User Question
+# Node autonomy policy
 
-Usa questa policy:
+A node may act autonomously only inside its approved work packet, file scope, tool permissions, context budget and provider/model policy.
 
-1. Basso impatto, reversibile, locale -> decidi autonomamente.
-2. Impatto medio ma con una scelta chiaramente migliore -> decidi autonomamente e spiega.
-3. Impatto su architettura, sicurezza, compatibilità, dati, test fondamentali, o bassa reversibilità -> chiedi all’utente.
-4. Ambiguità critica che blocca il corretto funzionamento -> ferma il loop e segnala eccezione.
+- low impact, local, reversible: act and emit event;
+- medium impact or scope clarification: pause and report to parent;
+- architecture, security, data, compatibility, cost, provider/model, permission or fundamental test decision: escalate to user;
+- missing evidence, unknown context limit or packet mismatch: block;
+- no fallback or parallelism without explicit policy.
 
-Regola generale:
-preferisci autonomia informata quando il rischio è basso; preferisci domanda all’utente quando il rischio è alto.
+Every decision records cause, impact, options, recommendation, decision owner, reversibility and next event.

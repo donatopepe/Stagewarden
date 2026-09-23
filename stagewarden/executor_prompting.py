@@ -29,6 +29,8 @@ ALLOWED_MODEL_ACTIONS = {
     "shell_session_send",
     "shell_session_close",
     "read_file",
+    "read_file_chunk",
+    "read_file_complete",
     "inspect_file",
     "inspect_metadata_file",
     "write_file",
@@ -69,6 +71,8 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
     "shell_session_send": {"tool": "shell", "required": ["session_id", "command"], "optional": [], "mutates": "depends_on_command"},
     "shell_session_close": {"tool": "shell", "required": ["session_id"], "optional": [], "mutates": False},
     "read_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
+    "read_file_chunk": {"tool": "files", "required": ["path"], "optional": ["start", "size"], "mutates": False},
+    "read_file_complete": {"tool": "files", "required": ["path"], "optional": ["chunk_size"], "mutates": False},
     "inspect_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
     "inspect_metadata_file": {"tool": "files", "required": ["path"], "optional": [], "mutates": False},
     "write_file": {"tool": "files", "required": ["path", "content"], "optional": [], "mutates": True},
@@ -109,7 +113,7 @@ def bounded_context(text: str, limit: int, *, label: str) -> str:
     if len(clean) <= limit:
         return clean
     remaining = len(clean) - limit
-    return f"{clean[:limit]}\n[truncated {label}: {remaining} chars omitted]"
+    return f"{clean[:limit]}\n[truncated {label}: {remaining} chars omitted; retrieve next chunk or compact context]"
 
 
 def example_value_for_action_field(field: str) -> Any:
@@ -117,6 +121,9 @@ def example_value_for_action_field(field: str) -> Any:
         "command": "git status --short",
         "session_id": "session id",
         "path": "relative/path",
+        "start": 0,
+        "size": 12000,
+        "chunk_size": 12000,
         "content": "text",
         "search": "old text",
         "replace": "new text",

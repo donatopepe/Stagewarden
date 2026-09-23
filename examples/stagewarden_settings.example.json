@@ -1,24 +1,57 @@
 {
+  "tree": {
+    "execution": "bottom_up",
+    "scheduler": "serial",
+    "allow_dynamic_children": false,
+    "parallelism": {
+      "enabled": false,
+      "max_leaves": 1,
+      "require_disjoint_scope": true
+    }
+  },
+  "terminal": {
+    "mode": "auto",
+    "events": true,
+    "purpose_reminder": "always",
+    "prompt_visibility": "redacted",
+    "replay": true
+  },
+  "knowledge": {
+    "backend": "sqlite",
+    "path": ".stagewarden/node-knowledge.sqlite",
+    "retention": "workspace",
+    "code_index_languages": ["python"],
+    "require_citations": true
+  },
+  "context": {
+    "unknown_limit_policy": "block",
+    "reserved_output_tokens": null,
+    "safety_margin_tokens": null,
+    "compaction": {
+      "enabled": true,
+      "trigger": "next_turn_budget",
+      "preserve_full_history": true,
+      "summary_mode": "authorized_model_or_local"
+    }
+  },
+  "model": {
+    "selection_mode": "manual",
+    "provider": null,
+    "model": null,
+    "account": null,
+    "allow_provider_fallback": false,
+    "allow_paid_provider": false
+  },
   "permissions": {
     "defaultMode": "plan",
-    "allow": ["shell:git status"],
-    "ask": ["file:secrets.txt"],
-    "deny": ["shell:rm"]
-  },
-  "shell": {
-    "backend": "auto"
+    "allow": [],
+    "ask": [],
+    "deny": []
   },
   "memory": {
-    "enabled": true,
-    "roots": ["/home/public/HermesVault/Memory"],
-    "files": ["MEMORY.md", "pi-memory.md", "preferences.md", "projects.md", "decisions.md", "conversation-log.md"],
+    "enabled": false,
+    "roots": [],
+    "files": [],
     "max_chars": 12000
-  },
-  "catalog": {
-    "refresh": {
-      "command": "catalog refresh --aa",
-      "pricing_source": "artificial_analysis",
-      "api_key_env": "STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY"
-    }
   }
 }

@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from stagewarden.config import AgentConfig
+from stagewarden.executor import Executor
+from stagewarden.handoff import HandoffManager
+from stagewarden.memory import MemoryStore
+from stagewarden.planner import PlanStep
+from stagewarden.project_handoff import ProjectHandoff
+from stagewarden.router import ModelRouter
+from stagewarden.rag import DesignRag
+from stagewarden.tools.files import FileTool
+
+
+class ContextAwareFileReadingTests(unittest.TestCase):
+    def _executor(self, root: Path, **kwargs: object) -> Executor:
+        config = AgentConfig(workspace_root=root, **kwargs)
+        return Executor(
+            config=config,
+            router=ModelRouter(),
+            handoff=HandoffManager(),
+            memory=MemoryStore(),
+            project_handoff=ProjectHandoff(),
+            rag=DesignRag(),
+        )
+
+    def test_chunk_reader_reports_offsets_and_reconstructs_complete_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            expected = "0123456789" * 2000
+            (root / "large.txt").write_text(expected, encoding="utf-8")
+            tool = FileTool(AgentConfig(workspace_root=root, file_chunk_chars=137))
+            chunks = list(tool.iter_chunks("large.txt", chunk_chars=137))
+            self.assertGreater(len(chunks), 1)
+            self.assertEqual("".join(item.content for item in chunks), expected)
+            self.assertEqual(chunks[0].report["start"], 0)
+            self.assertEqual(chunks[-1].report["end"], len(expected))
+            self.assertFalse(chunks[-1].report["has_more"])
+
+    def test_read_file_complete_action_returns_full_content_beyond_chunk_size(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            expected = "line\n" * 5000
+            (root / "large.txt").write_text(expected, encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=100)
+            result = executor._run_action({"type": "read_file_complete", "path": "large.txt", "chunk_size": 100})
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["content"], expected)
+            self.assertGreater(result["report"]["chunks"], 1)
+            self.assertTrue(result["report"]["complete"])
+            self.assertNotIn(expected, result["message"])
+            self.assertIn("content_ref", result["report"])
+
+    def test_chunk_size_is_capped_and_compaction_runs_when_context_is_full(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "large.txt").write_text("x" * 1000, encoding="utf-8")
+            executor = self._executor(
+                root,
+                context_window_tokens=100,
+                context_reserved_output_tokens=20,
+                context_safety_margin_tokens=10,
+                context_chars_per_token=4,
+                file_chunk_chars=500,
+            )
+            executor._active_context_budget = executor._context_budget("cheap")
+            executor._active_prompt_chars = 390
+            result = executor._run_action(
+                {"type": "read_file_chunk", "path": "large.txt", "start": 0, "size": 500},
+                step_id="node.read",
+            )
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["report"]["auto_compacted"])
+            self.assertLessEqual(len(result["content"]), 500)
+            self.assertGreater(executor._context_compaction_count, 0)
+
+    def test_chunk_event_records_context_budget_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("x" * 1000, encoding="utf-8")
+            executor = self._executor(
+                root,
+                context_window_tokens=100,
+                context_reserved_output_tokens=20,
+                context_safety_margin_tokens=10,
+                file_chunk_chars=500,
+            )
+            executor._active_context_budget = executor._context_budget("cheap")
+            executor._active_prompt_chars = 390
+            result = executor._run_action(
+                {"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 500},
+                step_id="node.read",
+            )
+            self.assertTrue(result["ok"])
+            chunk_events = executor.events.read(event="file_chunk")
+            self.assertGreaterEqual(len(chunk_events), 1)
+            details = next(event["details"] for event in chunk_events if "available_input_tokens" in event["details"])
+            self.assertIn("available_input_tokens", details)
+            self.assertIn("prompt_chars_before", details)
+            self.assertIn("prompt_chars_after", details)
+            self.assertTrue(details["auto_compacted"])
+            executor.close()
+
+    def test_compaction_event_records_context_budget_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executor = self._executor(
+                root,
+                context_window_tokens=100,
+                context_reserved_output_tokens=20,
+                context_safety_margin_tokens=10,
+            )
+            step = PlanStep("step-1", "Inspect", "inspect repository", "run tests", wet_run_required=False)
+            budget = executor._context_budget("cheap")
+            executor._build_prompt(task="x" * 1000, step=step, plan=[step], last_observation="y" * 1000, context_budget=budget)
+            events = executor.events.read(event="context_compaction")
+            self.assertEqual(len(events), 1)
+            details = events[0]["details"]
+            self.assertIn("available_input_tokens", details)
+            self.assertIn("max_chars", details)
+            self.assertIn("before_chars", details)
+            self.assertIn("after_chars", details)
+            self.assertLess(details["after_chars"], details["before_chars"])
+            executor.close()
+
+    def test_context_budget_matrix_records_provider_node_and_replay_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.txt"
+            source.write_text("x" * 1000, encoding="utf-8")
+            executor = self._executor(root, context_window_tokens=120, context_reserved_output_tokens=20, context_safety_margin_tokens=10, file_chunk_chars=500)
+            executor._active_context_budget = executor._context_budget("cheap")
+            executor._active_prompt_chars = 390
+            result = executor._run_action({"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 500}, step_id="node.context")
+            self.assertTrue(result["ok"])
+            report = result["report"]
+            self.assertTrue(report["auto_compacted"])
+            self.assertLessEqual(report["effective_size"], 165)
+            self.assertGreater(report["effective_size"], 0)
+            replay = executor.events.replay(node_id="node.context")
+            self.assertTrue(replay["nodes"])
+            node_state = replay["nodes"]["node.context"]
+            self.assertIn(node_state["last_event"], {"file_chunk", "tool_result"})
+            chunk_events = executor.events.read(node_id="node.context", event="file_chunk")
+            self.assertTrue(chunk_events)
+            details = next(event["details"] for event in chunk_events if "available_input_tokens" in event["details"])
+            self.assertIn("available_input_tokens", details)
+            self.assertLess(details["prompt_chars_after"], details["prompt_chars_before"] + report["effective_size"])
+            executor.close()
+
+    def test_context_budget_matrix_covers_user_budget_and_replay_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("x" * 400, encoding="utf-8")
+            executor = self._executor(root, context_window_tokens=200, context_reserved_output_tokens=40, context_safety_margin_tokens=20, file_chunk_chars=300)
+            budget = executor._context_budget("cheap")
+            self.assertEqual(budget["context_window"], 200)
+            self.assertEqual(budget["available_input"], 140)
+            executor._active_context_budget = budget
+            executor._active_prompt_chars = 500
+            result = executor._run_action({"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 300}, step_id="node.budget")
+            self.assertTrue(result["ok"])
+            replay = executor.events.replay(node_id="node.budget")
+            self.assertIn("node.budget", replay["nodes"])
+            self.assertEqual(replay["nodes"]["node.budget"]["last_event"], "tool_result")
+            chunk_events = executor.events.read(node_id="node.budget", event="file_chunk")
+            details = next(event["details"] for event in chunk_events if "available_input_tokens" in event["details"])
+            self.assertEqual(details["available_input_tokens"], 140)
+            self.assertIn(details["auto_compacted"], {False, True})
+            self.assertGreaterEqual(details["prompt_chars_after"], details["prompt_chars_before"])
+            executor.close()
+
+    def test_prompt_compacts_when_configured_input_budget_is_small(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = AgentConfig(workspace_root=root, context_window_tokens=100, context_reserved_output_tokens=20, context_safety_margin_tokens=10)
+            executor = self._executor(root, context_window_tokens=100, context_reserved_output_tokens=20, context_safety_margin_tokens=10)
+            step = PlanStep("step-1", "Inspect", "inspect repository", "run tests", wet_run_required=False)
+            prompt = executor._build_prompt(task="x" * 1000, step=step, plan=[step], last_observation="y" * 1000, context_budget=executor._context_budget("cheap"))
+            self.assertLessEqual(len(prompt), 70 * config.context_chars_per_token)
+            self.assertIn("automatic node-context compaction", prompt)
+
+
+if __name__ == "__main__":
+    unittest.main()

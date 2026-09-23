@@ -184,9 +184,11 @@ def _child_prompts(task: str, scope_summary: dict[str, object]) -> list[dict[str
                 f"Escalation: {blueprint['escalation_rule']}",
             ]
         )
+        parent_id = "root.scope" if blueprint["node_id"] != "root.scope" and not blueprint["dependencies"] else (blueprint["dependencies"][0] if blueprint["dependencies"] else None)
         prompts.append(
             {
                 **blueprint,
+                "parent_id": parent_id,
                 "prompt": prompt,
                 "inputs": {
                     "task": objective,
@@ -210,9 +212,11 @@ def _child_prompts(task: str, scope_summary: dict[str, object]) -> list[dict[str
 def _node_graph(scope_summary: dict[str, object], child_prompts: list[dict[str, object]]) -> dict[str, object]:
     nodes = []
     for idx, child in enumerate(child_prompts, start=1):
+        parent_id = "root.scope" if child["node_id"] != "root.scope" and not child["dependencies"] else (child["dependencies"][0] if child["dependencies"] else None)
         nodes.append(
             {
                 "id": child["node_id"],
+                "parent_id": parent_id,
                 "rank": idx,
                 "purpose": child["purpose"],
                 "depends_on": child["dependencies"],
@@ -224,8 +228,11 @@ def _node_graph(scope_summary: dict[str, object], child_prompts: list[dict[str, 
             }
         )
     return {
+        "tree_mode": "bottom_up",
+        "execution_mode": "serial",
         "root": {
             "id": "root.scope",
+            "parent_id": None,
             "purpose": "Define the task before any refactor or execution.",
             "input": {"task": scope_summary["objective"]},
             "output": ["scope_summary", "acceptance_criteria", "child-node plan"],
@@ -239,7 +246,7 @@ def _node_graph(scope_summary: dict[str, object], child_prompts: list[dict[str, 
                     "validation.wet_run",
                     "learning.pi",
                 ],
-                "communication": "Structured messages only; every dependency and blocker is explicit.",
+                "communication": "Parent-to-child WorkPacket; child-to-parent ResultPacket/EvidencePacket; lateral messaging denied.",
             }
         ],
     }

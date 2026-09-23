@@ -1,26 +1,28 @@
 ---
-description: Structured communication protocol between nodes
-argument-hint: "<message-context>"
+description: WorkPacket and ResultPacket protocol
+argument-hint: "<packet>"
 ---
-# Node-to-Node Communication
+# Node packet protocol
 
-Formato messaggio:
+Parent→child must use a versioned `WorkPacket` containing:
 
-FROM: <node-id>
-TO: <node-id>
-TYPE: status | dependency | conflict | decision | blocker | result
-SUMMARY: <1-2 frasi>
-DETAILS:
-- ...
-- ...
-ACTIONS REQUIRED:
-- ...
-PRIORITY: low | medium | high | critical
-TOLERANCE IMPACT: none | minor | moderate | severe
+- tree/node/parent/work/correlation IDs;
+- parent purpose and child purpose;
+- atomic task and expected result;
+- inputs and cited knowledge;
+- file scope and tool permissions;
+- provider/model/account and context budget;
+- acceptance criteria, tolerances and retry policy;
+- output schema.
 
-Regole:
-- messaggi brevi
-- niente rumore
-- niente speculazioni non marcate
-- ogni decisione deve indicare reversibilità
-- ogni blocker deve indicare il passo successivo
+Child→parent must use `ResultPacket` containing:
+
+- status and summary;
+- evidence references with path/line/hash/exit code where applicable;
+- files, tests, tools and usage;
+- decisions, risks, blockers and residual work;
+- next-action recommendation.
+
+Allowed responses: `accepted`, `needs_clarification`, `rejected`, `result`, `blocked`, `escalation`.
+
+No free-form lateral communication. Every packet is persisted and visible in the terminal.

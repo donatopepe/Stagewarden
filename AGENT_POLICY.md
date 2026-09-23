@@ -1,102 +1,61 @@
-# Stagewarden Agent Policy
+# Stagewarden Agent Policy v3
 
-Author: Donato Pepe
+**Stato:** proposta allineata a `docs/specs/stagewarden-v3.md`
+**Piano operativo unico:** `TODO.md`
 
-## Purpose
+## 1. Albero come controllo primario
 
-This document defines the formal operating policy for the Stagewarden agent.
+Ogni lavoro appartiene a un tree e a un node. Ogni node ha purpose, owner, scope, acceptance, contesto, stato e audit.
 
-The agent must execute work under adaptive PRINCE2-style control:
+## 2. Pianificazione vs esecuzione
 
-- principles are always preserved
-- governance intensity changes with scale, risk, and complexity
-- documentation is minimized only when control intent remains intact
+- decomposizione: top-down;
+- execution: bottom-up;
+- scheduler: seriale per default;
+- parallelismo: solo opt-in, foglie indipendenti, scope isolato e stream distinto.
 
-## Operational Rules
+## 3. Delega controllata
 
-### 1. Continuous Business Justification
+Parent→child avviene solo tramite `WorkPacket` versionato. Il packet contiene task, purpose, input, scope, permessi, provider/model, budget, acceptance e output contract.
 
-- Every task must have a clear objective and still be worth time, cost, and risk.
-- Vague tasks must be rejected or clarified through controlled analysis.
+Child→parent avviene tramite `ResultPacket` con `EvidencePacket`. Narrativa senza evidence non abilita completion.
 
-### 2. Adaptive Governance
+Messaggi laterali e forwarding implicito sono bloccati per default.
 
-- Small tasks use the lightest viable controls.
-- Complex or risky tasks use stricter staged control, more evidence, and stronger escalation discipline.
-- The agent must reduce ceremony before it reduces control.
+## 4. Node Knowledge Store
 
-### 3. Product Focus
+Il RAG conserva storia contestuale per node, eventi, decisioni, risultati, evidenze e recovery. Conserva inoltre indice di file, classi, procedure, funzioni, metodi, test e relazioni con provenienza, linee, hash e freshness.
 
-- The agent must define the intended deliverable before selecting tools or actions.
-- Completion claims are invalid without product-oriented evidence.
+CodeGraph è ausilio tecnico. Non è autorizzazione e non è source of truth del lavoro node-scoped.
 
-### 4. Stage-Based Execution
+## 5. Terminale osservabile
 
-- Work is split into small executable stages.
-- Only `ready` or `in_progress` stages may execute.
-- Each stage must have a validation condition.
+Ogni evento deve rendere visibili tree, node, parent, purpose, stato, attività, tool, path, test, context budget, provider/model, compaction, blocker e result. Purpose viene ripetuto all'avvio, dopo compaction, dopo resume e su status.
 
-### 5. Management by Exception
+## 6. Context e provider
 
-- If failures, risks, or boundary conditions exceed tolerance, the agent must escalate.
-- Escalation can change model, strategy, recovery lane, or boundary decision.
+Context window, input budget, output reserve, overhead, margine, fonte e timestamp sono dati obbligatori. Compaction automatica è core per-node.
 
-### 6. Role Clarity
+Provider, modello, account, credenziali, costi, quote e fallback appartengono all'utente. Stagewarden non cambia provider/modello silenziosamente.
 
-- The acting model, tool, stage, fallback path, and validation evidence must be explicit.
-- Responsibility must remain reconstructable from handoff and trace artifacts.
+## 7. Sicurezza
 
-### 7. Quality and Wet-Run Discipline
+- RAG è contenuto non fidato.
+- Retrieval non concede permessi.
+- File fuori scope sono bloccati.
+- Tool mutanti richiedono permission, lock e idempotency key.
+- Segreti non entrano in prompt persistiti, event log, RAG o handoff.
+- Completion richiede evidence wet-run.
+- Crash recovery non deve duplicare tool mutanti confermati.
 
-- Dry-runs are not valid closure evidence by themselves.
-- Each implemented change must have real validation evidence, or an explicitly justified limitation.
+## 8. Exception handling
 
-### 8. Traceability
+Superamento tolleranze, blocker, result senza evidence, conflitto file, limite contesto sconosciuto o provider non disponibile producono stato esplicito e escalation. Non si risolve un blocker nascondendolo o cambiando modello senza autorizzazione.
 
-- The agent must persist decisions, observations, issues, risks, quality evidence, lessons, and git boundaries.
-- Handoff is the canonical project context.
+## 9. Audit
 
-### 9. Cost Control
+Ogni tree mutation, forwarding, execution, tool result, retrieval, compaction, model change, retry, decision e completion produce evento correlabile con `tree_id`, `node_id`, `parent_node_id`, `work_id`, timestamp e sensitivity.
 
-- Prefer `local`, then `cheap`, then more expensive models when justified by complexity, risk, or repeated failure.
-- Model usage must remain inspectable.
+## 10. Gate
 
-### 10. Safe Execution
-
-- High-impact or destructive work must be blocked or escalated unless clearly governed.
-- The agent must not bypass permission controls.
-
-### 11. Simulation and Test Completeness
-
-- For every agent function, the agent must implement the most complete practical combination of simulations, targeted tests, integration tests, and wet-run validation available in the repository context.
-- If validation is weak because support tooling or observability is missing, the agent must prefer implementing the missing support capability instead of accepting shallow coverage.
-- Test design must cover happy path, failure path, boundary conditions, dry-run versus wet-run behavior, and machine-readable evidence whenever those behaviors exist.
-- When a new function is added, testability is part of the function definition, not a follow-up task.
-
-### 12. Active PRINCE2 Role Nodes
-
-- An approved PRINCE2 role tree must be executable as a runtime organization, not only as static configuration.
-- Each node must be able to live as an independent thread or actor with its own scoped context, wait state, incoming queue, outgoing messages, and auditable lifecycle.
-- Node-to-node communication must follow approved PRINCE2 flow edges only; context may move only through governed messages, escalation, delegation, assurance review, or boundary events.
-- A node may collaborate with peer, parent, or child nodes, but it must never widen another node's context beyond that node's authorized responsibility domain.
-
-### 13. Codex CLI, Claude Code, and KiloCode Minimum Baseline
-
-- Stagewarden must maintain a minimum practical capability baseline comparable to Codex CLI, Claude Code, and KiloCode.
-- The baseline includes interactive shell UX, slash discovery, compact status/statusline, provider/model/account control, permission governance, handoff/resume, transcript visibility, file tools, shell tools, git history, extension/source management, and rate-limit visibility.
-- Baseline parity must be inspectable through the agent itself, not only documented.
-- New work that affects the user experience, routing, status, auth, shell, permissions, or tool capabilities must preserve or improve this baseline.
-
-## Repository Artifacts
-
-The policy is reflected in:
-
-- `AGENT_MANIFESTO.md`
-- `AGENT_POLICY.md`
-- `AGENT_POLICY.json`
-- `stagewarden/prince2.py`
-- `README.md`
-- `HANDOFF.md`
-- `TODO.md`: current operational plan, dependencies, acceptance checks, and evidence log
-- `data/simulation_matrix.json`: canonical simulation/scenario matrix
-- `scripts/run_simulation_matrix.py`: reusable total and granular simulation runner
+Non implementare runtime v3 prima di approvazione utente della specifica e delle decisioni aperte. Tutto il piano deve restare in `TODO.md`.

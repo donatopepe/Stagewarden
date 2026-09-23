@@ -1,22 +1,18 @@
 ---
-description: Manage tolerances, exceptions, and escalation decisions
-argument-hint: "<situation>"
+description: Handle node tolerance breach and recovery
+argument-hint: "<node-exception>"
 ---
-# Tolerance and Exception Control
+# Node exception policy
 
-Obiettivo:
-monitorare deviazioni rispetto a scope, qualità, tempo, rischio, compatibilità, sicurezza ed evidenza.
+For every deviation record:
 
-Regole:
-1. classifica la deviazione
-2. se è lieve e reversibile, decidi autonomamente e annota
-3. se è media, chiedi conferma all’utente
-4. se è grave o irreversibile, ferma il loop e segnala eccezione
-5. non nascondere deviazioni
+- tree/node/parent/work IDs;
+- cause and first evidence;
+- impact on scope, time, cost, context, safety, compatibility and acceptance;
+- current purpose and state;
+- options and reversibility;
+- recommended recovery;
+- owner decision;
+- next packet/event.
 
-Ogni eccezione deve includere:
-- causa
-- impatto
-- opzioni
-- raccomandazione
-- decisione finale
+Minor reversible local deviations may be handled inside scope. Scope expansion, provider/model/account change, cost change, data egress, security, architecture, evidence failure or irreversible action must block/escalate. Never hide a blocked node by marking it complete.
