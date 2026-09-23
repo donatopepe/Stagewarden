@@ -36,6 +36,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** default constructor; explicit mock run; unsupported mode rejection/normalization. No provider/model or scheduler policy change beyond fail-closed validation.
 - **Variabile unica:** execution-mode validation at orchestrator boundary; no legacy parallel implementation.
 - **Test wet target:** nuova matrice in `tests/test_goal_loop_orchestrator.py`, then unified runner.
+- **Esito:** serial gate `3/3`; targeted MVP `105/105`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3724/12516`. Unsupported `parallel`/`bogus` modes now fail closed; no legacy parallel implementation added.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 

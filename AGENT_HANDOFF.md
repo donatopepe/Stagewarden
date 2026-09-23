@@ -6,7 +6,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
 - CodeGraph verified current: 139 files, 3715 nodes, 12455 edges after unified validation manifest/runner additions.
-- Latest bounded gate passed: Node Knowledge relation/freshness matrix 6/6; targeted node/event/context/mutation suite 104/104; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Earlier Node Knowledge Store/index 6/6, tree/packet 6/6, context 6/6 and mutation 16/16 remain green; provider/model policy and serial execution unchanged.
+- Latest bounded gate passed: serial execution-mode gate 3/3; targeted node/event/context/mutation suite 105/105; Node Knowledge relation/freshness 6/6; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`.
@@ -53,12 +53,14 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - `stagewarden/executor.py`: new read actions, model context budget, automatic chunk capping/compaction and persistent complete-file references; provider suspension classification now preserves resumable `waiting` state.
 - Unified runner separates full evaluator stdout from bounded report tails; no runtime/provider/model policy mutation.
 - Code index remains node-scoped; relation rows carry source path/lines/hash/freshness and stale symbols are removed on changed reindex.
+- Goal loop validates mode at boundary; only `mock`, `auto`, `pi` accepted and all paths execute one ready node serially.
 - `tests/test_file_read_recovery.py`: reopen/resume, offset integrity and content-hash recovery tests.
 - `stagewarden/event_stream.py`: append-only redacted JSONL events and replay projection.
 - `tests/test_event_stream.py`: redaction and replay tests.
 - `tests/test_trace_cli.py`: status/default-policy compatibility and CLI smoke coverage.
 - `tests/data/unified_validation_matrix.json`, `scripts/run_unified_validation.py`, `scripts/check_unified_validation.py`: fixed-order scenario manifest, bounded runner and docs/diff hygiene checker.
 - `tests/test_node_knowledge.py`: six-case relation/freshness matrix covering module/import/call/read/write extraction, unchanged freshness and changed-version replacement.
+- `tests/test_goal_loop_orchestrator.py`: three-case serial execution-mode gate; unsupported parallel modes rejected at orchestrator boundary.
 - `tests/test_executor_event_stream.py`: tool/chunk/compaction event coverage.
 - `stagewarden/mutation_journal.py`, `tests/test_mutation_journal.py`, `tests/test_mutation_execution.py`: idempotent mutation journal and recovery tests for all 16 declared mutation actions.
 - `tests/test_modelprefs.py`: manual model ownership and fallback policy round-trip/validation tests.
