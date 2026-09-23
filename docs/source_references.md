@@ -9,7 +9,7 @@ This document lists external material used as behavioral research. It is not a p
 | Caveman | `external_sources/caveman` | `https://github.com/JuliusBrussee/caveman` | compression, commands, skills, packaging |
 | OpenAI Codex CLI | `external_sources/codex` | `https://github.com/openai/codex` | status, approvals, sandbox, usage, protocol |
 | Claude Code | `external_sources/claude-code` | `https://github.com/anthropics/claude-code` | CLI behavior and auth surfaces |
-| KiloCode | `external_sources/kilocode` | `https://github.com/Kilo-Org/kilocode` | provider/model registry and runtime layering |
+| KiloCode | `external_sources/kilocode` and `docs/kilocode_provider_coverage.md` | `https://github.com/Kilo-Org/kilocode` | provider/model registry and runtime layering |
 | Pi Agent extensions | `/root/.pi/agent/extensions` | installed local reference | auto-compaction, dynamic catalog, subagent behavior |
 
 ## Rules

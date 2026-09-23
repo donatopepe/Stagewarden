@@ -37,7 +37,7 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Baseline: no dedicated six-case matrix; partial node/file tests existed.
 - Change: added Node Knowledge Store acceptance matrix covering node isolation, citations, code lines, compaction and stale/fresh reindex.
 - Wet evidence: Node Knowledge/index matrix `6/6`; Node Knowledge/file/context/event suite `19/19 OK`; goal-loop/event/tools suite passed; OmniRoute free smoke `OmniRoute free route OK (auto/coding:free)`; `py_compile`, `git diff --check` passed. CodeGraph current `137 files / 3685 nodes / 12326 edges`.
-- Open: next bounded gate is broader acceptance/full matrix; external multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
+- Current bounded sub-gate: provider suspension cases `2/2` pass; transient network and usage-limit errors now persist resumable `waiting` handoff before fallback denial. Main unified runner remains open; external multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
 
 ## Full v3 approval gate
 MVP runtime testing is authorized. User must still review v3 section 21 before full v3 extensions on:
@@ -102,6 +102,13 @@ No runtime feature work before approval.
 - Event commands are present in command catalog/help metadata; node-filtered event/replay views are available, with `EventStream.follow` for live polling.
 - Documentation UTF-8/no-BOM and diff checks remain required.
 - Live multi-node OmniRoute free remains blocked by repeated malformed/truncated JSON after initial nodes; direct smoke now also returned prose-wrapped success marker. Parser/adapter remain fail-closed.
+
+## Current bounded evidence
+- Provider suspension sub-gate: `python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_suspended_network_session_from_persisted_handoff tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_after_token_reset_from_persisted_handoff -v` → `2/2 OK`.
+- Regression targeted aggregate: Agent/executor/router/model-policy/policy-doc tests → `94` tests, `OK (skipped=1)`.
+- Simulation wet total: `test_total_run_is_wet_and_fail_closed` → `1/1 OK`.
+- CodeGraph: `137 files / 3685 nodes / 12331 edges`, up to date. `git diff --check`, JSON validation and `py_compile` pass.
+- Remaining known failure: interactive status compatibility expects automatic chatgpt display while default persisted policy is manual; no policy change made.
 
 ## Next action
 Extend event stream with richer tool/file checkpoint events and live multiplexer UI. Keep all future work in `TODO.md`.

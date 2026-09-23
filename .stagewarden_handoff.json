@@ -11,12 +11,12 @@
   "user_question_log": [],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Full v3 extensions remain pending. OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and current prose-wrapped success marker; fail-closed preserved.",
+  "waiting_reason": "Full v3 extensions remain pending. Unified full runner below 6/6 after prior 588-test baseline with 5 failures and 1 error; interactive status compatibility remains open. OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved.",
   "current_step_id": "node-first-mvp-omniroute",
   "current_step_title": "Validate serial bottom-up MVP with OmniRoute free",
   "current_step_status": "active",
-  "latest_observation": "2026-09-23: closed Node Knowledge Store/index acceptance matrix 6/6 after tree/packet 6/6, context 6/6 and MutationJournal 16/16. Added node isolation, citations, code lines, compaction, stale/fresh reindex and file-read recovery case. Node Knowledge/file/context/event suite 19/19 green; CodeGraph 137 files, 3685 nodes, 12326 edges; OmniRoute free direct smoke green. Prior external malformed/truncated and wrong-contract blockers remain.",
-  "plan_status": "MVP implementation active; bounded loop c05d5335 continues every 5 minutes. Node/event/file recovery, context-aware replay metadata, MutationJournal completed/in-flight recovery for all 16 declared mutations, manual/paid routing policy, tree validation, deterministic ordering, typed packets, lateral rejection, retry events, cycle projection and capsule recovery available. Next: broader acceptance/full matrix. No parser weakening or parallelism.",
+  "latest_observation": "2026-09-23: provider suspension sub-gate 2/2 passed. Targeted regression aggregate 94 tests OK (1 intentional skip); simulation wet total 1/1; policy/docs compatibility markers restored. Transient network and usage-limit failures persist resumable waiting handoff before manual fallback denial. Provider/model ownership, fallback authorization and serial execution unchanged. CodeGraph current at 137 files, 3685 nodes, 12331 edges. Interactive status compatibility remains open; unified full runner and repeated malformed multi-node OmniRoute remain blockers.",
+  "plan_status": "MVP implementation active; provider suspension recovery 2/2 green; targeted aggregate 94 OK; simulation wet total 1/1. Node/event/file recovery, context-aware replay metadata, MutationJournal completed/in-flight recovery for all 16 declared mutations, manual/paid routing policy, tree validation, deterministic ordering, typed packets, lateral rejection, retry events, cycle projection and capsule recovery available. Next: unified scenario/full wet runner. No parser weakening, provider/model change or parallelism.",
   "git_head": "6806663",
   "git_head_baseline": "6806663",
   "risk_register": [
@@ -155,7 +155,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-23T01:35:00+00:00",
+  "updated_at": "2026-09-23T22:26:52+02:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -2702,7 +2702,7 @@
           },
           "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
           "error_message": null,
-          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
+          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
           "messages_sent": [
             {
               "FROM": "root.scope",
@@ -2776,7 +2776,7 @@
         },
         "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
         "error_message": null,
-        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
+        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
         "messages_sent": [
           {
             "FROM": "root.scope",

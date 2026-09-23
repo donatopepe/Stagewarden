@@ -42,13 +42,14 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Capability baseline now includes `model policy` in provider/model control.
 - Mutation journal inspection is available through CLI `mutations`, `mutations completed`, and `mutations failed`.
 - Full v3 remains incremental; richer live multiplexer/UI remains open.
+- Provider suspension fix: transient network and usage-limit failures are classified before manual fallback denial; fail-closed ownership remains unchanged and resumable handoff persists `waiting`.
 
 ## Recent changes
 - `TODO.md`: single re-engineering/MVP plan; MVP node/RAG/OmniRoute tasks marked.
 - `stagewarden/goal_loop_orchestrator.py`: serial bottom-up execution, visible purpose events, WorkPacket/ResultPacket, OmniRoute free backend.
 - `stagewarden/node_knowledge.py`: SQLite Node Knowledge Store, node-scoped retrieval, Python code index and deterministic compaction helper.
 - `stagewarden/tools/files.py`: context-aware chunk iterator and complete-file reconstruction boundary.
-- `stagewarden/executor.py`: new read actions, model context budget, automatic chunk capping/compaction and persistent complete-file references.
+- `stagewarden/executor.py`: new read actions, model context budget, automatic chunk capping/compaction and persistent complete-file references; provider suspension classification now preserves resumable `waiting` state.
 - `tests/test_file_read_recovery.py`: reopen/resume, offset integrity and content-hash recovery tests.
 - `stagewarden/event_stream.py`: append-only redacted JSONL events and replay projection.
 - `tests/test_event_stream.py`: redaction and replay tests.
@@ -61,7 +62,8 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - `docs/specs/stagewarden-v2.md`: reduced to superseded pointer.
 - `docs/architecture.md`: rewritten for tree/node scheduler, packets, Node Knowledge Store, code-aware index, event terminal and trust boundaries.
 - `README.md`, `README_IT.md`, `ROADMAP.md`, `docs/README.md`: rewritten as product/navigation docs; roadmap now points to TODO only.
-- `AGENT_MANIFESTO.md`, `AGENT_POLICY.md`, `AGENT_POLICY.json`: aligned to bottom-up/packet/evidence/node/RAG/terminal/context ownership rules.
+- `AGENT_MANIFESTO.md`, `AGENT_POLICY.md`, `AGENT_POLICY.json`: aligned to bottom-up/packet/evidence/node/RAG/terminal/context ownership rules; machine-readable policy now includes required author/framework/principle IDs.
+- `docs/source_references.md`, `docs/status_research.md`, `examples/stagewarden_settings.example.json`: restored required KiloCode research markers and safe example environment/command references; no secrets.
 - `.pi/prompts/*.md`: rewritten to prohibit implicit delegation/lateral messaging and define WorkPacket/ResultPacket flow.
 - `models/*`, `examples/stagewarden_settings.example.json`, `docs/*` references: marked legacy/reference or aligned to v3.
 
@@ -240,6 +242,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Wet validation: `python3 -m unittest tests.test_goal_loop_orchestrator tests.test_event_stream tests.test_node_knowledge -q` → `26` tests, `OK`; CodeGraph synced at `137/3606/11557`; `git diff --check` passed.
 
 ## Open issues
+- Unified full runner remains below 6/6: current full discovery baseline was 588 tests with 5 failures and 1 error before this iteration; policy/docs failures were corrected, while interactive status compatibility remains open.
 - User approval still required for `docs/specs/stagewarden-v3.md`.
 - Open decisions are in v3 section 21: bottom-up exceptions, serial/parallel policy, retention, storage backend, code languages, prompt visibility, active-node UX, dynamic child creation, repeat forwarding, and v2 archival handling.
 - Runtime v3 implementation not started.
@@ -252,7 +255,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Live free-route contract is currently unstable: direct smoke failed once with wrong JSON shape, in addition to prior multi-node malformed/truncated JSON.
 
 ## Next steps
-1. Run documentation validation: UTF-8/no-BOM, links/terminology audit, `git diff --check`, CodeGraph status/sync.
+1. Run unified scenario/full wet runner: simulation matrix, targeted MVP suites, full unittest discovery, CLI smoke and documentation/link hygiene.
 2. Complete paid-provider classification/enforcement and then tree invariants.
 2. Complete paid-provider classification/enforcement and then tree invariants.
 3. User reviews and approves/corrects `docs/specs/stagewarden-v3.md` and section 21 decisions.

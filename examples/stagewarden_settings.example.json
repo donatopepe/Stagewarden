@@ -35,6 +35,8 @@
     }
   },
   "model": {
+    "analysis_key_env": "STAGEWARDEN_ARTIFICIAL_ANALYSIS_API_KEY",
+    "catalog_refresh_command": "catalog refresh --aa",
     "selection_mode": "manual",
     "provider": null,
     "model": null,

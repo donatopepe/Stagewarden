@@ -17,6 +17,16 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** simulation matrix total; targeted MVP suites; full unittest discovery; CLI `capabilities`/`model limits --json`/`events replay`; UTF-8/BOM, links and diff checks.
 - **Gate completato precedente:** Node Knowledge Store/index matrix 6/6; tree/packet 6/6; context 6/6; mutation 16/16.
 
+### Sotto-iterazione bounded corrente — sospensione fail-closed di errori provider
+
+- **Obiettivo:** classificare errori transitori di rete/limite d'uso come sessione sospesa anche con selezione provider manuale e fallback negato, senza cambiare ownership provider/model o autorizzazione fallback.
+- **Metrica/soglia:** casi fissi integrazione verdi 2/2 (100%).
+- **Baseline:** `/tmp/full-matrix-current-baseline.log`: full discovery 588 test, 5 failure e 1 error; entrambi i casi network/token-reset restituiscono `fallback_not_authorized`/`exception` invece di `Session suspended`/`waiting`.
+- **Casi fissi/ordine:** network failure → handoff `waiting` e messaggio sospensione; usage/token limit → handoff `waiting`, messaggio sospensione e resume completato.
+- **Variabile unica:** classificazione errore sospendibile prima del blocco fallback manuale; nessun fallback/provider/model/parallelismo nuovo.
+- **Test wet target:** `test_agent_resumes_suspended_network_session_from_persisted_handoff`, `test_agent_resumes_after_token_reset_from_persisted_handoff`.
+- **Esito:** `2/2` verdi; network e usage-limit persistono handoff `waiting`, messaggi `Session suspended`, resume completa file e chiude handoff. Policy provider/model, fallback e serialità invariati.
+
 ### Iterazione bounded corrente — Node Knowledge Store/index acceptance matrix
 
 - **Obiettivo:** chiudere acceptance matrix per Node Knowledge Store context/history, node-scoped retrieval/citation, Python code index, compaction e file-read recovery senza sostituire CodeGraph o allargare scope.

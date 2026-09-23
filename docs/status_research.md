@@ -2,7 +2,7 @@
 
 **Status:** research reference, not current implementation contract.
 
-Research into Codex CLI, Claude Code, KiloCode and Pi identified useful patterns:
+Research into Codex CLI, Claude Code, KiloCode and Pi identified useful patterns. KiloCode remains runtime-supported as an adapter/reference boundary, not an authorization source:
 
 - structured status cards are more useful than unstructured logs;
 - model/provider identity and limits need explicit source and freshness;

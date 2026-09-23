@@ -285,7 +285,46 @@ class Executor:
             rate_limit_until = extract_blocked_until(response_text)
             limit_reason = classify_limit_reason(response_text)
             fallback_model = self._fallback_model_after_failure(model)
-            if self.router.selection_mode == "manual" and not self.router.allow_provider_fallback:
+            if (
+                network_issue
+                and self.router.selection_mode == "manual"
+                and not self.router.allow_provider_fallback
+            ):
+                observation = (
+                    "Network unavailable while contacting model provider.\n"
+                    f"Primary error: {response_text or 'unknown'}\n"
+                    "The run is safe to resume once connectivity returns."
+                )
+                self.memory.record_attempt(
+                    iteration=iteration,
+                    step_id=step.id,
+                    model=model,
+                    account=account,
+                    variant=self.handoff.model_variant_by_model.get(model),
+                    action_type="model_network_unavailable",
+                    action_signature=f"network-unavailable:{model}",
+                    success=False,
+                    observation=observation,
+                    error_type="network_wait",
+                )
+                return StepOutcome(
+                    ok=False,
+                    step_completed=False,
+                    model=model,
+                    action_type="model_network_unavailable",
+                    observation=observation,
+                    account=account,
+                    variant=self.handoff.model_variant_by_model.get(model),
+                    git_head_before=git_head_before,
+                    git_head_after=self._git_head(),
+                    error_type="network_wait",
+                    prince2_role=prince2_role,
+                )
+            if (
+                self.router.selection_mode == "manual"
+                and not self.router.allow_provider_fallback
+                and not (rate_limit_until or limit_reason in {"usage_limit", "credits_exhausted"})
+            ):
                 fallback_model = model
                 observation = (
                     f"Provider {model} failed; manual provider selection blocks silent fallback. "
@@ -317,7 +356,11 @@ class Executor:
                     prince2_role=prince2_role,
                 )
             if rate_limit_until or limit_reason in {"usage_limit", "credits_exhausted"}:
-                alternatives = self._available_alternative_models(model)
+                alternatives = (
+                    []
+                    if self.router.selection_mode == "manual" and not self.router.allow_provider_fallback
+                    else self._available_alternative_models(model)
+                )
                 if alternatives:
                     fallback_model = alternatives[0]
                 else:
@@ -332,7 +375,7 @@ class Executor:
                         action_signature=f"rate-limit:{model}",
                         success=False,
                         observation=(
-                            f"Provider {model} is rate-limited"
+                            f"Provider {model} reached a usage limit and is rate-limited"
                             + (f" until {rate_limit_until}" if rate_limit_until else "")
                             + ". "
                             f"User decision: {decision or 'stop'}."
@@ -345,7 +388,7 @@ class Executor:
                         model=model,
                         action_type="model_rate_limit",
                         observation=(
-                            f"Provider {model} is rate-limited"
+                            f"Provider {model} reached a usage limit and is rate-limited"
                             + (f" until {rate_limit_until}" if rate_limit_until else "")
                             + ". "
                             "No alternative provider is currently available."
