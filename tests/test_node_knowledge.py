@@ -107,6 +107,54 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
             finally:
                 store.close()
 
+    def test_code_index_relations_and_freshness_matrix_has_six_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "sample.py"
+            source.write_text(
+                "from helper import run\n"
+                "\n"
+                "VALUE = 1\n"
+                "\n"
+                "def build(value):\n"
+                "    result = run(value)\n"
+                "    return result\n",
+                encoding="utf-8",
+            )
+            store = NodeKnowledgeStore(root / "knowledge.sqlite")
+            try:
+                first = store.index_python(root, node_id="node-a", tree_id="tree")
+                # 1. module symbol
+                module_symbols = store.code_search("sample", node_id="node-a")
+                self.assertTrue(module_symbols)
+                self.assertEqual(module_symbols[0]["symbol_kind"], "module")
+                # 2. import relation
+                self.assertTrue(store.code_relations("helper.run", node_id="node-a", relation_kind="import"))
+                # 3. local call relation
+                self.assertTrue(store.code_relations("run", node_id="node-a", relation_kind="call"))
+                # 4. source read/write relations
+                self.assertTrue(store.code_relations("VALUE", node_id="node-a", relation_kind="write"))
+                self.assertTrue(store.code_relations("run", node_id="node-a", relation_kind="read"))
+                # 5. unchanged reindex is fresh and does not duplicate symbols
+                second = store.index_python(root, node_id="node-a", tree_id="tree")
+                self.assertEqual(second["fresh"], 1)
+                self.assertEqual(second["changed"], 0)
+                self.assertEqual(second["stale_removed"], 0)
+                # 6. changed reindex increments version and removes stale symbol
+                source.write_text("def changed(value):\n    return value\n", encoding="utf-8")
+                third = store.index_python(root, node_id="node-a", tree_id="tree")
+                self.assertEqual(third["changed"], 1)
+                self.assertTrue(store.code_search("changed", node_id="node-a"))
+                self.assertEqual(store.code_search("build", node_id="node-a"), [])
+                version = store.connection.execute(
+                    "SELECT version, freshness FROM code_files WHERE node_id = ? AND path = ?",
+                    ("node-a", "sample.py"),
+                ).fetchone()
+                self.assertEqual((version["version"], version["freshness"]), (2, "fresh"))
+                self.assertEqual(first["schema_version"], 2)
+            finally:
+                store.close()
+
     def test_compacts_context_deterministically_and_preserves_purpose(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite")

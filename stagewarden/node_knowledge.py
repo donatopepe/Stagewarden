@@ -7,6 +7,17 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Iterable
 
+INDEX_SCHEMA_VERSION = 2
+
+
+def _node_end(node: ast.AST) -> int:
+    return int(getattr(node, "end_lineno", getattr(node, "lineno", 1)))
+
+
+def _relative_path(path: Path, root: Path) -> str:
+    return str(path.relative_to(root)).replace("\\", "/")
+
+
 
 class NodeKnowledgeStore:
     """Local node-scoped knowledge/history store for MVP execution.
@@ -56,6 +67,33 @@ class NodeKnowledgeStore:
             );
             CREATE INDEX IF NOT EXISTS idx_symbols_node ON code_symbols(node_id, symbol_kind);
             CREATE INDEX IF NOT EXISTS idx_symbols_name ON code_symbols(name, qualified_name);
+            CREATE TABLE IF NOT EXISTS code_files (
+                node_id TEXT NOT NULL,
+                path TEXT NOT NULL,
+                language TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                freshness TEXT NOT NULL,
+                line_count INTEGER NOT NULL,
+                indexed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (node_id, path)
+            );
+            CREATE TABLE IF NOT EXISTS code_relations (
+                relation_id TEXT PRIMARY KEY,
+                node_id TEXT NOT NULL,
+                source_path TEXT NOT NULL,
+                source_qualified_name TEXT NOT NULL,
+                target_path TEXT,
+                target_qualified_name TEXT NOT NULL,
+                relation_kind TEXT NOT NULL,
+                line_start INTEGER NOT NULL,
+                line_end INTEGER NOT NULL,
+                content_hash TEXT NOT NULL,
+                source_json TEXT NOT NULL,
+                UNIQUE(node_id, source_path, source_qualified_name, target_path, target_qualified_name, relation_kind, line_start)
+            );
+            CREATE INDEX IF NOT EXISTS idx_code_relations_node ON code_relations(node_id, relation_kind);
+            CREATE INDEX IF NOT EXISTS idx_code_relations_target ON code_relations(node_id, target_qualified_name);
             CREATE TABLE IF NOT EXISTS file_reads (
                 session_id TEXT PRIMARY KEY,
                 tree_id TEXT NOT NULL,
@@ -288,8 +326,10 @@ class NodeKnowledgeStore:
         return [item for _, item in scored[:limit]]
 
     def index_python(self, root: Path, *, node_id: str, tree_id: str = "") -> dict[str, int]:
-        files = symbols = 0
+        files = symbols = relations = fresh = changed = 0
         root = root.resolve()
+        seen_paths: set[str] = set()
+        parsed_files: dict[str, tuple[str, ast.Module, list[str]]] = {}
         for path in sorted(root.rglob("*.py")):
             if any(part in {".git", ".stagewarden", "venv", "venv_pytest", "__pycache__"} for part in path.parts):
                 continue
@@ -298,35 +338,157 @@ class NodeKnowledgeStore:
                 tree = ast.parse(content, filename=str(path))
             except (OSError, SyntaxError, UnicodeError):
                 continue
-            files += 1
+            relative = _relative_path(path, root)
             file_hash = self._hash(content)
-            relative = str(path.relative_to(root))
+            seen_paths.add(relative)
+            parsed_files[relative] = (file_hash, tree, content.splitlines())
+            prior = self.connection.execute(
+                "SELECT content_hash, version FROM code_files WHERE node_id = ? AND path = ?",
+                (node_id, relative),
+            ).fetchone()
+            if prior is not None and str(prior["content_hash"]) == file_hash:
+                fresh += 1
+            elif prior is not None:
+                changed += 1
+            files += 1
+
+        stale_rows = self.connection.execute(
+            "SELECT path FROM code_files WHERE node_id = ?",
+            (node_id,),
+        ).fetchall()
+        stale_paths = {str(row["path"]) for row in stale_rows} - seen_paths
+        for relative in stale_paths:
+            self.connection.execute("DELETE FROM code_symbols WHERE node_id = ? AND path = ?", (node_id, relative))
+            self.connection.execute("DELETE FROM code_relations WHERE node_id = ? AND source_path = ?", (node_id, relative))
+            self.connection.execute("DELETE FROM code_files WHERE node_id = ? AND path = ?", (node_id, relative))
+
+        for relative, (file_hash, tree, lines) in parsed_files.items():
+            prior = self.connection.execute(
+                "SELECT content_hash, version FROM code_files WHERE node_id = ? AND path = ?",
+                (node_id, relative),
+            ).fetchone()
+            version = (
+                int(prior["version"])
+                if prior is not None and str(prior["content_hash"]) == file_hash
+                else int(prior["version"]) + 1 if prior is not None else 1
+            )
+            self.connection.execute(
+                """
+                INSERT INTO code_files (node_id, path, language, content_hash, version, freshness, line_count)
+                VALUES (?, ?, 'python', ?, ?, 'fresh', ?)
+                ON CONFLICT(node_id, path) DO UPDATE SET
+                    content_hash=excluded.content_hash, version=excluded.version,
+                    freshness='fresh', line_count=excluded.line_count, indexed_at=CURRENT_TIMESTAMP
+                """,
+                (node_id, relative, file_hash, version, len(lines)),
+            )
+            self.connection.execute("DELETE FROM code_symbols WHERE node_id = ? AND path = ?", (node_id, relative))
+            self.connection.execute("DELETE FROM code_relations WHERE node_id = ? AND source_path = ?", (node_id, relative))
             parents: dict[ast.AST, ast.AST] = {}
             for container in ast.walk(tree):
                 for child in ast.iter_child_nodes(container):
                     parents[child] = container
-            for node in ast.walk(tree):
-                if not isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-                    continue
-                kind = "class" if isinstance(node, ast.ClassDef) else "function"
-                qualified = node.name
-                parent = parents.get(node)
-                if isinstance(parent, ast.ClassDef):
-                    qualified = f"{parent.name}.{node.name}"
-                entry_id = f"code-{self._hash(f'{node_id}:{relative}:{qualified}:{node.lineno}')[-16:]}"
-                source = {"type": "file", "path": relative, "line_start": node.lineno, "line_end": getattr(node, "end_lineno", node.lineno)}
-                self.connection.execute(
-                    """
-                    INSERT OR REPLACE INTO code_symbols
-                    (entry_id, node_id, path, language, symbol_kind, name, qualified_name,
-                     line_start, line_end, content_hash, source_json)
-                    VALUES (?, ?, ?, 'python', ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (entry_id, node_id, relative, kind, node.name, qualified, node.lineno, getattr(node, "end_lineno", node.lineno), file_hash, json.dumps(source)),
-                )
-                symbols += 1
+            definitions: dict[str, str] = {}
+            for item in ast.walk(tree):
+                if isinstance(item, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    parent = parents.get(item)
+                    qualified = f"{parent.name}.{item.name}" if isinstance(parent, ast.ClassDef) else item.name
+                    definitions[item.name] = qualified
+                    self._insert_code_symbol(node_id, relative, file_hash, item, qualified, "class" if isinstance(item, ast.ClassDef) else "function")
+                    symbols += 1
+            module_name = relative[:-3].replace("/", ".") if relative.endswith(".py") else relative.replace("/", ".")
+            self._insert_code_symbol(node_id, relative, file_hash, tree, module_name, "module")
+            symbols += 1
+            for item in ast.walk(tree):
+                if isinstance(item, ast.Import):
+                    for alias in item.names:
+                        relations += self._insert_code_relation(node_id, relative, file_hash, "module", alias.name, None, alias.name, "import", item)
+                elif isinstance(item, ast.ImportFrom):
+                    imported = item.module or ""
+                    for alias in item.names:
+                        target = f"{imported}.{alias.name}" if imported else alias.name
+                        relations += self._insert_code_relation(node_id, relative, file_hash, "module", relative, None, target, "import", item)
+                elif isinstance(item, ast.Call):
+                    target = item.func.id if isinstance(item.func, ast.Name) else item.func.attr if isinstance(item.func, ast.Attribute) else ""
+                    if target:
+                        owner = self._enclosing_qualified_name(item, parents, definitions)
+                        relations += self._insert_code_relation(node_id, relative, file_hash, owner, relative, None, definitions.get(target, target), "call", item)
+                elif isinstance(item, ast.Name) and isinstance(item.ctx, ast.Load):
+                    owner = self._enclosing_qualified_name(item, parents, definitions)
+                    relations += self._insert_code_relation(node_id, relative, file_hash, owner, relative, None, definitions.get(item.id, item.id), "read", item)
+            for item in ast.walk(tree):
+                if isinstance(item, ast.Assign):
+                    for target in item.targets:
+                        if isinstance(target, ast.Name):
+                            owner = self._enclosing_qualified_name(item, parents, definitions)
+                            relations += self._insert_code_relation(node_id, relative, file_hash, owner, relative, None, target.id, "write", item)
         self.connection.commit()
-        return {"files": files, "symbols": symbols}
+        return {"files": files, "symbols": symbols, "relations": relations, "fresh": fresh, "changed": changed, "stale_removed": len(stale_paths), "schema_version": INDEX_SCHEMA_VERSION}
+
+    def _insert_code_symbol(self, node_id: str, path: str, content_hash: str, node: ast.AST, qualified: str, kind: str) -> None:
+        line_start = int(getattr(node, "lineno", 1))
+        line_end = _node_end(node)
+        entry_id = f"code-{self._hash(f'{node_id}:{path}:{qualified}:{line_start}:{kind}')[-16:]}"
+        source = {"type": "file", "path": path, "line_start": line_start, "line_end": line_end, "content_hash": content_hash, "freshness": "fresh", "index_schema_version": INDEX_SCHEMA_VERSION}
+        name = str(getattr(node, "name", qualified.rsplit(".", 1)[-1]))
+        self.connection.execute(
+            """
+            INSERT OR REPLACE INTO code_symbols
+            (entry_id, node_id, path, language, symbol_kind, name, qualified_name,
+             line_start, line_end, content_hash, source_json)
+            VALUES (?, ?, ?, 'python', ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (entry_id, node_id, path, kind, name, qualified, line_start, line_end, content_hash, json.dumps(source, sort_keys=True)),
+        )
+
+    def _enclosing_qualified_name(self, node: ast.AST, parents: dict[ast.AST, ast.AST], definitions: dict[str, str]) -> str:
+        current = parents.get(node)
+        while current is not None:
+            if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                return definitions.get(current.name, current.name)
+            current = parents.get(current)
+        return "module"
+
+    def _insert_code_relation(self, node_id: str, source_path: str, content_hash: str, owner: str, target_path: str | None, _unused: str | None, target: str, kind: str, node: ast.AST) -> int:
+        line_start = int(getattr(node, "lineno", 1))
+        line_end = _node_end(node)
+        relation_id = f"relation-{self._hash(f'{node_id}:{source_path}:{owner}:{target_path}:{target}:{kind}:{line_start}')[-16:]}"
+        source = {"type": "relation", "path": source_path, "line_start": line_start, "line_end": line_end, "content_hash": content_hash, "freshness": "fresh", "index_schema_version": INDEX_SCHEMA_VERSION}
+        self.connection.execute(
+            """
+            INSERT OR REPLACE INTO code_relations
+            (relation_id, node_id, source_path, source_qualified_name, target_path,
+             target_qualified_name, relation_kind, line_start, line_end, content_hash, source_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (relation_id, node_id, source_path, owner, target_path, target, kind, line_start, line_end, content_hash, json.dumps(source, sort_keys=True)),
+        )
+        return 1
+
+    def code_relations(self, query: str = "", *, node_id: str | None = None, relation_kind: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        clauses = []
+        params: list[Any] = []
+        if node_id:
+            clauses.append("node_id = ?")
+            params.append(node_id)
+        if relation_kind:
+            clauses.append("relation_kind = ?")
+            params.append(relation_kind)
+        if query:
+            clauses.append("(lower(source_qualified_name) LIKE ? OR lower(target_qualified_name) LIKE ? OR lower(source_path) LIKE ?)")
+            needle = f"%{query.lower()}%"
+            params.extend((needle, needle, needle))
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = self.connection.execute(
+            f"SELECT * FROM code_relations {where} ORDER BY source_path, line_start, relation_id LIMIT ?",
+            (*params, max(1, int(limit))),
+        ).fetchall()
+        results = []
+        for row in rows:
+            item = dict(row)
+            item["source"] = json.loads(item.pop("source_json"))
+            results.append(item)
+        return results
 
     def code_search(self, query: str, *, node_id: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         tokens = self._tokens(query)

@@ -16,7 +16,16 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Baseline:** `/tmp/full-matrix-baseline.log`: no unified runner in `tests/data`; canonical matrix exists under `data/simulation_matrix.json` and `scripts/run_simulation_matrix.py`, but full combined gate not run in current iteration.
 - **Casi fissi/ordine:** simulation matrix total; targeted MVP suites; full unittest discovery; CLI `baseline --json`, `model limits --json`, `events replay --json`; UTF-8/BOM, links and diff checks.
 - **Gate completato precedente:** Node Knowledge Store/index matrix 6/6; tree/packet 6/6; context 6/6; mutation 16/16.
-- **Priorità corrente:** creare `tests/data` scenario manifest e runner riusabile; non cambiare runtime policy.
+- **Priorità corrente:** estendere Node Knowledge code index con moduli, relazioni import/call/read/write e freshness/versioning; non cambiare runtime policy.
+
+### Sotto-iterazione bounded corrente — relazioni/freshness code index
+
+- **Obiettivo:** estendere esclusivamente `NodeKnowledgeStore.index_python()` oltre classi/funzioni, persistendo module/import/call/read/write relations con file hash/version freshness e node scope.
+- **Metrica/soglia:** 100% dei 6 casi fissi verdi: module/import symbols; call relation; import relation; source read/write relation; unchanged reindex freshness; changed-file version replacement; soglia 6/6.
+- **Baseline:** `/tmp/code-index-relations-baseline.log`: suite Node Knowledge `5/5 OK`, ma schema ha solo `code_symbols` senza relations/version table; probe indexa `1` function e `0` import/call/read/write relations.
+- **Casi fissi/ordine:** module/import extraction; local call edge; import edge; source read/write metadata; unchanged reindex reports fresh/no duplicate; changed content updates version/hash and removes stale symbols.
+- **Variabile unica:** Python AST index schema/relation extraction; no scheduler, provider/model, fallback, OmniRoute parser or parallelism change.
+- **Test wet target:** nuova matrice `6/6` in `tests/test_node_knowledge.py`, poi unified targeted runner.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
@@ -25,6 +34,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Baseline:** `/tmp/unified-validation-baseline.log`: gate `simulation_matrix` termina `returncode=0` ma runner fallisce `stdout is not JSON` perché `_run()` conserva solo ultimi 4000 caratteri del JSON.
 - **Casi fissi/ordine:** evaluator con stdout completo + tail; manifest 6 gate IDs unici/in ordine; runner list mode; docs checker.
 - **Variabile unica:** separare stdout completo usato dall'evaluator dal tail conservato nel report; nessuna modifica runtime/provider/model/parallelismo.
+- **Esito:** runner fixed-order esegue `6/6` gate verdi: simulation `29/29`, targeted MVP `103/103`, full discovery `588/588` con `5` skip, CLI `3/3`, OmniRoute direct smoke, docs `17/17` con `0` errori. Report bounded conserva solo tail stdout/stderr.
 
 ### Sotto-iterazione bounded corrente — sospensione fail-closed di errori provider
 
@@ -220,7 +230,7 @@ Prompt non è source of truth operativo. Nessun blackboard globale, messaggio la
 
 ### P4 — Test e validazione wet-run
 
-- [ ] Creare matrice scenari unica dentro test/data derivata dalla specifica.
+- [x] Creare matrice scenari unica dentro `tests/data/unified_validation_matrix.json` con runner fisso `scripts/run_unified_validation.py`.
 - [x] Implementare validator MVP tree: root unico, parent/dependency esistenti, cicli bloccati, ordine bottom-up seriale preservato.
 - [x] Rendere ready-node selection deterministica per profondità parent e `node_id`; dipendenze completate restano gate obbligatorio.
 - [x] Testare tree invariants e bottom-up ordering.
@@ -249,8 +259,8 @@ Prompt non è source of truth operativo. Nessun blackboard globale, messaggio la
 - [x] Estendere MutationJournal a `insert_text_file` con in_flight/completed replay idempotente.
 - [ ] Estendere crash recovery da reopen controllato a interruzione durante tool/mutazione non-file.
 - [x] Applicare `allow_paid_provider` al routing euristico/catalogo: provider paid/unknown bloccati senza autorizzazione; policy esplicita propagata ad Agent/router e WorkPacket.
-- [ ] Eseguire suite mirata, suite completa, CLI smoke e simulation matrix in wet-run.
-- [ ] Aggiornare handoff dopo ogni gate.
+- [x] Eseguire suite mirata, suite completa, CLI smoke e simulation matrix in wet-run: unified runner `6/6` verde.
+- [x] Aggiornare handoff dopo ogni gate.
 
 ## Capability disposition provvisoria
 
