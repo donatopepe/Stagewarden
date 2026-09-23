@@ -26,6 +26,16 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** module/import extraction; local call edge; import edge; source read/write metadata; unchanged reindex reports fresh/no duplicate; changed content updates version/hash and removes stale symbols.
 - **Variabile unica:** Python AST index schema/relation extraction; no scheduler, provider/model, fallback, OmniRoute parser or parallelism change.
 - **Test wet target:** nuova matrice `6/6` in `tests/test_node_knowledge.py`, poi unified targeted runner.
+- **Esito:** relation/freshness matrix `6/6`; targeted MVP `104/104`; unified runner `6/6`; direct OmniRoute smoke green; CodeGraph `139/3723/12503`.
+
+### Sotto-iterazione bounded corrente — serial gate fail-closed
+
+- **Obiettivo:** verificare che goal-loop execution mode resti seriale anche quando riceve valore non supportato, senza introdurre parallelismo legacy o collision-prone behavior.
+- **Metrica/soglia:** casi fissi `3/3` verdi: default mode is `auto` but one ready node; explicit `mock` remains serial; unsupported `parallel`/`bogus` values fail closed or are normalized to serial-safe mode. Soglia 3/3.
+- **Baseline:** `/tmp/serial-mode-baseline.log`: constructor accepts `parallel` and `bogus` unchanged; `_execute_node` comment says serial but no mode validation exists.
+- **Casi fissi/ordine:** default constructor; explicit mock run; unsupported mode rejection/normalization. No provider/model or scheduler policy change beyond fail-closed validation.
+- **Variabile unica:** execution-mode validation at orchestrator boundary; no legacy parallel implementation.
+- **Test wet target:** nuova matrice in `tests/test_goal_loop_orchestrator.py`, then unified runner.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 

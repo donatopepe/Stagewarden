@@ -158,6 +158,11 @@ class GoalLoopOrchestrator:
                                             EXECUTION_MODE_AUTO)
         self.config = config
         self.task = task
+        if execution_mode not in {EXECUTION_MODE_MOCK, EXECUTION_MODE_AUTO, EXECUTION_MODE_PI}:
+            raise ValueError(
+                f"Unsupported goal-loop execution mode {execution_mode!r}; "
+                "serial modes are mock, auto, or pi."
+            )
         self.execution_mode = execution_mode
         self.json_mode = json_mode
         self.handoff = ProjectHandoff.load(config.handoff_path)

@@ -30,6 +30,21 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             stderr=stderr,
         )
 
+    def test_execution_mode_serial_gate_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            default = GoalLoopOrchestrator(AgentConfig(workspace_root=root / "default"), "default", json_mode=True)
+            self.assertEqual(default.execution_mode, "auto")
+            self.assertEqual(default._get_ready_nodes()[0].node_id, "root.scope")
+            default.knowledge.close()
+            mock = GoalLoopOrchestrator(AgentConfig(workspace_root=root / "mock"), "mock", execution_mode="mock", json_mode=True)
+            self.assertEqual(mock.execution_mode, "mock")
+            self.assertEqual(mock._get_ready_nodes()[0].node_id, "root.scope")
+            mock.knowledge.close()
+            for unsupported in ("parallel", "bogus"):
+                with self.assertRaises(ValueError):
+                    GoalLoopOrchestrator(AgentConfig(workspace_root=root / unsupported), unsupported, execution_mode=unsupported, json_mode=True)
+
     def test_tree_packet_acceptance_matrix_has_six_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "matrix", execution_mode="mock", json_mode=True)
