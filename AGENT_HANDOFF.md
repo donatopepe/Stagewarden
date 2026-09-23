@@ -43,6 +43,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Mutation journal inspection is available through CLI `mutations`, `mutations completed`, and `mutations failed`.
 - Full v3 remains incremental; richer live multiplexer/UI remains open.
 - Provider suspension fix: transient network and usage-limit failures are classified before manual fallback denial; fail-closed ownership remains unchanged and resumable handoff persists `waiting`.
+- Status CLI expectation now matches persisted manual policy; full discovery is green at 588 tests with 5 intentional skips.
 
 ## Recent changes
 - `TODO.md`: single re-engineering/MVP plan; MVP node/RAG/OmniRoute tasks marked.
@@ -53,6 +54,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - `tests/test_file_read_recovery.py`: reopen/resume, offset integrity and content-hash recovery tests.
 - `stagewarden/event_stream.py`: append-only redacted JSONL events and replay projection.
 - `tests/test_event_stream.py`: redaction and replay tests.
+- `tests/test_trace_cli.py`: status/default-policy compatibility and CLI smoke coverage.
 - `tests/test_executor_event_stream.py`: tool/chunk/compaction event coverage.
 - `stagewarden/mutation_journal.py`, `tests/test_mutation_journal.py`, `tests/test_mutation_execution.py`: idempotent mutation journal and recovery tests for all 16 declared mutation actions.
 - `tests/test_modelprefs.py`: manual model ownership and fallback policy round-trip/validation tests.
@@ -242,11 +244,11 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Wet validation: `python3 -m unittest tests.test_goal_loop_orchestrator tests.test_event_stream tests.test_node_knowledge -q` → `26` tests, `OK`; CodeGraph synced at `137/3606/11557`; `git diff --check` passed.
 
 ## Open issues
-- Unified full runner remains below 6/6: current full discovery baseline was 588 tests with 5 failures and 1 error before this iteration; policy/docs failures were corrected, while interactive status compatibility remains open.
+- Unified full runner implementation remains open, but current gates are green: simulation matrix 29/29, targeted MVP 103/103, full discovery 588/588 (5 skips), CLI smoke and docs/link audit pass.
 - User approval still required for `docs/specs/stagewarden-v3.md`.
 - Open decisions are in v3 section 21: bottom-up exceptions, serial/parallel policy, retention, storage backend, code languages, prompt visibility, active-node UX, dynamic child creation, repeat forwarding, and v2 archival handling.
 - Runtime v3 implementation not started.
-- Legacy full suite remains historical evidence; documentation validation must be run after this rewrite.
+- Full discovery now wet-validates 588 tests; remaining skipped cases are intentional environment/live-provider skips.
 - Live multi-node OmniRoute free remains blocked by repeated malformed/truncated JSON after initial nodes; direct adapter smoke remains green. Parser stays fail-closed.
 - Paid-provider authorization is persisted and surfaced but not yet enforced by catalog/provider price classification; this iteration enforced manual selection and fallback only.
 - Live multi-node OmniRoute free remains blocked by repeated malformed/truncated JSON after initial nodes; direct adapter smoke remains green. Parser stays fail-closed.
@@ -255,9 +257,8 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Live free-route contract is currently unstable: direct smoke failed once with wrong JSON shape, in addition to prior multi-node malformed/truncated JSON.
 
 ## Next steps
-1. Run unified scenario/full wet runner: simulation matrix, targeted MVP suites, full unittest discovery, CLI smoke and documentation/link hygiene.
-2. Complete paid-provider classification/enforcement and then tree invariants.
-2. Complete paid-provider classification/enforcement and then tree invariants.
+1. Create reusable unified scenario/full runner and record 6/6 gate report; do not alter runtime policy.
+2. Expand Node Knowledge code index relations/freshness beyond current Python symbols.
 3. User reviews and approves/corrects `docs/specs/stagewarden-v3.md` and section 21 decisions.
 4. After approval, derive implementation-level TODO entries from the approved spec; only then modify runtime.
 5. Implement in order: event/node store, validator, serial bottom-up scheduler, packet protocol, terminal events, Node Knowledge Store/code index, per-node context/compaction, provider ownership, migration.

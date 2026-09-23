@@ -37,7 +37,7 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Baseline: no dedicated six-case matrix; partial node/file tests existed.
 - Change: added Node Knowledge Store acceptance matrix covering node isolation, citations, code lines, compaction and stale/fresh reindex.
 - Wet evidence: Node Knowledge/index matrix `6/6`; Node Knowledge/file/context/event suite `19/19 OK`; goal-loop/event/tools suite passed; OmniRoute free smoke `OmniRoute free route OK (auto/coding:free)`; `py_compile`, `git diff --check` passed. CodeGraph current `137 files / 3685 nodes / 12326 edges`.
-- Current bounded sub-gate: provider suspension cases `2/2` pass; transient network and usage-limit errors now persist resumable `waiting` handoff before fallback denial. Main unified runner remains open; external multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
+- Current bounded sub-gate: status CLI policy reconciliation passed; full discovery now `588/588 OK (5 skipped)`. Provider suspension cases remain `2/2`; simulation matrix `29/29`; targeted MVP `103/103`; CLI JSON smoke and docs/link audit pass. Unified reusable runner remains open; external multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
 
 ## Full v3 approval gate
 MVP runtime testing is authorized. User must still review v3 section 21 before full v3 extensions on:
@@ -104,6 +104,10 @@ No runtime feature work before approval.
 - Live multi-node OmniRoute free remains blocked by repeated malformed/truncated JSON after initial nodes; direct smoke now also returned prose-wrapped success marker. Parser/adapter remain fail-closed.
 
 ## Current bounded evidence
+- Status CLI fix: updated one stale test expectation from automatic routing to persisted manual provider policy; runtime policy unchanged.
+- Full discovery: `/tmp/full-unittest-after-status-20260923.log` → `588` tests, `OK (skipped=5)`.
+- CLI smoke: `baseline --json`, `model limits --json`, `events replay --json` all exit `0`; JSON output valid. `scripts/test_omniroute_free.sh` → `OmniRoute free route OK (auto/coding:free)`.
+- Documentation/link audit: `17` Markdown files checked, `0` link errors, UTF-8/no-BOM pass.
 - Provider suspension sub-gate: `python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_suspended_network_session_from_persisted_handoff tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_after_token_reset_from_persisted_handoff -v` → `2/2 OK`.
 - Regression targeted aggregate: Agent/executor/router/model-policy/policy-doc tests → `94` tests, `OK (skipped=1)`.
 - Simulation wet total: `test_total_run_is_wet_and_fail_closed` → `1/1 OK`.

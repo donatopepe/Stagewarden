@@ -43,12 +43,12 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "clarification",
+  "waiting_reason": "Full v3 extensions remain pending. Reusable unified runner is not yet implemented. OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "What is the concrete deliverable or decision you want from me?",
-  "plan_status": "step-1:ready,step-2:planned,step-3:planned",
+  "latest_observation": "2026-09-23: status CLI policy reconciliation passed. Full discovery 588 tests OK with 5 intentional skips; simulation matrix 29/29; targeted MVP 103/103; CLI baseline/model-limits/events-replay JSON smoke and docs/link audit pass. Provider suspension sub-gate 2/2 remains green. CodeGraph current at 137 files, 3685 nodes, 12407 edges. Reusable unified runner remains open. Multi-node OmniRoute malformed/wrong-contract output remains fail-closed blocker.",
+  "plan_status": "MVP implementation active; status CLI and provider suspension gates green. Full discovery 588/588 (5 skips), simulation 29/29, targeted MVP 103/103, CLI JSON and docs/link checks green. Node/event/file recovery, context-aware replay metadata, MutationJournal recovery for 16 mutations, manual/paid routing policy, tree validation, deterministic ordering, typed packets, lateral rejection, cycle projection and capsule recovery available. Next: reusable unified runner and broader Node Knowledge relations. No parser weakening, provider/model change or parallelism.",
   "git_head": "ca4cf356d589fdcfc86ba607c3987f8fbeabb619",
   "git_head_baseline": "ca4cf356d589fdcfc86ba607c3987f8fbeabb619",
   "risk_register": [
@@ -193,7 +193,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-23T20:36:13+00:00",
+  "updated_at": "2026-09-23T22:50:00+02:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -2740,7 +2740,7 @@
           },
           "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
           "error_message": null,
-          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
+          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
           "messages_sent": [
             {
               "FROM": "root.scope",
@@ -2814,7 +2814,7 @@
         },
         "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
         "error_message": null,
-        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
+        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
         "messages_sent": [
           {
             "FROM": "root.scope",

@@ -14,8 +14,17 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Obiettivo:** eseguire canonical simulation matrix, targeted MVP suites, full unittest discovery, CLI smoke e documentation/link checks through one reusable bounded runner; non modificare runtime policy.
 - **Metrica/soglia:** 100% runner gates verdi: matrix total, targeted node/context/event/mutation suites, full discovery, CLI/status smoke and docs hygiene; soglia 6/6 gate groups.
 - **Baseline:** `/tmp/full-matrix-baseline.log`: no unified runner in `tests/data`; canonical matrix exists under `data/simulation_matrix.json` and `scripts/run_simulation_matrix.py`, but full combined gate not run in current iteration.
-- **Casi fissi/ordine:** simulation matrix total; targeted MVP suites; full unittest discovery; CLI `capabilities`/`model limits --json`/`events replay`; UTF-8/BOM, links and diff checks.
+- **Casi fissi/ordine:** simulation matrix total; targeted MVP suites; full unittest discovery; CLI `baseline --json`, `model limits --json`, `events replay --json`; UTF-8/BOM, links and diff checks.
 - **Gate completato precedente:** Node Knowledge Store/index matrix 6/6; tree/packet 6/6; context 6/6; mutation 16/16.
+- **Priorità corrente:** creare `tests/data` scenario manifest e runner riusabile; non cambiare runtime policy.
+
+### Sotto-iterazione bounded corrente — integrità output del unified runner
+
+- **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.
+- **Metrica/soglia:** 100% dei 6 gate del manifest eseguiti in ordine; soglia 6/6, con output report limitato a tail redacted/bounded.
+- **Baseline:** `/tmp/unified-validation-baseline.log`: gate `simulation_matrix` termina `returncode=0` ma runner fallisce `stdout is not JSON` perché `_run()` conserva solo ultimi 4000 caratteri del JSON.
+- **Casi fissi/ordine:** evaluator con stdout completo + tail; manifest 6 gate IDs unici/in ordine; runner list mode; docs checker.
+- **Variabile unica:** separare stdout completo usato dall'evaluator dal tail conservato nel report; nessuna modifica runtime/provider/model/parallelismo.
 
 ### Sotto-iterazione bounded corrente — sospensione fail-closed di errori provider
 
@@ -35,6 +44,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** status shell con default policy; `model policy` manual/fallback-off; full `python3 -m unittest discover -s tests -q`.
 - **Variabile unica:** aspettativa test aggiornata da automatico storico a manuale MVP; nessuna modifica runtime/provider/model/fallback/parallelismo.
 - **Test wet target:** `tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands`, poi full discovery.
+- **Esito:** caso mirato verde; full discovery `588/588 OK` con `5` skip intenzionali.
 
 ### Iterazione bounded corrente — Node Knowledge Store/index acceptance matrix
 

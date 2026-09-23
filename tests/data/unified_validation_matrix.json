@@ -1,0 +1,47 @@
+{
+  "_format": "stagewarden_unified_validation_matrix",
+  "_version": 1,
+  "description": "Fixed-order wet validation gates for node-first MVP. Commands run from repository root; no provider/model policy mutation.",
+  "gates": [
+    {
+      "id": "simulation_matrix",
+      "label": "Canonical simulation matrix",
+      "command": ["python3", "scripts/run_simulation_matrix.py"],
+      "expect": {"returncode": 0, "json": {"passed": true}}
+    },
+    {
+      "id": "targeted_mvp",
+      "label": "Targeted node/context/event/mutation suites",
+      "command": ["python3", "-m", "unittest", "tests.test_goal_loop_orchestrator", "tests.test_node_knowledge", "tests.test_context_file_reading", "tests.test_file_read_recovery", "tests.test_event_stream", "tests.test_executor_event_stream", "tests.test_mutation_execution", "tests.test_mutation_journal", "-q"],
+      "expect": {"returncode": 0}
+    },
+    {
+      "id": "full_discovery",
+      "label": "Full unittest discovery",
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tests", "-q"],
+      "expect": {"returncode": 0}
+    },
+    {
+      "id": "cli_smoke",
+      "label": "CLI JSON smoke",
+      "commands": [
+        ["python3", "-m", "stagewarden.main", "baseline", "--json"],
+        ["python3", "-m", "stagewarden.main", "model limits", "--json"],
+        ["python3", "-m", "stagewarden.main", "events replay", "--json"]
+      ],
+      "expect": {"returncode": 0, "json": true}
+    },
+    {
+      "id": "omniroute_free",
+      "label": "OmniRoute free direct smoke",
+      "command": ["bash", "scripts/test_omniroute_free.sh"],
+      "expect": {"returncode": 0, "stdout_contains": "OmniRoute free route OK"}
+    },
+    {
+      "id": "docs_hygiene",
+      "label": "UTF-8/no-BOM, links and diff hygiene",
+      "command": ["python3", "scripts/check_unified_validation.py", "--docs-only"],
+      "expect": {"returncode": 0}
+    }
+  ]
+}
