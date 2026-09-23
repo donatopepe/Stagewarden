@@ -38,6 +38,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice in `tests/test_goal_loop_orchestrator.py`, then unified runner.
 - **Esito:** serial gate `3/3`; targeted MVP `105/105`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3724/12516`. Unsupported `parallel`/`bogus` modes now fail closed; no legacy parallel implementation added.
 
+### Sotto-iterazione bounded corrente — context budget provider/node evidence
+
+- **Obiettivo:** rendere esplicita e verificabile la relazione provider/model → context budget → node file-chunk/compaction events, senza cambiare provider/model selection o fallback.
+- **Metrica/soglia:** 100% dei 3 casi fissi verdi: budget identity fields; chunk event identity/budget fields; compaction event identity/budget fields. Soglia 3/3.
+- **Baseline:** `/tmp/context-provider-baseline.log`: context/file suite `9/9 OK`, ma existing events omit explicit `provider`, `model`, `context_window`, `input_limit`, `reserved_output`, `safety_margin`, `node_id` identity in compaction details.
+- **Casi fissi/ordine:** `_context_budget("cheap")`; `read_file_chunk` on node; `_build_prompt` compaction on node/provider budget.
+- **Variabile unica:** event metadata propagation from active context budget; no provider/model choice, fallback, scheduler or parallelism change.
+- **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.

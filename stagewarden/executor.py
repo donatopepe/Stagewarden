@@ -1347,6 +1347,18 @@ class Executor:
         available = max(0, int(input_limit) - reserved - margin) if input_limit else None
         return {"provider": provider, "model": variant, "context_window": context_window, "input_limit": input_limit, "reserved_output": reserved, "safety_margin": margin, "available_input": available, "measurement": "catalog_or_user" if available is not None else "unknown"}
 
+    def _context_event_details(self, budget: dict[str, object] | None) -> dict[str, object]:
+        if not isinstance(budget, dict):
+            return {}
+        return {
+            "provider": budget.get("provider"),
+            "model": budget.get("model"),
+            "context_window": budget.get("context_window"),
+            "input_limit": budget.get("input_limit"),
+            "reserved_output": budget.get("reserved_output"),
+            "safety_margin": budget.get("safety_margin"),
+        }
+
     def _build_prompt(
         self,
         *,
@@ -1374,6 +1386,7 @@ class Executor:
                     available_input_tokens=available,
                     prompt_chars_before=len(rendered),
                     prompt_chars_after=max_chars,
+                    **self._context_event_details(context_budget),
                 )
                 compacted = self._compact_prompt_text(rendered, max_chars)
                 return compacted
@@ -1934,7 +1947,16 @@ class Executor:
                 raw_remaining_chars = int(available * self._context_chars_per_token) - self._active_prompt_chars
                 if raw_remaining_chars <= 0:
                     self._context_compaction_count += 1
-                    self.events.append("context_compaction", tree_id="executor", node_id=step_id or None, purpose="automatic node context compaction", message="file chunk budget compacted", before_chars=self._active_prompt_chars, after_chars=max(100, self._active_prompt_chars // 2))
+                    self.events.append(
+                        "context_compaction",
+                        tree_id="executor",
+                        node_id=step_id or None,
+                        purpose="automatic node context compaction",
+                        message="file chunk budget compacted",
+                        before_chars=self._active_prompt_chars,
+                        after_chars=max(100, self._active_prompt_chars // 2),
+                        **self._context_event_details(budget),
+                    )
                     self._active_prompt_chars = max(100, self._active_prompt_chars // 2)
                     auto_compacted = True
                     raw_remaining_chars = int(available * self._context_chars_per_token) - self._active_prompt_chars
@@ -1962,6 +1984,7 @@ class Executor:
                     available_input_tokens=available_input_tokens,
                     prompt_chars_before=prompt_chars_before,
                     prompt_chars_after=prompt_chars_after,
+                    **self._context_event_details(budget),
                 )
                 self._active_prompt_chars += len(result.content)
                 self.events.append(

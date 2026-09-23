@@ -5,7 +5,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph verified current: 139 files, 3715 nodes, 12455 edges after unified validation manifest/runner additions.
+- CodeGraph verified current: 139 files, 3724 nodes, 12516 edges after unified validation, Node Knowledge relation index and serial gate additions.
 - Latest bounded gate passed: serial execution-mode gate 3/3; targeted node/event/context/mutation suite 105/105; Node Knowledge relation/freshness 6/6; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
@@ -250,7 +250,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Wet validation: `python3 -m unittest tests.test_goal_loop_orchestrator tests.test_event_stream tests.test_node_knowledge -q` → `26` tests, `OK`; CodeGraph synced at `137/3606/11557`; `git diff --check` passed.
 
 ## Open issues
-- Unified full runner now exists at `scripts/run_unified_validation.py` with manifest `tests/data/unified_validation_matrix.json`; fixed-order wet run passes 6/6: simulation 29/29, targeted MVP 103/103, full discovery 588/588 (5 skips), CLI 3/3, OmniRoute direct smoke, docs 17/17 with 0 link errors.
+- Unified full runner now exists at `scripts/run_unified_validation.py` with manifest `tests/data/unified_validation_matrix.json`; fixed-order wet run passes 6/6: simulation 29/29, targeted MVP 105/105, full discovery 588/588 (5 skips), CLI 3/3, OmniRoute direct smoke, docs 17/17 with 0 link errors.
 - User approval still required for `docs/specs/stagewarden-v3.md`.
 - Open decisions are in v3 section 21: bottom-up exceptions, serial/parallel policy, retention, storage backend, code languages, prompt visibility, active-node UX, dynamic child creation, repeat forwarding, and v2 archival handling.
 - Runtime v3 implementation not started.

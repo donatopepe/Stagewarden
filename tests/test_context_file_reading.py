@@ -173,6 +173,34 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertGreaterEqual(details["prompt_chars_after"], details["prompt_chars_before"])
             executor.close()
 
+    def test_context_budget_provider_node_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.txt"
+            source.write_text("x" * 1000, encoding="utf-8")
+            executor = self._executor(root, context_window_tokens=100, context_reserved_output_tokens=20, context_safety_margin_tokens=10, file_chunk_chars=500)
+            budget = executor._context_budget("cheap")
+            # 1. budget identity
+            for key in ("provider", "model", "context_window", "input_limit", "reserved_output", "safety_margin", "available_input"):
+                self.assertIn(key, budget)
+            # 2. node chunk identity and budget
+            executor._active_context_budget = budget
+            executor._active_prompt_chars = 390
+            chunk = executor._run_action({"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 500}, step_id="node.context")
+            self.assertTrue(chunk["ok"])
+            details = next(item["details"] for item in executor.events.read(node_id="node.context", event="file_chunk") if "available_input_tokens" in item["details"])
+            for key in ("node_id", "provider", "model", "context_window", "input_limit", "reserved_output", "safety_margin", "available_input_tokens"):
+                self.assertIn(key, {**details, "node_id": "node.context"})
+            # 3. compaction identity and budget
+            step = PlanStep("step-1", "Inspect", "inspect repository", "run tests", wet_run_required=False)
+            executor._build_prompt(task="x" * 1000, step=step, plan=[step], last_observation="y" * 1000, context_budget=budget)
+            compact = executor.events.read(event="context_compaction")
+            self.assertTrue(compact)
+            compact_details = compact[-1]["details"]
+            for key in ("provider", "model", "context_window", "input_limit", "reserved_output", "safety_margin", "available_input_tokens"):
+                self.assertIn(key, compact_details)
+            executor.close()
+
     def test_prompt_compacts_when_configured_input_budget_is_small(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
