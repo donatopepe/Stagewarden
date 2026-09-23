@@ -87,6 +87,41 @@ class EventStreamTests(unittest.TestCase):
             self.assertEqual(state["mutation_key"], "mutation:abc")
             self.assertEqual(state["mutation_status"], "completed")
 
+    def test_context_metadata_redaction_and_node_replay_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            # 1. provider/model/context metadata survives replay
+            stream.append(
+                "file_chunk",
+                tree_id="tree-1",
+                node_id="node-a",
+                purpose="Read source",
+                provider="cheap",
+                model="provider-default",
+                context_window=200,
+                input_limit=180,
+                reserved_output=20,
+                safety_margin=10,
+                available_input_tokens=150,
+                prompt_chars_before=100,
+                prompt_chars_after=140,
+            )
+            replay = stream.replay(node_id="node-a")
+            self.assertEqual(replay["nodes"]["node-a"]["provider"], "cheap")
+            self.assertEqual(replay["nodes"]["node-a"]["model"], "provider-default")
+            self.assertEqual(replay["nodes"]["node-a"]["context_window"], 200)
+            # 2. secret-like values remain redacted
+            stream.append("context_compaction", tree_id="tree-1", node_id="node-a", purpose="compact", provider="cheap", model="provider-default", api_key="do-not-persist", authorization="Bearer secret")
+            raw = (Path(tmp) / "events.jsonl").read_text(encoding="utf-8")
+            self.assertNotIn("do-not-persist", raw)
+            self.assertNotIn("Bearer secret", raw)
+            self.assertIn("provider-default", raw)
+            self.assertIn("[REDACTED]", raw)
+            # 3. node filter excludes other node events
+            stream.append("file_chunk", tree_id="tree-1", node_id="node-b", purpose="Other", provider="other")
+            filtered = stream.replay(node_id="node-a")
+            self.assertEqual(set(filtered["nodes"]), {"node-a"})
+
     def test_follow_filters_events_and_replay_to_one_node(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

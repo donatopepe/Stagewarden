@@ -48,6 +48,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
 - **Esito:** context/provider identity matrix `3/3`; context/file + executor-event `10/10`; targeted MVP `106/106`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3726/12529`.
 
+### Sotto-iterazione bounded corrente — context metadata redaction/replay safety
+
+- **Obiettivo:** verificare che nuovo provider/model/context metadata resti redacted-safe in JSONL and deterministic replay, without leaking credentials or changing event semantics.
+- **Metrica/soglia:** `3/3` fixed safety cases green: metadata survives replay; secret-like values redacted; node filter excludes other node events. Threshold 3/3.
+- **Baseline:** `/tmp/context-provider-baseline.log`: metadata identity tests pass, but no fixed redaction/replay matrix covers provider/model fields after propagation.
+- **Casi fissi/ordine:** replay metadata projection; provider/model secret-like redaction; node-scoped event filter.
+- **Variabile unica:** event redaction/replay assertions only; no runtime/provider/model/fallback/scheduler change.
+- **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py` and `tests/test_event_stream.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.

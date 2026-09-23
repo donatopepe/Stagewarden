@@ -67,7 +67,12 @@ class EventStream:
                 if isinstance(details, dict):
                     state.update({
                         key: details.get(key)
-                        for key in ("context_revision", "summary_ref", "remaining_input_tokens")
+                        for key in (
+                            "context_revision", "summary_ref", "remaining_input_tokens",
+                            "provider", "model", "context_window", "input_limit",
+                            "reserved_output", "safety_margin", "available_input_tokens",
+                            "prompt_chars_before", "prompt_chars_after",
+                        )
                         if key in details
                     })
                     if event_item.get("event") == "mutation_recovery":
