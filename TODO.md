@@ -27,6 +27,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** `test_agent_resumes_suspended_network_session_from_persisted_handoff`, `test_agent_resumes_after_token_reset_from_persisted_handoff`.
 - **Esito:** `2/2` verdi; network e usage-limit persistono handoff `waiting`, messaggi `Session suspended`, resume completa file e chiude handoff. Policy provider/model, fallback e serialità invariati.
 
+### Sotto-iterazione bounded corrente — riconciliazione status CLI con policy manuale
+
+- **Obiettivo:** aggiornare il solo caso CLI obsoleto che assume routing automatico, così full discovery rifletta `selection_mode=manual` e `allow_provider_fallback=false` già definiti dal MVP.
+- **Metrica/soglia:** caso status CLI verde e full discovery senza failure/error; soglia `1/1` caso mirato e `588` test full con `0` failure/`0` error.
+- **Baseline:** `/tmp/full-unittest-baseline-20260923.log`: `588` test, `1` failure, `5` skip; `test_interactive_shell_status_and_mode_commands` cerca `chatgpt ... selection=automatic` su workspace senza policy persistita.
+- **Casi fissi/ordine:** status shell con default policy; `model policy` manual/fallback-off; full `python3 -m unittest discover -s tests -q`.
+- **Variabile unica:** aspettativa test aggiornata da automatico storico a manuale MVP; nessuna modifica runtime/provider/model/fallback/parallelismo.
+- **Test wet target:** `tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands`, poi full discovery.
+
 ### Iterazione bounded corrente — Node Knowledge Store/index acceptance matrix
 
 - **Obiettivo:** chiudere acceptance matrix per Node Knowledge Store context/history, node-scoped retrieval/citation, Python code index, compaction e file-read recovery senza sostituire CodeGraph o allargare scope.

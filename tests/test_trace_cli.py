@@ -6516,7 +6516,7 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("prince2_role_baseline: missing", rendered)
             self.assertIn("Provider limit status:", rendered)
             self.assertIn("Cost sidebar:", rendered)
-            self.assertIn("chatgpt: enabled active provider_model=automatic-by-task selection=automatic active_account=none", rendered)
+            self.assertIn("chatgpt: enabled active provider_model=gpt-5.4-nano selection=manual-provider-default active_account=none", rendered)
             self.assertIn("last_attempt: step=step-3 status=failed:runtime account=work provider_model=gpt-5.3-codex", rendered)
             self.assertIn("Resume context:", rendered)
             self.assertIn("latest_model_attempt: step=step-3 action=shell status=failed:runtime", rendered)
