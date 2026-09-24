@@ -1,15 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded Node Knowledge same-root code-index isolation iteration from `TODO.md`; preserve serial execution, manual provider/model ownership, fail-closed OmniRoute handling and node-scoped retrieval. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Complete bounded file-read checkpoint limit iteration from `TODO.md`; reject oversized or total-length-overrun chunks without corrupting persisted offsets, while preserving exact resume, session identity, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3761 nodes, 12740 edges; HEAD `ef34cc4` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/next-node-knowledge-same-root-baseline.log` failed `2/3`: child inherited `ancestor_only` after both nodes indexed same root.
-- TDD change adds `code_index_roots` ownership table and fail-closed `ValueError` for a different node/tree claiming existing root; same-owner reindex remains fresh/idempotent.
-- Wet evidence: same-root `3/3` (`/tmp/next-node-knowledge-same-root-final.log`); Node Knowledge `9/9`; file recovery `3/3`; event stream `8/8`; executor events `3/3`; mutation execution `50/50`; tools `55/55`; trace CLI replay `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; py_compile and diff checks pass.
-- Full trace CLI module timed out on existing long-running external route behavior; no source failure observed. Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3763 nodes, 12756 edges; HEAD `ffaf22e` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/file-read-chunk-boundary-baseline.log` failed `2/3`: exact chunks passed, oversized chunk advanced `next_offset` beyond configured bounds.
+- TDD change validates chunk length against persisted `chunk_size` and end offset against `total_chars` before SQLite write; rejected chunks leave offset unchanged.
+- Wet evidence: boundary TDD red/green logs `/tmp/file-read-chunk-boundary-tdd.log`, `/tmp/file-read-chunk-boundary-tdd-after-fix.log`; initial targeted run exposed and fixed an existing test fixture that supplied two chunks as one; final targeted validation pending. Provider/model/fallback/parallel policy unchanged.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.

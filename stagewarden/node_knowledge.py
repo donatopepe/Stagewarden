@@ -287,7 +287,11 @@ class NodeKnowledgeStore:
             raise ValueError("File content hash changed during read.")
         if int(start) != int(state["next_offset"]):
             raise ValueError(f"Unexpected file chunk offset {start}; expected {state['next_offset']}.")
+        if len(content) > int(state["chunk_size"]):
+            raise ValueError(f"File chunk exceeds checkpoint size {state['chunk_size']}.")
         end = int(start) + len(content)
+        if end > int(state["total_chars"]):
+            raise ValueError(f"File chunk exceeds total file size {state['total_chars']}.")
         self.connection.execute(
             "INSERT OR REPLACE INTO file_read_chunks (session_id, start_offset, end_offset, content, content_hash) VALUES (?, ?, ?, ?, ?)",
             (session_id, int(start), end, content, content_hash),

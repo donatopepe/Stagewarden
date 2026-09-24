@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — identità persistente file-read checkpoint
+### Iterazione bounded corrente — limiti checkpoint file-read
+
+- **Obiettivo:** rendere fail-closed `checkpoint_file_chunk()` quando chunk supera `chunk_size` o oltrepassa `total_chars`, preservando offset e contenuto già checkpointed.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-chunk-boundary-baseline.log` = `2/3`; chunk esatti accettati, chunk oversized avanzava `next_offset` oltre limiti.
+- **Casi fissi/ordine:** chunk esatto iniziale; chunk finale fino a `total_chars`; chunk oversized rifiutato senza avanzare offset.
+- **Variabile unica:** validazione limiti nel checkpoint SQLite; nessuna modifica a chunking caller, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_file_read_recovery.py`, poi suite file/Node Knowledge/context/event.
+
+### Iterazione bounded completata — identità persistente file-read checkpoint
 
 - **Obiettivo:** rendere fail-closed `begin_file_read()` quando `session_id` già esistente viene riusato con hash, nodo, path o metadati diversi; resume identico resta consentito.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
-- **Baseline:** `/tmp/file-read-session-identity-baseline.log` = `1/3`; resume identico passa, ma hash e scope diversi venivano ignorati da `INSERT OR IGNORE`.
+- **Baseline:** `/tmp/file-read-session-identity-baseline.log` = `1/3`; resume identico passava, ma hash e scope diversi venivano ignorati da `INSERT OR IGNORE`.
 - **Casi fissi/ordine:** resume stessa identità; hash contenuto diverso rifiutato; node/path/metadati diversi rifiutati.
 - **Variabile unica:** validazione identità sessione SQLite; nessuna modifica a chunking, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_file_read_recovery.py`, poi suite file/Node Knowledge/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-session-identity-final.log`; TDD red/green; suite file/Node Knowledge/context/event `35/35`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3762/12748`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — isolamento same-root Node Knowledge code index
 

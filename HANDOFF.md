@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded Node Knowledge same-root code-index isolation iteration. Direct code index ownership is now fail-closed: one normalized root belongs to one node/tree; cross-node claims cannot expose prior symbols. Direct free smoke remains previously green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded file-read checkpoint limit iteration. `NodeKnowledgeStore.checkpoint_file_chunk()` now rejects chunks larger than persisted `chunk_size` or beyond `total_chars` before writing SQLite state. Direct free smoke remains previously green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: prevent same-root cross-node code-index leakage without broad ancestor/descendant retrieval.
-- Metric/threshold: fixed same-root isolation matrix `3/3`.
-- Baseline: `/tmp/next-node-knowledge-same-root-baseline.log` = `2/3`; child inherited `ancestor_only` after both nodes indexed same root.
-- Change: `NodeKnowledgeStore` persists `code_index_roots` ownership and raises fail-closed `ValueError` for a different node/tree claiming existing root; same owner reindex remains idempotent.
-- Wet evidence: `/tmp/next-node-knowledge-same-root-final.log` matrix `3/3`; Node Knowledge `9/9`; file recovery `3/3`; event stream `8/8`; executor events `3/3`; mutation execution `50/50`; tools `55/55`; trace CLI replay regression `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; py_compile and `git diff --check` pass. Full trace CLI module timed out after 180s/600s on existing long-running external route behavior; no source failure observed.
+- Objective: prevent oversized or total-length-overrun chunks from corrupting persistent file-read offsets.
+- Metric/threshold: fixed checkpoint-limit matrix `3/3`.
+- Baseline: `/tmp/file-read-chunk-boundary-baseline.log` = `2/3`; oversized chunk advanced `next_offset` to `6` despite configured chunk size `5`.
+- Change: validate chunk length and end offset before insert/update; rejected chunk preserves offset.
+- Wet evidence: TDD red/green logs `/tmp/file-read-chunk-boundary-tdd.log`, `/tmp/file-read-chunk-boundary-tdd-after-fix.log`; initial targeted run found an existing fixture that exceeded chunk size and was corrected to resume in two chunks. Final targeted validation pending. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

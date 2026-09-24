@@ -30,11 +30,48 @@ class FileReadRecoveryTests(unittest.TestCase):
             with NodeKnowledgeStore(path) as resumed:
                 status = resumed.file_read_status(session["session_id"])
                 self.assertEqual(status["next_offset"], 6)
-                resumed.checkpoint_file_chunk(session["session_id"], start=6, content=content[6:], content_hash=digest)
+                resumed.checkpoint_file_chunk(session["session_id"], start=6, content=content[6:12], content_hash=digest)
+                resumed.checkpoint_file_chunk(session["session_id"], start=12, content=content[12:], content_hash=digest)
                 resumed.complete_file_read(session["session_id"], content_hash=digest)
                 final = resumed.file_read_status(session["session_id"])
                 self.assertEqual(final["status"], "complete")
                 self.assertEqual(resumed.read_file_content(session["session_id"]), content)
+
+    def test_file_read_checkpoint_rejects_oversized_chunk_and_total_overrun(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "knowledge.sqlite"
+            with NodeKnowledgeStore(path) as store:
+                store.begin_file_read(
+                    tree_id="tree",
+                    node_id="node",
+                    path="source.txt",
+                    purpose="read",
+                    chunk_size=5,
+                    total_chars=10,
+                    content_hash="sha256:test",
+                    session_id="session",
+                )
+                # 1. Exact chunk accepted.
+                state = store.checkpoint_file_chunk("session", start=0, content="abcde", content_hash="sha256:test")
+                self.assertEqual(state["next_offset"], 5)
+                # 2. Final chunk may reach, but not exceed, total_chars.
+                state = store.checkpoint_file_chunk("session", start=5, content="12345", content_hash="sha256:test")
+                self.assertEqual(state["next_offset"], 10)
+
+                store.begin_file_read(
+                    tree_id="tree",
+                    node_id="node",
+                    path="oversized.txt",
+                    purpose="read",
+                    chunk_size=5,
+                    total_chars=10,
+                    content_hash="sha256:test",
+                    session_id="oversized",
+                )
+                # 3. Oversized chunk cannot corrupt persisted offset.
+                with self.assertRaises(ValueError):
+                    store.checkpoint_file_chunk("oversized", start=0, content="abcdef", content_hash="sha256:test")
+                self.assertEqual(store.file_read_status("oversized")["next_offset"], 0)
 
     def test_file_read_session_identity_rejects_conflicting_reuse(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
