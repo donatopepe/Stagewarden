@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — recovery non-integral file chunk offset
+### Iterazione bounded corrente — recovery non-integral file chunk size
+
+- **Obiettivo:** rendere fail-closed e replay-visible `read_file_chunk` quando size non è intera, evitando silenziosa conversione a `int`.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-size-float-baseline.log` = `0/3`; size `2.5` convertita a `2`, restituiva contenuto e nessun failure event.
+- **Casi fissi/ordine:** float size result; failure event status/path; node replay failed status.
+- **Variabile unica:** integral-size guard nel percorso executor; nessuna modifica a offset guard, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+
+### Iterazione bounded completata — recovery non-integral file chunk offset
 
 - **Obiettivo:** rendere fail-closed e replay-visible `read_file_chunk` quando start offset non è intero, evitando silenziosa conversione a `int`.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-float-offset-baseline.log` = `0/3`; start `2.5` veniva convertito a `2`, restituiva contenuto e nessun failure event.
 - **Casi fissi/ordine:** float offset result; failure event status/path; node replay failed status.
 - **Variabile unica:** integral-offset guard nel percorso executor; nessuna modifica a chunk sizing, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-float-offset-final.log`; TDD red/green; suite file/context/event/Node Knowledge `49/49`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3781/12853`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — recovery negative file chunk offset
 

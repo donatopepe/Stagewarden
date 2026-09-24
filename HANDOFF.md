@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded negative-offset file chunk recovery iteration. `read_file_chunk` now fails closed on start below zero and projects failed node replay metadata while retaining context report fields. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded non-integral offset file chunk recovery iteration. `read_file_chunk` now fails closed on float/bool starts and projects failed node replay metadata while retaining context report fields. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: prevent negative chunk starts from silently normalizing to zero.
-- Metric/threshold: fixed negative-offset matrix `3/3`.
-- Baseline: `/tmp/file-read-negative-offset-baseline.log` = `0/3`; start `-5` returned first chunk with no failure event/status.
-- Change: executor rejects negative start before `FileTool.read_chunk`.
-- Wet evidence: negative-offset matrix `3/3` (`/tmp/file-read-negative-offset-final.log`); file/context/event/Node Knowledge `48/48`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3780/12846`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: prevent float chunk starts from silently truncating to an integer.
+- Metric/threshold: fixed float-offset matrix `3/3`.
+- Baseline: `/tmp/file-read-float-offset-baseline.log` = `0/3`; start `2.5` returned chunk from offset `2` with no failure event/status.
+- Change: executor validates raw start type before read; bool also rejected.
+- Wet evidence: float-offset matrix `3/3` (`/tmp/file-read-float-offset-final.log`); file/context/event/Node Knowledge `49/49`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3781/12853`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

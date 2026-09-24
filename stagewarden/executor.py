@@ -1962,7 +1962,13 @@ class Executor:
                 failure["report"] = {"requested_size": int(action.get("size", self.config.file_chunk_chars)), "effective_size": 0, "auto_compacted": False}
                 failure["content"] = ""
                 return failure
-            requested_size = max(1, int(action.get("size", self.config.file_chunk_chars)))
+            raw_size = action.get("size", self.config.file_chunk_chars)
+            if isinstance(raw_size, bool) or not isinstance(raw_size, int):
+                failure = self._file_read_failure(step_id, action.get("path", ""), "File chunk size must be an integer.")
+                failure["report"] = {"requested_size": raw_size, "effective_size": 0, "auto_compacted": False}
+                failure["content"] = ""
+                return failure
+            requested_size = max(1, raw_size)
             auto_compacted = False
             prompt_chars_before = self._active_prompt_chars
             budget = self._active_context_budget or {}
