@@ -663,7 +663,8 @@ def run_cli() -> int:
         if is_replay:
             report = stream.replay(node_id=node_filter)
         elif is_follow:
-            if node_filter is None:
+            raw_node_id = args.task[2] if args.task[:2] == ["events", "follow"] and len(args.task) > 2 else ""
+            if node_filter is None or raw_node_id != raw_node_id.strip() or not raw_node_id.strip():
                 raise SystemExit("Usage: events follow <node_id> [--after N]")
             cursor = args.after if args.after is not None else 0
             report = {

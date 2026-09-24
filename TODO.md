@@ -117,13 +117,22 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica runtime, EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cursor-cli-input-final.log`; TDD; CLI targeted `3/3`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3795/12937`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — CLI EventStream follow node boundary
+### Iterazione bounded completata — CLI EventStream follow node boundary
 
 - **Obiettivo:** rendere fail-closed la CLI `events follow` quando manca node id, impedendo follow globale implicito e preservando follow node-scoped.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/event-follow-cli-missing-node-baseline.log` = `1/3`; `events follow` senza node restituiva successo vuoto invece di errore.
 - **Casi fissi/ordine:** missing node without cursor rejects; missing node with cursor rejects; valid node follow remains successful.
 - **Variabile unica:** CLI boundary validation for required follow node; nessuna modifica a EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cli-missing-node-final.log`; TDD; CLI targeted `4/4`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3796/12942`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — CLI EventStream follow node-id whitespace boundary
+
+- **Obiettivo:** rendere fail-closed la CLI `events follow` per node id blank/whitespace, evitando trimming implicito che maschera input invalido, preservando node id valido.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cli-whitespace-node-baseline.log` = `1/3`; node id con spazi veniva normalizzato da `split()` e accettato.
+- **Casi fissi/ordine:** leading-space node rejects; trailing-space node rejects; exact node succeeds.
+- **Variabile unica:** CLI raw node-id boundary validation; nessuna modifica a EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite CLI/event/goal-loop.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size

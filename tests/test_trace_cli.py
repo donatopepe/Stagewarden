@@ -265,6 +265,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["node_id"], "node-a")
             self.assertEqual({event["node_id"] for event in payload["events"]}, {"node-a"})
 
+    def test_events_follow_cli_rejects_whitespace_node_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            # 1. Leading-space node id fails closed.
+            leading = run_main_capture(root, "events", "follow", " node-a", "--json")
+            self.assertNotEqual(leading.returncode, 0)
+            # 2. Trailing-space node id fails closed.
+            trailing = run_main_capture(root, "events", "follow", "node-a ", "--json")
+            self.assertNotEqual(trailing.returncode, 0)
+            # 3. Exact node id remains valid and scoped.
+            exact = run_main_capture(root, "events", "follow", "node-a", "--json")
+            self.assertEqual(exact.returncode, 0, exact.stderr)
+            payload = json.loads(exact.stdout)
+            self.assertEqual(payload["node_id"], "node-a")
+            self.assertEqual({event["node_id"] for event in payload["events"]}, {"node-a"})
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

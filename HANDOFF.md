@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-CLI EventStream cursor-input-validation iteration complete. `events follow <node> --after N --json` rejects string/float cursors at argparse and preserves explicit negative cursor normalization. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+CLI EventStream follow-node-boundary iteration complete. `events follow` now fails closed without node id, preventing implicit global follow while preserving valid node scope and cursor behavior. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: cover CLI `events follow --after` input validation without changing EventStream semantics.
-- Metric/threshold: fixed CLI input-validation matrix `3/3`.
-- Baseline: `/tmp/event-follow-cursor-cli-input-baseline.log` behavior `3/3`; dedicated matrix missing.
-- Change: added TDD coverage for string/float rejection and negative cursor success.
-- Wet evidence: CLI matrix `3/3` (`/tmp/event-follow-cursor-cli-input-final.log`); CLI `3/3`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3795/12937`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: fail closed on missing node id for CLI `events follow` without changing EventStream semantics.
+- Metric/threshold: fixed follow-node-boundary matrix `3/3`.
+- Baseline: `/tmp/event-follow-cli-missing-node-baseline.log` behavior `1/3`; missing node returned success.
+- Change: added required-node CLI guard and TDD coverage for missing/valid node cases.
+- Wet evidence: matrix `3/3` (`/tmp/event-follow-cli-missing-node-final.log`); CLI `4/4`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3796/12942`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
