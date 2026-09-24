@@ -43,14 +43,14 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Current bounded file-read limit iteration has final targeted validation pending.",
+  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Bounded MVP validation remains green.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: File-read checkpoint limit TDD added; oversized/total-overrun chunks now fail closed before SQLite update. Boundary matrix baseline 2/3; boundary TDD green; final targeted validation pending. CodeGraph current/up to date at 139 files, 3763 nodes, 12756 edges; provider/model/fallback/parallel policy unchanged.",
+  "latest_observation": "2026-09-24: File-read checkpoint limit matrix 3/3; file/Node Knowledge/context/event suite 36/36; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph current/up to date at 139 files, 3763 nodes, 12756 edges; oversized/total-overrun chunks fail closed before offset update; provider/model/fallback/parallel policy unchanged.",
   "plan_status": "MVP implementation active; MutationJournal safety 3/3, marker consistency 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and targeted MVP 121/121 green. Unified validation 6/6. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "ffaf22e228fc0fe1452ea89a3bb2009dad1d79a1",
-  "git_head_baseline": "ffaf22e228fc0fe1452ea89a3bb2009dad1d79a1",
+  "git_head": "cbdc282",
+  "git_head_baseline": "cbdc282",
   "risk_register": [
     {
       "id": "specification-approval-gate",

@@ -8,7 +8,7 @@ Complete bounded file-read checkpoint limit iteration from `TODO.md`; reject ove
 - CodeGraph synced/current: 139 files, 3763 nodes, 12756 edges; HEAD `ffaf22e` (`stagewarden: initialize workspace`).
 - Baseline `/tmp/file-read-chunk-boundary-baseline.log` failed `2/3`: exact chunks passed, oversized chunk advanced `next_offset` beyond configured bounds.
 - TDD change validates chunk length against persisted `chunk_size` and end offset against `total_chars` before SQLite write; rejected chunks leave offset unchanged.
-- Wet evidence: boundary TDD red/green logs `/tmp/file-read-chunk-boundary-tdd.log`, `/tmp/file-read-chunk-boundary-tdd-after-fix.log`; initial targeted run exposed and fixed an existing test fixture that supplied two chunks as one; final targeted validation pending. Provider/model/fallback/parallel policy unchanged.
+- Wet evidence: boundary matrix `3/3` (`/tmp/file-read-chunk-boundary-final.log`); TDD red/green logs `/tmp/file-read-chunk-boundary-tdd.log`, `/tmp/file-read-chunk-boundary-tdd-after-fix.log`; file/Node Knowledge/context/event suite `36/36`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3763/12756`, current; py_compile, JSON and `git diff --check` pass. Initial targeted run exposed and fixed an existing test fixture that supplied two chunks as one. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

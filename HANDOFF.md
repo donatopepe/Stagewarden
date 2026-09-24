@@ -8,7 +8,7 @@ Bounded file-read checkpoint limit iteration. `NodeKnowledgeStore.checkpoint_fil
 - Metric/threshold: fixed checkpoint-limit matrix `3/3`.
 - Baseline: `/tmp/file-read-chunk-boundary-baseline.log` = `2/3`; oversized chunk advanced `next_offset` to `6` despite configured chunk size `5`.
 - Change: validate chunk length and end offset before insert/update; rejected chunk preserves offset.
-- Wet evidence: TDD red/green logs `/tmp/file-read-chunk-boundary-tdd.log`, `/tmp/file-read-chunk-boundary-tdd-after-fix.log`; initial targeted run found an existing fixture that exceeded chunk size and was corrected to resume in two chunks. Final targeted validation pending. Provider/model/fallback/parallel policy unchanged.
+- Wet evidence: boundary matrix `3/3` (`/tmp/file-read-chunk-boundary-final.log`); TDD red/green logs `/tmp/file-read-chunk-boundary-tdd.log`, `/tmp/file-read-chunk-boundary-tdd-after-fix.log`; initial targeted run found an existing fixture that exceeded chunk size and was corrected to resume in two chunks; file/Node Knowledge/context/event `36/36`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3763/12756`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

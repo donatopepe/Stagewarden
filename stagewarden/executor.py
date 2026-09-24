@@ -2036,6 +2036,12 @@ class Executor:
                 if not chunk.ok:
                     return {"ok": False, "message": chunk.error, "error_type": "file_error"}
                 report = chunk.report or {}
+                if str(report.get("content_hash", "")) != content_hash:
+                    return {"ok": False, "message": "File content hash changed during complete read.", "error_type": "file_error"}
+                if int(report.get("start", -1)) != int(session["next_offset"]):
+                    return {"ok": False, "message": "File read made unexpected offset progress.", "error_type": "file_error"}
+                if int(report.get("end", 0)) <= int(report.get("start", 0)) and int(session["next_offset"]) < int(session["total_chars"]):
+                    return {"ok": False, "message": "File read made no progress before completion.", "error_type": "file_error"}
                 session = self.knowledge.checkpoint_file_chunk(session["session_id"], start=int(report["start"]), content=chunk.content, content_hash=content_hash)
             self.knowledge.complete_file_read(session["session_id"], content_hash=content_hash)
             content = self.knowledge.read_file_content(session["session_id"])

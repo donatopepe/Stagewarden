@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — limiti checkpoint file-read
+### Iterazione bounded corrente — rilevazione drift durante file-read completo
+
+- **Obiettivo:** rendere fail-closed `read_file_complete` quando sorgente cambia durante lettura e impedire loop senza progresso su file accorciato.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-source-drift-baseline.log` = `1/3`; sorgente stabile completa, mutazione same-length veniva accettata con contenuto incoerente e mutazione shortened poteva bloccarsi senza progresso.
+- **Casi fissi/ordine:** sorgente stabile completa; mutazione same-length dopo apertura rifiutata; mutazione shortened dopo apertura rifiutata senza loop.
+- **Variabile unica:** validazione hash/progresso nel percorso `read_file_complete`; nessuna modifica a chunking pubblico, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/Node Knowledge/context/event.
+
+### Iterazione bounded completata — limiti checkpoint file-read
 
 - **Obiettivo:** rendere fail-closed `checkpoint_file_chunk()` quando chunk supera `chunk_size` o oltrepassa `total_chars`, preservando offset e contenuto già checkpointed.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-chunk-boundary-baseline.log` = `2/3`; chunk esatti accettati, chunk oversized avanzava `next_offset` oltre limiti.
 - **Casi fissi/ordine:** chunk esatto iniziale; chunk finale fino a `total_chars`; chunk oversized rifiutato senza avanzare offset.
 - **Variabile unica:** validazione limiti nel checkpoint SQLite; nessuna modifica a chunking caller, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_file_read_recovery.py`, poi suite file/Node Knowledge/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-chunk-boundary-final.log`; TDD red/green; suite file/Node Knowledge/context/event `36/36`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3763/12756`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — identità persistente file-read checkpoint
 

@@ -40,6 +40,48 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
+    def test_read_file_complete_rejects_source_drift_and_shortened_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            original = "abcdefghij"
+
+            def run_case(replacement: str | None) -> dict[str, object]:
+                case_root = Path(tmp) / ("mutated" if replacement is not None else "stable")
+                case_root.mkdir(exist_ok=True)
+                source = case_root / "source.txt"
+                source.write_text(original, encoding="utf-8")
+                executor = self._executor(case_root, file_chunk_chars=5)
+                first_read = executor.files.read_chunk
+                calls = 0
+
+                def read_chunk(path: str, *, start: int = 0, size: int | None = None):
+                    nonlocal calls
+                    result = first_read(path, start=start, size=size)
+                    calls += 1
+                    if calls == 1 and replacement is not None:
+                        source.write_text(replacement, encoding="utf-8")
+                    return result
+
+                executor.files.read_chunk = read_chunk
+                try:
+                    return executor._run_action(
+                        {"type": "read_file_complete", "path": "source.txt", "chunk_size": 5},
+                        step_id="node.drift",
+                    )
+                finally:
+                    executor.close()
+
+            # 1. Stable source completes.
+            stable = run_case(None)
+            self.assertTrue(stable["ok"])
+            # 2. Same-length mutation changes hash and fails closed.
+            changed = run_case("ABCDEfghij")
+            self.assertFalse(changed["ok"])
+            self.assertIn("hash", str(changed["message"]).lower())
+            # 3. Shortened source cannot cause a no-progress loop and fails closed.
+            shortened = run_case("ABCDE")
+            self.assertFalse(shortened["ok"])
+            self.assertIn("hash", str(shortened["message"]).lower())
+
     def test_read_file_complete_action_returns_full_content_beyond_chunk_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
