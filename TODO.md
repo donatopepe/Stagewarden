@@ -116,6 +116,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** blocked→pending retry event; capsule reopen with retry_count/cycle; second failure at max retry remains blocked.
 - **Variabile unica:** retry checkpoint/replay acceptance matrix only; no retry algorithm, provider/model, mutation or parallelism change.
 - **Test wet target:** nuova matrice `3/3` in `tests/test_goal_loop_orchestrator.py`, then unified runner.
+- **Esito:** retry checkpoint/replay matrix `3/3`; goal-loop suite `35/35`; targeted MVP `123/123` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3735/12612`.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 

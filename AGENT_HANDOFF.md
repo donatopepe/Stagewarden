@@ -6,7 +6,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
 - CodeGraph verified current: 139 files, 3724 nodes, 12516 edges after unified validation, Node Knowledge relation index and serial gate additions.
-- Latest bounded gate passed: context budget boundary matrix 3/3; targeted node/event/context/mutation/recovery suite 122/122 with 1 skip; context provider/model selection 3/3; pause/resume checkpoint 3/3; mutation replay/recovery safety 3/3; remaining MutationJournal family 12/12; context metadata redaction/replay 3/3; context/provider identity 3/3; serial execution-mode 3/3; Node Knowledge relation/freshness 6/6; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
+- Latest bounded gate passed: retry checkpoint/replay matrix 3/3; targeted node/event/context/mutation/recovery suite 123/123 with 1 skip; context budget boundary 3/3; context provider/model selection 3/3; pause/resume checkpoint 3/3; mutation replay/recovery safety 3/3; remaining MutationJournal family 12/12; context metadata redaction/replay 3/3; context/provider identity 3/3; serial execution-mode 3/3; Node Knowledge relation/freshness 6/6; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`.
@@ -61,6 +61,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Pause/resume matrix composes existing capsule, file checkpoint/hash and provider waiting→resume contracts; no new pause/cancel API introduced.
 - Context selection matrix uses explicit provider identity only; no router selection, fallback or ownership policy mutation.
 - Context budget boundary matrix confirms zero available input, unknown catalog limits and exact boundary compaction remain fail-closed/observable.
+- Retry checkpoint matrix confirms retry event fields, capsule persistence/reopen and bounded retry ceiling; no retry algorithm change.
 - `tests/test_file_read_recovery.py`: reopen/resume, offset integrity and content-hash recovery tests.
 - `stagewarden/event_stream.py`: append-only redacted JSONL events and replay projection.
 - `tests/test_event_stream.py`: redaction and replay tests.
@@ -73,6 +74,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - `tests/test_mutation_execution.py`: twelve-case remaining mutation family audit across range, encoding, path and permission families; three-case mutation replay/recovery safety matrix.
 - `tests/test_goal_loop_orchestrator.py`, `tests/test_file_read_recovery.py`, `tests/test_agent_integration.py`: three-case pause/resume checkpoint safety matrix.
 - `tests/test_context_file_reading.py`: three-case explicit cheap/chatgpt context-provider selection matrix and three-case zero/unknown/exact-boundary budget matrix.
+- `tests/test_goal_loop_orchestrator.py`: three-case retry checkpoint/replay safety matrix; retry_count/max_retries now persist in `NodeExecutionCapsule`.
 - `tests/test_executor_event_stream.py`: tool/chunk/compaction event coverage.
 - `stagewarden/mutation_journal.py`, `tests/test_mutation_journal.py`, `tests/test_mutation_execution.py`: idempotent mutation journal and recovery tests for all 16 declared mutation actions.
 - `tests/test_modelprefs.py`: manual model ownership and fallback policy round-trip/validation tests.
