@@ -86,6 +86,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** `NodeExecutionCapsule` reopen; `file_reads` offset/hash checkpoint reopen; provider suspension handoff waiting→resume.
 - **Variabile unica:** acceptance matrix/test composition only; no new pause/cancel API, provider/model/fallback, mutation or parallelism change.
 - **Test wet target:** nuova matrice `3/3` in `tests/test_goal_loop_orchestrator.py`, `tests/test_file_read_recovery.py`, `tests/test_agent_integration.py`, then unified runner.
+- **Esito:** pause/resume checkpoint matrix `3/3`; goal/file/agent recovery `46/46` (`1` skip); targeted MVP `120/120` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3732/12582`.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
