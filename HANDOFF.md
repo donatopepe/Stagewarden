@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Invalid-source replay-evidence iteration complete. Node Knowledge records node-scoped recovery context with path/error/status when Python indexing skips invalid source; broad retrieval and auto-repair remain disabled. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Terminal purpose-banner evidence iteration complete. Goal-loop stderr banner, JSONL event and persisted capsule all retain node purpose; no new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: add node-scoped replay evidence for invalid Python source without broad retrieval or auto-repair.
-- Metric/threshold: fixed invalid-replay matrix `3/3`.
-- Baseline: `/tmp/node-knowledge-invalid-replay-baseline.log` behavior `2/3`; invalid source had no recovery entry.
-- Change: `index_python()` writes one `code_index_recovery` context entry with failed status, source path and parser error; prior valid symbol remains isolated.
-- Wet evidence: invalid-replay matrix `3/3` (`/tmp/node-knowledge-invalid-replay-final.log`); Node Knowledge/file/context/event `56/56`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3788/12906`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: make terminal purpose reminder directly testable while preserving JSONL identity and serial execution.
+- Metric/threshold: fixed purpose-banner matrix `3/3`.
+- Baseline: `/tmp/node-purpose-banner-baseline.log` behavior `2/3`; JSONL purpose/node identity passed, stderr message purpose reminder missing.
+- Change: added isolated TDD matrix; `_emit_node_event` runtime unchanged because existing banner already contained purpose.
+- Wet evidence: purpose-banner matrix `3/3` (`/tmp/node-purpose-banner-final.log`); focused goal-loop/event/Node Knowledge/context/file `92/92`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3791/12915`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

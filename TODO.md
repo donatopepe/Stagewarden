@@ -63,14 +63,23 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** replay evidence e recovery entry nel percorso `index_python`; nessuna modifica a parsing policy, retrieval scope, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/node-knowledge-invalid-replay-final.log`; TDD; Node Knowledge/file/context/event suite `56/56`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3788/12906`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — terminal purpose banner evidence
+### Iterazione bounded completata — terminal purpose banner evidence
 
 - **Obiettivo:** rendere direttamente testabile la visibilità del purpose nel messaggio stderr del banner nodo, preservando JSONL purpose/node identity e serialità.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/node-purpose-banner-baseline.log` = `2/3`; JSONL purpose e node identity presenti, ma messaggio evento non includeva purpose reminder.
 - **Casi fissi/ordine:** stderr banner includes purpose; JSONL event preserves purpose/node; persisted capsule keeps same purpose.
 - **Variabile unica:** purpose reminder text in `_emit_node_event`; nessuna modifica a scheduler, packet, provider/model, fallback, retrieval o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_goal_loop_orchestrator.py`, poi suite goal-loop/event/Node Knowledge.
+- **Esito:** matrice `3/3` in `/tmp/node-purpose-banner-final.log`; TDD; focused goal-loop/event/Node Knowledge/context/file suite `92/92`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3791/12915`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — EventStream cursor polling
+
+- **Obiettivo:** aggiungere polling incrementale node-scoped a `EventStream.follow()` tramite cursore di riga, preservando filtri evento, replay deterministico e serialità.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cursor-baseline.log` = `0/3`; `follow()` supportava solo lettura completa e rifiutava `after`.
+- **Casi fissi/ordine:** initial filtered poll; incremental event poll after cursor; node isolation after cursor.
+- **Variabile unica:** optional `after` line cursor in `EventStream.follow()`; nessuna modifica a scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_event_stream.py`, poi suite event/CLI/goal-loop/Node Knowledge.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

@@ -242,6 +242,21 @@ class EventStreamTests(unittest.TestCase):
             # 3. Node filtering excludes other failure events.
             self.assertEqual(set(replay["nodes"]), {"node-a"})
 
+    def test_follow_cursor_polling_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("start", tree_id="tree-1", node_id="leaf-a", purpose="A")
+            stream.append("start", tree_id="tree-1", node_id="leaf-b", purpose="B")
+            # 1. Initial event filter remains node-scoped.
+            self.assertEqual([item["event"] for item in stream.follow("leaf-a", event="start", after=0)], ["start"])
+            cursor = len((Path(tmp) / "events.jsonl").read_text(encoding="utf-8").splitlines())
+            stream.append("result", tree_id="tree-1", node_id="leaf-a", purpose="A")
+            stream.append("result", tree_id="tree-1", node_id="leaf-b", purpose="B")
+            # 2. Cursor returns only events appended after the checkpoint.
+            self.assertEqual([item["event"] for item in stream.follow("leaf-a", event="result", after=cursor)], ["result"])
+            # 3. Cursor polling cannot leak another node.
+            self.assertEqual([item["node_id"] for item in stream.follow("leaf-a", after=cursor)], ["leaf-a"])
+
     def test_follow_filters_events_and_replay_to_one_node(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

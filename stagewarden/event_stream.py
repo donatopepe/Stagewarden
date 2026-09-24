@@ -49,9 +49,29 @@ class EventStream:
             events.append(item)
         return events
 
-    def follow(self, node_id: str, *, event: str | None = None) -> list[dict[str, Any]]:
-        """Return ordered events for one node; suitable for live/polling consumers."""
-        return self.read(node_id=node_id, event=event)
+    def follow(self, node_id: str, *, event: str | None = None, after: int = 0) -> list[dict[str, Any]]:
+        """Return ordered events for one node after an optional JSONL line cursor."""
+        cursor = max(0, int(after))
+        if cursor == 0:
+            return self.read(node_id=node_id, event=event)
+        if not self.path.exists():
+            return []
+        events: list[dict[str, Any]] = []
+        for line_number, line in enumerate(self.path.read_text(encoding="utf-8").splitlines(), start=1):
+            if line_number <= cursor or not line.strip():
+                continue
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(item, dict):
+                continue
+            if item.get("node_id") != node_id:
+                continue
+            if event is not None and item.get("event") != event:
+                continue
+            events.append(item)
+        return events
 
     def replay(self, *, node_id: str | None = None) -> dict[str, Any]:
         nodes: dict[str, dict[str, Any]] = {}
