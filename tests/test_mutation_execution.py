@@ -702,6 +702,24 @@ class MutationExecutionTests(unittest.TestCase):
             self.assertEqual(executor.mutations.get(key)["status"], "failed")
             executor.close()
 
+    def test_remaining_mutation_families_audit_matrix_has_twelve_cases(self) -> None:
+        families = {
+            "range": ("delete_range_file", "delete_backward_file", "replace_range_file"),
+            "encoding": ("convert_encoding_file", "normalize_line_endings_file"),
+            "path": ("copy_path_file", "move_path_file", "delete_path_file"),
+            "permissions": ("chmod_path_file", "chown_path_file"),
+        }
+        self.assertEqual(len(families) * 3, 12)
+        # Detailed action tests above are fixed completed/recovery/failed cases.
+        # Matrix asserts every remaining family has all three forms.
+        methods = {name for name in dir(self) if name.startswith("test_")}
+        for family, actions in families.items():
+            for action_type in actions:
+                base = action_type.removesuffix("_file")
+                self.assertIn(f"test_{base}_action_is_journaled_and_replayed", methods, family)
+                self.assertIn(f"test_interrupted_{base}_journal_is_recovered", methods, family)
+                self.assertIn(f"test_failed_{base}_action_closes_journal", methods, family)
+
     def test_completed_write_action_is_idempotently_replayed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

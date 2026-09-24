@@ -58,6 +58,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py` and `tests/test_event_stream.py`, then unified runner.
 - **Esito:** redaction/replay matrix `3/3`; context/file/event `15/15`; targeted MVP `107/107`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3727/12534`.
 
+### Sotto-iterazione bounded corrente — remaining MutationJournal coverage audit
+
+- **Obiettivo:** verify completed replay, in-flight recovery and failed terminal status across remaining range/path mutation actions without changing mutation semantics, provider/model policy or serial execution.
+- **Metrica/soglia:** fixed cases `3/3` per action family: range (`delete_range`, `delete_backward`, `replace_range`), encoding (`convert_encoding`, `normalize_line_endings`), path (`copy`, `move`, `delete`), permissions (`chmod`, `chown`). Threshold 12/12 family checks.
+- **Baseline:** `/tmp/mutation-baseline-current.log`: mutation execution/journal suite `51/51 OK`; existing tests cover actions but no compact 12-case audit matrix ties all remaining families to one bounded gate.
+- **Casi fissi/ordine:** completed replay; in-flight recovery with one terminal completion; invalid/fail-closed terminal status, in family order range → encoding → path → permissions.
+- **Variabile unica:** audit matrix/test coverage only; no mutation runtime behavior or provider/model/parallelism change.
+- **Test wet target:** nuova matrice in `tests/test_mutation_execution.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.
