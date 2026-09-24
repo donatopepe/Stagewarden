@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded non-integral size file chunk recovery iteration. `read_file_chunk` now fails closed on float/bool sizes and projects failed node replay metadata while retaining context report fields. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded zero-size file chunk recovery iteration. `read_file_chunk` now fails closed on non-positive sizes and projects failed node replay metadata while retaining context report fields. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: prevent float chunk sizes from silently truncating to an integer.
-- Metric/threshold: fixed size-float matrix `3/3`.
-- Baseline: `/tmp/file-read-size-float-baseline.log` = `0/3`; size `2.5` returned two characters with no failure event/status.
-- Change: executor validates raw size type before read; bool also rejected.
-- Wet evidence: size-float matrix `3/3` (`/tmp/file-read-size-float-final.log`); file/context/event/Node Knowledge `50/50`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3782/12860`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: prevent zero chunk sizes from silently normalizing to one byte.
+- Metric/threshold: fixed zero-size matrix `3/3`.
+- Baseline: `/tmp/file-read-size-zero-baseline.log` = `0/3`; size `0` returned one byte with no failure event/status.
+- Change: executor rejects `size <= 0` after type validation.
+- Wet evidence: zero-size matrix `3/3` (`/tmp/file-read-size-zero-final.log`); file/context/event/Node Knowledge `51/51`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3783/12867`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

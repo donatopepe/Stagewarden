@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — recovery zero file chunk size
+### Iterazione bounded corrente — recovery negative file chunk size
+
+- **Obiettivo:** rendere fail-closed e replay-visible `read_file_chunk` quando size è negativa, mantenendo report strutturato.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-negative-size-baseline.log` = `3/3` behavior già coperto; nessuna nuova TDD matrix isolava negative size.
+- **Casi fissi/ordine:** negative size result; failure event status/path; node replay failed status.
+- **Variabile unica:** negative-size guard coverage only; nessuna modifica a type/offset guard, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+
+### Iterazione bounded completata — recovery zero file chunk size
 
 - **Obiettivo:** rendere fail-closed e replay-visible `read_file_chunk` quando size è zero o negativa, evitando normalizzazione a un byte.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-size-zero-baseline.log` = `0/3`; size `0` veniva normalizzata a `1`, restituiva contenuto e nessun failure event.
 - **Casi fissi/ordine:** zero size result; failure event status/path; node replay failed status.
 - **Variabile unica:** positive-size guard nel percorso executor; nessuna modifica a offset guard, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-size-zero-final.log`; TDD red/green; suite file/context/event/Node Knowledge `51/51`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3783/12867`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 
