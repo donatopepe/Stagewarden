@@ -1,12 +1,12 @@
 # Agent Handoff
 
 ## Current objective
-Maintain bounded node-first MVP validation after adding explicit fail-closed OmniRoute node-contract handling; resolve remaining blockers only within TODO.md. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
+Maintain bounded node-first MVP validation after completing evidence/handoff reconciliation, CLI node-filtered replay scope and explicit fail-closed OmniRoute node-contract handling; resolve remaining blockers only within TODO.md. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph verified current and up to date: 139 files, 3755 nodes, 12707 edges; branch `main`, sole main worktree; HEAD `52079ce0abc860ae6f86a0c9b71f54131e9caa04`.
-- Latest bounded gate passed: OmniRoute node-contract matrix `3/3`; adapter/goal-loop targeted `39/39` with 1 intentional skip; replay scope/recovery matrix `3/3`; direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `118/118`; unified validation `6/6`; simulation `29/29`; full discovery `606/606` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. Explicit node contract rejects malformed/prose/wrong-contract output across configured free routes with structured nonzero failure; no fallback-policy or provider/model changes. Tool recovery remains persistent, node-filtered and replay-visible with `retry_authorized=false`; no automatic retry. Full v3 approval gate remains open.
+- CodeGraph verified current and up to date: 139 files, 3757 nodes, 12713 edges; branch `main`, sole main worktree; HEAD `1d04548c725e4f1be6428a375f3adf14df87b66d`.
+- Latest bounded gate passed: CLI replay scope matrix `3/3`; CLI/event/adapter targeted `47/47` with 1 intentional skip; OmniRoute node-contract matrix `3/3`; adapter/goal-loop targeted `39/39` with 1 intentional skip; replay scope/recovery matrix `3/3`; direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `118/118`; unified validation `6/6`; simulation `29/29`; full discovery `607/607` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. CLI `events replay <node>` now scopes replay; explicit node contract rejects malformed/prose/wrong-contract output. Provider/model/fallback/serial policy unchanged; full v3 approval gate remains open.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`. Live multi-node OmniRoute remains blocked on repeated malformed/truncated, wrong-contract and prose-wrapped output; adapter remains fail-closed.
@@ -120,6 +120,26 @@ Maintain bounded node-first MVP validation after adding explicit fail-closed Omn
   - Reason: context size and provider/model/cost are essential user responsibilities.
 
 ## Validation evidence
+- Objective: maintain synchronized TODO/handoff evidence after latest green MVP validation.
+- Metric/threshold: fixed consistency matrix `3/3`.
+- Baseline: `/tmp/handoff-reconciliation-consistency-baseline.log` was already `3/3` after previous refresh; reran docs, JSON, diff, OmniRoute and CLI replay checks.
+- Wet validation: consistency `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; CLI replay regression `2/2 OK`; CodeGraph `139/3757/12713`, up to date; HEAD `1d04548c725e4f1be6428a375f3adf14df87b66d`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: reconcile TODO/handoff metadata with latest green MVP evidence.
+- Metric/threshold: fixed reconciliation matrix `3/3`.
+- Baseline: `/tmp/unified-report-handoff-baseline.log` was `0/3`; latest report counts, HEAD/CodeGraph metadata and TODO current/archive labels were stale.
+- Change: refreshed current labels, archived prior iteration names and synchronized evidence fields; runtime unchanged.
+- Wet validation: reconciliation `3/3`; unified runner source `6/6`, targeted `118/118`, full discovery `607/607`; docs `17/17`; `git diff --check` and handoff JSON pass; CodeGraph `139/3757/12713`; HEAD `1d04548c725e4f1be6428a375f3adf14df87b66d`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: close CLI node-filtered replay scope over EventStream recovery metadata.
+- Metric/threshold: fixed CLI replay matrix `3/3`.
+- Baseline: `/tmp/cli-replay-scope-baseline.log` was `2/3`; direct replay and `events node` passed, `events replay <node>` included `node-b`.
+- TDD change: CLI parser now recognizes `events replay <node>` as node filter; added CLI regression test. No runtime/provider/model/fallback/parallel change.
+- Wet validation: CLI replay matrix `3/3`; CLI/event/adapter targeted `47/47` with 1 skip; targeted MVP `118/118`; unified runner `6/6`; simulation `29/29`; full discovery `607/607` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3757/12713`, up to date; HEAD `1d04548c725e4f1be6428a375f3adf14df87b66d`.
+- Blockers preserved: actual multi-node free route stability remains unproven; full v3 approval pending.
+
 - Objective: add explicit fail-closed OmniRoute node-contract handling without changing direct smoke or provider/model policy.
 - Metric/threshold: fixed contract matrix `3/3`.
 - Baseline: `/tmp/omniroute-adapter-contract-baseline.log` was `1/3`; valid payload passed, wrong-contract and prose returned code 0.

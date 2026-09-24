@@ -9,6 +9,32 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
+### Iterazione bounded corrente — Node Knowledge retrieval scope acceptance
+
+- **Obiettivo:** formalizzare test automatico per retrieval Node Knowledge node-scoped, preservando isolation e senza aggiungere broad ancestor/descendant retrieval non autorizzato.
+- **Metrica/soglia:** fixed retrieval scope matrix `2/2`; soglia `2/2`.
+- **Baseline:** `/tmp/next-mvp-node-knowledge-baseline.log` behavior probe `2/2`, ma nessun test automatico esplicito copriva direct node scope e child query scope.
+- **Casi fissi/ordine:** direct node context retrieval; child query for ancestor-only content must remain empty unless content is node-scoped.
+- **Variabile unica:** test TDD only; no retrieval semantics, runtime/provider/model/fallback/parallel/API change.
+
+### Iterazione bounded completata — handoff evidence reconciliation
+
+- **Obiettivo:** riallineare TODO e handoff con l'evidence già verde dell'ultima iterazione, senza modificare runtime o policy.
+- **Metrica/soglia:** fixed reconciliation matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/unified-report-handoff-baseline.log` = `0/3`: conteggi full discovery, HEAD/CodeGraph e marker corrente erano stale.
+- **Casi fissi/ordine:** latest unified report counts; current HEAD/CodeGraph in all handoffs; TODO current/archive labels and open approval gates.
+- **Variabile unica:** metadata/documentation reconciliation only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** consistency matrix `3/3`; docs checker `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CLI replay regression `2/2 OK`; HEAD `1d04548c725e4f1be6428a375f3adf14df87b66d`; CodeGraph `139/3757/12713`, up to date.
+
+### Iterazione bounded completata — CLI node-filtered replay scope
+
+- **Obiettivo:** rendere `events replay <node_id> --json` realmente node-scoped come EventStream, senza alterare replay globale, tool runtime o CLI provider/model policy.
+- **Metrica/soglia:** fixed CLI replay matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/cli-replay-scope-baseline.log` = `2/3`: direct replay e `events node` passavano; `events replay <node>` restituiva anche `node-b`.
+- **Casi fissi/ordine:** direct two-node replay; CLI `events replay <node>`; CLI `events node <node>`.
+- **Variabile unica:** parser CLI node filter plus one regression test; no runtime/provider/model/fallback/parallel change.
+- **Esito:** CLI replay matrix `3/3`; targeted CLI/event/adapter suite `47/47` con `1` skip; targeted MVP `118/118`; unified runner `6/6`; simulation `29/29`; full discovery `607/607` con `5` skip; CLI `3/3`; docs `17/17`; OmniRoute direct smoke verde; CodeGraph `139/3757/12713`, up to date; HEAD `1d04548c725e4f1be6428a375f3adf14df87b66d`.
+
 ### Iterazione bounded completata — OmniRoute node-contract adapter fail-closed
 
 - **Obiettivo:** fare rifiutare all'adapter OmniRoute, solo nel percorso goal-loop esplicitamente contrattualizzato, output malformed/prose/wrong-contract e usare soltanto i fallback free già configurati; nessun cambio provider/model policy.

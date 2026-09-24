@@ -8,6 +8,30 @@ from stagewarden.node_knowledge import NodeKnowledgeStore
 
 
 class NodeKnowledgeStoreTests(unittest.TestCase):
+    def test_retrieval_scope_matrix_keeps_node_context_isolated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                store.record_context(
+                    tree_id="tree",
+                    node_id="ancestor",
+                    parent_node_id=None,
+                    purpose="ancestor",
+                    status="completed",
+                    content="ancestorexclusivepayload",
+                )
+                store.record_context(
+                    tree_id="tree",
+                    node_id="child",
+                    parent_node_id="ancestor",
+                    purpose="child",
+                    status="completed",
+                    content="childexclusivepayload",
+                )
+                direct = store.search("ancestorexclusivepayload", node_id="ancestor")
+                child = store.search("ancestorexclusivepayload", node_id="child")
+                self.assertTrue(direct)
+                self.assertEqual(child, [])
+
     def test_node_execution_capsule_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"
