@@ -120,6 +120,33 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(len(orchestrator.events.read(event="node_retry")), 1)
             orchestrator.knowledge.close()
 
+    def test_retry_checkpoint_replay_safety_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = AgentConfig(workspace_root=Path(tmp))
+            orchestrator = GoalLoopOrchestrator(config, "retry checkpoint", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            node.max_retries = 1
+            with patch.object(orchestrator, "_mock_execution", return_value={"ok": False, "error": "temporary", "messages": []}):
+                # 1. blocked→pending emits bounded retry fields
+                orchestrator._execute_node(node)
+                self.assertEqual(node.status, "pending")
+                event = orchestrator.events.read(event="node_retry")[-1]
+                self.assertEqual(event["details"]["retry_count"], 1)
+                self.assertEqual(event["details"]["max_retries"], 1)
+                # 2. persisted retry/cycle checkpoint reopens
+                saved = orchestrator.knowledge.load_node_execution_capsule("goal-loop", node.node_id)["capsule"]
+                self.assertEqual(saved["retry_count"], 1)
+                reopened = GoalLoopOrchestrator(config, "retry checkpoint", execution_mode="mock", json_mode=True)
+                self.assertEqual(reopened.nodes[node.node_id].retry_count, 1)
+                self.assertEqual(reopened.nodes[node.node_id].status, "pending")
+                reopened.knowledge.close()
+                # 3. max retry ceiling leaves node blocked, no second retry event
+                orchestrator._execute_node(node)
+            self.assertEqual(node.status, "blocked")
+            self.assertEqual(node.retry_count, 1)
+            self.assertEqual(len(orchestrator.events.read(event="node_retry")), 1)
+            orchestrator.knowledge.close()
+
     def test_parent_receives_typed_result_only_after_child_completion(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "typed result", execution_mode="mock", json_mode=True)

@@ -120,6 +120,8 @@ class NodeState:
             "output_summary": self.output_summary or "",
             "error_message": self.error_message,
             "pi_stdout": self.pi_stdout[:500] if self.pi_stdout else "",
+            "retry_count": self.retry_count,
+            "max_retries": self.max_retries,
             "cycle_id": self.cycle_id,
             "cycle_phase": self.cycle_phase,
             "context_revision": self.context_revision,

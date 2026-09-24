@@ -108,6 +108,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
 - **Esito:** context boundary matrix `3/3`; context suite `11/11`; targeted MVP `122/122` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3734/12601`.
 
+### Sotto-iterazione bounded corrente — retry checkpoint/replay safety
+
+- **Obiettivo:** verify bounded node retry state persists through capsule reopen and retry JSONL replay, without adding pause/cancel or changing serial/provider policy.
+- **Metrica/soglia:** `3/3` fixed cases: retry event fields; retry count/cycle checkpoint capsule reopen; retry does not exceed `max_retries`. Threshold 3/3.
+- **Baseline:** `/tmp/retry-checkpoint-baseline.log`: existing retry test passes, but no fixed matrix covers retry persistence/replay and bounded ceiling after reopen.
+- **Casi fissi/ordine:** blocked→pending retry event; capsule reopen with retry_count/cycle; second failure at max retry remains blocked.
+- **Variabile unica:** retry checkpoint/replay acceptance matrix only; no retry algorithm, provider/model, mutation or parallelism change.
+- **Test wet target:** nuova matrice `3/3` in `tests/test_goal_loop_orchestrator.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.
