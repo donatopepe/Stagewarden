@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-CLI EventStream cursor-follow iteration complete. `events follow <node> --after N --json` now exposes incremental node-scoped events and cursor metadata over strict EventStream semantics. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+CLI EventStream cursor-input-validation iteration complete. `events follow <node> --after N --json` rejects string/float cursors at argparse and preserves explicit negative cursor normalization. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: expose `EventStream.follow(..., after=...)` through CLI without changing cursor semantics or replay.
-- Metric/threshold: fixed CLI cursor-follow matrix `3/3`.
-- Baseline: `/tmp/event-follow-cursor-cli-baseline.log` behavior `0/3`; CLI rejected `--after`.
-- Change: added `--after` parser option and node-scoped `events follow` JSON report with command/node/cursor metadata.
-- Wet evidence: CLI matrix `3/3` (`/tmp/event-follow-cursor-cli-final.log`); CLI `2/2`, event `12/12`, goal-loop `36/36`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3794/12932`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: cover CLI `events follow --after` input validation without changing EventStream semantics.
+- Metric/threshold: fixed CLI input-validation matrix `3/3`.
+- Baseline: `/tmp/event-follow-cursor-cli-input-baseline.log` behavior `3/3`; dedicated matrix missing.
+- Change: added TDD coverage for string/float rejection and negative cursor success.
+- Wet evidence: CLI matrix `3/3` (`/tmp/event-follow-cursor-cli-input-final.log`); CLI `3/3`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3795/12937`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

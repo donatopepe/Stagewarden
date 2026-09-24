@@ -247,6 +247,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["after"], -1)
             self.assertEqual([event["event"] for event in payload["events"]], ["start"])
 
+    def test_events_follow_cli_requires_node_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            # 1. Missing node without cursor fails closed.
+            missing_node = run_main_capture(root, "events", "follow", "--json")
+            self.assertNotEqual(missing_node.returncode, 0)
+            # 2. Missing node with cursor also fails closed.
+            missing_node_cursor = run_main_capture(root, "events", "follow", "--after", "1", "--json")
+            self.assertNotEqual(missing_node_cursor.returncode, 0)
+            # 3. Explicit node remains successful and scoped.
+            valid_node = run_main_capture(root, "events", "follow", "node-a", "--after", "-1", "--json")
+            self.assertEqual(valid_node.returncode, 0, valid_node.stderr)
+            payload = json.loads(valid_node.stdout)
+            self.assertEqual(payload["node_id"], "node-a")
+            self.assertEqual({event["node_id"] for event in payload["events"]}, {"node-a"})
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
