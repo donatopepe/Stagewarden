@@ -82,6 +82,27 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(executor.events.replay(node_id="node.zero")["nodes"]["node.zero"]["status"], "failed")
             executor.close()
 
+    def test_read_file_chunk_bool_size_emits_failure_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            result = executor._run_action(
+                {"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": True},
+                step_id="node.boolsize",
+            )
+            # 1. Bool size fails closed.
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error_type"], "file_error")
+            # 2. Failure event preserves path/status.
+            failures = executor.events.read(node_id="node.boolsize", event="file_read_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(failures[0]["details"]["status"], "failed")
+            self.assertEqual(failures[0]["details"]["path"], "source.txt")
+            # 3. Replay projects failed node state.
+            self.assertEqual(executor.events.replay(node_id="node.boolsize")["nodes"]["node.boolsize"]["status"], "failed")
+            executor.close()
+
     def test_read_file_chunk_non_integral_size_emits_failure_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -47,10 +47,10 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: Zero-size file-chunk recovery matrix 3/3; file/context/event/Node Knowledge suite 51/51; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph current/up to date at 139 files, 3783 nodes, 12867 edges; non-positive chunk sizes fail closed with failed replay metadata; provider/model/fallback/parallel policy unchanged.",
+  "latest_observation": "2026-09-24: Negative-size file-chunk TDD matrix 3/3; file/context/event/Node Knowledge suite 52/52; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph current/up to date at 139 files, 3784 nodes, 12873 edges; existing non-positive guard now has isolated negative-size coverage; provider/model/fallback/parallel policy unchanged.",
   "plan_status": "MVP implementation active; MutationJournal safety 3/3, marker consistency 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and targeted MVP 121/121 green. Unified validation 6/6. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "7eec72f",
-  "git_head_baseline": "7eec72f",
+  "git_head": "409ecb1",
+  "git_head_baseline": "409ecb1",
   "risk_register": [
     {
       "id": "specification-approval-gate",
