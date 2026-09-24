@@ -1,15 +1,16 @@
 # Agent Handoff
 
 ## Current objective
-Complete one bounded Node Knowledge code-index isolation iteration from `TODO.md`: prevent same-root cross-node ownership leakage while preserving serial execution, manual provider/model ownership, fail-closed OmniRoute handling, and node-scoped retrieval. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain gated by unresolved approval decisions.
+Complete bounded Node Knowledge same-root code-index isolation iteration from `TODO.md`; preserve serial execution, manual provider/model ownership, fail-closed OmniRoute handling and node-scoped retrieval. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced and current: 139 files, 3761 nodes, 12740 edges; branch `main`, sole main worktree; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
-- Baseline `/tmp/next-node-knowledge-same-root-baseline.log` failed `2/3`: second node inherited first node symbol after indexing same root.
-- TDD change adds `code_index_roots` ownership table and fail-closed `ValueError` on cross-node/tree same-root claim; owner reindex remains fresh/idempotent.
-- Wet evidence: same-root matrix `3/3` (`/tmp/next-node-knowledge-same-root-final.log`); TDD red/green logs `/tmp/next-node-knowledge-same-root-tdd.log`, `/tmp/next-node-knowledge-same-root-tdd-after-fix.log`; Node Knowledge suite `9/9`; file recovery `3/3`; event stream `8/8`; executor events `3/3`; mutation execution `50/50`; tools `55/55`; trace CLI replay regression `1/1`; py_compile and `git diff --check` pass. Full trace CLI module timed out after 180s/600s due existing long-running external route behavior; no source failure observed. Provider/model/fallback/parallel policy unchanged.
-- Direct OmniRoute smoke not rerun in this iteration; prior direct smoke green. Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain blocked/fail-closed.
+- CodeGraph synced/current: 139 files, 3761 nodes, 12740 edges; HEAD `ef34cc4` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/next-node-knowledge-same-root-baseline.log` failed `2/3`: child inherited `ancestor_only` after both nodes indexed same root.
+- TDD change adds `code_index_roots` ownership table and fail-closed `ValueError` for a different node/tree claiming existing root; same-owner reindex remains fresh/idempotent.
+- Wet evidence: same-root `3/3` (`/tmp/next-node-knowledge-same-root-final.log`); Node Knowledge `9/9`; file recovery `3/3`; event stream `8/8`; executor events `3/3`; mutation execution `50/50`; tools `55/55`; trace CLI replay `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; py_compile and diff checks pass.
+- Full trace CLI module timed out on existing long-running external route behavior; no source failure observed. Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Provider/model/fallback/parallel policy unchanged.
+
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`. Live multi-node OmniRoute remains blocked on repeated malformed/truncated, wrong-contract and prose-wrapped output; adapter remains fail-closed.
@@ -51,11 +52,11 @@ Complete one bounded Node Knowledge code-index isolation iteration from `TODO.md
 ## Recent changes
 - `TODO.md`: single re-engineering/MVP plan; MVP node/RAG/OmniRoute tasks marked.
 - `stagewarden/goal_loop_orchestrator.py`: serial bottom-up execution, visible purpose events, WorkPacket/ResultPacket, OmniRoute free backend.
-- `stagewarden/node_knowledge.py`: SQLite Node Knowledge Store, node-scoped retrieval, Python code index, module/import/call/read/write relations, file version/freshness metadata and deterministic compaction helper.
+- `stagewarden/node_knowledge.py`: SQLite Node Knowledge Store, node-scoped retrieval, same-root code-index ownership, Python code index, module/import/call/read/write relations, file version/freshness metadata and deterministic compaction helper.
 - `stagewarden/tools/files.py`: context-aware chunk iterator and complete-file reconstruction boundary.
 - `stagewarden/executor.py`: new read actions, model context budget, automatic chunk capping/compaction and persistent complete-file references; provider suspension classification now preserves resumable `waiting` state.
 - Unified runner separates full evaluator stdout from bounded report tails; no runtime/provider/model policy mutation.
-- Code index remains node-scoped; relation rows carry source path/lines/hash/freshness and stale symbols are removed on changed reindex.
+- Code index remains node-scoped; normalized roots have one node/tree owner; relation rows carry source path/lines/hash/freshness and stale symbols are removed on changed reindex.
 - Goal loop validates mode at boundary; only `mock`, `auto`, `pi` accepted and all paths execute one ready node serially.
 - Context events now carry provider/model, context window/input limit and reserved-output/safety-margin metadata alongside node and available-token fields.
 - Replay projects context identity metadata; event redaction tests ensure API-like values remain absent while node filters remain scoped.
@@ -422,8 +423,8 @@ Complete one bounded Node Knowledge code-index isolation iteration from `TODO.md
 - Live free-route contract is currently unstable: direct smoke failed once with wrong JSON shape, in addition to prior multi-node malformed/truncated JSON.
 
 ## Next steps
-1. Expand Node Knowledge code index relations/freshness beyond current Python symbols.
-2. Add serial-default versus explicitly isolated parallel opt-in collision tests; do not enable legacy parallelism.
+1. Preserve same-root ownership guard while evaluating any future code-index freshness/relations work from `TODO.md`.
+2. Keep parallel opt-in and broader ancestor/descendant retrieval approval-gated.
 3. User reviews and approves/corrects `docs/specs/stagewarden-v3.md` and section 21 decisions.
 4. After approval, derive implementation-level TODO entries from the approved spec; only then modify runtime.
 5. Implement in order: event/node store, validator, serial bottom-up scheduler, packet protocol, terminal events, Node Knowledge Store/code index, per-node context/compaction, provider ownership, migration.

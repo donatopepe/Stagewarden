@@ -254,13 +254,23 @@ class NodeKnowledgeStore:
         session_id: str | None = None,
     ) -> dict[str, Any]:
         identifier = session_id or f"file-read-{self._hash(f'{tree_id}:{node_id}:{path}:{content_hash}')[-16:]}"
-        self.connection.execute(
-            """INSERT OR IGNORE INTO file_reads
-            (session_id, tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (identifier, tree_id, node_id, path, purpose, max(1, int(chunk_size)), max(0, int(total_chars)), content_hash),
-        )
-        self.connection.commit()
+        existing = self.connection.execute(
+            "SELECT tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash FROM file_reads WHERE session_id = ?",
+            (identifier,),
+        ).fetchone()
+        requested = (tree_id, node_id, path, purpose, max(1, int(chunk_size)), max(0, int(total_chars)), content_hash)
+        if existing is not None:
+            stored = tuple(existing[key] for key in ("tree_id", "node_id", "path", "purpose", "chunk_size", "total_chars", "content_hash"))
+            if stored != requested:
+                raise ValueError(f"File read session identity conflict: {identifier}")
+        else:
+            self.connection.execute(
+                """INSERT INTO file_reads
+                (session_id, tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (identifier, *requested),
+            )
+            self.connection.commit()
         return self.file_read_status(identifier)
 
     def file_read_status(self, session_id: str) -> dict[str, Any]:

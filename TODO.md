@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — isolamento same-root Node Knowledge code index
+### Iterazione bounded corrente — identità persistente file-read checkpoint
+
+- **Obiettivo:** rendere fail-closed `begin_file_read()` quando `session_id` già esistente viene riusato con hash, nodo, path o metadati diversi; resume identico resta consentito.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-session-identity-baseline.log` = `1/3`; resume identico passa, ma hash e scope diversi venivano ignorati da `INSERT OR IGNORE`.
+- **Casi fissi/ordine:** resume stessa identità; hash contenuto diverso rifiutato; node/path/metadati diversi rifiutati.
+- **Variabile unica:** validazione identità sessione SQLite; nessuna modifica a chunking, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_file_read_recovery.py`, poi suite file/Node Knowledge/context/event.
+
+### Iterazione bounded completata — isolamento same-root Node Knowledge code index
 
 - **Obiettivo:** impedire che un secondo nodo erediti simboli dal code index del primo quando entrambi indicizzano lo stesso root; conflitto fail-closed, senza broad retrieval.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
-- **Baseline:** `/tmp/next-node-knowledge-same-root-baseline.log` = `2/3`; dopo indexing dello stesso root, `child` recupera `ancestor_only`.
+- **Baseline:** `/tmp/next-node-knowledge-same-root-baseline.log` = `2/3`; dopo indexing dello stesso root, `child` recuperava `ancestor_only`.
 - **Casi fissi/ordine:** primo nodo ottiene simbolo; secondo nodo riceve conflitto e nessun simbolo dell’altro nodo; reindex del primo conserva simbolo/freshness.
 - **Variabile unica:** ownership guard del root nel code index; nessuna modifica a scheduler, provider/model, fallback, OmniRoute, parallelismo o retrieval ancestor/descendant.
-- **Test wet target:** nuova regressione TDD in `tests/test_node_knowledge.py`, poi suite Node Knowledge e gate MVP mirati.
+- **Esito:** matrice same-root `3/3` in `/tmp/next-node-knowledge-same-root-final.log`; TDD red/green, Node Knowledge `9/9`; unified validation `6/6` (simulation `29/29`, full discovery verde, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3761/12740`, up to date; `git diff --check`/JSON valid. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — marker cleanup final verification
 

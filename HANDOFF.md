@@ -8,7 +8,7 @@ Bounded Node Knowledge same-root code-index isolation iteration. Direct code ind
 - Metric/threshold: fixed same-root isolation matrix `3/3`.
 - Baseline: `/tmp/next-node-knowledge-same-root-baseline.log` = `2/3`; child inherited `ancestor_only` after both nodes indexed same root.
 - Change: `NodeKnowledgeStore` persists `code_index_roots` ownership and raises fail-closed `ValueError` for a different node/tree claiming existing root; same owner reindex remains idempotent.
-- Wet evidence: `/tmp/next-node-knowledge-same-root-final.log` matrix `3/3`; Node Knowledge `9/9`; file recovery `3/3`; event stream `8/8`; executor events `3/3`; mutation execution `50/50`; tools `55/55`; trace CLI replay regression `1/1`; py_compile and `git diff --check` pass. Full trace CLI module timed out after 180s/600s on existing long-running external route behavior; no source failure observed.
+- Wet evidence: `/tmp/next-node-knowledge-same-root-final.log` matrix `3/3`; Node Knowledge `9/9`; file recovery `3/3`; event stream `8/8`; executor events `3/3`; mutation execution `50/50`; tools `55/55`; trace CLI replay regression `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; py_compile and `git diff --check` pass. Full trace CLI module timed out after 180s/600s on existing long-running external route behavior; no source failure observed.
 
 ## Product direction
 - One operational tree of nodes.
@@ -26,7 +26,7 @@ Target RAG must contain:
 - node-scoped context/history and compaction summaries;
 - work packets, results, decisions, blockers, recovery;
 - tool/file/test/provider evidence;
-- code-aware index of files, modules, classes, procedures, functions, methods, tests and relations with path, lines, hash and freshness.
+- code-aware index of files, modules, classes, procedures, functions, methods, tests and relations with path, lines, hash and freshness; normalized roots are single-node owned.
 
 CodeGraph is auxiliary only. It cannot replace node context/history/evidence/ownership/retrieval.
 

@@ -36,6 +36,61 @@ class FileReadRecoveryTests(unittest.TestCase):
                 self.assertEqual(final["status"], "complete")
                 self.assertEqual(resumed.read_file_content(session["session_id"]), content)
 
+    def test_file_read_session_identity_rejects_conflicting_reuse(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "knowledge.sqlite"
+            with NodeKnowledgeStore(path) as store:
+                store.begin_file_read(
+                    tree_id="tree",
+                    node_id="node-a",
+                    path="source.txt",
+                    purpose="read source",
+                    chunk_size=5,
+                    total_chars=10,
+                    content_hash="sha256:old",
+                    session_id="session-1",
+                )
+                store.checkpoint_file_chunk("session-1", start=0, content="abcde", content_hash="sha256:old")
+
+                # 1. Exact identity resumes persisted offset.
+                resumed = store.begin_file_read(
+                    tree_id="tree",
+                    node_id="node-a",
+                    path="source.txt",
+                    purpose="read source",
+                    chunk_size=5,
+                    total_chars=10,
+                    content_hash="sha256:old",
+                    session_id="session-1",
+                )
+                self.assertEqual(resumed["next_offset"], 5)
+
+                # 2. Changed source identity cannot reuse checkpoint.
+                with self.assertRaises(ValueError):
+                    store.begin_file_read(
+                        tree_id="tree",
+                        node_id="node-a",
+                        path="source.txt",
+                        purpose="read source",
+                        chunk_size=5,
+                        total_chars=10,
+                        content_hash="sha256:new",
+                        session_id="session-1",
+                    )
+
+                # 3. Changed node/path/metadata cannot reuse checkpoint.
+                with self.assertRaises(ValueError):
+                    store.begin_file_read(
+                        tree_id="tree",
+                        node_id="node-b",
+                        path="other.txt",
+                        purpose="other read",
+                        chunk_size=9,
+                        total_chars=99,
+                        content_hash="sha256:old",
+                        session_id="session-1",
+                    )
+
     def test_pause_resume_checkpoint_safety_matrix_file_checkpoint_case(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"
