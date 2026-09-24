@@ -51,6 +51,12 @@ class NodeKnowledgeStore:
             );
             CREATE INDEX IF NOT EXISTS idx_knowledge_node ON knowledge(node_id, namespace);
             CREATE INDEX IF NOT EXISTS idx_knowledge_tree ON knowledge(tree_id, namespace);
+            CREATE TABLE IF NOT EXISTS code_index_roots (
+                root_path TEXT PRIMARY KEY,
+                node_id TEXT NOT NULL,
+                tree_id TEXT NOT NULL,
+                claimed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
             CREATE TABLE IF NOT EXISTS code_symbols (
                 entry_id TEXT PRIMARY KEY,
                 node_id TEXT NOT NULL,
@@ -328,6 +334,19 @@ class NodeKnowledgeStore:
     def index_python(self, root: Path, *, node_id: str, tree_id: str = "") -> dict[str, int]:
         files = symbols = relations = fresh = changed = 0
         root = root.resolve()
+        owner = self.connection.execute(
+            "SELECT node_id, tree_id FROM code_index_roots WHERE root_path = ?",
+            (str(root),),
+        ).fetchone()
+        if owner is not None and (str(owner["node_id"]) != node_id or str(owner["tree_id"]) != tree_id):
+            raise ValueError(
+                f"Code index root already owned by node {owner['node_id']} in tree {owner['tree_id']}: {root}"
+            )
+        self.connection.execute(
+            "INSERT OR IGNORE INTO code_index_roots (root_path, node_id, tree_id) VALUES (?, ?, ?)",
+            (str(root), node_id, tree_id),
+        )
+        self.connection.commit()
         seen_paths: set[str] = set()
         parsed_files: dict[str, tuple[str, ast.Module, list[str]]] = {}
         for path in sorted(root.rglob("*.py")):

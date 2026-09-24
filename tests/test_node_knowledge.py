@@ -47,6 +47,27 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertTrue(store.code_search("ancestorexclusive", node_id="ancestor"))
                 self.assertEqual(store.code_search("ancestorexclusive", node_id="child"), [])
 
+    def test_same_root_indexing_rejects_cross_node_ownership_conflict(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "src"
+            root.mkdir()
+            source = root / "shared.py"
+            source.write_text("def ancestor_only():\n    return 1\n", encoding="utf-8")
+            with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                first = store.index_python(root, node_id="ancestor", tree_id="tree")
+                self.assertTrue(store.code_search("ancestor_only", node_id="ancestor"))
+
+                with self.assertRaises(ValueError):
+                    store.index_python(root, node_id="child", tree_id="tree")
+                self.assertEqual(store.code_search("ancestor_only", node_id="child"), [])
+
+                second = store.index_python(root, node_id="ancestor", tree_id="tree")
+                self.assertEqual(second["fresh"], 1)
+                self.assertEqual(second["changed"], 0)
+                self.assertEqual(second["stale_removed"], 0)
+                self.assertEqual(first["schema_version"], second["schema_version"])
+                self.assertTrue(store.code_search("ancestor_only", node_id="ancestor"))
+
     def test_node_execution_capsule_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"

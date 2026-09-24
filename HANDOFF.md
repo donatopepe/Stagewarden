@@ -1,7 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP validation after completing Node Knowledge code-index/retrieval scope, evidence/handoff reconciliation, CLI node-filtered replay and fail-closed OmniRoute contract work. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded Node Knowledge same-root code-index isolation iteration. Direct code index ownership is now fail-closed: one normalized root belongs to one node/tree; cross-node claims cannot expose prior symbols. Direct free smoke remains previously green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+
+## Latest bounded iteration
+- Objective: prevent same-root cross-node code-index leakage without broad ancestor/descendant retrieval.
+- Metric/threshold: fixed same-root isolation matrix `3/3`.
+- Baseline: `/tmp/next-node-knowledge-same-root-baseline.log` = `2/3`; child inherited `ancestor_only` after both nodes indexed same root.
+- Change: `NodeKnowledgeStore` persists `code_index_roots` ownership and raises fail-closed `ValueError` for a different node/tree claiming existing root; same owner reindex remains idempotent.
+- Wet evidence: `/tmp/next-node-knowledge-same-root-final.log` matrix `3/3`; Node Knowledge `9/9`; file recovery `3/3`; event stream `8/8`; executor events `3/3`; mutation execution `50/50`; tools `55/55`; trace CLI replay regression `1/1`; py_compile and `git diff --check` pass. Full trace CLI module timed out after 180s/600s on existing long-running external route behavior; no source failure observed.
 
 ## Product direction
 - One operational tree of nodes.
@@ -33,6 +40,79 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
 ## Latest bounded iteration
+- Objective: verify marker consistency latest rerun after latest green gate.
+- Metric/threshold: fixed marker matrix `3/3`.
+- Baseline: `/tmp/current-marker-consistency-baseline-latest.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: marker `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: close MutationJournal recovery metadata safety acceptance.
+- Metric/threshold: fixed safety matrix `3/3`.
+- Baseline: `/tmp/next-mutation-safety-baseline.log` was `3/3` metadata declarations, but no fresh focused safety gate had been recorded for current handoff.
+- Wet validation: safety matrix `3/3`; mutation/journal/event suite `61/61 OK`; docs `17/17`; handoff JSON and `git diff --check` pass; direct OmniRoute smoke green; CodeGraph `139/3760/12729`, up to date.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: verify marker cleanup final consistency after latest green gate.
+- Metric/threshold: fixed cleanup matrix `3/3`.
+- Baseline: `/tmp/current-marker-cleanup-final-baseline.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: cleanup `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: verify final marker consistency after latest green gate.
+- Metric/threshold: fixed final-marker matrix `3/3`.
+- Baseline: `/tmp/current-marker-final-final-baseline.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: final-marker `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: verify latest marker cleanup consistency after latest green gate.
+- Metric/threshold: fixed cleanup consistency matrix `3/3`.
+- Baseline: `/tmp/current-marker-cleanup-baseline.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: cleanup `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: close final current-marker consistency after latest green gate.
+- Metric/threshold: fixed final consistency matrix `3/3`.
+- Baseline: `/tmp/current-todo-marker-final-baseline-2.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: final consistency `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: verify current TODO marker/evidence consistency after latest green gate.
+- Metric/threshold: fixed TODO consistency matrix `3/3`.
+- Baseline: `/tmp/todo-current-marker-baseline.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: TODO consistency `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: rerun current objective/evidence consistency after Event replay recovery closure.
+- Metric/threshold: fixed consistency matrix `3/3`.
+- Baseline: `/tmp/current-objective-evidence-final-baseline.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: consistency `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: rerun current objective/evidence consistency after Event replay recovery closure.
+- Metric/threshold: fixed objective/evidence matrix `3/3`.
+- Baseline: `/tmp/current-handoff-objective-final-baseline.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- Wet validation: consistency `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: verify current objective/evidence consistency across TODO, handoffs and JSON state.
+- Metric/threshold: fixed objective/evidence matrix `3/3`.
+- Baseline: `/tmp/current-handoff-objective-baseline.log` was `3/3` after prior refresh; reran docs, JSON, diff, OmniRoute and replay checks.
+- Wet validation: consistency `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: reconcile current handoff metadata after Event replay recovery closure.
+- Metric/threshold: fixed consistency matrix `3/3`.
+- Baseline: `/tmp/current-event-handoff-baseline.log` was `3/3` after prior refresh; reran marker/objective/HEAD/CodeGraph and focused replay checks.
+- Wet validation: consistency `3/3`; replay regression `2/2`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
+- Objective: close Event replay recovery lifecycle metadata with fixed node/retry assertions.
+- Metric/threshold: fixed replay recovery closure matrix `3/3`.
+- Baseline: `/tmp/event-replay-recovery-closure-baseline.log` behavior `3/3`, but closure acceptance metadata had no dedicated regression.
+- Change: added recovery closure test for in-flight appearance, clear-on-recovery, recovered status, node scope and retry denial.
+- Wet validation: closure `3/3`; targeted event/executor/adapter `15/15` with 1 skip; targeted MVP `121/121`; unified runner `6/6`; full discovery `610/610` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
 - Objective: formalize Node Knowledge code-index retrieval scope without broadening retrieval semantics.
 - Metric/threshold: fixed code retrieval scope matrix `2/2`.
 - Baseline: `/tmp/next-node-knowledge-code-scope-baseline.log` was `1/2`; ancestor symbol leaked into child query after separate node indexes covered same root.

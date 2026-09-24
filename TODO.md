@@ -9,6 +9,105 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
+### Iterazione bounded corrente — isolamento same-root Node Knowledge code index
+
+- **Obiettivo:** impedire che un secondo nodo erediti simboli dal code index del primo quando entrambi indicizzano lo stesso root; conflitto fail-closed, senza broad retrieval.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/next-node-knowledge-same-root-baseline.log` = `2/3`; dopo indexing dello stesso root, `child` recupera `ancestor_only`.
+- **Casi fissi/ordine:** primo nodo ottiene simbolo; secondo nodo riceve conflitto e nessun simbolo dell’altro nodo; reindex del primo conserva simbolo/freshness.
+- **Variabile unica:** ownership guard del root nel code index; nessuna modifica a scheduler, provider/model, fallback, OmniRoute, parallelismo o retrieval ancestor/descendant.
+- **Test wet target:** nuova regressione TDD in `tests/test_node_knowledge.py`, poi suite Node Knowledge e gate MVP mirati.
+
+### Iterazione bounded completata — marker cleanup final verification
+
+- **Obiettivo:** verificare final marker cleanup consistency tra TODO, handoff e JSON dopo latest green gate, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed cleanup matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-marker-cleanup-final-baseline.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO final marker; handoff final objective; JSON HEAD evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** cleanup `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — marker consistency latest rerun
+
+- **Obiettivo:** verificare marker consistency latest rerun tra TODO, handoff e JSON, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed marker matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-marker-consistency-baseline-latest.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO marker; handoff final objective; JSON HEAD evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** marker matrix `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — final marker consistency verification
+
+- **Obiettivo:** verificare final marker consistency tra TODO, handoff e JSON dopo latest green gate, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed final-marker matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-marker-final-final-baseline.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO final marker; handoff final objective; JSON HEAD evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** final-marker `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — latest marker cleanup consistency
+
+- **Obiettivo:** verificare latest marker cleanup consistency tra TODO, handoff e JSON dopo latest green gate, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed cleanup consistency matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-marker-cleanup-baseline.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO final marker; handoff final objective; JSON HEAD evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** cleanup consistency `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — final current-marker consistency check
+
+- **Obiettivo:** chiudere final consistency check su TODO/handoff/JSON dopo latest green gate, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed final consistency matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-todo-marker-final-baseline-2.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO marker; handoff objective; JSON HEAD evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** final consistency `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — TODO current-marker consistency rerun
+
+- **Obiettivo:** verificare current marker/evidence consistency del solo TODO dopo latest green gate, senza modificare runtime o policy.
+- **Metrica/soglia:** fixed TODO consistency matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/todo-current-marker-baseline.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO current marker; handoff current objective; JSON HEAD/CodeGraph evidence.
+- **Variabile unica:** TODO/handoff metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** TODO consistency `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — current objective/evidence consistency rerun
+
+- **Obiettivo:** riallineare marker current objective/evidence tra TODO, handoff e JSON dopo latest green gate, senza cambiare runtime/policy.
+- **Metrica/soglia:** fixed consistency matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-objective-evidence-final-baseline.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO marker; handoff objective; JSON HEAD/CodeGraph evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** consistency `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — handoff objective consistency rerun
+
+- **Obiettivo:** verificare current objective/evidence consistency dopo Event replay recovery closure, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed objective/evidence matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-handoff-objective-final-baseline.log` = `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
+- **Casi fissi/ordine:** TODO marker; handoff objective; JSON HEAD/CodeGraph evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** consistency `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — current handoff objective reconciliation
+
+- **Obiettivo:** verificare che TODO, handoff Markdown e handoff JSON espongano stesso obiettivo corrente e evidence corrente, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed objective/evidence matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-handoff-objective-baseline.log` = `3/3` after prior refresh; reran docs, JSON, diff, OmniRoute and replay checks.
+- **Casi fissi/ordine:** TODO Event replay marker; handoff current objective; JSON HEAD/CodeGraph evidence.
+- **Variabile unica:** metadata consistency only; no provider/model/fallback/parallel/runtime/API change.
+- **Esito:** consistency `3/3`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
+### Iterazione bounded completata — handoff consistency after Event replay closure
+
+- **Obiettivo:** riallineare marker corrente e evidence handoff dopo Event replay recovery closure, senza cambiare runtime o policy.
+- **Metrica/soglia:** fixed consistency matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/current-event-handoff-baseline.log` = `3/3` after prior metadata refresh; reran current marker/objective/HEAD/CodeGraph and focused replay checks.
+- **Casi fissi/ordine:** TODO current marker; AGENT_HANDOFF/HANDOFF current objective; JSON/HEAD/CodeGraph current evidence.
+- **Variabile unica:** metadata/documentation reconciliation only; no runtime/provider/model/fallback/parallel/API change.
+- **Esito:** consistency `3/3`; replay regression `2/2`; docs `17/17`, 0 errori; handoff JSON valido; `git diff --check` OK; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+
 ### Iterazione bounded completata — Event replay recovery closure
 
 - **Obiettivo:** chiudere acceptance su replay JSONL recovery per operation in-flight, preservando status recovered, node scope e retry denial.
@@ -16,7 +115,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Baseline:** `/tmp/event-replay-recovery-closure-baseline.log` behavior `3/3`, ma closure non aveva acceptance metadata dedicata.
 - **Casi fissi/ordine:** in-flight appears; recovery clears in-flight; recovery metadata preserves status/node/retry denial.
 - **Variabile unica:** test TDD/event acceptance only; no runtime/provider/model/fallback/parallel/API change.
-- **Esito:** closure matrix `3/3`; Node Knowledge/code scope retained `2/2`; targeted MVP `120/120`; unified runner `6/6`; simulation `29/29`; full discovery `609/609` con `5` skip; CLI `3/3`; docs `17/17`; direct OmniRoute smoke verde; CodeGraph `139/3759/12725`, up to date; HEAD `9997681eeabd3dc3b3295f13df9855588022cde4`.
+- **Esito:** closure matrix `3/3`; Node Knowledge/code scope retained `2/2`; targeted MVP `121/121`; unified runner `6/6`; simulation `29/29`; full discovery `610/610` con `5` skip; CLI `3/3`; docs `17/17`; direct OmniRoute smoke verde; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
 
 ### Iterazione bounded completata — Node Knowledge code index scope acceptance
 
@@ -156,7 +255,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice in `tests/test_mutation_execution.py`, then unified runner.
 - **Esito:** remaining mutation family matrix `12/12`; mutation/journal `52/52`; targeted MVP `108/108`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3728/12535`.
 
-### Sotto-iterazione bounded corrente — mutation journal recovery metadata safety
+### Sotto-iterazione bounded completata — mutation journal recovery metadata safety
 
 - **Obiettivo:** verify mutation replay/recovery JSONL preserves action/key/status metadata without leaking mutation content, and replay remains node-scoped.
 - **Metrica/soglia:** fixed safety cases `3/3`: mutation replay metadata; mutation recovery metadata; node-filtered replay excludes another node. Threshold 3/3.
