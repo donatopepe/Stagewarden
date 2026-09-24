@@ -47,10 +47,10 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: Missing-file read recovery matrix 3/3; file/context/event/Node Knowledge suite 44/44; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph current/up to date at 139 files, 3776 nodes, 12817 edges; initial missing-file failures now emit status=failed replay metadata; provider/model/fallback/parallel policy unchanged.",
+  "latest_observation": "2026-09-24: Missing-chunk file-read recovery matrix 3/3; file/context/event/Node Knowledge suite 45/45; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph current/up to date at 139 files, 3777 nodes, 12824 edges; missing chunk errors now emit status=failed replay metadata with bounded report; provider/model/fallback/parallel policy unchanged.",
   "plan_status": "MVP implementation active; MutationJournal safety 3/3, marker consistency 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and targeted MVP 121/121 green. Unified validation 6/6. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "daa54a5",
-  "git_head_baseline": "daa54a5",
+  "git_head": "88f12be",
+  "git_head_baseline": "88f12be",
   "risk_register": [
     {
       "id": "specification-approval-gate",

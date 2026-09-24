@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded missing-file recovery iteration. Initial `read_file_complete` missing-source failures now emit structured failed node-scoped replay metadata through existing recovery path. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded missing-chunk recovery iteration. Initial `read_file_chunk` missing-source failures now emit structured failed node-scoped replay metadata while retaining context-aware report fields. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: make missing-source file-read failure observable in JSONL/replay.
-- Metric/threshold: fixed missing-recovery matrix `3/3`.
-- Baseline: `/tmp/file-read-missing-recovery-baseline.log` = `1/3`; result failed correctly, event/replay were empty.
-- Change: initial `read_chunk` failure now routes to `_file_read_failure()`.
-- Wet evidence: missing-recovery matrix `3/3` (`/tmp/file-read-missing-recovery-final.log`); file/context/event/Node Knowledge `44/44`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3776/12817`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: make missing chunk failures observable in JSONL/replay without losing chunk budget report.
+- Metric/threshold: fixed chunk-failure matrix `3/3`.
+- Baseline: `/tmp/file-read-chunk-failure-baseline.log` = `2/3`; missing result and replay tool_result existed, dedicated failure event was absent.
+- Change: failed chunk action now returns `_file_read_failure()` plus requested/effective size report.
+- Wet evidence: chunk-failure matrix `3/3` (`/tmp/file-read-chunk-failure-final.log`); file/context/event/Node Knowledge `45/45`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3777/12824`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

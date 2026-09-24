@@ -40,6 +40,27 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
+    def test_read_file_chunk_directory_error_emits_failure_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "directory").mkdir()
+            executor = self._executor(root, file_chunk_chars=5)
+            result = executor._run_action(
+                {"type": "read_file_chunk", "path": "directory", "start": 0, "size": 5},
+                step_id="node.directory",
+            )
+            # 1. Directory read returns structured file failure.
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error_type"], "file_error")
+            self.assertEqual(result["report"]["effective_size"], 5)
+            # 2. IO failure emits failed event.
+            failures = executor.events.read(node_id="node.directory", event="file_read_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(failures[0]["details"]["status"], "failed")
+            # 3. Replay keeps node failure state.
+            self.assertEqual(executor.events.replay(node_id="node.directory")["nodes"]["node.directory"]["status"], "failed")
+            executor.close()
+
     def test_read_file_chunk_missing_file_emits_failure_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded missing-file recovery iteration from `TODO.md`; route initial `read_file_complete` missing-source failure through structured node-scoped failed event/replay while preserving terminality, active-to-complete transition, session identity, chunk limits, drift guards, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Complete bounded missing-chunk recovery iteration from `TODO.md`; route initial `read_file_chunk` missing-source failure through structured node-scoped failed event/replay while preserving context-aware report, terminality, active-to-complete transition, session identity, chunk limits, drift guards, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3776 nodes, 12817 edges; HEAD `daa54a5` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/file-read-missing-recovery-baseline.log` failed `1/3`: missing result was structured, but no failure event or replay metadata existed.
-- TDD change routes initial missing-file failure through `_file_read_failure()` with status/replay observability.
-- Wet evidence: missing-recovery matrix `3/3` (`/tmp/file-read-missing-recovery-final.log`); TDD red/green `/tmp/file-read-missing-recovery-tdd.log`, `/tmp/file-read-missing-recovery-tdd-after-fix.log`; file/context/event/Node Knowledge suite `44/44`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3776/12817`, current; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3777 nodes, 12824 edges; HEAD `88f12be` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/file-read-chunk-failure-baseline.log` failed `2/3`: missing chunk result/replay tool_result passed, but dedicated failure event was absent.
+- TDD change routes failed `read_file_chunk` result through `_file_read_failure()`, preserving bounded report fields and failed replay status.
+- Wet evidence: chunk-failure matrix `3/3` (`/tmp/file-read-chunk-failure-final.log`); TDD red/green `/tmp/file-read-chunk-failure-tdd.log`, `/tmp/file-read-chunk-failure-tdd-2.log`; file/context/event/Node Knowledge suite `45/45`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3777/12824`, current; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

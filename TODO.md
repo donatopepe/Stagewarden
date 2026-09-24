@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — recovery missing chunk action
+### Iterazione bounded corrente — recovery file chunk read error
+
+- **Obiettivo:** rendere node-scoped e replay-visible gli errori reali di `read_file_chunk` (directory/IO), preservando report e result strutturato.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-directory-baseline.log` = `3/3` per directory; permission probe non valido sotto root = `1/3`; no new policy.
+- **Casi fissi/ordine:** directory read error; result `file_error` con report; failure event/replay status.
+- **Variabile unica:** error mapping già esistente `read_file_chunk`; nessuna modifica a permission policy, chunk sizing, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+
+### Iterazione bounded completata — recovery missing chunk action
 
 - **Obiettivo:** rendere node-scoped e replay-visible il fallimento di `read_file_chunk` quando file manca, mantenendo report context-aware e result strutturato.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-chunk-failure-baseline.log` = `2/3`; result file_error e replay tool_result passavano, ma nessun `file_read_failure` dedicato.
 - **Casi fissi/ordine:** missing chunk result; failure event status/path; replay failure metadata node-scoped.
 - **Variabile unica:** missing-chunk recovery mapping nel percorso executor; nessuna modifica a chunk sizing, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-chunk-failure-final.log`; TDD red/green; suite file/context/event/Node Knowledge `45/45`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3777/12824`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — recovery missing file action
 
