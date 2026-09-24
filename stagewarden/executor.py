@@ -1974,6 +1974,11 @@ class Executor:
                     raw_remaining_chars = int(available * self._context_chars_per_token) - self._active_prompt_chars
                 requested_size = min(requested_size, max(100, raw_remaining_chars))
             result = self.files.read_chunk(action.get("path", ""), start=int(action.get("start", 0)), size=requested_size)
+            if not result.ok:
+                failure = self._file_read_failure(step_id, action.get("path", ""), result.error)
+                failure["report"] = {"requested_size": int(action.get("size", self.config.file_chunk_chars)), "effective_size": requested_size, "auto_compacted": auto_compacted}
+                failure["content"] = ""
+                return failure
             message = result.content or result.error or "File chunk read."
             report = dict(result.report or {})
             report["requested_size"] = int(action.get("size", self.config.file_chunk_chars))

@@ -40,6 +40,28 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
+    def test_read_file_chunk_missing_file_emits_failure_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executor = self._executor(root, file_chunk_chars=5)
+            result = executor._run_action(
+                {"type": "read_file_chunk", "path": "missing.txt", "start": 0, "size": 5},
+                step_id="node.chunk",
+            )
+            # 1. Missing chunk returns structured failure.
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error_type"], "file_error")
+            # 2. Failure event includes path/status.
+            failures = executor.events.read(node_id="node.chunk", event="file_read_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(failures[0]["details"]["status"], "failed")
+            self.assertEqual(failures[0]["details"]["path"], "missing.txt")
+            # 3. Replay exposes node-scoped failure.
+            state = executor.events.replay(node_id="node.chunk")["nodes"]["node.chunk"]
+            self.assertEqual(state["status"], "failed")
+            self.assertEqual(state["path"], "missing.txt")
+            executor.close()
+
     def test_read_file_complete_missing_file_emits_failure_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
