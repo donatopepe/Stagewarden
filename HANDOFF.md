@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded finalization drift iteration. `read_file_complete` now performs final source hash/length validation before marking persisted content complete. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded file-read failure observability iteration. `read_file_complete` emits node-scoped `file_read_failure` JSONL events when drift or progress validation fails; replay preserves selected-node scope. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: reject source changes after final data chunk and mutations of empty sources.
-- Metric/threshold: fixed final-drift matrix `3/3`.
-- Baseline: `/tmp/file-read-final-drift-baseline.log` = `1/3`; stable source passed, late same-length and empty-source mutations were accepted.
-- Change: final probe compares content hash and total length before `complete_file_read`; persistent status stays active on drift.
-- Wet evidence: final-drift matrix `3/3` (`/tmp/file-read-final-drift-final.log`); file/Node Knowledge/context/event `37/37`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3766/12767`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: make fail-closed file-read drift failures visible in JSONL/replay.
+- Metric/threshold: fixed failure-observability matrix `3/3`.
+- Baseline: `/tmp/file-read-failure-observability-baseline.log` = `1/3`; failure result existed, but no failure event and replay node was empty.
+- Change: `_file_read_failure()` emits event with path/error; all complete-read drift/progress exits use it.
+- Wet evidence: failure-observability matrix `3/3` (`/tmp/file-read-failure-observability-final.log`); file/Node Knowledge/context/event `38/38`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3769/12782`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
