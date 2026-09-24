@@ -75,9 +75,12 @@ class EventStream:
                         )
                         if key in details
                     })
-                    if event_item.get("event") == "mutation_recovery":
+                    if event_item.get("event") in {"mutation_recovery", "mutation_replay"}:
                         state["mutation_key"] = details.get("mutation_key")
-                        state["mutation_status"] = details.get("status") or "recovered"
+                        state["mutation_status"] = (
+                            details.get("status")
+                            or "recovered" if event_item.get("event") == "mutation_recovery" else "replayed"
+                        )
                     node = details.get("node")
                     if isinstance(node, dict):
                         state.update({

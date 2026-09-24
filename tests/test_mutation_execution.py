@@ -720,6 +720,35 @@ class MutationExecutionTests(unittest.TestCase):
                 self.assertIn(f"test_interrupted_{base}_journal_is_recovered", methods, family)
                 self.assertIn(f"test_failed_{base}_action_closes_journal", methods, family)
 
+    def test_mutation_event_recovery_safety_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "result.txt"
+            target.write_text("before\n", encoding="utf-8")
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            action = {"type": "apply_patch", "path": "result.txt", "search": "before", "replace": "after"}
+            # 1. completed replay event retains safe key/action/status metadata
+            first = executor._run_action(action, step_id="node-a")
+            second = executor._run_action(action, step_id="node-a")
+            self.assertTrue(first["ok"])
+            self.assertTrue(second["replayed"])
+            replay = executor.events.replay(node_id="node-a")
+            self.assertEqual(replay["nodes"]["node-a"]["mutation_key"], first["mutation_key"])
+            self.assertEqual(replay["nodes"]["node-a"]["mutation_status"], "replayed")
+            # 2. in-flight recovery event projects recovery metadata
+            target.write_text("before\n", encoding="utf-8")
+            recovery_action = {"type": "apply_patch", "path": "result.txt", "search": "before", "replace": "after-recovered"}
+            key = executor.mutations.key("apply_patch", recovery_action)
+            executor.mutations.append(key=key, action_type="apply_patch", path="result.txt", status="in_flight", message="started")
+            recovered = executor._run_action(recovery_action, step_id="node-b")
+            self.assertTrue(recovered["recovered"])
+            recovery_events = executor.events.read(node_id="node-b", event="mutation_recovery")
+            self.assertEqual(recovery_events[-1]["details"]["mutation_key"], key)
+            self.assertEqual(recovery_events[-1]["details"]["action_type"], "apply_patch")
+            # 3. node-filtered replay excludes other node
+            self.assertEqual(set(executor.events.replay(node_id="node-a")["nodes"]), {"node-a"})
+            executor.close()
+
     def test_completed_write_action_is_idempotently_replayed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

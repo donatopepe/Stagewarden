@@ -68,6 +68,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice in `tests/test_mutation_execution.py`, then unified runner.
 - **Esito:** remaining mutation family matrix `12/12`; mutation/journal `52/52`; targeted MVP `108/108`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3728/12535`.
 
+### Sotto-iterazione bounded corrente — mutation journal recovery metadata safety
+
+- **Obiettivo:** verify mutation replay/recovery JSONL preserves action/key/status metadata without leaking mutation content, and replay remains node-scoped.
+- **Metrica/soglia:** fixed safety cases `3/3`: mutation replay metadata; mutation recovery metadata; node-filtered replay excludes another node. Threshold 3/3.
+- **Baseline:** `/tmp/mutation-audit-targeted.log`: mutation/journal `52/52 OK`, but no fixed redaction/replay matrix covers mutation metadata and node scope.
+- **Casi fissi/ordine:** completed replay event; in-flight recovery event; node-filtered replay.
+- **Variabile unica:** mutation event/replay safety assertions only; no mutation semantics/provider/model/fallback/scheduler change.
+- **Test wet target:** nuova matrice `3/3` in `tests/test_mutation_execution.py` and `tests/test_event_stream.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.
