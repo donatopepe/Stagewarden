@@ -201,6 +201,30 @@ class ContextAwareFileReadingTests(unittest.TestCase):
                 self.assertIn(key, compact_details)
             executor.close()
 
+    def test_context_provider_selection_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.txt"
+            source.write_text("x" * 1000, encoding="utf-8")
+            executor = self._executor(root, context_window_tokens=100, context_reserved_output_tokens=20, context_safety_margin_tokens=10, file_chunk_chars=500)
+            # 1. explicitly selected cheap identity
+            cheap = executor._context_budget("cheap")
+            self.assertEqual(cheap["provider"], "cheap")
+            self.assertEqual(cheap["available_input"], 70)
+            # 2. explicitly selected chatgpt identity
+            chatgpt = executor._context_budget("chatgpt")
+            self.assertEqual(chatgpt["provider"], "chatgpt")
+            self.assertEqual(chatgpt["available_input"], 70)
+            # 3. selected budget propagates into node events
+            executor._active_context_budget = chatgpt
+            executor._active_prompt_chars = 390
+            result = executor._run_action({"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 500}, step_id="node.chatgpt")
+            self.assertTrue(result["ok"])
+            details = next(item["details"] for item in executor.events.read(node_id="node.chatgpt", event="file_chunk") if "available_input_tokens" in item["details"])
+            self.assertEqual(details["provider"], "chatgpt")
+            self.assertEqual(details["available_input_tokens"], 70)
+            executor.close()
+
     def test_prompt_compacts_when_configured_input_budget_is_small(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

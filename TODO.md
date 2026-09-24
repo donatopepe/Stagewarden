@@ -88,6 +88,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_goal_loop_orchestrator.py`, `tests/test_file_read_recovery.py`, `tests/test_agent_integration.py`, then unified runner.
 - **Esito:** pause/resume checkpoint matrix `3/3`; goal/file/agent recovery `46/46` (`1` skip); targeted MVP `120/120` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3732/12582`.
 
+### Sotto-iterazione bounded corrente — context provider/model selection matrix
+
+- **Obiettivo:** verify context budget/chunk/compaction evidence for two explicitly selected provider identities while preserving manual ownership and no fallback/provider changes.
+- **Metrica/soglia:** `3/3` fixed cases green: cheap budget identity; chatgpt budget identity; selected-node chunk/compaction metadata. Threshold 3/3.
+- **Baseline:** `/tmp/context-node-provider-baseline-current.log`: context suite `9/9 OK`; `_context_budget` exposes fields, but no fixed matrix covers two provider identities plus event metadata under selected node.
+- **Casi fissi/ordine:** `_context_budget("cheap")`; `_context_budget("chatgpt")`; `read_file_chunk` and prompt compaction with selected provider/model budget.
+- **Variabile unica:** acceptance matrix over existing context paths; no router selection, fallback, provider/model policy, mutation or parallelism change.
+- **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.
