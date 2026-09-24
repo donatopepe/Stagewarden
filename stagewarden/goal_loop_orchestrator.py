@@ -772,7 +772,7 @@ Do NOT include any text before or after the JSON object.'''
         provider = os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap").strip() or "cheap"
         try:
             proc = subprocess.run(
-                [sys.executable, str(adapter), provider, node_state.prompt],
+                [sys.executable, str(adapter), "--node-contract", provider, node_state.prompt],
                 capture_output=True,
                 text=True,
                 timeout=self.config.model_timeout_seconds,

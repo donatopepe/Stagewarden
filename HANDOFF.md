@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP direct shell lifecycle acceptance and OmniRoute-free validation. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP validation after node-scoped tool replay/recovery completion. OmniRoute-free gates remain active; live multi-node malformed output stays fail-closed. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Product direction
 - One operational tree of nodes.
@@ -33,6 +33,13 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
 ## Latest bounded iteration
+- Objective: close node-scoped tool replay/recovery projection over persistent non-file recovery.
+- Metric/threshold: fixed replay matrix `3/3`.
+- Baseline: `/tmp/tool-replay-scope-baseline.log` was `2/3`; unfiltered and node-filtered in-flight sets passed, recovery projection absent.
+- Change: EventStream replay now returns `tool_recoveries` with recovered status and `retry_authorized=false`, preserving node filter scope; added fixed replay matrix test.
+- Wet validation: replay matrix `3/3`; targeted suite `118/118 OK`; targeted MVP `118/118 OK`; unified runner `6/6`; simulation `29/29`; full discovery `604/604` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; handoff JSON and `git diff --check` pass; CodeGraph `139/3751/12690`, up to date; HEAD `a2b1fdc1676188ac2ac6a27e953685ddf8b22d06`.
+- Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
+
 - Objective: add automated direct shell lifecycle acceptance over persistent non-file recovery.
 - Metric/threshold: fixed automated acceptance `3/3`.
 - Baseline: `/tmp/nonfile-recovery-integration-baseline-valid.log` behavior probe `3/3`, but automated coverage was `2/3` because direct shell lifecycle had no dedicated assertion.

@@ -434,7 +434,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         node = GO(self.config, "test task", execution_mode="pi").nodes["root.scope"]
         adapter = Path(__file__).parents[1] / "scripts" / "run_model_omniroute.py"
         completed = subprocess.CompletedProcess(
-            args=["python", str(adapter), "cheap", node.prompt],
+            args=["python", str(adapter), "--node-contract", "cheap", node.prompt],
             returncode=0,
             stdout=json.dumps({"summary": "free node done", "messages": [], "output": "evidence"}),
             stderr="",

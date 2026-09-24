@@ -9,13 +9,22 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — tool replay scope/recovery projection
+### Iterazione bounded corrente — OmniRoute node-contract adapter fail-closed
+
+- **Obiettivo:** fare rifiutare all'adapter OmniRoute, solo nel percorso goal-loop esplicitamente contrattualizzato, output malformed/prose/wrong-contract e usare soltanto i fallback free già configurati; nessun cambio provider/model policy.
+- **Metrica/soglia:** fixed contract matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/omniroute-adapter-contract-baseline.log` = `1/3`: valid payload accettato, wrong-contract e prose accettati con return code `0`; il goal-loop deve già fallire chiuso più avanti, ma adapter non classificava il contratto.
+- **Casi fissi/ordine:** valid node packet accepted; wrong-contract first route → existing configured free fallback accepted; prose/malformed on all configured free routes → nonzero structured failure.
+- **Variabile unica:** flag esplicito `--node-contract` con validazione adapter e passaggio dal goal-loop; direct smoke senza flag, provider/model/fallback defaults e serialità invariati.
+
+### Iterazione bounded completata — tool replay scope/recovery projection
 
 - **Obiettivo:** rendere replay JSONL node-scoped per tool in-flight e proiettare recovery metadata fail-closed, senza cambiare tool/provider/model behavior.
 - **Metrica/soglia:** fixed replay matrix `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/tool-replay-scope-baseline.log` = `2/3`: unfiltered operations e node filter passavano; recovery projection mancava.
 - **Casi fissi/ordine:** two-node unfiltered in-flight set; node-filtered set; recovered operation with `status=recovered` and `retry_authorized=false`.
 - **Variabile unica:** EventStream replay projection plus test; nessuna modifica runtime tool execution, provider/model, fallback, scheduler, serialità, parallelismo o API.
+- **Esito:** replay matrix `3/3`; targeted tool/context/mutation suite `118/118`; targeted MVP `118/118`; unified runner `6/6`; simulation `29/29`; full discovery `604/604` con `5` skip; CLI `3/3`; docs `17/17`; direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; handoff JSON e `git diff --check` verdi; CodeGraph `139/3751/12690`, up to date; HEAD `a2b1fdc1676188ac2ac6a27e953685ddf8b22d06`.
 
 ### Iterazione bounded completata — direct shell lifecycle acceptance
 

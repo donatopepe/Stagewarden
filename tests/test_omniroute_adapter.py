@@ -26,6 +26,36 @@ class _Response:
 
 
 class OmniRouteAdapterTests(unittest.TestCase):
+    def test_node_contract_rejects_wrong_contract_and_uses_free_fallback(self) -> None:
+        attempts: list[str] = []
+
+        def fake_urlopen(request, timeout):
+            payload = json.loads(request.data)
+            attempts.append(payload["model"])
+            if len(attempts) == 1:
+                return _Response(json.dumps({"summary": "wrong", "keyDecisions": "not allowed"}))
+            return _Response(json.dumps({"summary": "valid node", "messages": [], "output": "evidence"}))
+
+        with patch.object(sys, "argv", ["run_model", "--node-contract", "cheap", "test prompt"]), patch.object(
+            run_model_omniroute.urllib.request, "urlopen", side_effect=fake_urlopen
+        ), patch.dict(os.environ, {"STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free"}):
+            self.assertEqual(run_model_omniroute.main(), 0)
+        self.assertEqual(attempts[:2], ["auto/coding:free", "auto/best-free"])
+
+    def test_node_contract_rejects_prose_on_all_routes(self) -> None:
+        attempts: list[str] = []
+
+        def fake_urlopen(request, timeout):
+            payload = json.loads(request.data)
+            attempts.append(payload["model"])
+            return _Response("Sure, here is prose")
+
+        with patch.object(sys, "argv", ["run_model", "--node-contract", "cheap", "test prompt"]), patch.object(
+            run_model_omniroute.urllib.request, "urlopen", side_effect=fake_urlopen
+        ), patch.dict(os.environ, {"STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free"}):
+            self.assertEqual(run_model_omniroute.main(), 1)
+        self.assertEqual(len(attempts), 3)
+
     def test_adapter_uses_free_fallback_after_route_failure(self) -> None:
         attempts: list[str] = []
 

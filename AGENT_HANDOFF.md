@@ -1,12 +1,12 @@
 # Agent Handoff
 
 ## Current objective
-Close direct shell lifecycle acceptance on top of completed non-file tool recovery, then maintain bounded node-first MVP validation. Next work remains limited to TODO.md and approval-gated v3 decisions. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
+Maintain bounded node-first MVP validation after closing node-scoped tool replay/recovery projection; resolve remaining blockers only within TODO.md and without weakening fail-closed OmniRoute behavior. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph verified current and up to date: 139 files, 3750 nodes, 12685 edges; branch `main`, sole main worktree; HEAD `43d1838c605e1d1294c35683a9f43761f75aaa61`.
-- Latest bounded gate passed: direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `117/117`; unified validation `6/6`; simulation `29/29`; full discovery `603/603` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. Tool recovery is persistent, replay-visible and `retry_authorized=false`; no automatic retry. Retry checkpoint/replay `3/3`; context boundary/provider matrices `3/3`; pause/resume `3/3`; mutation replay/recovery `3/3`; remaining MutationJournal family `12/12`; context metadata redaction/replay `3/3`; serial execution-mode `3/3`; Node Knowledge relation/freshness `6/6`. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
+- CodeGraph verified current and up to date: 139 files, 3751 nodes, 12690 edges; branch `main`, sole main worktree; HEAD `a2b1fdc1676188ac2ac6a27e953685ddf8b22d06`.
+- Latest bounded gate passed: replay scope/recovery matrix `3/3`; direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `118/118`; unified validation `6/6`; simulation `29/29`; full discovery `604/604` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. Tool recovery is persistent, node-filtered and replay-visible with `retry_authorized=false`; no automatic retry. Remaining blockers: live multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval gate. Provider/model selection, fallback policy and serial execution unchanged.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`. Live multi-node OmniRoute remains blocked on repeated malformed/truncated, wrong-contract and prose-wrapped output; adapter remains fail-closed.
@@ -120,6 +120,13 @@ Close direct shell lifecycle acceptance on top of completed non-file tool recove
   - Reason: context size and provider/model/cost are essential user responsibilities.
 
 ## Validation evidence
+- Objective: close node-scoped tool replay/recovery projection over persistent non-file recovery.
+- Metric/threshold: fixed replay matrix `3/3`.
+- Baseline: `/tmp/tool-replay-scope-baseline.log` was `2/3`; unfiltered and node-filtered in-flight sets passed, recovery projection absent.
+- TDD change: EventStream replay now returns `tool_recoveries` with recovered status and `retry_authorized=false`, preserving node filter scope; added fixed replay matrix test.
+- Wet validation: replay matrix `3/3`; targeted suite `118/118 OK`; targeted MVP `118/118 OK`; unified runner `6/6`; simulation `29/29`; full discovery `604/604` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; handoff JSON and `git diff --check` pass; CodeGraph `139/3751/12690`, up to date; HEAD `a2b1fdc1676188ac2ac6a27e953685ddf8b22d06`.
+- Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
+
 - Objective: add automated direct shell lifecycle acceptance over persistent non-file recovery.
 - Metric/threshold: fixed automated acceptance `3/3`.
 - Baseline: `/tmp/nonfile-recovery-integration-baseline-valid.log` behavior probe `3/3`, but automated coverage was `2/3` because direct shell lifecycle had no dedicated assertion.

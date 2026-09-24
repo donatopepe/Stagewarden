@@ -34,21 +34,39 @@ MODEL_MAP = {
 
 def main() -> int:
     if len(sys.argv) < 3:
-        print(json.dumps({"error": "usage: run_model_omniroute.py <provider> <prompt>"}))
+        print(json.dumps({"error": "usage: run_model_omniroute.py [--node-contract] <provider> <prompt>"}))
         return 2
-    provider, prompt = sys.argv[1], sys.argv[2]
+    node_contract = sys.argv[1] == "--node-contract"
+    argument_offset = 1 if node_contract else 0
+    if len(sys.argv) < 3 + argument_offset:
+        print(json.dumps({"error": "usage: run_model_omniroute.py [--node-contract] <provider> <prompt>"}))
+        return 2
+    provider, prompt = sys.argv[1 + argument_offset], sys.argv[2 + argument_offset]
     requested = os.environ.get("STAGEWARDEN_PROVIDER_MODEL") or MODEL_MAP.get(provider, DEFAULT_MODEL)
     models = tuple(dict.fromkeys((requested, *FREE_FALLBACKS)))
     errors: list[dict[str, str]] = []
     is_critic = "devil advocate" in prompt.lower() or "project assurance critic" in prompt.lower()
-    messages = (
+    if node_contract:
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Return exactly one JSON object with only these top-level fields: "
+                    "summary (non-empty string), messages (array of objects), output (string optional). "
+                    "No markdown, prose, keyDecisions, taskProgress, or activeEntities."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ]
+    else:
+        messages = (
         [
             {"role": "system", "content": "You are a strict JSON critic. Return exactly one JSON object with top-level verdict equal to accept, revise, or block. Never repeat the primary action."},
             {"role": "user", "content": prompt},
         ]
-        if is_critic
-        else [{"role": "user", "content": prompt}]
-    )
+            if is_critic
+            else [{"role": "user", "content": prompt}]
+        )
     for model in models:
         payload = json.dumps({
             "model": model,
@@ -69,7 +87,19 @@ def main() -> int:
             content = data["choices"][0]["message"].get("content", "")
             if not content:
                 raise ValueError("OmniRoute returned empty content")
-            print(content)
+            if node_contract:
+                packet = json.loads(content)
+                if not isinstance(packet, dict) or not isinstance(packet.get("summary"), str) or not packet["summary"].strip() or not isinstance(packet.get("messages", []), list):
+                    raise ValueError("OmniRoute node contract requires non-empty summary and messages array")
+                allowed = {"summary", "messages", "output"}
+                unexpected = sorted(set(packet) - allowed)
+                if unexpected:
+                    raise ValueError(f"OmniRoute node contract has unexpected fields: {', '.join(unexpected)}")
+                if not all(isinstance(item, dict) for item in packet["messages"]):
+                    raise ValueError("OmniRoute node contract messages must contain objects")
+                print(json.dumps(packet, ensure_ascii=True, sort_keys=True))
+            else:
+                print(content)
             return 0
         except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError, json.JSONDecodeError) as exc:
             errors.append({"model": model, "error": str(exc)})
