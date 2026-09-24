@@ -47,10 +47,10 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: non-file tool recovery matrix 3/3 and targeted node/context/event/mutation/recovery 116/116 passed. Persistent tool_started/tool_recovery lifecycle, deterministic in_flight_tools replay and retry_authorized=false verified; no automatic retry. Prior unified runner 6/6; simulation 29/29; full discovery 600/600 with 5 skips; CLI 3/3; docs 17/17 with 0 errors; OmniRoute direct smoke passed. CodeGraph current/up to date at 139 files, 3735 nodes, 12612 edges.",
-  "plan_status": "MVP implementation active; non-file tool recovery 3/3 and targeted 116/116 green. Persistent recovery is fail-closed with no automatic retry. Provider/model selection, fallback policy and serial execution unchanged. Next: bounded remaining recovery/observability or user-approved v3 decisions.",
-  "git_head": "6fe50debf4a6b061e67a84ad4deca404a68ac2d9",
-  "git_head_baseline": "6fe50debf4a6b061e67a84ad4deca404a68ac2d9",
+  "latest_observation": "2026-09-24: direct shell lifecycle acceptance 3/3 and targeted node/context/event/mutation/recovery 117/117 passed. Direct shell tool_started/tool_result operation identity and empty in_flight_tools replay verified; non-file recovery remains persistent and retry_authorized=false. Unified runner 6/6; simulation 29/29; full discovery 602/602 with 5 skips; CLI 3/3; docs 17/17 with 0 errors; OmniRoute direct smoke passed. CodeGraph current/up to date at 139 files, 3749 nodes, 12673 edges.",
+  "plan_status": "MVP implementation active; direct shell lifecycle acceptance 3/3, non-file recovery 3/3 and targeted 117/117 green. Unified validation 6/6 and direct OmniRoute smoke green. Persistent recovery remains fail-closed with no automatic retry. Provider/model selection, fallback policy and serial execution unchanged. Next: bounded remaining recovery/observability or user-approved v3 decisions.",
+  "git_head": "17cc9e2bdd88cdaf5b8ac1f2e696d75b6e862ddb",
+  "git_head_baseline": "17cc9e2bdd88cdaf5b8ac1f2e696d75b6e862ddb",
   "risk_register": [
     {
       "id": "specification-approval-gate",
@@ -193,7 +193,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-24T06:20:00+02:00",
+  "updated_at": "2026-09-24T07:10:00+02:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",

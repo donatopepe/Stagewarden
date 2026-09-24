@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP non-file recovery and OmniRoute-free validation. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP direct shell lifecycle acceptance and OmniRoute-free validation. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Product direction
 - One operational tree of nodes.
@@ -33,11 +33,18 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
 ## Latest bounded iteration
+- Objective: add automated direct shell lifecycle acceptance over persistent non-file recovery.
+- Metric/threshold: fixed automated acceptance `3/3`.
+- Baseline: `/tmp/nonfile-recovery-integration-baseline-valid.log` behavior probe `3/3`, but automated coverage was `2/3` because direct shell lifecycle had no dedicated assertion.
+- Change: added direct-shell event/replay test; runtime unchanged.
+- Wet validation: acceptance `3/3`; targeted suite `117/117 OK`; targeted MVP `117/117 OK`; `py_compile`, handoff JSON and `git diff --check` pass; direct OmniRoute smoke green; CodeGraph `139/3749/12673`, up to date.
+- Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
+
 - Objective: implement non-file tool interruption recovery with persistent replay metadata and fail-closed resume.
 - Metric/threshold: fixed recovery matrix `3/3`.
 - Baseline: `/tmp/nonfile-recovery-baseline.log` was `1/3`; in-flight replay and reopen recovery markers were absent.
 - Change: added persistent `.stagewarden/tool_operations.json`, `tool_started`/`tool_recovery` JSONL events, replay `in_flight_tools` projection and `retry_authorized=false`; no automatic retry.
-- Wet validation: recovery matrix `3/3`; targeted rerun `116/116 OK`; `py_compile` and `git diff --check` pass. Provider/model/fallback/serial/mutation policy unchanged.
+- Wet validation: recovery matrix `3/3`; unified runner `6/6`; simulation `29/29`; targeted MVP `116/116`; full discovery `602/602` with `5` skips; CLI `3/3`; docs `17/17`; handoff JSON valid; `git diff --check` pass; OmniRoute direct smoke green; CodeGraph `139/3749/12673`, up to date. Provider/model/fallback/serial/mutation policy unchanged.
 - Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
 
 - Objective: reconcile TODO/handoff metadata against the completed runtime evidence without changing execution/provider/model policy.
@@ -134,7 +141,7 @@ No runtime feature work before approval.
 - Full discovery: `/tmp/full-unittest-after-status-20260923.log` → `588` tests, `OK (skipped=5)`.
 - CLI smoke: `baseline --json`, `model limits --json`, `events replay --json` all exit `0`; JSON output valid. `scripts/test_omniroute_free.sh` → `OmniRoute free route OK (auto/coding:free)`.
 - Documentation/link audit: `17` Markdown files checked, `0` link errors, UTF-8/no-BOM pass.
-- CodeGraph after runner, index, serial-gate, context metadata, replay-safety, mutation-audit, recovery, provider, boundary and retry matrix additions: `139 files / 3735 nodes / 12612 edges`, up to date.
+- CodeGraph after runner, index, serial-gate, context metadata, replay-safety, mutation-audit, recovery, provider, boundary, retry and non-file recovery additions: `139 files / 3749 nodes / 12673 edges`, up to date.
 - Provider suspension sub-gate: `python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_suspended_network_session_from_persisted_handoff tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_after_token_reset_from_persisted_handoff -v` → `2/2 OK`.
 - Regression targeted aggregate: Agent/executor/router/model-policy/policy-doc tests → `94` tests, `OK (skipped=1)`.
 - Simulation wet total: `test_total_run_is_wet_and_fail_closed` → `1/1 OK`.

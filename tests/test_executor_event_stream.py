@@ -16,6 +16,30 @@ from stagewarden.router import ModelRouter
 
 
 class ExecutorEventStreamTests(unittest.TestCase):
+    def test_direct_shell_tool_lifecycle_is_persisted_and_replayed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = AgentConfig(workspace_root=root)
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=HandoffManager(),
+                memory=MemoryStore(),
+                project_handoff=ProjectHandoff(),
+                rag=DesignRag(),
+            )
+            result = executor._run_action({"type": "shell", "command": "echo stagewarden"}, step_id="node.shell")
+            events = executor.events.read(node_id="node.shell")
+            replay = executor.events.replay(node_id="node.shell")
+            executor.close()
+            started = [event for event in events if event["event"] == "tool_started"]
+            completed = [event for event in events if event["event"] == "tool_result"]
+            self.assertTrue(result["ok"])
+            self.assertEqual(len(started), 1)
+            self.assertEqual(len(completed), 1)
+            self.assertEqual(started[0]["details"]["operation_id"], completed[0]["details"]["operation_id"])
+            self.assertEqual(replay["in_flight_tools"], {})
+
     def test_non_file_tool_recovery_is_persisted_and_retry_denied(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

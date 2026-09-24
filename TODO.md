@@ -9,7 +9,16 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — recovery non-file tool fail-closed
+### Iterazione bounded corrente — direct shell lifecycle acceptance
+
+- **Obiettivo:** codificare nel test automatico lifecycle `tool_started`/`tool_result` per direct shell action già coperto da runtime recovery, senza cambiare semantica tool.
+- **Metrica/soglia:** fixed automated acceptance `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/nonfile-recovery-integration-baseline-valid.log` behavior probe `3/3`, ma coverage automatica `2/3`: direct shell `_run_action` non aveva assertion dedicata; session-create e reopen erano coperti.
+- **Casi fissi/ordine:** direct shell action; shell-session create; reopen operation interrotta con `retry_authorized=false`.
+- **Variabile unica:** test TDD dedicato; nessuna modifica runtime/provider/model/fallback/scheduler/serialità/parallelismo/API.
+- **Esito:** automated acceptance `3/3`; targeted tool/context/mutation suite `117/117`; targeted MVP `117/117`; `py_compile`, handoff JSON e `git diff --check` verdi; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3749/12673`, up to date.
+
+### Iterazione bounded completata — recovery non-file tool fail-closed
 
 - **Obiettivo:** persistere lifecycle JSONL per tool non-file interrotti e rilevarli dopo reopen, senza riesecuzione automatica o cambi runtime/provider/model.
 - **Metrica/soglia:** matrice fissa `3/3`: replay in-flight; completion clears; reopen emits one recovery marker with retry denied.
@@ -18,16 +27,16 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** lifecycle/replay metadata per tool non-file; nessuna modifica a semantica tool, provider/model, fallback, scheduler, serialità o API pause/cancel.
 - **Criterio fail-closed:** recovery persistente osservabile, `retry_authorized=false`, nessuna chiamata tool automatica.
 
-### Iterazione bounded corrente — riconciliazione evidence/handoff MVP
+### Prossima iterazione bounded — riconciliazione evidence/handoff MVP
 
 - **Obiettivo:** riconciliare piano e handoff con runtime/evidence già presenti, senza aggiungere API o cambiare runtime policy.
 - **Metrica/soglia:** 100% dei 6 gate canonical verdi; soglia `6/6`.
 - **Baseline:** `/tmp/stagewarden-state-reconcile-baseline.log`: unified runner `6/6`, ma report ha rilevato `600` test full discovery (5 skip), targeted `114`, HEAD/CodeGraph e checkbox TODO/handoff ancora stale.
 - **Casi fissi/ordine:** unified runner; OmniRoute direct smoke; CodeGraph sync/status; branch/worktree; consistency checks su TODO, handoff JSON/Markdown e diff.
 - **Variabile unica:** aggiornamento evidence/status metadata e checkbox già dimostrate; nessuna modifica a esecuzione, provider/model, fallback, parallelismo o API.
-- **Esito:** unified runner `6/6`; simulation `29/29`; targeted MVP `114/114`; full discovery `600/600` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)`; docs `17/17`, `0` errori; targeted wet rerun `114/114 OK`; recovery matrix `3/3`; targeted recovery rerun `116/116 OK`; handoff JSON valido; `git diff --check` OK; CodeGraph `139/3735/12612`, up to date; branch `main`, unico worktree; HEAD `6fe50debf4a6b061e67a84ad4deca404a68ac2d9`.
+- **Esito:** unified runner `6/6`; simulation `29/29`; targeted MVP `114/114`; full discovery `600/600` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)`; docs `17/17`, `0` errori; targeted wet rerun `114/114 OK`; recovery matrix `3/3`; targeted recovery rerun `116/116 OK`; handoff JSON valido; `git diff --check` OK; CodeGraph `139/3749/12673`, up to date; branch `main`, unico worktree; HEAD `17cc9e2bdd88cdaf5b8ac1f2e696d75b6e862ddb`.
 
-### Prossima iterazione bounded — unified scenario/full wet runner
+### Archivio iterazione — unified scenario/full wet runner
 
 - **Obiettivo:** eseguire canonical simulation matrix, targeted MVP suites, full unittest discovery, CLI smoke e documentation/link checks through one reusable bounded runner; non modificare runtime policy.
 - **Metrica/soglia:** 100% runner gates verdi: matrix total, targeted node/context/event/mutation suites, full discovery, CLI/status smoke and docs hygiene; soglia 6/6 gate groups.
