@@ -27,14 +27,23 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** positive-size guard nel percorso executor; nessuna modifica a offset guard, compaction, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/file-read-size-zero-final.log`; TDD red/green; suite file/context/event/Node Knowledge `51/51`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3783/12867`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — recovery bool file chunk size
+### Iterazione bounded completata — recovery bool file chunk size
 
 - **Obiettivo:** isolare TDD coverage per bool `read_file_chunk` size, preservando type guard e failed replay metadata.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-bool-size-baseline-2.log` = `3/3` behavior già green, ma nessuna dedicated regression.
 - **Casi fissi/ordine:** bool size result; failure event status/path; node replay failed status.
 - **Variabile unica:** TDD coverage only; nessuna modifica runtime, offset/size guards, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-bool-size-final.log`; TDD; file/context/event/Node Knowledge suite `53/53`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3785/12879`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — freshness e stale-removal code index
+
+- **Obiettivo:** isolare TDD coverage per versione/freshness dell'indice Python Node Knowledge e rimozione di file/simboli stale, senza ampliare retrieval scope.
+- **Metrica/soglia:** matrice fissa `4/4`; soglia `4/4`.
+- **Baseline:** `/tmp/node-knowledge-freshness-baseline.log` = `4/4` behavior già green, ma nessuna dedicated regression.
+- **Casi fissi/ordine:** initial index; unchanged reindex remains fresh/version 1; changed source increments version and replaces symbols; deleted source removes stale symbols/file.
+- **Variabile unica:** TDD coverage only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_node_knowledge.py`, poi suite Node Knowledge/file/context/event.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

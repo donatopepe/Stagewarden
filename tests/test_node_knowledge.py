@@ -47,6 +47,51 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertTrue(store.code_search("ancestorexclusive", node_id="ancestor"))
                 self.assertEqual(store.code_search("ancestorexclusive", node_id="child"), [])
 
+    def test_code_index_freshness_and_stale_removal_matrix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "src"
+            root.mkdir()
+            source = root / "module.py"
+            source.write_text(
+                "def initial_symbol():\n    return 1\n\ndef removed_symbol():\n    return 2\n",
+                encoding="utf-8",
+            )
+            with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                # 1. Initial indexing records symbols.
+                first = store.index_python(root, node_id="node", tree_id="tree")
+                self.assertEqual(first["files"], 1)
+                self.assertEqual(first["changed"], 0)
+                self.assertTrue(store.code_search("initial_symbol", node_id="node"))
+                # 2. Unchanged indexing is fresh and keeps version one.
+                second = store.index_python(root, node_id="node", tree_id="tree")
+                current = store.connection.execute(
+                    "SELECT version, freshness FROM code_files WHERE node_id = ? AND path = ?",
+                    ("node", "module.py"),
+                ).fetchone()
+                self.assertEqual(second["fresh"], 1)
+                self.assertEqual(second["changed"], 0)
+                self.assertEqual(dict(current), {"version": 1, "freshness": "fresh"})
+                # 3. Changed source increments version and replaces removed symbol.
+                source.write_text(
+                    "def initial_symbol():\n    return 1\n\ndef changed_symbol():\n    return 3\n",
+                    encoding="utf-8",
+                )
+                third = store.index_python(root, node_id="node", tree_id="tree")
+                current = store.connection.execute(
+                    "SELECT version, freshness FROM code_files WHERE node_id = ? AND path = ?",
+                    ("node", "module.py"),
+                ).fetchone()
+                self.assertEqual(third["changed"], 1)
+                self.assertEqual(dict(current), {"version": 2, "freshness": "fresh"})
+                self.assertFalse(store.code_search("removed_symbol", node_id="node"))
+                self.assertTrue(store.code_search("changed_symbol", node_id="node"))
+                # 4. Deleted source removes stale file and symbols.
+                source.unlink()
+                fourth = store.index_python(root, node_id="node", tree_id="tree")
+                self.assertEqual(fourth["stale_removed"], 1)
+                self.assertFalse(store.code_search("initial_symbol", node_id="node"))
+                self.assertFalse(store.code_search("changed_symbol", node_id="node"))
+
     def test_same_root_indexing_rejects_cross_node_ownership_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "src"
