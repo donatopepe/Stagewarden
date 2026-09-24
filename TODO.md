@@ -66,6 +66,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** completed replay; in-flight recovery with one terminal completion; invalid/fail-closed terminal status, in family order range → encoding → path → permissions.
 - **Variabile unica:** audit matrix/test coverage only; no mutation runtime behavior or provider/model/parallelism change.
 - **Test wet target:** nuova matrice in `tests/test_mutation_execution.py`, then unified runner.
+- **Esito:** remaining mutation family matrix `12/12`; mutation/journal `52/52`; targeted MVP `108/108`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3728/12535`.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 

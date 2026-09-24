@@ -6,7 +6,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
 - CodeGraph verified current: 139 files, 3724 nodes, 12516 edges after unified validation, Node Knowledge relation index and serial gate additions.
-- Latest bounded gate passed: context metadata redaction/replay matrix 3/3; targeted node/event/context/mutation suite 107/107; context/provider identity matrix 3/3; serial execution-mode gate 3/3; Node Knowledge relation/freshness 6/6; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
+- Latest bounded gate passed: remaining MutationJournal family matrix 12/12; targeted node/event/context/mutation suite 108/108; context metadata redaction/replay 3/3; context/provider identity 3/3; serial execution-mode 3/3; Node Knowledge relation/freshness 6/6; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`.
@@ -56,6 +56,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - Goal loop validates mode at boundary; only `mock`, `auto`, `pi` accepted and all paths execute one ready node serially.
 - Context events now carry provider/model, context window/input limit and reserved-output/safety-margin metadata alongside node and available-token fields.
 - Replay projects context identity metadata; event redaction tests ensure API-like values remain absent while node filters remain scoped.
+- Mutation family audit confirms completed replay, in-flight recovery and failed terminal tests remain present for all remaining action families; runtime unchanged.
 - `tests/test_file_read_recovery.py`: reopen/resume, offset integrity and content-hash recovery tests.
 - `stagewarden/event_stream.py`: append-only redacted JSONL events and replay projection.
 - `tests/test_event_stream.py`: redaction and replay tests.
@@ -65,6 +66,7 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
 - `tests/test_goal_loop_orchestrator.py`: three-case serial execution-mode gate; unsupported parallel modes rejected at orchestrator boundary.
 - `tests/test_context_file_reading.py`: three-case provider/node context-budget identity matrix for budget, file-chunk and compaction events.
 - `tests/test_event_stream.py`: three-case metadata redaction/replay/node-filter matrix.
+- `tests/test_mutation_execution.py`: twelve-case remaining mutation family audit across range, encoding, path and permission families.
 - `tests/test_executor_event_stream.py`: tool/chunk/compaction event coverage.
 - `stagewarden/mutation_journal.py`, `tests/test_mutation_journal.py`, `tests/test_mutation_execution.py`: idempotent mutation journal and recovery tests for all 16 declared mutation actions.
 - `tests/test_modelprefs.py`: manual model ownership and fallback policy round-trip/validation tests.
