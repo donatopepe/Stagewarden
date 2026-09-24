@@ -98,6 +98,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
 - **Esito:** context provider/model selection matrix `3/3`; context suite `10/10`; targeted MVP `121/121` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3733/12589`.
 
+### Sotto-iterazione bounded corrente — context budget boundary/unknown policy
+
+- **Obiettivo:** verify context budget remains fail-closed at zero/unknown limits and preserves compaction/chunk metadata, without changing provider/model selection or fallback.
+- **Metrica/soglia:** `3/3` fixed cases: zero available input caps chunk safely; unknown catalog budget reports unknown and does not infer limit; exact boundary compaction emits metadata. Threshold 3/3.
+- **Baseline:** `/tmp/context-boundary-baseline.log`: existing context suite `10/10 OK`; no fixed tests for zero/unknown catalog limits or exact budget boundary.
+- **Casi fissi/ordine:** configured window smaller than reserved+margin; unknown provider/model catalog; prompt exactly at available boundary.
+- **Variabile unica:** boundary acceptance assertions over existing `_context_budget`/chunk/compaction paths; no runtime policy/provider/fallback/scheduler change.
+- **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.

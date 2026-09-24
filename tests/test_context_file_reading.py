@@ -225,6 +225,35 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(details["available_input_tokens"], 70)
             executor.close()
 
+    def test_context_budget_boundary_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("x" * 200, encoding="utf-8")
+            # 1. reserved output + margin exceed configured window: available=0, chunk remains bounded.
+            executor = self._executor(root, context_window_tokens=20, context_reserved_output_tokens=15, context_safety_margin_tokens=10, file_chunk_chars=100)
+            zero = executor._context_budget("cheap")
+            self.assertEqual(zero["available_input"], 0)
+            executor._active_context_budget = zero
+            result = executor._run_action({"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 100}, step_id="node.zero")
+            self.assertTrue(result["ok"])
+            self.assertGreater(result["report"]["effective_size"], 0)
+            # 2. unknown provider catalog must remain unknown, not guessed.
+            unknown_executor = self._executor(root, context_window_tokens=None, context_reserved_output_tokens=0, context_safety_margin_tokens=0)
+            unknown = unknown_executor._context_budget("unknown-provider")
+            self.assertIsNone(unknown["context_window"])
+            self.assertIsNone(unknown["available_input"])
+            # 3. exact available boundary emits compaction metadata.
+            boundary = self._executor(root, context_window_tokens=100, context_reserved_output_tokens=20, context_safety_margin_tokens=10)
+            budget = boundary._context_budget("cheap")
+            self.assertEqual(budget["available_input"], 70)
+            step = PlanStep("step-boundary", "Inspect", "inspect", "run tests", wet_run_required=False)
+            boundary._build_prompt(task="x" * 280, step=step, plan=[step], last_observation="y" * 280, context_budget=budget)
+            events = boundary.events.read(event="context_compaction")
+            self.assertTrue(events)
+            self.assertEqual(events[-1]["details"]["available_input_tokens"], 70)
+            executor.close()
+            boundary.close()
+
     def test_prompt_compacts_when_configured_input_budget_is_small(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
