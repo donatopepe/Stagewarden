@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded file chunk IO-error recovery iteration from `TODO.md`; route directory/IO `read_file_chunk` failures through structured node-scoped failed event/replay while preserving context-aware report, terminality, active-to-complete transition, session identity, chunk limits, drift guards, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Complete bounded invalid-offset recovery iteration from `TODO.md`; reject `read_file_chunk` start beyond file end with structured node-scoped failed event/replay while preserving context-aware report, terminality, session identity, chunk limits, drift guards, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3778 nodes, 12830 edges; HEAD `31d393d` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/file-read-directory-baseline.log` = `3/3` directory behavior, but no explicit automated matrix; permission probe under root was invalid and not used.
-- TDD change adds directory IO-error regression coverage through existing failure mapping; no runtime policy change.
-- Wet evidence: directory-error matrix `3/3` (`/tmp/file-read-directory-final.log`); TDD `/tmp/file-read-directory-tdd.log`; file/context/event/Node Knowledge suite `46/46`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3778/12830`, current; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3779 nodes, 12839 edges; HEAD `c7caeda` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/file-read-invalid-offset-baseline.log` failed `0/3`: offset beyond file end returned `ok=true` with empty content and no failure event/replay state.
+- TDD change guards successful chunk result when `start > total_chars`, routing to `_file_read_failure()` with bounded report.
+- Wet evidence: invalid-offset matrix `3/3` (`/tmp/file-read-invalid-offset-final.log`); TDD `/tmp/file-read-invalid-offset-tdd.log`, `/tmp/file-read-invalid-offset-tdd-after-fix.log`; file/context/event/Node Knowledge suite `47/47`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3779/12839`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

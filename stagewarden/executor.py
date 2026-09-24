@@ -1950,6 +1950,12 @@ class Executor:
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "read_file_chunk":
+            requested_start = int(action.get("start", 0))
+            if requested_start < 0:
+                failure = self._file_read_failure(step_id, action.get("path", ""), "File chunk start offset cannot be negative.")
+                failure["report"] = {"requested_size": int(action.get("size", self.config.file_chunk_chars)), "effective_size": 0, "auto_compacted": False}
+                failure["content"] = ""
+                return failure
             requested_size = max(1, int(action.get("size", self.config.file_chunk_chars)))
             auto_compacted = False
             prompt_chars_before = self._active_prompt_chars

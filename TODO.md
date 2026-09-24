@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — recovery invalid file chunk offset
+### Iterazione bounded corrente — recovery negative file chunk offset
+
+- **Obiettivo:** rendere fail-closed e replay-visible `read_file_chunk` quando start offset è negativo, evitando silenziosa normalizzazione a zero.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-negative-offset-baseline.log` = `0/3`; start `-5` veniva normalizzato a `0`, restituiva contenuto valido e nessun failure event.
+- **Casi fissi/ordine:** negative offset result; failure event status/path; node replay failed status.
+- **Variabile unica:** negative-offset guard nel percorso executor; nessuna modifica a chunk sizing, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+
+### Iterazione bounded completata — recovery invalid file chunk offset
 
 - **Obiettivo:** rendere fail-closed e replay-visible `read_file_chunk` quando start offset è oltre file end, evitando successo con contenuto vuoto.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-invalid-offset-baseline.log` = `0/3`; offset `100` su file lungo `10` restituiva `ok=true`, nessun failure event/replay status.
 - **Casi fissi/ordine:** invalid offset result; failure event status/path; node replay failed status.
 - **Variabile unica:** invalid-offset guard nel percorso executor; nessuna modifica a chunk sizing, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-invalid-offset-final.log`; TDD red/green; suite file/context/event/Node Knowledge `47/47`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3779/12839`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — recovery file chunk read error
 

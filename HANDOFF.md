@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded file chunk IO-error recovery iteration. Directory/IO `read_file_chunk` failures now use existing failed event/replay path with context report preserved. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded invalid-offset file chunk recovery iteration. `read_file_chunk` now fails closed on start beyond file end and projects failed node replay metadata while retaining context report fields. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: make directory read errors observable in JSONL/replay.
-- Metric/threshold: fixed directory-error matrix `3/3`.
-- Baseline: `/tmp/file-read-directory-baseline.log` behavior `3/3`, but no explicit automated regression; root permission probe was invalid.
-- Change: added TDD matrix around existing error mapping; no runtime policy change.
-- Wet evidence: directory-error matrix `3/3` (`/tmp/file-read-directory-final.log`); file/context/event/Node Knowledge `46/46`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3778/12830`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: prevent empty-success result from out-of-range chunk start.
+- Metric/threshold: fixed invalid-offset matrix `3/3`.
+- Baseline: `/tmp/file-read-invalid-offset-baseline.log` = `0/3`; start `100` on 10-char file returned `ok=true`, no failure event/status.
+- Change: executor guard checks successful report `start > total_chars` and routes to failure mapping.
+- Wet evidence: invalid-offset matrix `3/3` (`/tmp/file-read-invalid-offset-final.log`); file/context/event/Node Knowledge `47/47`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3779/12839`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
