@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded EventStream CLI JSON-schema-surface iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded EventStream CLI JSON-schema mutation-safety iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3799 nodes, 12957 edges; HEAD `1156411` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/event-follow-cli-node-control-json-baseline.log` behavior `2/3`; valid follow JSON lacked schema metadata.
-- TDD adds registry entry and three JSON-schema surface cases; EventStream/CLI semantics unchanged.
-- Wet evidence: JSON-schema matrix `3/3` (`/tmp/event-follow-cli-json-schema-final.log`); TDD `/tmp/event-follow-cli-json-schema-tdd.log`; CLI/schema targeted `4/4`; event suite `12/12`; goal-loop/support suite `48/48`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3799/12957`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3799 nodes, 12957 edges; HEAD `205c923` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/event-follow-cli-json-schema-mutation-baseline.log` behavior `3/3`, but no dedicated output-mode schema matrix.
+- TDD adds three fixed schema stability cases across standard/unicode/initial follow output.
+- Wet evidence: schema mutation matrix `3/3` (`/tmp/event-follow-cli-json-schema-mutation-final.log`); TDD `/tmp/event-follow-cli-json-schema-mutation-tdd.log`; CLI/schema targeted `4/4`; event suite `12/12`; goal-loop/support suite `48/48`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3799/12957`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

@@ -153,13 +153,23 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** JSON schema registry entry plus TDD coverage; nessuna modifica a EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-final.log`; TDD; CLI/schema targeted `4/4`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3799/12957`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — no new runtime item selected
+### Iterazione bounded completata — EventStream CLI JSON schema mutation safety
 
-- **Obiettivo:** mantenere MVP fail-closed e scegliere prossimo runtime item solo dopo user decision gate o evidenza di un difetto sostanziale autorizzato.
-- **Metrica/soglia:** fixed blocker/decision matrix `3/3`; soglia `3/3`.
-- **Baseline:** `/tmp/event-follow-cli-json-schema-final.log` `3/3`; latest unified `6/6`; no approved unresolved runtime defect selected beyond deferred multiplexer internals, parallel collision, broad retrieval and pause/cancel semantics.
-- **Casi fissi/ordine:** full-v3 approval remains user gate; multi-node OmniRoute malformed/wrong-contract/prose output remains fail-closed; deferred runtime scopes remain untouched.
-- **Variabile unica:** decision/blocker recording only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
+- **Obiettivo:** confermare che schema/version metadata di `events follow --json` resti stabile attraverso output-mode variation, senza cambiare event semantics.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cli-json-schema-mutation-baseline.log` = `3/3` behavior green, ma nessuna dedicated mutation/output-mode matrix.
+- **Casi fissi/ordine:** standard JSON schema; `--allow-unicode-output` schema; initial follow schema.
+- **Variabile unica:** TDD coverage only; nessuna modifica runtime, schema contract, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-mutation-final.log`; TDD; CLI/schema targeted `4/4`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3799/12957`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — EventStream CLI JSON schema unsupported-control boundary
+
+- **Obiettivo:** coprire TDD il fail-closed boundary per option CLI sconosciute mantenendo schema metadata e valid follow output.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cli-json-schema-unsupported-baseline.log` = `3/3` behavior green, ma nessuna dedicated matrix copriva unknown `--foo` insieme a schema cases.
+- **Casi fissi/ordine:** unknown option rejects; cursor follow preserves `stagewarden.events` schema; initial follow preserves schema/version.
+- **Variabile unica:** TDD coverage only; nessuna modifica parser/runtime, schema contract, EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite CLI/event/goal-loop.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

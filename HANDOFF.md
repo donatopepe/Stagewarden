@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-EventStream CLI JSON-schema-surface iteration complete. `events follow --json` now emits registered `stagewarden.events` schema/version metadata while unsupported controls remain rejected. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+EventStream CLI JSON-schema mutation-safety iteration complete. `events follow --json` retains registered `stagewarden.events` schema/version metadata across output-mode variation and initial/cursor follow. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: register `events follow` CLI JSON schema metadata without changing EventStream semantics.
-- Metric/threshold: fixed JSON-schema matrix `3/3`.
-- Baseline: `/tmp/event-follow-cli-node-control-json-baseline.log` behavior `2/3`; valid JSON lacked schema.
-- Change: added `stagewarden.events` registry entry plus TDD coverage.
-- Wet evidence: matrix `3/3` (`/tmp/event-follow-cli-json-schema-final.log`); CLI/schema `4/4`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3799/12957`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: verify JSON schema metadata stability for `events follow` across output-mode variation without changing EventStream semantics.
+- Metric/threshold: fixed schema-mutation matrix `3/3`.
+- Baseline: `/tmp/event-follow-cli-json-schema-mutation-baseline.log` behavior `3/3`; dedicated matrix missing.
+- Change: added TDD coverage only; registry/runtime unchanged.
+- Wet evidence: matrix `3/3` (`/tmp/event-follow-cli-json-schema-mutation-final.log`); CLI/schema `4/4`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3799/12957`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

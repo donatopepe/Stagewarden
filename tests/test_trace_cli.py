@@ -322,6 +322,25 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(initial_payload["schema"]["version"], "1")
             self.assertEqual(initial_payload["after"], 0)
 
+    def test_events_follow_cli_json_schema_rejects_unknown_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            # 1. Unknown option fails at argparse boundary.
+            unknown = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--foo", "x", "--json")
+            self.assertNotEqual(unknown.returncode, 0)
+            # 2. Valid cursor output preserves registered schema.
+            cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--json")
+            self.assertEqual(cursor.returncode, 0, cursor.stderr)
+            cursor_payload = json.loads(cursor.stdout)
+            self.assertEqual(cursor_payload["schema"]["name"], "stagewarden.events")
+            # 3. Initial output preserves schema version.
+            initial = run_main_capture(root, "events", "follow", "node-a", "--json")
+            self.assertEqual(initial.returncode, 0, initial.stderr)
+            initial_payload = json.loads(initial.stdout)
+            self.assertEqual(initial_payload["schema"]["version"], "1")
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
