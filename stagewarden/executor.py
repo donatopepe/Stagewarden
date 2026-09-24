@@ -2019,7 +2019,7 @@ class Executor:
             path = action.get("path", "")
             first = self.files.read_chunk(path, start=0, size=1)
             if not first.ok:
-                return {"ok": False, "message": first.error, "error_type": "file_error"}
+                return self._file_read_failure(step_id, path, first.error)
             first_report = first.report or {}
             content_hash = str(first_report.get("content_hash", ""))
             session = self.knowledge.begin_file_read(

@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded terminal file-read checkpoint iteration. `NodeKnowledgeStore.complete_file_read()` now rejects repeated completion after terminal state while preserving active-to-complete transition. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded repeated file-read action recovery iteration. A duplicate `read_file_complete` now returns structured `file_error` and emits failed node-scoped replay metadata instead of leaking a `ValueError`. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: make persistent file-read completion terminal and idempotency-safe by rejecting duplicate completion.
-- Metric/threshold: fixed session-finalization matrix `3/3`.
-- Baseline: `/tmp/file-read-session-finalization-baseline.log` = `2/3`; duplicate completion returned `complete` instead of failing closed.
-- Change: active-state guard before completion; terminal status persists unchanged.
-- Wet evidence: session-finalization matrix `3/3` (`/tmp/file-read-session-finalization-final.log`); file/context/event/Node Knowledge `42/42`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3774/12802`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: recover repeated complete action through existing fail-closed file failure path.
+- Metric/threshold: fixed repeated-action matrix `3/3`.
+- Baseline: `/tmp/file-read-repeat-action-baseline.log` = `1/3`; first action passed, second raised unhandled `ValueError`, no failure event.
+- Change: catch terminal completion `ValueError` in executor and route to `_file_read_failure()`.
+- Wet evidence: repeated-action matrix `3/3` (`/tmp/file-read-repeat-action-final.log`); file/context/event/Node Knowledge `43/43`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3775/12810`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

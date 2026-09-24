@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — recovery repeated read action
+### Iterazione bounded corrente — recovery missing file action
+
+- **Obiettivo:** rendere node-scoped e replay-visible il fallimento di `read_file_complete` quando file manca, senza eccezione o policy change.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-missing-recovery-baseline.log` = `1/3`; result file_error passava, ma nessun failure event/replay state.
+- **Casi fissi/ordine:** missing result structured; missing failure event status; node replay failure metadata.
+- **Variabile unica:** missing-file recovery mapping nel percorso executor; nessuna modifica a terminality, chunking, drift, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+
+### Iterazione bounded completata — recovery repeated read action
 
 - **Obiettivo:** rendere strutturato e osservabile il secondo `read_file_complete` sullo stesso nodo/sessione, senza eccezione non gestita.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-repeat-action-baseline.log` = `1/3`; prima lettura passava, seconda sollevava `ValueError` e non emetteva failure event.
 - **Casi fissi/ordine:** prima complete success; repeated action structured `file_error`; repeated failure node-scoped observable.
 - **Variabile unica:** recovery mapping nel percorso executor `read_file_complete`; nessuna modifica a terminal-state policy, chunking, drift, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py`, poi suite file/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-repeat-action-final.log`; TDD red/green; suite file/context/event/Node Knowledge `43/43`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3775/12810`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — terminalità file-read checkpoint
 

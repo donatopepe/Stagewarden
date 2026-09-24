@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded terminal file-read checkpoint iteration from `TODO.md`; reject repeated completion of an already terminal session while preserving active-to-complete transition, session identity, chunk limits, drift guards, node-scoped observability, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Complete bounded repeated file-read action recovery iteration from `TODO.md`; convert already-terminal session `ValueError` into structured `file_error` with node-scoped failed event/replay, while preserving terminality, active-to-complete transition, session identity, chunk limits, drift guards, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3774 nodes, 12802 edges; HEAD `2643d7e` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/file-read-session-finalization-baseline.log` failed `2/3`: first completion and terminal persistence passed, repeated completion returned `complete` instead of rejecting.
-- TDD change guards `complete_file_read()` against non-active status before hash/completion work; terminal state remains `complete` and immutable.
-- Wet evidence: session-finalization matrix `3/3` (`/tmp/file-read-session-finalization-final.log`); TDD red/green `/tmp/file-read-session-finalization-tdd.log`, `/tmp/file-read-session-finalization-tdd-after-fix.log`; file/context/event/Node Knowledge suite `42/42`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3774/12802`, current; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3775 nodes, 12810 edges; HEAD `5753532` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/file-read-repeat-action-baseline.log` failed `1/3`: first complete passed, repeated executor action raised `ValueError`, no failure event/replay state.
+- TDD change catches terminal completion `ValueError` in `read_file_complete`, returning structured `file_error` through `_file_read_failure()` with status/replay observability.
+- Wet evidence: repeated-action matrix `3/3` (`/tmp/file-read-repeat-action-final.log`); TDD red/green `/tmp/file-read-repeat-action-tdd.log`, `/tmp/file-read-repeat-action-tdd-after-fix.log`; file/context/event/Node Knowledge suite `43/43`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3775/12810`, current; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
