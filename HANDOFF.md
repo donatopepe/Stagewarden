@@ -37,7 +37,7 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Baseline: no dedicated six-case matrix; partial node/file tests existed.
 - Change: added Node Knowledge Store acceptance matrix covering node isolation, citations, code lines, compaction and stale/fresh reindex.
 - Wet evidence: Node Knowledge/index matrix `6/6`; Node Knowledge/file/context/event suite `19/19 OK`; goal-loop/event/tools suite passed; OmniRoute free smoke `OmniRoute free route OK (auto/coding:free)`; `py_compile`, `git diff --check` passed. CodeGraph current `137 files / 3685 nodes / 12326 edges`.
-- Current bounded sub-gate: remaining MutationJournal family matrix `12/12`; targeted MVP `108/108`; context metadata redaction/replay `3/3`; context/provider identity `3/3`; serial execution-mode `3/3`; Node Knowledge relation/freshness `6/6`; unified fixed-order runner `6/6`. Simulation `29/29`; full discovery `588/588 OK (5 skipped)`; CLI JSON `3/3`; OmniRoute direct smoke green; docs `17/17`, `0` link errors. Unsupported parallel modes fail closed. External multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
+- Current bounded sub-gate: mutation replay/recovery safety `3/3`; targeted MVP `109/109`; remaining MutationJournal family `12/12`; context metadata redaction/replay `3/3`; context/provider identity `3/3`; serial execution-mode `3/3`; Node Knowledge relation/freshness `6/6`; unified fixed-order runner `6/6`. Simulation `29/29`; full discovery `588/588 OK (5 skipped)`; CLI JSON `3/3`; OmniRoute direct smoke green; docs `17/17`, `0` link errors. Unsupported parallel modes fail closed. External multi-node OmniRoute malformed/wrong-contract blocker remains fail-closed; full v3 approval remains pending.
 
 ## Full v3 approval gate
 MVP runtime testing is authorized. User must still review v3 section 21 before full v3 extensions on:
@@ -110,11 +110,12 @@ No runtime feature work before approval.
 - Serial gate: `test_execution_mode_serial_gate_has_three_fixed_cases` → `3/3`; targeted aggregate before context gate → `105/105 OK`; `parallel` and `bogus` rejected before execution.
 - Context/provider gate: `test_context_budget_provider_node_matrix_has_three_fixed_cases` → `3/3`; context/file + executor-event `10/10`; targeted aggregate before redaction gate → `106/106 OK`. Events expose provider/model and budget identity.
 - Redaction/replay gate: `test_context_metadata_redaction_and_node_replay_matrix_has_three_fixed_cases` → `3/3`; context/file/event `15/15`; targeted aggregate before mutation gate → `107/107 OK`. Replay retains safe metadata; secret-like values redacted; node filter scoped.
-- Mutation family gate: `test_remaining_mutation_families_audit_matrix_has_twelve_cases` → `12/12`; mutation/journal `52/52`; targeted aggregate → `108/108 OK`. Range, encoding, path and permission families retain replay/recovery/failure coverage.
+- Mutation family gate: `test_remaining_mutation_families_audit_matrix_has_twelve_cases` → `12/12`; mutation/journal `52/52`; targeted aggregate before safety gate → `108/108 OK`. Range, encoding, path and permission families retain replay/recovery/failure coverage.
+- Mutation safety gate: `test_mutation_event_recovery_safety_matrix_has_three_fixed_cases` → `3/3`; mutation/journal/event `58/58`; targeted aggregate → `109/109 OK`. Replay projects mutation key/status; node filtering remains scoped.
 - Full discovery: `/tmp/full-unittest-after-status-20260923.log` → `588` tests, `OK (skipped=5)`.
 - CLI smoke: `baseline --json`, `model limits --json`, `events replay --json` all exit `0`; JSON output valid. `scripts/test_omniroute_free.sh` → `OmniRoute free route OK (auto/coding:free)`.
 - Documentation/link audit: `17` Markdown files checked, `0` link errors, UTF-8/no-BOM pass.
-- CodeGraph after runner, index, serial-gate, context metadata, replay-safety and mutation-audit additions: `139 files / 3728 nodes / 12535 edges`, up to date.
+- CodeGraph after runner, index, serial-gate, context metadata, replay-safety and mutation-audit additions: `139 files / 3729 nodes / 12552 edges`, up to date.
 - Provider suspension sub-gate: `python3 -m unittest tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_suspended_network_session_from_persisted_handoff tests.test_agent_integration.AgentIntegrationTests.test_agent_resumes_after_token_reset_from_persisted_handoff -v` → `2/2 OK`.
 - Regression targeted aggregate: Agent/executor/router/model-policy/policy-doc tests → `94` tests, `OK (skipped=1)`.
 - Simulation wet total: `test_total_run_is_wet_and_fail_closed` → `1/1 OK`.

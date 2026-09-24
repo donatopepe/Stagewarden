@@ -76,6 +76,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** completed replay event; in-flight recovery event; node-filtered replay.
 - **Variabile unica:** mutation event/replay safety assertions only; no mutation semantics/provider/model/fallback/scheduler change.
 - **Test wet target:** nuova matrice `3/3` in `tests/test_mutation_execution.py` and `tests/test_event_stream.py`, then unified runner.
+- **Esito:** mutation replay/recovery safety `3/3`; mutation/journal/event `58/58`; targeted MVP `109/109`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3729/12552`.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
