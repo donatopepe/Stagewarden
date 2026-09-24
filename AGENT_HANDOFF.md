@@ -1,12 +1,12 @@
 # Agent Handoff
 
 ## Current objective
-Maintain bounded node-first MVP validation after completing evidence/handoff reconciliation, CLI node-filtered replay scope and explicit fail-closed OmniRoute node-contract handling; resolve remaining blockers only within TODO.md. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
+Maintain bounded node-first MVP validation after completing Node Knowledge retrieval scope acceptance, evidence/handoff reconciliation, CLI node-filtered replay scope and explicit fail-closed OmniRoute node-contract handling; resolve remaining blockers only within TODO.md. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph verified current and up to date: 139 files, 3757 nodes, 12713 edges; branch `main`, sole main worktree; HEAD `1d04548c725e4f1be6428a375f3adf14df87b66d`.
-- Latest bounded gate passed: CLI replay scope matrix `3/3`; CLI/event/adapter targeted `47/47` with 1 intentional skip; OmniRoute node-contract matrix `3/3`; adapter/goal-loop targeted `39/39` with 1 intentional skip; replay scope/recovery matrix `3/3`; direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `118/118`; unified validation `6/6`; simulation `29/29`; full discovery `607/607` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. CLI `events replay <node>` now scopes replay; explicit node contract rejects malformed/prose/wrong-contract output. Provider/model/fallback/serial policy unchanged; full v3 approval gate remains open.
+- CodeGraph verified current and up to date: 139 files, 3758 nodes, 12719 edges; branch `main`, sole main worktree; HEAD `7fea4ebebd1effc3888f26c967b7e8700bd5f662`.
+- Latest bounded gate passed: Node Knowledge retrieval scope `2/2`; Node Knowledge suite `7/7`; CLI replay scope matrix `3/3`; CLI/event/adapter targeted `47/47` with 1 intentional skip; OmniRoute node-contract matrix `3/3`; adapter/goal-loop targeted `39/39` with 1 intentional skip; replay scope/recovery matrix `3/3`; direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `119/119`; unified validation `6/6`; simulation `29/29`; full discovery `608/608` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. Node Knowledge remains strictly node-scoped; no broad ancestor/descendant retrieval. Provider/model/fallback/serial policy unchanged; full v3 approval gate remains open.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`. Live multi-node OmniRoute remains blocked on repeated malformed/truncated, wrong-contract and prose-wrapped output; adapter remains fail-closed.
@@ -120,6 +120,13 @@ Maintain bounded node-first MVP validation after completing evidence/handoff rec
   - Reason: context size and provider/model/cost are essential user responsibilities.
 
 ## Validation evidence
+- Objective: formalize Node Knowledge retrieval scope acceptance without broadening retrieval semantics.
+- Metric/threshold: fixed retrieval scope matrix `2/2`.
+- Baseline: `/tmp/next-mvp-node-knowledge-baseline.log` behavior probe `2/2`, but no explicit automated test covered direct node scope and child non-leakage.
+- TDD change: added isolated ancestor/child retrieval regression test; runtime semantics unchanged.
+- Wet validation: retrieval matrix `2/2`; Node Knowledge suite `7/7`; targeted MVP `119/119`; unified runner `6/6`; full discovery `608/608` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3758/12719`, up to date; HEAD `7fea4ebebd1effc3888f26c967b7e8700bd5f662`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
 - Objective: maintain synchronized TODO/handoff evidence after latest green MVP validation.
 - Metric/threshold: fixed consistency matrix `3/3`.
 - Baseline: `/tmp/handoff-reconciliation-consistency-baseline.log` was already `3/3` after previous refresh; reran docs, JSON, diff, OmniRoute and CLI replay checks.

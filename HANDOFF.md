@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP validation after completing evidence/handoff reconciliation, CLI node-filtered replay and fail-closed OmniRoute contract work. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP validation after completing Node Knowledge retrieval scope, evidence/handoff reconciliation, CLI node-filtered replay and fail-closed OmniRoute contract work. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Product direction
 - One operational tree of nodes.
@@ -33,6 +33,13 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
 ## Latest bounded iteration
+- Objective: formalize Node Knowledge retrieval scope acceptance without broadening retrieval semantics.
+- Metric/threshold: fixed retrieval scope matrix `2/2`.
+- Baseline: `/tmp/next-mvp-node-knowledge-baseline.log` behavior probe `2/2`, but no explicit automated test covered direct node scope and child non-leakage.
+- Change: added isolated ancestor/child retrieval regression test; runtime semantics unchanged.
+- Wet validation: retrieval matrix `2/2`; Node Knowledge suite `7/7`; targeted MVP `119/119`; unified runner `6/6`; full discovery `608/608` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3758/12719`, up to date; HEAD `7fea4ebebd1effc3888f26c967b7e8700bd5f662`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
 - Objective: maintain synchronized TODO/handoff evidence after latest green MVP validation.
 - Metric/threshold: fixed consistency matrix `3/3`.
 - Baseline: `/tmp/handoff-reconciliation-consistency-baseline.log` was already `3/3` after previous refresh; reran docs, JSON, diff, OmniRoute and CLI replay checks.

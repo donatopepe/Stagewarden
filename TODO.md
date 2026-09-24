@@ -9,13 +9,20 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — Node Knowledge retrieval scope acceptance
+### Iterazione bounded corrente — Node Knowledge code index scope acceptance
+
+- **Obiettivo:** rendere automatico test per code-aware Python retrieval node-scoped, impedendo leakage tra indici di nodi diversi senza broad retrieval.
+- **Metrica/soglia:** fixed code retrieval scope matrix `2/2`; soglia `2/2`.
+- **Baseline:** `/tmp/next-node-knowledge-code-scope-baseline.log` = `1/2`: ancestor symbol trovato nel proprio node index, ma appariva anche nella query child dopo reindex dello stesso root.
+- **Casi fissi/ordine:** ancestor symbol direct hit; child query must exclude ancestor-owned symbol.
+- **Variabile unica:** test TDD first; if failing, smallest node-index implementation fix only; no provider/model/fallback/parallel/API change.
 
 - **Obiettivo:** formalizzare test automatico per retrieval Node Knowledge node-scoped, preservando isolation e senza aggiungere broad ancestor/descendant retrieval non autorizzato.
 - **Metrica/soglia:** fixed retrieval scope matrix `2/2`; soglia `2/2`.
 - **Baseline:** `/tmp/next-mvp-node-knowledge-baseline.log` behavior probe `2/2`, ma nessun test automatico esplicito copriva direct node scope e child query scope.
 - **Casi fissi/ordine:** direct node context retrieval; child query for ancestor-only content must remain empty unless content is node-scoped.
 - **Variabile unica:** test TDD only; no retrieval semantics, runtime/provider/model/fallback/parallel/API change.
+- **Esito:** retrieval scope matrix `2/2`; Node Knowledge suite `7/7`; targeted MVP `119/119`; unified runner `6/6`; simulation `29/29`; full discovery `608/608` con `5` skip; CLI `3/3`; docs `17/17`; direct OmniRoute smoke verde; CodeGraph `139/3758/12719`, up to date; HEAD `7fea4ebebd1effc3888f26c967b7e8700bd5f662`.
 
 ### Iterazione bounded completata — handoff evidence reconciliation
 

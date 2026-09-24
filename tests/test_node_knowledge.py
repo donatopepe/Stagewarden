@@ -32,6 +32,21 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertTrue(direct)
                 self.assertEqual(child, [])
 
+    def test_code_retrieval_scope_matrix_keeps_node_symbols_isolated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ancestor_root = root / "ancestor"
+            child_root = root / "child"
+            ancestor_root.mkdir()
+            child_root.mkdir()
+            (ancestor_root / "ancestor.py").write_text("def ancestorexclusive():\n    return 1\n", encoding="utf-8")
+            (child_root / "child.py").write_text("def childexclusive():\n    return 2\n", encoding="utf-8")
+            with NodeKnowledgeStore(root / "knowledge.sqlite") as store:
+                store.index_python(ancestor_root, node_id="ancestor", tree_id="tree")
+                store.index_python(child_root, node_id="child", tree_id="tree")
+                self.assertTrue(store.code_search("ancestorexclusive", node_id="ancestor"))
+                self.assertEqual(store.code_search("ancestorexclusive", node_id="child"), [])
+
     def test_node_execution_capsule_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"
