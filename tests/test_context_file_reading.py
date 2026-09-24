@@ -40,6 +40,27 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
+    def test_read_file_chunk_non_integral_offset_emits_failure_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            result = executor._run_action(
+                {"type": "read_file_chunk", "path": "source.txt", "start": 2.5, "size": 5},
+                step_id="node.float",
+            )
+            # 1. Non-integral offset fails closed instead of truncating.
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error_type"], "file_error")
+            # 2. Failed event preserves path/status.
+            failures = executor.events.read(node_id="node.float", event="file_read_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(failures[0]["details"]["status"], "failed")
+            self.assertEqual(failures[0]["details"]["path"], "source.txt")
+            # 3. Replay projects failed node state.
+            self.assertEqual(executor.events.replay(node_id="node.float")["nodes"]["node.float"]["status"], "failed")
+            executor.close()
+
     def test_read_file_chunk_negative_offset_emits_failure_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
