@@ -54,6 +54,7 @@ class JsonSchemaRegistryTests(unittest.TestCase):
             "goal loop status",
             "goal loop add-node",
             "goal loop custom-nodes",
+            "events",
             "budget",
             "budget set",
             "budget status",

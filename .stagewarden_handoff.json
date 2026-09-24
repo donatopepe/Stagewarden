@@ -43,14 +43,14 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded CLI EventStream follow node-id whitespace-boundary iteration is complete; no new runtime scope selected.",
+  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded CLI EventStream follow control-input-boundary iteration is complete; no new runtime scope selected.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: CLI EventStream follow node-id whitespace-boundary TDD matrix 3/3; CLI targeted 5/5, event suite 12/12, goal-loop/support suite 48/48; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3797 nodes/12947 edges current; HEAD 7524295. CLI rejects leading/trailing whitespace node ids and preserves exact node scope; multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers; no provider/model/fallback/parallel policy change.",
-  "plan_status": "MVP implementation active; CLI follow whitespace-boundary TDD 3/3, CLI follow-node boundary TDD 3/3, CLI cursor input validation TDD 3/3, CLI cursor follow TDD 3/3, EventStream cursor validation TDD 3/3, cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "7524295",
-  "git_head_baseline": "7524295",
+  "latest_observation": "2026-09-24: CLI EventStream follow control-input TDD matrix 3/3; CLI targeted 6/6, event suite 12/12, goal-loop/support suite 48/48; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3798 nodes/12952 edges current; HEAD 947c481. Unsupported --event controls fail at CLI boundary while declared --after remains valid; multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers; no provider/model/fallback/parallel policy change.",
+  "plan_status": "MVP implementation active; CLI follow control-input TDD 3/3, CLI follow whitespace-boundary TDD 3/3, CLI follow-node boundary TDD 3/3, CLI cursor input validation TDD 3/3, CLI cursor follow TDD 3/3, EventStream cursor validation TDD 3/3, cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
+  "git_head": "947c481",
+  "git_head_baseline": "947c481",
   "risk_register": [
     {
       "id": "specification-approval-gate",
@@ -4376,9 +4376,9 @@
     }
   ],
   "recent_changes": [
-    "stagewarden/cli_dispatch.py: validates raw node token and rejects leading/trailing whitespace for events follow.",
-    "tests/test_trace_cli.py: added fixed three-case whitespace-node matrix.",
-    "TODO.md, AGENT_HANDOFF.md and HANDOFF.md: aligned bounded objective, evidence and blockers."
+    "tests/test_trace_cli.py: added fixed three-case unsupported-control matrix for events follow.",
+    "TODO.md: recorded control-input baseline, evidence and no-new-scope gate.",
+    "AGENT_HANDOFF.md and HANDOFF.md: aligned bounded objective, evidence and blockers."
   ],
   "next_steps": [
     "Select next substantive TODO item only after fresh startup protocol and approved scope.",

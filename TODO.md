@@ -135,14 +135,23 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** CLI raw node-id boundary validation; nessuna modifica a EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cli-whitespace-node-final.log`; TDD red/green (`/tmp/event-follow-cli-whitespace-node-tdd.log`, `/tmp/event-follow-cli-whitespace-node-tdd-after-fix.log`); CLI targeted `5/5`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3797/12947`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — CLI EventStream follow control-input boundary
+### Iterazione bounded completata — CLI EventStream follow control-input boundary
 
 - **Obiettivo:** rendere fail-closed la CLI `events follow` per option non supportate, impedendo interpretazione silenziosa di event filter o altri controlli non dichiarati.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/event-follow-cli-node-control-baseline.log` = `3/3` behavior, ma nessuna dedicated regression matrix copriva `--event` rifiutato e valid `--after`.
 - **Casi fissi/ordine:** unsupported `--event` with cursor rejects; unsupported `--event` without cursor rejects; declared `--after` remains successful.
 - **Variabile unica:** TDD coverage only; nessuna modifica CLI runtime, EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite CLI/event/goal-loop.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cli-node-control-final.log`; TDD; CLI targeted `6/6`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3798/12952`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — EventStream CLI JSON schema surface
+
+- **Obiettivo:** registrare il comando CLI `events follow` nello schema registry, preservando schema/version metadata per JSON output senza cambiare event semantics.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cli-node-control-json-baseline.log` = `2/3`; valid `events follow --json` lacked registered `schema` metadata while unsupported control rejection passed.
+- **Casi fissi/ordine:** unsupported control remains rejected; `events follow` with cursor emits schema metadata; `events follow` without cursor emits schema and `after=0`.
+- **Variabile unica:** JSON schema registry entry plus TDD coverage; nessuna modifica a EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py` e `tests/test_json_schema_registry.py`, poi suite CLI/event/goal-loop.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

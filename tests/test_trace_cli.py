@@ -301,6 +301,27 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["node_id"], "node-a")
             self.assertEqual(payload["after"], 1)
 
+    def test_events_follow_cli_json_schema_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            # 1. Unsupported control remains rejected.
+            unsupported = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--event", "result", "--json")
+            self.assertNotEqual(unsupported.returncode, 0)
+            # 2. Cursor follow JSON includes schema metadata.
+            with_cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--json")
+            self.assertEqual(with_cursor.returncode, 0, with_cursor.stderr)
+            cursor_payload = json.loads(with_cursor.stdout)
+            self.assertEqual(cursor_payload["schema"]["name"], "stagewarden.events")
+            self.assertEqual(cursor_payload["after"], 1)
+            # 3. Initial follow JSON includes same schema and zero cursor.
+            initial = run_main_capture(root, "events", "follow", "node-a", "--json")
+            self.assertEqual(initial.returncode, 0, initial.stderr)
+            initial_payload = json.loads(initial.stdout)
+            self.assertEqual(initial_payload["schema"]["version"], "1")
+            self.assertEqual(initial_payload["after"], 0)
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
