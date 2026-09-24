@@ -43,14 +43,14 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded EventStream CLI JSON-schema mutation-safety iteration is complete; no new runtime scope selected.",
+  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded EventStream CLI JSON-schema unsupported-control-boundary iteration is complete; no new runtime scope selected.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: EventStream CLI JSON-schema mutation-safety TDD matrix 3/3; CLI/schema targeted 4/4, event suite 12/12, goal-loop/support suite 48/48; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3799 nodes/12957 edges current; HEAD 205c923. events follow schema/version metadata remains stable across standard/unicode/initial output; no provider/model/fallback/parallel policy change.",
-  "plan_status": "MVP implementation active; EventStream CLI JSON schema mutation TDD 3/3, EventStream CLI JSON schema TDD 3/3, CLI follow control-input TDD 3/3, CLI follow whitespace-boundary TDD 3/3, CLI follow-node boundary TDD 3/3, CLI cursor input validation TDD 3/3, CLI cursor follow TDD 3/3, EventStream cursor validation TDD 3/3, cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "205c923",
-  "git_head_baseline": "205c923",
+  "latest_observation": "2026-09-24: EventStream CLI JSON-schema unsupported-control-boundary TDD matrix 3/3; CLI/schema targeted 4/4, event suite 12/12, goal-loop/support suite 48/48; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3800 nodes/12962 edges current; HEAD 7c51d15. Unknown CLI options reject while valid follow JSON preserves stagewarden.events schema/version metadata; no provider/model/fallback/parallel policy change.",
+  "plan_status": "MVP implementation active; EventStream CLI JSON schema unsupported-control TDD 3/3, EventStream CLI JSON schema mutation TDD 3/3, EventStream CLI JSON schema TDD 3/3, CLI follow control-input TDD 3/3, CLI follow whitespace-boundary TDD 3/3, CLI follow-node boundary TDD 3/3, CLI cursor input validation TDD 3/3, CLI cursor follow TDD 3/3, EventStream cursor validation TDD 3/3, cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
+  "git_head": "7c51d15",
+  "git_head_baseline": "7c51d15",
   "risk_register": [
     {
       "id": "specification-approval-gate",
@@ -4376,8 +4376,8 @@
     }
   ],
   "recent_changes": [
-    "tests/test_trace_cli.py: added three-case schema stability matrix across output modes.",
-    "TODO.md: recorded schema mutation baseline, evidence and no-new-scope gate.",
+    "tests/test_trace_cli.py: added unknown-option plus schema-preservation matrix.",
+    "TODO.md: recorded unsupported-control baseline, evidence and no-new-scope gate.",
     "AGENT_HANDOFF.md and HANDOFF.md: aligned bounded objective, evidence and blockers."
   ],
   "next_steps": [

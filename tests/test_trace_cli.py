@@ -341,6 +341,29 @@ class TraceAndCliTests(unittest.TestCase):
             initial_payload = json.loads(initial.stdout)
             self.assertEqual(initial_payload["schema"]["version"], "1")
 
+    def test_events_follow_cli_json_schema_node_scope_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            stream.append("start", tree_id="tree", node_id="node-b")
+            # 1. Cursor output for node-a remains empty after global line cursor.
+            node_a_cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--json")
+            self.assertEqual(node_a_cursor.returncode, 0, node_a_cursor.stderr)
+            self.assertEqual(node_a_cursor_output := json.loads(node_a_cursor.stdout)["events"], [])
+            # 2. Initial node-a output remains scoped and schema-tagged.
+            node_a_initial = run_main_capture(root, "events", "follow", "node-a", "--json")
+            self.assertEqual(node_a_initial.returncode, 0, node_a_initial.stderr)
+            initial_payload = json.loads(node_a_initial.stdout)
+            self.assertEqual(initial_payload["schema"]["name"], "stagewarden.events")
+            self.assertEqual({event["node_id"] for event in initial_payload["events"]}, {"node-a"})
+            # 3. Node-b output remains scoped and schema-tagged.
+            node_b_cursor = run_main_capture(root, "events", "follow", "node-b", "--after", "1", "--json")
+            self.assertEqual(node_b_cursor.returncode, 0, node_b_cursor.stderr)
+            node_b_payload = json.loads(node_b_cursor.stdout)
+            self.assertEqual(node_b_payload["schema"]["version"], "1")
+            self.assertEqual({event["node_id"] for event in node_b_payload["events"]}, {"node-b"})
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

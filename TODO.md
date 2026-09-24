@@ -162,13 +162,22 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica runtime, schema contract, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-mutation-final.log`; TDD; CLI/schema targeted `4/4`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3799/12957`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — EventStream CLI JSON schema unsupported-control boundary
+### Iterazione bounded completata — EventStream CLI JSON schema unsupported-control boundary
 
 - **Obiettivo:** coprire TDD il fail-closed boundary per option CLI sconosciute mantenendo schema metadata e valid follow output.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/event-follow-cli-json-schema-unsupported-baseline.log` = `3/3` behavior green, ma nessuna dedicated matrix copriva unknown `--foo` insieme a schema cases.
 - **Casi fissi/ordine:** unknown option rejects; cursor follow preserves `stagewarden.events` schema; initial follow preserves schema/version.
 - **Variabile unica:** TDD coverage only; nessuna modifica parser/runtime, schema contract, EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-unsupported-final.log`; TDD; CLI/schema targeted `4/4`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3800/12962`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — EventStream CLI JSON schema registry scope
+
+- **Obiettivo:** coprire TDD che schema metadata e cursor follow restino node-scoped tra due nodi, senza leakage tra event streams.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cli-json-schema-registry-scope-baseline.log` = `2/3`; node-a initial/cursor checks passed, node-b cursor result showed event at line after cursor due global JSONL cursor semantics.
+- **Casi fissi/ordine:** node-a cursor empty after line 1; node-a initial returns only node-a; node-b cursor preserves node-b scope and schema.
+- **Variabile unica:** TDD coverage only; nessuna modifica schema/runtime, EventStream cursor semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite CLI/event/goal-loop.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
