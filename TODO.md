@@ -171,12 +171,30 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica parser/runtime, schema contract, EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-unsupported-final.log`; TDD; CLI/schema targeted `4/4`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3800/12962`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — EventStream CLI JSON schema registry scope
+### Iterazione bounded completata — EventStream CLI JSON schema registry scope
 
 - **Obiettivo:** coprire TDD che schema metadata e cursor follow restino node-scoped tra due nodi, senza leakage tra event streams.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/event-follow-cli-json-schema-registry-scope-baseline.log` = `2/3`; node-a initial/cursor checks passed, node-b cursor result showed event at line after cursor due global JSONL cursor semantics.
 - **Casi fissi/ordine:** node-a cursor empty after line 1; node-a initial returns only node-a; node-b cursor preserves node-b scope and schema.
+- **Variabile unica:** TDD coverage only; nessuna modifica schema/runtime, EventStream cursor semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-registry-scope-final.log`; TDD; CLI/schema targeted `5/5`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3801/12967`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded completata — EventStream CLI JSON schema registry scope
+
+- **Obiettivo:** coprire TDD che schema metadata e cursor follow restino node-scoped tra due nodi, senza leakage tra event streams.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cli-json-schema-registry-scope-baseline.log` = `2/3`; node-a initial/cursor checks passed, node-b cursor result showed event at line after cursor due global JSONL cursor semantics.
+- **Casi fissi/ordine:** node-a cursor empty after line 1; node-a initial returns only node-a; node-b cursor preserves node-b scope and schema.
+- **Variabile unica:** TDD coverage only; nessuna modifica schema/runtime, EventStream cursor semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-registry-scope-final.log`; TDD; CLI/schema targeted `5/5`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3801/12967`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — EventStream CLI JSON schema cursor semantics
+
+- **Obiettivo:** coprire TDD cursor semantics `after=0`, end-of-stream e mid-stream per node-scoped `events follow --json`, preservando schema metadata.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cli-json-schema-registry-cursor-baseline.log` = `3/3` behavior green, ma nessuna dedicated cursor-boundary matrix.
+- **Casi fissi/ordine:** cursor zero returns two node events; cursor at end returns empty; mid cursor returns only later event.
 - **Variabile unica:** TDD coverage only; nessuna modifica schema/runtime, EventStream cursor semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite CLI/event/goal-loop.
 

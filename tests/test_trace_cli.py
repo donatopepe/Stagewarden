@@ -364,6 +364,27 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(node_b_payload["schema"]["version"], "1")
             self.assertEqual({event["node_id"] for event in node_b_payload["events"]}, {"node-b"})
 
+    def test_events_follow_cli_json_schema_cursor_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            stream.append("result", tree_id="tree", node_id="node-a")
+            # 1. Cursor zero returns all node events and schema.
+            zero = run_main_capture(root, "events", "follow", "node-a", "--after", "0", "--json")
+            self.assertEqual(zero.returncode, 0, zero.stderr)
+            zero_payload = json.loads(zero.stdout)
+            self.assertEqual([event["event"] for event in zero_payload["events"]], ["start", "result"])
+            self.assertEqual(zero_payload["schema"]["name"], "stagewarden.events")
+            # 2. Cursor at end returns no events.
+            end = run_main_capture(root, "events", "follow", "node-a", "--after", "2", "--json")
+            self.assertEqual(end.returncode, 0, end.stderr)
+            self.assertEqual(json.loads(end.stdout)["events"], [])
+            # 3. Mid-stream cursor returns only later event.
+            middle = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--json")
+            self.assertEqual(middle.returncode, 0, middle.stderr)
+            self.assertEqual([event["event"] for event in json.loads(middle.stdout)["events"]], ["result"])
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
