@@ -348,7 +348,7 @@ class NodeKnowledgeStore:
         return [item for _, item in scored[:limit]]
 
     def index_python(self, root: Path, *, node_id: str, tree_id: str = "") -> dict[str, int]:
-        files = symbols = relations = fresh = changed = 0
+        files = symbols = relations = fresh = changed = invalid = 0
         root = root.resolve()
         owner = self.connection.execute(
             "SELECT node_id, tree_id FROM code_index_roots WHERE root_path = ?",
@@ -364,16 +364,19 @@ class NodeKnowledgeStore:
         )
         self.connection.commit()
         seen_paths: set[str] = set()
+        invalid_paths: set[str] = set()
         parsed_files: dict[str, tuple[str, ast.Module, list[str]]] = {}
         for path in sorted(root.rglob("*.py")):
             if any(part in {".git", ".stagewarden", "venv", "venv_pytest", "__pycache__"} for part in path.parts):
                 continue
+            relative = _relative_path(path, root)
             try:
                 content = path.read_text(encoding="utf-8")
                 tree = ast.parse(content, filename=str(path))
             except (OSError, SyntaxError, UnicodeError):
+                invalid += 1
+                invalid_paths.add(relative)
                 continue
-            relative = _relative_path(path, root)
             file_hash = self._hash(content)
             seen_paths.add(relative)
             parsed_files[relative] = (file_hash, tree, content.splitlines())
@@ -391,7 +394,7 @@ class NodeKnowledgeStore:
             "SELECT path FROM code_files WHERE node_id = ?",
             (node_id,),
         ).fetchall()
-        stale_paths = {str(row["path"]) for row in stale_rows} - seen_paths
+        stale_paths = {str(row["path"]) for row in stale_rows} - seen_paths - invalid_paths
         for relative in stale_paths:
             self.connection.execute("DELETE FROM code_symbols WHERE node_id = ? AND path = ?", (node_id, relative))
             self.connection.execute("DELETE FROM code_relations WHERE node_id = ? AND source_path = ?", (node_id, relative))
@@ -458,7 +461,7 @@ class NodeKnowledgeStore:
                             owner = self._enclosing_qualified_name(item, parents, definitions)
                             relations += self._insert_code_relation(node_id, relative, file_hash, owner, relative, None, target.id, "write", item)
         self.connection.commit()
-        return {"files": files, "symbols": symbols, "relations": relations, "fresh": fresh, "changed": changed, "stale_removed": len(stale_paths), "schema_version": INDEX_SCHEMA_VERSION}
+        return {"files": files, "symbols": symbols, "relations": relations, "fresh": fresh, "changed": changed, "invalid": invalid, "stale_removed": len(stale_paths), "schema_version": INDEX_SCHEMA_VERSION}
 
     def _insert_code_symbol(self, node_id: str, path: str, content_hash: str, node: ast.AST, qualified: str, kind: str) -> None:
         line_start = int(getattr(node, "lineno", 1))

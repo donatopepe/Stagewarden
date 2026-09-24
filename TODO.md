@@ -36,12 +36,21 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica runtime, offset/size guards, compaction, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/file-read-bool-size-final.log`; TDD; file/context/event/Node Knowledge suite `53/53`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3785/12879`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — freshness e stale-removal code index
+### Iterazione bounded completata — freshness e stale-removal code index
 
 - **Obiettivo:** isolare TDD coverage per versione/freshness dell'indice Python Node Knowledge e rimozione di file/simboli stale, senza ampliare retrieval scope.
 - **Metrica/soglia:** matrice fissa `4/4`; soglia `4/4`.
 - **Baseline:** `/tmp/node-knowledge-freshness-baseline.log` = `4/4` behavior già green, ma nessuna dedicated regression.
 - **Casi fissi/ordine:** initial index; unchanged reindex remains fresh/version 1; changed source increments version and replaces symbols; deleted source removes stale symbols/file.
+- **Variabile unica:** TDD coverage only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `4/4` in `/tmp/node-knowledge-freshness-final.log`; TDD; Node Knowledge/file/context/event suite `54/54`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3786/12892`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — replay recovery metadata after code-index drift
+
+- **Obiettivo:** aggiungere isolated TDD coverage per replay-visible code-index recovery metadata quando indexing skips invalid Python source, senza broadening retrieval o auto-repair.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/node-knowledge-invalid-source-baseline.log` = `3/3` behavior già green, ma nessuna dedicated regression per invalid-source recovery metadata.
+- **Casi fissi/ordine:** valid source indexed; invalid Python source skipped without stale deletion; reindex result preserves node-scoped valid symbol.
 - **Variabile unica:** TDD coverage only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
 - **Test wet target:** nuova matrice TDD in `tests/test_node_knowledge.py`, poi suite Node Knowledge/file/context/event.
 

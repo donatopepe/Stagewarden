@@ -1,14 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded negative-size recovery iteration from `TODO.md`; add isolated regression for negative `read_file_chunk` sizes while preserving positive-size/type/offset guards, context-aware report, terminality, session identity, chunk limits, drift guards, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Select next substantive bounded item from `TODO.md` after completed freshness/stale-removal code-index coverage; preserve node scope, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3784 nodes, 12873 edges; HEAD `409ecb1` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/file-read-negative-size-baseline.log` behavior `3/3`, but no isolated TDD matrix covered negative size.
-- TDD adds negative-size regression over existing positive-size guard; runtime semantics unchanged.
-- Wet evidence: negative-size matrix `3/3` (`/tmp/file-read-negative-size-final.log`); TDD `/tmp/file-read-negative-size-tdd.log`; file/context/event/Node Knowledge suite `52/52`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3784/12873`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3786 nodes, 12892 edges; HEAD `885e7ef` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/node-knowledge-freshness-baseline.log` behavior `4/4`, but no isolated TDD matrix covered freshness/version and stale removal.
+- TDD adds four fixed freshness/stale-removal cases over existing `index_python()` semantics; runtime semantics unchanged.
+- Iteration is complete; next work must be selected from a real remaining TODO item, not metadata-only reconciliation.
+- Wet evidence: freshness matrix `4/4` (`/tmp/node-knowledge-freshness-final.log`); TDD `/tmp/node-knowledge-freshness-tdd.log`; Node Knowledge/file/context/event suite `54/54`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3786/12892`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

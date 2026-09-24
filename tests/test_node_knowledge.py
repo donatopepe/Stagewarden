@@ -92,6 +92,25 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertFalse(store.code_search("initial_symbol", node_id="node"))
                 self.assertFalse(store.code_search("changed_symbol", node_id="node"))
 
+    def test_invalid_source_recovery_preserves_prior_index_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "src"
+            root.mkdir()
+            source = root / "module.py"
+            source.write_text("def stable_symbol():\n    return 1\n", encoding="utf-8")
+            with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                # 1. A valid source is indexed for the node.
+                first = store.index_python(root, node_id="node", tree_id="tree")
+                self.assertEqual(first["files"], 1)
+                self.assertTrue(store.code_search("stable_symbol", node_id="node"))
+                # 2. Invalid source is skipped without deleting the prior index.
+                source.write_text("def broken_symbol(:\n    return 2\n", encoding="utf-8")
+                second = store.index_python(root, node_id="node", tree_id="tree")
+                self.assertEqual(second["stale_removed"], 0)
+                self.assertTrue(store.code_search("stable_symbol", node_id="node"))
+                # 3. The recovery result exposes the skipped invalid source.
+                self.assertEqual(second["invalid"], 1)
+
     def test_same_root_indexing_rejects_cross_node_ownership_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "src"

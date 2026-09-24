@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded negative-size file chunk recovery iteration. Existing positive-size guard now has isolated negative-size TDD coverage; failed node replay metadata remains intact. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Freshness/stale-removal code-index iteration complete. Next bounded work must come from a substantive remaining item in `TODO.md`; metadata-only reconciliation is not feature progress. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: document/regress negative chunk sizes without changing runtime policy.
-- Metric/threshold: fixed negative-size matrix `3/3`.
-- Baseline: `/tmp/file-read-negative-size-baseline.log` behavior `3/3`; isolated regression missing.
-- Change: added TDD matrix only; existing `size <= 0` guard unchanged.
-- Wet evidence: negative-size matrix `3/3` (`/tmp/file-read-negative-size-final.log`); file/context/event/Node Knowledge `52/52`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3784/12873`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: document/regress code-index version/freshness and stale removal without changing runtime policy or retrieval scope.
+- Metric/threshold: fixed freshness/stale-removal matrix `4/4`.
+- Baseline: `/tmp/node-knowledge-freshness-baseline.log` behavior `4/4`; isolated regression missing.
+- Change: added TDD matrix only; existing `index_python()` behavior unchanged.
+- Wet evidence: freshness matrix `4/4` (`/tmp/node-knowledge-freshness-final.log`); Node Knowledge/file/context/event `54/54`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3786/12892`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
