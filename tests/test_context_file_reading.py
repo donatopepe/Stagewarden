@@ -40,6 +40,34 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
+    def test_read_file_complete_failure_event_has_failed_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.txt"
+            source.write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            original_read = executor.files.read_chunk
+            calls = 0
+
+            def read_chunk(path: str, *, start: int = 0, size: int | None = None):
+                nonlocal calls
+                result = original_read(path, start=start, size=size)
+                calls += 1
+                if calls == 1:
+                    source.write_text("ABCDEfghij", encoding="utf-8")
+                return result
+
+            executor.files.read_chunk = read_chunk
+            result = executor._run_action(
+                {"type": "read_file_complete", "path": "source.txt", "chunk_size": 5},
+                step_id="node.status",
+            )
+            self.assertFalse(result["ok"])
+            failure = executor.events.read(node_id="node.status", event="file_read_failure")
+            self.assertEqual(failure[0]["details"]["status"], "failed")
+            self.assertEqual(executor.events.replay(node_id="node.status")["nodes"]["node.status"]["status"], "failed")
+            executor.close()
+
     def test_read_file_complete_drift_emits_failure_event_for_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

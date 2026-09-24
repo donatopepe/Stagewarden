@@ -181,6 +181,33 @@ class EventStreamTests(unittest.TestCase):
             filtered = stream.replay(node_id="node-a")
             self.assertEqual(set(filtered["nodes"]), {"node-a"})
 
+    def test_replay_projects_file_read_failure_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append(
+                "file_read_failure",
+                tree_id="executor",
+                node_id="node-a",
+                purpose="complete file read recovery",
+                message="hash changed",
+                path="source.txt",
+                error="hash changed",
+                status="failed",
+            )
+            stream.append(
+                "file_read_failure",
+                tree_id="executor",
+                node_id="node-b",
+                purpose="complete file read recovery",
+                message="other",
+                path="other.txt",
+                error="other",
+                status="failed",
+            )
+            replay = stream.replay(node_id="node-a")
+            self.assertEqual(replay["nodes"]["node-a"]["status"], "failed")
+            self.assertEqual(set(replay["nodes"]), {"node-a"})
+
     def test_replay_projects_file_read_failure_metadata_and_node_scope(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

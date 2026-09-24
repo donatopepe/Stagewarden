@@ -2643,6 +2643,7 @@ class Executor:
             message=message,
             path=str(path),
             error=message,
+            status="failed",
         )
         return {"ok": False, "message": message, "error_type": "file_error"}
 

@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — replay failure metadata file-read
+### Iterazione bounded corrente — status failure file-read
+
+- **Obiettivo:** aggiungere `status=failed` a ogni `file_read_failure` JSONL e proiettarlo in replay, mantenendo node scope.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-failure-status-baseline.log` = `2/3`; actual drift fail-closed e scope passavano, ma event/replay status mancava.
+- **Casi fissi/ordine:** actual drift result; event status; replay failed status con altro nodo escluso.
+- **Variabile unica:** failure status metadata only; nessuna modifica a drift policy, chunking, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py` e `tests/test_event_stream.py`, poi suite file/context/event.
+
+### Iterazione bounded completata — replay failure metadata file-read
 
 - **Obiettivo:** proiettare in `EventStream.replay()` path/error/status per `file_read_failure`, mantenendo redaction e node scope.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
-- **Baseline:** `/tmp/file-read-replay-failure-baseline.log` = `1/3`; evento JSONL conteneva path/error, ma replay node esponeva solo last event/message.
+- **Baseline:** `/tmp/file-read-replay-failure-baseline.log` = `2/3`; evento JSONL conteneva path/error, ma replay node esponeva solo last event/message.
 - **Casi fissi/ordine:** replay path; replay error/status; node filter esclude failure di altro nodo.
 - **Variabile unica:** replay projection metadata only; nessuna modifica a file-read failure policy, chunking, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_event_stream.py`, poi suite event/file/context.
+- **Esito:** matrice `3/3` in `/tmp/file-read-replay-failure-final.log`; TDD red/green; suite event/file/context/Node Knowledge `39/39`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3770/12785`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — osservabilità failure file-read
 
