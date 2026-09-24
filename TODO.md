@@ -106,6 +106,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** configured window smaller than reserved+margin; unknown provider/model catalog; prompt exactly at available boundary.
 - **Variabile unica:** boundary acceptance assertions over existing `_context_budget`/chunk/compaction paths; no runtime policy/provider/fallback/scheduler change.
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
+- **Esito:** context boundary matrix `3/3`; context suite `11/11`; targeted MVP `122/122` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3734/12601`.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
