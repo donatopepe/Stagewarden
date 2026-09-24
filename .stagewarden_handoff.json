@@ -47,10 +47,10 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: File-read source-drift matrix 3/3; file/Node Knowledge/context/event suite 37/37; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph current/up to date at 139 files, 3766 nodes, 12766 edges; complete reads fail closed on hash/offset/no-progress drift; provider/model/fallback/parallel policy unchanged.",
+  "latest_observation": "2026-09-24: Final file-read drift matrix 3/3; file/Node Knowledge/context/event suite 37/37; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph current/up to date at 139 files, 3766 nodes, 12767 edges; final hash/length probe blocks late source drift; provider/model/fallback/parallel policy unchanged.",
   "plan_status": "MVP implementation active; MutationJournal safety 3/3, marker consistency 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and targeted MVP 121/121 green. Unified validation 6/6. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "0541598",
-  "git_head_baseline": "0541598",
+  "git_head": "0cf9ca2",
+  "git_head_baseline": "0cf9ca2",
   "risk_register": [
     {
       "id": "specification-approval-gate",

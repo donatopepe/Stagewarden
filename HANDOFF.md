@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded file-read source-drift iteration. `read_file_complete` now validates per-chunk source hash, offset continuity and forward progress before persistent checkpointing. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded finalization drift iteration. `read_file_complete` now performs final source hash/length validation before marking persisted content complete. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: reject source changes during complete reads and prevent no-progress loops on shortened files.
-- Metric/threshold: fixed source-drift matrix `3/3`.
-- Baseline: bounded baseline `1/3`; stable read passed, same-length mutation could be accepted, shortened source had no guard. An uncontrolled earlier probe timed out and is recorded as non-evidence.
-- Change: compare each chunk hash to initial hash, require expected start offset and positive progress; return fail-closed file error on drift.
-- Wet evidence: source-drift matrix `3/3` (`/tmp/file-read-source-drift-final.log`); file/Node Knowledge/context/event `37/37`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3766/12766`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: reject source changes after final data chunk and mutations of empty sources.
+- Metric/threshold: fixed final-drift matrix `3/3`.
+- Baseline: `/tmp/file-read-final-drift-baseline.log` = `1/3`; stable source passed, late same-length and empty-source mutations were accepted.
+- Change: final probe compares content hash and total length before `complete_file_read`; persistent status stays active on drift.
+- Wet evidence: final-drift matrix `3/3` (`/tmp/file-read-final-drift-final.log`); file/Node Knowledge/context/event `37/37`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3766/12767`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

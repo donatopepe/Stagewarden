@@ -40,6 +40,41 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
+    def test_read_file_complete_drift_emits_failure_event_for_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.txt"
+            source.write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            original_read = executor.files.read_chunk
+            calls = 0
+
+            def read_chunk(path: str, *, start: int = 0, size: int | None = None):
+                nonlocal calls
+                result = original_read(path, start=start, size=size)
+                calls += 1
+                if calls == 1:
+                    source.write_text("ABCDEfghij", encoding="utf-8")
+                return result
+
+            executor.files.read_chunk = read_chunk
+            result = executor._run_action(
+                {"type": "read_file_complete", "path": "source.txt", "chunk_size": 5},
+                step_id="node.drift",
+            )
+            # 1. Drift result remains fail-closed.
+            self.assertFalse(result["ok"])
+            # 2. Failure event records scoped path/error.
+            failures = executor.events.read(node_id="node.drift", event="file_read_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(failures[0]["details"]["path"], "source.txt")
+            self.assertIn("hash", failures[0]["details"]["error"].lower())
+            # 3. Replay projects failure only for selected node.
+            replay = executor.events.replay(node_id="node.drift")
+            self.assertEqual(set(replay["nodes"]), {"node.drift"})
+            self.assertEqual(replay["nodes"]["node.drift"]["last_event"], "file_read_failure")
+            executor.close()
+
     def test_read_file_complete_rejects_source_drift_and_shortened_source(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             original = "abcdefghij"

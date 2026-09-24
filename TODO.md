@@ -9,6 +9,15 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
+### Iterazione bounded corrente — osservabilità failure file-read
+
+- **Obiettivo:** emettere evento JSONL node-scoped quando `read_file_complete` fallisce per source drift, preservando fail-closed result e replay.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-failure-observability-baseline.log` = `1/3`; failure result passava, ma nessun evento recovery/failure e replay node vuoto.
+- **Casi fissi/ordine:** drift durante chunk; failure event con path/error; replay node-scoped espone failure senza altri nodi.
+- **Variabile unica:** failure event/replay observability nel percorso `read_file_complete`; nessuna modifica a drift policy, chunking, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py` e `tests/test_event_stream.py`, poi suite file/context/event.
+
 ### Iterazione bounded completata — rilevazione drift durante file-read completo
 
 - **Obiettivo:** rendere fail-closed `read_file_complete` quando sorgente cambia durante lettura e impedire loop senza progresso su file accorciato.
@@ -17,6 +26,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** sorgente stabile completa; mutazione same-length dopo apertura rifiutata; mutazione shortened dopo apertura rifiutata senza loop.
 - **Variabile unica:** validazione hash/progresso nel percorso `read_file_complete`; nessuna modifica a chunking pubblico, compaction, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/file-read-source-drift-final.log`; TDD red/green; suite file/Node Knowledge/context/event `37/37`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3766/12766`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded completata — finalizzazione drift file-read
+
+- **Obiettivo:** rendere fail-closed `read_file_complete` anche per mutazioni dopo l’ultimo chunk e per sorgenti inizialmente vuote.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-final-drift-baseline.log` = `1/3`; sorgente stabile passava, mutazione same-length dopo chunk finale e mutazione di sorgente vuota venivano accettate.
+- **Casi fissi/ordine:** sorgente stabile; mutazione dopo chunk finale; mutazione di sorgente vuota.
+- **Variabile unica:** final probe hash/total length prima di `complete_file_read`; nessuna modifica a chunking, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/file-read-final-drift-final.log`; file/Node Knowledge/context/event `37/37`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3766/12767`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — limiti checkpoint file-read
 

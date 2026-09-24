@@ -2037,20 +2037,20 @@ class Executor:
                     return {"ok": False, "message": chunk.error, "error_type": "file_error"}
                 report = chunk.report or {}
                 if str(report.get("content_hash", "")) != content_hash:
-                    return {"ok": False, "message": "File content hash changed during complete read.", "error_type": "file_error"}
+                    return self._file_read_failure(step_id, path, "File content hash changed during complete read.")
                 if int(report.get("start", -1)) != int(session["next_offset"]):
-                    return {"ok": False, "message": "File read made unexpected offset progress.", "error_type": "file_error"}
+                    return self._file_read_failure(step_id, path, "File read made unexpected offset progress.")
                 if int(report.get("end", 0)) <= int(report.get("start", 0)) and int(session["next_offset"]) < int(session["total_chars"]):
-                    return {"ok": False, "message": "File read made no progress before completion.", "error_type": "file_error"}
+                    return self._file_read_failure(step_id, path, "File read made no progress before completion.")
                 session = self.knowledge.checkpoint_file_chunk(session["session_id"], start=int(report["start"]), content=chunk.content, content_hash=content_hash)
             final_probe = self.files.read_chunk(path, start=0, size=1)
             if not final_probe.ok:
-                return {"ok": False, "message": final_probe.error, "error_type": "file_error"}
+                return self._file_read_failure(step_id, path, final_probe.error)
             final_report = final_probe.report or {}
             if str(final_report.get("content_hash", "")) != content_hash:
-                return {"ok": False, "message": "File content hash changed before complete read finalization.", "error_type": "file_error"}
+                return self._file_read_failure(step_id, path, "File content hash changed before complete read finalization.")
             if int(final_report.get("total_chars", -1)) != int(session["total_chars"]):
-                return {"ok": False, "message": "File length changed before complete read finalization.", "error_type": "file_error"}
+                return self._file_read_failure(step_id, path, "File length changed before complete read finalization.")
             self.knowledge.complete_file_read(session["session_id"], content_hash=content_hash)
             content = self.knowledge.read_file_content(session["session_id"])
             chunk_count = self.knowledge.file_read_chunk_count(session["session_id"])
@@ -2633,6 +2633,18 @@ class Executor:
         except OSError as exc:
             return str(exc)
         return ""
+
+    def _file_read_failure(self, step_id: str, path: str, message: str) -> dict[str, Any]:
+        self.events.append(
+            "file_read_failure",
+            tree_id="executor",
+            node_id=step_id or None,
+            purpose="complete file read recovery",
+            message=message,
+            path=str(path),
+            error=message,
+        )
+        return {"ok": False, "message": message, "error_type": "file_error"}
 
     def _record_tool_transcript(
         self,
