@@ -373,9 +373,20 @@ class NodeKnowledgeStore:
             try:
                 content = path.read_text(encoding="utf-8")
                 tree = ast.parse(content, filename=str(path))
-            except (OSError, SyntaxError, UnicodeError):
+            except (OSError, SyntaxError, UnicodeError) as exc:
                 invalid += 1
                 invalid_paths.add(relative)
+                self.record_context(
+                    tree_id=tree_id,
+                    node_id=node_id,
+                    parent_node_id=None,
+                    purpose="code index recovery",
+                    status="failed",
+                    content=f"Invalid Python source skipped: {relative}: {exc}",
+                    title="Code index recovery",
+                    kind="code_index_recovery",
+                    entry_id=f"code-recovery-{self._hash(f'{tree_id}:{node_id}:{relative}')[-16:]}",
+                )
                 continue
             file_hash = self._hash(content)
             seen_paths.add(relative)

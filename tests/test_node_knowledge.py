@@ -111,6 +111,27 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 # 3. The recovery result exposes the skipped invalid source.
                 self.assertEqual(second["invalid"], 1)
 
+    def test_invalid_source_emits_node_scoped_recovery_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "src"
+            root.mkdir()
+            source = root / "module.py"
+            source.write_text("def stable_symbol():\n    return 1\n", encoding="utf-8")
+            with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                store.index_python(root, node_id="node", tree_id="tree")
+                source.write_text("def broken_symbol(:\n    return 2\n", encoding="utf-8")
+                result = store.index_python(root, node_id="node", tree_id="tree")
+                # 1. Invalid result remains explicit.
+                self.assertEqual(result["invalid"], 1)
+                # 2. Recovery entry exposes node-scoped failure metadata.
+                entries = store.search("invalid", node_id="node")
+                self.assertEqual(len(entries), 1)
+                self.assertEqual(entries[0]["kind"], "code_index_recovery")
+                self.assertEqual(entries[0]["status"], "failed")
+                self.assertIn("module.py", entries[0]["content"])
+                # 3. Prior valid symbol remains node-scoped.
+                self.assertTrue(store.code_search("stable_symbol", node_id="node"))
+
     def test_same_root_indexing_rejects_cross_node_ownership_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "src"

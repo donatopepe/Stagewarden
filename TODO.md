@@ -45,13 +45,22 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `4/4` in `/tmp/node-knowledge-freshness-final.log`; TDD; Node Knowledge/file/context/event suite `54/54`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3786/12892`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — replay recovery metadata after code-index drift
+### Iterazione bounded completata — replay recovery metadata after code-index drift
 
 - **Obiettivo:** aggiungere isolated TDD coverage per replay-visible code-index recovery metadata quando indexing skips invalid Python source, senza broadening retrieval o auto-repair.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
-- **Baseline:** `/tmp/node-knowledge-invalid-source-baseline.log` = `3/3` behavior già green, ma nessuna dedicated regression per invalid-source recovery metadata.
+- **Baseline:** `/tmp/node-knowledge-invalid-source-baseline.log` = `1/3`; invalid source veniva trattato come missing e rimuoveva simboli validi, senza metadata `invalid`.
 - **Casi fissi/ordine:** valid source indexed; invalid Python source skipped without stale deletion; reindex result preserves node-scoped valid symbol.
-- **Variabile unica:** TDD coverage only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
+- **Variabile unica:** invalid-source recovery metadata e stale-preservation nel percorso `index_python`; nessuna modifica a retrieval scope, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/node-knowledge-invalid-source-final.log`; TDD red/green (`/tmp/node-knowledge-invalid-source-tdd.log`, `/tmp/node-knowledge-invalid-source-tdd-after-fix.log`); Node Knowledge/file/context/event suite `55/55`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3787/12898`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — replay evidence for invalid code-index source
+
+- **Obiettivo:** valutare una sola osservabilità TDD per propagare `invalid` code-index recovery metadata in node-scoped replay, senza aggiungere broad retrieval o auto-repair.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/node-knowledge-invalid-replay-baseline.log` = `0/3`; `index_python()` restituisce metadata locale ma nessun `knowledge`/replay entry per invalid source.
+- **Casi fissi/ordine:** invalid source emits one node-scoped recovery entry; entry exposes path/error/status; valid node symbol remains isolated.
+- **Variabile unica:** replay evidence only; nessuna modifica a parsing policy, retrieval scope, provider/model, fallback, scheduler o parallelismo.
 - **Test wet target:** nuova matrice TDD in `tests/test_node_knowledge.py`, poi suite Node Knowledge/file/context/event.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
