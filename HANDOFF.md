@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP validation after completing Node Knowledge retrieval scope, evidence/handoff reconciliation, CLI node-filtered replay and fail-closed OmniRoute contract work. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP validation after completing Node Knowledge code-index/retrieval scope, evidence/handoff reconciliation, CLI node-filtered replay and fail-closed OmniRoute contract work. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Product direction
 - One operational tree of nodes.
@@ -33,6 +33,13 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
 ## Latest bounded iteration
+- Objective: formalize Node Knowledge code-index retrieval scope without broadening retrieval semantics.
+- Metric/threshold: fixed code retrieval scope matrix `2/2`.
+- Baseline: `/tmp/next-node-knowledge-code-scope-baseline.log` was `1/2`; ancestor symbol leaked into child query after separate node indexes covered same root.
+- Change: added isolated ancestor/child code-index regression using separate node roots; no runtime retrieval broadening.
+- Wet validation: code scope `2/2`; Node Knowledge suite `8/8`; targeted MVP `120/120`; unified runner `6/6`; full discovery `609/609` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3759/12725`, up to date; HEAD `9997681eeabd3dc3b3295f13df9855588022cde4`.
+- Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
+
 - Objective: formalize Node Knowledge retrieval scope acceptance without broadening retrieval semantics.
 - Metric/threshold: fixed retrieval scope matrix `2/2`.
 - Baseline: `/tmp/next-mvp-node-knowledge-baseline.log` behavior probe `2/2`, but no explicit automated test covered direct node scope and child non-leakage.

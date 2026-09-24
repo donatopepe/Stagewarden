@@ -9,13 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — Node Knowledge code index scope acceptance
+### Iterazione bounded completata — Event replay recovery closure
+
+- **Obiettivo:** chiudere acceptance su replay JSONL recovery per operation in-flight, preservando status recovered, node scope e retry denial.
+- **Metrica/soglia:** fixed replay recovery closure matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-replay-recovery-closure-baseline.log` behavior `3/3`, ma closure non aveva acceptance metadata dedicata.
+- **Casi fissi/ordine:** in-flight appears; recovery clears in-flight; recovery metadata preserves status/node/retry denial.
+- **Variabile unica:** test TDD/event acceptance only; no runtime/provider/model/fallback/parallel/API change.
+- **Esito:** closure matrix `3/3`; Node Knowledge/code scope retained `2/2`; targeted MVP `120/120`; unified runner `6/6`; simulation `29/29`; full discovery `609/609` con `5` skip; CLI `3/3`; docs `17/17`; direct OmniRoute smoke verde; CodeGraph `139/3759/12725`, up to date; HEAD `9997681eeabd3dc3b3295f13df9855588022cde4`.
+
+### Iterazione bounded completata — Node Knowledge code index scope acceptance
 
 - **Obiettivo:** rendere automatico test per code-aware Python retrieval node-scoped, impedendo leakage tra indici di nodi diversi senza broad retrieval.
 - **Metrica/soglia:** fixed code retrieval scope matrix `2/2`; soglia `2/2`.
 - **Baseline:** `/tmp/next-node-knowledge-code-scope-baseline.log` = `1/2`: ancestor symbol trovato nel proprio node index, ma appariva anche nella query child dopo reindex dello stesso root.
 - **Casi fissi/ordine:** ancestor symbol direct hit; child query must exclude ancestor-owned symbol.
 - **Variabile unica:** test TDD first; if failing, smallest node-index implementation fix only; no provider/model/fallback/parallel/API change.
+- **Esito:** code retrieval scope matrix `2/2`; Node Knowledge suite `8/8`; targeted MVP `120/120`; unified runner `6/6`; simulation `29/29`; full discovery `609/609` con `5` skip; CLI `3/3`; docs `17/17`; direct OmniRoute smoke verde; CodeGraph `139/3759/12725`, up to date; HEAD `9997681eeabd3dc3b3295f13df9855588022cde4`.
 
 - **Obiettivo:** formalizzare test automatico per retrieval Node Knowledge node-scoped, preservando isolation e senza aggiungere broad ancestor/descendant retrieval non autorizzato.
 - **Metrica/soglia:** fixed retrieval scope matrix `2/2`; soglia `2/2`.

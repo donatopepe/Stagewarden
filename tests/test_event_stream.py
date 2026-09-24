@@ -81,6 +81,20 @@ class EventStreamTests(unittest.TestCase):
             self.assertFalse(recovered["tool_recoveries"][-1]["retry_authorized"])
             self.assertEqual(recovered["tool_recoveries"][-1]["status"], "recovered")
 
+    def test_replay_recovery_closure_matrix_preserves_node_status_and_retry_denial(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("tool_started", tree_id="tree", node_id="node-a", purpose="tool", message="shell", operation_id="op-a", tool="shell", action_type="shell")
+            in_flight = stream.replay(node_id="node-a")
+            stream.append("tool_recovery", tree_id="tree", node_id="node-a", purpose="tool recovery", message="shell", operation_id="op-a", tool="shell", action_type="shell", retry_authorized=False)
+            recovered = stream.replay(node_id="node-a")
+            self.assertIn("op-a", in_flight["in_flight_tools"])
+            self.assertEqual(recovered["in_flight_tools"], {})
+            marker = recovered["tool_recoveries"][-1]
+            self.assertEqual(marker["status"], "recovered")
+            self.assertEqual(marker["node_id"], "node-a")
+            self.assertFalse(marker["retry_authorized"])
+
     def test_replay_preserves_cycle_and_checkpoint_projection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

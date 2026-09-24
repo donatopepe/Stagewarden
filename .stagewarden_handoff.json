@@ -47,10 +47,10 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: Node Knowledge retrieval scope matrix 2/2 and Node Knowledge suite 7/7 passed. Direct node context retrieval succeeds; child query does not leak ancestor-only content. Unified runner 6/6; targeted MVP 119/119; full discovery 608/608 with 5 skips; CLI 3/3; docs 17/17 with 0 errors; OmniRoute direct smoke passed. CodeGraph current/up to date at 139 files, 3758 nodes, 12719 edges.",
-  "plan_status": "MVP implementation active; Node Knowledge retrieval scope 2/2, CLI replay scope 3/3, OmniRoute node-contract 3/3, replay scope/recovery 3/3, direct shell lifecycle 3/3, non-file recovery 3/3 and targeted 119/119 green. Unified validation 6/6 and direct OmniRoute smoke green. No broad ancestor/descendant retrieval added. Provider/model/fallback/serial policies unchanged. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "7fea4ebebd1effc3888f26c967b7e8700bd5f662",
-  "git_head_baseline": "7fea4ebebd1effc3888f26c967b7e8700bd5f662",
+  "latest_observation": "2026-09-24: Node Knowledge code-index scope acceptance and current handoff consistency rerun passed 3/3. Code scope matrix 2/2; Node Knowledge suite 8/8; targeted MVP 120/120; unified runner 6/6; full discovery 609/609 with 5 skips; docs 17/17; direct OmniRoute smoke green. Current HEAD and CodeGraph synchronized: 9997681eeabd3dc3b3295f13df9855588022cde4; 139 files, 3759 nodes, 12725 edges.",
+  "plan_status": "MVP implementation active; Node Knowledge code scope 2/2, handoff consistency 3/3, retrieval scope 2/2, CLI replay scope 3/3, OmniRoute node-contract 3/3 and targeted 120/120 green. Unified validation 6/6. No broad retrieval/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
+  "git_head": "9997681eeabd3dc3b3295f13df9855588022cde4",
+  "git_head_baseline": "9997681eeabd3dc3b3295f13df9855588022cde4",
   "risk_register": [
     {
       "id": "specification-approval-gate",
@@ -193,7 +193,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-24T08:45:00+02:00",
+  "updated_at": "2026-09-24T09:10:00+02:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
