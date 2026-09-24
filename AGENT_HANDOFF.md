@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded CLI EventStream follow-node-boundary iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded CLI EventStream follow-node-id whitespace-boundary iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3796 nodes, 12942 edges; HEAD `b3c1913` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/event-follow-cli-missing-node-baseline.log` behavior `1/3`; missing-node `events follow` returned success instead of rejecting global follow.
-- TDD adds three fixed boundary cases; CLI now rejects missing node and preserves valid node scope.
-- Wet evidence: missing-node matrix `3/3` (`/tmp/event-follow-cli-missing-node-final.log`); TDD `/tmp/event-follow-cli-missing-node-tdd.log`; CLI targeted `4/4`; event suite `12/12`; goal-loop/support suite `48/48`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3796/12942`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3797 nodes, 12947 edges; HEAD `7524295` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/event-follow-cli-whitespace-node-baseline.log` behavior `1/3`; whitespace node ids were normalized and accepted.
+- TDD adds three fixed raw node-id boundary cases; CLI now rejects leading/trailing whitespace and preserves exact node id.
+- Wet evidence: whitespace-node matrix `3/3` (`/tmp/event-follow-cli-whitespace-node-final.log`); TDD red/green; CLI targeted `5/5`; event suite `12/12`; goal-loop/support suite `48/48`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3797/12947`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

@@ -283,6 +283,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["node_id"], "node-a")
             self.assertEqual({event["node_id"] for event in payload["events"]}, {"node-a"})
 
+    def test_events_follow_cli_rejects_unsupported_control_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            # 1. Unsupported event filter plus cursor fails at CLI boundary.
+            filtered_cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--event", "result", "--json")
+            self.assertNotEqual(filtered_cursor.returncode, 0)
+            # 2. Unsupported event filter without cursor also fails.
+            filtered = run_main_capture(root, "events", "follow", "node-a", "--event", "result", "--json")
+            self.assertNotEqual(filtered.returncode, 0)
+            # 3. Declared cursor control remains successful.
+            cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "1", "--json")
+            self.assertEqual(cursor.returncode, 0, cursor.stderr)
+            payload = json.loads(cursor.stdout)
+            self.assertEqual(payload["node_id"], "node-a")
+            self.assertEqual(payload["after"], 1)
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
