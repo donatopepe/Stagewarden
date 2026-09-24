@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded replay failure metadata iteration from `TODO.md`; project file-read failure path/error/status into node-scoped replay while preserving redaction, fail-closed results, prior drift guards, checkpoint limits, exact resume, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Complete bounded file-read failure status iteration from `TODO.md`; mark actual failure events/replay state as `failed` while preserving node scope, redaction, fail-closed results, prior drift guards, checkpoint limits, exact resume, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3770 nodes, 12785 edges; HEAD `10ec03e` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/file-read-replay-failure-baseline.log` failed `2/3`: replay preserved event identity and node filter, but omitted path/error/status metadata.
-- TDD change projects `path`, `error` and `status` for `file_read_failure` into replay node state; raw JSONL redaction and node scope remain unchanged.
-- Wet evidence: replay-failure matrix `3/3` (`/tmp/file-read-replay-failure-final.log`); TDD red/green `/tmp/file-read-replay-failure-tdd.log`, `/tmp/file-read-replay-failure-tdd-after-fix.log`; event/file/context/Node Knowledge suite `39/39`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3770/12785`, current; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3773 nodes, 12795 edges; HEAD `0512bd4` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/file-read-failure-status-baseline.log` failed `2/3`: actual drift failure and node scope passed, event/replay status was missing.
+- TDD change adds `status=failed` to `_file_read_failure()` event; replay projection now surfaces failed status for actual drift while excluding other nodes.
+- Wet evidence: failure-status matrix `3/3` (`/tmp/file-read-failure-status-final.log`); TDD red/green `/tmp/file-read-failure-status-tdd.log`, `/tmp/file-read-failure-status-tdd-after-fix.log`; event/file/context/Node Knowledge suite `41/41`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3773/12795`, current; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

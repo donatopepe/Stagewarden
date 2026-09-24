@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded replay failure metadata iteration. `EventStream.replay()` now projects file-read failure path/error/status while retaining node scope and redaction. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded file-read failure status iteration. Actual `file_read_failure` events and replay state now carry `status=failed` with node scope and redaction preserved. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: make file-read failure metadata actionable in deterministic replay.
-- Metric/threshold: fixed replay-failure matrix `3/3`.
-- Baseline: `/tmp/file-read-replay-failure-baseline.log` = `2/3`; event identity and node filter passed, path/error/status were absent from replay state.
-- Change: replay projects `path`, `error` and `status` for `file_read_failure` events.
-- Wet evidence: replay-failure matrix `3/3` (`/tmp/file-read-replay-failure-final.log`); event/file/context/Node Knowledge `39/39`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3770/12785`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: distinguish actual file-read failure state from generic event metadata in JSONL/replay.
+- Metric/threshold: fixed failure-status matrix `3/3`.
+- Baseline: `/tmp/file-read-failure-status-baseline.log` = `2/3`; actual failure and node filter passed, event/replay status was absent.
+- Change: `_file_read_failure()` emits `status=failed`; replay already projects status and now exposes it for actual failures.
+- Wet evidence: failure-status matrix `3/3` (`/tmp/file-read-failure-status-final.log`); event/file/context/Node Knowledge `41/41`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3773/12795`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

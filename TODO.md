@@ -9,14 +9,23 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — status failure file-read
+### Iterazione bounded corrente — terminalità file-read checkpoint
+
+- **Obiettivo:** rendere fail-closed `complete_file_read()` quando sessione è già terminale, preservando stato `complete` e impedendo completion duplicata.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-session-finalization-baseline.log` = `2/3`; prima completion e stato persistente passavano, repeated completion restituiva `complete` invece di rifiutare.
+- **Casi fissi/ordine:** transition active→complete; repeated completion rejected; terminal status persists.
+- **Variabile unica:** terminal-state guard nel file-read store; nessuna modifica a chunking, drift, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_file_read_recovery.py`, poi suite file/context/event.
+
+### Iterazione bounded completata — status failure file-read
 
 - **Obiettivo:** aggiungere `status=failed` a ogni `file_read_failure` JSONL e proiettarlo in replay, mantenendo node scope.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-failure-status-baseline.log` = `2/3`; actual drift fail-closed e scope passavano, ma event/replay status mancava.
 - **Casi fissi/ordine:** actual drift result; event status; replay failed status con altro nodo escluso.
 - **Variabile unica:** failure status metadata only; nessuna modifica a drift policy, chunking, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_context_file_reading.py` e `tests/test_event_stream.py`, poi suite file/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-failure-status-final.log`; TDD red/green; suite event/file/context/Node Knowledge `41/41`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3773/12795`, up to date; JSON, `py_compile` e `git diff --check` verdi. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — replay failure metadata file-read
 

@@ -302,6 +302,8 @@ class NodeKnowledgeStore:
 
     def complete_file_read(self, session_id: str, *, content_hash: str) -> dict[str, Any]:
         state = self.file_read_status(session_id)
+        if state["status"] != "active":
+            raise ValueError("File read session is already complete.")
         if content_hash != state["content_hash"]:
             raise ValueError("File content hash changed before completion.")
         if int(state["next_offset"]) != int(state["total_chars"]):

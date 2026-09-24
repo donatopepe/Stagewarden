@@ -73,6 +73,31 @@ class FileReadRecoveryTests(unittest.TestCase):
                     store.checkpoint_file_chunk("oversized", start=0, content="abcdef", content_hash="sha256:test")
                 self.assertEqual(store.file_read_status("oversized")["next_offset"], 0)
 
+    def test_file_read_completion_is_terminal_and_not_repeated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "knowledge.sqlite"
+            digest = "sha256:test"
+            with NodeKnowledgeStore(path) as store:
+                store.begin_file_read(
+                    tree_id="tree",
+                    node_id="node",
+                    path="source.txt",
+                    purpose="read",
+                    chunk_size=5,
+                    total_chars=5,
+                    content_hash=digest,
+                    session_id="session",
+                )
+                store.checkpoint_file_chunk("session", start=0, content="abcde", content_hash=digest)
+                # 1. Active session transitions to complete.
+                completed = store.complete_file_read("session", content_hash=digest)
+                self.assertEqual(completed["status"], "complete")
+                # 2. Completion is terminal and cannot be repeated.
+                with self.assertRaises(ValueError):
+                    store.complete_file_read("session", content_hash=digest)
+                # 3. Terminal state persists.
+                self.assertEqual(store.file_read_status("session")["status"], "complete")
+
     def test_file_read_session_identity_rejects_conflicting_reuse(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"
