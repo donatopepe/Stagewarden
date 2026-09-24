@@ -127,6 +127,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--interactive", action="store_true", help="Start an interactive Stagewarden shell.")
     parser.add_argument("--json", action="store_true", help="Emit JSON for machine-readable commands such as `doctor`.")
     parser.add_argument("--full", action="store_true", help="Show expanded status dashboard sections.")
+    parser.add_argument("--after", type=int, default=None, help="Read events after JSONL line cursor for `events follow`.")
     return parser
 
 
@@ -658,8 +659,18 @@ def run_cli() -> int:
         if len(event_parts) == 3 and event_parts[1] == "replay":
             node_filter = event_parts[2]
         is_replay = task == "events replay" or task.startswith("events replay ")
+        is_follow = task == "events follow" or task.startswith("events follow ")
         if is_replay:
             report = stream.replay(node_id=node_filter)
+        elif is_follow:
+            cursor = args.after if args.after is not None else 0
+            report = {
+                "command": "events follow",
+                "path": str(config.event_path),
+                "node_id": node_filter,
+                "after": cursor,
+                "events": stream.follow(node_filter or "", after=cursor),
+            }
         else:
             report = {"command": "events", "path": str(config.event_path), "node_id": node_filter, "events": stream.read(node_id=node_filter)}
         if args.json:

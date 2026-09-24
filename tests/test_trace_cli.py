@@ -209,6 +209,26 @@ def run_main_capture(cwd: Path, *args: str, timeout: int = 20,
 
 
 class TraceAndCliTests(unittest.TestCase):
+    def test_events_follow_cli_cursor_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a", purpose="A")
+            cursor = len((root / ".stagewarden" / "events.jsonl").read_text(encoding="utf-8").splitlines())
+            stream.append("result", tree_id="tree", node_id="node-a", purpose="A")
+            stream.append("result", tree_id="tree", node_id="node-b", purpose="B")
+            completed = run_main_capture(root, "events", "follow", "node-a", "--after", str(cursor), "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            # 1. CLI returns only post-cursor event.
+            self.assertEqual([event["event"] for event in payload["events"]], ["result"])
+            # 2. Node scope excludes other node.
+            self.assertEqual({event["node_id"] for event in payload["events"]}, {"node-a"})
+            # 3. Cursor metadata remains explicit.
+            self.assertEqual(payload["command"], "events follow")
+            self.assertEqual(payload["node_id"], "node-a")
+            self.assertEqual(payload["after"], cursor)
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

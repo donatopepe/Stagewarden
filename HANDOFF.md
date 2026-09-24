@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-EventStream cursor-polling iteration complete. `follow(node_id, after=...)` now supports incremental node-scoped JSONL consumption while preserving event filters and replay; no new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+EventStream cursor input-validation iteration complete. `follow(node_id, after=...)` rejects bool/non-integral cursors and clamps negative cursors safely; node filters and replay remain unchanged. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: add incremental node-scoped polling to `EventStream.follow()` without changing replay or serial execution.
-- Metric/threshold: fixed cursor-polling matrix `3/3`.
-- Baseline: `/tmp/event-follow-cursor-baseline.log` behavior `0/3`; `after` cursor unsupported.
-- Change: optional line cursor plus TDD coverage for initial filter, incremental event and node isolation.
-- Wet evidence: cursor matrix `3/3` (`/tmp/event-follow-cursor-final.log`); event `11/11`, support recovery `46/46`, goal-loop `36/36`, CLI replay `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3792/12922`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: make EventStream `after` cursor input fail closed without changing polling filters or replay.
+- Metric/threshold: fixed cursor-validation matrix `3/3`.
+- Baseline: `/tmp/event-follow-cursor-negative-baseline.log` behavior `3/3`, but string/bool cursors were coerced by `int()`.
+- Change: strict integer check; negative cursor still clamps to zero.
+- Wet evidence: validation matrix `3/3` (`/tmp/event-follow-cursor-validation-final.log`); event `12/12`, goal-loop `36/36`, CLI replay `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3793/12927`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
