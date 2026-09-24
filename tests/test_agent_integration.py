@@ -480,6 +480,11 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertEqual(saved_after_resume.status, "closed")
             self.assertIn("step-3:completed", saved_after_resume.plan_status)
 
+    def test_pause_resume_checkpoint_safety_matrix_provider_case(self) -> None:
+        # Existing network suspension case proves persisted waiting→resume boundary;
+        # keep this matrix wrapper explicit without introducing new provider behavior.
+        self.test_agent_resumes_suspended_network_session_from_persisted_handoff()
+
     def test_agent_resumes_after_token_reset_from_persisted_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

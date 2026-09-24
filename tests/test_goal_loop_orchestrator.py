@@ -45,6 +45,24 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     GoalLoopOrchestrator(AgentConfig(workspace_root=root / unsupported), unsupported, execution_mode=unsupported, json_mode=True)
 
+    def test_pause_resume_checkpoint_safety_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = AgentConfig(workspace_root=Path(tmp))
+            # Capsule reopen boundary.
+            orchestrator = GoalLoopOrchestrator(config, "recovery matrix", execution_mode="mock", json_mode=True)
+            node = next(iter(orchestrator.nodes.values()))
+            orchestrator.current_iteration = 1
+            node.status = "running"
+            node.cycle_id = 1
+            node.cycle_phase = "verify"
+            orchestrator._emit_node_event(node, "node_cycle_checkpoint", "checkpoint")
+            saved = orchestrator.knowledge.load_node_execution_capsule("goal-loop", node.node_id)
+            self.assertEqual(saved["capsule"]["cycle_phase"], "verify")
+            orchestrator.knowledge.close()
+            resumed = GoalLoopOrchestrator(config, "recovery matrix", execution_mode="mock", json_mode=True)
+            self.assertEqual(resumed.nodes[node.node_id].status, "running")
+            resumed.knowledge.close()
+
     def test_tree_packet_acceptance_matrix_has_six_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "matrix", execution_mode="mock", json_mode=True)

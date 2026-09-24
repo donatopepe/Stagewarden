@@ -78,6 +78,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_mutation_execution.py` and `tests/test_event_stream.py`, then unified runner.
 - **Esito:** mutation replay/recovery safety `3/3`; mutation/journal/event `58/58`; targeted MVP `109/109`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3729/12552`.
 
+### Sotto-iterazione bounded corrente — pause/resume checkpoint safety
+
+- **Obiettivo:** validate existing persisted handoff/capsule resume boundary with a 3-case safety matrix, without adding cancellation/parallelism or changing provider/model policy.
+- **Metrica/soglia:** `3/3` fixed cases green: node capsule reopen; file-read checkpoint reopen; suspended provider handoff resume. Threshold 3/3.
+- **Baseline:** `/tmp/pause-resume-baseline.log`: individual capsule/file/provider tests exist, but no single bounded matrix asserts all recovery boundaries and no runtime pause/cancel contract is authorized.
+- **Casi fissi/ordine:** `NodeExecutionCapsule` reopen; `file_reads` offset/hash checkpoint reopen; provider suspension handoff waiting→resume.
+- **Variabile unica:** acceptance matrix/test composition only; no new pause/cancel API, provider/model/fallback, mutation or parallelism change.
+- **Test wet target:** nuova matrice `3/3` in `tests/test_goal_loop_orchestrator.py`, `tests/test_file_read_recovery.py`, `tests/test_agent_integration.py`, then unified runner.
+
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.
