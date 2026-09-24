@@ -40,7 +40,27 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
-    def test_read_file_complete_failure_event_has_failed_status(self) -> None:
+    def test_read_file_complete_repeated_action_returns_structured_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            action = {"type": "read_file_complete", "path": "source.txt", "chunk_size": 5}
+            # 1. First complete read succeeds.
+            first = executor._run_action(action, step_id="node.repeat")
+            self.assertTrue(first["ok"])
+            # 2. Repeated read returns structured file failure, not exception.
+            second = executor._run_action(action, step_id="node.repeat")
+            self.assertFalse(second["ok"])
+            self.assertEqual(second["error_type"], "file_error")
+            self.assertIn("complete", second["message"].lower())
+            # 3. Recovery failure is visible for node replay.
+            failures = executor.events.read(node_id="node.repeat", event="file_read_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(executor.events.replay(node_id="node.repeat")["nodes"]["node.repeat"]["status"], "failed")
+            executor.close()
+
+    def test_file_read_complete_failure_event_has_failed_status(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "source.txt"

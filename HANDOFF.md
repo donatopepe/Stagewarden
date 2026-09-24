@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded file-read failure status iteration. Actual `file_read_failure` events and replay state now carry `status=failed` with node scope and redaction preserved. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded terminal file-read checkpoint iteration. `NodeKnowledgeStore.complete_file_read()` now rejects repeated completion after terminal state while preserving active-to-complete transition. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: distinguish actual file-read failure state from generic event metadata in JSONL/replay.
-- Metric/threshold: fixed failure-status matrix `3/3`.
-- Baseline: `/tmp/file-read-failure-status-baseline.log` = `2/3`; actual failure and node filter passed, event/replay status was absent.
-- Change: `_file_read_failure()` emits `status=failed`; replay already projects status and now exposes it for actual failures.
-- Wet evidence: failure-status matrix `3/3` (`/tmp/file-read-failure-status-final.log`); event/file/context/Node Knowledge `41/41`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3773/12795`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: make persistent file-read completion terminal and idempotency-safe by rejecting duplicate completion.
+- Metric/threshold: fixed session-finalization matrix `3/3`.
+- Baseline: `/tmp/file-read-session-finalization-baseline.log` = `2/3`; duplicate completion returned `complete` instead of failing closed.
+- Change: active-state guard before completion; terminal status persists unchanged.
+- Wet evidence: session-finalization matrix `3/3` (`/tmp/file-read-session-finalization-final.log`); file/context/event/Node Knowledge `42/42`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3774/12802`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

@@ -2051,7 +2051,10 @@ class Executor:
                 return self._file_read_failure(step_id, path, "File content hash changed before complete read finalization.")
             if int(final_report.get("total_chars", -1)) != int(session["total_chars"]):
                 return self._file_read_failure(step_id, path, "File length changed before complete read finalization.")
-            self.knowledge.complete_file_read(session["session_id"], content_hash=content_hash)
+            try:
+                self.knowledge.complete_file_read(session["session_id"], content_hash=content_hash)
+            except ValueError as exc:
+                return self._file_read_failure(step_id, path, str(exc))
             content = self.knowledge.read_file_content(session["session_id"])
             chunk_count = self.knowledge.file_read_chunk_count(session["session_id"])
             self.events.append(
