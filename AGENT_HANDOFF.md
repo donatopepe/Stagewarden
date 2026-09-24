@@ -1,15 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Select next substantive bounded item from `TODO.md` after completed freshness/stale-removal code-index coverage; preserve node scope, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded invalid-source replay-evidence iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3786 nodes, 12892 edges; HEAD `885e7ef` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/node-knowledge-freshness-baseline.log` behavior `4/4`, but no isolated TDD matrix covered freshness/version and stale removal.
-- TDD adds four fixed freshness/stale-removal cases over existing `index_python()` semantics; runtime semantics unchanged.
-- Iteration is complete; next work must be selected from a real remaining TODO item, not metadata-only reconciliation.
-- Wet evidence: freshness matrix `4/4` (`/tmp/node-knowledge-freshness-final.log`); TDD `/tmp/node-knowledge-freshness-tdd.log`; Node Knowledge/file/context/event suite `54/54`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3786/12892`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3788 nodes, 12906 edges; HEAD `19ce48f` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/node-knowledge-invalid-replay-baseline.log` behavior `2/3`; invalid source had no node-scoped knowledge/replay evidence.
+- TDD adds one recovery evidence entry over existing invalid-source preservation and symbol isolation; runtime now records invalid source path/error/status without broad retrieval.
+- Wet evidence: invalid-replay matrix `3/3` (`/tmp/node-knowledge-invalid-replay-final.log`); TDD `/tmp/node-knowledge-invalid-replay-tdd.log`; Node Knowledge/file/context/event suite `56/56`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3788/12906`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

@@ -6,6 +6,8 @@ import os
 import subprocess
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -44,6 +46,29 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             for unsupported in ("parallel", "bogus"):
                 with self.assertRaises(ValueError):
                     GoalLoopOrchestrator(AgentConfig(workspace_root=root / unsupported), unsupported, execution_mode=unsupported, json_mode=True)
+
+    def test_terminal_purpose_banner_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(
+                AgentConfig(workspace_root=Path(tmp)),
+                "purpose banner",
+                execution_mode="mock",
+                json_mode=True,
+            )
+            node = orchestrator.nodes["root.scope"]
+            stderr = StringIO()
+            with redirect_stderr(stderr):
+                orchestrator._emit_node_event(node, "purpose_probe", "observe purpose")
+            event = orchestrator.events.read(node_id="root.scope", event="purpose_probe")[0]
+            capsule = orchestrator.knowledge.load_node_execution_capsule("goal-loop", "root.scope")["capsule"]
+            # 1. Terminal banner repeats node purpose.
+            self.assertIn(f"purpose={node.purpose}", stderr.getvalue())
+            # 2. JSONL keeps node identity and purpose.
+            self.assertEqual(event["node_id"], "root.scope")
+            self.assertEqual(event["purpose"], node.purpose)
+            # 3. Persisted capsule keeps same purpose.
+            self.assertEqual(capsule["purpose"], node.purpose)
+            orchestrator.knowledge.close()
 
     def test_pause_resume_checkpoint_safety_matrix_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

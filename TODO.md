@@ -54,14 +54,23 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** invalid-source recovery metadata e stale-preservation nel percorso `index_python`; nessuna modifica a retrieval scope, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/node-knowledge-invalid-source-final.log`; TDD red/green (`/tmp/node-knowledge-invalid-source-tdd.log`, `/tmp/node-knowledge-invalid-source-tdd-after-fix.log`); Node Knowledge/file/context/event suite `55/55`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3787/12898`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — replay evidence for invalid code-index source
+### Iterazione bounded completata — replay evidence for invalid code-index source
 
-- **Obiettivo:** valutare una sola osservabilità TDD per propagare `invalid` code-index recovery metadata in node-scoped replay, senza aggiungere broad retrieval o auto-repair.
+- **Obiettivo:** propagare `invalid` code-index recovery metadata in node-scoped replay, senza aggiungere broad retrieval o auto-repair.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
-- **Baseline:** `/tmp/node-knowledge-invalid-replay-baseline.log` = `0/3`; `index_python()` restituisce metadata locale ma nessun `knowledge`/replay entry per invalid source.
+- **Baseline:** `/tmp/node-knowledge-invalid-replay-baseline.log` = `2/3`; `index_python()` aveva metadata locale e symbol isolation, ma nessun `knowledge`/replay entry per invalid source.
 - **Casi fissi/ordine:** invalid source emits one node-scoped recovery entry; entry exposes path/error/status; valid node symbol remains isolated.
-- **Variabile unica:** replay evidence only; nessuna modifica a parsing policy, retrieval scope, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_node_knowledge.py`, poi suite Node Knowledge/file/context/event.
+- **Variabile unica:** replay evidence e recovery entry nel percorso `index_python`; nessuna modifica a parsing policy, retrieval scope, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/node-knowledge-invalid-replay-final.log`; TDD; Node Knowledge/file/context/event suite `56/56`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3788/12906`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — terminal purpose banner evidence
+
+- **Obiettivo:** rendere direttamente testabile la visibilità del purpose nel messaggio stderr del banner nodo, preservando JSONL purpose/node identity e serialità.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/node-purpose-banner-baseline.log` = `2/3`; JSONL purpose e node identity presenti, ma messaggio evento non includeva purpose reminder.
+- **Casi fissi/ordine:** stderr banner includes purpose; JSONL event preserves purpose/node; persisted capsule keeps same purpose.
+- **Variabile unica:** purpose reminder text in `_emit_node_event`; nessuna modifica a scheduler, packet, provider/model, fallback, retrieval o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_goal_loop_orchestrator.py`, poi suite goal-loop/event/Node Knowledge.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 
