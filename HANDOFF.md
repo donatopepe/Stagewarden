@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP validation after node-scoped tool replay/recovery completion. OmniRoute-free gates remain active; live multi-node malformed output stays fail-closed. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP validation with explicit fail-closed OmniRoute node-contract adapter. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Product direction
 - One operational tree of nodes.
@@ -33,6 +33,13 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
 ## Latest bounded iteration
+- Objective: add explicit fail-closed OmniRoute node-contract handling without changing direct smoke or provider/model policy.
+- Metric/threshold: fixed contract matrix `3/3`.
+- Baseline: `/tmp/omniroute-adapter-contract-baseline.log` was `1/3`; valid payload passed, wrong-contract and prose returned code 0.
+- Change: added explicit `--node-contract`; goal-loop passes it; adapter validates allowed fields, summary, messages and JSON; configured free fallbacks unchanged.
+- Wet validation: contract matrix `3/3`; adapter/goal-loop `39/39` with 1 intentional skip; unified runner `6/6`; simulation `29/29`; full discovery `606/606` with 5 skips; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3755/12707`, up to date; HEAD `52079ce0abc860ae6f86a0c9b71f54131e9caa04`.
+- Blocker: actual multi-node free route behavior remains externally unstable; invalid output now fails closed. Full v3 approval remains pending.
+
 - Objective: close node-scoped tool replay/recovery projection over persistent non-file recovery.
 - Metric/threshold: fixed replay matrix `3/3`.
 - Baseline: `/tmp/tool-replay-scope-baseline.log` was `2/3`; unfiltered and node-filtered in-flight sets passed, recovery projection absent.

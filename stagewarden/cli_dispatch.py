@@ -655,6 +655,8 @@ def run_cli() -> int:
         stream = EventStream(config.event_path)
         event_parts = task.split()
         node_filter = event_parts[2] if len(event_parts) == 3 and event_parts[1] in {"node", "follow"} else None
+        if len(event_parts) == 3 and event_parts[1] == "replay":
+            node_filter = event_parts[2]
         is_replay = task == "events replay" or task.startswith("events replay ")
         if is_replay:
             report = stream.replay(node_id=node_filter)

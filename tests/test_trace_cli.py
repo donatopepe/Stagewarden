@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 from stagewarden.agent import Agent
 from stagewarden.config import AgentConfig
+from stagewarden.event_stream import EventStream
 from stagewarden.ljson import decode, load_file
 from stagewarden.memory import MemoryStore
 from stagewarden.model_views import _handle_model_command
@@ -208,6 +209,18 @@ def run_main_capture(cwd: Path, *args: str, timeout: int = 20,
 
 
 class TraceAndCliTests(unittest.TestCase):
+    def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("tool_started", tree_id="executor", node_id="node-a", purpose="tool", message="shell", operation_id="op-a", tool="shell", action_type="shell", retry_authorized=False)
+            stream.append("tool_started", tree_id="executor", node_id="node-b", purpose="tool", message="shell", operation_id="op-b", tool="shell", action_type="shell", retry_authorized=False)
+            completed = run_main_capture(root, "events", "replay", "node-a", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(set(payload["in_flight_tools"]), {"op-a"})
+            self.assertEqual(payload["in_flight_tools"]["op-a"]["node_id"], "node-a")
+
     def test_agent_writes_ljson_trace(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

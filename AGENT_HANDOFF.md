@@ -1,12 +1,12 @@
 # Agent Handoff
 
 ## Current objective
-Maintain bounded node-first MVP validation after closing node-scoped tool replay/recovery projection; resolve remaining blockers only within TODO.md and without weakening fail-closed OmniRoute behavior. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
+Maintain bounded node-first MVP validation after adding explicit fail-closed OmniRoute node-contract handling; resolve remaining blockers only within TODO.md. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph verified current and up to date: 139 files, 3751 nodes, 12690 edges; branch `main`, sole main worktree; HEAD `a2b1fdc1676188ac2ac6a27e953685ddf8b22d06`.
-- Latest bounded gate passed: replay scope/recovery matrix `3/3`; direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `118/118`; unified validation `6/6`; simulation `29/29`; full discovery `604/604` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. Tool recovery is persistent, node-filtered and replay-visible with `retry_authorized=false`; no automatic retry. Remaining blockers: live multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval gate. Provider/model selection, fallback policy and serial execution unchanged.
+- CodeGraph verified current and up to date: 139 files, 3755 nodes, 12707 edges; branch `main`, sole main worktree; HEAD `52079ce0abc860ae6f86a0c9b71f54131e9caa04`.
+- Latest bounded gate passed: OmniRoute node-contract matrix `3/3`; adapter/goal-loop targeted `39/39` with 1 intentional skip; replay scope/recovery matrix `3/3`; direct shell lifecycle acceptance `3/3`; non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `118/118`; unified validation `6/6`; simulation `29/29`; full discovery `606/606` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. Explicit node contract rejects malformed/prose/wrong-contract output across configured free routes with structured nonzero failure; no fallback-policy or provider/model changes. Tool recovery remains persistent, node-filtered and replay-visible with `retry_authorized=false`; no automatic retry. Full v3 approval gate remains open.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
 - Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`. Live multi-node OmniRoute remains blocked on repeated malformed/truncated, wrong-contract and prose-wrapped output; adapter remains fail-closed.
@@ -120,6 +120,13 @@ Maintain bounded node-first MVP validation after closing node-scoped tool replay
   - Reason: context size and provider/model/cost are essential user responsibilities.
 
 ## Validation evidence
+- Objective: add explicit fail-closed OmniRoute node-contract handling without changing direct smoke or provider/model policy.
+- Metric/threshold: fixed contract matrix `3/3`.
+- Baseline: `/tmp/omniroute-adapter-contract-baseline.log` was `1/3`; valid payload passed, wrong-contract and prose returned code 0.
+- TDD change: added explicit `--node-contract`; goal-loop passes it; adapter validates allowed fields, summary, messages and JSON; configured free fallbacks remain same.
+- Wet validation: contract matrix `3/3`; adapter/goal-loop targeted `39/39` with 1 intentional skip; unified runner `6/6`; full discovery `606/606` with 5 skips; CLI `3/3`; docs `17/17`; direct smoke green; CodeGraph `139/3755/12707`, up to date; HEAD `52079ce0abc860ae6f86a0c9b71f54131e9caa04`.
+- Remaining blocker: actual multi-node free route behavior still externally unstable; adapter now rejects invalid output fail-closed. Full v3 approval remains pending.
+
 - Objective: close node-scoped tool replay/recovery projection over persistent non-file recovery.
 - Metric/threshold: fixed replay matrix `3/3`.
 - Baseline: `/tmp/tool-replay-scope-baseline.log` was `2/3`; unfiltered and node-filtered in-flight sets passed, recovery projection absent.

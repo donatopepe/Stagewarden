@@ -9,13 +9,14 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — OmniRoute node-contract adapter fail-closed
+### Iterazione bounded completata — OmniRoute node-contract adapter fail-closed
 
 - **Obiettivo:** fare rifiutare all'adapter OmniRoute, solo nel percorso goal-loop esplicitamente contrattualizzato, output malformed/prose/wrong-contract e usare soltanto i fallback free già configurati; nessun cambio provider/model policy.
 - **Metrica/soglia:** fixed contract matrix `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/omniroute-adapter-contract-baseline.log` = `1/3`: valid payload accettato, wrong-contract e prose accettati con return code `0`; il goal-loop deve già fallire chiuso più avanti, ma adapter non classificava il contratto.
 - **Casi fissi/ordine:** valid node packet accepted; wrong-contract first route → existing configured free fallback accepted; prose/malformed on all configured free routes → nonzero structured failure.
 - **Variabile unica:** flag esplicito `--node-contract` con validazione adapter e passaggio dal goal-loop; direct smoke senza flag, provider/model/fallback defaults e serialità invariati.
+- **Esito:** contract matrix `3/3`; adapter/goal-loop targeted `39/39` con `1` intentional skip; unified runner `6/6`; simulation `29/29`; full discovery `606/606` con `5` skip; CLI `3/3`; docs `17/17`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3755/12707`, up to date; HEAD `52079ce0abc860ae6f86a0c9b71f54131e9caa04`; malformed/prose/wrong-contract all-free routes fail nonzero structured, no contract weakening.
 
 ### Iterazione bounded completata — tool replay scope/recovery projection
 

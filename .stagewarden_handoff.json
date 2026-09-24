@@ -47,10 +47,10 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: node-scoped tool replay/recovery projection closed at 3/3; targeted node/context/event/mutation/recovery 118/118 and unified validation 6/6 remain green. EventStream projects node-filtered in_flight_tools and tool_recoveries with status=recovered and retry_authorized=false. Simulation 29/29; full discovery 604/604 with 5 skips; CLI 3/3; docs 17/17 with 0 errors; OmniRoute direct smoke passed. CodeGraph current/up to date at 139 files, 3751 nodes, 12690 edges. Live multi-node OmniRoute malformed/wrong-contract/prose output and full v3 approval remain blockers.",
-  "plan_status": "MVP implementation active; replay scope/recovery 3/3, direct shell lifecycle 3/3, non-file recovery 3/3 and targeted 118/118 green. Unified validation 6/6 and direct OmniRoute smoke green. Fail-closed recovery, provider/model selection, fallback policy and serial execution unchanged. Remaining blockers are external multi-node OmniRoute contract instability and user approval for full v3; no workaround authorized.",
-  "git_head": "a2b1fdc1676188ac2ac6a27e953685ddf8b22d06",
-  "git_head_baseline": "a2b1fdc1676188ac2ac6a27e953685ddf8b22d06",
+  "latest_observation": "2026-09-24: OmniRoute node-contract matrix 3/3 and adapter/goal-loop targeted 39/39 (1 intentional skip) passed. Explicit --node-contract now rejects prose/wrong-contract/malformed content across all configured free routes with structured nonzero failure; goal-loop uses flag, direct smoke remains unchanged. Unified runner 6/6; simulation 29/29; full discovery 606/606 with 5 skips; CLI 3/3; docs 17/17; OmniRoute direct smoke passed. CodeGraph current/up to date at 139 files, 3755 nodes, 12707 edges.",
+  "plan_status": "MVP implementation active; OmniRoute node-contract 3/3, replay scope/recovery 3/3, direct shell lifecycle 3/3, non-file recovery 3/3 and targeted 118/118 green. Unified validation 6/6 and direct OmniRoute smoke green. Multi-node route now has explicit fail-closed contract adapter; external route stability remains unproven. Provider/model selection, fallback policy and serial execution unchanged. Full v3 approval remains pending.",
+  "git_head": "52079ce0abc860ae6f86a0c9b71f54131e9caa04",
+  "git_head_baseline": "52079ce0abc860ae6f86a0c9b71f54131e9caa04",
   "risk_register": [
     {
       "id": "specification-approval-gate",
@@ -193,7 +193,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-24T07:35:00+02:00",
+  "updated_at": "2026-09-24T07:55:00+02:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
