@@ -40,6 +40,28 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertEqual(chunks[-1].report["end"], len(expected))
             self.assertFalse(chunks[-1].report["has_more"])
 
+    def test_read_file_chunk_invalid_offset_emits_failure_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            result = executor._run_action(
+                {"type": "read_file_chunk", "path": "source.txt", "start": 100, "size": 5},
+                step_id="node.offset",
+            )
+            # 1. Offset beyond file end fails closed.
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error_type"], "file_error")
+            self.assertEqual(result["report"]["requested_size"], 5)
+            # 2. Failure event includes failed status and path.
+            failures = executor.events.read(node_id="node.offset", event="file_read_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(failures[0]["details"]["status"], "failed")
+            self.assertEqual(failures[0]["details"]["path"], "source.txt")
+            # 3. Replay projects node failure.
+            self.assertEqual(executor.events.replay(node_id="node.offset")["nodes"]["node.offset"]["status"], "failed")
+            executor.close()
+
     def test_read_file_chunk_directory_error_emits_failure_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

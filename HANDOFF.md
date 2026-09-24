@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Bounded missing-chunk recovery iteration. Initial `read_file_chunk` missing-source failures now emit structured failed node-scoped replay metadata while retaining context-aware report fields. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Bounded file chunk IO-error recovery iteration. Directory/IO `read_file_chunk` failures now use existing failed event/replay path with context report preserved. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: make missing chunk failures observable in JSONL/replay without losing chunk budget report.
-- Metric/threshold: fixed chunk-failure matrix `3/3`.
-- Baseline: `/tmp/file-read-chunk-failure-baseline.log` = `2/3`; missing result and replay tool_result existed, dedicated failure event was absent.
-- Change: failed chunk action now returns `_file_read_failure()` plus requested/effective size report.
-- Wet evidence: chunk-failure matrix `3/3` (`/tmp/file-read-chunk-failure-final.log`); file/context/event/Node Knowledge `45/45`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3777/12824`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: make directory read errors observable in JSONL/replay.
+- Metric/threshold: fixed directory-error matrix `3/3`.
+- Baseline: `/tmp/file-read-directory-baseline.log` behavior `3/3`, but no explicit automated regression; root permission probe was invalid.
+- Change: added TDD matrix around existing error mapping; no runtime policy change.
+- Wet evidence: directory-error matrix `3/3` (`/tmp/file-read-directory-final.log`); file/context/event/Node Knowledge `46/46`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3778/12830`; py_compile, JSON and `git diff --check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
