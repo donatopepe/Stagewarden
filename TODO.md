@@ -99,14 +99,23 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** strict `after` cursor validation in `EventStream.follow()`; nessuna modifica a event filtering, replay, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cursor-validation-final.log`; TDD; event suite `12/12`, goal-loop suite `36/36`, CLI replay `1/1`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3793/12927`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — CLI EventStream cursor follow
+### Iterazione bounded completata — CLI EventStream cursor follow
 
 - **Obiettivo:** esporre `EventStream.follow(..., after=...)` tramite CLI `events follow <node> --after N --json`, preservando node scope, cursor semantics e replay.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/event-follow-cursor-cli-baseline.log` = `0/3`; CLI rifiutava `--after` e non esponeva incremental follow report.
 - **Casi fissi/ordine:** CLI returns post-cursor event; output remains node-scoped; JSON preserves command/node/after metadata.
 - **Variabile unica:** CLI parser/report wiring for EventStream cursor follow; nessuna modifica a EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite event/CLI/goal-loop.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cursor-cli-final.log`; TDD; CLI targeted `2/2`, event suite `12/12`, goal-loop suite `36/36`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3794/12932`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — CLI EventStream cursor input validation
+
+- **Obiettivo:** coprire TDD la validazione CLI di `events follow <node> --after`, mantenendo fail-closed input non interi e normalizzazione cursore negativo.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cursor-cli-input-baseline.log` = `3/3` behavior green, ma nessuna regression matrix dedicata: string/float vengono rifiutati da argparse, negativo viene accettato e normalizzato da EventStream.
+- **Casi fissi/ordine:** string cursor exits non-zero; float cursor exits non-zero; negative cursor succeeds with explicit `after=-1` report.
+- **Variabile unica:** TDD coverage only; nessuna modifica runtime, EventStream semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite CLI/event/goal-loop.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded EventStream cursor-input-validation iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded CLI EventStream cursor-follow iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3793 nodes, 12927 edges; HEAD `313fa8c` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/event-follow-cursor-negative-baseline.log` behavior `3/3`, but string/bool cursor inputs were implicitly coerced.
-- TDD adds strict integer validation while preserving negative cursor normalization and existing filters/replay.
-- Wet evidence: validation matrix `3/3` (`/tmp/event-follow-cursor-validation-final.log`); TDD `/tmp/event-follow-cursor-validation-tdd.log`; event suite `12/12`; goal-loop suite `36/36`; CLI replay `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3793/12927`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3794 nodes, 12932 edges; HEAD `63aa724` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/event-follow-cursor-cli-baseline.log` behavior `0/3`; CLI rejected `--after` and exposed no incremental follow report.
+- TDD adds CLI parser/report wiring over existing strict EventStream cursor semantics; runtime provider/model and serial policy unchanged.
+- Wet evidence: CLI cursor matrix `3/3` (`/tmp/event-follow-cursor-cli-final.log`); TDD `/tmp/event-follow-cursor-cli-tdd.log`; CLI targeted `2/2`; event suite `12/12`; goal-loop suite `36/36`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3794/12932`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

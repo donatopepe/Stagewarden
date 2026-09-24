@@ -43,14 +43,14 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded EventStream cursor-input-validation iteration is complete; no new runtime scope selected.",
+  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded CLI EventStream cursor-follow iteration is complete; no new runtime scope selected.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: EventStream cursor-input-validation TDD matrix 3/3; event suite 12/12, goal-loop suite 36/36, CLI replay 1/1; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3793 nodes/12927 edges current; HEAD 313fa8c. EventStream.follow rejects bool/non-integral after cursors and clamps negative cursors; multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers; no provider/model/fallback/parallel policy change.",
-  "plan_status": "MVP implementation active; EventStream cursor validation TDD 3/3, cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "313fa8c",
-  "git_head_baseline": "313fa8c",
+  "latest_observation": "2026-09-24: CLI EventStream cursor-follow TDD matrix 3/3; CLI targeted 2/2, event suite 12/12, goal-loop suite 36/36; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3794 nodes/12932 edges current; HEAD 63aa724. CLI events follow exposes node-scoped post-cursor events and cursor metadata over strict EventStream semantics; multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers; no provider/model/fallback/parallel policy change.",
+  "plan_status": "MVP implementation active; CLI EventStream cursor follow TDD 3/3, EventStream cursor validation TDD 3/3, cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
+  "git_head": "63aa724",
+  "git_head_baseline": "63aa724",
   "risk_register": [
     {
       "id": "specification-approval-gate",
@@ -4376,8 +4376,8 @@
     }
   ],
   "recent_changes": [
-    "stagewarden/event_stream.py: rejects bool/non-integral after cursors and safely clamps negative cursors.",
-    "tests/test_event_stream.py: added fixed three-case cursor input-validation matrix.",
+    "stagewarden/cli_dispatch.py: added --after and events follow node-scoped JSON report.",
+    "tests/test_trace_cli.py: added fixed three-case CLI cursor-follow matrix.",
     "TODO.md, AGENT_HANDOFF.md and HANDOFF.md: aligned bounded objective, evidence and blockers."
   ],
   "next_steps": [

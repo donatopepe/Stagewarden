@@ -229,6 +229,24 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["node_id"], "node-a")
             self.assertEqual(payload["after"], cursor)
 
+    def test_events_follow_cli_cursor_input_validation_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            stream = EventStream(root / ".stagewarden" / "events.jsonl")
+            stream.append("start", tree_id="tree", node_id="node-a")
+            # 1. String cursor fails at CLI boundary.
+            string_cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "bad", "--json")
+            self.assertNotEqual(string_cursor.returncode, 0)
+            # 2. Float cursor fails at CLI boundary.
+            float_cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "1.5", "--json")
+            self.assertNotEqual(float_cursor.returncode, 0)
+            # 3. Negative integer reaches EventStream and remains explicit.
+            negative_cursor = run_main_capture(root, "events", "follow", "node-a", "--after", "-1", "--json")
+            self.assertEqual(negative_cursor.returncode, 0, negative_cursor.stderr)
+            payload = json.loads(negative_cursor.stdout)
+            self.assertEqual(payload["after"], -1)
+            self.assertEqual([event["event"] for event in payload["events"]], ["start"])
+
     def test_events_replay_cli_preserves_node_scope_for_tool_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
