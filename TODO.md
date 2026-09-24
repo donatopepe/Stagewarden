@@ -72,14 +72,32 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** purpose reminder text in `_emit_node_event`; nessuna modifica a scheduler, packet, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/node-purpose-banner-final.log`; TDD; focused goal-loop/event/Node Knowledge/context/file suite `92/92`; unified validation `6/6` (simulation `29/29`, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3791/12915`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — EventStream cursor polling
+### Iterazione bounded completata — EventStream cursor polling
 
 - **Obiettivo:** aggiungere polling incrementale node-scoped a `EventStream.follow()` tramite cursore di riga, preservando filtri evento, replay deterministico e serialità.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/event-follow-cursor-baseline.log` = `0/3`; `follow()` supportava solo lettura completa e rifiutava `after`.
 - **Casi fissi/ordine:** initial filtered poll; incremental event poll after cursor; node isolation after cursor.
 - **Variabile unica:** optional `after` line cursor in `EventStream.follow()`; nessuna modifica a scheduler, provider/model, fallback, retrieval o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_event_stream.py`, poi suite event/CLI/goal-loop/Node Knowledge.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cursor-final.log`; TDD; event suite `11/11`, support recovery suite `46/46`, goal-loop suite `36/36`, CLI node replay `1/1`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3792/12922`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded completata — EventStream cursor polling
+
+- **Obiettivo:** aggiungere polling incrementale node-scoped a `EventStream.follow()` tramite cursore di riga, preservando filtri evento, replay deterministico e serialità.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cursor-baseline.log` = `0/3`; `follow()` supportava solo lettura completa e rifiutava `after`.
+- **Casi fissi/ordine:** initial filtered poll; incremental event poll after cursor; node isolation after cursor.
+- **Variabile unica:** optional `after` line cursor in `EventStream.follow()`; nessuna modifica a scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cursor-final.log`; TDD; event suite `11/11`, support recovery suite `46/46`, goal-loop suite `36/36`, CLI node replay `1/1`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3792/12922`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — EventStream cursor input validation
+
+- **Obiettivo:** rendere fail-closed il cursore `after` per polling EventStream, rifiutando bool/non-integral input invece di coercione implicita, preservando negative cursor normalization.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/event-follow-cursor-negative-baseline.log` = `3/3` behavior green, ma type validation assente: string/bool cursor venivano convertiti con `int()`.
+- **Casi fissi/ordine:** negative cursor clamps to zero; string cursor raises `ValueError`; bool cursor raises `ValueError`.
+- **Variabile unica:** strict `after` cursor validation in `EventStream.follow()`; nessuna modifica a event filtering, replay, scheduler, provider/model, fallback, retrieval o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_event_stream.py`, poi suite event/CLI/goal-loop.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

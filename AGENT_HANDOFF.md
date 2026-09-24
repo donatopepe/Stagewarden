@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded terminal purpose-banner evidence iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded EventStream cursor-polling iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3791 nodes, 12915 edges; HEAD `0b07ebc` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/node-purpose-banner-baseline.log` behavior `2/3`; JSONL purpose and node identity existed, but event message lacked purpose reminder.
-- TDD adds three fixed purpose-banner evidence cases; runtime behavior unchanged.
-- Wet evidence: purpose-banner matrix `3/3` (`/tmp/node-purpose-banner-final.log`); TDD `/tmp/node-purpose-banner-tdd.log`; focused goal-loop/event/Node Knowledge/context/file suite `92/92`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3791/12915`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3792 nodes, 12922 edges; HEAD `1d89837` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/event-follow-cursor-baseline.log` behavior `0/3`; `EventStream.follow()` rejected incremental `after` cursor.
+- TDD adds optional line cursor while preserving existing node/event filters and replay behavior.
+- Wet evidence: cursor matrix `3/3` (`/tmp/event-follow-cursor-final.log`); TDD `/tmp/event-follow-cursor-tdd.log`; event suite `11/11`; support recovery suite `46/46`; goal-loop suite `36/36`; CLI replay `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3792/12922`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

@@ -51,7 +51,9 @@ class EventStream:
 
     def follow(self, node_id: str, *, event: str | None = None, after: int = 0) -> list[dict[str, Any]]:
         """Return ordered events for one node after an optional JSONL line cursor."""
-        cursor = max(0, int(after))
+        if isinstance(after, bool) or not isinstance(after, int):
+            raise ValueError("Event stream cursor must be an integer.")
+        cursor = max(0, after)
         if cursor == 0:
             return self.read(node_id=node_id, event=event)
         if not self.path.exists():

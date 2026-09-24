@@ -43,14 +43,14 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded terminal purpose-banner evidence iteration is complete; no new runtime scope selected.",
+  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded EventStream cursor-polling iteration is complete; no new runtime scope selected.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: Terminal purpose-banner TDD matrix 3/3; focused goal-loop/event/Node Knowledge/context/file suite 92/92; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3791 nodes/12915 edges current; HEAD 0b07ebc. Purpose remains visible in stderr banner, JSONL event and persisted capsule; multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers; no provider/model/fallback/parallel policy change.",
-  "plan_status": "MVP implementation active; terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and targeted MVP green. Unified validation 6/6. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "0b07ebc",
-  "git_head_baseline": "0b07ebc",
+  "latest_observation": "2026-09-24: EventStream cursor-polling TDD matrix 3/3; event suite 11/11, support recovery suite 46/46, goal-loop suite 36/36, CLI replay 1/1; unified validation 6/6: simulation 29/29, targeted MVP green, full discovery green, CLI 3/3, direct OmniRoute smoke green, docs 17/17. CodeGraph 139 files/3792 nodes/12922 edges current; HEAD 1d89837. EventStream.follow supports node-scoped incremental after cursor; multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers; no provider/model/fallback/parallel policy change.",
+  "plan_status": "MVP implementation active; EventStream cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
+  "git_head": "1d89837",
+  "git_head_baseline": "1d89837",
   "risk_register": [
     {
       "id": "specification-approval-gate",
@@ -4376,13 +4376,13 @@
     }
   ],
   "recent_changes": [
-    "tests/test_goal_loop_orchestrator.py: added isolated three-case purpose-banner TDD matrix.",
-    "TODO.md: recorded purpose-banner baseline, evidence and no-new-scope gate.",
-    "AGENT_HANDOFF.md and HANDOFF.md: aligned completed iteration and blockers."
+    "stagewarden/event_stream.py: added optional after line cursor to follow() for incremental node-scoped polling.",
+    "tests/test_event_stream.py: added fixed three-case cursor matrix.",
+    "TODO.md, AGENT_HANDOFF.md and HANDOFF.md: aligned bounded objective, evidence and blockers."
   ],
   "next_steps": [
     "Select next substantive TODO item only after fresh startup protocol and approved scope.",
-    "Keep deferred terminal multiplexer internals, parallel collision, broad retrieval and pause/cancel scopes untouched.",
+    "Keep deferred multiplexer internals beyond cursor polling, parallel collision, broad retrieval and pause/cancel scopes untouched.",
     "Do not retry unstable multi-node OmniRoute until external route behavior changes; retain fail-closed blocker."
   ]
 }

@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Terminal purpose-banner evidence iteration complete. Goal-loop stderr banner, JSONL event and persisted capsule all retain node purpose; no new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+EventStream cursor-polling iteration complete. `follow(node_id, after=...)` now supports incremental node-scoped JSONL consumption while preserving event filters and replay; no new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: make terminal purpose reminder directly testable while preserving JSONL identity and serial execution.
-- Metric/threshold: fixed purpose-banner matrix `3/3`.
-- Baseline: `/tmp/node-purpose-banner-baseline.log` behavior `2/3`; JSONL purpose/node identity passed, stderr message purpose reminder missing.
-- Change: added isolated TDD matrix; `_emit_node_event` runtime unchanged because existing banner already contained purpose.
-- Wet evidence: purpose-banner matrix `3/3` (`/tmp/node-purpose-banner-final.log`); focused goal-loop/event/Node Knowledge/context/file `92/92`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3791/12915`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: add incremental node-scoped polling to `EventStream.follow()` without changing replay or serial execution.
+- Metric/threshold: fixed cursor-polling matrix `3/3`.
+- Baseline: `/tmp/event-follow-cursor-baseline.log` behavior `0/3`; `after` cursor unsupported.
+- Change: optional line cursor plus TDD coverage for initial filter, incremental event and node isolation.
+- Wet evidence: cursor matrix `3/3` (`/tmp/event-follow-cursor-final.log`); event `11/11`, support recovery `46/46`, goal-loop `36/36`, CLI replay `1/1`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3792/12922`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

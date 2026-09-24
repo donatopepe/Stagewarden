@@ -257,6 +257,19 @@ class EventStreamTests(unittest.TestCase):
             # 3. Cursor polling cannot leak another node.
             self.assertEqual([item["node_id"] for item in stream.follow("leaf-a", after=cursor)], ["leaf-a"])
 
+    def test_follow_cursor_input_validation_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("start", tree_id="tree-1", node_id="leaf-a", purpose="A")
+            # 1. Negative cursor remains a safe initial poll.
+            self.assertEqual([item["event"] for item in stream.follow("leaf-a", after=-1)], ["start"])
+            # 2. String cursor is rejected instead of coerced.
+            with self.assertRaises(ValueError):
+                stream.follow("leaf-a", after="1")  # type: ignore[arg-type]
+            # 3. Bool cursor is rejected instead of treated as integer one.
+            with self.assertRaises(ValueError):
+                stream.follow("leaf-a", after=True)
+
     def test_follow_filters_events_and_replay_to_one_node(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")
