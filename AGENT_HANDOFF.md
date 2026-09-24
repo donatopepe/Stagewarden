@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded non-integral offset recovery iteration from `TODO.md`; reject float/bool `read_file_chunk` starts with structured node-scoped failed event/replay while preserving context-aware report, terminality, session identity, chunk limits, drift guards, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Complete bounded non-integral size recovery iteration from `TODO.md`; reject float/bool `read_file_chunk` sizes with structured node-scoped failed event/replay while preserving context-aware report, offset validation, terminality, session identity, chunk limits, drift guards, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3781 nodes, 12853 edges; HEAD `56c7593` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/file-read-float-offset-baseline.log` failed `0/3`: start `2.5` converted to `2`, returned content, no failure event/replay state.
-- TDD change validates raw start is integer and not boolean before file read; invalid values route through `_file_read_failure()` with bounded report.
-- Wet evidence: float-offset matrix `3/3` (`/tmp/file-read-float-offset-final.log`); TDD red/green `/tmp/file-read-float-offset-tdd.log`, `/tmp/file-read-float-offset-tdd-after-fix.log`; file/context/event/Node Knowledge suite `49/49`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3781/12853`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3782 nodes, 12860 edges; HEAD `1a162a3` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/file-read-size-float-baseline.log` failed `0/3`: size `2.5` converted to `2`, returned content, no failure event/replay state.
+- TDD change validates raw size is integer and not boolean before read; invalid values route through `_file_read_failure()` with bounded report.
+- Wet evidence: size-float matrix `3/3` (`/tmp/file-read-size-float-final.log`); TDD red/green `/tmp/file-read-size-float-tdd.log`, `/tmp/file-read-size-float-tdd-after-fix.log`; file/context/event/Node Knowledge suite `50/50`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3782/12860`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

@@ -1968,7 +1968,12 @@ class Executor:
                 failure["report"] = {"requested_size": raw_size, "effective_size": 0, "auto_compacted": False}
                 failure["content"] = ""
                 return failure
-            requested_size = max(1, raw_size)
+            if raw_size <= 0:
+                failure = self._file_read_failure(step_id, action.get("path", ""), "File chunk size must be positive.")
+                failure["report"] = {"requested_size": raw_size, "effective_size": 0, "auto_compacted": False}
+                failure["content"] = ""
+                return failure
+            requested_size = raw_size
             auto_compacted = False
             prompt_chars_before = self._active_prompt_chars
             budget = self._active_context_budget or {}
