@@ -96,6 +96,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** `_context_budget("cheap")`; `_context_budget("chatgpt")`; `read_file_chunk` and prompt compaction with selected provider/model budget.
 - **Variabile unica:** acceptance matrix over existing context paths; no router selection, fallback, provider/model policy, mutation or parallelism change.
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
+- **Esito:** context provider/model selection matrix `3/3`; context suite `10/10`; targeted MVP `121/121` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3733/12589`.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
