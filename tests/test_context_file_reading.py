@@ -44,9 +44,9 @@ class ContextAwareFileReadingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             original = "abcdefghij"
 
-            def run_case(replacement: str | None) -> dict[str, object]:
-                case_root = Path(tmp) / ("mutated" if replacement is not None else "stable")
-                case_root.mkdir(exist_ok=True)
+            def run_case(name: str, replacement: str | None, mutate_after_call: int) -> dict[str, object]:
+                case_root = Path(tmp) / name
+                case_root.mkdir()
                 source = case_root / "source.txt"
                 source.write_text(original, encoding="utf-8")
                 executor = self._executor(case_root, file_chunk_chars=5)
@@ -57,8 +57,8 @@ class ContextAwareFileReadingTests(unittest.TestCase):
                     nonlocal calls
                     result = first_read(path, start=start, size=size)
                     calls += 1
-                    if calls == 1 and replacement is not None:
-                        source.write_text(replacement, encoding="utf-8")
+                    if calls == mutate_after_call:
+                        source.write_text(replacement or "", encoding="utf-8")
                     return result
 
                 executor.files.read_chunk = read_chunk
@@ -71,14 +71,14 @@ class ContextAwareFileReadingTests(unittest.TestCase):
                     executor.close()
 
             # 1. Stable source completes.
-            stable = run_case(None)
+            stable = run_case("stable", None, 99)
             self.assertTrue(stable["ok"])
-            # 2. Same-length mutation changes hash and fails closed.
-            changed = run_case("ABCDEfghij")
+            # 2. Same-length mutation after final chunk is caught by final probe.
+            changed = run_case("same-length", "ABCDEfghij", 3)
             self.assertFalse(changed["ok"])
             self.assertIn("hash", str(changed["message"]).lower())
-            # 3. Shortened source cannot cause a no-progress loop and fails closed.
-            shortened = run_case("ABCDE")
+            # 3. Shortened source after opening an empty file is caught by final probe.
+            shortened = run_case("shortened", "ABCDE", 1)
             self.assertFalse(shortened["ok"])
             self.assertIn("hash", str(shortened["message"]).lower())
 

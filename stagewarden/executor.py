@@ -2043,6 +2043,14 @@ class Executor:
                 if int(report.get("end", 0)) <= int(report.get("start", 0)) and int(session["next_offset"]) < int(session["total_chars"]):
                     return {"ok": False, "message": "File read made no progress before completion.", "error_type": "file_error"}
                 session = self.knowledge.checkpoint_file_chunk(session["session_id"], start=int(report["start"]), content=chunk.content, content_hash=content_hash)
+            final_probe = self.files.read_chunk(path, start=0, size=1)
+            if not final_probe.ok:
+                return {"ok": False, "message": final_probe.error, "error_type": "file_error"}
+            final_report = final_probe.report or {}
+            if str(final_report.get("content_hash", "")) != content_hash:
+                return {"ok": False, "message": "File content hash changed before complete read finalization.", "error_type": "file_error"}
+            if int(final_report.get("total_chars", -1)) != int(session["total_chars"]):
+                return {"ok": False, "message": "File length changed before complete read finalization.", "error_type": "file_error"}
             self.knowledge.complete_file_read(session["session_id"], content_hash=content_hash)
             content = self.knowledge.read_file_content(session["session_id"])
             chunk_count = self.knowledge.file_read_chunk_count(session["session_id"])

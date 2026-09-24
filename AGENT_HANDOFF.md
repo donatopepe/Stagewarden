@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Complete bounded file-read checkpoint limit iteration from `TODO.md`; reject oversized or total-length-overrun chunks without corrupting persisted offsets, while preserving exact resume, session identity, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Complete bounded file-read source-drift iteration from `TODO.md`; reject source changes during complete reads and prevent no-progress loops, while preserving checkpoint limits, exact resume, context-aware chunking, compaction, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3763 nodes, 12756 edges; HEAD `ffaf22e` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/file-read-chunk-boundary-baseline.log` failed `2/3`: exact chunks passed, oversized chunk advanced `next_offset` beyond configured bounds.
-- TDD change validates chunk length against persisted `chunk_size` and end offset against `total_chars` before SQLite write; rejected chunks leave offset unchanged.
-- Wet evidence: boundary matrix `3/3` (`/tmp/file-read-chunk-boundary-final.log`); TDD red/green logs `/tmp/file-read-chunk-boundary-tdd.log`, `/tmp/file-read-chunk-boundary-tdd-after-fix.log`; file/Node Knowledge/context/event suite `36/36`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3763/12756`, current; py_compile, JSON and `git diff --check` pass. Initial targeted run exposed and fixed an existing test fixture that supplied two chunks as one. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3766 nodes, 12766 edges; HEAD `0541598` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/file-read-source-drift-baseline.log` was an uncontrolled hanging probe; bounded baseline was `1/3`: stable read passed, mutation cases lacked drift guards.
+- TDD change checks each complete-read chunk hash, expected offset and forward progress before checkpointing; source drift now returns fail-closed file error without loop.
+- Wet evidence: source-drift matrix `3/3` (`/tmp/file-read-source-drift-final.log`); TDD red/green `/tmp/file-read-source-drift-tdd.log`, `/tmp/file-read-source-drift-tdd-after-fix-3.log`; file/Node Knowledge/context/event suite `37/37`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3766/12766`, current; py_compile, JSON and `git diff --check` pass. Initial TDD fixture reuse was corrected using isolated case roots. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
