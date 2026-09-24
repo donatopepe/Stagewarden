@@ -56,6 +56,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** replay metadata projection; provider/model secret-like redaction; node-scoped event filter.
 - **Variabile unica:** event redaction/replay assertions only; no runtime/provider/model/fallback/scheduler change.
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py` and `tests/test_event_stream.py`, then unified runner.
+- **Esito:** redaction/replay matrix `3/3`; context/file/event `15/15`; targeted MVP `107/107`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3727/12534`.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
