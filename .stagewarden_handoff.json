@@ -47,10 +47,10 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-24: direct shell lifecycle acceptance 3/3 and targeted node/context/event/mutation/recovery 117/117 passed. Direct shell tool_started/tool_result operation identity and empty in_flight_tools replay verified; non-file recovery remains persistent and retry_authorized=false. Unified runner 6/6; simulation 29/29; full discovery 602/602 with 5 skips; CLI 3/3; docs 17/17 with 0 errors; OmniRoute direct smoke passed. CodeGraph current/up to date at 139 files, 3749 nodes, 12673 edges.",
-  "plan_status": "MVP implementation active; direct shell lifecycle acceptance 3/3, non-file recovery 3/3 and targeted 117/117 green. Unified validation 6/6 and direct OmniRoute smoke green. Persistent recovery remains fail-closed with no automatic retry. Provider/model selection, fallback policy and serial execution unchanged. Next: bounded remaining recovery/observability or user-approved v3 decisions.",
-  "git_head": "17cc9e2bdd88cdaf5b8ac1f2e696d75b6e862ddb",
-  "git_head_baseline": "17cc9e2bdd88cdaf5b8ac1f2e696d75b6e862ddb",
+  "latest_observation": "2026-09-24: direct shell lifecycle acceptance 3/3 and targeted node/context/event/mutation/recovery 117/117 passed. Direct shell tool_started/tool_result operation identity and empty in_flight_tools replay verified; non-file recovery remains persistent and retry_authorized=false. Unified runner 6/6; simulation 29/29; full discovery 603/603 with 5 skips; CLI 3/3; docs 17/17 with 0 errors; OmniRoute direct smoke passed. CodeGraph current/up to date at 139 files, 3750 nodes, 12685 edges.",
+  "plan_status": "MVP implementation active; direct shell lifecycle acceptance 3/3, non-file recovery 3/3 and targeted 117/117 green. Unified validation 6/6, full discovery 603/603 and direct OmniRoute smoke green. Persistent recovery remains fail-closed with no automatic retry. Provider/model selection, fallback policy and serial execution unchanged. Next: bounded remaining recovery/observability or user-approved v3 decisions.",
+  "git_head": "43d1838c605e1d1294c35683a9f43761f75aaa61",
+  "git_head_baseline": "43d1838c605e1d1294c35683a9f43761f75aaa61",
   "risk_register": [
     {
       "id": "specification-approval-gate",

@@ -37,7 +37,7 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Metric/threshold: fixed automated acceptance `3/3`.
 - Baseline: `/tmp/nonfile-recovery-integration-baseline-valid.log` behavior probe `3/3`, but automated coverage was `2/3` because direct shell lifecycle had no dedicated assertion.
 - Change: added direct-shell event/replay test; runtime unchanged.
-- Wet validation: acceptance `3/3`; targeted suite `117/117 OK`; targeted MVP `117/117 OK`; `py_compile`, handoff JSON and `git diff --check` pass; direct OmniRoute smoke green; CodeGraph `139/3749/12673`, up to date.
+- Wet validation: acceptance `3/3`; targeted suite `117/117 OK`; targeted MVP `117/117 OK`; unified runner `6/6`; simulation `29/29`; full discovery `603/603` with 5 skips; CLI `3/3`; docs `17/17`; `py_compile`, handoff JSON and `git diff --check` pass; direct OmniRoute smoke green; CodeGraph `139/3750/12685`, up to date; HEAD `43d1838c605e1d1294c35683a9f43761f75aaa61`.
 - Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
 
 - Objective: implement non-file tool interruption recovery with persistent replay metadata and fail-closed resume.

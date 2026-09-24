@@ -9,14 +9,22 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — direct shell lifecycle acceptance
+### Iterazione bounded corrente — tool replay scope/recovery projection
+
+- **Obiettivo:** rendere replay JSONL node-scoped per tool in-flight e proiettare recovery metadata fail-closed, senza cambiare tool/provider/model behavior.
+- **Metrica/soglia:** fixed replay matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/tool-replay-scope-baseline.log` = `2/3`: unfiltered operations e node filter passavano; recovery projection mancava.
+- **Casi fissi/ordine:** two-node unfiltered in-flight set; node-filtered set; recovered operation with `status=recovered` and `retry_authorized=false`.
+- **Variabile unica:** EventStream replay projection plus test; nessuna modifica runtime tool execution, provider/model, fallback, scheduler, serialità, parallelismo o API.
+
+### Iterazione bounded completata — direct shell lifecycle acceptance
 
 - **Obiettivo:** codificare nel test automatico lifecycle `tool_started`/`tool_result` per direct shell action già coperto da runtime recovery, senza cambiare semantica tool.
 - **Metrica/soglia:** fixed automated acceptance `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/nonfile-recovery-integration-baseline-valid.log` behavior probe `3/3`, ma coverage automatica `2/3`: direct shell `_run_action` non aveva assertion dedicata; session-create e reopen erano coperti.
 - **Casi fissi/ordine:** direct shell action; shell-session create; reopen operation interrotta con `retry_authorized=false`.
 - **Variabile unica:** test TDD dedicato; nessuna modifica runtime/provider/model/fallback/scheduler/serialità/parallelismo/API.
-- **Esito:** automated acceptance `3/3`; targeted tool/context/mutation suite `117/117`; targeted MVP `117/117`; `py_compile`, handoff JSON e `git diff --check` verdi; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3749/12673`, up to date.
+- **Esito:** automated acceptance `3/3`; targeted tool/context/mutation suite `117/117`; targeted MVP `117/117`; unified runner `6/6`; simulation `29/29`; full discovery `603/603` con `5` skip; CLI `3/3`; docs `17/17`; `py_compile`, handoff JSON e `git diff --check` verdi; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3750/12685`, up to date; HEAD `43d1838c605e1d1294c35683a9f43761f75aaa61`.
 
 ### Iterazione bounded completata — recovery non-file tool fail-closed
 

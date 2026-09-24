@@ -66,6 +66,21 @@ class EventStreamTests(unittest.TestCase):
             )
             self.assertEqual(stream.replay()["in_flight_tools"], {})
 
+    def test_replay_scopes_in_flight_tools_and_projects_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("tool_started", tree_id="executor", node_id="node-a", purpose="tool", message="shell", operation_id="op-a", tool="shell", action_type="shell", retry_authorized=False)
+            stream.append("tool_started", tree_id="executor", node_id="node-b", purpose="tool", message="shell", operation_id="op-b", tool="shell", action_type="shell", retry_authorized=False)
+            self.assertEqual(set(stream.replay()["in_flight_tools"]), {"op-a", "op-b"})
+            filtered = stream.replay(node_id="node-a")
+            self.assertEqual(set(filtered["in_flight_tools"]), {"op-a"})
+            stream.append("tool_recovery", tree_id="executor", node_id="node-a", purpose="recover", message="shell", operation_id="op-a", tool="shell", action_type="shell", retry_authorized=False)
+            recovered = stream.replay(node_id="node-a")
+            self.assertEqual(recovered["in_flight_tools"], {})
+            self.assertEqual(recovered["tool_recoveries"][-1]["operation_id"], "op-a")
+            self.assertFalse(recovered["tool_recoveries"][-1]["retry_authorized"])
+            self.assertEqual(recovered["tool_recoveries"][-1]["status"], "recovered")
+
     def test_replay_preserves_cycle_and_checkpoint_projection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")
