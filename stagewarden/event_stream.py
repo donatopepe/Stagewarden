@@ -55,8 +55,30 @@ class EventStream:
 
     def replay(self, *, node_id: str | None = None) -> dict[str, Any]:
         nodes: dict[str, dict[str, Any]] = {}
+        in_flight_tools: dict[str, dict[str, Any]] = {}
         last_event: dict[str, Any] | None = None
         for event_item in self.read(node_id=node_id):
+            event_name = event_item.get("event")
+            details = event_item.get("details")
+            if not isinstance(details, dict):
+                details = {}
+            operation_id = details.get("operation_id")
+            if isinstance(operation_id, str) and operation_id and event_name in {"tool_started", "tool_checkpoint"}:
+                in_flight_tools[operation_id] = {
+                    "operation_id": operation_id,
+                    "node_id": event_item.get("node_id"),
+                    "tool": details.get("tool"),
+                    "action_type": details.get("action_type"),
+                    "session_id": details.get("session_id"),
+                    "message": event_item.get("message", ""),
+                    "retry_authorized": False,
+                    "status": "in_flight",
+                }
+            elif isinstance(operation_id, str) and operation_id and event_name in {"tool_result", "tool_recovery"}:
+                in_flight_tools.pop(operation_id, None)
+            if event_name == "tool_recovery" and isinstance(operation_id, str) and operation_id:
+                details = {**details, "retry_authorized": False}
+
             event_node_id = event_item.get("node_id")
             if isinstance(event_node_id, str) and event_node_id:
                 state = nodes.setdefault(event_node_id, {"node_id": event_node_id})
@@ -92,7 +114,12 @@ class EventStream:
                             if key in node
                         })
             last_event = event_item
-        return {"tree_id": last_event.get("tree_id") if last_event else None, "nodes": nodes, "last_event": last_event}
+        return {
+            "tree_id": last_event.get("tree_id") if last_event else None,
+            "nodes": nodes,
+            "in_flight_tools": in_flight_tools,
+            "last_event": last_event,
+        }
 
 
 def _redact(value: Any) -> Any:

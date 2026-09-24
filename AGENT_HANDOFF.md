@@ -1,15 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Implement and validate node-first MVP through OmniRoute free. Automatic bounded continuation loop is active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Continue incrementally toward v3; full v3 extensions remain gated by unresolved approval decisions.
+Implement bounded non-file tool interruption recovery with persistent JSONL replay metadata, then keep node-first MVP validation green. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Planning is top-down; execution is bottom-up; serial execution is default. Parent nodes forward typed WorkPackets and children return ResultPackets/EvidencePackets. Full v3 extensions remain gated by unresolved approval decisions.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph verified current: 139 files, 3724 nodes, 12516 edges after unified validation, Node Knowledge relation index and serial gate additions.
-- Latest bounded gate passed: retry checkpoint/replay matrix 3/3; targeted node/event/context/mutation/recovery suite 123/123 with 1 skip; context budget boundary 3/3; context provider/model selection 3/3; pause/resume checkpoint 3/3; mutation replay/recovery safety 3/3; remaining MutationJournal family 12/12; context metadata redaction/replay 3/3; context/provider identity 3/3; serial execution-mode 3/3; Node Knowledge relation/freshness 6/6; unified validation runner 6/6; simulation 29/29, full discovery 588/588 with 5 skips, CLI 3/3, OmniRoute direct smoke and docs hygiene green. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
+- CodeGraph verified current and up to date: 139 files, 3735 nodes, 12612 edges; branch `main`, sole main worktree; HEAD `6fe50debf4a6b061e67a84ad4deca404a68ac2d9`.
+- Latest bounded gate passed: non-file recovery matrix `3/3`; targeted node/context/event/mutation/recovery `116/116`; prior unified validation `6/6`; simulation `29/29`; full discovery `600/600` with 5 skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`. Tool recovery is persistent, replay-visible and `retry_authorized=false`; no automatic retry. Retry checkpoint/replay `3/3`; context boundary/provider matrices `3/3`; pause/resume `3/3`; mutation replay/recovery `3/3`; remaining MutationJournal family `12/12`; context metadata redaction/replay `3/3`; serial execution-mode `3/3`; Node Knowledge relation/freshness `6/6`. Unsupported parallel/bogus modes fail closed; no legacy parallel implementation. Provider/model policy unchanged.
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
 - MVP runtime changes now exist in `stagewarden/goal_loop_orchestrator.py`, `stagewarden/goal_loop_views.py`, and `stagewarden/node_knowledge.py`.
-- Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`.
+- Goal loop executes one ready node at a time, emits node/parent/purpose/work events, builds WorkPacket and ResultPacket, and supports `STAGEWARDEN_GOAL_LOOP_BACKEND=omniroute`. Live multi-node OmniRoute remains blocked on repeated malformed/truncated, wrong-contract and prose-wrapped output; adapter remains fail-closed.
 - Each node now carries bounded local-cycle state: `cycle_id`, `cycle_phase`, `context_revision`, `last_checkpoint`, and cycle budgets; cycle start/checkpoint events are emitted in JSONL. Serial execution unchanged.
 - `NodeExecutionCapsule` is persisted node-scoped in Node Knowledge Store after node events and restored on orchestrator reopen; capsule contains cycle state, checkpoint, budget, status, purpose and packet reference.
 - File mutation recovery now recognizes `in_flight` journal entries, emits `mutation_recovery`, resumes execution once, and appends terminal status without duplicating the in-flight marker.
@@ -120,6 +120,20 @@ Implement and validate node-first MVP through OmniRoute free. Automatic bounded 
   - Reason: context size and provider/model/cost are essential user responsibilities.
 
 ## Validation evidence
+- Objective: implement non-file tool interruption recovery with persistent replay metadata and fail-closed resume.
+- Metric/threshold: fixed recovery matrix `3/3`.
+- Baseline: `/tmp/nonfile-recovery-baseline.log` was `1/3`; in-flight replay and reopen recovery markers were absent.
+- TDD change: added `tool_started`/`tool_recovery` lifecycle events, persistent `.stagewarden/tool_operations.json`, deterministic replay `in_flight_tools`, and `retry_authorized=false`; no automatic tool retry.
+- Wet validation: recovery matrix `3/3`; targeted rerun `116/116 OK`; `py_compile` and `git diff --check` pass. Existing provider/model, fallback, serial and mutation policy unchanged.
+- Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
+
+- Objective: reconcile TODO/handoff metadata against completed node-first MVP evidence without changing runtime/provider/model policy.
+- Metric/threshold: canonical unified validation `6/6` gate groups green.
+- Baseline: `/tmp/stagewarden-state-reconcile-baseline.log` recorded unified runner `6/6` while TODO and handoff metadata still contained stale unchecked completions and old HEAD/CodeGraph values.
+- Change: refreshed TODO completion checkboxes and current handoff summary; no runtime/API/provider/model/fallback/parallelism change.
+- Wet validation: unified runner `6/6`; simulation `29/29`; targeted MVP `114/114`; full discovery `600/600` with `5` skips; CLI `3/3`; docs hygiene `17/17` with 0 errors; targeted rerun `114/114 OK`; handoff JSON valid; `git diff --check` OK; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3735/12612`, up to date; HEAD `6fe50debf4a6b061e67a84ad4deca404a68ac2d9`.
+- Blockers preserved: live multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed; full v3 approval remains pending.
+
 - Objective: validate Node Knowledge Store/index acceptance across context isolation, citation, Python symbols, compaction, freshness and file-read recovery.
 - Metric/threshold: 6/6 fixed Node Knowledge Store/index cases pass.
 - Baseline: `/tmp/node-knowledge-coverage-baseline.log` recorded partial node/file tests but no explicit stale/fresh or cross-node matrix.

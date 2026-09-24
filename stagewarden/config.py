@@ -33,6 +33,7 @@ class AgentConfig:
     trace_filename: str = ".stagewarden_trace.ljson"
     event_filename: str = ".stagewarden/events.jsonl"
     mutation_journal_filename: str = ".stagewarden/mutations.jsonl"
+    tool_operation_filename: str = ".stagewarden/tool_operations.json"
     prince2_pid_filename: str = ".stagewarden_prince2_pid.json"
     model_prefs_filename: str = ".stagewarden_models.json"
     handoff_filename: str = ".stagewarden_handoff.json"
@@ -161,6 +162,10 @@ class AgentConfig:
     @property
     def mutation_journal_path(self) -> Path:
         return (self.workspace_root / self.mutation_journal_filename).resolve()
+
+    @property
+    def tool_operation_path(self) -> Path:
+        return (self.workspace_root / self.tool_operation_filename).resolve()
 
     @property
     def history_path(self) -> Path:

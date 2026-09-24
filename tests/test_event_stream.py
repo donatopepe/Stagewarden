@@ -36,6 +36,36 @@ class EventStreamTests(unittest.TestCase):
             self.assertEqual(replay["nodes"]["leaf"]["status"], "completed")
             self.assertEqual(replay["nodes"]["leaf"]["purpose"], "Inspect source")
 
+    def test_replay_projects_in_flight_tool_and_clears_on_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append(
+                "tool_started",
+                tree_id="executor",
+                node_id="node.shell",
+                purpose="node tool execution",
+                message="shell_session_send",
+                operation_id="tool-1",
+                tool="shell",
+                action_type="shell_session_send",
+                session_id="session-1",
+            )
+            replay = stream.replay()
+            self.assertEqual(replay["in_flight_tools"]["tool-1"]["status"], "in_flight")
+            self.assertFalse(replay["in_flight_tools"]["tool-1"]["retry_authorized"])
+            stream.append(
+                "tool_result",
+                tree_id="executor",
+                node_id="node.shell",
+                purpose="node tool execution",
+                message="shell_session_send",
+                operation_id="tool-1",
+                tool="shell",
+                action_type="shell_session_send",
+                success=True,
+            )
+            self.assertEqual(stream.replay()["in_flight_tools"], {})
+
     def test_replay_preserves_cycle_and_checkpoint_projection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

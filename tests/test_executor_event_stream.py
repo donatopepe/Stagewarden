@@ -16,6 +16,42 @@ from stagewarden.router import ModelRouter
 
 
 class ExecutorEventStreamTests(unittest.TestCase):
+    def test_non_file_tool_recovery_is_persisted_and_retry_denied(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = AgentConfig(workspace_root=root)
+            first = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=HandoffManager(),
+                memory=MemoryStore(),
+                project_handoff=ProjectHandoff(),
+                rag=DesignRag(),
+            )
+            operation_id = first._start_tool_operation(
+                action_type="shell_session_send",
+                action={"session_id": "session-1"},
+                step_id="node.shell",
+            )
+            first.close()
+
+            resumed = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=HandoffManager(),
+                memory=MemoryStore(),
+                project_handoff=ProjectHandoff(),
+                rag=DesignRag(),
+            )
+            recovery = resumed.events.read(event="tool_recovery")
+            self.assertEqual(len(recovery), 1)
+            details = recovery[0]["details"]
+            self.assertEqual(details["operation_id"], operation_id)
+            self.assertFalse(details["retry_authorized"])
+            self.assertEqual(resumed.events.replay()["in_flight_tools"], {})
+            self.assertEqual(json.loads(config.tool_operation_path.read_text(encoding="utf-8")), {"operations": {}})
+            resumed.close()
+
     def test_file_chunk_and_compaction_events_are_persisted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

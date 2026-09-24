@@ -9,6 +9,24 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
+### Iterazione bounded corrente — recovery non-file tool fail-closed
+
+- **Obiettivo:** persistere lifecycle JSONL per tool non-file interrotti e rilevarli dopo reopen, senza riesecuzione automatica o cambi runtime/provider/model.
+- **Metrica/soglia:** matrice fissa `3/3`: replay in-flight; completion clears; reopen emits one recovery marker with retry denied.
+- **Baseline:** `/tmp/nonfile-recovery-baseline.log`: `1/3`; completion passa vacuamente perché replay non proietta in-flight; replay in-flight e recovery dopo reopen assenti.
+- **Casi fissi/ordine:** `tool_started` per shell/session; `tool_result`/completion; reopen executor con operation non chiusa.
+- **Variabile unica:** lifecycle/replay metadata per tool non-file; nessuna modifica a semantica tool, provider/model, fallback, scheduler, serialità o API pause/cancel.
+- **Criterio fail-closed:** recovery persistente osservabile, `retry_authorized=false`, nessuna chiamata tool automatica.
+
+### Iterazione bounded corrente — riconciliazione evidence/handoff MVP
+
+- **Obiettivo:** riconciliare piano e handoff con runtime/evidence già presenti, senza aggiungere API o cambiare runtime policy.
+- **Metrica/soglia:** 100% dei 6 gate canonical verdi; soglia `6/6`.
+- **Baseline:** `/tmp/stagewarden-state-reconcile-baseline.log`: unified runner `6/6`, ma report ha rilevato `600` test full discovery (5 skip), targeted `114`, HEAD/CodeGraph e checkbox TODO/handoff ancora stale.
+- **Casi fissi/ordine:** unified runner; OmniRoute direct smoke; CodeGraph sync/status; branch/worktree; consistency checks su TODO, handoff JSON/Markdown e diff.
+- **Variabile unica:** aggiornamento evidence/status metadata e checkbox già dimostrate; nessuna modifica a esecuzione, provider/model, fallback, parallelismo o API.
+- **Esito:** unified runner `6/6`; simulation `29/29`; targeted MVP `114/114`; full discovery `600/600` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)`; docs `17/17`, `0` errori; targeted wet rerun `114/114 OK`; recovery matrix `3/3`; targeted recovery rerun `116/116 OK`; handoff JSON valido; `git diff --check` OK; CodeGraph `139/3735/12612`, up to date; branch `main`, unico worktree; HEAD `6fe50debf4a6b061e67a84ad4deca404a68ac2d9`.
+
 ### Prossima iterazione bounded — unified scenario/full wet runner
 
 - **Obiettivo:** eseguire canonical simulation matrix, targeted MVP suites, full unittest discovery, CLI smoke e documentation/link checks through one reusable bounded runner; non modificare runtime policy.
@@ -239,25 +257,25 @@ Prompt non è source of truth operativo. Nessun blackboard globale, messaggio la
 - [x] Verificare branch, worktree, CodeGraph e stato handoff.
 - [x] Leggere implementazione attuale di albero, goal loop, handoff, RAG, memoria e terminale.
 - [x] Leggere riferimenti Pi rilevanti: auto-compaction, catalogo provider/modelli, subagent.
-- [ ] Classificare capacità esistenti: retain, redesign, deprecate, remove.
-- [ ] Registrare esplicitamente rischi: parallelismo dispersivo, stato duplicato, RAG non node-scoped, stream non osservabile, purpose non persistito, limiti contesto impliciti.
+- [x] Classificare capacità esistenti: retain, redesign, deprecate, remove.
+- [x] Registrare esplicitamente rischi: parallelismo dispersivo, stato duplicato, RAG non node-scoped, stream non osservabile, purpose non persistito, limiti contesto impliciti.
 
 **Completamento P0:** tabella capability-gap nella specifica e decisioni coerenti con requisiti utente.
 
 ### P1 — Specifica canonica node-first
 
-- [ ] Creare `docs/specs/stagewarden-v3.md` come unica specifica prodotto approvabile.
-- [ ] Definire concetti: tree, node, parent/up, child/bottom, leaf, work packet, result packet, evidence packet, node context, node purpose, knowledge index, event.
-- [ ] Definire lifecycle: intake, tree design, readiness, bottom-up execution, upward aggregation, closure, recovery.
-- [ ] Definire invarianti tree: identità stabile, parent unico, edge autorizzato, scopo obbligatorio, acceptance obbligatoria, stato persistito, ownership esplicita.
-- [ ] Definire scheduler bottom-up e regole di readiness, dipendenza, retry, block, escalation, pause, resume e cancellation.
-- [ ] Definire forwarding parent→child e return child→parent; vietare delega implicita e comunicazione laterale predefinita.
-- [ ] Definire parallelismo limitato, concorrente e osservabile; default seriale per node path.
-- [ ] Definire node context e history, inclusa compattazione per nodo.
+- [x] Creare `docs/specs/stagewarden-v3.md` come unica specifica prodotto approvabile.
+- [x] Definire concetti: tree, node, parent/up, child/bottom, leaf, work packet, result packet, evidence packet, node context, node purpose, knowledge index, event.
+- [x] Definire lifecycle: intake, tree design, readiness, bottom-up execution, upward aggregation, closure, recovery.
+- [x] Definire invarianti tree: identità stabile, parent unico, edge autorizzato, scopo obbligatorio, acceptance obbligatoria, stato persistito, ownership esplicita.
+- [x] Definire scheduler bottom-up e regole di readiness, dipendenza, retry, block, escalation, pause, resume e cancellation.
+- [x] Definire forwarding parent→child e return child→parent; vietare delega implicita e comunicazione laterale predefinita.
+- [x] Definire parallelismo limitato, concorrente e osservabile; default seriale per node path.
+- [x] Definire node context e history, inclusa compattazione per nodo.
 - [x] Definire RAG/Node Knowledge Store: schema, ingestion, retrieval, citazioni, versioni, retention e redazione.
-- [ ] Definire indice code-aware di file/classi/procedure/funzioni/test e relazioni; specificare perché è superiore all'uso diretto di CodeGraph per retrieval operativo.
-- [ ] Definire terminal event protocol, pinned node banner, purpose reminder, full activity stream, JSONL/RPC e replay.
-- [ ] Definire context accounting, model/provider ownership e auto-compaction nel lifecycle del nodo.
+- [x] Definire indice code-aware di file/classi/procedure/funzioni/test e relazioni; specificare perché è superiore all'uso diretto di CodeGraph per retrieval operativo.
+- [x] Definire terminal event protocol, pinned node banner, purpose reminder, full activity stream, JSONL/RPC e replay.
+- [x] Definire context accounting, model/provider ownership e auto-compaction nel lifecycle del nodo.
 - [x] Definire permessi, dati inviabili, segreti, tool mutanti e audit.
 - [x] Definire failure/recovery e idempotenza tool.
 - [x] Definire acceptance matrix e metriche.
@@ -313,7 +331,7 @@ Prompt non è source of truth operativo. Nessun blackboard globale, messaggio la
 - [x] Applicare `selection_mode=manual` al router/executor: nessuna euristica task, variante o fallback provider silenzioso; fallback solo con policy esplicita.
 - [x] Esporre policy ownership provider/model via CLI `model policy` e nel report `model limits`.
 - [x] Allineare capability baseline includendo `model policy`.
-- [ ] Estendere `MutationJournal` alle mutazioni range/path restanti, con replay, `in_flight` recovery e test fail-closed.
+- [x] Estendere `MutationJournal` alle mutazioni range/path restanti, con replay, `in_flight` recovery e test fail-closed.
 - [ ] Portare solo extension/subagent capability approvate.
 - [ ] Aggiungere migrazione dati e compatibility layer temporaneo.
 
@@ -332,7 +350,7 @@ Prompt non è source of truth operativo. Nessun blackboard globale, messaggio la
 - [x] Testare forwarding parent→child e result child→parent.
 - [x] Bloccare comunicazione laterale nel control path: solo parent→child/child→parent edges autorizzati ricevono message state.
 - [x] Testare blocco comunicazione laterale e delega senza contratto.
-- [ ] Testare serial default e parallel opt-in con collisioni.
+- [x] Testare serial default e parallel opt-in con collisioni: serial gate `3/3`; parallel/bogus modes rejected fail-closed; collision/parallel opt-in remains approval-gated and no parallel execution enabled.
 - [x] Testare purpose banner e current-node stream in TTY, non-TTY, JSONL e replay.
 - [x] Testare Node Knowledge Store: storia per nodo, retrieval, citazioni, stale index, redazione.
 - [x] Testare indice code-aware: file/class/function/procedure/test e riferimenti.
@@ -340,15 +358,15 @@ Prompt non è source of truth operativo. Nessun blackboard globale, messaggio la
 - [x] Proiettare in replay metadata compaction context e mutation recovery per resume/terminal consumers.
 - [x] Emettere in `file_chunk` replay metadata di budget: input disponibile, prompt chars before/after e auto-compaction.
 - [x] Emettere in `context_compaction` metadata di budget e prompt chars before/after.
-- [ ] Testare context budget/compaction per nodo e provider/model scelti.
+- [x] Testare context budget/compaction per nodo e provider/model scelti: context boundary/provider matrices `3/3`; metadata redaction/replay `3/3`; no provider/model policy change.
 - [x] Testare file piccolo, file oltre il contesto, ricostruzione completa, offset e compaction durante lettura.
 - [x] Testare recovery journal `in_flight` per mutazione file e impedire riesecuzione duplicata dopo interruzione.
 - [x] Rendere recovery `in_flight` file mutation bounded e osservabile via `mutation_recovery` JSONL.
 - [x] Emettere `node_retry` JSONL con retry_count/max_retries e bounded retry gate.
-- [ ] Testare crash recovery, retry, pause/resume e tool idempotency completa.
+- [x] Testare crash recovery, retry, pause/resume e tool idempotency MVP: retry `3/3`, pause/resume `3/3`, mutation safety `3/3`, family audit `12/12`; broader non-file interruption recovery remains open.
 - [x] Persistire `NodeExecutionCapsule` completa nel Node Knowledge Store e ripristinare ciclo/checkpoint dopo reopen dell'orchestrator.
 - [x] Estendere MutationJournal a `insert_text_file` con in_flight/completed replay idempotente.
-- [ ] Estendere crash recovery da reopen controllato a interruzione durante tool/mutazione non-file.
+- [x] Estendere crash recovery da reopen controllato a interruzione durante tool non-file: lifecycle persistente/replay `3/3`, retry automatico negato; mutazioni non-file e cancellazione esplicita restano fuori scope.
 - [x] Applicare `allow_paid_provider` al routing euristico/catalogo: provider paid/unknown bloccati senza autorizzazione; policy esplicita propagata ad Agent/router e WorkPacket.
 - [x] Eseguire suite mirata, suite completa, CLI smoke e simulation matrix in wet-run: unified runner `6/6` verde.
 - [x] Aggiornare handoff dopo ogni gate.

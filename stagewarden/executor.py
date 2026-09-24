@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
@@ -196,6 +197,8 @@ class Executor:
         self.knowledge = NodeKnowledgeStore(config.workspace_root / ".stagewarden" / "node-knowledge.sqlite")
         self.events = EventStream(config.event_path)
         self.mutations = MutationJournal(config.mutation_journal_path)
+        self._tool_operations_path = config.tool_operation_path
+        self._recover_interrupted_tool_operations()
 
     def close(self) -> None:
         self.knowledge.close()
@@ -1874,6 +1877,7 @@ class Executor:
                 recovered_in_flight = True
                 self.events.append("mutation_recovery", tree_id="executor", node_id=step_id or None, purpose="recover in-flight mutation", message=prior.get("message", ""), mutation_key=mutation_key, action_type=action_type)
         if action_type == "shell":
+            operation_id = self._start_tool_operation(action_type=str(action_type), action=action, step_id=step_id)
             command = str(action.get("command", ""))
             status_before = self.git.status_porcelain().stdout.strip() if self._is_shell_command_likely_mutating(command) else ""
             head_before = self.git.head().stdout.strip() if "git commit" in command.lower() else ""
@@ -1900,16 +1904,21 @@ class Executor:
                 detail=observation["message"],
                 duration_ms=result.duration_ms,
                 error_type=None if observation["ok"] else observation["error_type"],
+                operation_id=operation_id,
             )
+            self._complete_tool_operation(operation_id, success=bool(observation["ok"]), message=observation["message"])
             return observation
 
         if action_type == "shell_session_create":
+            operation_id = self._start_tool_operation(action_type=str(action_type), action=action, step_id=step_id)
             result = self.shell.create_session(cwd=action.get("cwd"))
             observation = {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary="create shell session", detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error")
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary="create shell session", detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error", operation_id=operation_id)
+            self._complete_tool_operation(operation_id, success=result.ok, message=observation["message"])
             return observation
 
         if action_type == "shell_session_send":
+            operation_id = self._start_tool_operation(action_type=str(action_type), action=action, step_id=step_id)
             command = str(action.get("command", ""))
             status_before = self.git.status_porcelain().stdout.strip() if self._is_shell_command_likely_mutating(command) else ""
             head_before = self.git.head().stdout.strip() if "git commit" in command.lower() else ""
@@ -1922,13 +1931,16 @@ class Executor:
                 observation["ok"] = False
                 observation["message"] = f"{observation['message']}\n{verification_message}"
                 observation["error_type"] = "verification_failed"
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=bool(observation["ok"]), summary=command, detail=observation["message"], duration_ms=result.duration_ms, error_type=None if observation["ok"] else observation["error_type"])
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=bool(observation["ok"]), summary=command, detail=observation["message"], duration_ms=result.duration_ms, error_type=None if observation["ok"] else observation["error_type"], operation_id=operation_id)
+            self._complete_tool_operation(operation_id, success=bool(observation["ok"]), message=observation["message"])
             return observation
 
         if action_type == "shell_session_close":
+            operation_id = self._start_tool_operation(action_type=str(action_type), action=action, step_id=step_id)
             result = self.shell.close_session(action.get("session_id", ""))
             observation = {"ok": result.ok, "message": result.output_preview or result.error, "error_type": "runtime_error"}
-            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary="close shell session", detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error")
+            self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="shell", action_type=str(action_type), success=result.ok, summary="close shell session", detail=result.output_preview or result.error, duration_ms=result.duration_ms, error_type=None if result.ok else "runtime_error", operation_id=operation_id)
+            self._complete_tool_operation(operation_id, success=result.ok, message=observation["message"])
             return observation
 
         if action_type == "read_file":
@@ -2620,6 +2632,7 @@ class Executor:
         detail: str = "",
         duration_ms: int = 0,
         error_type: str | None = None,
+        operation_id: str | None = None,
     ) -> None:
         self.events.append(
             "tool_result",
@@ -2633,6 +2646,7 @@ class Executor:
             duration_ms=duration_ms,
             error_type=error_type,
             detail=detail,
+            operation_id=operation_id,
         )
         self.memory.record_tool_transcript(
             iteration=iteration,
@@ -2645,6 +2659,146 @@ class Executor:
             duration_ms=duration_ms,
             error_type=error_type,
         )
+
+    def _read_tool_operations(self) -> dict[str, dict[str, Any]]:
+        if not self._tool_operations_path.exists():
+            return {}
+        try:
+            payload = json.loads(self._tool_operations_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        operations = payload.get("operations", {}) if isinstance(payload, dict) else {}
+        return {str(key): dict(value) for key, value in operations.items() if isinstance(value, dict)}
+
+    def _write_tool_operations(self, operations: dict[str, dict[str, Any]]) -> None:
+        self._tool_operations_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self._tool_operations_path.with_suffix(self._tool_operations_path.suffix + ".tmp")
+        temporary.write_text(json.dumps({"operations": operations}, ensure_ascii=True, sort_keys=True), encoding="utf-8")
+        temporary.replace(self._tool_operations_path)
+
+    def _start_tool_operation(self, *, action_type: str, action: dict[str, Any], step_id: str) -> str:
+        operation_id = f"tool-{uuid.uuid4().hex[:16]}"
+        operations = self._read_tool_operations()
+        operations[operation_id] = {
+            "operation_id": operation_id,
+            "node_id": step_id or None,
+            "tool": "shell",
+            "action_type": action_type,
+            "session_id": action.get("session_id"),
+            "status": "in_flight",
+            "retry_authorized": False,
+        }
+        self._write_tool_operations(operations)
+        self.events.append(
+            "tool_started",
+            tree_id="executor",
+            node_id=step_id or None,
+            purpose="node tool execution",
+            message=action_type,
+            operation_id=operation_id,
+            tool="shell",
+            action_type=action_type,
+            session_id=action.get("session_id"),
+            retry_authorized=False,
+        )
+        return operation_id
+
+    def _complete_tool_operation(self, operation_id: str, *, success: bool, message: str) -> None:
+        operations = self._read_tool_operations()
+        operations.pop(operation_id, None)
+        self._write_tool_operations(operations)
+
+    def _recover_interrupted_tool_operations(self) -> None:
+        operations = self._read_tool_operations()
+        if not operations:
+            return
+        for operation in operations.values():
+            operation_id = operation.get("operation_id")
+            if not isinstance(operation_id, str) or not operation_id:
+                continue
+            self.events.append(
+                "tool_recovery",
+                tree_id="executor",
+                node_id=operation.get("node_id"),
+                purpose="recover interrupted node tool",
+                message=str(operation.get("action_type", "tool")),
+                operation_id=operation_id,
+                tool=operation.get("tool"),
+                action_type=operation.get("action_type"),
+                session_id=operation.get("session_id"),
+                retry_authorized=False,
+            )
+        self._write_tool_operations({})
+
+    def _read_tool_operations(self) -> dict[str, dict[str, Any]]:
+        if not self._tool_operations_path.exists():
+            return {}
+        try:
+            payload = json.loads(self._tool_operations_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        operations = payload.get("operations", {}) if isinstance(payload, dict) else {}
+        return {str(key): dict(value) for key, value in operations.items() if isinstance(value, dict)}
+
+    def _write_tool_operations(self, operations: dict[str, dict[str, Any]]) -> None:
+        self._tool_operations_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self._tool_operations_path.with_suffix(self._tool_operations_path.suffix + ".tmp")
+        temporary.write_text(json.dumps({"operations": operations}, ensure_ascii=True, sort_keys=True), encoding="utf-8")
+        temporary.replace(self._tool_operations_path)
+
+    def _start_tool_operation(self, *, action_type: str, action: dict[str, Any], step_id: str) -> str:
+        operation_id = f"tool-{uuid.uuid4().hex[:16]}"
+        operations = self._read_tool_operations()
+        operations[operation_id] = {
+            "operation_id": operation_id,
+            "node_id": step_id or None,
+            "tool": "shell",
+            "action_type": action_type,
+            "session_id": action.get("session_id"),
+            "status": "in_flight",
+            "retry_authorized": False,
+        }
+        self._write_tool_operations(operations)
+        self.events.append(
+            "tool_started",
+            tree_id="executor",
+            node_id=step_id or None,
+            purpose="node tool execution",
+            message=action_type,
+            operation_id=operation_id,
+            tool="shell",
+            action_type=action_type,
+            session_id=action.get("session_id"),
+            retry_authorized=False,
+        )
+        return operation_id
+
+    def _complete_tool_operation(self, operation_id: str, *, success: bool, message: str) -> None:
+        operations = self._read_tool_operations()
+        operations.pop(operation_id, None)
+        self._write_tool_operations(operations)
+
+    def _recover_interrupted_tool_operations(self) -> None:
+        operations = self._read_tool_operations()
+        if not operations:
+            return
+        for operation in operations.values():
+            operation_id = operation.get("operation_id")
+            if not isinstance(operation_id, str) or not operation_id:
+                continue
+            self.events.append(
+                "tool_recovery",
+                tree_id="executor",
+                node_id=operation.get("node_id"),
+                purpose="recover interrupted node tool",
+                message=str(operation.get("action_type", "tool")),
+                operation_id=operation_id,
+                tool=operation.get("tool"),
+                action_type=operation.get("action_type"),
+                session_id=operation.get("session_id"),
+                retry_authorized=False,
+            )
+        self._write_tool_operations({})
 
     def _file_edit_message(self, verb: str, result: object, *, dry_run: bool) -> str:
         if not bool(getattr(result, "ok", False)):

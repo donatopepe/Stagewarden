@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP implementation and OmniRoute-free validation. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental.
+Node-first MVP non-file recovery and OmniRoute-free validation. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Product direction
 - One operational tree of nodes.
@@ -33,6 +33,20 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
 ## Latest bounded iteration
+- Objective: implement non-file tool interruption recovery with persistent replay metadata and fail-closed resume.
+- Metric/threshold: fixed recovery matrix `3/3`.
+- Baseline: `/tmp/nonfile-recovery-baseline.log` was `1/3`; in-flight replay and reopen recovery markers were absent.
+- Change: added persistent `.stagewarden/tool_operations.json`, `tool_started`/`tool_recovery` JSONL events, replay `in_flight_tools` projection and `retry_authorized=false`; no automatic retry.
+- Wet validation: recovery matrix `3/3`; targeted rerun `116/116 OK`; `py_compile` and `git diff --check` pass. Provider/model/fallback/serial/mutation policy unchanged.
+- Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
+
+- Objective: reconcile TODO/handoff metadata against the completed runtime evidence without changing execution/provider/model policy.
+- Metric/threshold: canonical unified validation `6/6` gate groups green.
+- Baseline: `/tmp/stagewarden-state-reconcile-baseline.log` recorded runner `6/6` but stale HEAD/CodeGraph and unchecked completed TODO items.
+- Change: refreshed TODO completion state and handoff evidence; no runtime/API/provider/model/parallelism change.
+- Wet validation: unified runner `6/6`; simulation `29/29`; targeted MVP `114/114`; full discovery `600/600` with `5` skips; CLI `3/3`; docs hygiene `17/17`, 0 errors; targeted rerun `114/114 OK`; handoff JSON valid; `git diff --check` OK; OmniRoute direct smoke `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3735/12612`, up to date; HEAD `6fe50debf4a6b061e67a84ad4deca404a68ac2d9`.
+- Blocker preserved: live multi-node OmniRoute remains fail-closed on malformed/truncated, wrong-contract and prose-wrapped output; full v3 approval remains pending.
+
 - Objective: validate Node Knowledge Store/index acceptance across context isolation, citation, Python symbols, compaction, freshness and file-read recovery.
 - Baseline: no dedicated six-case matrix; partial node/file tests existed.
 - Change: added Node Knowledge Store acceptance matrix covering node isolation, citations, code lines, compaction and stale/fresh reindex.
