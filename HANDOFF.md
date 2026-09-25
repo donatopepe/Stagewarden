@@ -6,9 +6,9 @@ Node-first MVP remains fail-closed at decision gate: task-scoped node UUID and c
 ## Latest bounded iteration
 - Objective: verify no-new-runtime decision gate while preserving existing node-first MVP controls.
 - Metric/threshold: fixed blocker/decision matrix `3/3`; threshold `3/3`.
-- Baseline: `/tmp/stagewarden-current-reconciliation-baseline.log`: current main/CodeGraph/evidence state checked; three unresolved TODO entries explicitly require user approval or approved extension scope.
+- Baseline: `/tmp/stagewarden-reconciliation-cycle-baseline.log`: three unresolved approval rows, main branch and one main worktree verified; no runtime item authorized.
 - Change: decision/blocker recording only; no runtime/API/provider/model/fallback/scheduler/parallel change.
-- Wet evidence: reconciliation matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-current-reconciliation-baseline.log`); direct OmniRoute smoke green; docs `17/17`, JSON, `py_compile`, `git diff --check` green; CodeGraph `140/3825/13116`, current. Prior capsule/UUID gates remain green.
+- Wet evidence: current reconciliation matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-reconciliation-current-unified.log`); direct OmniRoute smoke green; docs `17/17`, JSON, `py_compile`, `git diff --check` green; CodeGraph `140/3825/13116`, current. Prior capsule/UUID gates remain green.
 
 ## Product direction
 - One operational tree of nodes.
