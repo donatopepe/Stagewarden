@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded node-context UUID propagation from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded task-scoped node UUID propagation from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `86c4f22a0133b10ef8f28e3fcbf68a7cff9551a6`.
-- CodeGraph synced/current: 140 files, 3821 nodes, 13085 edges.
-- Baseline `/tmp/node-context-uuid-baseline.log` = `0/3`; UUID propagation TDD now green.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `9cb00303b270ddb0de755bbb01c44f3f215a803c`.
+- CodeGraph synced/current: 140 files, 3823 nodes, 13101 edges.
+- Baseline `/tmp/node-context-uuid-scope-baseline.log` = `1/3`; task-scoped UUID TDD now green.
 - `PlanStep` and goal-loop `NodeState` use deterministic UUIDs; model context telemetry/prompt, WorkPacket, capsule, JSONL event and replay carry `node_uuid`; cache scope explicitly `node_uuid`.
-- Wet evidence: UUID probe `7/7` and TDD matrix `3/3` (`/tmp/node-context-uuid-final.log`); focused TDD `3/3`; context `27/27`; goal/event `51/51`; targeted MVP `155/155`; full discovery `654/654` with 5 skips; unified validation `6/6` (`/tmp/node-context-uuid-unified-postfix.log`); direct OmniRoute smoke green; docs, JSON, `py_compile` and diff checks green. Provider/model/fallback/parallel policy unchanged.
+- Wet evidence: task UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); scope TDD `2/2`; planner/goal `47/47`; targeted MVP `165/165`; full discovery `656/656` with 5 skips; unified validation `6/6` (`/tmp/node-context-uuid-scope-unified.log`); direct OmniRoute smoke green; docs, JSON, `py_compile` and diff checks green. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.

@@ -9,7 +9,7 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — UUID contesto scoped per task
+### Iterazione bounded completata — UUID contesto scoped per task
 
 - **Obiettivo:** evitare collisioni cache/context tra task diversi che usano stesso `node_id`, mantenendo UUID deterministico per stesso task e propagazione node-first esistente.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
@@ -17,6 +17,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** planner stesso task stabile; planner task diversi distinti; goal-loop task diversi distinti per stesso node id.
 - **Variabile unica:** UUID namespace task-scoping only; nessuna modifica provider/model, fallback, scheduler seriale, parallelismo, packet schema oltre valore UUID.
 - **Test wet target:** nuove matrici TDD in `tests/test_planner.py` e `tests/test_goal_loop_orchestrator.py`, poi suite targeted e unified runner.
+- **Esito:** UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); TDD scope `2/2`; planner/goal suite `47/47`; targeted MVP `165/165`; full discovery `656/656` con 5 skip (`/tmp/node-context-uuid-scope-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-scope-unified.log`); OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/node-context-uuid-scope-omniroute.log`); docs `17/17`, JSON, `py_compile` e `git diff --check` verdi; CodeGraph `140/3823/13101`, current. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — UUID del nodo nel contesto modello e replay
 
@@ -763,7 +764,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/mutation-journal-completed-replay-final.log`; TDD; mutation/event/file-recovery targeted `76/76`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3804/12989`, up to date; JSON, `py_compile` e `git-diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — no new runtime item selected
+### Iterazione bounded completata — no new runtime item selected
 
 - **Obiettivo:** mantenere MVP fail-closed e scegliere prossimo runtime item solo dopo user decision gate o evidenza di un difetto sostanziale autorizzato.
 - **Metrica/soglia:** fixed blocker/decision matrix `3/3`; soglia `3/3`.

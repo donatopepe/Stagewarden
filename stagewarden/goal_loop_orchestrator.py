@@ -220,7 +220,7 @@ class GoalLoopOrchestrator:
     def _restore_node_capsules(self) -> None:
         for node_id, node in self.nodes.items():
             try:
-                saved = self.knowledge.load_node_execution_capsule("goal-loop", node_id).get("capsule", {})
+                saved = self.knowledge.load_node_execution_capsule("goal-loop", node_id, node_uuid=node.node_uuid).get("capsule", {})
             except KeyError:
                 continue
             if not isinstance(saved, dict) or saved.get("status") in {"completed", "failed"}:

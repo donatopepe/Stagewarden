@@ -43,13 +43,13 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded node-context UUID propagation iteration complete; no new runtime scope selected.",
+  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded task-scoped node UUID propagation iteration complete; no new runtime scope selected.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-25: node-context UUID probe 7/7 and TDD matrix 3/3; focused TDD 3/3; context 27/27; goal/event 51/51; targeted MVP 155/155; full discovery 654/654 with 5 skips; unified validation 6/6 (post-fix); direct OmniRoute free smoke green; CodeGraph 140/3821/13085 current. Provider/model/fallback/parallel policy unchanged.",
-  "plan_status": "MVP implementation active; node-context UUID propagation TDD 3/3 and unified validation 6/6; Node Knowledge acceptance TDD 6/6; code-index relations/freshness TDD 6/6; context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "156870a11f145ed56a4907d490df8dcbb3b38e26",
+  "latest_observation": "2026-09-25: task UUID scope probe 4/4; scope TDD 2/2; planner/goal 47/47; targeted MVP 165/165; full discovery 656/656 with 5 skips; unified validation 6/6; direct OmniRoute free smoke green; CodeGraph 140/3823/13101 current. Provider/model/fallback/parallel policy unchanged.",
+  "plan_status": "MVP implementation active; task-scoped node UUID TDD 2/2 and unified validation 6/6; Node Knowledge acceptance TDD 6/6; code-index relations/freshness TDD 6/6; context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
+  "git_head": "9cb00303b270ddb0de755bbb01c44f3f215a803c",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -193,7 +193,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-25T00:00:00+00:00",
+  "updated_at": "2026-09-25T17:38:05+02:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",

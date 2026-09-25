@@ -264,6 +264,18 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             same.knowledge.close()
             other.knowledge.close()
 
+    def test_goal_loop_reopen_uses_task_scoped_capsule_uuid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            alpha = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "task alpha", execution_mode="mock", json_mode=True)
+            node = alpha.nodes["root.scope"]
+            node.status = "running"
+            alpha._emit_node_event(node, "task_scope_probe", "alpha")
+            alpha.knowledge.close()
+            beta = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "task beta", execution_mode="mock", json_mode=True)
+            self.assertEqual(beta.nodes["root.scope"].status, "pending")
+            beta.knowledge.close()
+
     def test_node_context_uuid_matrix_carries_uuid_through_state_packet_prompt(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "node uuid", execution_mode="mock", json_mode=True)

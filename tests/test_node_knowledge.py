@@ -153,6 +153,29 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertEqual(first["schema_version"], second["schema_version"])
                 self.assertTrue(store.code_search("ancestor_only", node_id="ancestor"))
 
+    def test_node_execution_capsule_uuid_scope_rejects_other_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "knowledge.sqlite"
+            with NodeKnowledgeStore(path) as store:
+                store.save_node_execution_capsule(
+                    tree_id="goal-loop",
+                    node_id="root.scope",
+                    parent_node_id=None,
+                    purpose="alpha",
+                    capsule={"node_uuid": "uuid-alpha", "status": "running", "last_checkpoint": "alpha"},
+                )
+                store.save_node_execution_capsule(
+                    tree_id="goal-loop",
+                    node_id="root.scope",
+                    parent_node_id=None,
+                    purpose="beta",
+                    capsule={"node_uuid": "uuid-beta", "status": "running", "last_checkpoint": "beta"},
+                )
+                self.assertEqual(store.load_node_execution_capsule("goal-loop", "root.scope", node_uuid="uuid-alpha")["capsule"]["last_checkpoint"], "alpha")
+                self.assertEqual(store.load_node_execution_capsule("goal-loop", "root.scope", node_uuid="uuid-beta")["capsule"]["last_checkpoint"], "beta")
+                with self.assertRaises(KeyError):
+                    store.load_node_execution_capsule("goal-loop", "root.scope", node_uuid="uuid-missing")
+
     def test_node_execution_capsule_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"

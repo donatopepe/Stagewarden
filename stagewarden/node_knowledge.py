@@ -167,11 +167,13 @@ class NodeKnowledgeStore:
         resume without importing another node's history into active context.
         """
         serialized = json.dumps(capsule, ensure_ascii=True, sort_keys=True)
-        entry_id = f"capsule-{self._hash(f'{tree_id}:{node_id}')[-16:]}"
+        scope_id = str(capsule.get("node_uuid") or node_id)
+        entry_id = f"capsule-{self._hash(f'{tree_id}:{scope_id}')[-16:]}"
         source = {
             "type": "node_execution_capsule",
             "tree_id": tree_id,
             "node_id": node_id,
+            "node_uuid": capsule.get("node_uuid"),
             "checkpoint": capsule.get("last_checkpoint"),
         }
         self.connection.execute(
@@ -197,14 +199,15 @@ class NodeKnowledgeStore:
         self.connection.commit()
         return entry_id
 
-    def load_node_execution_capsule(self, tree_id: str, node_id: str) -> dict[str, Any]:
+    def load_node_execution_capsule(self, tree_id: str, node_id: str, *, node_uuid: str | None = None) -> dict[str, Any]:
         row = self.connection.execute(
             """
             SELECT * FROM knowledge
             WHERE namespace = 'capsule' AND tree_id = ? AND node_id = ?
+              AND (? IS NULL OR json_extract(source_json, '$.node_uuid') = ?)
             ORDER BY created_at DESC, entry_id DESC LIMIT 1
             """,
-            (tree_id, node_id),
+            (tree_id, node_id, node_uuid, node_uuid),
         ).fetchone()
         if row is None:
             raise KeyError(f"No execution capsule for {tree_id}:{node_id}")

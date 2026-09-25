@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP bounded iteration complete: node UUID now scopes model context/cache identity, WorkPacket, prompt, JSONL event replay and persisted plan context. Direct free smoke green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP bounded iteration complete: task-scoped node UUID now prevents context/cache collisions across tasks sharing node IDs, while model context/cache identity, WorkPacket, prompt, JSONL replay and persisted plan context remain node-scoped. Direct free smoke green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: propagate stable node UUID through model context and replay to prevent cross-node model-cache context confusion.
-- Metric/threshold: fixed UUID context matrix `3/3`; threshold `3/3`.
-- Baseline: `/tmp/node-context-uuid-baseline.log` = `0/3`: executor packet lacked UUID identity, NodeState/WorkPacket lacked UUID, event/replay omitted UUID.
-- Change: `PlanStep` deterministic UUID; goal-loop `NodeState`/WorkPacket/prompt/capsule UUID; executor budget/prompt/event UUID; EventStream replay UUID; persisted plan-node context and cache scope.
-- Wet evidence: UUID probe `7/7` and TDD matrix `3/3` (`/tmp/node-context-uuid-final.log`); TDD focused `3/3`; context suite `27/27`; goal/event suites `51/51`; targeted MVP `155/155`; full discovery `654/654` with 5 skips (`/tmp/node-context-uuid-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-unified-postfix.log`); direct OmniRoute smoke green; docs UTF-8/no-BOM, `py_compile`, `git diff --check` green; CodeGraph `140/3821/13085`, current. Provider/model/fallback/parallel policy unchanged.
+- Objective: scope deterministic node UUID by task so same `node_id` cannot share model context/cache across tasks.
+- Metric/threshold: fixed task UUID scope matrix `3/3`; threshold `3/3`.
+- Baseline: `/tmp/node-context-uuid-scope-baseline.log` = `1/3`: same task stable, different tasks shared UUID for `step-1` and `root.scope`.
+- Change: planner UUID namespace includes task; goal-loop UUID namespace includes task; existing WorkPacket/prompt/capsule/event/replay propagation unchanged.
+- Wet evidence: UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); scope TDD `2/2`; planner/goal suites `47/47`; targeted MVP `165/165`; full discovery `656/656` with 5 skips (`/tmp/node-context-uuid-scope-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-scope-unified.log`); direct OmniRoute smoke green; docs UTF-8/no-BOM, `py_compile`, `git diff --check` green; CodeGraph `140/3823/13101`, current. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
