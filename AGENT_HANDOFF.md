@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded tree/packet acceptance matrix from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded node-context UUID propagation from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `89302e5` (`stagewarden: initialize workspace`).
-- CodeGraph synced/current: 139 files, 3807 nodes, 13033 edges.
-- Baseline `/tmp/tree-packet-matrix-current.log` was `6/6` behavior; dedicated current matrix evidence absent.
-- Acceptance matrix confirms tree invariants, deterministic readiness, WorkPacket/ResultPacket scope, lateral rejection and serial projection. No tree/packet runtime, provider/model, fallback or parallel policy changed.
-- Wet evidence: matrix `6/6` (`/tmp/tree-packet-matrix-current.log`); goal-loop `36/36` (`/tmp/tree-packet-targeted.log`); targeted MVP `152/152` (`/tmp/tree-packet-mvp-targeted.log`); unified validation `6/6` (`/tmp/tree-packet-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/tree-packet-omniroute.log`); docs/diff checker green (`/tmp/tree-packet-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `156870a11f145ed56a4907d490df8dcbb3b38e26`.
+- CodeGraph synced/current: 140 files, 3820 nodes, 13084 edges.
+- Baseline `/tmp/node-context-uuid-baseline.log` = `0/3`; UUID propagation TDD now green.
+- `PlanStep` and goal-loop `NodeState` use deterministic UUIDs; model context telemetry/prompt, WorkPacket, capsule, JSONL event and replay carry `node_uuid`; cache scope explicitly `node_uuid`.
+- Wet evidence: UUID matrix `7/6` observed (`/tmp/node-context-uuid-final.log`); focused TDD `3/3`; context `27/27`; goal/event `51/51`; targeted MVP `155/155`; full discovery `654/654` with 5 skips; unified validation `6/6` (`/tmp/node-context-uuid-unified-final.log`); direct OmniRoute smoke green; docs, JSON, `py_compile` and diff checks green. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.

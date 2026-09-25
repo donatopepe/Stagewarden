@@ -17,6 +17,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** executor model context identity stabile e distinta per step; NodeState/WorkPacket/prompt condividono UUID; evento JSONL e replay conservano UUID con filtro node-scoped.
 - **Variabile unica:** node-context UUID propagation only; nessuna modifica provider/model, fallback, scheduler seriale o parallelismo.
 - **Test wet target:** nuove matrici TDD in `tests/test_context_file_reading.py`, `tests/test_goal_loop_orchestrator.py` e `tests/test_event_stream.py`, poi unified runner.
+- **Esito:** UUID probe `7/7` e TDD matrix `3/3` (`/tmp/node-context-uuid-final.log`); TDD focused `3/3`; context `27/27`; goal/event `51/51`; targeted MVP `155/155`; full discovery `654/654` con 5 skip; unified validation `6/6` (`/tmp/node-context-uuid-unified-final.log`); direct OmniRoute smoke verde; docs UTF-8/no-BOM, `py_compile` e `git diff --check` verdi; CodeGraph `140/3820/13084`, current. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — recovery negative file chunk size
 

@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node Knowledge Store/index acceptance matrix complete. Node-scoped context, citations, Python symbols/lines, compaction, stale/fresh indexing and file checkpoint reopen are covered by one fixed matrix. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP bounded iteration complete: node UUID now scopes model context/cache identity, WorkPacket, prompt, JSONL event replay and persisted plan context. Direct free smoke green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: verify six Node Knowledge/file recovery cases without broadening retrieval or changing runtime policy.
-- Metric/threshold: fixed Node Knowledge matrix `6/6`.
-- Baseline: `/tmp/node-knowledge-coverage-baseline.log` = `5/6`; no single six-case matrix evidence.
-- Change: recorded one bounded acceptance matrix only; no provider/model/fallback/scheduler/parallel change.
-- Wet evidence: matrix `6/6` (`/tmp/node-knowledge-acceptance-matrix-current.log`); targeted MVP `152/152` (`/tmp/code-index-relations-targeted.log`); unified validation `6/6` including full discovery (`/tmp/code-index-relations-unified.log`); direct OmniRoute smoke green (`/tmp/code-index-relations-omniroute.log`); docs `17/17` and diff clean (`/tmp/code-index-relations-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: propagate stable node UUID through model context and replay to prevent cross-node model-cache context confusion.
+- Metric/threshold: fixed UUID context matrix `3/3`; threshold `3/3`.
+- Baseline: `/tmp/node-context-uuid-baseline.log` = `0/3`: executor packet lacked UUID identity, NodeState/WorkPacket lacked UUID, event/replay omitted UUID.
+- Change: `PlanStep` deterministic UUID; goal-loop `NodeState`/WorkPacket/prompt/capsule UUID; executor budget/prompt/event UUID; EventStream replay UUID; persisted plan-node context and cache scope.
+- Wet evidence: UUID matrix `7/6` observed (`/tmp/node-context-uuid-final.log`); TDD focused `3/3`; context suite `27/27`; goal/event suites `51/51`; targeted MVP `155/155`; full discovery `654/654` with 5 skips (`/tmp/node-context-uuid-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-unified-final.log`); direct OmniRoute smoke green; docs UTF-8/no-BOM, `py_compile`, `git diff --check` green; CodeGraph `140/3820/13084`, current. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

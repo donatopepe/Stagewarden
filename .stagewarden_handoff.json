@@ -43,13 +43,13 @@
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded Node Knowledge Store/index acceptance-matrix iteration is complete; no new runtime scope selected.",
+  "waiting_reason": "Full v3 extensions remain pending. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. Latest bounded node-context UUID propagation iteration complete; no new runtime scope selected.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-25: Node Knowledge Store/index acceptance matrix 6/6; targeted MVP 152/152; unified validation 6/6 including full discovery; direct OmniRoute smoke green; docs 17/17 and diff clean. CodeGraph 139 files/3807 nodes/13033 edges current; HEAD 89302e5. Context isolation, citation, Python symbols/lines, compaction, stale/fresh index and file checkpoint reopen remain covered; no provider/model/fallback/parallel policy change.",
-  "plan_status": "MVP implementation active; Node Knowledge acceptance TDD 6/6, code-index relations/freshness TDD 6/6, unified output-integrity TDD 3/3, serial gate TDD 3/3, context redaction/replay TDD 3/3, context provider/model TDD 3/3, pause/resume checkpoint TDD 3/3, retry checkpoint/replay TDD 3/3, context boundary TDD 3/3, mutation failure-replay TDD 3/3, mutation failure-event TDD 3/3, mutation completed-replay TDD 3/3, file-read checkpoint start validation TDD 3/3, EventStream CLI JSON schema cursor TDD 3/3, EventStream CLI JSON schema registry-scope TDD 3/3, EventStream CLI JSON schema unsupported-control TDD 3/3, EventStream CLI JSON schema mutation TDD 3/3, EventStream CLI JSON schema TDD 3/3, CLI follow control-input TDD 3/3, CLI follow whitespace-boundary TDD 3/3, CLI follow-node boundary TDD 3/3, CLI cursor input validation TDD 3/3, CLI cursor follow TDD 3/3, EventStream cursor validation TDD 3/3, cursor polling TDD 3/3, terminal purpose-banner evidence TDD 3/3, invalid-source replay evidence TDD 3/3, freshness/stale-removal code-index TDD 4/4, MutationJournal safety 3/3, Event replay recovery closure 3/3, Node Knowledge code/retrieval scope 2/2, CLI replay 3/3, OmniRoute node-contract 3/3 and unified validation 6/6 green. No runtime/provider/model/fallback/parallel changes. Multi-node external route stability and full v3 approval remain blockers.",
-  "git_head": "a7224e2",
+  "latest_observation": "2026-09-25: node-context UUID probe 7/7 and TDD matrix 3/3; focused TDD 3/3; context 27/27; goal/event 51/51; targeted MVP 155/155; full discovery 654/654 with 5 skips; unified validation 6/6; direct OmniRoute free smoke green; CodeGraph 140/3820/13084 current. Provider/model/fallback/parallel policy unchanged.",
+  "plan_status": "MVP implementation active; node-context UUID propagation TDD 3/3 and unified validation 6/6; Node Knowledge acceptance TDD 6/6; code-index relations/freshness TDD 6/6; context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
+  "git_head": "156870a11f145ed56a4907d490df8dcbb3b38e26",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -193,7 +193,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-24T10:30:00+02:00",
+  "updated_at": "2026-09-25T00:00:00+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -2740,7 +2740,7 @@
           },
           "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
           "error_message": null,
-          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
+          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
           "messages_sent": [
             {
               "FROM": "root.scope",
@@ -2814,7 +2814,7 @@
         },
         "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
         "error_message": null,
-        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
+        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
         "messages_sent": [
           {
             "FROM": "root.scope",
@@ -4376,13 +4376,13 @@
     }
   ],
   "recent_changes": [
-    "tests/test_mutation_execution.py: added completed mutation replay matrix.",
-    "TODO.md: recorded completed-replay evidence and no-new-scope gate.",
-    "AGENT_HANDOFF.md and HANDOFF.md: aligned bounded objective, evidence and blockers."
+    "stagewarden/planner.py and stagewarden/goal_loop_orchestrator.py: deterministic node UUIDs in plan/node state, prompt, WorkPacket and capsule.",
+    "stagewarden/executor.py and stagewarden/event_stream.py: node_uuid in model context budget, prompt cache scope, JSONL events and replay.",
+    "tests/*, TODO.md, AGENT_HANDOFF.md and HANDOFF.md: UUID matrix, wet evidence and handoff alignment."
   ],
   "next_steps": [
     "Select next substantive TODO item only after fresh startup protocol and approved scope.",
-    "Keep deferred multiplexer internals, parallel collision, broad retrieval and pause/cancel scopes untouched.",
+    "Keep parallel opt-in, broader ancestor/descendant retrieval and provider/model policy changes untouched.",
     "Do not retry unstable multi-node OmniRoute until external route behavior changes; retain fail-closed blocker."
   ]
 }
