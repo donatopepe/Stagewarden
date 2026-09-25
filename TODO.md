@@ -677,14 +677,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** retry checkpoint/replay acceptance projection only; no retry algorithm, provider/model, mutation or parallelism change.
 - **Esito:** matrix `3/3` (`/tmp/retry-checkpoint-matrix-final.log`); EventStream replay projects `retry_count`/`max_retries`; goal-loop TDD (`/tmp/retry-checkpoint-tdd-final.log`); targeted MVP `140/140` (`/tmp/retry-checkpoint-targeted.log`); unified validation `6/6` (`/tmp/retry-checkpoint-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/retry-checkpoint-omniroute.log`); docs `17/17`, diff clean (`/tmp/retry-checkpoint-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
-### Sotto-iterazione bounded corrente — integrità output del unified runner
+### Sotto-iterazione bounded completata — integrità output del unified runner
 
 - **Obiettivo:** far valutare al runner output JSON completo senza includere log completi nel report bounded.
 - **Metrica/soglia:** 100% dei 6 gate del manifest eseguiti in ordine; soglia 6/6, con output report limitato a tail redacted/bounded.
-- **Baseline:** `/tmp/unified-validation-baseline.log`: gate `simulation_matrix` termina `returncode=0` ma runner fallisce `stdout is not JSON` perché `_run()` conserva solo ultimi 4000 caratteri del JSON.
+- **Baseline:** `/tmp/unified-output-integrity-baseline.log`: direct evaluator già passava, ma nessuna dedicated matrix verificava simultaneamente full JSON evaluation e bounded report schema/tail.
 - **Casi fissi/ordine:** evaluator con stdout completo + tail; manifest 6 gate IDs unici/in ordine; runner list mode; docs checker.
-- **Variabile unica:** separare stdout completo usato dall'evaluator dal tail conservato nel report; nessuna modifica runtime/provider/model/parallelismo.
-- **Esito:** runner fixed-order esegue `6/6` gate verdi: simulation `29/29`, targeted MVP `103/103`, full discovery `588/588` con `5` skip, CLI `3/3`, OmniRoute direct smoke, docs `17/17` con `0` errori. Report bounded conserva solo tail stdout/stderr.
+- **Variabile unica:** runner output projection only: preserva stdout/stderr completi per evaluator, report espone `stdout_tail`/`stderr_tail`; nessuna modifica runtime/provider/model/parallelismo.
+- **Esito:** matrix TDD `3/3` (`/tmp/unified-output-integrity-tdd-final.log`); targeted MVP `153/153` (`/tmp/unified-output-integrity-targeted.log`); unified validation `6/6` (`/tmp/unified-output-integrity-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/unified-output-integrity-omniroute.log`); docs `17/17`, diff clean (`/tmp/unified-output-integrity-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
 ### Sotto-iterazione bounded corrente — sospensione fail-closed di errori provider
 
