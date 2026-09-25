@@ -643,15 +643,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_mutation_execution.py` and `tests/test_event_stream.py`, then unified runner.
 - **Esito:** mutation replay/recovery safety `3/3`; mutation/journal/event `58/58`; targeted MVP `109/109`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3729/12552`.
 
-### Sotto-iterazione bounded corrente — pause/resume checkpoint safety
+### Sotto-iterazione bounded completata — pause/resume checkpoint safety
 
 - **Obiettivo:** validate existing persisted handoff/capsule resume boundary with a 3-case safety matrix, without adding cancellation/parallelism or changing provider/model policy.
 - **Metrica/soglia:** `3/3` fixed cases green: node capsule reopen; file-read checkpoint reopen; suspended provider handoff resume. Threshold 3/3.
-- **Baseline:** `/tmp/pause-resume-baseline.log`: individual capsule/file/provider tests exist, but no single bounded matrix asserts all recovery boundaries and no runtime pause/cancel contract is authorized.
+- **Baseline:** `/tmp/pause-resume-matrix-baseline.log` = `3/3` behavior probe; existing tests passed but no single bounded matrix evidence was recorded.
 - **Casi fissi/ordine:** `NodeExecutionCapsule` reopen; `file_reads` offset/hash checkpoint reopen; provider suspension handoff waiting→resume.
 - **Variabile unica:** acceptance matrix/test composition only; no new pause/cancel API, provider/model/fallback, mutation or parallelism change.
-- **Test wet target:** nuova matrice `3/3` in `tests/test_goal_loop_orchestrator.py`, `tests/test_file_read_recovery.py`, `tests/test_agent_integration.py`, then unified runner.
-- **Esito:** pause/resume checkpoint matrix `3/3`; goal/file/agent recovery `46/46` (`1` skip); targeted MVP `120/120` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3732/12582`.
+- **Esito:** matrix `3/3` (`/tmp/pause-resume-matrix-baseline.log`); focused wet suite `3/3` (`/tmp/pause-resume-baseline.log`); no runtime change, no provider/model/fallback/parallel change. Existing provider wait/resume tests remain the provider case.
 
 ### Sotto-iterazione bounded corrente — context provider/model selection matrix
 
@@ -672,15 +671,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** boundary acceptance assertions over existing `_context_budget`/chunk/compaction paths; no runtime policy/provider/fallback/scheduler change.
 - **Esito:** TDD matrix `3/3` (`/tmp/context-boundary-tdd-final.log`); context/file/event targeted `49/49` (`/tmp/context-boundary-targeted.log`); unified validation `6/6` (`/tmp/context-boundary-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/context-boundary-omniroute.log`); docs `17/17`, diff clean (`/tmp/context-boundary-check.log`); CodeGraph `139/3807/13032`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
-### Sotto-iterazione bounded corrente — retry checkpoint/replay safety
+### Sotto-iterazione bounded completata — retry checkpoint/replay safety
 
 - **Obiettivo:** verify bounded node retry state persists through capsule reopen and retry JSONL replay, without adding pause/cancel or changing serial/provider policy.
 - **Metrica/soglia:** `3/3` fixed cases: retry event fields; retry count/cycle checkpoint capsule reopen; retry does not exceed `max_retries`. Threshold 3/3.
-- **Baseline:** `/tmp/retry-checkpoint-baseline.log`: existing retry test passes, but no fixed matrix covers retry persistence/replay and bounded ceiling after reopen.
+- **Baseline:** `/tmp/retry-checkpoint-baseline.log` initially absent; direct probe `/tmp/retry-replay-projection-baseline.log` = `2/3`: retry event and capsule passed, JSONL replay lacked retry fields.
 - **Casi fissi/ordine:** blocked→pending retry event; capsule reopen with retry_count/cycle; second failure at max retry remains blocked.
-- **Variabile unica:** retry checkpoint/replay acceptance matrix only; no retry algorithm, provider/model, mutation or parallelism change.
-- **Test wet target:** nuova matrice `3/3` in `tests/test_goal_loop_orchestrator.py`, then unified runner.
-- **Esito:** retry checkpoint/replay matrix `3/3`; goal-loop suite `35/35`; targeted MVP `123/123` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3735/12612`.
+- **Variabile unica:** retry checkpoint/replay acceptance projection only; no retry algorithm, provider/model, mutation or parallelism change.
+- **Esito:** matrix `3/3` (`/tmp/retry-checkpoint-matrix-final.log`); EventStream replay projects `retry_count`/`max_retries`; goal-loop TDD (`/tmp/retry-checkpoint-tdd-final.log`); targeted MVP `140/140` (`/tmp/retry-checkpoint-targeted.log`); unified validation `6/6` (`/tmp/retry-checkpoint-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/retry-checkpoint-omniroute.log`); docs `17/17`, diff clean (`/tmp/retry-checkpoint-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
 ### Sotto-iterazione bounded corrente — integrità output del unified runner
 
