@@ -585,14 +585,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** lifecycle/replay metadata per tool non-file; nessuna modifica a semantica tool, provider/model, fallback, scheduler, serialità o API pause/cancel.
 - **Criterio fail-closed:** recovery persistente osservabile, `retry_authorized=false`, nessuna chiamata tool automatica.
 
-### Prossima iterazione bounded — riconciliazione evidence/handoff MVP
+### Iterazione bounded completata — riconciliazione evidence/handoff MVP
 
 - **Obiettivo:** riconciliare piano e handoff con runtime/evidence già presenti, senza aggiungere API o cambiare runtime policy.
 - **Metrica/soglia:** 100% dei 6 gate canonical verdi; soglia `6/6`.
 - **Baseline:** `/tmp/stagewarden-state-reconcile-baseline.log`: unified runner `6/6`, ma report ha rilevato `600` test full discovery (5 skip), targeted `114`, HEAD/CodeGraph e checkbox TODO/handoff ancora stale.
 - **Casi fissi/ordine:** unified runner; OmniRoute direct smoke; CodeGraph sync/status; branch/worktree; consistency checks su TODO, handoff JSON/Markdown e diff.
 - **Variabile unica:** aggiornamento evidence/status metadata e checkbox già dimostrate; nessuna modifica a esecuzione, provider/model, fallback, parallelismo o API.
-- **Esito:** unified runner `6/6`; simulation `29/29`; targeted MVP `114/114`; full discovery `600/600` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)`; docs `17/17`, `0` errori; targeted wet rerun `114/114 OK`; recovery matrix `3/3`; targeted recovery rerun `116/116 OK`; handoff JSON valido; `git diff --check` OK; CodeGraph `139/3749/12673`, up to date; branch `main`, unico worktree; HEAD `17cc9e2bdd88cdaf5b8ac1f2e696d75b6e862ddb`.
+- **Esito:** current reconciliation gate `3/3`; unified runner `6/6`; simulation `29/29`; full discovery `658/658` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)`; docs `17/17`, `0` errori; handoff JSON valido; `git diff --check` OK; CodeGraph `140/3825/13116`, up to date; branch `main`, unico worktree; HEAD `6ef4335314b32d7b943c96147388b6574e663c33`.
 
 ### Archivio iterazione — unified scenario/full wet runner
 

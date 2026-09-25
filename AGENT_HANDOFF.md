@@ -4,12 +4,12 @@
 Record bounded no-new-runtime decision gate from `TODO.md`; preserve task-scoped node UUID, capsule isolation, node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until user decision gate or approved defect. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `cc0f20096c5e508f6759ada8f2cf9b737bd7514a`.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `6ef4335314b32d7b943c96147388b6574e663c33`.
 - CodeGraph synced/current: 140 files, 3825 nodes, 13116 edges.
 - Decision gate: unresolved TODO items are user approval for v3, approved extensions/subagents, and migration/compatibility; no runtime item selected.
 - Baseline `/tmp/node-context-uuid-scope-baseline.log` = `1/3`; task-scoped UUID plus capsule-isolation TDD now green.
 - `PlanStep` and goal-loop `NodeState` use deterministic task-scoped UUIDs; model context telemetry/prompt, WorkPacket, capsule, JSONL event and replay carry `node_uuid`; capsule load filters UUID, cache scope explicitly `node_uuid`.
-- Wet evidence: decision matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-decision-gate-unified-baseline.log`); direct OmniRoute smoke green; docs `17/17`, JSON, `py_compile` and diff checks green; prior capsule/UUID gates remain `4/4`, `2/2`, `167/167`; CodeGraph current. No runtime/provider/model/fallback/parallel change.
+- Wet evidence: reconciliation matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-current-reconciliation-baseline.log`); direct OmniRoute smoke green; docs `17/17`, JSON, `py_compile` and diff checks green; prior capsule/UUID gates remain `4/4`, `2/2`, `167/167`; CodeGraph `140/3825/13116` current. No runtime/provider/model/fallback/parallel change.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
