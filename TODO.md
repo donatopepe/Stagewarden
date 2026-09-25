@@ -768,11 +768,10 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 
 - **Obiettivo:** mantenere MVP fail-closed e scegliere prossimo runtime item solo dopo user decision gate o evidenza di un difetto sostanziale autorizzato.
 - **Metrica/soglia:** fixed blocker/decision matrix `3/3`; soglia `3/3`.
-- **Baseline:** `/tmp/mutation-journal-completed-replay-final.log` `3/3`; latest unified `6/6`; no approved unresolved runtime defect selected beyond deferred multiplexer internals, parallel collision, broad retrieval and pause/cancel semantics.
-- **Casi fissi/ordine:** full-v3 approval remains user gate; multi-node OmniRoute malformed/wrong-contract/prose output remains fail-closed; deferred runtime scopes remain untouched.
+- **Baseline:** `/tmp/stagewarden-decision-gate-baseline.log`: main worktree verified, CodeGraph current; unresolved TODO scope is user approval/full v3 or approved extensions only.
+- **Casi fissi/ordine:** full-v3 approval remains user gate; unresolved extension/migration checkboxes remain blocked; multi-node OmniRoute malformed/wrong-contract/prose output remains fail-closed; no-new-runtime decision remains enforced.
 - **Variabile unica:** decision/blocker recording only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
-
-`56/56`; static matrix `16/16`; OmniRoute free smoke green; `py_compile`, `git diff --check` and handoff/text/JSON checks passed. CodeGraph after test edit: `137 files / 3681 nodes / 12291 edges`.
+- **Esito:** decision matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-decision-gate-unified-baseline.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/stagewarden-decision-gate-omniroute-baseline.log`); docs `17/17`, handoff JSON, `py_compile` and `git diff --check` green; CodeGraph `140/3825/13116`, current. No runtime change.
 - **Gate completato precedente:** `chown_path_file` ha superato replay, recovery e failure terminale; coverage audit ora chiuso; evidenza in `AGENT_HANDOFF.md` e `HANDOFF.md`.
 
 ### Profilo formale canonico

@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP bounded iteration complete: task-scoped node UUID plus capsule filtering now prevent context/cache and persisted-capsule collisions across tasks sharing node IDs, while model context/cache identity, WorkPacket, prompt, JSONL replay and persisted plan context remain node-scoped. Direct free smoke green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node-first MVP remains fail-closed at decision gate: task-scoped node UUID and capsule filtering prevent cross-task context/capsule collisions. No new runtime item authorized until user approves v3/extension/migration scope. Direct free smoke green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: prevent task B reopening task A's persisted capsule when both use same `tree_id` and `node_id`.
-- Metric/threshold: fixed capsule task-isolation matrix `3/3`; threshold `3/3`.
-- Baseline: `/tmp/node-context-uuid-capsule-baseline.log` = `0/3`: capsule key/load selected latest node-only record; no UUID-filtered load.
-- Change: capsule entry identity includes `node_uuid`; capsule load accepts UUID filter; goal-loop restore passes task-scoped UUID; added Node Knowledge and reopen regressions.
-- Wet evidence: capsule task-isolation `2/2`; UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); planner/goal `61/61`; targeted MVP `167/167`; full discovery `658/658` with 5 skips (`/tmp/node-context-uuid-capsule-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-capsule-unified.log`); direct OmniRoute smoke green; docs UTF-8/no-BOM, `py_compile`, `git diff --check` green; CodeGraph `140/3825/13116`, current. Provider/model/fallback/parallel policy unchanged.
+- Objective: verify no-new-runtime decision gate while preserving existing node-first MVP controls.
+- Metric/threshold: fixed blocker/decision matrix `3/3`; threshold `3/3`.
+- Baseline: `/tmp/stagewarden-decision-gate-baseline.log`: main worktree and CodeGraph current; only unresolved TODO items require user approval or approved extension scope.
+- Change: decision/blocker recording only; no runtime/API/provider/model/fallback/scheduler/parallel change.
+- Wet evidence: decision matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-decision-gate-unified-baseline.log`); direct OmniRoute smoke green; docs `17/17`, JSON, `py_compile`, `git diff --check` green; CodeGraph `140/3825/13116`, current. Prior capsule/UUID gates remain green.
 
 ## Product direction
 - One operational tree of nodes.
