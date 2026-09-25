@@ -4,7 +4,7 @@
 Record bounded no-new-runtime decision gate from `TODO.md`; preserve task-scoped node UUID, capsule isolation, node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until user decision gate or approved defect. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `cbea82f2fdbc78b12aaff245ca1ae419d423efbe`.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `15da822a2240e72fc8542d8ae4f6b61587c7de67`.
 - CodeGraph synced/current: 140 files, 3825 nodes, 13116 edges.
 - Decision gate: unresolved TODO items are user approval for v3, approved extensions/subagents, and migration/compatibility; no runtime item selected.
 - Baseline `/tmp/node-context-uuid-scope-baseline.log` = `1/3`; task-scoped UUID plus capsule-isolation TDD now green.
