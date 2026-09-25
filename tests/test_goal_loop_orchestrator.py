@@ -251,6 +251,19 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(packet["context_cache_scope"], "node_uuid")
             orchestrator.knowledge.close()
 
+    def test_goal_loop_uuid_task_scope_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            first = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp) / "first"), "task alpha", execution_mode="mock", json_mode=True)
+            same = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp) / "same"), "task alpha", execution_mode="mock", json_mode=True)
+            other = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp) / "other"), "task beta", execution_mode="mock", json_mode=True)
+            self.assertEqual(first.nodes["root.scope"].node_uuid, same.nodes["root.scope"].node_uuid)
+            self.assertNotEqual(first.nodes["root.scope"].node_uuid, other.nodes["root.scope"].node_uuid)
+            packet = first._build_work_packet(first.nodes["root.scope"])
+            self.assertEqual(packet["node_uuid"], first.nodes["root.scope"].node_uuid)
+            first.knowledge.close()
+            same.knowledge.close()
+            other.knowledge.close()
+
     def test_node_context_uuid_matrix_carries_uuid_through_state_packet_prompt(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "node uuid", execution_mode="mock", json_mode=True)

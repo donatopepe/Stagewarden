@@ -8,7 +8,7 @@ Node-first MVP bounded iteration complete: node UUID now scopes model context/ca
 - Metric/threshold: fixed UUID context matrix `3/3`; threshold `3/3`.
 - Baseline: `/tmp/node-context-uuid-baseline.log` = `0/3`: executor packet lacked UUID identity, NodeState/WorkPacket lacked UUID, event/replay omitted UUID.
 - Change: `PlanStep` deterministic UUID; goal-loop `NodeState`/WorkPacket/prompt/capsule UUID; executor budget/prompt/event UUID; EventStream replay UUID; persisted plan-node context and cache scope.
-- Wet evidence: UUID matrix `7/6` observed (`/tmp/node-context-uuid-final.log`); TDD focused `3/3`; context suite `27/27`; goal/event suites `51/51`; targeted MVP `155/155`; full discovery `654/654` with 5 skips (`/tmp/node-context-uuid-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-unified-final.log`); direct OmniRoute smoke green; docs UTF-8/no-BOM, `py_compile`, `git diff --check` green; CodeGraph `140/3820/13084`, current. Provider/model/fallback/parallel policy unchanged.
+- Wet evidence: UUID probe `7/7` and TDD matrix `3/3` (`/tmp/node-context-uuid-final.log`); TDD focused `3/3`; context suite `27/27`; goal/event suites `51/51`; targeted MVP `155/155`; full discovery `654/654` with 5 skips (`/tmp/node-context-uuid-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-unified-postfix.log`); direct OmniRoute smoke green; docs UTF-8/no-BOM, `py_compile`, `git diff --check` green; CodeGraph `140/3821/13085`, current. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
@@ -43,7 +43,7 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - Objective: verify marker consistency latest rerun after latest green gate.
 - Metric/threshold: fixed marker matrix `3/3`.
 - Baseline: `/tmp/current-marker-consistency-baseline-latest.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
-- Wet validation: marker `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `139/3760/12729`, up to date; HEAD `07d375c072ec231a39a2f9eed651b4eb49d66149`.
+- Wet validation: marker `3/3`; docs `17/17`, 0 errors; handoff JSON valid; `git diff --check` OK; direct OmniRoute smoke green; replay regression `1/1`; CodeGraph `140/3821/13085`, up to date; HEAD `86c4f22a0133b10ef8f28e3fcbf68a7cff9551a6`.
 - Blockers preserved: multi-node OmniRoute external stability and full v3 approval.
 
 - Objective: close MutationJournal recovery metadata safety acceptance.

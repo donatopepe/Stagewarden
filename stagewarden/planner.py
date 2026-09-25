@@ -24,7 +24,8 @@ class PlanStep:
 
 class Planner:
     def create_plan(self, task: str, *, project_handoff: ProjectHandoff | None = None) -> list[PlanStep]:
-        chunks = self._extract_chunks(task)
+        task_scope = str(task).strip()
+        chunks = self._extract_chunks(task_scope)
         steps: list[PlanStep] = []
 
         if not chunks:
@@ -45,6 +46,7 @@ class Planner:
                     validation=validation,
                     status="planned",
                     wet_run_required=True,
+                    node_uuid=str(uuid.uuid5(uuid.NAMESPACE_URL, f"stagewarden:node:{task_scope}:{index}")),
                 )
             )
 

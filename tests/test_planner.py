@@ -7,6 +7,15 @@ from stagewarden.project_handoff import ProjectHandoff
 
 
 class PlannerTests(unittest.TestCase):
+    def test_node_uuid_task_scope_matrix_has_three_fixed_cases(self) -> None:
+        planner = Planner()
+        first = planner.create_plan("task alpha")
+        same = planner.create_plan("task alpha")
+        other = planner.create_plan("task beta")
+        self.assertEqual(first[0].node_uuid, same[0].node_uuid)
+        self.assertNotEqual(first[0].node_uuid, other[0].node_uuid)
+        self.assertEqual(len({step.node_uuid for step in first}), len(first))
+
     def test_create_plan_returns_steps_with_validation(self) -> None:
         planner = Planner()
         steps = planner.create_plan("inspect the repo and implement a fix and validate the result")

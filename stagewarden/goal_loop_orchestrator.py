@@ -236,9 +236,8 @@ class GoalLoopOrchestrator:
             if isinstance(budget, dict):
                 node.cycle_budget = {str(k): int(v) for k, v in budget.items() if isinstance(v, (int, float))}
 
-    @staticmethod
-    def _stable_node_uuid(node_id: str) -> str:
-        return str(uuid.uuid5(uuid.NAMESPACE_URL, f"stagewarden:goal-loop:{node_id}"))
+    def _stable_node_uuid(self, node_id: str) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, f"stagewarden:goal-loop:{self.task.strip()}:{node_id}"))
 
     def _initialize_nodes(self) -> None:
         default_retries = int(os.environ.get("STAGEWARDEN_GOAL_LOOP_MAX_RETRIES", "0"))

@@ -47,7 +47,7 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-25: node-context UUID probe 7/7 and TDD matrix 3/3; focused TDD 3/3; context 27/27; goal/event 51/51; targeted MVP 155/155; full discovery 654/654 with 5 skips; unified validation 6/6; direct OmniRoute free smoke green; CodeGraph 140/3820/13084 current. Provider/model/fallback/parallel policy unchanged.",
+  "latest_observation": "2026-09-25: node-context UUID probe 7/7 and TDD matrix 3/3; focused TDD 3/3; context 27/27; goal/event 51/51; targeted MVP 155/155; full discovery 654/654 with 5 skips; unified validation 6/6 (post-fix); direct OmniRoute free smoke green; CodeGraph 140/3821/13085 current. Provider/model/fallback/parallel policy unchanged.",
   "plan_status": "MVP implementation active; node-context UUID propagation TDD 3/3 and unified validation 6/6; Node Knowledge acceptance TDD 6/6; code-index relations/freshness TDD 6/6; context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
   "git_head": "156870a11f145ed56a4907d490df8dcbb3b38e26",
   "git_head_baseline": "a7224e2",

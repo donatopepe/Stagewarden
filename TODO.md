@@ -9,7 +9,16 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
-### Iterazione bounded corrente — UUID del nodo nel contesto modello e replay
+### Iterazione bounded corrente — UUID contesto scoped per task
+
+- **Obiettivo:** evitare collisioni cache/context tra task diversi che usano stesso `node_id`, mantenendo UUID deterministico per stesso task e propagazione node-first esistente.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/node-context-uuid-scope-baseline.log` = `1/3`: stesso task stabile, ma task diversi condividono UUID per `step-1` e `root.scope`.
+- **Casi fissi/ordine:** planner stesso task stabile; planner task diversi distinti; goal-loop task diversi distinti per stesso node id.
+- **Variabile unica:** UUID namespace task-scoping only; nessuna modifica provider/model, fallback, scheduler seriale, parallelismo, packet schema oltre valore UUID.
+- **Test wet target:** nuove matrici TDD in `tests/test_planner.py` e `tests/test_goal_loop_orchestrator.py`, poi suite targeted e unified runner.
+
+### Iterazione bounded completata — UUID del nodo nel contesto modello e replay
 
 - **Obiettivo:** propagare UUID stabile e node-scoped in prompt/context, WorkPacket e JSONL replay per impedire collisioni tra contesti nella cache dei modelli IA.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
@@ -17,7 +26,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** executor model context identity stabile e distinta per step; NodeState/WorkPacket/prompt condividono UUID; evento JSONL e replay conservano UUID con filtro node-scoped.
 - **Variabile unica:** node-context UUID propagation only; nessuna modifica provider/model, fallback, scheduler seriale o parallelismo.
 - **Test wet target:** nuove matrici TDD in `tests/test_context_file_reading.py`, `tests/test_goal_loop_orchestrator.py` e `tests/test_event_stream.py`, poi unified runner.
-- **Esito:** UUID probe `7/7` e TDD matrix `3/3` (`/tmp/node-context-uuid-final.log`); TDD focused `3/3`; context `27/27`; goal/event `51/51`; targeted MVP `155/155`; full discovery `654/654` con 5 skip; unified validation `6/6` (`/tmp/node-context-uuid-unified-final.log`); direct OmniRoute smoke verde; docs UTF-8/no-BOM, `py_compile` e `git diff --check` verdi; CodeGraph `140/3820/13084`, current. Provider/model/fallback/parallel policy unchanged.
+- **Esito:** UUID probe `7/7` e TDD matrix `3/3` (`/tmp/node-context-uuid-final.log`); TDD focused `3/3`; context `27/27`; goal/event `51/51`; targeted MVP `155/155`; full discovery `654/654` con 5 skip; unified validation `6/6` (`/tmp/node-context-uuid-unified-postfix.log`); direct OmniRoute smoke verde; docs UTF-8/no-BOM, `py_compile` e `git diff --check` verdi; CodeGraph `140/3821/13085`, current. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — recovery negative file chunk size
 
@@ -611,7 +620,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** execution-mode validation at orchestrator boundary; no legacy parallel implementation.
 - **Esito:** matrix `3/3` (`/tmp/serial-mode-matrix-baseline.log`); targeted MVP `149/149` with 1 skip (`/tmp/serial-mode-targeted.log`); unified validation `6/6` (`/tmp/serial-mode-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/serial-mode-omniroute.log`); docs `17/17`, diff clean (`/tmp/serial-mode-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; unsupported `parallel`/`bogus` remain fail-closed; no legacy parallel implementation.
 
-### Sotto-iterazione bounded corrente — context budget provider/node evidence
+### Sotto-iterazione bounded completata — context budget provider/node evidence
 
 - **Obiettivo:** rendere esplicita e verificabile la relazione provider/model → context budget → node file-chunk/compaction events, senza cambiare provider/model selection o fallback.
 - **Metrica/soglia:** 100% dei 3 casi fissi verdi: budget identity fields; chunk event identity/budget fields; compaction event identity/budget fields. Soglia 3/3.
