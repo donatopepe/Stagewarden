@@ -29,6 +29,25 @@ class MutationExecutionTests(unittest.TestCase):
             self.assertEqual(len(executor.mutations.list(status="completed")), 1)
             executor.close()
 
+    def test_completed_mutation_replay_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "result.txt"
+            target.write_text("before\n", encoding="utf-8")
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            action = {"type": "apply_patch", "path": "result.txt", "search": "before", "replace": "after"}
+            first = executor._run_action(action, step_id="node.patch")
+            second = executor._run_action(action, step_id="node.patch")
+            # 1. First mutation completes.
+            self.assertTrue(first["ok"])
+            # 2. Replay emits stable mutation key metadata in node scope.
+            replay_events = executor.events.read(node_id="node.patch", event="mutation_replay")
+            self.assertEqual(len(replay_events), 1)
+            self.assertEqual(replay_events[0]["details"]["mutation_key"], first["mutation_key"])
+            # 3. Second execution is idempotent replay.
+            self.assertTrue(second["replayed"])
+            executor.close()
+
     def test_interrupted_apply_patch_journal_is_recovered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

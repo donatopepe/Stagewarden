@@ -198,14 +198,32 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica schema/runtime, EventStream cursor semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-registry-cursor-final.log`; TDD; CLI/schema targeted `6/6`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3802/12972`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — file-read checkpoint start validation
+### Iterazione bounded completata — file-read checkpoint start validation
 
-- **Obiettivo:** rendere fail-closed `NodeKnowledgeStore.checkpoint_file_chunk()` per start offset non intero, evitando coercione implicita prima di SQLite write.
+- **Obiettivo:** rendere fail-closed `NodeKnowledgeStore.checkpoint_file_chunk()` per start offset non intero, evitando coercizione implicita prima di SQLite write.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/file-read-checkpoint-start-baseline.log` = `0/3`; string start veniva convertito a `0` e avanzava checkpoint.
 - **Casi fissi/ordine:** string start rejects; float start rejects; bool start rejects; persisted `next_offset` remains zero after rejection.
 - **Variabile unica:** strict checkpoint start validation; nessuna modifica chunk limits, complete-read drift guards, compaction, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_file_read_recovery.py`, poi suite file/Node Knowledge/context/event.
+- **Esito:** matrice `3/3` in `/tmp/file-read-checkpoint-start-final.log`; TDD; file/Node Knowledge/context/event suite `59/59`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3803/12977`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded completata — file-read checkpoint start validation
+
+- **Obiettivo:** rendere fail-closed `NodeKnowledgeStore.checkpoint_file_chunk()` per start offset non intero, evitando coercizione implicita prima di SQLite write.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-checkpoint-start-baseline.log` = `0/3`; string start veniva convertito a `0` e avanzava checkpoint.
+- **Casi fissi/ordine:** string start rejects; float start rejects; bool start rejects; persisted `next_offset` remains zero after rejection.
+- **Variabile unica:** strict checkpoint start validation; nessuna modifica chunk limits, complete-read drift guards, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/file-read-checkpoint-start-final.log`; TDD; file/Node Knowledge/context/event suite `59/59`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3803/12977`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — mutation journal completed-replay acceptance
+
+- **Obiettivo:** aggiungere TDD coverage per completed mutation replay, replay event key e idempotent result, senza cambiare mutation semantics.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/mutation-journal-completed-replay-baseline-next2.log` = `3/3` behavior green, ma nessuna dedicated matrix per replay event metadata.
+- **Casi fissi/ordine:** first completed mutation; one node-scoped `mutation_replay` with stable key; second call returns `replayed=true`.
+- **Variabile unica:** TDD coverage only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_mutation_execution.py`, poi suite mutation/event/file recovery.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

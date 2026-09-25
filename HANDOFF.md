@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-EventStream CLI JSON-schema cursor-semantics iteration complete. `events follow --json` preserves after=0, end-of-stream and mid-stream cursor behavior with schema metadata. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+File-read checkpoint start-validation iteration complete. `checkpoint_file_chunk()` rejects string/float/bool starts before SQLite mutation and preserves offset zero. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: verify cursor zero/end/middle semantics for node-scoped `events follow --json` without changing EventStream semantics.
-- Metric/threshold: fixed cursor-semantics matrix `3/3`.
-- Baseline: `/tmp/event-follow-cli-json-schema-registry-cursor-baseline.log` behavior `3/3`; dedicated matrix missing.
-- Change: added TDD coverage only; runtime/schema unchanged.
-- Wet evidence: matrix `3/3` (`/tmp/event-follow-cli-json-schema-registry-cursor-final.log`); CLI/schema `6/6`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3802/12972`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: fail closed on non-integral `checkpoint_file_chunk()` start values without changing chunk/recovery policy.
+- Metric/threshold: fixed checkpoint-start matrix `3/3`.
+- Baseline: `/tmp/file-read-checkpoint-start-baseline.log` behavior `0/3`; string start advanced offset through coercion.
+- Change: strict type guard plus TDD coverage for string/float/bool and unchanged offset.
+- Wet evidence: matrix `3/3` (`/tmp/file-read-checkpoint-start-final.log`); file/Node Knowledge/context/event `59/59`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3803/12977`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
