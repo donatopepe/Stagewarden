@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Context provider/model selection matrix complete. Explicit cheap/chatgpt budget identities propagate into selected-node context events without changing manual ownership or fallback policy. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Context metadata redaction/replay safety acceptance complete. Provider/model/context metadata survives deterministic replay, secret-like values remain redacted and node filters remain isolated. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: verify context budget/chunk/compaction evidence for two explicitly selected provider identities.
-- Metric/threshold: fixed provider/context matrix `3/3`.
-- Baseline: `/tmp/context-node-provider-matrix-baseline.log` = `3/3` behavior; dedicated bounded evidence absent.
-- Change: recorded acceptance matrix evidence only; no router selection, provider/model/fallback/scheduler/parallel change.
-- Wet evidence: matrix `3/3` (`/tmp/context-node-provider-matrix-baseline.log`); context/file/event `49/49` (`/tmp/context-node-provider-targeted.log`); unified validation `6/6` including full discovery (`/tmp/context-node-provider-unified.log`); direct OmniRoute smoke green (`/tmp/context-node-provider-omniroute.log`); docs `17/17` and diff clean (`/tmp/context-node-provider-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: verify context metadata replay/redaction safety without changing event semantics.
+- Metric/threshold: fixed redaction/replay matrix `3/3`.
+- Baseline: `/tmp/context-redaction-matrix-baseline.log` = `3/3` behavior; dedicated evidence absent.
+- Change: recorded one fixed safety matrix only; no provider/model/fallback/scheduler/parallel change.
+- Wet evidence: matrix `3/3` (`/tmp/context-redaction-matrix-baseline.log`); event/context `49/49` (`/tmp/context-redaction-targeted.log`); unified validation `6/6` including full discovery (`/tmp/context-redaction-unified.log`); direct OmniRoute smoke green (`/tmp/context-redaction-omniroute.log`); docs `17/17` and diff clean (`/tmp/context-redaction-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

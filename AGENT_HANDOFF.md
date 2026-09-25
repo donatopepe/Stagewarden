@@ -1,14 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded context provider/model selection matrix from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded context metadata redaction/replay safety acceptance from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `3695437` (`stagewarden: initialize workspace`).
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `72c59ed` (`stagewarden: initialize workspace`).
 - CodeGraph synced/current: 139 files, 3807 nodes, 13033 edges.
-- Baseline `/tmp/context-node-provider-matrix-baseline.log` was `3/3` behavior; existing context suite passed, but no dedicated matrix evidence was recorded.
-- Acceptance matrix confirms cheap/chatgpt budget identities and selected-node event propagation. No router selection, fallback or provider/model policy changed.
-- Wet evidence: matrix `3/3` (`/tmp/context-node-provider-matrix-baseline.log`); focused context/file/event `49/49` (`/tmp/context-node-provider-targeted.log`); unified validation `6/6` (`/tmp/context-node-provider-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/context-node-provider-omniroute.log`); docs/diff checker green (`/tmp/context-node-provider-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Baseline `/tmp/context-redaction-matrix-baseline.log` was `3/3` behavior; existing metadata tests passed, but no dedicated redaction/replay matrix evidence was recorded.
+- Acceptance matrix confirms metadata replay, secret-like redaction and node filtering. No event semantics, provider/model selection, fallback or scheduler policy changed.
+- Wet evidence: matrix `3/3` (`/tmp/context-redaction-matrix-baseline.log`); focused event/context `49/49` (`/tmp/context-redaction-targeted.log`); unified validation `6/6` (`/tmp/context-redaction-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/context-redaction-omniroute.log`); docs/diff checker green (`/tmp/context-redaction-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
