@@ -1,14 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded retry checkpoint/replay safety acceptance from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded pause/resume checkpoint safety acceptance from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `546f203` (`stagewarden: initialize workspace`).
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `143faba` (`stagewarden: initialize workspace`).
 - CodeGraph synced/current: 139 files, 3807 nodes, 13033 edges.
-- Baseline `/tmp/retry-replay-projection-baseline.log` was `2/3`: retry event and capsule persisted, JSONL replay lacked retry fields. `/tmp/retry-checkpoint-baseline.log` was absent before direct probe.
-- TDD adds retry replay assertions in `tests/test_goal_loop_orchestrator.py`; EventStream replay now projects `retry_count` and `max_retries` from node snapshots. Retry algorithm, capsule persistence, serial execution and provider/model policy unchanged.
-- Wet evidence: matrix `3/3` (`/tmp/retry-checkpoint-matrix-final.log`); TDD (`/tmp/retry-checkpoint-tdd-final.log`); targeted MVP `140/140` (`/tmp/retry-checkpoint-targeted.log`); unified validation `6/6` (`/tmp/retry-checkpoint-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/retry-checkpoint-omniroute.log`); docs/diff checker green (`/tmp/retry-checkpoint-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Baseline `/tmp/pause-resume-matrix-baseline.log` was `3/3` behavior; focused existing recovery tests passed, but no single bounded matrix evidence was recorded.
+- Acceptance matrix confirms NodeExecutionCapsule reopen, file-read checkpoint reopen and provider waiting→resume. No pause/cancel API or runtime policy changed.
+- Wet evidence: matrix `3/3` (`/tmp/pause-resume-matrix-baseline.log`); focused pause/file/provider suite `3/3` (`/tmp/pause-resume-baseline.log`); broader targeted suite `149/149` with 1 intentional skip (`/tmp/pause-resume-targeted.log`); unified validation `6/6` (`/tmp/pause-resume-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/pause-resume-omniroute.log`); docs/diff checker green (`/tmp/pause-resume-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.

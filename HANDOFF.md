@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Retry checkpoint/replay safety acceptance complete. Bounded retry state persists through capsule reopen and JSONL replay now exposes retry fields; max retry ceiling remains fail-closed. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Pause/resume checkpoint safety acceptance complete. Existing capsule, file-read and provider waiting→resume boundaries are covered by fixed evidence; no pause/cancel API added. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: verify retry event fields, capsule reopen state and retry JSONL replay without changing retry algorithm or serial/provider policy.
-- Metric/threshold: fixed retry matrix `3/3`.
-- Baseline: `/tmp/retry-replay-projection-baseline.log` = `2/3`; retry event/capsule passed, replay retry fields absent.
-- Change: added retry replay projection and TDD assertions; no provider/model/fallback/scheduler/parallel change.
-- Wet evidence: matrix `3/3` (`/tmp/retry-checkpoint-matrix-final.log`); TDD (`/tmp/retry-checkpoint-tdd-final.log`); targeted MVP `140/140` (`/tmp/retry-checkpoint-targeted.log`); unified validation `6/6` including full discovery (`/tmp/retry-checkpoint-unified.log`); direct OmniRoute smoke green (`/tmp/retry-checkpoint-omniroute.log`); docs `17/17` and diff clean (`/tmp/retry-checkpoint-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: validate capsule reopen, file-read checkpoint reopen and provider suspension resume without changing runtime policy.
+- Metric/threshold: fixed pause/resume matrix `3/3`.
+- Baseline: `/tmp/pause-resume-matrix-baseline.log` = `3/3` behavior; dedicated bounded evidence was absent.
+- Change: recorded bounded matrix evidence only; no provider/model/fallback/scheduler/parallel/pause-cancel change.
+- Wet evidence: matrix `3/3` (`/tmp/pause-resume-matrix-baseline.log`); focused `3/3` (`/tmp/pause-resume-baseline.log`); broader targeted `149/149`, 1 skip (`/tmp/pause-resume-targeted.log`); unified validation `6/6` including full discovery (`/tmp/pause-resume-unified.log`); direct OmniRoute smoke green (`/tmp/pause-resume-omniroute.log`); docs `17/17` and diff clean (`/tmp/pause-resume-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
