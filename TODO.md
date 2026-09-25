@@ -17,7 +17,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Casi fissi/ordine:** planner stesso task stabile; planner task diversi distinti; goal-loop task diversi distinti per stesso node id.
 - **Variabile unica:** UUID namespace task-scoping only; nessuna modifica provider/model, fallback, scheduler seriale, parallelismo, packet schema oltre valore UUID.
 - **Test wet target:** nuove matrici TDD in `tests/test_planner.py` e `tests/test_goal_loop_orchestrator.py`, poi suite targeted e unified runner.
-- **Esito:** UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); TDD scope `2/2`; planner/goal suite `47/47`; targeted MVP `165/165`; full discovery `656/656` con 5 skip (`/tmp/node-context-uuid-scope-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-scope-unified.log`); OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/node-context-uuid-scope-omniroute.log`); docs `17/17`, JSON, `py_compile` e `git diff --check` verdi; CodeGraph `140/3823/13101`, current. Provider/model/fallback/parallel policy unchanged.
+- **Esito:** UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); TDD scope `2/2`; capsule task-isolation `2/2`; planner/goal suite `61/61`; targeted MVP `167/167`; full discovery `658/658` con 5 skip (`/tmp/node-context-uuid-capsule-full.log`); unified validation `6/6` (`/tmp/node-context-uuid-capsule-unified.log`); OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/node-context-uuid-capsule-omniroute.log`); docs `17/17`, JSON, `py_compile` e `git diff --check` verdi; CodeGraph `140/3825/13116`, current. Provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — UUID del nodo nel contesto modello e replay
 
@@ -640,7 +640,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** event redaction/replay assertions only; no runtime/provider/model/fallback/scheduler change.
 - **Esito:** matrix `3/3` (`/tmp/context-redaction-matrix-baseline.log`); focused event/context `51/51` (`/tmp/context-redaction-targeted.log`); unified validation `6/6` (`/tmp/context-redaction-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/context-redaction-omniroute.log`); docs `17/17`, diff clean (`/tmp/context-redaction-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
-### Sotto-iterazione bounded corrente — remaining MutationJournal coverage audit
+### Sotto-iterazione bounded completata — remaining MutationJournal coverage audit
 
 - **Obiettivo:** verify completed replay, in-flight recovery and failed terminal status across remaining range/path mutation actions without changing mutation semantics, provider/model policy or serial execution.
 - **Metrica/soglia:** fixed cases `3/3` per action family: range (`delete_range`, `delete_backward`, `replace_range`), encoding (`convert_encoding`, `normalize_line_endings`), path (`copy`, `move`, `delete`), permissions (`chmod`, `chown`). Threshold 12/12 family checks.
@@ -705,7 +705,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** runner output projection only: preserva stdout/stderr completi per evaluator, report espone `stdout_tail`/`stderr_tail`; nessuna modifica runtime/provider/model/parallelismo.
 - **Esito:** matrix TDD `3/3` (`/tmp/unified-output-integrity-tdd-final.log`); targeted MVP `153/153` (`/tmp/unified-output-integrity-targeted.log`); unified validation `6/6` (`/tmp/unified-output-integrity-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/unified-output-integrity-omniroute.log`); docs `17/17`, diff clean (`/tmp/unified-output-integrity-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
-### Sotto-iterazione bounded corrente — sospensione fail-closed di errori provider
+### Sotto-iterazione bounded completata — sospensione fail-closed di errori provider
 
 - **Obiettivo:** classificare errori transitori di rete/limite d'uso come sessione sospesa anche con selezione provider manuale e fallback negato, senza cambiare ownership provider/model o autorizzazione fallback.
 - **Metrica/soglia:** casi fissi integrazione verdi 2/2 (100%).
@@ -715,7 +715,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** `test_agent_resumes_suspended_network_session_from_persisted_handoff`, `test_agent_resumes_after_token_reset_from_persisted_handoff`.
 - **Esito:** `2/2` verdi; network e usage-limit persistono handoff `waiting`, messaggi `Session suspended`, resume completa file e chiude handoff. Policy provider/model, fallback e serialità invariati.
 
-### Sotto-iterazione bounded corrente — riconciliazione status CLI con policy manuale
+### Sotto-iterazione bounded completata — riconciliazione status CLI con policy manuale
 
 - **Obiettivo:** aggiornare il solo caso CLI obsoleto che assume routing automatico, così full discovery rifletta `selection_mode=manual` e `allow_provider_fallback=false` già definiti dal MVP.
 - **Metrica/soglia:** caso status CLI verde e full discovery senza failure/error; soglia `1/1` caso mirato e `588` test full con `0` failure/`0` error.
@@ -746,7 +746,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Esito:** matrix `6/6` (`/tmp/tree-packet-matrix-current.log`); goal-loop `36/36` (`/tmp/tree-packet-targeted.log`); targeted MVP `152/152` (`/tmp/tree-packet-mvp-targeted.log`); unified validation `6/6` (`/tmp/tree-packet-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/tree-packet-omniroute.log`); docs `17/17`, diff clean (`/tmp/tree-packet-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 - **Gate completato precedente:** context budget/compaction matrix 6/6; evidenza in `AGENT_HANDOFF.md` e `HANDOFF.md`.
 
-### Iterazione bounded corrente — context budget/compaction acceptance matrix
+### Iterazione bounded completata — context budget/compaction acceptance matrix
 
 - **Obiettivo:** chiudere acceptance matrix per budget contesto, auto-compaction, chunk metadata e replay per nodi/provider/model senza cambiare routing o serialità.
 - **Metrica/soglia:** 100% dei 6 casi fissi verdi: provider budget, node budget, chunk cap, compaction reduction, JSONL metadata/replay, recovery persistence; soglia 6/6.

@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded task-scoped node UUID propagation from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded task-scoped node UUID plus capsule isolation from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `9cb00303b270ddb0de755bbb01c44f3f215a803c`.
-- CodeGraph synced/current: 140 files, 3823 nodes, 13101 edges.
-- Baseline `/tmp/node-context-uuid-scope-baseline.log` = `1/3`; task-scoped UUID TDD now green.
-- `PlanStep` and goal-loop `NodeState` use deterministic UUIDs; model context telemetry/prompt, WorkPacket, capsule, JSONL event and replay carry `node_uuid`; cache scope explicitly `node_uuid`.
-- Wet evidence: task UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); scope TDD `2/2`; planner/goal `47/47`; targeted MVP `165/165`; full discovery `656/656` with 5 skips; unified validation `6/6` (`/tmp/node-context-uuid-scope-unified.log`); direct OmniRoute smoke green; docs, JSON, `py_compile` and diff checks green. Provider/model/fallback/parallel policy unchanged.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `cc0f20096c5e508f6759ada8f2cf9b737bd7514a`.
+- CodeGraph synced/current: 140 files, 3825 nodes, 13116 edges.
+- Baseline `/tmp/node-context-uuid-scope-baseline.log` = `1/3`; task-scoped UUID plus capsule-isolation TDD now green.
+- `PlanStep` and goal-loop `NodeState` use deterministic task-scoped UUIDs; model context telemetry/prompt, WorkPacket, capsule, JSONL event and replay carry `node_uuid`; capsule load filters UUID, cache scope explicitly `node_uuid`.
+- Wet evidence: UUID scope probe `4/4` (`/tmp/node-context-uuid-scope-final.log`); scope TDD `2/2`; capsule task-isolation `2/2`; planner/goal `61/61`; targeted MVP `167/167`; full discovery `658/658` with 5 skips; unified validation `6/6` (`/tmp/node-context-uuid-capsule-unified.log`); direct OmniRoute smoke green; docs, JSON, `py_compile` and diff checks green. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
