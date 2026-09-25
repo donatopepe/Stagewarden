@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Pause/resume checkpoint safety acceptance complete. Existing capsule, file-read and provider waiting→resume boundaries are covered by fixed evidence; no pause/cancel API added. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Context provider/model selection matrix complete. Explicit cheap/chatgpt budget identities propagate into selected-node context events without changing manual ownership or fallback policy. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: validate capsule reopen, file-read checkpoint reopen and provider suspension resume without changing runtime policy.
-- Metric/threshold: fixed pause/resume matrix `3/3`.
-- Baseline: `/tmp/pause-resume-matrix-baseline.log` = `3/3` behavior; dedicated bounded evidence was absent.
-- Change: recorded bounded matrix evidence only; no provider/model/fallback/scheduler/parallel/pause-cancel change.
-- Wet evidence: matrix `3/3` (`/tmp/pause-resume-matrix-baseline.log`); focused `3/3` (`/tmp/pause-resume-baseline.log`); broader targeted `149/149`, 1 skip (`/tmp/pause-resume-targeted.log`); unified validation `6/6` including full discovery (`/tmp/pause-resume-unified.log`); direct OmniRoute smoke green (`/tmp/pause-resume-omniroute.log`); docs `17/17` and diff clean (`/tmp/pause-resume-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: verify context budget/chunk/compaction evidence for two explicitly selected provider identities.
+- Metric/threshold: fixed provider/context matrix `3/3`.
+- Baseline: `/tmp/context-node-provider-matrix-baseline.log` = `3/3` behavior; dedicated bounded evidence absent.
+- Change: recorded acceptance matrix evidence only; no router selection, provider/model/fallback/scheduler/parallel change.
+- Wet evidence: matrix `3/3` (`/tmp/context-node-provider-matrix-baseline.log`); context/file/event `49/49` (`/tmp/context-node-provider-targeted.log`); unified validation `6/6` including full discovery (`/tmp/context-node-provider-unified.log`); direct OmniRoute smoke green (`/tmp/context-node-provider-omniroute.log`); docs `17/17` and diff clean (`/tmp/context-node-provider-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

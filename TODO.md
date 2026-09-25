@@ -613,15 +613,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
 - **Esito:** context/provider identity matrix `3/3`; context/file + executor-event `10/10`; targeted MVP `106/106`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3726/12529`.
 
-### Sotto-iterazione bounded corrente — context metadata redaction/replay safety
+### Sotto-iterazione bounded completata — context metadata redaction/replay safety
 
 - **Obiettivo:** verificare che nuovo provider/model/context metadata resti redacted-safe in JSONL and deterministic replay, without leaking credentials or changing event semantics.
 - **Metrica/soglia:** `3/3` fixed safety cases green: metadata survives replay; secret-like values redacted; node filter excludes other node events. Threshold 3/3.
-- **Baseline:** `/tmp/context-provider-baseline.log`: metadata identity tests pass, but no fixed redaction/replay matrix covers provider/model fields after propagation.
+- **Baseline:** `/tmp/context-redaction-matrix-baseline.log` = `3/3` behavior probe; metadata identity tests pass, but no dedicated redaction/replay matrix evidence was recorded.
 - **Casi fissi/ordine:** replay metadata projection; provider/model secret-like redaction; node-scoped event filter.
 - **Variabile unica:** event redaction/replay assertions only; no runtime/provider/model/fallback/scheduler change.
-- **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py` and `tests/test_event_stream.py`, then unified runner.
-- **Esito:** redaction/replay matrix `3/3`; context/file/event `15/15`; targeted MVP `107/107`; unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3727/12534`.
+- **Esito:** matrix `3/3` (`/tmp/context-redaction-matrix-baseline.log`); focused event/context `51/51` (`/tmp/context-redaction-targeted.log`); unified validation `6/6` (`/tmp/context-redaction-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/context-redaction-omniroute.log`); docs `17/17`, diff clean (`/tmp/context-redaction-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
 ### Sotto-iterazione bounded corrente — remaining MutationJournal coverage audit
 
@@ -652,15 +651,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** acceptance matrix/test composition only; no new pause/cancel API, provider/model/fallback, mutation or parallelism change.
 - **Esito:** matrix `3/3` (`/tmp/pause-resume-matrix-baseline.log`); focused wet suite `3/3` (`/tmp/pause-resume-baseline.log`); no runtime change, no provider/model/fallback/parallel change. Existing provider wait/resume tests remain the provider case.
 
-### Sotto-iterazione bounded corrente — context provider/model selection matrix
+### Sotto-iterazione bounded completata — context provider/model selection matrix
 
 - **Obiettivo:** verify context budget/chunk/compaction evidence for two explicitly selected provider identities while preserving manual ownership and no fallback/provider changes.
 - **Metrica/soglia:** `3/3` fixed cases green: cheap budget identity; chatgpt budget identity; selected-node chunk/compaction metadata. Threshold 3/3.
-- **Baseline:** `/tmp/context-node-provider-baseline-current.log`: context suite `9/9 OK`; `_context_budget` exposes fields, but no fixed matrix covers two provider identities plus event metadata under selected node.
+- **Baseline:** `/tmp/context-node-provider-matrix-baseline.log` = `3/3` behavior probe; existing context suite `9/9 OK`, but no dedicated matrix evidence was recorded.
 - **Casi fissi/ordine:** `_context_budget("cheap")`; `_context_budget("chatgpt")`; `read_file_chunk` and prompt compaction with selected provider/model budget.
 - **Variabile unica:** acceptance matrix over existing context paths; no router selection, fallback, provider/model policy, mutation or parallelism change.
-- **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
-- **Esito:** context provider/model selection matrix `3/3`; context suite `10/10`; targeted MVP `121/121` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3733/12589`.
+- **Esito:** matrix `3/3` (`/tmp/context-node-provider-matrix-baseline.log`); focused context/file/event suite `49/49` (`/tmp/context-node-provider-targeted.log`); unified validation `6/6` (`/tmp/context-node-provider-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/context-node-provider-omniroute.log`); docs `17/17`, diff clean (`/tmp/context-node-provider-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
 ### Sotto-iterazione bounded completata — context budget boundary/unknown policy
 
