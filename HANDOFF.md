@@ -8,7 +8,7 @@ Node-first MVP remains fail-closed at decision gate: task-scoped node UUID and c
 - Metric/threshold: fixed blocker/decision matrix `3/3`; threshold `3/3`.
 - Baseline: `/tmp/stagewarden-reconciliation-cycle-baseline.log`: three unresolved approval rows, main branch and one main worktree verified; no runtime item authorized.
 - Change: decision/blocker recording only; no runtime/API/provider/model/fallback/scheduler/parallel change.
-- Wet evidence: final reconciliation matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-final-reconciliation-unified.log`); direct OmniRoute smoke green; docs `17/17`, JSON, `py_compile`, `git diff --check` green; CodeGraph `140/3825/13116`, current. Prior capsule/UUID gates remain green.
+- Wet evidence: sealed reconciliation matrix `3/3`; unified validation `6/6` (`/tmp/stagewarden-sealed-final-unified.log`); direct OmniRoute smoke green; docs `17/17`, JSON, `py_compile`, `git diff --check` green; CodeGraph `140/3825/13116`, current. Prior capsule/UUID gates remain green.
 
 ## Product direction
 - One operational tree of nodes.
