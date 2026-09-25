@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-25: sealed reconciliation matrix 3/3; unified validation 6/6; direct OmniRoute free smoke green; docs 17/17; CodeGraph 140/3825/13116 current; HEAD b17842f4e3dbcea968b263e23acad29192b2686d. Prior task UUID/capsule gates remain green. No provider/model/fallback/parallel change.",
+  "latest_observation": "2026-09-25: terminal reconciliation matrix 3/3; unified validation 6/6; direct OmniRoute free smoke green; docs 17/17; CodeGraph 140/3825/13116 current; HEAD b0167c06c75083183f8c3840b972e55bd544be1e. Prior task UUID/capsule gates remain green. No provider/model/fallback/parallel change.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "b17842f4e3dbcea968b263e23acad29192b2686d",
+  "git_head": "b0167c06c75083183f8c3840b972e55bd544be1e",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -193,7 +193,7 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-25T20:50:00+02:00",
+  "updated_at": "2026-09-25T21:05:00+02:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
