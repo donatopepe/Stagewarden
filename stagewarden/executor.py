@@ -1597,8 +1597,8 @@ class Executor:
             label="coding_work_package_controls",
         )
         sections = [
-            PromptSection("Node Context Identity", context_identity),
             PromptSection("Thread Start", thread_start),
+            PromptSection("Node Context Identity", context_identity),
             PromptSection("Task", task),
             PromptSection("Configured Hermes/Obsidian memory", _executor_prompting.bounded_context(
                 _executor_prompting.render_external_memory_context(external_memory),
