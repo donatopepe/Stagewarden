@@ -399,6 +399,7 @@ def as_dict(handoff: Any) -> dict[str, Any]:
         "prince2_roles": {role: dict(assignment) for role, assignment in handoff.prince2_roles.items()},
         "prince2_role_tree_baseline": dict(handoff.prince2_role_tree_baseline),
         "prince2_node_runtime": dict(handoff.prince2_node_runtime),
+        "goal_loop_context": dict(handoff.goal_loop_context),
         "updated_at": handoff.updated_at,
         "entries": [entry.as_dict() for entry in handoff.entries],
     }
@@ -1318,6 +1319,9 @@ def load_project_handoff(cls: type[Any], path: Path) -> Any:
         else {},
         prince2_node_runtime=dict(payload.get("prince2_node_runtime", {}))
         if isinstance(payload.get("prince2_node_runtime", {}), dict)
+        else {},
+        goal_loop_context=dict(payload.get("goal_loop_context", {}))
+        if isinstance(payload.get("goal_loop_context", {}), dict)
         else {},
         updated_at=str(payload.get("updated_at", utc_now())),
     )

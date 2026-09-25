@@ -86,6 +86,7 @@ class NodeState:
     tolerances: dict[str, str]
     escalation_rule: str
     dependencies: list[str]
+    node_uuid: str = field(default_factory=lambda: str(uuid.uuid4()))
     status: str = "pending"
     parent_node_id: str | None = None
     active_work: str = ""
@@ -111,6 +112,7 @@ class NodeState:
     def as_dict(self) -> dict[str, object]:
         return {
             "node_id": self.node_id,
+            "node_uuid": self.node_uuid,
             "parent_node_id": self.parent_node_id,
             "purpose": self.purpose,
             "status": self.status,
@@ -224,7 +226,7 @@ class GoalLoopOrchestrator:
             if not isinstance(saved, dict) or saved.get("status") in {"completed", "failed"}:
                 continue
             for name in (
-                "status", "active_work", "session_id", "last_run_at", "output_summary",
+                "node_uuid", "status", "active_work", "session_id", "last_run_at", "output_summary",
                 "error_message", "retry_count", "cycle_id", "cycle_phase", "context_revision",
                 "last_checkpoint",
             ):
@@ -233,6 +235,10 @@ class GoalLoopOrchestrator:
             budget = saved.get("cycle_budget")
             if isinstance(budget, dict):
                 node.cycle_budget = {str(k): int(v) for k, v in budget.items() if isinstance(v, (int, float))}
+
+    @staticmethod
+    def _stable_node_uuid(node_id: str) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, f"stagewarden:goal-loop:{node_id}"))
 
     def _initialize_nodes(self) -> None:
         default_retries = int(os.environ.get("STAGEWARDEN_GOAL_LOOP_MAX_RETRIES", "0"))
@@ -243,11 +249,13 @@ class GoalLoopOrchestrator:
                 {str(k): str(v) for k, v in raw_tols.items()}
                 if isinstance(raw_tols, dict) else {}
             )
+            node_uuid = self._stable_node_uuid(node_id)
+            prompt_definition = {**child, "node_uuid": node_uuid}
             self.nodes[node_id] = NodeState(
                 node_id=node_id,
                 purpose=child["purpose"],
                 prompt_template_name=child.get("template", ""),
-                prompt=self._generate_node_prompt(child),
+                prompt=self._generate_node_prompt(prompt_definition),
                 inputs=child.get("inputs", []),
                 outputs=child.get("outputs", []),
                 acceptance_criteria=child.get("acceptance_criteria", []),
@@ -256,6 +264,7 @@ class GoalLoopOrchestrator:
                 escalation_rule=child.get("escalation_rule", ""),
                 dependencies=child.get("dependencies", []),
                 parent_node_id=child.get("parent_id"),
+                node_uuid=node_uuid,
                 max_retries=default_retries,
             )
         # Load custom nodes from .stagewarden/goal_loop_custom_nodes.json
@@ -274,6 +283,8 @@ class GoalLoopOrchestrator:
                 else:
                     prompt_text += f"(skill file not found: {skill_path})"
             prompt_text += f"\n\nTask: {self.task}\nNode: {nid}\nPurpose: {cn.get('purpose', '')}"
+            node_uuid = self._stable_node_uuid(nid)
+            prompt_text += f"\n\nNode UUID: {node_uuid}\nContext cache scope: node_uuid\n"
             self.nodes[nid] = NodeState(
                 node_id=nid,
                 purpose=cn.get("purpose", f"Custom node: {nid}"),
@@ -287,6 +298,7 @@ class GoalLoopOrchestrator:
                 escalation_rule=cn.get("escalation_rule", ""),
                 dependencies=cn.get("dependencies", []),
                 parent_node_id=cn.get("parent_id"),
+                node_uuid=node_uuid,
                 max_retries=default_retries,
             )
 
@@ -302,6 +314,8 @@ class GoalLoopOrchestrator:
             "tree_id": "goal-loop",
             "parent_node_id": node_state.parent_node_id,
             "child_node_id": node_state.node_id,
+            "node_uuid": node_state.node_uuid,
+            "context_cache_scope": "node_uuid",
             "purpose": node_state.purpose,
             "task": self.task,
             "dependencies": list(node_state.dependencies),
@@ -349,6 +363,8 @@ Do NOT include any text before or after the JSON object.'''
             "tree_id": "goal-loop",
             "parent_node_id": child.get("parent_id"),
             "child_node_id": child["node_id"],
+            "node_uuid": child.get("node_uuid") or self._stable_node_uuid(str(child["node_id"])),
+            "context_cache_scope": "node_uuid",
             "purpose": child["purpose"],
             "task": self.task,
             "dependencies": list(child.get("dependencies", [])),
@@ -453,6 +469,7 @@ Do NOT include any text before or after the JSON object.'''
     def _persist_node_capsule(self, node_state: NodeState) -> str:
         capsule = node_state.as_dict()
         capsule["prompt_ref"] = f"node:{node_state.node_id}:prompt"
+        capsule["context_cache_scope"] = "node_uuid"
         capsule["work_packet_ref"] = self._pending_parent_packets.get(node_state.node_id, {}).get("work_id")
         return self.knowledge.save_node_execution_capsule(
             tree_id="goal-loop",
@@ -481,6 +498,7 @@ Do NOT include any text before or after the JSON object.'''
             node_id=node_state.node_id,
             parent_node_id=node_state.parent_node_id,
             purpose=purpose,
+            node_uuid=node_state.node_uuid,
             message=message,
             node=node_state.as_dict(),
             **details,
@@ -832,6 +850,7 @@ Do NOT include any text before or after the JSON object.'''
             tree_id="goal-loop",
             message="goal loop state synchronized",
             node_statuses={nid: n.status for nid, n in self.nodes.items()},
+            node_uuids={nid: n.node_uuid for nid, n in self.nodes.items()},
         )
         self.handoff.goal_loop_context = {
             "task": self.task,

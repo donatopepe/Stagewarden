@@ -464,6 +464,37 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertLess(details["after_chars"], details["before_chars"])
             executor.close()
 
+    def test_model_context_identity_matrix_has_node_uuid_and_distinct_cache_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executor = self._executor(root)
+            first = PlanStep("node-a", "First", "inspect first context", "tests", wet_run_required=False)
+            second = PlanStep("node-b", "Second", "inspect second context", "tests", wet_run_required=False)
+            first_budget = executor._context_budget("cheap", node_id=first.id, node_uuid=first.node_uuid)
+            second_budget = executor._context_budget("cheap", node_id=second.id, node_uuid=second.node_uuid)
+            first_packet = executor._build_model_communication_packet(
+                task="context identity",
+                step=first,
+                plan=[first],
+                last_observation="none",
+                provider_limits=first_budget,
+            )
+            second_packet = executor._build_model_communication_packet(
+                task="context identity",
+                step=second,
+                plan=[second],
+                last_observation="none",
+                provider_limits=second_budget,
+            )
+            self.assertEqual(first_packet.telemetry["node_id"], first.id)
+            self.assertEqual(first_packet.telemetry["node_uuid"], first.node_uuid)
+            self.assertEqual(second_packet.telemetry["node_uuid"], second.node_uuid)
+            self.assertNotEqual(first_packet.telemetry["node_uuid"], second_packet.telemetry["node_uuid"])
+            identity = next(section for section in first_packet.sections if section.title == "Node Context Identity")
+            self.assertIn(f"node_uuid={first.node_uuid}", identity.body)
+            self.assertIn(f"node_uuid={first.node_uuid}", executor._render_model_communication_packet(first_packet))
+            executor.close()
+
     def test_context_budget_matrix_records_provider_node_and_replay_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -526,9 +557,12 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             executor._active_prompt_chars = 390
             chunk = executor._run_action({"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 500}, step_id="node.context")
             self.assertTrue(chunk["ok"])
-            details = next(item["details"] for item in executor.events.read(node_id="node.context", event="file_chunk") if "available_input_tokens" in item["details"])
-            for key in ("node_id", "provider", "model", "context_window", "input_limit", "reserved_output", "safety_margin", "available_input_tokens"):
+            chunk_events = executor.events.read(node_id="node.context", event="file_chunk")
+            details = next(item["details"] for item in chunk_events if "available_input_tokens" in item["details"])
+            for key in ("node_id", "node_uuid", "provider", "model", "context_window", "input_limit", "reserved_output", "safety_margin", "available_input_tokens"):
                 self.assertIn(key, {**details, "node_id": "node.context"})
+            self.assertEqual(chunk_events[0]["node_id"], "node.context")
+            self.assertRegex(details["node_uuid"], r"^[0-9a-f-]{36}$")
             # 3. compaction identity and budget
             step = PlanStep("step-1", "Inspect", "inspect repository", "run tests", wet_run_required=False)
             executor._build_prompt(task="x" * 1000, step=step, plan=[step], last_observation="y" * 1000, context_budget=budget)

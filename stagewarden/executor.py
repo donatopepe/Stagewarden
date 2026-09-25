@@ -238,7 +238,7 @@ class Executor:
         if role_assignment:
             model = str(role_assignment["provider"])
             self._configure_handoff_role_route(role_assignment)
-        context_budget = self._context_budget(model)
+        context_budget = self._context_budget(model, node_id=step.id, node_uuid=step.node_uuid)
         self._active_context_budget = context_budget
         prompt = self._build_prompt(task=task, step=step, plan=plan, last_observation=last_observation, context_budget=context_budget)
         self._active_prompt_chars = len(prompt)
@@ -1336,7 +1336,13 @@ class Executor:
         except OSError:
             return
 
-    def _context_budget(self, model: str) -> dict[str, object]:
+    def _context_budget(
+        self,
+        model: str,
+        *,
+        node_id: str | None = None,
+        node_uuid: str | None = None,
+    ) -> dict[str, object]:
         provider = model
         variant = self.handoff.model_variant_by_model.get(model, "provider-default")
         try:
@@ -1348,7 +1354,18 @@ class Executor:
         reserved = max(0, int(self.config.context_reserved_output_tokens))
         margin = max(0, int(self.config.context_safety_margin_tokens))
         available = max(0, int(input_limit) - reserved - margin) if input_limit else None
-        return {"provider": provider, "model": variant, "context_window": context_window, "input_limit": input_limit, "reserved_output": reserved, "safety_margin": margin, "available_input": available, "measurement": "catalog_or_user" if available is not None else "unknown"}
+        return {
+            "provider": provider,
+            "model": variant,
+            "context_window": context_window,
+            "input_limit": input_limit,
+            "reserved_output": reserved,
+            "safety_margin": margin,
+            "available_input": available,
+            "measurement": "catalog_or_user" if available is not None else "unknown",
+            "node_id": node_id,
+            "node_uuid": node_uuid,
+        }
 
     def _context_event_details(self, budget: dict[str, object] | None) -> dict[str, object]:
         if not isinstance(budget, dict):
@@ -1360,6 +1377,8 @@ class Executor:
             "input_limit": budget.get("input_limit"),
             "reserved_output": budget.get("reserved_output"),
             "safety_margin": budget.get("safety_margin"),
+            "node_id": budget.get("node_id"),
+            "node_uuid": budget.get("node_uuid"),
         }
 
     def _build_prompt(
@@ -1371,6 +1390,11 @@ class Executor:
         last_observation: str,
         context_budget: dict[str, object] | None = None,
     ) -> str:
+        context_budget = dict(context_budget or {})
+        if not context_budget.get("node_id"):
+            context_budget["node_id"] = step.id
+        if not context_budget.get("node_uuid"):
+            context_budget["node_uuid"] = step.node_uuid
         packet = self._build_model_communication_packet(task=task, step=step, plan=plan, last_observation=last_observation, provider_limits=context_budget)
         rendered = self._render_model_communication_packet(packet)
         available = context_budget.get("available_input") if context_budget else None
@@ -1389,7 +1413,9 @@ class Executor:
                     available_input_tokens=available,
                     prompt_chars_before=len(rendered),
                     prompt_chars_after=max_chars,
-                    **self._context_event_details(context_budget),
+                    **{key: value for key, value in self._context_event_details(context_budget).items() if key not in {"node_id", "node_uuid"}},
+                    node_id=context_budget.get("node_id"),
+                    node_uuid=context_budget.get("node_uuid"),
                 )
                 compacted = self._compact_prompt_text(rendered, max_chars)
                 return compacted
@@ -1529,6 +1555,14 @@ class Executor:
             label="execution_log",
         )
         selected_backend = self.shell._selected_shell_backend()
+        context_identity = "\n".join(
+            [
+                f"node_id={step.id}",
+                f"node_uuid={step.node_uuid}",
+                "context_cache_scope=node_uuid",
+                "Do not reuse context/cache entries across node_uuid values.",
+            ]
+        )
         thread_start = "\n".join(
             [
                 f"- workspace_root: {self.config.workspace_root}",
@@ -1563,6 +1597,7 @@ class Executor:
             label="coding_work_package_controls",
         )
         sections = [
+            PromptSection("Node Context Identity", context_identity),
             PromptSection("Thread Start", thread_start),
             PromptSection("Task", task),
             PromptSection("Configured Hermes/Obsidian memory", _executor_prompting.bounded_context(
@@ -1643,12 +1678,15 @@ class Executor:
                 ),
             ),
         ]
+        telemetry = dict(provider_limits or {})
+        telemetry["node_id"] = step.id
+        telemetry["node_uuid"] = step.node_uuid
         return ModelCommunicationPacket(
             system_prompt=self.config.system_prompt,
             sections=sections,
             transcript_items=transcript_items,
             contract_sections=contract_sections,
-            telemetry=provider_limits,
+            telemetry=telemetry,
         )
 
     def _render_model_communication_packet(self, packet: ModelCommunicationPacket) -> str:
@@ -1976,7 +2014,12 @@ class Executor:
             requested_size = raw_size
             auto_compacted = False
             prompt_chars_before = self._active_prompt_chars
-            budget = self._active_context_budget or {}
+            budget = dict(self._active_context_budget or {})
+            if step_id:
+                if not budget.get("node_id"):
+                    budget["node_id"] = step_id
+                if not budget.get("node_uuid"):
+                    budget["node_uuid"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"stagewarden:node:{step_id}"))
             available = budget.get("available_input")
             if isinstance(available, int):
                 raw_remaining_chars = int(available * self._context_chars_per_token) - self._active_prompt_chars
@@ -1985,12 +2028,13 @@ class Executor:
                     self.events.append(
                         "context_compaction",
                         tree_id="executor",
-                        node_id=step_id or None,
+                        node_id=step_id or budget.get("node_id"),
                         purpose="automatic node context compaction",
                         message="file chunk budget compacted",
                         before_chars=self._active_prompt_chars,
                         after_chars=max(100, self._active_prompt_chars // 2),
-                        **self._context_event_details(budget),
+                        **{key: value for key, value in self._context_event_details(budget).items() if key not in {"node_id", "node_uuid"}},
+                        node_uuid=budget.get("node_uuid"),
                     )
                     self._active_prompt_chars = max(100, self._active_prompt_chars // 2)
                     auto_compacted = True
@@ -2029,7 +2073,8 @@ class Executor:
                     available_input_tokens=available_input_tokens,
                     prompt_chars_before=prompt_chars_before,
                     prompt_chars_after=prompt_chars_after,
-                    **self._context_event_details(budget),
+                    **{key: value for key, value in self._context_event_details(budget).items() if key not in {"node_id", "node_uuid"}},
+                    node_uuid=budget.get("node_uuid"),
                 )
                 self._active_prompt_chars += len(result.content)
                 self.events.append(

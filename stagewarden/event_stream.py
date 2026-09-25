@@ -115,6 +115,8 @@ class EventStream:
             if isinstance(event_node_id, str) and event_node_id:
                 state = nodes.setdefault(event_node_id, {"node_id": event_node_id})
                 state.update({key: event_item.get(key) for key in ("parent_node_id", "purpose") if event_item.get(key) is not None})
+                if isinstance(details, dict) and "node_uuid" in details:
+                    state["node_uuid"] = details["node_uuid"]
                 state["last_event"] = event_item.get("event")
                 state["message"] = event_item.get("message", "")
                 details = event_item.get("details")
@@ -122,7 +124,7 @@ class EventStream:
                     state.update({
                         key: details.get(key)
                         for key in (
-                            "context_revision", "summary_ref", "remaining_input_tokens",
+                            "node_uuid", "context_revision", "summary_ref", "remaining_input_tokens",
                             "provider", "model", "context_window", "input_limit",
                             "reserved_output", "safety_margin", "available_input_tokens",
                             "prompt_chars_before", "prompt_chars_after",
@@ -145,7 +147,7 @@ class EventStream:
                         state.update({
                             key: node.get(key)
                             for key in (
-                                "status", "active_work", "output_summary", "error_message",
+                                "node_uuid", "status", "active_work", "output_summary", "error_message",
                                 "cycle_id", "cycle_phase", "context_revision", "last_checkpoint",
                                 "retry_count", "max_retries",
                             )

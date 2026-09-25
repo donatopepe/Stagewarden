@@ -95,6 +95,21 @@ class EventStreamTests(unittest.TestCase):
             self.assertEqual(marker["node_id"], "node-a")
             self.assertFalse(marker["retry_authorized"])
 
+    def test_node_uuid_replay_matrix_preserves_identity_and_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            node_a_uuid = "11111111-1111-4111-8111-111111111111"
+            node_b_uuid = "22222222-2222-4222-8222-222222222222"
+            stream.append("start", tree_id="tree", node_id="node-a", node_uuid=node_a_uuid, purpose="A")
+            stream.append("start", tree_id="tree", node_id="node-b", node_uuid=node_b_uuid, purpose="B")
+            stream.append("result", tree_id="tree", node_id="node-a", node_uuid=node_a_uuid, purpose="A", node={"status": "completed"})
+            raw = (Path(tmp) / "events.jsonl").read_text(encoding="utf-8")
+            self.assertIn(node_a_uuid, raw)
+            replay = stream.replay(node_id="node-a")
+            self.assertEqual(replay["nodes"]["node-a"]["node_uuid"], node_a_uuid)
+            self.assertEqual(set(replay["nodes"]), {"node-a"})
+            self.assertNotEqual(node_a_uuid, node_b_uuid)
+
     def test_replay_preserves_cycle_and_checkpoint_projection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from dataclasses import dataclass
 
 from .project_handoff import ProjectHandoff
@@ -14,6 +15,11 @@ class PlanStep:
     validation: str
     status: str = "planned"
     wet_run_required: bool = True
+    node_uuid: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.node_uuid:
+            self.node_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"stagewarden:node:{self.id}"))
 
 
 class Planner:

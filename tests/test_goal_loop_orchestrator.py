@@ -247,6 +247,20 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             node = next(iter(orchestrator.nodes.values()))
             packet = orchestrator._build_work_packet(node)
             self.assertEqual(packet["selection_policy"], "manual")
+            self.assertEqual(packet["node_uuid"], node.node_uuid)
+            self.assertEqual(packet["context_cache_scope"], "node_uuid")
+            orchestrator.knowledge.close()
+
+    def test_node_context_uuid_matrix_carries_uuid_through_state_packet_prompt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "node uuid", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            node_uuid = node.node_uuid
+            self.assertEqual(str(__import__("uuid").UUID(node_uuid)), node_uuid)
+            packet = orchestrator._build_work_packet(node)
+            self.assertEqual(packet["node_uuid"], node_uuid)
+            self.assertIn(node_uuid, node.prompt)
+            self.assertEqual(node.as_dict()["node_uuid"], node_uuid)
             orchestrator.knowledge.close()
 
     def test_node_cycle_state_defaults_and_serializes(self) -> None:

@@ -9,6 +9,15 @@
 
 Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bottom-up, WorkPacket/ResultPacket, banner terminale con purpose, Node Knowledge Store SQLite con storia/retrieval e code-aware Python index. Poi estendere gradualmente verso v3 completa.
 
+### Iterazione bounded corrente — UUID del nodo nel contesto modello e replay
+
+- **Obiettivo:** propagare UUID stabile e node-scoped in prompt/context, WorkPacket e JSONL replay per impedire collisioni tra contesti nella cache dei modelli IA.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/node-context-uuid-baseline.log` = `0/3`: executor packet senza UUID/identity section; NodeState/WorkPacket senza UUID; evento/replay senza UUID.
+- **Casi fissi/ordine:** executor model context identity stabile e distinta per step; NodeState/WorkPacket/prompt condividono UUID; evento JSONL e replay conservano UUID con filtro node-scoped.
+- **Variabile unica:** node-context UUID propagation only; nessuna modifica provider/model, fallback, scheduler seriale o parallelismo.
+- **Test wet target:** nuove matrici TDD in `tests/test_context_file_reading.py`, `tests/test_goal_loop_orchestrator.py` e `tests/test_event_stream.py`, poi unified runner.
+
 ### Iterazione bounded completata — recovery negative file chunk size
 
 - **Obiettivo:** rendere fail-closed e replay-visible `read_file_chunk` quando size è negativa, mantenendo report strutturato.

@@ -89,6 +89,7 @@ class Agent:
         self._sync_prince2_roles_from_preferences()
         plan = self.planner.create_plan(effective_task, project_handoff=self.project_handoff)
         self._sync_implementation_backlog(plan)
+        self._sync_plan_node_context(plan)
         last_observation = self.project_handoff.latest_observation or "Task received."
         iterations = 0
         self.trace_records = self._load_trace_records() if resumable_run else []
@@ -335,6 +336,7 @@ class Agent:
                 git_head=self._git_head(),
             )
             self._sync_implementation_backlog(plan)
+            self._sync_plan_node_context(plan)
             self._save_handoff()
             outcome = self.executor.execute_step(
                 task=effective_task,
@@ -651,6 +653,16 @@ class Agent:
     def _index_project_phase(self, phase: str, title: str, content: str, tags: list[str], metadata: dict[str, Any] | None = None) -> None:
         self.rag.add(phase=phase, tags=tags, title=title, content=content[:2000], metadata=metadata)
         self._save_rag()
+
+    def _sync_plan_node_context(self, plan: list[PlanStep]) -> None:
+        self.project_handoff.goal_loop_context["plan_node_context"] = {
+            step.id: {
+                "node_id": step.id,
+                "node_uuid": step.node_uuid,
+                "context_cache_scope": "node_uuid",
+            }
+            for step in plan
+        }
 
     def _sync_implementation_backlog(self, plan: list[PlanStep]) -> None:
         self.project_handoff.sync_implementation_backlog(
