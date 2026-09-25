@@ -715,13 +715,15 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Esito:** matrix `6/6` (`/tmp/node-knowledge-acceptance-matrix-current.log`); targeted MVP `152/152` (`/tmp/code-index-relations-targeted.log`); unified validation `6/6` (`/tmp/code-index-relations-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/code-index-relations-omniroute.log`); docs `17/17`, diff clean (`/tmp/code-index-relations-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 - **Gate completato precedente:** tree/packet matrix 6/6; evidenza in `AGENT_HANDOFF.md` e `HANDOFF.md`.
 
-### Iterazione bounded corrente — tree/packet acceptance matrix
+### Iterazione bounded completata — tree/packet acceptance matrix
 
 - **Obiettivo:** chiudere acceptance matrix per tree invariants, deterministic bottom-up serial ordering, WorkPacket parent→child, ResultPacket child→parent e lateral rejection senza cambiare parallel policy.
 - **Metrica/soglia:** 100% dei 6 casi fissi verdi: root/cycle invariants, ready ordering, packet contract, result evidence/parent scope, lateral block, serial run projection; soglia 6/6.
-- **Baseline:** `/tmp/tree-packet-coverage-baseline.log`: partial goal-loop tests existed; explicit six-case matrix absent.
+- **Baseline:** `/tmp/tree-packet-matrix-current.log` = `6/6` behavior probe; explicit current matrix evidence absent.
 - **Casi fissi/ordine:** invalid roots/cycles, deterministic ready ordering, WorkPacket rejection, ResultPacket evidence/parent, lateral control rejection, serial run/replay; poi suite goal/event/node knowledge.
 - **Wet validation:** matrix `6/6`; goal-loop suite `32/32 OK`; goal/event/node/context/recovery `115/115 OK`; executor-event + tools `56/56 OK`; OmniRoute free smoke green; `py_compile`, `git diff --check` passed. CodeGraph `137 files / 3684 nodes / 12316 edges`.
+- **Variabile unica:** acceptance matrix composition only; no tree/packet runtime, provider/model, fallback, scheduler or parallel policy change.
+- **Esito:** matrix `6/6` (`/tmp/tree-packet-matrix-current.log`); goal-loop `36/36` (`/tmp/tree-packet-targeted.log`); targeted MVP `152/152` (`/tmp/tree-packet-mvp-targeted.log`); unified validation `6/6` (`/tmp/tree-packet-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/tree-packet-omniroute.log`); docs `17/17`, diff clean (`/tmp/tree-packet-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 - **Gate completato precedente:** context budget/compaction matrix 6/6; evidenza in `AGENT_HANDOFF.md` e `HANDOFF.md`.
 
 ### Iterazione bounded corrente — context budget/compaction acceptance matrix

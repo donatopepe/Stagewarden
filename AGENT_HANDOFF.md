@@ -1,14 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded Node Knowledge Store/index acceptance matrix from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded tree/packet acceptance matrix from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `89302e5` (`stagewarden: initialize workspace`).
 - CodeGraph synced/current: 139 files, 3807 nodes, 13033 edges.
-- Baseline `/tmp/node-knowledge-coverage-baseline.log` was `5/6` dedicated cases; no single six-case acceptance matrix evidence.
-- Acceptance matrix confirms context isolation, citation, Python symbols/lines, deterministic compaction, stale/fresh index behavior and file checkpoint reopen. No CodeGraph replacement, retrieval broadening or runtime policy change.
-- Wet evidence: matrix `6/6` (`/tmp/node-knowledge-acceptance-matrix-current.log`); targeted MVP `152/152` (`/tmp/code-index-relations-targeted.log`); unified validation `6/6` (`/tmp/code-index-relations-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/code-index-relations-omniroute.log`); docs/diff checker green (`/tmp/code-index-relations-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Baseline `/tmp/tree-packet-matrix-current.log` was `6/6` behavior; dedicated current matrix evidence absent.
+- Acceptance matrix confirms tree invariants, deterministic readiness, WorkPacket/ResultPacket scope, lateral rejection and serial projection. No tree/packet runtime, provider/model, fallback or parallel policy changed.
+- Wet evidence: matrix `6/6` (`/tmp/tree-packet-matrix-current.log`); goal-loop `36/36` (`/tmp/tree-packet-targeted.log`); targeted MVP `152/152` (`/tmp/tree-packet-mvp-targeted.log`); unified validation `6/6` (`/tmp/tree-packet-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/tree-packet-omniroute.log`); docs/diff checker green (`/tmp/tree-packet-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
