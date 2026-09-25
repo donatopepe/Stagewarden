@@ -1,14 +1,16 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded unified-runner output-integrity acceptance from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded Node Knowledge Store/index acceptance matrix from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `b229d20` (`stagewarden: initialize workspace`).
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `89302e5` (`stagewarden: initialize workspace`).
 - CodeGraph synced/current: 139 files, 3807 nodes, 13033 edges.
-- Baseline `/tmp/unified-output-integrity-baseline.log` records evaluator success but no dedicated full-JSON/bounded-report matrix.
-- Runner now evaluates full captured stdout/stderr and reports only bounded `stdout_tail`/`stderr_tail`; command, return code and duration remain explicit. No runtime/provider/model/parallel policy changed.
-- Wet evidence: TDD matrix `3/3` (`/tmp/unified-output-integrity-tdd-final.log`); targeted MVP `153/153` (`/tmp/unified-output-integrity-targeted.log`); unified validation `6/6` (`/tmp/unified-output-integrity-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/unified-output-integrity-omniroute.log`); docs/diff checker green (`/tmp/unified-output-integrity-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Baseline `/tmp/node-knowledge-coverage-baseline.log` was `5/6` dedicated cases; no single six-case acceptance matrix evidence.
+- Acceptance matrix confirms context isolation, citation, Python symbols/lines, deterministic compaction, stale/fresh index behavior and file checkpoint reopen. No CodeGraph replacement, retrieval broadening or runtime policy change.
+- Wet evidence: matrix `6/6` (`/tmp/node-knowledge-acceptance-matrix-current.log`); targeted MVP `152/152` (`/tmp/code-index-relations-targeted.log`); unified validation `6/6` (`/tmp/code-index-relations-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/code-index-relations-omniroute.log`); docs/diff checker green (`/tmp/code-index-relations-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.

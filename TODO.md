@@ -583,15 +583,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Gate completato precedente:** Node Knowledge Store/index matrix 6/6; tree/packet 6/6; context 6/6; mutation 16/16.
 - **Priorità corrente:** estendere Node Knowledge code index con moduli, relazioni import/call/read/write e freshness/versioning; non cambiare runtime policy.
 
-### Sotto-iterazione bounded corrente — relazioni/freshness code index
+### Sotto-iterazione bounded completata — relazioni/freshness code index
 
 - **Obiettivo:** estendere esclusivamente `NodeKnowledgeStore.index_python()` oltre classi/funzioni, persistendo module/import/call/read/write relations con file hash/version freshness e node scope.
 - **Metrica/soglia:** 100% dei 6 casi fissi verdi: module/import symbols; call relation; import relation; source read/write relation; unchanged reindex freshness; changed-file version replacement; soglia 6/6.
-- **Baseline:** `/tmp/code-index-relations-baseline.log`: suite Node Knowledge `5/5 OK`, ma schema ha solo `code_symbols` senza relations/version table; probe indexa `1` function e `0` import/call/read/write relations.
+- **Baseline:** `/tmp/code-index-relations-baseline-current.log` = `6/6` behavior probe; historical baseline recorded missing relations/version schema before current implementation.
 - **Casi fissi/ordine:** module/import extraction; local call edge; import edge; source read/write metadata; unchanged reindex reports fresh/no duplicate; changed content updates version/hash and removes stale symbols.
 - **Variabile unica:** Python AST index schema/relation extraction; no scheduler, provider/model, fallback, OmniRoute parser or parallelism change.
-- **Test wet target:** nuova matrice `6/6` in `tests/test_node_knowledge.py`, poi unified targeted runner.
-- **Esito:** relation/freshness matrix `6/6`; targeted MVP `104/104`; unified runner `6/6`; direct OmniRoute smoke green; CodeGraph `139/3723/12503`.
+- **Esito:** matrix `6/6` (`/tmp/code-index-relations-baseline-current.log`); Node Knowledge/current targeted MVP `152/152` (`/tmp/code-index-relations-targeted.log`); unified validation `6/6` (`/tmp/code-index-relations-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/code-index-relations-omniroute.log`); docs `17/17`, diff clean (`/tmp/code-index-relations-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
 ### Sotto-iterazione bounded completata — serial gate fail-closed
 
@@ -706,13 +705,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** `tests.test_trace_cli.TraceAndCliTests.test_interactive_shell_status_and_mode_commands`, poi full discovery.
 - **Esito:** caso mirato verde; full discovery `588/588 OK` con `5` skip intenzionali.
 
-### Iterazione bounded corrente — Node Knowledge Store/index acceptance matrix
+### Iterazione bounded completata — Node Knowledge Store/index acceptance matrix
 
 - **Obiettivo:** chiudere acceptance matrix per Node Knowledge Store context/history, node-scoped retrieval/citation, Python code index, compaction e file-read recovery senza sostituire CodeGraph o allargare scope.
 - **Metrica/soglia:** 100% dei 6 casi fissi verdi: context isolation, citation/source, Python symbols/lines, deterministic compaction, stale/fresh index behavior, file-read checkpoint/reopen; soglia 6/6.
-- **Baseline:** comportamento parziale in `tests.test_node_knowledge`/`tests.test_file_read_recovery`; matrice esplicita stale/fresh e cross-node isolation assente in `/tmp/node-knowledge-coverage-baseline.log`.
+- **Baseline:** `/tmp/node-knowledge-coverage-baseline.log` = `5/6` dedicated cases: node knowledge behavior and file checkpoint passed, but no single six-case matrix evidence.
 - **Casi fissi/ordine:** node context isolation, citation metadata, code symbols/line ranges, compaction, stale/fresh reindex, file-read checkpoint/reopen; poi suite node/file/context.
-- **Wet validation:** matrix `6/6`; Node Knowledge/file/context/event suite `19/19 OK`; goal-loop/event/tools suite passed; OmniRoute free smoke green; `py_compile`, `git diff --check` passed. CodeGraph `137 files / 3685 nodes / 12326 edges`.
+- **Variabile unica:** acceptance matrix composition only; no CodeGraph replacement, retrieval broadening, scheduler, provider/model, fallback or parallelism change.
+- **Esito:** matrix `6/6` (`/tmp/node-knowledge-acceptance-matrix-current.log`); targeted MVP `152/152` (`/tmp/code-index-relations-targeted.log`); unified validation `6/6` (`/tmp/code-index-relations-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/code-index-relations-omniroute.log`); docs `17/17`, diff clean (`/tmp/code-index-relations-check.log`); CodeGraph `139/3807/13033`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 - **Gate completato precedente:** tree/packet matrix 6/6; evidenza in `AGENT_HANDOFF.md` e `HANDOFF.md`.
 
 ### Iterazione bounded corrente — tree/packet acceptance matrix

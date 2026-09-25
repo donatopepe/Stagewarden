@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Unified-runner output-integrity acceptance complete. Evaluator sees full subprocess output while report stores bounded tails; gate semantics remain fixed. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Node Knowledge Store/index acceptance matrix complete. Node-scoped context, citations, Python symbols/lines, compaction, stale/fresh indexing and file checkpoint reopen are covered by one fixed matrix. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: verify full JSON evaluation and bounded report output without changing runtime policy.
-- Metric/threshold: fixed output-integrity matrix `3/3`; unified gates `6/6`.
-- Baseline: `/tmp/unified-output-integrity-baseline.log` evaluator passed, dedicated schema/tail matrix absent.
-- Change: runner output projection now uses `stdout_tail`/`stderr_tail`; full stdout/stderr remain evaluator-only.
-- Wet evidence: matrix `3/3` (`/tmp/unified-output-integrity-tdd-final.log`); targeted MVP `153/153` (`/tmp/unified-output-integrity-targeted.log`); unified validation `6/6` including full discovery (`/tmp/unified-output-integrity-unified.log`); direct OmniRoute smoke green (`/tmp/unified-output-integrity-omniroute.log`); docs `17/17` and diff clean (`/tmp/unified-output-integrity-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: verify six Node Knowledge/file recovery cases without broadening retrieval or changing runtime policy.
+- Metric/threshold: fixed Node Knowledge matrix `6/6`.
+- Baseline: `/tmp/node-knowledge-coverage-baseline.log` = `5/6`; no single six-case matrix evidence.
+- Change: recorded one bounded acceptance matrix only; no provider/model/fallback/scheduler/parallel change.
+- Wet evidence: matrix `6/6` (`/tmp/node-knowledge-acceptance-matrix-current.log`); targeted MVP `152/152` (`/tmp/code-index-relations-targeted.log`); unified validation `6/6` including full discovery (`/tmp/code-index-relations-unified.log`); direct OmniRoute smoke green (`/tmp/code-index-relations-omniroute.log`); docs `17/17` and diff clean (`/tmp/code-index-relations-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
