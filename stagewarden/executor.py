@@ -2138,6 +2138,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "apply_patch":
@@ -2158,6 +2160,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "search_replace_file":
@@ -2180,6 +2184,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "insert_text_file":
@@ -2204,6 +2210,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_range_file":
@@ -2225,6 +2233,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_backward_file":
@@ -2248,6 +2258,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "replace_range_file":
@@ -2270,6 +2282,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "convert_encoding_file":
@@ -2298,6 +2312,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "normalize_line_endings_file":
@@ -2318,6 +2334,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "copy_path_file":
@@ -2340,6 +2358,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("destination", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "move_path_file":
@@ -2362,6 +2382,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("destination", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=f"{action.get('source', '')} -> {action.get('destination', '')}", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_path_file":
@@ -2382,6 +2404,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "chmod_path_file":
@@ -2403,6 +2427,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "chown_path_file":
@@ -2425,6 +2451,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "patch_file":
@@ -2441,6 +2469,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary=action.get("path", ""), detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "patch_files":

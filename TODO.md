@@ -216,12 +216,21 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** strict checkpoint start validation; nessuna modifica chunk limits, complete-read drift guards, compaction, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/file-read-checkpoint-start-final.log`; TDD; file/Node Knowledge/context/event suite `59/59`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3803/12977`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — mutation journal completed-replay acceptance
+### Iterazione bounded completata — mutation journal completed-replay acceptance
 
 - **Obiettivo:** aggiungere TDD coverage per completed mutation replay, replay event key e idempotent result, senza cambiare mutation semantics.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/mutation-journal-completed-replay-baseline-next2.log` = `3/3` behavior green, ma nessuna dedicated matrix per replay event metadata.
 - **Casi fissi/ordine:** first completed mutation; one node-scoped `mutation_replay` with stable key; second call returns `replayed=true`.
+- **Variabile unica:** TDD coverage only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/mutation-journal-completed-replay-final.log`; TDD; mutation/event/file-recovery targeted `76/76`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3804/12989`, up to date; JSON, `py_compile` e `git-diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — mutation journal failure-event acceptance
+
+- **Obiettivo:** aggiungere TDD coverage per terminal mutation failure result/journal status e failure event observability, senza cambiare mutation semantics.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/mutation-journal-failure-recovery-baseline-next.log` = `2/3`; result e journal failed passavano, failure event assertion mancava.
+- **Casi fissi/ordine:** failed mutation result; failed journal status; node-scoped `mutation_failure` event.
 - **Variabile unica:** TDD coverage only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
 - **Test wet target:** nuova matrice TDD in `tests/test_mutation_execution.py`, poi suite mutation/event/file recovery.
 
@@ -721,13 +730,24 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Wet validation:** matrix `6/6`; `tests.test_context_file_reading tests.test_executor_event_stream tests.test_event_stream tests.test_file_read_recovery` `15/15`; executor/goal/node knowledge `... OK`; OmniRoute free smoke green; `py_compile`, `git diff --check` e handoff checks passed. CodeGraph `137 files / 3683 nodes / 12305 edges`.
 - **Gate completato precedente:** MutationJournal coverage audit 16/16 chiuso; evidenza in `AGENT_HANDOFF.md` e `HANDOFF.md`.
 
-### Iterazione bounded corrente — mutation journal coverage audit
+### Iterazione bounded completata — mutation journal completed-replay acceptance
 
-- **Obiettivo:** auditare journal/replay/recovery coverage per tutti gli action types mutanti dichiarati, senza introdurre nuovi provider/model o parallelismo.
-- **Metrica/soglia:** 100% dei 16 action types mutanti dichiarati hanno key stabile, replay completato, `in_flight` recovery e terminal failure test; soglia 16/16.
-- **Baseline:** `/tmp/mutation-journal-coverage-baseline.log`: 16 dichiarati; branch/schema presenti, ma nessuna matrice dedicata; `apply_patch` e `insert_text_file` non restituivano recovery metadata; write/apply/insert failure cases mancanti.
-- **Casi fissi/ordine:** `write_file`, `apply_patch`, `search_replace_file`, `patch_file`, `patch_files`, `insert_text_file`, `delete_range_file`, `delete_backward_file`, `replace_range_file`, `convert_encoding_file`, `normalize_line_endings_file`, `delete_path_file`, `copy_path_file`, `move_path_file`, `chmod_path_file`, `chown_path_file`; per ciascuno key/replay/recovery/failure, poi suite mutation/event/file recovery.
-- **Wet validation:** mutation execution `48/48`; aggregate mutation/executor/event/file recovery `116/116`; executor-event + tools `56/56`; static matrix `16/16`; OmniRoute free smoke green; `py_compile`, `git diff --check` and handoff/text/JSON checks passed. CodeGraph after test edit: `137 files / 3681 nodes / 12291 edges`.
+- **Obiettivo:** aggiungere TDD coverage per completed mutation replay, replay event key e idempotent result, senza cambiare mutation semantics.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/mutation-journal-completed-replay-baseline-next2.log` = `3/3` behavior green, ma nessuna dedicated matrix per replay event metadata.
+- **Casi fissi/ordine:** first completed mutation; one node-scoped `mutation_replay` with stable key; second call returns `replayed=true`.
+- **Variabile unica:** TDD coverage only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `3/3` in `/tmp/mutation-journal-completed-replay-final.log`; TDD; mutation/event/file-recovery targeted `76/76`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3804/12989`, up to date; JSON, `py_compile` e `git-diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — no new runtime item selected
+
+- **Obiettivo:** mantenere MVP fail-closed e scegliere prossimo runtime item solo dopo user decision gate o evidenza di un difetto sostanziale autorizzato.
+- **Metrica/soglia:** fixed blocker/decision matrix `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/mutation-journal-completed-replay-final.log` `3/3`; latest unified `6/6`; no approved unresolved runtime defect selected beyond deferred multiplexer internals, parallel collision, broad retrieval and pause/cancel semantics.
+- **Casi fissi/ordine:** full-v3 approval remains user gate; multi-node OmniRoute malformed/wrong-contract/prose output remains fail-closed; deferred runtime scopes remain untouched.
+- **Variabile unica:** decision/blocker recording only; nessuna modifica runtime, retrieval scope, provider/model, fallback, scheduler o parallelismo.
+
+`56/56`; static matrix `16/16`; OmniRoute free smoke green; `py_compile`, `git diff --check` and handoff/text/JSON checks passed. CodeGraph after test edit: `137 files / 3681 nodes / 12291 edges`.
 - **Gate completato precedente:** `chown_path_file` ha superato replay, recovery e failure terminale; coverage audit ora chiuso; evidenza in `AGENT_HANDOFF.md` e `HANDOFF.md`.
 
 ### Profilo formale canonico

@@ -63,6 +63,26 @@ class MutationExecutionTests(unittest.TestCase):
             self.assertEqual([item["status"] for item in executor.mutations.list() if item["key"] == key], ["in_flight", "completed"])
             executor.close()
 
+    def test_failed_mutation_emits_node_scoped_failure_event_matrix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "result.txt"
+            target.write_text("before\n", encoding="utf-8")
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            action = {"type": "apply_patch", "path": "result.txt", "search": "missing", "replace": "after"}
+            result = executor._run_action(action, step_id="node.apply-failure")
+            key = executor.mutations.key("apply_patch", action)
+            # 1. Failed mutation returns failure.
+            self.assertFalse(result["ok"])
+            # 2. Journal closes failed mutation.
+            self.assertEqual(executor.mutations.get(key)["status"], "failed")
+            # 3. Failure event remains node-scoped with stable key/status.
+            failures = executor.events.read(node_id="node.apply-failure", event="mutation_failure")
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(failures[0]["details"]["mutation_key"], key)
+            self.assertEqual(failures[0]["details"]["status"], "failed")
+            executor.close()
+
     def test_failed_apply_patch_action_closes_journal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-File-read checkpoint start-validation iteration complete. `checkpoint_file_chunk()` rejects string/float/bool starts before SQLite mutation and preserves offset zero. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Mutation completed-replay acceptance iteration complete. Completed mutation emits node-scoped replay metadata with stable key and repeated action returns idempotent replay. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: fail closed on non-integral `checkpoint_file_chunk()` start values without changing chunk/recovery policy.
-- Metric/threshold: fixed checkpoint-start matrix `3/3`.
-- Baseline: `/tmp/file-read-checkpoint-start-baseline.log` behavior `0/3`; string start advanced offset through coercion.
-- Change: strict type guard plus TDD coverage for string/float/bool and unchanged offset.
-- Wet evidence: matrix `3/3` (`/tmp/file-read-checkpoint-start-final.log`); file/Node Knowledge/context/event `59/59`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3803/12977`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: cover completed mutation replay event key and idempotent replay result without changing mutation semantics.
+- Metric/threshold: fixed completed-replay matrix `3/3`.
+- Baseline: `/tmp/mutation-journal-completed-replay-baseline-next2.log` behavior `3/3`; dedicated replay-event matrix missing.
+- Change: added TDD coverage only; runtime/journal semantics unchanged.
+- Wet evidence: matrix `3/3` (`/tmp/mutation-journal-completed-replay-final.log`); mutation/event/file-recovery `76/76`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3804/12989`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.
