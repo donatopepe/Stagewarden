@@ -7,8 +7,8 @@ Mutation failure-event acceptance iteration complete. Failed declared mutating f
 - Objective: cover terminal mutation failure result, failed journal status and node-scoped failure-event observability without changing mutation semantics.
 - Metric/threshold: fixed failure matrix `3/3`.
 - Baseline: `/tmp/mutation-journal-failure-recovery-baseline-next.log` = `2/3`; failure event was not emitted.
-- Change: added one fixed TDD matrix and failure-event emission after journal closure across 15 declared mutating file actions; no provider/model/fallback/scheduler/parallel change.
-- Wet evidence: matrix `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); mutation/event/file-recovery `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` including full discovery (`/tmp/mutation-journal-failure-event-unified.log`); direct OmniRoute smoke green (`/tmp/mutation-journal-failure-event-omniroute.log`); docs `17/17` and diff clean (`/tmp/mutation-journal-failure-event-check.log`); CodeGraph `139/3805/13004`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Change: added one fixed TDD matrix and failure-event emission after journal closure across 16 declared mutating file actions; no provider/model/fallback/scheduler/parallel change.
+- Wet evidence: matrix `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); mutation/event/file-recovery `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` including full discovery (`/tmp/mutation-journal-failure-event-unified-final.log`); direct OmniRoute smoke green (`/tmp/mutation-journal-failure-event-omniroute-final.log`); docs `17/17` and diff clean (`/tmp/mutation-journal-failure-event-check-final.log`); CodeGraph `139/3805/13018`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

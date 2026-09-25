@@ -146,6 +146,21 @@ class EventStreamTests(unittest.TestCase):
             self.assertEqual(state["mutation_key"], "mutation:abc")
             self.assertEqual(state["mutation_status"], "completed")
 
+    def test_mutation_failure_replay_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            key = "mutation:failed"
+            stream.append("mutation_failure", tree_id="tree-1", node_id="node-a", purpose="mutation failure", message="patch failed", mutation_key=key, action_type="apply_patch", status="failed")
+            stream.append("mutation_failure", tree_id="tree-1", node_id="node-b", purpose="mutation failure", message="other failed", mutation_key="mutation:other", action_type="apply_patch", status="failed")
+            replay = stream.replay(node_id="node-a")
+            state = replay["nodes"]["node-a"]
+            # 1. Replay preserves stable mutation key.
+            self.assertEqual(state["mutation_key"], key)
+            # 2. Replay exposes failed mutation status.
+            self.assertEqual(state["mutation_status"], "failed")
+            # 3. Node filtering excludes other mutation failures.
+            self.assertEqual(set(replay["nodes"]), {"node-a"})
+
     def test_context_metadata_redaction_and_node_replay_matrix_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

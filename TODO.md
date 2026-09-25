@@ -232,7 +232,16 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Baseline:** `/tmp/mutation-journal-failure-recovery-baseline-next.log` = `2/3`; result e journal failed passavano, failure event assertion mancava.
 - **Casi fissi/ordine:** failed mutation result; failed journal status; node-scoped `mutation_failure` event.
 - **Variabile unica:** failure-event emission for declared mutating file actions only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
-- **Esito:** matrice `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); evento ora emesso dopo terminale failed journal status per tutte 15 azioni file mutanti già dichiarate; targeted mutation/event/file-recovery `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` (`/tmp/mutation-journal-failure-event-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/mutation-journal-failure-event-omniroute.log`); `check_unified_validation.py` docs `17/17`, diff clean (`/tmp/mutation-journal-failure-event-check.log`); CodeGraph `139/3805/13004`, up to date; JSON, `py_compile` e `git diff-check` verdi. Full discovery green in unified gate; provider/model/fallback/parallel policy unchanged.
+- **Esito:** matrice `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); evento ora emesso dopo terminale failed journal status per tutte 16 azioni file mutanti dichiarate; targeted mutation/event/file-recovery `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` (`/tmp/mutation-journal-failure-event-unified-final.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/mutation-journal-failure-event-omniroute-final.log`); `check_unified_validation.py` docs `17/17`, diff clean (`/tmp/mutation-journal-failure-event-check-final.log`); CodeGraph `139/3805/13018`, up to date; JSON, `py_compile` e `git diff-check` verdi. Full discovery green in unified gate; provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — mutation failure replay projection
+
+- **Obiettivo:** proiettare `mutation_failure` in deterministic node-scoped replay con stable mutation key e `failed` status, senza cambiare mutation execution o journal semantics.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/mutation-failure-replay-baseline.log` = `1/3`; failure event node scope passa, ma replay non espone mutation key né failed status.
+- **Casi fissi/ordine:** replay mutation key; replay failed mutation status; node-filtered replay excludes other node.
+- **Variabile unica:** EventStream replay projection for `mutation_failure` only; nessuna modifica mutation execution, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_event_stream.py`, poi suite event/mutation/file recovery.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

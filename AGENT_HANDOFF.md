@@ -4,11 +4,11 @@
 Record completion of bounded mutation failure-event acceptance iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `bcb663b` (`stagewarden: initialize workspace`).
-- CodeGraph synced/current: 139 files, 3805 nodes, 13004 edges.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `3400bc9` (`stagewarden: initialize workspace`).
+- CodeGraph synced/current: 139 files, 3805 nodes, 13018 edges.
 - Baseline `/tmp/mutation-journal-failure-recovery-baseline-next.log` was `2/3`: failed result and failed journal status passed; failure-event assertion was absent.
-- TDD adds fixed `3/3` failure matrix in `tests/test_mutation_execution.py`; runtime now emits node-scoped `mutation_failure` after failed journal closure for all 15 declared mutating file actions. Mutation semantics, replay, recovery and stable keys remain unchanged.
-- Wet evidence: failure matrix `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); mutation/event/file-recovery suite `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` (`/tmp/mutation-journal-failure-event-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/mutation-journal-failure-event-omniroute.log`); docs/diff checker green (`/tmp/mutation-journal-failure-event-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- TDD adds fixed `3/3` failure matrix in `tests/test_mutation_execution.py`; runtime now emits node-scoped `mutation_failure` after failed journal closure for all 16 declared mutating file actions. Mutation semantics, replay, recovery and stable keys remain unchanged.
+- Wet evidence: failure matrix `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); mutation/event/file-recovery suite `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` (`/tmp/mutation-journal-failure-event-unified-final.log`), including full discovery; direct OmniRoute smoke green (`/tmp/mutation-journal-failure-event-omniroute-final.log`); docs/diff checker green (`/tmp/mutation-journal-failure-event-check-final.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
