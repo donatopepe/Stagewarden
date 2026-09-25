@@ -225,14 +225,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/mutation-journal-completed-replay-final.log`; TDD; mutation/event/file-recovery targeted `76/76`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3804/12989`, up to date; JSON, `py_compile` e `git-diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — mutation journal failure-event acceptance
+### Iterazione bounded completata — mutation journal failure-event acceptance
 
 - **Obiettivo:** aggiungere TDD coverage per terminal mutation failure result/journal status e failure event observability, senza cambiare mutation semantics.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/mutation-journal-failure-recovery-baseline-next.log` = `2/3`; result e journal failed passavano, failure event assertion mancava.
 - **Casi fissi/ordine:** failed mutation result; failed journal status; node-scoped `mutation_failure` event.
-- **Variabile unica:** TDD coverage only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_mutation_execution.py`, poi suite mutation/event/file recovery.
+- **Variabile unica:** failure-event emission for declared mutating file actions only; nessuna modifica MutationJournal semantics, provider/model, fallback, scheduler o parallelismo.
+- **Esito:** matrice `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); evento ora emesso dopo terminale failed journal status per tutte 15 azioni file mutanti già dichiarate; targeted mutation/event/file-recovery `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` (`/tmp/mutation-journal-failure-event-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/mutation-journal-failure-event-omniroute.log`); `check_unified_validation.py` docs `17/17`, diff clean (`/tmp/mutation-journal-failure-event-check.log`); CodeGraph `139/3805/13004`, up to date; JSON, `py_compile` e `git diff-check` verdi. Full discovery green in unified gate; provider/model/fallback/parallel policy unchanged.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

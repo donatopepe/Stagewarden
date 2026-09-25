@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded mutation completed-replay acceptance iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded mutation failure-event acceptance iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3804 nodes, 12989 edges; HEAD `a7224e2` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/mutation-journal-completed-replay-baseline-next2.log` behavior `3/3`, but no dedicated replay-event matrix.
-- TDD adds completed mutation, stable replay key and idempotent second-call cases; runtime semantics unchanged.
-- Wet evidence: mutation replay matrix `3/3` (`/tmp/mutation-journal-completed-replay-final.log`); TDD `/tmp/mutation-journal-completed-replay-tdd.log`; mutation/event/file-recovery suite `76/76`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3804/12989`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `bcb663b` (`stagewarden: initialize workspace`).
+- CodeGraph synced/current: 139 files, 3805 nodes, 13004 edges.
+- Baseline `/tmp/mutation-journal-failure-recovery-baseline-next.log` was `2/3`: failed result and failed journal status passed; failure-event assertion was absent.
+- TDD adds fixed `3/3` failure matrix in `tests/test_mutation_execution.py`; runtime now emits node-scoped `mutation_failure` after failed journal closure for all 15 declared mutating file actions. Mutation semantics, replay, recovery and stable keys remain unchanged.
+- Wet evidence: failure matrix `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); mutation/event/file-recovery suite `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` (`/tmp/mutation-journal-failure-event-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/mutation-journal-failure-event-omniroute.log`); docs/diff checker green (`/tmp/mutation-journal-failure-event-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

@@ -2489,6 +2489,8 @@ class Executor:
             if mutation_key:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path="", status="completed" if ok else "failed", message=message)
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=ok, summary="multi-file patch", detail=message, error_type=None if ok else ("verification_failed" if result.ok and not verification_ok else "file_error"))
+            if mutation_key and not ok:
+                self.events.append("mutation_failure", tree_id="executor", node_id=step_id or None, purpose="mutation failure", message=message, mutation_key=mutation_key, action_type=action_type, status="failed")
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "preview_patch_files":
