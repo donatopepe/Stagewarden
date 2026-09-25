@@ -663,15 +663,14 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
 - **Esito:** context provider/model selection matrix `3/3`; context suite `10/10`; targeted MVP `121/121` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3733/12589`.
 
-### Sotto-iterazione bounded corrente — context budget boundary/unknown policy
+### Sotto-iterazione bounded completata — context budget boundary/unknown policy
 
 - **Obiettivo:** verify context budget remains fail-closed at zero/unknown limits and preserves compaction/chunk metadata, without changing provider/model selection or fallback.
 - **Metrica/soglia:** `3/3` fixed cases: zero available input caps chunk safely; unknown catalog budget reports unknown and does not infer limit; exact boundary compaction emits metadata. Threshold 3/3.
-- **Baseline:** `/tmp/context-boundary-baseline.log`: existing context suite `10/10 OK`; no fixed tests for zero/unknown catalog limits or exact budget boundary.
+- **Baseline:** `/tmp/context-boundary-baseline.log` = `3/3` behavior probe after defining fixed cases; no dedicated TDD matrix existed.
 - **Casi fissi/ordine:** configured window smaller than reserved+margin; unknown provider/model catalog; prompt exactly at available boundary.
 - **Variabile unica:** boundary acceptance assertions over existing `_context_budget`/chunk/compaction paths; no runtime policy/provider/fallback/scheduler change.
-- **Test wet target:** nuova matrice `3/3` in `tests/test_context_file_reading.py`, then unified runner.
-- **Esito:** context boundary matrix `3/3`; context suite `11/11`; targeted MVP `122/122` (`1` skip); unified runner `6/6`; OmniRoute direct smoke green; CodeGraph `139/3734/12601`.
+- **Esito:** TDD matrix `3/3` (`/tmp/context-boundary-tdd-final.log`); context/file/event targeted `49/49` (`/tmp/context-boundary-targeted.log`); unified validation `6/6` (`/tmp/context-boundary-unified.log`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/context-boundary-omniroute.log`); docs `17/17`, diff clean (`/tmp/context-boundary-check.log`); CodeGraph `139/3807/13032`, up to date; JSON, `py_compile` and `git diff-check` green. Full discovery green; provider/model/fallback/parallel policy unchanged.
 
 ### Sotto-iterazione bounded corrente — retry checkpoint/replay safety
 

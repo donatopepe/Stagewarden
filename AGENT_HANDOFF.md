@@ -1,14 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded mutation failure replay-projection iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded context budget boundary/unknown-policy acceptance iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `31cb44e` (`stagewarden: initialize workspace`).
-- CodeGraph synced/current: 139 files, 3806 nodes, 13021 edges.
-- Baseline `/tmp/mutation-failure-replay-baseline.log` was `1/3`: event node scope passed; replay key and failed status were absent.
-- TDD adds fixed `3/3` replay matrix in `tests/test_event_stream.py`; EventStream now projects `mutation_failure` with stable key/status and node scope. Mutation execution, journal, replay/recovery semantics otherwise unchanged.
-- Wet evidence: replay matrix `3/3` (`/tmp/mutation-failure-replay-tdd-final.log`); event/mutation/file-recovery suite `78/78` (`/tmp/mutation-failure-replay-targeted.log`); unified validation `6/6` (`/tmp/mutation-failure-replay-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/mutation-failure-replay-omniroute.log`); docs/diff checker green (`/tmp/mutation-failure-replay-check-final.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `5f4d15c` (`stagewarden: initialize workspace`).
+- CodeGraph synced/current: 139 files, 3807 nodes, 13032 edges.
+- Baseline `/tmp/context-boundary-baseline.log` records `3/3` fixed behavior cases, but no dedicated TDD matrix existed.
+- TDD adds fixed `3/3` context boundary matrix in `tests/test_context_file_reading.py`; existing context paths remain unchanged. Zero available budget stays bounded, unknown catalog limits remain unknown, and exact prompt boundary preserves compaction metadata.
+- Wet evidence: TDD matrix `3/3` (`/tmp/context-boundary-tdd-final.log`); context/file/event suite `49/49` (`/tmp/context-boundary-targeted.log`); unified validation `6/6` (`/tmp/context-boundary-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/context-boundary-omniroute.log`); docs/diff checker green (`/tmp/context-boundary-check.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 

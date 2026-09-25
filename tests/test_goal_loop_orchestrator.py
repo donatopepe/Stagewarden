@@ -164,6 +164,9 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 reopened = GoalLoopOrchestrator(config, "retry checkpoint", execution_mode="mock", json_mode=True)
                 self.assertEqual(reopened.nodes[node.node_id].retry_count, 1)
                 self.assertEqual(reopened.nodes[node.node_id].status, "pending")
+                retry_replay = reopened.events.replay(node_id=node.node_id)["nodes"][node.node_id]
+                self.assertEqual(retry_replay["retry_count"], 1)
+                self.assertEqual(retry_replay["max_retries"], 1)
                 reopened.knowledge.close()
                 # 3. max retry ceiling leaves node blocked, no second retry event
                 orchestrator._execute_node(node)
