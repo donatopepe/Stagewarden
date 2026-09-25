@@ -189,14 +189,23 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Variabile unica:** TDD coverage only; nessuna modifica schema/runtime, EventStream cursor semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
 - **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-registry-scope-final.log`; TDD; CLI/schema targeted `5/5`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3801/12967`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
 
-### Iterazione bounded corrente — EventStream CLI JSON schema cursor semantics
+### Iterazione bounded completata — EventStream CLI JSON schema cursor semantics
 
 - **Obiettivo:** coprire TDD cursor semantics `after=0`, end-of-stream e mid-stream per node-scoped `events follow --json`, preservando schema metadata.
 - **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
 - **Baseline:** `/tmp/event-follow-cli-json-schema-registry-cursor-baseline.log` = `3/3` behavior green, ma nessuna dedicated cursor-boundary matrix.
 - **Casi fissi/ordine:** cursor zero returns two node events; cursor at end returns empty; mid cursor returns only later event.
 - **Variabile unica:** TDD coverage only; nessuna modifica schema/runtime, EventStream cursor semantics, scheduler, provider/model, fallback, retrieval o parallelismo.
-- **Test wet target:** nuova matrice TDD in `tests/test_trace_cli.py`, poi suite CLI/event/goal-loop.
+- **Esito:** matrice `3/3` in `/tmp/event-follow-cli-json-schema-registry-cursor-final.log`; TDD; CLI/schema targeted `6/6`, event suite `12/12`, goal-loop/support suite `48/48`; unified validation `6/6` (simulation `29/29`, targeted MVP green, full discovery green, CLI `3/3`, docs `17/17`); direct OmniRoute `OmniRoute free route OK (auto/coding:free)`; CodeGraph `139/3802/12972`, up to date; JSON, `py_compile` e `git diff-check` verdi. Provider/model/fallback/parallel policy unchanged.
+
+### Iterazione bounded corrente — file-read checkpoint start validation
+
+- **Obiettivo:** rendere fail-closed `NodeKnowledgeStore.checkpoint_file_chunk()` per start offset non intero, evitando coercione implicita prima di SQLite write.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Baseline:** `/tmp/file-read-checkpoint-start-baseline.log` = `0/3`; string start veniva convertito a `0` e avanzava checkpoint.
+- **Casi fissi/ordine:** string start rejects; float start rejects; bool start rejects; persisted `next_offset` remains zero after rejection.
+- **Variabile unica:** strict checkpoint start validation; nessuna modifica chunk limits, complete-read drift guards, compaction, provider/model, fallback, scheduler o parallelismo.
+- **Test wet target:** nuova matrice TDD in `tests/test_file_read_recovery.py`, poi suite file/Node Knowledge/context/event.
 
 ### Iterazione bounded completata — recovery non-integral file chunk size
 

@@ -1,14 +1,14 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded EventStream CLI JSON-schema registry-scope iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded EventStream CLI JSON-schema cursor-semantics iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
 - Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree.
-- CodeGraph synced/current: 139 files, 3801 nodes, 12967 edges; HEAD `9e2c35b` (`stagewarden: initialize workspace`).
-- Baseline `/tmp/event-follow-cli-json-schema-registry-scope-baseline.log` behavior `2/3`; node-b cursor schema scope case lacked dedicated TDD coverage.
-- TDD adds three fixed node-scope/schema cases; cursor semantics unchanged.
-- Wet evidence: registry-scope matrix `3/3` (`/tmp/event-follow-cli-json-schema-registry-scope-final.log`); TDD `/tmp/event-follow-cli-json-schema-registry-scope-tdd.log`; CLI/schema targeted `5/5`; event suite `12/12`; goal-loop/support suite `48/48`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3801/12967`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- CodeGraph synced/current: 139 files, 3802 nodes, 12972 edges; HEAD `71019f9` (`stagewarden: initialize workspace`).
+- Baseline `/tmp/event-follow-cli-json-schema-registry-cursor-baseline.log` behavior `3/3`, but no dedicated cursor-boundary TDD matrix.
+- TDD adds three fixed cursor semantics cases; runtime/schema unchanged.
+- Wet evidence: cursor matrix `3/3` (`/tmp/event-follow-cli-json-schema-registry-cursor-final.log`); TDD `/tmp/event-follow-cli-json-schema-registry-cursor-tdd.log`; CLI/schema targeted `6/6`; event suite `12/12`; goal-loop/support suite `48/48`; unified validation `6/6`; simulation `29/29`; CLI `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3802/12972`, current; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.

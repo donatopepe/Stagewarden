@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-EventStream CLI JSON-schema registry-scope iteration complete. `events follow --json` preserves schema/version and node scope across node-a/node-b cursor and initial reads. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+EventStream CLI JSON-schema cursor-semantics iteration complete. `events follow --json` preserves after=0, end-of-stream and mid-stream cursor behavior with schema metadata. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: verify node-scoped schema/cursor follow across two nodes without changing EventStream semantics.
-- Metric/threshold: fixed registry-scope matrix `3/3`.
-- Baseline: `/tmp/event-follow-cli-json-schema-registry-scope-baseline.log` behavior `2/3`; node-b cursor case lacked dedicated coverage.
+- Objective: verify cursor zero/end/middle semantics for node-scoped `events follow --json` without changing EventStream semantics.
+- Metric/threshold: fixed cursor-semantics matrix `3/3`.
+- Baseline: `/tmp/event-follow-cli-json-schema-registry-cursor-baseline.log` behavior `3/3`; dedicated matrix missing.
 - Change: added TDD coverage only; runtime/schema unchanged.
-- Wet evidence: matrix `3/3` (`/tmp/event-follow-cli-json-schema-registry-scope-final.log`); CLI/schema `5/5`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3801/12967`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
+- Wet evidence: matrix `3/3` (`/tmp/event-follow-cli-json-schema-registry-cursor-final.log`); CLI/schema `6/6`, event `12/12`, goal-loop/support `48/48`; unified validation `6/6`; simulation `29/29`; CLI smoke `3/3`; docs `17/17`; direct OmniRoute smoke green; CodeGraph `139/3802/12972`; py_compile, JSON and `git diff-check` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

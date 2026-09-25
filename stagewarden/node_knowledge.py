@@ -280,6 +280,8 @@ class NodeKnowledgeStore:
         return dict(row)
 
     def checkpoint_file_chunk(self, session_id: str, *, start: int, content: str, content_hash: str) -> dict[str, Any]:
+        if isinstance(start, bool) or not isinstance(start, int):
+            raise ValueError("File checkpoint start offset must be an integer.")
         state = self.file_read_status(session_id)
         if state["status"] != "active":
             raise ValueError("File read session is not active.")

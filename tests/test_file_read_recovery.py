@@ -37,6 +37,26 @@ class FileReadRecoveryTests(unittest.TestCase):
                 self.assertEqual(final["status"], "complete")
                 self.assertEqual(resumed.read_file_content(session["session_id"]), content)
 
+    def test_file_read_checkpoint_start_input_validation_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "knowledge.sqlite"
+            content = "abcdefghij"
+            digest = "sha256:" + hashlib.sha256(content.encode()).hexdigest()
+            with NodeKnowledgeStore(path) as store:
+                session = store.begin_file_read(
+                    tree_id="tree",
+                    node_id="node",
+                    path="source.txt",
+                    purpose="checkpoint",
+                    chunk_size=5,
+                    total_chars=len(content),
+                    content_hash=digest,
+                )
+                for raw_start in ("0", 0.0, False):
+                    with self.assertRaises(ValueError):
+                        store.checkpoint_file_chunk(session["session_id"], start=raw_start, content="a", content_hash=digest)  # type: ignore[arg-type]
+                    self.assertEqual(store.file_read_status(session["session_id"])["next_offset"], 0)
+
     def test_file_read_checkpoint_rejects_oversized_chunk_and_total_overrun(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"
