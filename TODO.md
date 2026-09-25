@@ -592,7 +592,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Baseline:** `/tmp/stagewarden-reconciliation-cycle-baseline.log`: three unresolved approval rows, main branch and one main worktree verified; no runtime item authorized.
 - **Casi fissi/ordine:** unified runner; OmniRoute direct smoke; CodeGraph sync/status; branch/worktree; consistency checks su TODO, handoff JSON/Markdown e diff.
 - **Variabile unica:** aggiornamento evidence/status metadata e checkbox già dimostrate; nessuna modifica a esecuzione, provider/model, fallback, parallelismo o API.
-- **Esito:** current reconciliation matrix `3/3` (`/tmp/stagewarden-reconciliation-cycle-baseline.log`); unified runner `6/6` (`/tmp/stagewarden-reconciliation-cycle-unified.log`); simulation `29/29`; full discovery `658/658` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/stagewarden-reconciliation-cycle-omniroute.log`); docs `17/17`, `0` errori; handoff JSON valido; `git diff --check` OK; CodeGraph `140/3825/13116`, up to date; branch `main`, unico worktree; HEAD `d49f71e3dacbef6e176e9b802d37add799b5ace0`.
+- **Esito:** reconciliation matrix `3/3` (`/tmp/stagewarden-reconciliation-cycle-baseline.log`); unified runner `6/6` (`/tmp/stagewarden-reconciliation-current-unified.log`); simulation `29/29`; full discovery `658/658` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/stagewarden-reconciliation-current-omniroute.log`); docs `17/17`, `0` errori; handoff JSON valido; `git diff --check` OK; CodeGraph `140/3825/13116`, up to date; branch `main`, unico worktree; HEAD `d49f71e3dacbef6e176e9b802d37add799b5ace0`.
 
 ### Archivio iterazione — unified scenario/full wet runner
 
