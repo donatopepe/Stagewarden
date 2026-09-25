@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Context metadata redaction/replay safety acceptance complete. Provider/model/context metadata survives deterministic replay, secret-like values remain redacted and node filters remain isolated. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Serial gate fail-closed acceptance complete. Default auto and explicit mock remain serial-safe; unsupported `parallel`/`bogus` modes fail closed. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: verify context metadata replay/redaction safety without changing event semantics.
-- Metric/threshold: fixed redaction/replay matrix `3/3`.
-- Baseline: `/tmp/context-redaction-matrix-baseline.log` = `3/3` behavior; dedicated evidence absent.
-- Change: recorded one fixed safety matrix only; no provider/model/fallback/scheduler/parallel change.
-- Wet evidence: matrix `3/3` (`/tmp/context-redaction-matrix-baseline.log`); event/context `49/49` (`/tmp/context-redaction-targeted.log`); unified validation `6/6` including full discovery (`/tmp/context-redaction-unified.log`); direct OmniRoute smoke green (`/tmp/context-redaction-omniroute.log`); docs `17/17` and diff clean (`/tmp/context-redaction-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: verify goal-loop execution modes remain serial-safe without legacy parallel implementation.
+- Metric/threshold: fixed serial gate matrix `3/3`.
+- Baseline: `/tmp/current-mvp-boundary-baseline.log` = `2/2` focused tests green; dedicated 3-case matrix evidence absent.
+- Change: recorded one fixed serial safety matrix only; no provider/model/fallback/scheduler/parallel implementation change.
+- Wet evidence: matrix `3/3` (`/tmp/serial-mode-matrix-baseline.log`); targeted MVP `152/152` (`/tmp/serial-mode-targeted.log`); unified validation `6/6` including full discovery (`/tmp/serial-mode-unified.log`); direct OmniRoute smoke green (`/tmp/serial-mode-omniroute.log`); docs `17/17` and diff clean (`/tmp/serial-mode-check.log`); CodeGraph `139/3807/13033`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

@@ -52,12 +52,14 @@ def _run(command: list[str], *, cwd: Path, timeout: int) -> dict[str, Any]:
     }
 
 
-def _json_ok(stdout: str) -> bool:
+def _json_payload(stdout: str) -> Any | None:
     try:
-        json.loads(stdout)
+        return json.loads(stdout)
     except json.JSONDecodeError:
-        return False
-    return True
+        return None
+
+def _json_ok(stdout: str) -> bool:
+    return _json_payload(stdout) is not None
 
 
 def _evaluate(gate: dict[str, Any], runs: list[dict[str, Any]]) -> tuple[bool, str]:
@@ -68,13 +70,12 @@ def _evaluate(gate: dict[str, Any], runs: list[dict[str, Any]]) -> tuple[bool, s
         contains = expect.get("stdout_contains")
         if contains and str(contains) not in run["stdout"]:
             return False, f"stdout missing {contains!r}"
-        if expect.get("json") and not _json_ok(run["stdout"]):
+        payload = _json_payload(run["stdout"]) if expect.get("json") or isinstance(expect.get("json"), dict) else None
+        if expect.get("json") and payload is None:
             return False, "stdout is not JSON"
         json_expect = expect.get("json") if isinstance(expect.get("json"), dict) else {}
         if json_expect:
-            try:
-                payload = json.loads(run["stdout"])
-            except json.JSONDecodeError:
+            if payload is None:
                 return False, "stdout is not JSON"
             for path, expected in json_expect.items():
                 value: Any = payload
@@ -106,9 +107,11 @@ def run_matrix(*, timeout: int = 1800) -> dict[str, Any]:
                 "detail": detail,
                 "runs": [
                     {
-                        **run,
-                        "stdout": run["stdout"][-4000:],
-                        "stderr": run["stderr"][-4000:],
+                        "command": run["command"],
+                        "returncode": run["returncode"],
+                        "duration_ms": run["duration_ms"],
+                        "stdout_tail": run["stdout"][-4000:],
+                        "stderr_tail": run["stderr"][-4000:],
                     }
                     for run in runs
                 ],
