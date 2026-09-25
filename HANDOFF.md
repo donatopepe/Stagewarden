@@ -1,14 +1,14 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Mutation failure-event acceptance iteration complete. Failed declared mutating file actions close journal with `failed` status and emit node-scoped `mutation_failure` metadata. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
+Mutation failure replay-projection iteration complete. Failed declared mutating file actions close journal with `failed` status, emit node-scoped `mutation_failure`, and deterministic replay now exposes key/status. No new runtime scope selected. Direct free smoke remains green; multi-node route stability remains unproven. Automatic bounded continuation loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 remains incremental and approval-gated.
 
 ## Latest bounded iteration
-- Objective: cover terminal mutation failure result, failed journal status and node-scoped failure-event observability without changing mutation semantics.
-- Metric/threshold: fixed failure matrix `3/3`.
-- Baseline: `/tmp/mutation-journal-failure-recovery-baseline-next.log` = `2/3`; failure event was not emitted.
-- Change: added one fixed TDD matrix and failure-event emission after journal closure across 16 declared mutating file actions; no provider/model/fallback/scheduler/parallel change.
-- Wet evidence: matrix `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); mutation/event/file-recovery `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` including full discovery (`/tmp/mutation-journal-failure-event-unified-final.log`); direct OmniRoute smoke green (`/tmp/mutation-journal-failure-event-omniroute-final.log`); docs `17/17` and diff clean (`/tmp/mutation-journal-failure-event-check-final.log`); CodeGraph `139/3805/13018`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Objective: project `mutation_failure` into node-scoped replay with stable key and failed status without changing mutation execution or journal semantics.
+- Metric/threshold: fixed replay matrix `3/3`.
+- Baseline: `/tmp/mutation-failure-replay-baseline.log` = `1/3`; event scope passed, replay key/status absent.
+- Change: added replay projection and fixed TDD matrix; no provider/model/fallback/scheduler/parallel change.
+- Wet evidence: matrix `3/3` (`/tmp/mutation-failure-replay-tdd-final.log`); event/mutation/file-recovery `78/78` (`/tmp/mutation-failure-replay-targeted.log`); unified validation `6/6` including full discovery (`/tmp/mutation-failure-replay-unified.log`); direct OmniRoute smoke green (`/tmp/mutation-failure-replay-omniroute.log`); docs `17/17` and diff clean (`/tmp/mutation-failure-replay-check.log`); CodeGraph `139/3806/13021`, current; JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
 
 ## Product direction
 - One operational tree of nodes.

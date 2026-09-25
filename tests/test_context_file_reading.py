@@ -539,6 +539,41 @@ class ContextAwareFileReadingTests(unittest.TestCase):
                 self.assertIn(key, compact_details)
             executor.close()
 
+
+    def test_context_boundary_matrix_has_three_fixed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("x" * 200, encoding="utf-8")
+            # 1. Configured budget below reserved output/margin stays bounded.
+            zero_executor = self._executor(root, context_window_tokens=20, context_reserved_output_tokens=15, context_safety_margin_tokens=10, file_chunk_chars=50)
+            zero_budget = zero_executor._context_budget("cheap")
+            self.assertEqual(zero_budget["available_input"], 0)
+            zero_executor._active_context_budget = zero_budget
+            zero = zero_executor._run_action({"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 50}, step_id="node.zero-budget")
+            self.assertTrue(zero["ok"])
+            self.assertEqual(len(zero["content"]), 50)
+            self.assertEqual(zero["report"]["effective_size"], 50)
+            zero_executor.close()
+            # 2. Unknown catalog identity does not infer a context limit.
+            unknown_executor = self._executor(root)
+            unknown_budget = unknown_executor._context_budget("unknown-provider-model")
+            self.assertIsNone(unknown_budget["context_window"])
+            self.assertIsNone(unknown_budget["input_limit"])
+            self.assertIsNone(unknown_budget["available_input"])
+            self.assertEqual(unknown_budget["measurement"], "unknown")
+            unknown_executor.close()
+            # 3. Exact prompt boundary compacts and preserves bounded metadata.
+            boundary_executor = self._executor(root, context_window_tokens=100, context_reserved_output_tokens=20, context_safety_margin_tokens=10, context_chars_per_token=4)
+            boundary_budget = boundary_executor._context_budget("cheap")
+            step = PlanStep("step-1", "Inspect", "inspect repository", "run tests", wet_run_required=False)
+            prompt = boundary_executor._build_prompt(task="x" * 200, step=step, plan=[step], last_observation="y" * 200, context_budget=boundary_budget)
+            max_chars = int(boundary_budget["available_input"] * boundary_executor._context_chars_per_token)
+            self.assertLessEqual(len(prompt), max_chars)
+            compact = boundary_executor.events.read(event="context_compaction")
+            self.assertTrue(compact)
+            self.assertEqual(compact[-1]["details"]["available_input_tokens"], boundary_budget["available_input"])
+            boundary_executor.close()
+
     def test_context_provider_selection_matrix_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

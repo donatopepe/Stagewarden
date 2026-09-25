@@ -1,14 +1,15 @@
 # Agent Handoff
 
 ## Current objective
-Record completion of bounded mutation failure-event acceptance iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
+Record completion of bounded mutation failure replay-projection iteration from `TODO.md`; preserve node-scoped recovery, same-root ownership, serial execution, manual provider/model ownership and fail-closed OmniRoute handling. No new runtime scope is authorized until next substantive TODO item or user decision gate is selected. Automatic bounded continuation loop remains active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`). Full v3 extensions remain approval-gated.
 
 ## Current state
-- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `3400bc9` (`stagewarden: initialize workspace`).
-- CodeGraph synced/current: 139 files, 3805 nodes, 13018 edges.
-- Baseline `/tmp/mutation-journal-failure-recovery-baseline-next.log` was `2/3`: failed result and failed journal status passed; failure-event assertion was absent.
-- TDD adds fixed `3/3` failure matrix in `tests/test_mutation_execution.py`; runtime now emits node-scoped `mutation_failure` after failed journal closure for all 16 declared mutating file actions. Mutation semantics, replay, recovery and stable keys remain unchanged.
-- Wet evidence: failure matrix `3/3` (`/tmp/mutation-journal-failure-event-tdd-final.log`); mutation/event/file-recovery suite `77/77` (`/tmp/mutation-journal-failure-event-targeted-final.log`); unified validation `6/6` (`/tmp/mutation-journal-failure-event-unified-final.log`), including full discovery; direct OmniRoute smoke green (`/tmp/mutation-journal-failure-event-omniroute-final.log`); docs/diff checker green (`/tmp/mutation-journal-failure-event-check-final.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Checkout: `/home/public/Stagewarden`, branch `main`; sole main worktree; HEAD `31cb44e` (`stagewarden: initialize workspace`).
+- CodeGraph synced/current: 139 files, 3806 nodes, 13021 edges.
+- Baseline `/tmp/mutation-failure-replay-baseline.log` was `1/3`: event node scope passed; replay key and failed status were absent.
+- TDD adds fixed `3/3` replay matrix in `tests/test_event_stream.py`; EventStream now projects `mutation_failure` with stable key/status and node scope. Mutation execution, journal, replay/recovery semantics otherwise unchanged.
+- Wet evidence: replay matrix `3/3` (`/tmp/mutation-failure-replay-tdd-final.log`); event/mutation/file-recovery suite `78/78` (`/tmp/mutation-failure-replay-targeted.log`); unified validation `6/6` (`/tmp/mutation-failure-replay-unified.log`), including full discovery; direct OmniRoute smoke green (`/tmp/mutation-failure-replay-omniroute.log`); docs/diff checker green (`/tmp/mutation-failure-replay-check-final.log`); JSON and `py_compile` pass. Provider/model/fallback/parallel policy unchanged.
+- Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 - Multi-node OmniRoute malformed/truncated, wrong-contract and prose-wrapped outputs remain fail-closed blockers. Full v3 approval remains pending.
 
 - Documentation/specification rewrite remains baseline; canonical plan is `TODO.md`.
@@ -21,7 +22,7 @@ Record completion of bounded mutation failure-event acceptance iteration from `T
 - Goal-loop tree validator enforces one `root.scope`, known parent/dependency edges, root dependency absence and cycle rejection before capsule restore; blueprint now assigns explicit parent edges.
 - Ready-node selection is deterministic by parent depth then `node_id`; dependency completion remains mandatory and execution remains serial.
 - ResultPacket edge MVP is parent-scoped with evidence list; successful child results are forwarded only to declared parent through typed result message.
-- EventStream replay now projects cycle_id, cycle_phase, context_revision and last_checkpoint from node snapshots, plus context_compaction metadata and mutation_recovery key/status.
+- EventStream replay now projects cycle_id, cycle_phase, context_revision and last_checkpoint from node snapshots, plus context_compaction metadata and mutation failure/recovery/replay key/status.
 - `file_chunk` events now record available input tokens, prompt chars before/after and auto-compaction state for context-aware replay.
 - `context_compaction` events now record available input tokens, max_chars and prompt chars before/after.
 - Goal-loop control path rejects lateral/unknown sender-target messages; only declared parent↔child edges can append node message state.
