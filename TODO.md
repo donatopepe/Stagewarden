@@ -1,5 +1,59 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — automatic gate recheck 144
+
+- **Obiettivo:** rieseguire il gate fail-closed a HEAD `fd4a906` senza drift esterno; nessun runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting+HEAD aligned; dirty paths ⊆ metadata/handoff/loop.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gg.log` = `5/5`.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** nessun runtime item selezionato perché la baseline ha raggiunto la soglia; nessun TDD change. Local guards `json.tool`, `py_compile` e `git diff --check` passano. `pytest` resta assente (`/usr/bin/python3: No module named pytest`): nessun test result claim. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed. Ciclo 144 consecutivi con evidenza identica: loop sospeso fino alla risposta al decision gate continua a essere la raccomandazione.
+
+### Iterazione bounded completata — automatic gate recheck 143
+
+- **Obiettivo:** rieseguire il gate fail-closed a HEAD `fd4a906` senza drift esterno; nessun runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting+HEAD aligned; dirty paths ⊆ metadata/handoff/loop.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gf.log` = `5/5`.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** nessun runtime item selezionato perché la baseline ha raggiunto la soglia; nessun TDD change. Local guards `json.tool`, `py_compile` e `git diff --check` passano. `pytest` resta assente (`/usr/bin/python3: No module named pytest`): nessun test result claim. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed. Segnalato all'utente che il ciclo ripetuto aggiunge solo evidenza e non valore di prodotto: valutare sospensione del loop fino alla risposta al decision gate.
+
+### Iterazione bounded completata — automatic gate recheck 142
+
+- **Obiettivo:** rieseguire il gate fail-closed a HEAD `fd4a906` senza drift esterno; nessun runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting+HEAD aligned; dirty paths ⊆ metadata/handoff/loop.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ge.log` = `5/5`.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** nessun runtime item selezionato perché la baseline ha raggiunto la soglia; nessun TDD change. Local guards `json.tool`, `py_compile` e `git diff --check` passano. `pytest` resta assente (`/usr/bin/python3: No module named pytest`): nessun test result claim. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 141
+
+- **Obiettivo:** rieseguire il gate fail-closed a HEAD `fd4a906` senza drift esterno; nessun runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting+HEAD aligned; dirty paths ⊆ metadata/handoff/loop.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gd.log` = `5/5`.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** nessun runtime item selezionato perché la baseline ha raggiunto la soglia. Local guards `json.tool`, `py_compile` e `git diff --check` passano. `pytest` resta assente (`/usr/bin/python3: No module named pytest`): nessun test result claim. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 140
+
+- **Obiettivo:** rieseguire il gate fail-closed a HEAD `fd4a906` dopo la riconciliazione `git_head`; nessun runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting+HEAD aligned; dirty paths ⊆ metadata/handoff/loop.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gc.log` = `5/5`.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 139 (git_head reconcile)
+
+- **Obiettivo:** riconciliare il drift metadata `git_head` dopo commit esterno `1d8cb54 -> fd4a906` e rieseguire il gate fail-closed; nessun runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting+HEAD aligned; dirty paths ⊆ metadata/handoff/loop.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gb.log` = `5/5`; pre-evidenza drift `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gb-pre.log`.
+- **Variabile unica:** sola metadati (`git_head` in `.stagewarden_handoff.json`); nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
 ### Iterazione bounded completata — automatic gate recheck 138
 
 - **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
