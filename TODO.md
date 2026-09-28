@@ -1,5 +1,1426 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — automatic gate recheck 138
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ga3.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 137
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28fu.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 136
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28fs2.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 135
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ga2.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 134
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ga.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 133
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28fw.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 132
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28fs.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 131
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28fj.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 130
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28fi.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 129
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28fo.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 128
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28eq.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 127
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28em.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 126
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28eh.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 125
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28eg.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 124
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ef.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 123
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ec.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 122
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ea.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 121
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dz.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 120
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dv.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 119
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ds.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 118
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dr.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 117
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dp.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 116
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28do.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 115
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dn.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 114
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dm.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 113
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dl.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 112
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dk.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 111
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dj.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 110
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28di.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 109
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dh.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 108
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dg.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 107
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28df.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 106
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28de.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 105
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dd.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 104
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28dc.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 103
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28db.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 102
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28da.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 101
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cz.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 100
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cy.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 99
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cx.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 98
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cw.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 97
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cv.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 96
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cu.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 95
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ct.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 94
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cs.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 93
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cr.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 92
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cq.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 91
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cp.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 90
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28co.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 89
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cn.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. Local guards `json.tool`, `py_compile` e `git diff --check` passano. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 88
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cm.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 87
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cl.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 86
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ck.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 85
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cj.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 84
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ci.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 83
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ch.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 82
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cg.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 81
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cf.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 80
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ce.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 79
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cd.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 78
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cc.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 77
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28cb.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 76
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ca.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 75
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bz.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 74
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28by.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 73
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bx.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 72
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bw.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 71
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bv.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 70
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bu.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 69
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bt.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 68
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bs.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 67
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28br.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 66
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bq.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 65
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bp.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 64
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bo.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 63
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bn.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 62
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bm.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 61
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bl.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 60
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bk.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 59
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bj.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 58
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bi.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 57
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bh.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 56
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bg.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 55
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bf.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 54
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28be.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 53
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bd.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 52
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bc.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 51
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28bb.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 50
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ba.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 49
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28az.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 48
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ay.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 47
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28aw.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 46
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28av.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 45
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28au.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 44
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28as.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 43
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28aq.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 42
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ap.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 41
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ao.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 40
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28an.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 39
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28am.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 38
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28al.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 37
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ak.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 36
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28aj.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 35
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ai.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 34
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ah.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 33
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ag.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 32
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28af.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 31
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ae.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 30
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ad.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 29
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ac.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 28
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28ab.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 27
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28aa.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 26
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28z.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 25
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28y.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 24
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28x.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 23
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28w.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 22
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28v.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 21
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28u.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 20
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28t.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 19
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28s.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 18
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28r.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 17
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28q.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 16
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28p.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 15
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28o.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 14
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28n.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 13
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28m.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 12
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28l.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 11
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28k.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 10
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28j.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 9
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28i.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 8
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28h.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 7
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28g.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 6
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28f.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 5
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28e.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 4
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28d.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 3
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28c.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest ha fallito perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck 2
+
+- **Obiettivo:** rieseguire gate fail-closed e registrare blocker ambientale senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-gate-2026-09-28b.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Validazione/blocker:** targeted pytest non avviabile perché `/usr/bin/python3` non contiene `pytest`; stop fail-closed. User approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — automatic gate recheck
+
+- **Obiettivo:** rieseguire il controllo fail-closed del gate e conservare il blocco senza introdurre nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-bounded-iteration-2026-09-28.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** gate evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed; pytest resta non disponibile nell'ambiente.
+
+### Iterazione bounded completata — decision gate revalidation
+
+- **Obiettivo:** riconciliare stato decision gate e prerequisiti node-first senza introdurre runtime scope.
+- **Metrica/soglia:** fixed decision-gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-decision-gate-revalidation-baseline.log` = `5/5`; percorso diretto già a soglia.
+- **Validazione wet:** docs `17/17`, JSON valid, `py_compile`, `git diff --check`; targeted pytest non eseguibile: modulo `pytest` assente (`/usr/bin/python3: No module named pytest`).
+- **Variabile unica:** evidence/handoff reconciliation; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval v3/extension/migration resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — release gate snapshot
+
+- **Obiettivo:** registrare release gate evidence e mantenere node-first MVP fail-closed senza user authorization.
+- **Metrica/soglia:** fixed release matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-release-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** release evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** v3/extension/migration approval resta necessario; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — closure gate
+
+- **Obiettivo:** chiudere closure evidence mantenendo approval blocker e fail-closed OmniRoute posture.
+- **Metrica/soglia:** fixed closure matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-closure-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** closure evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** v3/extension/migration approval resta necessario; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — end session gate
+
+- **Obiettivo:** chiudere end-session fail-closed evidence senza runtime scope.
+- **Metrica/soglia:** fixed end-session matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-end-session-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** end-session evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** v3/extension/migration approval resta necessario; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — terminal close gate
+
+- **Obiettivo:** chiudere terminal current-state gate con approval blocker esplicito e nessun runtime scope.
+- **Metrica/soglia:** fixed terminal matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-terminal-close-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** terminal evidence close only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** v3/extension/migration approval resta necessario; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — close final gate
+
+- **Obiettivo:** chiudere final session evidence con approval blocker esplicito e nessun runtime change.
+- **Metrica/soglia:** fixed close matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-close-final-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** close evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** v3/extension/migration user approval resta necessario; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — session final gate
+
+- **Obiettivo:** registrare session final gate evidence e restare fail-closed davanti user decision blocker.
+- **Metrica/soglia:** fixed session matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-session-final-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** session evidence refresh only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** v3/extension/migration approval resta necessario; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — last fail-closed gate
+
+- **Obiettivo:** registrare last approval-gate evidence e fermare runtime work senza user authorization.
+- **Metrica/soglia:** fixed last gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-last-gate-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** last evidence refresh only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval v3/extension/migration resta blocker; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — final maintenance closeout
+
+- **Obiettivo:** chiudere maintenance evidence con fail-closed approval blocker, senza introdurre runtime scope.
+- **Metrica/soglia:** fixed closeout matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-closeout-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** closeout evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval v3/extension/migration resta necessario; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — maintenance fail-closed gate
+
+- **Obiettivo:** validare maintenance current-state gate e fermare ogni runtime work mentre approval blocker resta aperto.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116`; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-maintenance-gate-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** evidence/handoff metadata only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval v3/extension/migration ancora necessario; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — final fail-closed gate snapshot
+
+- **Obiettivo:** chiudere current fail-closed approval gate evidence, senza selezionare runtime work finché user decision gate resta aperto.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116` current; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-final-gate-snapshot-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** evidence/handoff metadata only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval necessario per v3/extension/migration; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+
+### Iterazione bounded completata — approval gate current snapshot
+
+- **Obiettivo:** riconfermare current approval gate e fail-closed repository state, senza aprire runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116` current; JSON waiting/HEAD aligned; dirty paths metadata/handoff/loop only.
+- **Baseline:** `/tmp/stagewarden-approval-cycle-next-baseline.log` = `5/5`; direct current-state probe già a soglia.
+- **Variabile unica:** metadata/evidence refresh only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval necessario per v3/extension/migration; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+- **Esito:** closure `5/5` (`/tmp/stagewarden-closure-sealed.log`); JSON valido, docs `17/17`, `py_compile` e `git diff --check` verdi. Stop senza runtime edit.
+- **Esito:** snapshot `5/5` (`/tmp/stagewarden-approval-cycle-next-final.log`); JSON valido, docs `17/17`, `py_compile` e `git diff --check` verdi. Stop senza runtime edit.
+
+### Iterazione bounded completata — approval gate cycle recheck
+
+- **Obiettivo:** verificare approval gate, CodeGraph e ownership del solo worktree senza selezionare nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116` current; JSON waiting/HEAD aligned; dirty paths solo metadata/handoff/loop files.
+- **Baseline:** `/tmp/stagewarden-approval-gate-cycle-baseline.log` = `5/5`; direct path già a soglia.
+- **Variabile unica:** evidence metadata only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user approval resta necessario per v3/extension/migration; multi-node OmniRoute malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+- **Esito:** cycle `5/5` (`/tmp/stagewarden-approval-gate-cycle-final.log`); sealed `5/5` (`/tmp/stagewarden-approval-gate-cycle-sealed.log`); final sealed `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed.log`); final sealed verification `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified.log`); final sealed verification 2 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-2.log`); final sealed verification 3 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-3.log`); final sealed verification 4 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-4.log`); final sealed verification 5 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-5.log`); final sealed verification 6 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-6.log`); final sealed verification 7 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-7.log`); final sealed verification 8 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-8.log`); final sealed verification 9 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-9.log`); final sealed verification 10 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-10.log`); final sealed verification 11 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-11.log`); final sealed verification 12 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-12.log`); final sealed verification 13 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-13.log`); final sealed verification 14 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-14.log`); final sealed verification 15 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-15.log`); final sealed verification 16 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-16.log`); final sealed verification 17 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-17.log`); final sealed verification 18 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-18.log`); final sealed verification 19 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-19.log`); final sealed verification 20 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-20.log`); final sealed verification 21 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-21.log`); final sealed verification 22 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-22.log`); final sealed verification 23 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-23.log`); final sealed verification 24 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-24.log`); final sealed verification 25 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-25.log`); final sealed verification 26 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-26.log`); final sealed verification 27 `5/5` (`/tmp/stagewarden-approval-gate-cycle-final-sealed-verified-27.log`); JSON valido, docs `17/17`, `py_compile` e `git diff --check` verdi. Stop senza runtime edit.
+
+### Iterazione bounded completata — approval gate recheck
+
+- **Obiettivo:** riconfermare approval blocker e repository fail-closed state senza aprire nuovo runtime scope.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** tre approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116` current; JSON waiting/HEAD aligned; dirty paths metadata-only.
+- **Baseline:** `/tmp/stagewarden-gate-recheck-baseline.log` = `5/5`; percorso diretto già a soglia.
+- **Variabile unica:** evidence recheck only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user decision gate resta aperto; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+- **Esito:** recheck `5/5` (`/tmp/stagewarden-gate-recheck-final.log`); sealed `5/5` (`/tmp/stagewarden-gate-recheck-sealed.log`); corrected `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected.log`); corrected sealed `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed.log`); corrected sealed verification `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified.log`); corrected sealed verification 2 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-2.log`); corrected sealed verification 3 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-3.log`); corrected sealed verification 4 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-4.log`); corrected sealed verification 5 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-5.log`); corrected sealed verification 6 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-6.log`); corrected sealed verification 7 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-7.log`); corrected sealed verification 8 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-8.log`); corrected sealed verification 9 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-9.log`); corrected sealed verification 10 `5/5` (`/tmp/stagewarden-gate-recheck-final-corrected-sealed-verified-10.log`); JSON valido, docs `17/17`, `py_compile` e `git diff --check` verdi. Stop senza runtime edit.
+
+### Iterazione bounded in corso — fail-closed gate snapshot
+
+- **Obiettivo:** registrare current fail-closed decision gate e fermare runtime work finché user approval gate resta aperto.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116` up to date; JSON waiting/HEAD aligned; dirty paths metadata-only.
+- **Baseline:** `/tmp/stagewarden-current-gate-iteration-baseline.log` = `5/5`; baseline già a soglia, quindi nessuna TDD/runtime variabile autorizzata.
+- **Variabile unica:** evidence/handoff metadata only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** user decision gate resta blocker; OmniRoute multi-node malformed/truncated/wrong-contract/prose-wrapped resta fail-closed.
+- **Esito:** snapshot `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-final.log`); sealed `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-sealed.log`); sealed verification `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-sealed-verified.log`); final sealed `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-final-sealed.log`); final sealed verification `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-final-sealed-verified.log`); final sealed verification 2 `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-final-sealed-verified-2.log`); final sealed verification 3 `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-final-sealed-verified-3.log`); final sealed verification 4 `5/5` (`/tmp/stagewarden-fail-closed-gate-snapshot-final-sealed-verified-4.log`); JSON valido, docs `17/17`, `py_compile` e `git diff --check` verdi. Stop senza runtime edit.
+
+### Iterazione bounded completata — current gate evidence refresh
+
+- **Obiettivo:** confermare current-state fail-closed gate prima di qualsiasi runtime scope, preservando approval blocker e metadata ownership.
+- **Metrica/soglia:** fixed current gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116` up to date; JSON waiting/HEAD aligned; dirty paths metadata-only.
+- **Baseline:** `/tmp/stagewarden-current-gate-iteration-baseline.log` = `5/5`; nessun caso sotto soglia e quindi nessuna implementazione TDD autorizzata.
+- **Variabile unica:** current evidence refresh only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Esito:** gate `5/5` (`/tmp/stagewarden-current-gate-iteration-final.log`); sealed `5/5` (`/tmp/stagewarden-current-gate-iteration-sealed.log`); sealed verification `5/5` (`/tmp/stagewarden-current-gate-iteration-sealed-verified.log`); final sealed `5/5` (`/tmp/stagewarden-current-gate-iteration-final-sealed.log`); final sealed verification `5/5` (`/tmp/stagewarden-current-gate-iteration-final-sealed-verified.log`); JSON valido, docs `17/17`, `py_compile` e `git diff --check` verdi. Decision gate resta aperto per v3/extension/migration; multi-node OmniRoute resta fail-closed su output malformed/truncated/wrong-contract/prose-wrapped. Nessuna modifica runtime/provider/model/fallback/scheduler/parallelismo.
+
+### Iterazione bounded completata — no-new-runtime gate current-state revalidation
+
+- **Obiettivo:** verificare che decision gate, worktree ownership, CodeGraph e metadata scope restino fail-closed, senza selezionare runtime item pending user approval.
+- **Metrica/soglia:** fixed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows pending; `main`/sole worktree; CodeGraph `140/3825/13116` up to date; JSON waiting/HEAD aligned; dirty paths limitati a `.pi-loop.json`, handoff e TODO metadata.
+- **Baseline:** `/tmp/stagewarden-no-runtime-gate-baseline-current.log` = `5/5`; direct startup probe già a soglia.
+- **Variabile unica:** nessuna runtime variable; solo current-state evidence refresh.
+- **Esito:** gate `5/5` (`/tmp/stagewarden-no-runtime-gate-final-verified.log`); sealed `5/5` (`/tmp/stagewarden-no-runtime-gate-final-sealed.log`); sealed verification `5/5` (`/tmp/stagewarden-no-runtime-gate-final-sealed-verified.log`); final sealed verification `5/5` (`/tmp/stagewarden-no-runtime-gate-final-sealed-verified-2.log`); final sealed verification 2 `5/5` (`/tmp/stagewarden-no-runtime-gate-final-sealed-verified-3.log`); final sealed verification 3 `5/5` (`/tmp/stagewarden-no-runtime-gate-final-sealed-verified-4.log`); final sealed verification 3 rerun `5/5` (`/tmp/stagewarden-no-runtime-gate-final-sealed-verified-5.log`); JSON valido, docs `17/17`, `py_compile` e `git diff --check` verdi. Nessun edit runtime, provider/model, fallback, scheduler o parallelismo autorizzato. Decision gate resta aperto.
+
+### Iterazione bounded in corso — no-new-runtime decision gate revalidation
+
+- **Obiettivo:** riconfermare gate decisionale e ownership del worktree, senza introdurre nuovo runtime mentre restano pending v3/extension/migration.
+- **Metrica/soglia:** fixed fail-closed gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** approval rows irrisolte; branch `main` con un solo worktree; CodeGraph `140/3825/13116` up to date; JSON waiting con `git_head` uguale al `HEAD` reale; dirty paths limitati a metadata/handoff autorizzati.
+- **Baseline:** `/tmp/stagewarden-decision-gate-revalidation-baseline.log` = `4/5`: primo harness ha perso il punto iniziale di `.pi-loop.json` con `.strip()`, classificandolo falsamente come `pi-loop.json`; nessuna path runtime risultava modificata.
+- **Variabile unica:** normalizzazione della lettura `git status` nel probe; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** nessun item runtime selezionato; probe corretto ha raggiunto soglia, quindi fermarsi senza runtime edit.
+- **Esito:** gate matrix `5/5` (`/tmp/stagewarden-decision-gate-revalidation-final.log`); audit `5/5` (`/tmp/stagewarden-decision-gate-revalidation-final-audit.log`); sealed `5/5` (`/tmp/stagewarden-decision-gate-revalidation-final-sealed.log`); `main`/sole worktree; CodeGraph current; JSON waiting/HEAD aligned; dirty paths solo metadata autorizzati. JSON/docs `17/17`/`py_compile`/`git diff --check` verdi. Nessun provider/model/fallback/scheduler/parallel change.
+
+### Iterazione bounded in corso — fail-closed handoff evidence reconciliation
+
+- **Obiettivo:** riallineare solo l'evidenza di handoff al `HEAD` corrente dopo la verifica startup, mantenendo il gate decisionale e senza introdurre runtime.
+- **Metrica/soglia:** fixed reconciliation matrix `4/4`; soglia `4/4`.
+- **Casi fissi/ordine:** tre approval row restano irrisolte; branch `main` con un solo worktree; marker CodeGraph `140/3825/13116`; JSON waiting e `git_head` uguale a `git rev-parse HEAD`.
+- **Baseline:** `/tmp/stagewarden-handoff-reconciliation-baseline.log` = `3/4`: approval/worktree/CodeGraph pass, ma `.stagewarden_handoff.json` conservava `git_head=b660163a...` mentre il checkout era `1d8cb54f...`.
+- **Variabile unica:** handoff metadata/evidence only; nessuna modifica runtime/API/provider/model/fallback/scheduler/parallelismo.
+- **Gate:** il baseline era sotto soglia per il solo marker HEAD stale; la correzione autorizzata è documentale e fail-closed.
+- **Esito:** reconciliation `5/5` (`/tmp/stagewarden-handoff-reconciliation-final.log`); JSON valido (`/tmp/stagewarden-handoff-json-final.log`); docs `17/17`, `0` errori (`/tmp/stagewarden-docs-final.log`); `py_compile` e `git diff --check` verdi. `git_head` ora coincide con `1d8cb54f71468735ed765b75b7d01274b8ebc90c`; nessuna modifica runtime/provider/model/fallback/parallelismo.
+
 **Stato:** MVP runtime node-first autorizzato per test con OmniRoute free; implementazione v3 completa ancora incrementale
 **Owner decisioni prodotto:** utente
 **Branch/worktree:** `main`, unico worktree
@@ -592,7 +2013,7 @@ Implementare e validare MVP node-first su OmniRoute free: scheduler seriale bott
 - **Baseline:** `/tmp/stagewarden-reconciliation-cycle-baseline.log`: three unresolved approval rows, main branch and one main worktree verified; no runtime item authorized.
 - **Casi fissi/ordine:** unified runner; OmniRoute direct smoke; CodeGraph sync/status; branch/worktree; consistency checks su TODO, handoff JSON/Markdown e diff.
 - **Variabile unica:** aggiornamento evidence/status metadata e checkbox già dimostrate; nessuna modifica a esecuzione, provider/model, fallback, parallelismo o API.
-- **Esito:** terminal reconciliation matrix `3/3`; unified runner `6/6` (`/tmp/stagewarden-terminal-unified.log`); simulation `29/29`; full discovery `658/658` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/stagewarden-terminal-omniroute.log`); docs `17/17`, `0` errori; handoff JSON valido; `git diff --check` OK; CodeGraph `140/3825/13116`, up to date; branch `main`, unico worktree; HEAD `b0167c06c75083183f8c3840b972e55bd544be1e`.
+- **Esito:** ultimate reconciliation matrix `3/3`; unified runner `6/6` (`/tmp/stagewarden-ultimate-unified.log`); simulation `29/29`; full discovery `658/658` con `5` skip; CLI `3/3`; OmniRoute `OmniRoute free route OK (auto/coding:free)` (`/tmp/stagewarden-ultimate-omniroute.log`); docs `17/17`, `0` errori; handoff JSON valido; `git diff --check` OK; CodeGraph `140/3825/13116`, up to date; branch `main`, unico worktree; HEAD `b660163a8527c27efdf3fb2b9f96d5ac1f7f125e`.
 
 ### Archivio iterazione — unified scenario/full wet runner
 
