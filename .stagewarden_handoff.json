@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "2026-09-28: one-hundred-forty-fourth automatic gate recheck baseline 5/5 at HEAD fd4a906 (no external drift; git_head reconciled in cycle 139); main/sole worktree, CodeGraph 140/3825/13116 current, JSON waiting/HEAD aligned, metadata/handoff/loop dirty paths only. No runtime item selected and no TDD change; targeted pytest unavailable (no module named pytest); local guards json.tool, py_compile and git diff --check pass; no runtime/provider/model/fallback/parallel change. User decision gate remains active; loop suspension until the gate answer is still recommended after repeated identical cycles.",
+  "latest_observation": "2026-09-28: cycle 145 resolved the long-standing pytest environment blocker. Root cause: repo venv/pyvenv.cfg points at macOS path /Library/Developer/CommandLineTools/usr/bin (py3.9.6) and is unusable on this Linux host, and system pip is PEP 668 externally-managed (--break-system-packages deliberately NOT used). Fix: isolated venv outside the repo at /tmp/stagewarden-pytest-venv (--system-site-packages) with pytest 9.1.1. Real wet evidence now claimable: targeted fixed suite 109 passed in 7.86s; full discovery 653 passed, 5 skipped, 0 failures, 658 collected matching historical count, so no regressions. Log /tmp/stagewarden-pytest-env-restore-2026-09-28gh.log. External commit fd4a906 -> 63baf05 landed mid-cycle and git_head was reconciled to 63baf05b88b98d3d8059556a3924e1fc36ebe4ce; post-reconcile gate /tmp/stagewarden-bounded-iteration-gate-2026-09-28gh-post.log = 5/5. CodeGraph 140/3825/13116 current, main sole worktree, JSON waiting/HEAD aligned, dirty paths metadata only. No runtime/provider/model/fallback/scheduler/parallel change. User decision gate remains active.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "fd4a9063efb38e0c770eb17ce945ed41c7275607",
+  "git_head": "63baf05b88b98d3d8059556a3924e1fc36ebe4ce",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -2740,7 +2740,7 @@
           },
           "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
           "error_message": null,
-          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
+          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
           "messages_sent": [
             {
               "FROM": "root.scope",
@@ -2814,7 +2814,7 @@
         },
         "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
         "error_message": null,
-        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
+        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
         "messages_sent": [
           {
             "FROM": "root.scope",

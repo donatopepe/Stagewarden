@@ -1,5 +1,16 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 145: pytest environment restored (BLOCKER RISOLTO)
+
+- **Obiettivo:** rimuovere il blocker ambientale `pytest` che impediva ogni test wet da oltre 140 cicli, senza toccare il runtime.
+- **Metrica/soglia:** targeted suite pass rate; soglia 100% dei 6 file fissi, 0 collection error. Gate matrix `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** 1 `test_planner` · 2 `test_goal_loop_orchestrator` · 3 `test_node_knowledge` · 4 `test_event_stream` · 5 `test_file_read_recovery` · 6 `test_context_file_reading`.
+- **Baseline:** `python3 -m pytest` → `/usr/bin/python3: No module named pytest`; 0/6 file collezionabili. `venv/pyvenv.cfg` punta a `home = /Library/Developer/CommandLineTools/usr/bin` (path macOS, Python 3.9.6) ed è inutilizzabile su questo host Linux. `pip install --user` rifiutato da PEP 668; `--break-system-packages` NON usato per non rischiare l'installazione di sistema.
+- **Variabile unica:** creazione di un venv isolato fuori dal repository con `python3 -m venv --system-site-packages /tmp/stagewarden-pytest-venv` e installazione di `pytest 9.1.1`. Nessuna modifica a runtime/API/provider/model/fallback/scheduler/parallelismo; nessun file tracciato modificato dal test.
+- **Esito wet reale:** targeted `109 passed in 7.86s`; full discovery `653 passed, 5 skipped in 324.45s (0:05:24)`, 0 fallimenti, 658 test raccolti coerenti con il conteggio storico. Evidenza: `/tmp/stagewarden-pytest-env-restore-2026-09-28gh.log`.
+- **Drift esterno:** durante il ciclo un commit esterno `fd4a906 -> 63baf05` ha committato i metadati; `git_head` riconciliato a `63baf05b88b98d3d8059556a3924e1fc36ebe4ce`. Gate post-riconciliazione `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gh-post.log` = `5/5`.
+- **Note operative:** il venv vive in `/tmp` e non nel repository, quindi non sporca il dirty-path gate; se `/tmp` viene pulito, il comando di rigenerazione è sopra. Da qui in poi i test wet sonoclaimable e il blocco storico "pytest assente" non vale più.
+
 ### Iterazione bounded completata — automatic gate recheck 144
 
 - **Obiettivo:** rieseguire il gate fail-closed a HEAD `fd4a906` senza drift esterno; nessun runtime scope.
