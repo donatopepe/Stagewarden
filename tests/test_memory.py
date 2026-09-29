@@ -8,6 +8,54 @@ from stagewarden.memory import MemoryStore
 
 
 class MemoryTests(unittest.TestCase):
+    CORRUPT_MEMORY_BODIES = {
+        "not json": "this is not json",
+        "top-level list": "[1, 2, 3]",
+        "top-level string": '"a string"',
+        "top-level number": "42",
+        "truncated": '{"attempts": [',
+        "empty file": "",
+        "null": "null",
+        "attempts not list": '{"attempts": {"a": 1}}',
+        "attempt not dict": '{"attempts": ["oops"]}',
+        "tool_transcript not list": '{"tool_transcript": "oops"}',
+    }
+
+    def test_load_degrades_to_empty_store_on_corrupt_persisted_json(self) -> None:
+        """A corrupt memory file must behave like a missing one, not crash.
+
+        record_external_io_evidence and record_system_evidence call
+        MemoryStore.load with no error handling, so a corrupt persisted file
+        used to raise JSONDecodeError/AttributeError out of the evidence path.
+        """
+        for label, body in self.CORRUPT_MEMORY_BODIES.items():
+            with self.subTest(body=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "memory.json"
+                    path.write_text(body, encoding="utf-8")
+                    store = MemoryStore.load(path)
+                    self.assertEqual(store.attempts, [])
+                    self.assertEqual(store.tool_transcript, [])
+
+    def test_load_missing_and_valid_files_behave_as_before(self) -> None:
+        """Controls: a missing file is empty, and a real save round-trips."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            missing = MemoryStore.load(root / "absent.json")
+            self.assertEqual(missing.attempts, [])
+            self.assertEqual(missing.tool_transcript, [])
+
+            path = root / "memory.json"
+            saved = MemoryStore()
+            saved.record_attempt(
+                iteration=1, step_id="s1", model="m", action_type="shell",
+                action_signature="sig", success=True, observation="ok",
+            )
+            saved.save(path)
+            loaded = MemoryStore.load(path)
+            self.assertEqual(len(loaded.attempts), 1)
+            self.assertEqual(loaded.attempts[0].step_id, "s1")
+
     def test_failure_tracking_and_loop_prevention(self) -> None:
         memory = MemoryStore()
         for iteration in range(1, 4):

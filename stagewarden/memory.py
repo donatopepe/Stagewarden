@@ -377,15 +377,32 @@ class MemoryStore:
 
     @classmethod
     def load(cls, path: Path) -> "MemoryStore":
+        """Load persisted memory, degrading a corrupt file to an empty store.
+
+        A missing, unreadable, truncated or wrong-shaped memory file is treated
+        exactly like a missing one. Callers such as record_external_io_evidence
+        and record_system_evidence have no error handling of their own, so
+        raising here would abort the evidence path instead of degrading it.
+        """
         if not path.exists():
             return cls()
+        try:
+            return cls._load_payload(path)
+        except (OSError, UnicodeDecodeError, TypeError, ValueError, KeyError, AttributeError):
+            return cls()
 
+    @classmethod
+    def _load_payload(cls, path: Path) -> "MemoryStore":
         payload = loads_text(read_text_utf8(path))
+        if not isinstance(payload, dict):
+            raise ValueError("Memory payload must be a JSON object.")
         store = cls()
         attempts = payload.get("attempts")
         if "attempts_ljson" in payload:
             attempts = decode_ljson(payload["attempts_ljson"])
         for item in attempts or []:
+            if not isinstance(item, dict):
+                continue
             item.setdefault("input_tokens", None)
             item.setdefault("output_tokens", None)
             item.setdefault("context_window_size", None)
@@ -395,14 +412,19 @@ class MemoryStore:
         if "tool_transcript_ljson" in payload:
             transcript = decode_ljson(payload["tool_transcript_ljson"])
         for item in transcript or []:
+            if not isinstance(item, dict):
+                continue
             store.tool_transcript.append(ToolTranscriptRecord(**item))
-        store.failures_by_step = {
-            str(key): int(value) for key, value in payload.get("failures_by_step", {}).items()
-        }
-        store.models_by_step = {
-            str(key): [str(model) for model in value]
-            for key, value in payload.get("models_by_step", {}).items()
-        }
+        failures = payload.get("failures_by_step", {})
+        models = payload.get("models_by_step", {})
+        store.failures_by_step = (
+            {str(key): int(value) for key, value in failures.items()}
+            if isinstance(failures, dict) else {}
+        )
+        store.models_by_step = (
+            {str(key): [str(model) for model in value] for key, value in models.items()}
+            if isinstance(models, dict) else {}
+        )
         return store
 
     def attempts_as_ljson(self, *, numeric_keys: bool = False) -> dict[str, Any]:
