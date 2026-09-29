@@ -893,7 +893,11 @@ class Agent:
                 return []
             payload = load_ljson_file(self.config.trace_path)
             return [dict(item) for item in payload if isinstance(item, dict)]
-        except (OSError, ValueError, TypeError):
+        except (OSError, ValueError, TypeError, AttributeError):
+            # A missing or corrupt trace file is normal at agent start, so this
+            # path degrades to no records. AttributeError is included because a
+            # trace file whose root is a JSON object/list/scalar rather than an
+            # array raises it from .get(), which decode errors alone do not cover.
             return []
 
     def _save_trace(self) -> None:

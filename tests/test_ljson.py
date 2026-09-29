@@ -11,6 +11,79 @@ from stagewarden.memory import AttemptRecord, MemoryStore
 
 
 class LJSONTests(unittest.TestCase):
+    NON_OBJECT_TRACE = {
+        "top-level list": "[1, 2]",
+        "top-level string": '"a string"',
+        "top-level number": "42",
+        "null": "null",
+    }
+
+    def test_agent_trace_load_fails_closed_on_non_object_root(self) -> None:
+        """A trace file that is not a JSON array must not escape as AttributeError.
+
+        _load_trace_records already handled a missing file and decode errors, but
+        its except tuple omitted AttributeError, which is exactly what a non-dict
+        root raises, so 4 shapes escaped the agent path.
+        """
+        from stagewarden.agent import Agent
+        from stagewarden.config import AgentConfig
+
+        for label, body in self.NON_OBJECT_TRACE.items():
+            with self.subTest(trace=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.trace_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.trace_path.write_text(body, encoding="utf-8")
+                    agent = Agent(config)
+                    try:
+                        records = agent._load_trace_records()
+                    except Exception as exc:  # noqa: BLE001 - the defect under test
+                        self.fail(f"trace {label} raised {type(exc).__name__}: {exc}")
+                    self.assertEqual(records, [])
+
+    def test_trace_load_already_failing_closed_stays_that_way(self) -> None:
+        """Controls: shapes already handled, plus a valid trace round-trip."""
+        from stagewarden.agent import Agent
+        from stagewarden.config import AgentConfig
+
+        tolerated = {
+            "not json": "this is not json",
+            "truncated": '{"a":',
+            "empty file": "",
+        }
+        for label, body in tolerated.items():
+            with self.subTest(trace=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.trace_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.trace_path.write_text(body, encoding="utf-8")
+                    self.assertEqual(Agent(config)._load_trace_records(), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            config = AgentConfig(workspace_root=Path(tmp))
+            self.assertEqual(Agent(config)._load_trace_records(), [])
+
+    def test_ljson_load_file_stays_strict_for_explicit_cli_paths(self) -> None:
+        """load_file must keep raising: a CLI decode of an explicit path should fail.
+
+        This is the counterweight to the agent fix above. Making load_file lenient
+        would let `--ljson-decode` silently write an empty file for corrupt input.
+        """
+        from stagewarden.ljson import load_file
+
+        for label, body in list(self.NON_OBJECT_TRACE.items()) + [
+            ("not json", "nope"), ("empty file", "")
+        ]:
+            with self.subTest(trace=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "in.ljson"
+                    path.write_text(body, encoding="utf-8")
+                    with self.assertRaises((ValueError, TypeError, AttributeError)):
+                        load_file(path)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "absent.ljson"
+            with self.assertRaises(OSError):
+                load_file(path)
+
     def test_roundtrip_positional(self) -> None:
         records = [
             {"id": 1, "name": "Mario", "meta": {"city": "Rome"}, "active": True},
