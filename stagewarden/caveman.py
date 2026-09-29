@@ -34,6 +34,12 @@ class CavemanState:
         if not path.exists():
             return cls()
         payload = loads_text(read_text_utf8(path))
+        # A persisted root that is not an object is treated like a missing state
+        # rather than raising: Agent.__init__ loads this through
+        # CavemanManager.load_state, so an AttributeError here would abort agent
+        # construction instead of degrading to the default state.
+        if not isinstance(payload, dict):
+            return cls()
         return cls(active=bool(payload.get("active", False)), level=str(payload.get("level", "full")))
 
 
