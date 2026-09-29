@@ -1,5 +1,18 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 160: audit di "pinning" delle guardie (solo verifica, nessuna modifica)
+
+- **Obiettivo:** applicare la regola del cycle 159 su scala: verificare che ogni guardia fail-closed introdotta nei cicli 153-159 sia **pinnata**, cioè che esista almeno un test che **fallisce** quando la guardia viene rimossa.
+- **Metrica/soglia:** guardie con zero copertura di test; soglia `0`. Variabile unica: sola verifica, nessuna modifica runtime. Nessuna guardia non pinnata trovata, quindi **nessun test aggiunto** in questo ciclo.
+- **Casi fissi/ordine:** le 7 guardie nell'ordine di introduzione — 1 guardia sui required field (cycle 154) · 2 insieme di tipi interi (155) · 3 insieme di stringhe opzionali (155) · 4 guardia sugli elementi delle sequenze (156) · 5 accettazione dict di `_load_json_object` (157) · 6 `_node_contract_result` del backend pi (158) · 7 proiezione replay di `action_field_rejected` in `event_stream` (157).
+- **Risultato: 7/7 PINNATE.** Rimuovendo ciascuna guardia si sono osservati fallimenti reali: 1 → 62 failed (3 test nominati) · 2 → 106 failed · 3 → 27 failed · 4 → 4 failed (`test_sequence_action_field_rejects_unhashable_elements`) · 5 → 7 failed (4 test del parser) · 6 → 4 failed (`test_pi_execution_rejects_wrong_typed_messages...`) · 7 → 13 failed (inclusa `test_wrong_typed_file_action_fields_emit_failed_node_replay`).
+- **Due bug nel MIO strumento di audit, entrambi con risultato "UNPINNED" FALSO.** Da registrare, perché sono la stessa classe di errore dei cicli 158/159: non fidarsi del proprio tooling, misurarlo.
+  - **Bug 1:** contava solo le righe stdout che iniziano con `FAILED`. pytest riporta i fallimenti di subTest come righe `SUBFAILED(...)` e **omette** la sezione short-test-summary in modalità `-q` quando tutti i fallimenti sono di subtest, quindi una guardia con 62 fallimenti di subtest risultava UNPINNED con zero test che la intercettavano. Corretto contando entrambi i prefissi.
+  - **Bug 2:** il 7° caso passava la stringa di sostituzione nello slot della tupla riservato alla lista di test, quindi il ciclo eliminava l'intera riga `if` lasciando un blocco pendente, producendo SyntaxError e pytest rc=4 (usage error). La guardia era corretta; era il caso di audit a essere malformato. Verificato direttamente: invertire il test di appartenenza in `in set()` dà 13 failed, 16 passed.
+- **Integrità del sorgente:** `git diff --stat -- stagewarden` vuoto dopo l'audit, cioè ogni guardia è stata ripristinata correttamente dai blocchi `finally`.
+- **Regressione:** suite completa con flag live `682 passed, 4 skipped, 194 subtests passed in 350.21s (0:05:50)`, 0 fallimenti. Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-guard-pin-audit-2026-09-28gw.log`; strumento riutilizzabile in `/tmp/stagewarden_guard_pin_audit.py`.
+- **Drift esterno:** commit esterno `b5f2755 -> 157f8c4`; `git_head` riconciliato a `157f8c40ab7f16694d21dd5a6f89a6376af71d50`.
+
 ### Iterazione bounded completata — cycle 159: sostituzione dei test che reimplementavano la logica (solo test, nessuna modifica runtime)
 
 - **Obiettivo:** applicare la regola del cycle 158 (“testa il metodo reale”) come audit del repository: nessun test deve rivendicare una copertura che non ha. Sostituire i cinque test `test_pi_execution_*` che reimplementavano il parser con equivalenti che **chiamano** `_pi_execution`. Modifica **solo di test**: nessun cambiamento runtime.
