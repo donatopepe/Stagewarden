@@ -20,10 +20,17 @@ class MutationJournal:
         canonical = json.dumps({"type": action_type, "action": action}, sort_keys=True, ensure_ascii=True)
         return "mutation:" + hashlib.sha256(canonical.encode()).hexdigest()
 
+    def _read_lines(self) -> list[str]:
+        # An append-only journal can hold bytes that are not valid UTF-8 (a
+        # truncated or externally written file). Decode leniently so the
+        # per-line JSON check below discards just the bad lines, instead of
+        # raising out of get()/list() and crashing the CLI `mutations` task.
+        return self.path.read_text(encoding="utf-8", errors="replace").splitlines()
+
     def get(self, key: str) -> dict[str, Any] | None:
         if not self.path.exists():
             return None
-        for line in reversed(self.path.read_text(encoding="utf-8").splitlines()):
+        for line in reversed(self._read_lines()):
             try:
                 item = json.loads(line)
             except json.JSONDecodeError:
@@ -43,7 +50,7 @@ class MutationJournal:
         if not self.path.exists():
             return []
         items: list[dict[str, Any]] = []
-        for line in self.path.read_text(encoding="utf-8").splitlines():
+        for line in self._read_lines():
             try:
                 item = json.loads(line)
             except json.JSONDecodeError:

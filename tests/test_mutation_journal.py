@@ -26,6 +26,49 @@ class MutationJournalTests(unittest.TestCase):
             self.assertEqual(journal.get(key)["status"], "in_flight")
             self.assertEqual(journal.list(status="in_flight")[0]["key"], key)
 
+    def test_readers_survive_an_undecodable_journal_file(self) -> None:
+        """Both readers decoded the whole file unguarded, so invalid UTF-8 bytes
+        raised UnicodeDecodeError out of get() and list() -- which the CLI
+        `mutations` task calls directly, crashing the command."""
+        bodies = {
+            "binary garbage": b"\xff\xfe\x00\x01\x80\x81 not utf-8",
+            "null bytes": b"\x00\x00\x00\n",
+            "not json": b"this is not json\n",
+            "truncated": b'{"key": "k", ',
+        }
+        for label, body in bodies.items():
+            with self.subTest(journal=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "mutations.jsonl"
+                    path.write_bytes(body)
+                    journal = MutationJournal(path)
+                    self.assertEqual(journal.list(), [])
+                    self.assertIsNone(journal.get("mutation:missing"))
+
+    def test_readers_keep_valid_entries_alongside_undecodable_ones(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mutations.jsonl"
+            journal = MutationJournal(path)
+            journal.append(key="mutation:one", action_type="write_file",
+                           path="a.txt", status="completed", message="ok")
+            with path.open("ab") as handle:
+                handle.write(b"\xff\xfe not utf-8\n")
+            journal.append(key="mutation:two", action_type="write_file",
+                           path="b.txt", status="failed", message="nope")
+            items = journal.list()
+            self.assertEqual([item["key"] for item in items],
+                             ["mutation:one", "mutation:two"])
+            self.assertEqual(journal.get("mutation:two")["path"], "b.txt")
+
+    def test_empty_and_missing_journals_still_return_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = Path(tmp) / "mutations.jsonl"
+            empty.write_bytes(b"")
+            self.assertEqual(MutationJournal(empty).list(), [])
+            missing = Path(tmp) / "absent.jsonl"
+            self.assertEqual(MutationJournal(missing).list(), [])
+            self.assertIsNone(MutationJournal(missing).get("k"))
+
     def test_list_filters_status_and_preserves_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             journal = MutationJournal(Path(tmp) / "mutations.jsonl")
