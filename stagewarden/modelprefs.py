@@ -673,7 +673,15 @@ class ModelPreferences:
     def load(cls, path: Path) -> "ModelPreferences":
         if not path.exists():
             return cls.default()
-        payload = loads_text(read_text_utf8(path))
+        try:
+            payload = loads_text(read_text_utf8(path))
+        except (OSError, UnicodeDecodeError, TypeError, ValueError):
+            # Every unusable persisted payload is treated exactly like a missing
+            # file: default preferences. execute_step calls
+            # _configure_handoff_accounts on every model-execution cycle and that
+            # helper catches OSError only, so tolerating malformed JSON here is
+            # what keeps a corrupt prefs file from aborting the agent's main loop.
+            return cls.default()
         if not isinstance(payload, dict):
             # An unusable persisted root is treated exactly like a missing file:
             # default preferences. Agent.__init__ loads this through

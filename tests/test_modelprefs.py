@@ -8,6 +8,65 @@ from stagewarden.modelprefs import ModelPreferences
 
 
 class ModelSelectionPolicyTests(unittest.TestCase):
+    def test_malformed_prefs_file_never_breaks_a_model_execution_cycle(self) -> None:
+        """execute_step loads preferences on EVERY cycle, so it must never raise.
+
+        _configure_handoff_accounts catches OSError only, and ModelPreferences.load
+        raised JSONDecodeError for malformed JSON, so a corrupt prefs file aborted
+        the agent's main loop. The tolerance belongs in the loader, which now
+        treats every unusable payload exactly like a missing file.
+        """
+        from stagewarden.config import AgentConfig
+        from stagewarden.executor import Executor
+        from stagewarden.handoff import HandoffManager
+        from stagewarden.memory import MemoryStore
+        from stagewarden.planner import PlanStep
+        from stagewarden.project_handoff import ProjectHandoff
+        from stagewarden.rag import DesignRag
+        from stagewarden.router import ModelRouter
+
+        corrupt = {
+            "not json": "this is not json",
+            "truncated": '{"enabled_models": [',
+            "empty file": "",
+            "top-level list": "[1, 2]",
+            "null": "null",
+        }
+        for label, body in corrupt.items():
+            with self.subTest(prefs=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.model_prefs_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.model_prefs_path.write_text(body, encoding="utf-8")
+                    executor = Executor(
+                        config=config,
+                        router=ModelRouter(),
+                        handoff=HandoffManager(),
+                        memory=MemoryStore(),
+                        project_handoff=ProjectHandoff(),
+                        rag=DesignRag(),
+                    )
+                    try:
+                        step = PlanStep(
+                            id="s1", title="T", instruction="do it", validation="ok"
+                        )
+                        # The model handoff is a real HandoffManager here; we only
+                        # assert that reaching configuration never raises, so the
+                        # probe stops at the first sign of model work.
+                        try:
+                            executor._configure_handoff_accounts()
+                        finally:
+                            executor.knowledge.close()
+                    except Exception as exc:  # noqa: BLE001 - the defect under test
+                        self.fail(
+                            f"_configure_handoff_accounts with {label} raised "
+                            f"{type(exc).__name__}: {exc}"
+                        )
+                    self.assertEqual(
+                        ModelPreferences.load(config.model_prefs_path),
+                        ModelPreferences.default(),
+                    )
+
     NON_OBJECT_PREFS = {
         "top-level list": "[1, 2]",
         "top-level string": '"a string"',
