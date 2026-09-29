@@ -585,7 +585,10 @@ class NodeKnowledgeStore:
         results = []
         for row in rows:
             item = dict(row)
-            item["source"] = json.loads(item.pop("source_json"))
+            source = _decode_source(item.pop("source_json", None))
+            if source is None:
+                continue
+            item["source"] = source
             item["query_tokens"] = sorted(tokens)
             results.append(item)
         return results

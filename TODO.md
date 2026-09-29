@@ -1,5 +1,16 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 150: TDD fix difetti fail-closed in `search` e `code_relations`
+
+- **Obiettivo:** estendere la correzione fail-closed ai due loader di retrieval del Node Knowledge Store: `search` e `code_relations` decodificavano `source_json` senza gestire errori di decode né verificare che la radice decodificata fosse un oggetto, quindi una singola riga corrotta abortiva l'intera query oppure faceva trapelare una `source` con forma sbagliata.
+- **Metrica/soglia:** `tests/test_node_knowledge.py`; soglia 100% dei casi fissi che devono saltare la riga corrotta, con le righe valide ancora restituite. Gate `5/5`; unified validation `6/6`.
+- **Casi fissi/ordine:** 1 `search` con `source_json` corrotto (subtest: troncato, stringa grezza, lista, stringa, `null`) · 2 `search` con riga valida (controllo) · 3 `code_relations` con `source_json` corrotto (stessi 5 subtest).
+- **Baseline (difetto riprodotto):** `search` troncato/stringa grezza → `JSONDecodeError` non gestito; `source_json` NULL da SQL → `TypeError` non gestito; lista/stringa → riga restituita con `source` non-dict. `code_relations` idem: crash su troncato/stringa grezza, `source=[]` fuoriuscito. Una sola riga corrotta abortiva l'intera retrieval e l'intera query del code index.
+- **Variabile unica:** helper a livello di modulo `_decode_source(raw)` che restituisce `None` per valore malformato, troncato, non-dict o NULL; `search` e `code_relations` ora saltano (`continue`) le righe non decodificabili. La retrieval degrada a meno risultati invece di abortire. Nessuna migrazione di schema, nessun auto-repair, nessun cambio a provider/model/fallback/routing/scheduler/parallelismo.
+- **TDD:** RED `10 failed, 18 passed, 6 subtests passed` → GREEN `18 passed, 16 subtests passed`. Riconferma rimuovendo la guardia → `10 failed, 18 passed, 6 subtests passed`; ripristinata → `18 passed, 16 subtests passed`.
+- **Regressione:** suite prioritaria `127 passed, 29 subtests passed in 27.94s`; suite completa con flag live `665 passed, 4 skipped, 29 subtests passed in 344.24s (0:05:44)`, 0 fallimenti (era 662). Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-search-failclosed-defect-2026-09-28gm.log`.
+- **Drift esterno:** commit esterno `2c01da2 -> f24eb08` ha acquisito fix e test; `git_head` riconciliato a `f24eb08f068c08e780d8e50b46662e0d2ad0a267`.
+
 ### Iterazione bounded completata — cycle 149: TDD fix difetto fail-closed `load_node_execution_capsule`
 
 - **Obiettivo:** terzo difetto reale della stessa classe: il loader di capsule del Node Knowledge Store decodificava `content` e `source_json` senza gestire JSON malformato/troncato né validare i tipi decodificati, quindi un checkpoint capsule corrotto crashava il restore del goal loop oppure restituiva spazzatura.

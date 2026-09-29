@@ -243,6 +243,32 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                         store.connection.execute("UPDATE code_relations SET source_json = ?", (value,))
                         self.assertEqual(store.code_relations(), [])
 
+    def test_corrupt_code_search_source_json_is_skipped_not_raised(self) -> None:
+        corrupt = ('{"type":', "not json at all", "[1, 2, 3]", '"a bare string"', "null")
+
+        for value in corrupt:
+            with self.subTest(source_json=value):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    (root / "m.py").write_text("import os\ndef widget():\n    return os\n", encoding="utf-8")
+                    with NodeKnowledgeStore(root / "knowledge.sqlite") as store:
+                        store.index_python(root, node_id="node", tree_id="tree")
+                        self.assertTrue(store.code_search("widget"), "control: symbols exist before corruption")
+                        store.connection.execute("UPDATE code_symbols SET source_json = ?", (value,))
+                        self.assertEqual(store.code_search("widget"), [])
+
+    def test_code_search_keeps_valid_source_json_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "m.py").write_text("import os\ndef widget():\n    return os\n", encoding="utf-8")
+            with NodeKnowledgeStore(root / "knowledge.sqlite") as store:
+                store.index_python(root, node_id="node", tree_id="tree")
+                results = store.code_search("widget")
+                self.assertTrue(results)
+                for item in results:
+                    self.assertIsInstance(item["source"], dict)
+                    self.assertNotIn("source_json", item)
+
     def test_node_execution_capsule_uuid_scope_rejects_other_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"
