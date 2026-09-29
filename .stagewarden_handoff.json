@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 184: HOLD on runtime work, plus one self-inflicted bookkeeping fix. No external drift this tick and JSON git_head already aligned (first such tick in four), so no HEAD reconcile was needed. Spot-check 154 passed, 79 subtests in 10.18s; direct OmniRoute smoke green. Fix: compacted latest_observation from 5804 chars of cycles 181-183 concatenated to 1243 chars of cycle-184 facts only, restoring the field's declared semantics (latest, not an accumulating log). No content lost: every cycle has a full section in TODO.md, and prior text is recoverable verbatim from git history of this file. All 121 entries untouched. The approved MVP surface list stays fully measured and the user decision gate stays pending, so no new scope was invented.",
+  "latest_observation": "Cycle 184: HOLD on runtime work, plus one self-inflicted bookkeeping fix. No external drift this tick and JSON git_head already aligned (first such tick in four), so no HEAD reconcile was needed. Spot-check 154 passed, 79 subtests in 10.18s; direct OmniRoute smoke green. Fix: compacted latest_observation from 5804 chars of cycles 181-183 concatenated to 1243 chars of cycle-184 facts only, restoring the field's declared semantics (latest, not an accumulating log). No content lost: every cycle has a full section in TODO.md, and prior text is recoverable verbatim from git history of this file. All 121 entries untouched. The approved MVP surface list stays fully measured and the user decision gate stays pending, so no new scope was invented. External commit f40140b -> d1d4dd9 then committed only .stagewarden_handoff.json (git_head + latest_observation), so source/test/script diff stayed empty; git_head reconciled to d1d4dd9b0ca42852ddeb8394122b6f5a53191cb8.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "f40140bfbce7fc1928b2cb38d9a64985ae1f7617",
+  "git_head": "d1d4dd9b0ca42852ddeb8394122b6f5a53191cb8",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {

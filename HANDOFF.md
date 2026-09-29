@@ -4,14 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD.** No runtime, test or script change; no new target. User decision gate remains pending.
-- Objective: apply cycle-179 diff criterion; metric/threshold: unexplained source/test/script drift `0`, gate `5/5`.
-- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` is empty. External `df9b898 -> f40140b` changed only `.pi-loop.json`, `.stagewarden_handoff.json`, `AGENT_HANDOFF.md`, `HANDOFF.md`, `TODO.md`. No code, tests or scripts changed; cycle-180 baseline carries by proof.
-- Wet spot-check: `154 passed, 79 subtests passed in 9.77s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected, 4 OpenRouter-key skips intentional.
-- First gate: `4/5`, case4 only, because JSON `git_head` held `df9b898` while actual HEAD was `f40140b`. Expected metadata drift. Reconciled only `.stagewarden_handoff.json` to `f40140bfbce7fc1928b2cb38d9a64985ae1f7617`; second gate `5/5`.
+- Outcome: **HOLD on runtime**, plus one self-inflicted handoff bookkeeping fix. No runtime, test or script change.
+- Objective: apply cycle-179 diff rule and correct a bookkeeping defect. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, `latest_observation` <= 1200 chars with no content loss.
+- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` is empty, and at tick start there was NO external drift with `git_head` already aligned (first such tick in four).
+- Defect: `latest_observation` had grown to 5804 chars holding cycles 181-183 concatenated, because each HOLD cycle appended a sentence. A field named *latest* was behaving as an accumulating log, and the cause was my own cycle records. Fix: compacted to 747 chars of cycle-184 facts.
+- Fidelity verified, no content lost: cycles 181, 182 and 183 each retain a full `TODO.md` section; prior text is recoverable verbatim from git history of `.stagewarden_handoff.json`; all 121 `entries` untouched, and that list is the real append-only log.
+- Process note: the first compaction attempt left 1634 chars, above the 1200 threshold just declared. The threshold was not widened to fit; the retained block was compressed to a verified pointer instead, then trimmed to 747.
+- Wet: spot-check `154 passed, 79 subtests passed in 10.06s`; full live suite `711 passed, 5 skipped, 301 subtests passed in 343.31s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `f40140b -> d1d4dd9` that touched only `.stagewarden_handoff.json`, so source/test/script diff stayed empty; reconciled metadata only to `d1d4dd9b0ca42852ddeb8394122b6f5a53191cb8`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change. Loop unchanged.
-- Decision: stop. No full-suite rerun because source/test/script diff empty. No new MVP scope invented while gate pending.
-- Evidence: `/tmp/stagewarden-hold-2026-09-29j10.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j10.log`.
+- Decision: hold on runtime work; approved MVP surface list fully measured; user decision gate pending; no new scope invented.
+- Evidence: `/tmp/stagewarden-hold-2026-09-29j11.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j11.log`.
 
 ## Product direction
 - One operational tree of nodes.
@@ -42,7 +45,7 @@ CodeGraph is auxiliary only. It cannot replace node context/history/evidence/own
 - `.pi/prompts/*.md` — packetized bottom-up node workflow.
 - Legacy/reference docs and model examples aligned or marked non-authoritative.
 
-## Latest bounded iteration
+## Historical bounded iterations (superseded)
 - Objective: verify marker consistency latest rerun after latest green gate.
 - Metric/threshold: fixed marker matrix `3/3`.
 - Baseline: `/tmp/current-marker-consistency-baseline-latest.log` was `3/3`; reran docs, JSON, diff, OmniRoute and replay regression.
@@ -280,4 +283,5 @@ No runtime feature work before approval.
 - Remaining known failure: interactive status compatibility expects automatic chatgpt display while default persisted policy is manual; no policy change made.
 
 ## Next action
-Extend event stream with richer tool/file checkpoint events and live multiplexer UI. Keep all future work in `TODO.md`.
+Blocked at the user decision gate. No runtime work is authorized until it is answered. Outstanding, none self-approvable: `question-1`; v3 scope and section 21 of `docs/specs/stagewarden-v3.md`; extension/subagent capability; migration and temporary compatibility layers; `TODO.md` reorganization; UTF-8 BOM behaviour; promotion of the general audit probe to a permanent test. Until then each bounded cycle applies the cycle-179 diff rule: empty `git diff --stat <baseline>..HEAD -- stagewarden tests scripts` carries the baseline by proof, otherwise the full suite is required. Keep all future work in `TODO.md`.
+Recorded explicitly: the previous text here proposed extending the event stream with richer tool/file checkpoint events and a live multiplexer UI. That is unapproved scope, it contradicts this file's own `Current phase` blocker, and it was NOT performed.

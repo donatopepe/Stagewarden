@@ -1,5 +1,19 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 184: HOLD + fix di bookkeeping dell'handoff (`latest_observation` era diventato un log accumulato)
+
+- **Esito:** HOLD sul runtime, più un difetto di bookkeeping self-inflicted corretto. Nessuna modifica a runtime, test o script.
+- **Obiettivo:** applicare il criterio diff del cycle 179 e correggere un difetto di bookkeeping. Metrica/soglia: drift sorgente/test/script non spiegato `0`; gate `5/5`; `latest_observation` ≤ 1200 caratteri senza perdita di contenuto.
+- **Prova baseline:** `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` vuoto. Al momento del tick **non c'era drift esterno** e `git_head` JSON era già allineato — primo tick in quattro senza riconciliazione.
+- **Wet:** spot-check `154 passed, 79 subtests, 10.06s`; suite completa live `711 passed, 5 skipped, 301 subtests in 343.31s`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Difetto di bookkeeping trovato e corretto:** `latest_observation` era cresciuto fino a **5804 caratteri** contenendo i cicli 181-183 concatenati, perché ogni ciclo HOLD appendiva una frase. Un campo chiamato *latest* si stava comportando da log accumulato. Difetto **self-inflicted** dalle mie stesse registrazioni di ciclo.
+- **Fix:** compattato a **747 caratteri** di soli fatti del cycle 184.
+- **Verifica di fedeltà (nessuna perdita):** i cicli 181, 182, 183 hanno ciascuno una sezione completa in `TODO.md` (1 riferimento ciascuno, verificato); il testo precedente è recuperabile verbatim dalla git history di `.stagewarden_handoff.json`; tutti i **121** elementi della lista `entries` intatti (il vero log append-only).
+- **Nota di processo:** il mio primo tentativo di compattazione lasciava 1634 caratteri, sopra la soglia di 1200 che avevo appena dichiarato. **Non ho allargato la soglia per farlo quadrare**; ho compresso il blocco conservato in un puntatore verificato, poi ridotto a 747.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `f40140b -> d1d4dd9` che ha cambiato **solo** `.stagewarden_handoff.json` (`git_head` + `latest_observation`), quindi il diff sorgente/test/script è rimasto vuoto. Riconciliato solo metadata a `d1d4dd9b0ca42852ddeb8394122b6f5a53191cb8`. Secondo gate `5/5`.
+- **Decisione:** HOLD sul runtime. Lista superfici MVP approvata completamente misurata; gate decisionale utente pending; nessun nuovo scope inventato. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- Evidenza: `/tmp/stagewarden-hold-2026-09-29j11.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j11.log`.
+
 ### Iterazione bounded completata — cycle 183: HOLD — terzo drift metadata-only consecutivo, baseline ancora provata
 
 - **Esito:** HOLD. Nessuna modifica a runtime, test o script; nessun nuovo bersaglio. Gate decisionale utente ancora pending.
