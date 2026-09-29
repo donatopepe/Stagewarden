@@ -15,7 +15,6 @@ from stagewarden.planner import PlanStep
 from stagewarden.provider_registry import model_token_env
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
-from stagewarden.project_handoff import ProjectHandoff
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -184,6 +183,37 @@ class AgentIntegrationTests(unittest.TestCase):
         "top-level number": "42",
         "null": "null",
     }
+
+    def test_malformed_handoff_file_never_breaks_goal_loop(self) -> None:
+        """.stagewarden_handoff.json is read unguarded during goal-loop construction.
+
+        GoalLoopOrchestrator.__init__ calls ProjectHandoff.load directly, so a
+        truncated or empty handoff file raised JSONDecodeError out of node-first
+        startup, while a non-dict root was already handled by the cycle-167 guard.
+        """
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator
+
+        corrupt = {
+            "not json": "this is not json",
+            "truncated": '{"task": "x"',
+            "empty file": "",
+        }
+        for label, body in corrupt.items():
+            with self.subTest(handoff=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.handoff_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.handoff_path.write_text(body, encoding="utf-8")
+                    orchestrator = GoalLoopOrchestrator(
+                        config, "t", execution_mode="mock", json_mode=True
+                    )
+                    try:
+                        orchestrator._restore_node_capsules()
+                        self.assertEqual(
+                            orchestrator.handoff.status, ProjectHandoff().status
+                        )
+                    finally:
+                        orchestrator.knowledge.close()
 
     def test_non_object_handoff_file_never_breaks_agent_construction(self) -> None:
         """.stagewarden_handoff.json is the central project state file.

@@ -1280,7 +1280,15 @@ def _materialize_prince2_node_runtime(handoff: Any, baseline: dict[str, Any]) ->
 def load_project_handoff(cls: type[Any], path: Path) -> Any:
     if not path.exists():
         return cls()
-    payload = loads_text(read_text_utf8(path))
+    try:
+        payload = loads_text(read_text_utf8(path))
+    except (OSError, UnicodeDecodeError, TypeError, ValueError):
+        # Every unusable persisted payload is treated exactly like a missing
+        # file. GoalLoopOrchestrator.__init__ calls this loader directly, and
+        # Agent.__init__ reaches it through a guard that omits ValueError, so
+        # tolerating malformed JSON here is what keeps a truncated or empty
+        # .stagewarden_handoff.json from aborting node-first startup.
+        return cls()
     if not isinstance(payload, dict):
         # An unusable persisted root is treated exactly like a missing file. This
         # is the central project state file and Agent.__init__ loads it through a
