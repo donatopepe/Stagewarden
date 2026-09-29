@@ -1,5 +1,16 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 203: HOLD — final metadata gate `6/6` dopo drift esterno
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** gate finale dopo drift metadata-only. Metrica/soglia: gate `6/6`, drift sorgente/test/script `0`.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Primo gate:** `5/6`, `git_head` stale dopo commit `d9ce49c -> 2b44024`; diff runtime vuoto.
+- **Riconciliazione:** aggiornati solo `git_head/latest_observation` JSON; secondo gate `6/6`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-gate-2026-09-29j31.log`.
+
 ### Iterazione bounded completata — cycle 202: HOLD — metadata baseline `5/5`, nessun drift esterno
 
 - **Esito:** HOLD. Nessuna modifica runtime/test/script.
