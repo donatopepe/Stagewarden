@@ -678,6 +678,27 @@ Do NOT include any text before or after the JSON object.'''
                              {"ok": True, "summary": f"Node {node_id} completed.",
                               "messages": []})
 
+    @staticmethod
+    def _node_contract_result(data: Any) -> dict[str, Any] | None:
+        """Validate a parsed node payload, or return None if the contract fails.
+
+        Mirrors the OmniRoute backend so both node boundaries reject the same
+        wrong-shaped output instead of letting it crash the node.
+        """
+        if not isinstance(data, dict):
+            return None
+        if "summary" in data and not isinstance(data.get("summary"), str):
+            return None
+        messages = data.get("messages", [])
+        if not isinstance(messages, list):
+            return None
+        return {
+            "ok": True,
+            "summary": str(data.get("summary", "Node executed via pi.")),
+            "messages": [item for item in messages if isinstance(item, dict)],
+            "output": data.get("output", ""),
+        }
+
     def _pi_execution(self, node_state: NodeState) -> dict[str, Any]:
         """Execute one node through the selected user-owned model boundary."""
         backend = os.environ.get("STAGEWARDEN_GOAL_LOOP_BACKEND", "pi").strip().lower()
@@ -736,12 +757,10 @@ Do NOT include any text before or after the JSON object.'''
             try:
                 data = __import__("json").loads(candidate)
                 if isinstance(data, dict) and "summary" in data:
-                    return {
-                        "ok": True,
-                        "summary": data.get("summary", "Node executed via pi."),
-                        "messages": data.get("messages", []),
-                        "output": data.get("output", ""),
-                    }
+                    contract = self._node_contract_result(data)
+                    if contract is not None:
+                        return contract
+                    return {"ok": False, "error": "Pi node contract requires a string summary and a messages array.", "messages": []}
             except (ValueError, TypeError):
                 pass
         # Try 2: find all JSON objects and use the last one
@@ -750,13 +769,10 @@ Do NOT include any text before or after the JSON object.'''
             last = json_objects[-1]
             try:
                 data = __import__("json").loads(last)
-                if isinstance(data, dict):
-                    return {
-                        "ok": True,
-                        "summary": data.get("summary", ansi_clean[:200]),
-                        "messages": data.get("messages", []),
-                        "output": data.get("output", ansi_clean),
-                    }
+                contract = self._node_contract_result(data)
+                if contract is not None:
+                    return contract
+                return {"ok": False, "error": "Pi node contract requires a string summary and a messages array.", "messages": []}
             except (ValueError, TypeError):
                 pass
         # Try 3: find JSON object via regex

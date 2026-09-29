@@ -434,6 +434,78 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         last = json.loads(objects[-1])
         self.assertEqual(last["summary"], "second")
 
+    def test_pi_execution_rejects_wrong_typed_messages_instead_of_crashing(self) -> None:
+        """A wrong-typed 'messages' must fail closed, not raise inside node execution.
+
+        The existing tests above re-implement the parse logic instead of calling
+        _pi_execution, which is how a real crash survived: a wrong-typed
+        'messages' reached the node and AttributeError/TypeError escaped.
+        """
+        wrong = ('"x"', '{"a":1}', "7", "null")
+        for value in wrong:
+            with self.subTest(messages=value):
+                with tempfile.TemporaryDirectory() as tmp:
+                    orchestrator = GoalLoopOrchestrator(
+                        AgentConfig(workspace_root=Path(tmp)),
+                        f"pi msgs {value}",
+                        execution_mode="pi",
+                        json_mode=True,
+                    )
+                    node = orchestrator.nodes["root.scope"]
+                    stdout = '{"summary":"s","messages":' + value + "}"
+                    completed = subprocess.CompletedProcess(
+                        args=["pi"], returncode=0, stdout=stdout, stderr=""
+                    )
+                    with redirect_stderr(StringIO()), patch(
+                        "stagewarden.goal_loop_orchestrator.subprocess.run",
+                        return_value=completed,
+                    ), patch(
+                        "stagewarden.goal_loop_orchestrator.shutil.which",
+                        return_value="/usr/bin/pi",
+                    ):
+                        result = orchestrator._pi_execution(node)
+                    self.assertFalse(result["ok"], f"messages={value} must fail closed")
+                    self.assertEqual(result["messages"], [])
+                    self.assertIn("messages", result["error"])
+                    orchestrator.knowledge.close()
+
+    def test_pi_execution_still_accepts_valid_and_text_output(self) -> None:
+        """Valid JSON and the legacy plain-text fallback must both keep working."""
+        cases = (
+            ('{"summary":"s","messages":[]}', True),
+            ('{"summary":"s","messages":[{"role":"x"}]}', True),
+            ('{"summary":"s","messages":[1,2]}', True),
+            ('{"summary":"s"}', True),
+            ("Hello from pi, I completed the task.", True),
+            ("no json at all", True),
+        )
+        for stdout, expect_ok in cases:
+            with self.subTest(stdout=stdout[:32]):
+                with tempfile.TemporaryDirectory() as tmp:
+                    orchestrator = GoalLoopOrchestrator(
+                        AgentConfig(workspace_root=Path(tmp)),
+                        "pi ok",
+                        execution_mode="pi",
+                        json_mode=True,
+                    )
+                    node = orchestrator.nodes["root.scope"]
+                    completed = subprocess.CompletedProcess(
+                        args=["pi"], returncode=0, stdout=stdout, stderr=""
+                    )
+                    with patch(
+                        "stagewarden.goal_loop_orchestrator.subprocess.run",
+                        return_value=completed,
+                    ), patch(
+                        "stagewarden.goal_loop_orchestrator.shutil.which",
+                        return_value="/usr/bin/pi",
+                    ):
+                        result = orchestrator._pi_execution(node)
+                    self.assertEqual(result["ok"], expect_ok, result.get("error"))
+                    if expect_ok:
+                        self.assertIsInstance(result["summary"], str)
+                        self.assertIsInstance(result["messages"], list)
+                    orchestrator.knowledge.close()
+
     def test_autonomy_gate_classifies_high_impact(self) -> None:
         """classify_decision returns 'ask_user' for high-impact terms."""
         from stagewarden.goal_loop_orchestrator import classify_decision
