@@ -136,6 +136,10 @@ class NodeState:
                  "TYPE": m.get("TYPE"), "SUMMARY": m.get("SUMMARY")}
                 for m in (self.messages_sent or [])
             ],
+            "messages_received": [
+                dict(message)
+                for message in (self.messages_received or [])
+            ],
         }
 
 
@@ -225,12 +229,17 @@ class GoalLoopOrchestrator:
                 saved = self.knowledge.load_node_execution_capsule("goal-loop", node_id, node_uuid=node.node_uuid).get("capsule", {})
             except KeyError:
                 continue
-            if not isinstance(saved, dict) or saved.get("status") in {"completed", "failed"}:
+            if not isinstance(saved, dict):
+                continue
+            received = saved.get("messages_received")
+            if isinstance(received, list):
+                node.messages_received = [dict(item) for item in received if isinstance(item, dict)]
+            if saved.get("status") in {"completed", "failed"}:
                 continue
             for name in (
                 "node_uuid", "status", "active_work", "session_id", "last_run_at", "output_summary",
                 "error_message", "retry_count", "cycle_id", "cycle_phase", "execution_mode", "context_revision",
-                "last_checkpoint",
+                "last_checkpoint", "messages_received",
             ):
                 if name in saved:
                     setattr(node, name, saved[name])
@@ -604,6 +613,9 @@ Do NOT include any text before or after the JSON object.'''
                     "EXECUTION_MODE": result_packet["execution_mode"],
                     "WORK_ID": result_packet["work_id"],
                 })
+                # Persist parent-side receipt immediately; otherwise reopen
+                # can retain child provenance only in transient memory.
+                self._persist_node_capsule(parent)
             for msg in result.get("messages", []):
                 self.message_bus.send_message(msg)
                 node_state.messages_sent.append(msg)

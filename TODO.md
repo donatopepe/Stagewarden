@@ -1,5 +1,29 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 196: HOLD, provenance completa fino a report finale/context (risultato negativo)
+
+- **Esito:** HOLD. Nessuna modifica a runtime o test; nessun plumbing duplicato inventato.
+- **Obiettivo:** auditare il consumer **finale** dopo i cicli 192-195, che hanno propagato `execution_mode` attraverso `ResultPacket`, `NodeState`, capsule, checkpoint event, replay projection e messaggio child→parent. Consumer finale: `GoalLoopOrchestrator.run_loop()` return report e `handoff.goal_loop_context`. Metrica/soglia: nodi completati nel report/context/capsule senza `execution_mode` veritiero, soglia `0`.
+- **Casi fissi/ordine:** report mock esplicito; report auto con pi assente → mock; report auto con pi locale stub → pi; capsule save/reopen → restore mock.
+- **Harness/BASELINE:** self-check `PASS`. La sonda esercita i veri percorsi `GoalLoopOrchestrator.run_loop`; percorso pi stub locale per evitare provider calls, nessun secret. Asserisce che ogni nodo completato in `node_details` restituito **e** in `handoff.goal_loop_context.node_details` porta il mode atteso, poi controlla capsule riaperta.
+- **Risultato:** `0 escaping case(s)`. Tutti i casi: explicit mock report OK; auto missing pi report OK; auto local pi report OK; capsule reopen OK.
+- **Decisione negativa:** nessun file sorgente o test editato. Chain provenance completa fino a report finale e handoff context. Nessun plumbing duplicato solo per creare un diff.
+- **Wet:** spot-check `94 passed, 51 subtests`; smoke OmniRoute green; local guards green. Suite completa del cycle 195 porta avanti per regola diff.
+- **Gate:** `5/5`; nessun provider/model/fallback/routing/scheduler/parallel change. Gate decisionale utente resta blocker.
+- Evidenza: `/tmp/stagewarden-final-report-provenance-2026-09-29j23.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j23.log`.
+
+### Iterazione bounded completata — cycle 195: provenance `execution_mode` propagata al confine typed child→parent
+
+- **Esito:** completata la provenance sull'ultimo confine di aggregazione in memoria. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- **Obiettivo:** il cycle 194 rendeva truthful il replay, ma `parent.messages_received` ometteva ancora `EXECUTION_MODE`; l'aggregazione child→parent poteva quindi perdere la distinzione mock/pi prima della persistenza. Metrica/soglia: messaggi typed child→parent con `execution_mode` mancante, soglia `0`.
+- **Fix:** aggiunto `EXECUTION_MODE` al messaggio result typed in `parent.messages_received`. Nessun cambio policy.
+- **Casi fissi:** auto → mock su packet/event/capsule/replay/parent message; mock esplicito; pi reale; capsule restore.
+- **TDD:** focused provenance `6 passed`. Rimossa la field parent → `1 failed`; ripristinata → `6 passed`.
+- **Wet:** `717 passed, 5 skipped, 301 subtests in 370.40s`; focused goal/event/executor `74 passed, 30 subtests in 7.52s`; unified `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit metadata-only `6dcf194 -> afc672c`; riconciliato solo metadata a `afc672c973ae847043592ad022d687d6ee095cd8`; secondo gate `5/5`.
+- **Policy:** esecuzione seriale preservata; nessun legacy parallel; provider/model/fallback/routing/scheduler invariati. Gate decisionale utente ancora aperto.
+- Evidenza: `/tmp/stagewarden-result-provenance-parent-2026-09-29j22.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j22.log`.
+
 ### Iterazione bounded completata — cycle 194: provenance `execution_mode` completata fino alla proiezione `replay`
 
 - **Esito:** completata la fix provenance del cycle 193 sull'ultimo consumer persistito. Nessun cambio provider/model/fallback/routing/scheduler/parallel.

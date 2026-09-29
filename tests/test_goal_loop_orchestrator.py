@@ -829,6 +829,41 @@ class GoalLoopResultPacketProvenanceTests(unittest.TestCase):
             "typed child->parent result must retain execution provenance",
         )
 
+    def test_incoming_child_result_provenance_survives_handoff_and_reopen(self) -> None:
+        """A parent receives typed child results in memory, but as_dict omitted
+        messages_received. Thus goal_loop_context/capsule/reopen lost the upward
+        execution provenance even though parent.messages_received was truthful."""
+        orchestrator = self._orchestrator("mock")
+        self.addCleanup(orchestrator.knowledge.close)
+        # Real child->parent path: execute root, then its ready child.
+        ready = orchestrator._get_ready_nodes()
+        self.assertTrue(ready)
+        orchestrator._execute_node(ready[0])
+        child = next(
+            (node for node in orchestrator.nodes.values()
+             if node.parent_node_id and node.status == "pending"),
+            None,
+        )
+        self.assertIsNotNone(child)
+        orchestrator._execute_node(child)
+        parent = orchestrator.nodes[child.parent_node_id]
+        self.assertEqual(parent.messages_received[-1]["EXECUTION_MODE"], "mock")
+
+        report = orchestrator._sync_goal_loop_context()
+        details = orchestrator.handoff.goal_loop_context["node_details"][parent.node_id]
+        self.assertEqual(
+            details["messages_received"][-1]["EXECUTION_MODE"], "mock"
+        )
+        orchestrator.handoff.save(orchestrator.config.handoff_path)
+        orchestrator.knowledge.close()
+
+        reopened = GoalLoopOrchestrator(
+            orchestrator.config, "provenance task", execution_mode="mock", json_mode=True
+        )
+        self.addCleanup(reopened.knowledge.close)
+        restored = reopened.nodes[parent.node_id]
+        self.assertEqual(restored.messages_received[-1]["EXECUTION_MODE"], "mock")
+
     def test_provenance_reaches_event_and_capsule_recovery_records(self) -> None:
         import stagewarden.goal_loop_orchestrator as mod
         orchestrator = self._orchestrator("auto")
