@@ -35,7 +35,7 @@ class CavemanState:
             return cls()
         try:
             payload = loads_text(read_text_utf8(path))
-        except (OSError, UnicodeDecodeError, TypeError, ValueError):
+        except (OSError,):
             # Every unusable persisted payload is treated exactly like a missing
             # file: the default state. Cycle 164 fixed only the non-dict root and
             # left malformed JSON to be absorbed by CavemanManager.load_state,
