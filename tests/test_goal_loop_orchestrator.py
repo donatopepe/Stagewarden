@@ -807,6 +807,28 @@ class GoalLoopResultPacketProvenanceTests(unittest.TestCase):
             "event replay must preserve execution provenance",
         )
 
+    def test_provenance_reaches_parent_result_message(self) -> None:
+        import stagewarden.goal_loop_orchestrator as mod
+        orchestrator = self._orchestrator("auto")
+        self.addCleanup(orchestrator.knowledge.close)
+        with patch.object(mod, "_pi_available", return_value=False):
+            ready = orchestrator._get_ready_nodes()
+            self.assertTrue(ready)
+            orchestrator._execute_node(ready[0])
+            child = next(
+                (node for node in orchestrator.nodes.values()
+                 if node.parent_node_id and node.status == "pending"),
+                None,
+            )
+            self.assertIsNotNone(child)
+            orchestrator._execute_node(child)
+        parent = orchestrator.nodes[child.parent_node_id]
+        self.assertTrue(parent.messages_received)
+        self.assertEqual(
+            parent.messages_received[-1].get("EXECUTION_MODE"), "mock",
+            "typed child->parent result must retain execution provenance",
+        )
+
     def test_provenance_reaches_event_and_capsule_recovery_records(self) -> None:
         import stagewarden.goal_loop_orchestrator as mod
         orchestrator = self._orchestrator("auto")

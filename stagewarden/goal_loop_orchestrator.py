@@ -601,6 +601,7 @@ Do NOT include any text before or after the JSON object.'''
                     "TO": parent.node_id,
                     "SUMMARY": node_state.output_summary,
                     "EVIDENCE": list(result_packet["evidence"]),
+                    "EXECUTION_MODE": result_packet["execution_mode"],
                     "WORK_ID": result_packet["work_id"],
                 })
             for msg in result.get("messages", []):
