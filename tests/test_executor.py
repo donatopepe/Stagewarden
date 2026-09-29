@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
+from stagewarden.handoff import HandoffManager
 from stagewarden.executor import ALLOWED_MODEL_ACTIONS, MODEL_ACTION_SCHEMAS, Executor
 from stagewarden.memory import MemoryStore
 from stagewarden.modelprefs import ModelPreferences, classify_limit_reason, extract_blocked_until
@@ -950,6 +951,55 @@ class ExecutorTests(unittest.TestCase):
             self.assertFalse(outcome.step_completed)
             self.assertEqual(outcome.error_type, "wet_run_required")
             self.assertIn("prior successful tool evidence", outcome.observation)
+
+class _ModelReached(Exception):
+    """Raised to prove execution reached the model boundary."""
+
+
+class _ModelBoundaryHandoff(HandoffManager):
+    def execute(self, command):
+        raise _ModelReached(command)
+
+
+class PersistedFileFailClosedTests(unittest.TestCase):
+    def test_execute_step_never_raises_on_corrupt_persisted_files(self) -> None:
+        """Regression guard for the persisted-state fail-closed work (cycles 162-168).
+
+        MemoryStore, ModelPreferences, ProjectHandoff, DesignRag and the trace
+        reader were each fixed so a corrupt or wrong-shaped file degrades
+        instead of raising. This drives one real execute_step call per file with
+        a non-dict root and a malformed body, and asserts that execution reaches
+        the model boundary rather than dying on I/O. If any of those five fixes
+        regresses, this fails.
+        """
+        from stagewarden.agent import Agent  # noqa: F401 - documents the sibling surface
+        bodies = {"non-dict root": "[1, 2]", "malformed": "this is not json"}
+        for attr in ("memory_path", "model_prefs_path", "handoff_path", "rag_path", "trace_path"):
+            for kind, body in bodies.items():
+                with self.subTest(file=attr, kind=kind):
+                    with tempfile.TemporaryDirectory() as tmp:
+                        root = Path(tmp)
+                        config = AgentConfig(workspace_root=root)
+                        path = getattr(config, attr)
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_text(body, encoding="utf-8")
+                        executor = Executor(
+                            config=config,
+                            router=ModelRouter(),
+                            handoff=_ModelBoundaryHandoff(),
+                            memory=MemoryStore(),
+                        )
+                        try:
+                            step = PlanStep(
+                                id="s1", title="T", instruction="do it", validation="ok"
+                            )
+                            with self.assertRaises(_ModelReached):
+                                executor.execute_step(
+                                    task="t", step=step, plan=[step],
+                                    iteration=1, last_observation="none",
+                                )
+                        finally:
+                            executor.knowledge.close()
 
     def test_executor_accepts_coding_completion_with_prior_tool_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
