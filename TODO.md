@@ -1,5 +1,20 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 187: HOLD + escalation misurata sulla cadenza del loop
+
+- **Esito:** HOLD sul runtime, più una **escalation misurata** all'utente sulla cadenza del loop. Nessuna modifica a runtime, test, script, loop o TODO.
+- **Obiettivo:** auditare `.pi-loop.json`, l'ultimo artefatto di istruzione non auditato e quello che guida ogni ciclo futuro, poi mettere un numero sulla domanda sulla cadenza che il cycle 187 aveva rinviato. Metrica/soglia: drift sorgente/test/script non spiegato `0`; gate `5/5`; prompt del loop deve portare tutti e quattro i vincoli di sicurezza; opzioni di cadenza registrate, non applicate.
+- **Audit prompt del loop — PULITO (negativo).** Un solo task durevole `c05d5335`, recurring, cron `*/5 * * * *`. Prompt di 915 caratteri che porta correttamente tutti e quattro i vincoli: stop/record sul gate decisionale utente, nessun secret, nessun nuovo worktree, non abilitare l'esecuzione parallela legacy. `createdAt` 2026-09-23T10:45:31, `lastFiredAt` 2026-09-29T16:16:52 — coerenti. Nessun difetto, nessuna modifica. Diversamente dal `HANDOFF.md` del cycle 185, il prompt del loop **non** dirige lavoro non autorizzato.
+- **FATTO MISURATO sulla cadenza:** l'ultimo commit che tocca `stagewarden/tests/scripts` è `3cf637c` del 2026-09-29T14:39:08. Da allora **7** commit metadata-only, cioè **7 cicli consecutivi (181-187) con ZERO modifiche di runtime**, e `TODO.md` contiene ora **271** sezioni di ciclo. Il loop scatta ogni 5 minuti, quindi ogni ciclo no-op costa un turno completo di agente.
+- **ESCALATION, NON AZIONE.** La cadenza del loop è-owned dell'utente per la decisione del cycle 178, quindi le opzioni sono registrate e non applicate:
+  - **(a)** mantenere cadenza 5 minuti — watchdog economico, ma ~12 turni completi/ora, tutti senza modifiche di runtime;
+  - **(b)** sospendere finché il gate non è risposto — zero turni sprecati, si perde il rilevamento del drift esterno;
+  - **(c)** rallentare a oraria — mantiene il rilevamento del drift a circa 1/12 del costo.
+- **Wet:** spot-check `154 passed, 79 subtests, 10.21s`; smoke `OmniRoute free route OK (auto/coding:free)`; `716 tests collected`.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `c32a5cb -> b62a40e` (solo 5 file metadata, diff sorgente/test/script vuoto). Riconciliato solo metadata a `b62a40ef1127e67c49871a5ea55d142e7981e6cb`. Secondo gate `5/5`.
+- **Decisione:** HOLD sul runtime. Nessun cambio provider/model/fallback/routing/scheduler/parallel. Nessun scope inventato.
+- Evidenza: `/tmp/stagewarden-hold-2026-09-29j14.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j14.log`.
+
 ### Iterazione bounded completata — cycle 186: HOLD — audit di `TODO.md` completato, **nessun difetto trovato** (risultato negativo)
 
 - **Esito:** HOLD sul runtime. Nessuna modifica a runtime, test, script o TODO. Nessun difetto è stato fabbricato per far quadrare il ciclo.

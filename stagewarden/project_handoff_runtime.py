@@ -1301,6 +1301,10 @@ def load_project_handoff(cls: type[Any], path: Path) -> Any:
         project_budget=dict(payload.get("project_budget", {})) if isinstance(payload.get("project_budget", {}), dict) else {},
         user_question=dict(payload.get("user_question", {})) if isinstance(payload.get("user_question", {}), dict) else {},
         user_question_log=[dict(item) for item in payload.get("user_question_log", []) if isinstance(item, dict)],
+        # NOTE: this is ONE conditional expression, not a comprehension followed by
+        # a dangling `if`. The isinstance test is evaluated first, so the
+        # comprehension never runs against a non-dict project_brief. A previous
+        # audit recorded this as a no-op dead statement; that reading was wrong.
         project_brief={
             str(key).strip().lower(): str(value).strip()
             for key, value in payload.get("project_brief", {}).items()

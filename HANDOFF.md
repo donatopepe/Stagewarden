@@ -4,17 +4,16 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD on runtime. `TODO.md` audited and no defect found** — a valid negative. No runtime, test, script or TODO change.
-- Objective: audit `TODO.md`, the file the recurring loop is told to work only from, never audited in cycles 184-185. Cycle 185 found a `Next action` proposing unapproved scope, so the same class was worth searching here. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, unapproved instructions in `TODO.md` `0`, load-bearing `[x]` claims re-verified by execution.
-- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` empty, no external drift at tick start.
-- Finding 1, the valuable negative: the file has exactly 3 open `[ ]` items and all three are correctly approval-gated (approve residual v3 decisions; bring only APPROVED extension/subagent capabilities; add migration and temporary compatibility layer). Each is phrased as a pending approval, not work to start, so nothing here would have directed a following agent into unauthorized work. No `TODO.md` edit was made and no defect was manufactured to match the previous cycle.
-- Finding 2: `TODO.md` claims the unified validation matrix and fixed runner are complete and green, so the runner was re-executed rather than trusted: all 6 gates returned `passed=True`, overall `passed=True`, exit 0.
-- Finding 3: the standing serial-execution rule re-verified; no parallel enablement in `goal_loop_control.py` or `config.py`.
-- Wet: spot-check `154 passed, 79 subtests passed in 10.30s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected, 4 OpenRouter-key skips intentional.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `9ca4072 -> c32a5cb`; reconciled metadata only to `c32a5cb956a39f7a76bf8f0baf07034a106fddbb`; second `5/5`.
-- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change. Loop unchanged.
-- Decision: hold on runtime; no scope invented. A negative result is a valid outcome.
-- Evidence: `/tmp/stagewarden-hold-2026-09-29j13.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j13.log`.
+- Outcome: **HOLD on runtime**, plus a measured escalation to the user on loop cadence. No runtime, test, script, loop or TODO change.
+- Objective: audit `.pi-loop.json`, the last un-audited instruction artifact and the one driving every future cycle, then attach a number to the cadence question cycle 178 deferred. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, loop prompt carrying all four safety constraints, cadence options recorded not actioned.
+- Loop prompt audit, clean and negative: one durable task `c05d5335`, recurring, cron `*/5 * * * *`; prompt 915 chars correctly carrying stop/record on the user decision gate, no secrets, no new worktree, and no legacy parallel execution; `createdAt` 2026-09-23T10:45:31 and `lastFiredAt` 2026-09-29T16:16:52 coherent. No defect, no edit, and unlike the cycle-185 `HANDOFF.md` defect the loop prompt does not direct unauthorized work.
+- Measured cadence fact: the last commit touching `stagewarden`/`tests`/`scripts` is `3cf637c` at 2026-09-29T14:39:08. Since then 7 metadata-only commits, so 7 consecutive cycles (181-187) produced ZERO runtime change, and `TODO.md` holds 271 cycle sections. The loop fires every 5 minutes, so each no-op cycle costs a full agent turn.
+- Escalated, NOT actioned, because cadence is user-owned per the cycle-178 decision: (a) keep the 5-minute cadence, ~12 full turns per hour all producing no runtime change; (b) suspend until the gate is answered, zero wasted turns but loses external-drift detection; (c) slow to hourly, keeping drift detection at roughly 1/12 the cost.
+- Wet: spot-check `154 passed, 79 subtests passed in 10.21s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `c32a5cb -> b62a40e`; reconciled metadata only to `b62a40ef1127e67c49871a5ea55d142e7981e6cb`; second `5/5`.
+- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
+- Decision: hold on runtime; no scope invented.
+- Evidence: `/tmp/stagewarden-hold-2026-09-29j14.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j14.log`.
 
 ## Product direction
 - One operational tree of nodes.
