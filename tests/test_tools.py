@@ -25,6 +25,77 @@ from stagewarden.textcodec import detect_confusables
 
 
 class ToolTests(unittest.TestCase):
+    def test_corrupt_settings_file_never_breaks_tool_construction(self) -> None:
+        """FileTool/ShellTool construction must survive a corrupt settings file.
+
+        PermissionPolicy.load runs in FileTool.__init__ and ShellTool.__init__,
+        so a malformed .stagewarden_settings.json raised out of every file and
+        shell action rather than degrading to default permissions.
+        """
+        corrupt = {
+            "not json": "this is not json",
+            "truncated": '{"permissions": [',
+            "empty file": "",
+            "allow not iterable": '{"permissions": {"allow": 5}}',
+        }
+        for label, body in corrupt.items():
+            with self.subTest(settings=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    config = AgentConfig(workspace_root=root)
+                    config.settings_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.settings_path.write_text(body, encoding="utf-8")
+                    for name, build in (("FileTool", FileTool), ("ShellTool", ShellTool)):
+                        try:
+                            tool = build(config)
+                            self.assertIsNotNone(tool.permissions)
+                        except Exception as exc:  # noqa: BLE001 - the defect under test
+                            self.fail(f"{name} with {label} raised {type(exc).__name__}: {exc}")
+
+    def test_corrupt_settings_shapes_fall_back_to_defaults(self) -> None:
+        """Malformed settings must yield the same defaults a missing file does."""
+        corrupt = {
+            "not json": "this is not json",
+            "truncated": '{"permissions": [',
+            "empty file": "",
+            "allow not iterable": '{"permissions": {"allow": 5}}',
+        }
+        baseline = PermissionSettings().normalize()
+        for label, body in corrupt.items():
+            with self.subTest(settings=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "settings.json"
+                    path.write_text(body, encoding="utf-8")
+                    self.assertEqual(PermissionSettings.load(path), baseline)
+                    self.assertEqual(PermissionPolicy.load(path, None).settings, baseline)
+
+    def test_tolerated_settings_shapes_are_still_accepted(self) -> None:
+        """Controls: shapes already handled, plus a real settings round-trip."""
+        tolerated = {
+            "top-level list": "[1, 2, 3]",
+            "top-level string": '"a string"',
+            "top-level number": "42",
+            "null": "null",
+            "permissions not dict": '{"permissions": "oops"}',
+            "allow as string": '{"permissions": {"allow": "file:write"}}',
+        }
+        for label, body in tolerated.items():
+            with self.subTest(settings=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "settings.json"
+                    path.write_text(body, encoding="utf-8")
+                    self.assertIsNotNone(PermissionSettings.load(path))
+                    self.assertIsNotNone(PermissionPolicy.load(path, None))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "settings.json"
+            saved = PermissionSettings(
+                default_mode="plan", allow=["file:read"], ask=["file:write"], deny=[]
+            ).normalize()
+            saved.save(path)
+            self.assertEqual(PermissionSettings.load(path), saved)
+            missing = Path(tmp) / "absent.json"
+            self.assertEqual(PermissionSettings.load(missing), PermissionSettings().normalize())
+
     def test_external_io_download_checksum_compress_and_verify(self) -> None:
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:  # noqa: N802

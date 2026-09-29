@@ -51,15 +51,33 @@ class PermissionSettings:
     def load(cls, path: Path) -> "PermissionSettings":
         if not path.exists():
             return cls()
-        payload = loads_text(read_text_utf8(path))
+        try:
+            payload = loads_text(read_text_utf8(path))
+        except (OSError, UnicodeDecodeError, TypeError, ValueError):
+            # A malformed settings file is treated exactly like a missing one:
+            # default permissions. FileTool.__init__ and ShellTool.__init__ call
+            # this via PermissionPolicy.load with no error handling of their own,
+            # so raising here would break every file and shell action instead of
+            # degrading to the safe default.
+            return cls()
         permissions = payload.get("permissions", {}) if isinstance(payload, dict) else {}
         if not isinstance(permissions, dict):
             permissions = {}
+
+        def _names(key: str) -> list[str]:
+            value = permissions.get(key, [])
+            if isinstance(value, (str, bytes)) or not hasattr(value, "__iter__"):
+                return [str(value)] if key == "allow" and isinstance(value, str) else []
+            try:
+                return [str(item) for item in value]
+            except TypeError:
+                return []
+
         return cls(
             default_mode=str(permissions.get("defaultMode", "default")),
-            allow=[str(item) for item in permissions.get("allow", [])],
-            ask=[str(item) for item in permissions.get("ask", [])],
-            deny=[str(item) for item in permissions.get("deny", [])],
+            allow=_names("allow"),
+            ask=_names("ask"),
+            deny=_names("deny"),
         ).normalize()
 
     def merged(self, override: "PermissionSettings | None" = None) -> "PermissionSettings":
