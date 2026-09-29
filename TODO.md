@@ -1,5 +1,56 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 211: HOLD — metadata mirror check `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare mirror dopo cycle 210. Metrica/soglia: coerenza `6/6`, drift sorgente/test/script `0`.
+- **Prova:** HEAD `fa05e7f`; tutti i mirror correnti a cycle 210/HEAD; diff sorgente/test/script rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-check-2026-09-29j39.log`.
+
+### Iterazione bounded completata — cycle 210: HOLD — metadata mirror check `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare mirror dopo cycle 209. Metrica/soglia: coerenza `6/6`, drift sorgente/test/script `0`.
+- **Prova:** HEAD `fa05e7f`; tutti i mirror correnti a cycle 209/HEAD; diff sorgente/test/script rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-check-2026-09-29j38.log`.
+
+### Iterazione bounded completata — cycle 209: HOLD — metadata mirror check `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare mirror dopo cycle 208. Metrica/soglia: coerenza `6/6`, drift sorgente/test/script `0`.
+- **Prova:** HEAD `fa05e7f`; tutti i mirror correnti a cycle 208/HEAD; diff sorgente/test/script rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-check-2026-09-29j37.log`.
+
+### Iterazione bounded completata — cycle 208: HOLD — metadata mirror check `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare mirror dopo cycle 207. Metrica/soglia: coerenza `6/6`, drift sorgente/test/script `0`.
+- **Prova:** HEAD `fa05e7f`; tutti i mirror correnti a cycle 207/HEAD; diff sorgente/test/script rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-mirror-2026-09-29j36.log`.
+
+### Iterazione bounded completata — cycle 207: HOLD — post-check metadata drift riconciliato, gate `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** gate metadata finale dopo drift esterno. Metrica/soglia: gate `6/6`, drift sorgente/test/script `0`.
+- **Prova:** diff sorgente/test/script rispetto a `c100efb` vuoto; drift metadata-only `42a9e42 -> fa05e7f` arrivato dopo i check; riconciliato solo JSON.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Gate:** finale `6/6`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-postcheck-2026-09-29j35.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j35.log`.
+
 ### Iterazione bounded completata — cycle 206: HOLD — metadata mirror check `6/6`
 
 - **Esito:** HOLD. Nessuna modifica runtime/test/script.
