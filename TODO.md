@@ -1,5 +1,19 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 159: sostituzione dei test che reimplementavano la logica (solo test, nessuna modifica runtime)
+
+- **Obiettivo:** applicare la regola del cycle 158 (“testa il metodo reale”) come audit del repository: nessun test deve rivendicare una copertura che non ha. Sostituire i cinque test `test_pi_execution_*` che reimplementavano il parser con equivalenti che **chiamano** `_pi_execution`. Modifica **solo di test**: nessun cambiamento runtime.
+- **Metrica/soglia:** test che reimplementano la logica di `_pi_execution`; soglia `0`, con ogni comportamento sostituito comunque coperto attraverso il metodo reale. Gate `5/5`; unified validation `6/6`; suite completa `682 passed, 4 skipped`.
+- **Metodo dell'audit:** grep del pattern antipattern su tutti i 39 file di test: esattamente **un** file affetto, `tests/test_goal_loop_orchestrator.py`, con 14 regex ANSI inline e 4 `json.loads` inline. Dopo la sostituzione: **0** reimplementazioni inline nel file.
+- **Casi fissi/ordine:** 1 JSON pulito · 2 notifica ANSI OSC · 3 fallback su testo semplice · 4 JSON immerso in rumore · 5 più oggetti JSON (vince l'ultimo).
+- **Baseline:** 5 test che reimplementavano la logica, 0 che chiamavano il metodo. Il codice lo confessava: il commento “We need to actually run through `_pi_execution`… but it requires a NodeState. Instead test the parsing logic directly.”
+- **Scoperta importante (la sostituzione da sola non bastava):** dopo aver riscritto i test per chiamare il metodo reale, ho rotto di proposito la rimozione delle sequenze ANSI OSC nel codice reale e il risultato è stato comunque `41 passed, 0 failures`. Il test chiamato `strips_ansi_notification` **non** rilevava la regressione che dichiarava di testare, perché la regex “primo oggetto con summary” (Try 2) recuperava comunque il payload. Un test può chiamare il metodo giusto ed essere comunque vacuo.
+- **Correzione:** invertito l'ordine nel payload di quel test, così il JSON reale viene per primo e l'involucro `notify` (che porta il proprio `summary`) viene dopo. Con stripping OSC integro la risposta è `real`; senza stripping la regex a ultimo oggetto restituisce `NOTIFY`. Aggiunto un secondo caso CSI per l'altra famiglia di escape.
+- **Riconferma per meccanismo (ogni meccanismo di parsing rimosso a turno):** OSC strip rimosso → `1 failed, 41 passed`, catturato da `test_pi_execution_strips_ansi_notification`; CSI strip rimosso → `17 failed, 35 passed`, catturato da 7 test; regex Try-2 rimossa → `5 failed, 39 passed`, catturato da 3 test; ripristinato → `42 passed, 10 subtests passed`. **Ogni meccanismo di parsing è ora realmente ancorato da un test che fallisce quando si rompe.**
+- **Regressione:** suite prioritaria `257 passed, 194 subtests passed in 14.37s`; suite completa con flag live `682 passed, 4 skipped, 194 subtests passed in 374.78s (0:06:14)`, 0 fallimenti (era 681). Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-realmethod-tests-2026-09-28gv.log`.
+- **Drift esterno:** commit esterno `6fe7273 -> b5f2755` ha acquisito le modifiche di test; `git_head` riconciliato a `b5f27556d36438845f2f39367dfbab08d4e82665`.
+- **Nota:** conteggio test nel file 41 → 42 (un caso ANSI in più). Nessun cambio a provider/model/fallback/routing/scheduler/parallelismo, nessun segreto.
+
 ### Iterazione bounded completata — cycle 158: TDD validazione del node contract sul backend pi (claim fail-closed mai eseguita)
 
 - **Obiettivo:** applicare la lezione del cycle 157 — **eseguire** le claim fail-closed invece di ripeterle — a una claim portata da oltre 150 cicli senza essere mai stata eseguita: il node contract del goal loop sul backend `pi`. Il backend OmniRoute validava `summary`/`messages`; quello `pi` no.
