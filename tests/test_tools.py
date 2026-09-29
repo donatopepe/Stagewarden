@@ -372,6 +372,56 @@ class ToolTests(unittest.TestCase):
             gitignore = (root / ".gitignore").read_text(encoding="utf-8")
             self.assertIn(".stagewarden_settings.json", gitignore)
 
+    def test_git_tool_refuses_an_undecodable_gitignore_without_destroying_it(self) -> None:
+        """A .gitignore is user-authored and lives in the workspace root, so per
+        the cycle-172 ranking it is among the likeliest inputs to be corrupt. The
+        read was unguarded, so invalid UTF-8 raised out of ensure_runtime_ignores
+        and ensure_ready. The fix must NOT substitute empty content, because this
+        method writes the file back and that would erase the user's ignore rules."""
+        bodies = {
+            "binary garbage": b"\xff\xfe\x00\x01\x80\x81 not utf-8",
+            "lone continuation": b"\x80\x81\x82 only continuation\n",
+            "truncated utf8": b"*.pyc\n\xc3",
+            "utf16 bom": b"\xff\xfe*\x00.\x00p\x00y\x00",
+        }
+        for label, body in bodies.items():
+            with self.subTest(gitignore=label):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    root = Path(tmp_dir)
+                    target = root / ".gitignore"
+                    target.write_bytes(body)
+                    tool = GitTool(AgentConfig(workspace_root=root))
+
+                    ensured = tool.ensure_runtime_ignores()
+                    self.assertFalse(ensured.ok, f"{label} must be refused")
+                    self.assertIn("gitignore", str(ensured.error).lower())
+
+                    # the user's bytes must survive untouched
+                    self.assertEqual(target.read_bytes(), body)
+
+                    # ensure_ready must fail cleanly, not raise UnicodeDecodeError
+                    ready = tool.ensure_ready()
+                    self.assertFalse(ready.ok)
+
+    def test_git_tool_still_manages_a_readable_gitignore(self) -> None:
+        """Controls: readable, absent and empty .gitignore all keep working."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            tool = GitTool(AgentConfig(workspace_root=root))
+            self.assertTrue(tool.ensure_runtime_ignores().ok)
+            created = (root / ".gitignore").read_text(encoding="utf-8")
+            self.assertIn(".stagewarden_settings.json", created)
+
+            (root / ".gitignore").write_text("*.log\nbuild/\n", encoding="utf-8")
+            self.assertTrue(tool.ensure_runtime_ignores().ok)
+            merged = (root / ".gitignore").read_text(encoding="utf-8")
+            self.assertIn("*.log", merged)
+            self.assertIn("build/", merged)
+            self.assertIn(".stagewarden_settings.json", merged)
+
+            (root / ".gitignore").write_text("", encoding="utf-8")
+            self.assertTrue(tool.ensure_runtime_ignores().ok)
+
     def test_file_tool_search_and_list(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

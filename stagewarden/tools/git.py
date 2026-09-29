@@ -60,7 +60,17 @@ class GitTool:
 
     def ensure_runtime_ignores(self) -> GitResult:
         ignore_path = self.config.workspace_root / ".gitignore"
-        existing = ignore_path.read_text(encoding="utf-8") if ignore_path.exists() else ""
+        if ignore_path.exists():
+            # A .gitignore is user-authored, so refuse rather than raise. This
+            # method writes the file back, so substituting empty content here
+            # would silently erase the user's ignore rules; failing closed
+            # preserves them and routes through the caller's governance error.
+            try:
+                existing = ignore_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                return GitResult(False, error=f"Cannot read .gitignore as UTF-8 ({exc}); left unchanged.")
+        else:
+            existing = ""
         lines = existing.splitlines()
         changed = False
         for item in self.RUNTIME_IGNORES:
