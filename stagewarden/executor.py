@@ -1981,6 +1981,12 @@ class Executor:
             self._complete_tool_operation(operation_id, success=result.ok, message=observation["message"])
             return observation
 
+        if MODEL_ACTION_SCHEMAS.get(str(action_type), {}).get("tool") == "files" and not isinstance(action.get("path", ""), str):
+            failure = self._file_read_failure(step_id, "", "File action path must be a string.")
+            failure["report"] = {"requested_size": 0, "effective_size": 0, "auto_compacted": False}
+            failure["content"] = ""
+            return failure
+
         if action_type == "read_file":
             result = self.files.read(action.get("path", ""))
             message = result.content or result.error or "File read."
@@ -1991,13 +1997,13 @@ class Executor:
             raw_start = action.get("start", 0)
             if isinstance(raw_start, bool) or not isinstance(raw_start, int):
                 failure = self._file_read_failure(step_id, action.get("path", ""), "File chunk start offset must be an integer.")
-                failure["report"] = {"requested_size": int(action.get("size", self.config.file_chunk_chars)), "effective_size": 0, "auto_compacted": False}
+                failure["report"] = {"requested_size": action.get("size", self.config.file_chunk_chars), "effective_size": 0, "auto_compacted": False}
                 failure["content"] = ""
                 return failure
             requested_start = raw_start
             if requested_start < 0:
                 failure = self._file_read_failure(step_id, action.get("path", ""), "File chunk start offset cannot be negative.")
-                failure["report"] = {"requested_size": int(action.get("size", self.config.file_chunk_chars)), "effective_size": 0, "auto_compacted": False}
+                failure["report"] = {"requested_size": action.get("size", self.config.file_chunk_chars), "effective_size": 0, "auto_compacted": False}
                 failure["content"] = ""
                 return failure
             raw_size = action.get("size", self.config.file_chunk_chars)
@@ -2171,6 +2177,11 @@ class Executor:
             return {"ok": result.ok, "message": message, "error_type": "file_error"}
 
         if action_type == "write_file":
+            if not isinstance(action.get("content", ""), str):
+                failure = self._file_read_failure(step_id, action.get("path", ""), "File action content must be a string.")
+                failure["report"] = {"requested_size": 0, "effective_size": 0, "auto_compacted": False}
+                failure["content"] = ""
+                return failure
             if mutation_key and not recovered_in_flight:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.write(action.get("path", ""), action.get("content", ""))
@@ -2284,6 +2295,12 @@ class Executor:
             return {"ok": ok, "message": message, "mutation_key": mutation_key, "recovered": recovered_in_flight, "error_type": "verification_failed" if result.ok and not verification_ok else "file_error"}
 
         if action_type == "delete_backward_file":
+            raw_count = action.get("count", 0)
+            if isinstance(raw_count, bool) or not isinstance(raw_count, int):
+                failure = self._file_read_failure(step_id, action.get("path", ""), "File action count must be an integer.")
+                failure["report"] = {"requested_size": 0, "effective_size": 0, "auto_compacted": False}
+                failure["content"] = ""
+                return failure
             if mutation_key and not recovered_in_flight:
                 self.mutations.append(key=mutation_key, action_type=str(action_type), path=str(action.get("path", "")), status="in_flight", message="mutation execution started")
             result = self.files.delete_backward(

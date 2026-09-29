@@ -1,5 +1,17 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 152: audit fail-closed esaurito (nessun difetto trovato, nessuna modifica runtime)
+
+- **Obiettivo:** verificare con una sonda eseguibile se la classe di difetti fail-closed (input non fidabile malformato) sia davvero chiusa, prima di dichiararlo; nessuna modifica runtime perché nessun difetto è emerso.
+- **Metrica/soglia:** uncaught exceptions della sonda; soglia `0`. Gate matrix `5/5`; unified validation `6/6`; suite completa `667 passed, 4 skipped`.
+- **Casi fissi/ordine:** 1 stream JSONL (`EventStream.read`/`read(node_id)`/`read(event)`/`follow`/`follow(after=99)`/`follow(after=-5)`/`replay`/`replay(node_id)`, `MutationJournal.list`/`list(status)`/`get`) su 15 righe malformate · 2 loader Node Knowledge Store (`search`, `code_search`, `code_relations`, `load_node_execution_capsule`) con `source_json` corrotta in tutte e 3 le tabelle × 5 forme · 3 coercizione numerica di colonne nullable.
+- **Baseline:** `RESULT: 0 unguarded exception(s)`. Nessun difetto riprodotto, quindi nessun TDD change e nessuna modifica a runtime/API/provider/model/fallback/routing/scheduler/parallelismo.
+- **Cosa è stato verificato in più oltre alla sonda:** il percorso di checkpoint file-read (`begin_file_read`/`checkpoint_file_chunk`/`complete_file_read`) ha già guardie esplicite e colonne tutte `NOT NULL`; le uniche colonne nullable sono `session_id`, `entry_id`, `parent_node_id`, `relation_id`, `target_path`, nessuna delle quali viene usata in coerciioni numeriche o join non protetti; il contenimento same-root in `config.resolve_path`/`is_within_workspace` e `tools/files.py` risolve prima di controllare, quindi anche gli escape via symlink sono bloccati; `event_stream.replay` valida ogni accesso annidato con `isinstance`; la compattazione contesto in `executor._compact_prompt_text`/`_render_model_communication_packet` gestisce valori non-stringa senza crash.
+- **TDD:** non applicabile, nessun difetto. La sonda è il test: gira con `PYTHONPATH=/home/public/Stagewarden /tmp/stagewarden-pytest-venv/bin/python /tmp/stagewarden_audit_probe.py` e restituisce `RESULT: 0`.
+- **Regressione:** suite prioritaria `240 passed, 34 subtests passed in 24.06s`; suite completa con flag live `667 passed, 4 skipped, 34 subtests passed in 339.20s (0:05:39)`, 0 fallimenti. Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-audit-exhaustion-2026-09-28go.log`.
+- **Drift esterno:** commit esterno `c11ef70 -> a416319`; `git_head` riconciliato a `a4163197993b32dff935d1c5797e856f40cb4baf`.
+- **Proposta non applicata:** la sonda copre bene la regressione fail-closed e potrebbe diventare un test permanente in `tests/`; non l'ho aggiunta perché nessun difetto la rende necessaria e creerebbe un nuovo file di test senza TDD change che lo giustifichi. Da autorizzare esplicitamente.
+
 ### Iterazione bounded completata — cycle 151: TDD fix difetto `code_search` + audit completo dei siti `json.loads`
 
 - **Obiettivo:** chiudere l'ultimo loader scoperto dell'audit: `code_search` decodificava `source_json` senza guardia esattamente come `search` e `code_relations` prima del cycle 150; poi completare lo sweep di TUTTI i siti `json.loads`/`json.load` del package per confermare che non ne restino di non protetti.

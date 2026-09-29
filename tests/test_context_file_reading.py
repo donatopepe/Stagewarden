@@ -27,6 +27,55 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             rag=DesignRag(),
         )
 
+    def _wrong_typed_actions(self) -> list[tuple[str, dict[str, object]]]:
+        return [
+            ("read_file_chunk", {"path": "source.txt", "start": "abc", "size": "zz"}),
+            ("read_file_chunk", {"path": "source.txt", "start": -1, "size": "zz"}),
+            ("read_file_chunk", {"path": None, "start": 0}),
+            ("read_file_chunk", {"path": 123, "start": 0}),
+            ("read_file", {"path": 123}),
+            ("read_file", {"path": None}),
+            ("inspect_file", {"path": ["a"]}),
+            ("write_file", {"path": "source.txt", "content": 123}),
+            ("delete_backward_file", {"path": "source.txt", "count": None}),
+            ("delete_backward_file", {"path": "source.txt", "count": [3]}),
+        ]
+
+    def test_wrong_typed_file_action_fields_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            try:
+                for index, (action_type, action) in enumerate(self._wrong_typed_actions()):
+                    step_id = f"node.wrongtyped{index}"
+                    with self.subTest(action_type=action_type, action=action):
+                        payload = dict(action, type=action_type)
+                        try:
+                            result = executor._run_action(payload, step_id=step_id)
+                        except Exception as exc:  # noqa: BLE001 - the defect under test
+                            self.fail(
+                                f"{action_type} {action!r} raised {type(exc).__name__}: {exc}"
+                            )
+                        self.assertFalse(result["ok"], f"{action_type} {action!r} must fail closed")
+            finally:
+                executor.close()
+
+    def test_wrong_typed_file_action_fields_emit_failed_node_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            step_id = "node.wrongtyped_replay"
+            try:
+                executor._run_action(
+                    {"type": "read_file", "path": 123}, step_id=step_id
+                )
+                replay = executor.events.replay(node_id=step_id)["nodes"][step_id]
+                self.assertEqual(replay["status"], "failed")
+            finally:
+                executor.close()
+
     def test_chunk_reader_reports_offsets_and_reconstructs_complete_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
