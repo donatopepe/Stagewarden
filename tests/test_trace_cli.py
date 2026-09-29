@@ -1060,6 +1060,63 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertEqual(payload["configured"], "zsh")
             self.assertEqual(payload["selected"], "zsh")
 
+    def test_cli_survives_a_corrupt_workspace_settings_file(self) -> None:
+        """Every CLI command reads settings at startup, so none may crash on it.
+
+        run_cli calls _shell_views._configured_shell_backend unconditionally, and
+        _workspace_settings_payload guarded a non-dict root but not the decode,
+        so a malformed .stagewarden_settings.json raised JSONDecodeError out of
+        the CLI no matter which subcommand the user asked for.
+        """
+        corrupt = {
+            "not json": "this is not json",
+            "truncated": '{"shell": {',
+            "empty file": "",
+        }
+        for label, body in corrupt.items():
+            with self.subTest(settings=label):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    root = Path(tmp_dir)
+                    (root / ".stagewarden_settings.json").write_text(
+                        body, encoding="utf-8"
+                    )
+                    completed = run_main_capture(root, "status", "--json")
+                    self.assertEqual(
+                        completed.returncode, 0,
+                        f"status --json must survive {label}: {completed.stderr[:300]}",
+                    )
+                    payload = json.loads(completed.stdout)
+                    self.assertEqual(payload["shell_backend"]["configured"], "auto")
+
+    def test_cli_keeps_tolerated_settings_shapes(self) -> None:
+        """Controls: shapes already handled, a missing file, and a real setting."""
+        for label, body in {
+            "non-dict root": "[1, 2]",
+            "non-dict shell": '{"shell": "oops"}',
+        }.items():
+            with self.subTest(settings=label):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    root = Path(tmp_dir)
+                    (root / ".stagewarden_settings.json").write_text(
+                        body, encoding="utf-8"
+                    )
+                    completed = run_main_capture(root, "status", "--json")
+                    self.assertEqual(completed.returncode, 0, completed.stderr[:300])
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            completed = run_main_capture(root, "status", "--json")
+            self.assertEqual(completed.returncode, 0, completed.stderr[:300])
+            self.assertEqual(
+                json.loads(completed.stdout)["shell_backend"]["configured"], "auto"
+            )
+            (root / ".stagewarden_settings.json").write_text(
+                json.dumps({"shell": {"backend": "zsh"}}), encoding="utf-8"
+            )
+            completed = run_main_capture(root, "status", "--json")
+            self.assertEqual(
+                json.loads(completed.stdout)["shell_backend"]["configured"], "zsh"
+            )
+
     def test_status_json_reports_configured_shell_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

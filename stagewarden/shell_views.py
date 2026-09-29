@@ -177,7 +177,13 @@ INTERACTIVE_COMMAND_PHRASES: tuple[str, ...] = tuple(dict.fromkeys((
 def _workspace_settings_payload(path: Path) -> dict[str, object]:
     if not path.exists():
         return {}
-    payload = loads_text(read_text_utf8(path))
+    try:
+        payload = loads_text(read_text_utf8(path))
+    except (OSError, UnicodeDecodeError, TypeError, ValueError):
+        # A malformed settings file is treated exactly like a missing one. This
+        # is read by run_cli at startup for every subcommand, so raising here
+        # would block the whole CLI rather than degrade to default settings.
+        return {}
     return payload if isinstance(payload, dict) else {}
 
 
