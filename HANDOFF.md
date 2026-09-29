@@ -4,17 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **RESOLVED the `project_brief` "no-op" as a non-issue** — the record was wrong, not the code. Comment-only change; no behaviour change.
-- Objective: resolve the last open runtime item carried in the record, the `project_brief` "dangling statement" recorded since cycle 171 and carried ~100 cycles. Metric/threshold: loader raising on a wrong-typed `project_brief`, threshold `0`. Fixed cases/order: 1 string, 2 list, 3 int, 4 null; 5 controls: dict, missing field, malformed JSON, non-dict root.
-- Why the original reading was wrong: the source looks like a dict comprehension followed by a dangling `if/else` statement. It is not. AST proof: the `project_brief` keyword argument is a single `ast.IfExp` whose test is `isinstance(payload.get('project_brief', {}), dict)`, body the dict comprehension, orelse `{}`. Python evaluates the condition first, so the comprehension never runs against a non-dict. The dangling appearance is purely a line-wrap artifact.
-- Measured, 8 cases through the real loader, 0 raises: string, list, int and null all degrade to `{}`; dict yields `{'owner': 'me'}` with correct lowercase/trim; missing field, malformed JSON and non-dict root all `{}`.
-- Change: clarifying comment only, no behaviour change; `git diff --stat` 1 file, 4 insertions, 0 deletions; all 8 cases re-verified identical afterwards.
-- Second audit, first ever on this structure: the JSON `entries` log (121 entries, 142221 bytes) has 0 true duplicates by per-entry identity and 0 entries asserting a fix that never happened. The apparent 15 duplicates were my own key error, from keying on `(task, phase, timestamp)`, which are per-run fields, so distinct node completions in one run collided. Re-keyed on per-entry identity: 0 duplicates.
-- Wet, full suite required because source changed: `711 passed, 5 skipped, 301 subtests passed in 335.14s`; spot-check `154 passed, 79 subtests`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; unified validation `6/6`, overall `True`.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `b62a40e -> db1c3e5`; reconciled metadata only to `db1c3e581698ba4c06a5ff78ddc87682e11a6833`; second `5/5`.
+- Outcome: **HOLD on runtime with one precision correction to the record.** No code change this cycle.
+- Objective: cycle 188 changed source (comment only), so the cycle-179 diff criterion required the full suite; then verify every remaining carried claim by measurement rather than trusting register summaries. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, every carried claim classified, key-gated skip count exact.
+- Diff criterion: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` shows 1 file, 4 insertions, the cycle-188 comment. Source changed, so the full suite was required.
+- Full suite: `711 passed, 5 skipped, 301 subtests passed in 336.02s`; confirming rerun `333.94s`. Zero regressions from the cycle-188 comment.
+- Register audit, ACCURATE: `issue_register` (4) and `risk_register` (5) checked item by item. The genuinely open risks are exactly the v3 approval gate (high, user-owned), multi-node OmniRoute free stability (medium, unproven), and the OpenRouter external check that needs a key and is correctly never run. Nothing overstated or understated.
+- Correction: `pytest -rs` shows the 5 skips split into **4 genuinely key-gated** (`tests/test_agent_integration.py:398`, `tests/test_handoff.py:161` and `:223`, `tests/test_trace_cli.py:461`) and **1 not key-gated at all** — `tests/test_omniroute_adapter.py:129` `test_local_free_route_live`, gated only by `RUN_OMNIROUTE_LIVE_TEST=1`, an opt-in flag needing no credential. Re-run with the flag: `6 passed, 4 subtests, 1.89s`, no secret involved.
+- Why it matters: reporting "5 skipped" invited the reading that all five wait on an OpenRouter key and that the free-route live path is unverified. It **is** verified. Only the 4 real key-gated tests remain blocked, and that is a deliberate, correct state.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `db1c3e5 -> cea42af`; reconciled metadata only to `cea42afc4fe58ddfe56c933b6dd8c1da187fde9a`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
-- Decision: close the recorded no-op as NOT a defect. The user decision gate remains the only blocker.
-- Evidence: `/tmp/stagewarden-project-brief-2026-09-29j15.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j15.log`.
+- Decision: hold on runtime. The user decision gate remains the only blocker.
+- Evidence: `/tmp/stagewarden-skip-breakdown-2026-09-29j16.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j16.log`.
 
 ## Product direction
 - One operational tree of nodes.

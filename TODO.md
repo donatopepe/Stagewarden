@@ -1,5 +1,21 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 189: HOLD + correzione di precisione sulla scomposizione degli skip
+
+- **Esito:** HOLD sul runtime, più una correzione di precisione al record. **Nessuna modifica al codice in questo ciclo.**
+- **Obiettivo:** il cycle 188 ha cambiato il sorgente (solo commento), quindi il criterio diff del cycle 179 **obbligava** alla suite completa; poi verificare ogni claim ancora portato invece di fidarsi delle sintesi nei register. Metrica/soglia: drift sorgente/test/script non spiegato `0`; gate `5/5`; ogni claim portato classificato per misurazione; conteggio esatto degli skip key-gated.
+- **Criterio diff:** `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` mostra 1 file, 4 insertions (il commento del cycle 188). Sorgente cambiato → suite completa obbligatoria, non spot-check.
+- **Suite completa:** `711 passed, 5 skipped, 301 subtests in 336.02s`; rilancio di conferma `333.94s`. **Zero regressioni** dal commento del cycle 188.
+- **Audit dei register — ACCURATI.** `issue_register` (4) e `risk_register` (5) verificati voce per voce. I rischi realmente aperti sono esattamente: `specification-approval-gate` (high, owned dall'utente); `omniroute-agent-completion` / stabilità multi-nodo free (medium, non provata); `external-provider-not-rerun`, il check OpenRouter che richiede una chiave e correttamente non viene mai eseguito. Nulla esagerato, nulla sottovalutato.
+- **CORREZIONE — la scomposizione degli skip veniva letta in modo impreciso.** Misurato con `pytest -rs`, i 5 skip si dividono in:
+  - **key-gated (4)**, realmente bloccati, nessun secret fornito e nessuno sarà fornito: `tests/test_agent_integration.py:398`, `tests/test_handoff.py:161`, `tests/test_handoff.py:223`, `tests/test_trace_cli.py:461`;
+  - **NON key-gated (1)**: `tests/test_omniroute_adapter.py:129` `test_local_free_route_live`, gated solo da `RUN_OMNIROUTE_LIVE_TEST=1`, un flag opt-in sotto il mio controllo, che non richiede alcuna credenziale.
+- **Rieseguito con il flag impostato:** `6 passed, 4 subtests, 1.89s`, nessun secret coinvolto.
+- **Perché conta:** riportare "5 skipped" invite a leggere che tutti e cinque aspettino una chiave OpenRouter, il che farebbe sembrare non verificato il percorso live free-route. **È verificato.** Solo i 4 test realmente key-gated restano bloccati, ed è uno stato deliberato e corretto.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `db1c3e5 -> cea42af`. Riconciliato solo metadata a `cea42afc4fe58ddfe56c933b6dd8c1da187fde9a`. Secondo gate `5/5`.
+- **Decisione:** HOLD sul runtime. Nessun cambio provider/model/fallback/routing/scheduler/parallel. Il gate decisionale utente resta l'unico blocco.
+- Evidenza: `/tmp/stagewarden-skip-breakdown-2026-09-29j16.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j16.log`.
+
 ### Iterazione bounded completata — cycle 188: il no-op `project_brief` è RISOLTO come NON-problema — il **record** era sbagliato, non il codice
 
 - **Esito:** chiuso l'ultimo item runtime rimasto aperto nel record. Modifica al solo commento, nessun cambio di comportamento.
