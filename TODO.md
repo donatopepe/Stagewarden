@@ -1,5 +1,17 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 151: TDD fix difetto `code_search` + audit completo dei siti `json.loads`
+
+- **Obiettivo:** chiudere l'ultimo loader scoperto dell'audit: `code_search` decodificava `source_json` senza guardia esattamente come `search` e `code_relations` prima del cycle 150; poi completare lo sweep di TUTTI i siti `json.loads`/`json.load` del package per confermare che non ne restino di non protetti.
+- **Metrica/soglia:** `tests/test_node_knowledge.py`; soglia 100% dei casi fissi che devono saltare la riga corrotta, con le righe valide ancora restituite. Gate `5/5`; unified validation `6/6`.
+- **Casi fissi/ordine:** 1 `code_search` con `source_json` corrotto (subtest: troncato, stringa grezza, lista, stringa, `null`) · 2 `code_search` con righe valide (controllo: `source` dict e `source_json` assente dai risultati).
+- **Baseline (difetto riprodotto):** controllo = 1 simbolo prima della corruzione; troncato e stringa grezza → `JSONDecodeError` non gestito; lista/stringa/`null` → riga restituita con `source` non-dict. Lo stesso crash del cycle 150, sull'unico loader rimasto.
+- **Variabile unica:** `code_search` ora riusa l'helper `_decode_source()` condiviso introdotto dal cycle 150, quindi tutti e tre i loader del Node Knowledge Store (`search`, `code_relations`, `code_search`) seguono lo stesso contratto. Nessuna migrazione di schema, nessun auto-repair, nessun cambio a provider/model/fallback/routing/scheduler/parallelismo.
+- **TDD:** RED `5 failed, 20 passed, 16 subtests passed` → GREEN `20 passed, 21 subtests passed`. Riconferma rimuovendo la guardia → `5 failed, 20 passed, 16 subtests passed`; ripristinata → `20 passed, 21 subtests passed`.
+- **Audit sweep completo (concluso):** protetti ora `search`, `code_relations`, `code_search`, `load_node_execution_capsule`. Già fail-closed e invariati: `mutation_journal.get/list`, `event_stream.read/follow`, `goal_loop_views.load_custom_nodes`, `memory_context.load_memory_context`, `goal_loop_orchestrator` parsing stdout, `tools/external_io._parse_search_results` (caller), `auth._post_json` (caller). Fuori classe di difetto (non sono loader di stato persistito): `prince2_benchmark`, `kilocode_source`, `extensions`, `textcodec`, `model_catalog`, `openrouter_benchmark`. **Non restano siti `json.loads` non protetti su stato persistito.**
+- **Regressione:** suite prioritaria `188 passed, 34 subtests passed in 22.67s`; suite completa con flag live `667 passed, 4 skipped, 34 subtests passed in 338.75s (0:05:38)`, 0 fallimenti (era 665). Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-codesearch-failclosed-defect-2026-09-28gn.log`.
+- **Drift esterno:** commit esterno `f24eb08 -> c11ef70` ha acquisito fix e test; `git_head` riconciliato a `c11ef7064454462e745319505291a438419e1348`.
+
 ### Iterazione bounded completata — cycle 150: TDD fix difetti fail-closed in `search` e `code_relations`
 
 - **Obiettivo:** estendere la correzione fail-closed ai due loader di retrieval del Node Knowledge Store: `search` e `code_relations` decodificavano `source_json` senza gestire errori di decode né verificare che la radice decodificata fosse un oggetto, quindi una singola riga corrotta abortiva l'intera query oppure faceva trapelare una `source` con forma sbagliata.
