@@ -1,5 +1,20 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 156: guardia sugli ELEMENTI dei campi sequenza (classe nuova, raggiungibile dal modello)
+
+- **Obiettivo:** con la coda svuotata dal cycle 155, aprire una classe di difetto nuova e raggiungibile: validazione a livello di **elemento** (non solo di contenitore) dei campi action forniti dal modello.
+- **Metrica/soglia:** eccezioni non gestite sulla matrice degli elementi di `tags`; soglia `0`. Gate `5/5`; unified validation `6/6`; suite completa `675 passed, 4 skipped`.
+- **Casi fissi/ordine:** 1 `list[dict]` · 2 `list[list]` · 3 `list[dict[list]]` annidato · 4 `[None, {b:2}]` · 5 controlli `str`/`list[str]`/`set`/`dict` che devono restare accettati.
+- **Come trovato:** invece di sondare oggetti Python, ho sondato il percorso non fidabile **reale** (`_parse_model_json` → `_run_action`) con JSON avversariale: 16 payload, 1 non gestita.
+- **Difetto:** `rag_add` con `tags=[{"a":1}]` → `TypeError: cannot use 'dict' as a set element (unhashable type: 'dict')`, raggiungibile direttamente dall'output del modello. Causa radice: la guardia del cycle 155 validava il tipo del **contenitore** di un campo sequenza ma non i suoi **elementi**, quindi una lista di dict passava la guardia e crashava più a fondo, nello strato RAG.
+- **Baseline:** 4/4 non gestite sui casi 1-4; i 5 controlli erano e restano accettati.
+- **Negativo misurato, registrato e NON corretto:** un valore action non serializzabile in JSON (`set`/`bytes`/`object`) crasha `json.dumps` in `mutation_key` con `TypeError` per ogni action mutante. **Non è raggiungibile in produzione**: l'input del modello arriva da `json.loads` (sempre serializzabile) e i caller interni di `_run_action` in `battery_views.py` passano dict letterali. Non corretto di proposito: irrobustire un percorso irraggiungibile non è un difetto.
+- **Variabile unica:** un controllo a livello di elemento dentro l'helper esistente `_wrong_typed_action_field`. Quando il tipo atteso è un contenitore e il valore è `list`/`tuple`/`set`/`frozenset`, ogni elemento non deve essere a sua volta `dict`/`list`/`set`/`frozenset`. Nessun meccanismo nuovo, nessuna guardia nuova, nessuna modifica agli schemi. Nessun cambio a provider/model/fallback/routing/scheduler/parallelismo.
+- **TDD:** RED `4 failed, 2 passed, 5 subtests passed` → GREEN `6 passed, 124 subtests passed`. Matrice avversariale post-fix: 0 non gestite, tutti i 5 controlli ancora `ok`.
+- **Test:** `tests/test_executor.py` `test_sequence_action_field_rejects_unhashable_elements` (4 subtest) e `test_sequence_action_field_still_accepts_hashable_containers` (5 subtest). Il secondo è la guardia contro l'eccesso di correzione: una regola a livello di contenitore che rifiutasse `tags` validi sarebbe sbagliata quanto il difetto originale.
+- **Regressione:** suite prioritaria `248 passed, 168 subtests passed in 13.66s`; suite completa con flag live `675 passed, 4 skipped, 168 subtests passed in 342.81s (0:05:42)`, 0 fallimenti (era 673). Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-sequenceelement-guard-2026-09-28gs.log`.
+- **Drift esterno:** commit esterno `bb1e635 -> f29c1a3` ha acquisito fix e test; `git_head` riconciliato a `f29c1a39d5236a409240c53392f22ef39f039dd5`.
+
 ### Iterazione bounded completata — cycle 155: guardia sui campi action opzionali (item accodato dal cycle 154)
 
 - **Obiettivo:** eseguire l'item che il cycle 154 aveva misurato e deliberatamente **non** corretto: i campi action **opzionali** con tipo sbagliato.

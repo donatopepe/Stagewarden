@@ -1749,45 +1749,49 @@ class Executor:
     def _bounded_context(self, label: str, text: str, limit: int) -> str:
         return _executor_prompting.bounded_context(text, limit, label=label)
 
-    def _parse_model_json(self, raw: str) -> dict[str, Any]:
-        text = raw.strip()
-        candidates = self._json_candidates(text)
-        payload = None
+    def _load_json_object(self, text: str, label: str) -> dict[str, Any] | str:
+        """Return the first candidate that parses to a JSON object, else an error.
+
+        A candidate may parse cleanly and still be a list or scalar; those are
+        skipped so a well-formed object wrapped in prose, a fence, or an array is
+        still recovered, and a non-object payload fails closed instead of raising.
+        """
         last_error: Exception | None = None
-        for candidate in candidates:
+        saw_non_object = False
+        for candidate in self._json_candidates(text):
             try:
                 payload = loads_text(candidate)
-                break
             except ValueError as exc:
                 last_error = exc
+                continue
+            if isinstance(payload, dict):
+                return payload
+            saw_non_object = True
+        if saw_non_object:
+            return f"{label} must return a JSON object."
+        error = f"{label}: {last_error}" if last_error else f"No JSON object found in {label.lower()}."
+        return error
 
-        if payload is None:
-            error = f"Model did not return valid JSON: {last_error}" if last_error else "No JSON object found."
-            return {"ok": False, "error": error}
+    def _parse_model_json(self, raw: str) -> dict[str, Any]:
+        text = raw.strip()
+        loaded = self._load_json_object(text, "Model did not return valid JSON")
+        if isinstance(loaded, str):
+            return {"ok": False, "error": loaded}
 
-        action = payload.get("action")
+        action = loaded.get("action")
         if not isinstance(action, dict) or "type" not in action:
             return {"ok": False, "error": "Model JSON is missing action.type."}
-        schema_error = self._validate_model_result_schema(payload, action)
+        schema_error = self._validate_model_result_schema(loaded, action)
         if schema_error:
             return {"ok": False, "error": schema_error}
-        return {"ok": True, "action": action, "payload": payload}
+        return {"ok": True, "action": action, "payload": loaded}
 
     def _parse_devil_advocate_json(self, raw: str) -> dict[str, Any]:
         text = raw.strip()
-        candidates = self._json_candidates(text)
-        payload = None
-        last_error: Exception | None = None
-        for candidate in candidates:
-            try:
-                payload = loads_text(candidate)
-                break
-            except ValueError as exc:
-                last_error = exc
-
-        if payload is None:
-            error = f"Devil advocate review did not return valid JSON: {last_error}" if last_error else "No JSON object found."
-            return {"ok": False, "error": error}
+        loaded = self._load_json_object(text, "Devil advocate review did not return valid JSON")
+        if isinstance(loaded, str):
+            return {"ok": False, "error": loaded}
+        payload = loaded
 
         verdict = str(payload.get("verdict", "")).strip().lower()
         if verdict not in {"accept", "revise", "block"}:
