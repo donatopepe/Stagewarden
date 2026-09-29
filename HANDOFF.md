@@ -4,17 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD on runtime**, plus one self-inflicted handoff bookkeeping fix. No runtime, test or script change.
-- Objective: apply cycle-179 diff rule and correct a bookkeeping defect. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, `latest_observation` <= 1200 chars with no content loss.
-- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` is empty, and at tick start there was NO external drift with `git_head` already aligned (first such tick in four).
-- Defect: `latest_observation` had grown to 5804 chars holding cycles 181-183 concatenated, because each HOLD cycle appended a sentence. A field named *latest* was behaving as an accumulating log, and the cause was my own cycle records. Fix: compacted to 747 chars of cycle-184 facts.
-- Fidelity verified, no content lost: cycles 181, 182 and 183 each retain a full `TODO.md` section; prior text is recoverable verbatim from git history of `.stagewarden_handoff.json`; all 121 `entries` untouched, and that list is the real append-only log.
-- Process note: the first compaction attempt left 1634 chars, above the 1200 threshold just declared. The threshold was not widened to fit; the retained block was compressed to a verified pointer instead, then trimmed to 747.
-- Wet: spot-check `154 passed, 79 subtests passed in 10.06s`; full live suite `711 passed, 5 skipped, 301 subtests passed in 343.31s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `f40140b -> d1d4dd9` that touched only `.stagewarden_handoff.json`, so source/test/script diff stayed empty; reconciled metadata only to `d1d4dd9b0ca42852ddeb8394122b6f5a53191cb8`; second `5/5`.
+- Outcome: **HOLD on runtime**, plus two handoff-document defects found and fixed. No runtime, test or script change.
+- Objective: continue the cycle-184 bookkeeping audit on the Markdown handoffs, which had not been audited. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, exactly one "Latest bounded iteration" heading, Next action proposing no unapproved scope.
+- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` empty, no external drift at tick start, `git_head` already aligned.
+- Defect 1, duplicate "Latest" heading: this file had TWO `## Latest bounded iteration` headings, the second a 149-line stale archive citing 9 obsolete HEADs, so a reader seeking the current iteration would land on superseded content. Retitled `## Historical bounded iterations (superseded)`. Nothing deleted; the archive stays readable.
+- Defect 2, Next action contradicted the blocker: `## Next action` instructed building a live multiplexer UI, which is unapproved scope and directly contradicted this file's own `## Current phase` blocked status. Rewritten to the gate, the full outstanding decision list, the cycle-179 diff rule, and an explicit record that the old proposal was NOT performed.
+- Related: `AGENT_HANDOFF.md` said the multiplexer UI "remains open", ambiguous between available and authorized; corrected to OPEN and UNAPPROVED, noting `EventStream.follow(node_id)` already exists and is complete.
+- Wet: spot-check `154 passed, 79 subtests passed in 10.46s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected, 4 OpenRouter-key skips intentional.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `d1d4dd9 -> 9ca4072`; reconciled metadata only to `9ca407243d781fc85b37126a602397e28d3546c2`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change. Loop unchanged.
-- Decision: hold on runtime work; approved MVP surface list fully measured; user decision gate pending; no new scope invented.
-- Evidence: `/tmp/stagewarden-hold-2026-09-29j11.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j11.log`.
+- Decision: hold on runtime; no scope invented.
+- Evidence: `/tmp/stagewarden-hold-2026-09-29j12.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j12.log`.
 
 ## Product direction
 - One operational tree of nodes.

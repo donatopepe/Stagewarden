@@ -1,5 +1,20 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 185: HOLD + due difetti dei documenti di handoff (heading duplicato e Next action che proponeva scope non approvato)
+
+- **Esito:** HOLD sul runtime, più due difetti reali dei documenti di handoff corretti. Nessuna modifica a runtime, test o script.
+- **Obiettivo:** proseguire l'audit di bookkeeping del cycle 184 sui **handoff Markdown**, che non erano stati auditati (il cycle 184 aveva guardato solo il JSON). Metrica/soglia: drift sorgente/test/script non spiegato `0`; gate `5/5`; esattamente un heading "Latest bounded iteration"; Next action che non proponga scope non approvato.
+- **Prova baseline:** `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` vuoto, nessun drift esterno, `git_head` già allineato.
+- **Difetto 1 — heading "Latest" duplicato.** `HANDOFF.md` conteneva **due** heading `## Latest bounded iteration`. Il secondo, a riga 48, era un archivio stale di 149 righe che citava **9 HEAD obsoleti** (`07d375c` x10, `1d04548` x3, `a2b1fdc`, `9997681`, `86c4f22`, `7fea4eb`, `6fe50de`, `52079ce`, `43d1838`). Un lettore in cerca dell'iterazione corrente sarebbe finito su contenuto superato.
+- **Fix 1:** rinominato in `## Historical bounded iterations (superseded)`. **Nessun contenuto eliminato:** 13 insertions, 9 deletions su un file di 300 righe, e l'archivio resta integralmente leggibile.
+- **Difetto 2 — `Next action` contraddiceva il blocco dello stesso file.** `HANDOFF.md` `## Next action` diceva: "Extend event stream with richer tool/file checkpoint events and live multiplexer UI." È scope **non approvato** e contraddiceva direttamente `## Current phase` dello stesso documento, che registra il progetto come fail-closed al gate decisionale utente. Un agente successivo che lo avesse seguito avrebbe iniziato lavoro non autorizzato.
+- **Fix 2:** riscritto per dichiarare il gate, elencare tutte e sette le decisioni outstanding non auto-approvabili, ribadire la regola diff del cycle 179, e registrare esplicitamente che la proposta multiplexer **non è stata eseguita**.
+- **Correlato:** `AGENT_HANDOFF.md` diceva "richer live multiplexer/UI remains open", ambiguo tra "disponibile" e "autorizzato". Corretto in **OPEN and UNAPPROVED**, e ora annota che `EventStream.follow(node_id)` esiste già ed è completo: la capability non manca, è solo ulteriore estensione non autorizzata.
+- **Wet:** spot-check `154 passed, 79 subtests, 10.46s`; smoke `OmniRoute free route OK (auto/coding:free)`; `716 tests collected`, 4 OpenRouter-key skips intenzionali.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `d1d4dd9 -> 9ca4072` che ha toccato solo i 5 file metadata, quindi diff sorgente/test/script vuoto. Riconciliato solo metadata a `9ca407243d781fc85b37126a602397e28d3546c2`. Secondo gate `5/5`.
+- **Decisione:** HOLD sul runtime. Nessun cambio provider/model/fallback/routing/scheduler/parallel. Nessun scope inventato.
+- Evidenza: `/tmp/stagewarden-hold-2026-09-29j12.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j12.log`.
+
 ### Iterazione bounded completata — cycle 184: HOLD + fix di bookkeeping dell'handoff (`latest_observation` era diventato un log accumulato)
 
 - **Esito:** HOLD sul runtime, più un difetto di bookkeeping self-inflicted corretto. Nessuna modifica a runtime, test o script.
