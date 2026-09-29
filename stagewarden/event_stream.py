@@ -29,11 +29,20 @@ class EventStream:
                 handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n")
         return payload
 
+    def _read_lines(self) -> list[str]:
+        # The stream is append-only JSONL, so it can accumulate bytes that are
+        # not valid UTF-8 (a truncated or externally written file). Decode
+        # leniently so the existing per-line JSON check discards just the bad
+        # lines, instead of raising UnicodeDecodeError out of read()/follow()
+        # and blocking the MVP replay path. Replacement preserves the line
+        # structure exactly, so follow()'s line cursor stays correct.
+        return self.path.read_text(encoding="utf-8", errors="replace").splitlines()
+
     def read(self, *, node_id: str | None = None, event: str | None = None) -> list[dict[str, Any]]:
         if not self.path.exists():
             return []
         events: list[dict[str, Any]] = []
-        for line in self.path.read_text(encoding="utf-8").splitlines():
+        for line in self._read_lines():
             if not line.strip():
                 continue
             try:
@@ -59,7 +68,7 @@ class EventStream:
         if not self.path.exists():
             return []
         events: list[dict[str, Any]] = []
-        for line_number, line in enumerate(self.path.read_text(encoding="utf-8").splitlines(), start=1):
+        for line_number, line in enumerate(self._read_lines(), start=1):
             if line_number <= cursor or not line.strip():
                 continue
             try:

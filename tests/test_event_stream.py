@@ -36,6 +36,52 @@ class EventStreamTests(unittest.TestCase):
             self.assertEqual(replay["nodes"]["leaf"]["status"], "completed")
             self.assertEqual(replay["nodes"]["leaf"]["purpose"], "Inspect source")
 
+    def test_readers_survive_undecodable_bytes_in_the_event_stream(self) -> None:
+        """read() and follow() decoded events.jsonl with no error handling, so
+        any bytes that are not valid UTF-8 raised UnicodeDecodeError out of the
+        MVP replay path and out of the CLI `events` task."""
+        bodies = {
+            "binary garbage": b"\xff\xfe\x00\x01\x80\x81 not utf-8",
+            "lone continuation": b"\x80\x81\x82 only continuation bytes\n",
+            "null bytes": b"\x00\x00\x00\n",
+            "not json": b"this is not json\n",
+            "truncated": b'{"event": "node_start", ',
+        }
+        for label, body in bodies.items():
+            with self.subTest(stream=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    stream = EventStream(Path(tmp) / "events.jsonl")
+                    stream.path.parent.mkdir(parents=True, exist_ok=True)
+                    stream.path.write_bytes(body)
+                    self.assertEqual(stream.read(), [])
+                    self.assertEqual(stream.follow("node.a", after=1), [])
+                    self.assertIsInstance(stream.replay(), dict)
+
+    def test_undecodable_bytes_do_not_hide_surrounding_valid_events(self) -> None:
+        """The point of the auditability surface: valid events on BOTH sides of
+        undecodable bytes must still replay, and line numbers must survive so
+        the follow() cursor keeps addressing the right event."""
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("node_start", tree_id="tree-1", node_id="node.a", purpose="inspect")
+            with stream.path.open("ab") as handle:
+                handle.write(b"\xff\xfe not utf-8\n")
+            stream.append("node_end", tree_id="tree-1", node_id="node.a", purpose="inspect")
+
+            events = stream.read()
+            self.assertEqual([e["event"] for e in events], ["node_start", "node_end"])
+
+            # the bad bytes are line 2, so a cursor of 2 must still return node_end
+            self.assertEqual(
+                [e["event"] for e in stream.follow("node.a", after=2)], ["node_end"]
+            )
+            self.assertEqual(
+                [e["event"] for e in stream.follow("node.a", after=1)], ["node_end"]
+            )
+            replayed = stream.replay(node_id="node.a")
+            self.assertEqual(replayed["nodes"]["node.a"]["last_event"], "node_end")
+            self.assertEqual(replayed["nodes"]["node.a"]["purpose"], "inspect")
+
     def test_replay_projects_in_flight_tool_and_clears_on_completion(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")
