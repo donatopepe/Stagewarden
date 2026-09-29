@@ -157,7 +157,7 @@ class EventStream:
                             key: node.get(key)
                             for key in (
                                 "node_uuid", "status", "active_work", "output_summary", "error_message",
-                                "cycle_id", "cycle_phase", "context_revision", "last_checkpoint",
+                                "execution_mode", "cycle_id", "cycle_phase", "context_revision", "last_checkpoint",
                                 "retry_count", "max_retries",
                             )
                             if key in node

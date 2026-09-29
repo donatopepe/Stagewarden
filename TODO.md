@@ -1,5 +1,17 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 193: provenance `execution_mode` propagata a capsule, evento e replay
+
+- **Esito:** estesa la fix provenance del cycle 192 a tutte le superfici persistite di audit. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- **Obiettivo:** il `ResultPacket` portava `execution_mode`, ma capsule del nodo e checkpoint JSONL/replay potevano ancora ometterlo. Metrica/soglia: outcome mock/reale con provenance assente in packet, capsule, event details o `NodeState` ripristinato, soglia `0`.
+- **Baseline:** test packet del cycle 192 verdi, ma il controllo focused event/capsule mostrava che la provenance del packet non raggiungeva automaticamente evento checkpoint o capsule riaperta.
+- **Fix minimo:** aggiunto `NodeState.execution_mode`; incluso in `NodeState.as_dict` (payload capsule); ripristinato in `_restore_node_capsules`; incluso nei details di `node_cycle_checkpoint`; mantenuto `ResultPacket.execution_mode` calcolato dal branch effective reale. Fallback auto resta mock; ora è veritiero in packet, capsule ed evento replay.
+- **Casi fissi:** 1 auto → mock: packet, details checkpoint e capsule riaperta dicono mock; 2 mock esplicito: packet mock; 3 pi reale: packet pi; 4 capsule restore conserva `execution_mode`.
+- **TDD:** focused provenance `4 passed`. Rimossa la field event/capsule → `1 failed`; ripristinata → `4 passed`. Suite completa `715 passed, 5 skipped, 301 subtests in 343.61s`; focused goal/event/executor `72 passed, 30 subtests in 7.44s`; unified `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit metadata-only `4d2113c -> b38c1f5`; riconciliato solo metadata a `b38c1f50b0e8bba368ec398577d01cb4ea602f3e`; secondo gate `5/5`.
+- **Policy:** esecuzione seriale preservata; nessun legacy parallel; provider/model/fallback/routing/scheduler invariati. Gate decisionale utente ancora aperto.
+- Evidenza: `/tmp/stagewarden-result-provenance-persisted-2026-09-29j20.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j20.log`.
+
 ### Iterazione bounded completata — cycle 192: corretto difetto reale MVP — provenance mancante nei `ResultPacket` del goal loop
 
 - **Esito:** fix TDD minimo nel core node-first. Nessun cambio provider/model/fallback/routing/scheduler/parallel.

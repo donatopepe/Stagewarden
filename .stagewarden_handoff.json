@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 192: fixed real node-first MVP provenance defect. In auto mode with pi unavailable, goal_loop_orchestrator fell back to mock execution, marked node completed, and emitted a ResultPacket with no execution-mode provenance; persisted evidence was indistinguishable from a real AI run. Baseline: 3 real cases (auto->mock, explicit mock, real pi) all failed provenance assertion. Fix: compute effective_mode at execution and add execution_mode ('mock' or 'pi') to successful ResultPacket. No provider/model/fallback policy change: existing auto fallback remains, now truthful. TDD RED 3 failed; GREEN 3 passed. Guard removal 3 failed, restore 3 passed. Full suite 714 passed, 5 skipped, 301 subtests; unified 6/6; smoke green. Gate 4/5 on stale git_head after metadata-only commit cf6a321 -> 4d2113c, reconciled to 4d2113cd9047.",
+  "latest_observation": "Cycle 193: extended cycle-192 provenance fix through the persisted audit surfaces. Baseline defect: execution_mode was in ResultPacket only; node capsule/replay event/cycle-checkpoint could still omit it. Fixed by adding NodeState.execution_mode, persisting it in NodeState.as_dict/capsule restore, and emitting it in node_cycle_checkpoint event details. Fixed cases: auto->mock provenance reaches packet, event and capsule; explicit mock; real pi path; capsule restore. TDD focused 4 provenance tests green after fix; removing event/capsule field fails 1, restoring passes 4. Full suite 715 passed, 5 skipped, 301 subtests; unified 6/6; smoke green. Gate 4/5 stale git_head after metadata-only commit 4d2113c -> b38c1f5, reconciled to b38c1f50b0e8. No provider/model/fallback/routing/scheduler/parallel change.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "4d2113cd90473645311a13d43143c46367621c5c",
+  "git_head": "b38c1f50b0e8bba368ec398577d01cb4ea602f3e",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {

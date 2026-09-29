@@ -4,17 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **FIXED real node-first MVP provenance defect.** Minimal TDD runtime/test change; policy unchanged.
-- Objective: successful `ResultPacket`s without truthful `execution_mode`, threshold `0`. In auto mode missing pi fell back to mock execution, marked the node completed, and emitted no provenance, making mock completion indistinguishable from real AI completion.
-- Baseline: `3/3` provenance assertions failed. All cases completed, but `packet.get('execution_mode')` was `None`.
-- Fixed cases/order: auto with pi unavailable -> mock; explicit mock; real pi path with production call stubbed.
-- Change: compute `effective_mode` at the actual execution branch (`mock` for explicit mock and auto fallback, `pi` for explicit pi and auto pi) and add `execution_mode` to successful `ResultPacket`. Existing auto fallback policy remains exactly as configured. No provider/model/fallback/routing/scheduler/parallel change.
-- TDD RED `3 failed, 45 deselected` -> GREEN `3 passed, 45 deselected`; guard removal -> `3 failed`; restore -> `3 passed`. New `GoalLoopResultPacketProvenanceTests` covers all three modes.
-- Wet: full suite `714 passed, 5 skipped, 301 subtests passed in 338.08s`; focused `71 passed, 30 subtests in 7.44s`; unified `6/6`; direct OmniRoute smoke green.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `cf6a321 -> 4d2113c`; reconciled metadata only to `4d2113cd90473645311a13d43143c46367621c5c`; second `5/5`.
-- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`.
-- Decision: fix complete; user decision gate remains the only blocker.
-- Evidence: `/tmp/stagewarden-result-provenance-2026-09-29j19.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j19.log`.
+- Outcome: **Provenance propagated to capsule/event replay.** Minimal runtime/test change; policy unchanged.
+- Objective: persisted audit surfaces must not omit `execution_mode` now present in `ResultPacket`. Metric/threshold: mock/real outcome with missing provenance in packet, capsule, event details or restored `NodeState`, threshold `0`.
+- Baseline: cycle-192 packet tests were green, but a focused event/capsule check showed packet provenance did not reach the checkpoint event or reopened capsule.
+- Change: add `NodeState.execution_mode`; include it in `NodeState.as_dict` capsule payload; restore it in `_restore_node_capsules`; include it in `node_cycle_checkpoint` details; keep `ResultPacket` mode from the actual effective branch. Auto fallback remains mock, now truthful in packet, capsule and replay event.
+- Fixed cases: auto -> mock, all surfaces say mock; explicit mock says mock; real pi says pi; capsule restore preserves mode.
+- TDD: focused provenance `4 passed`; removing event/capsule field -> `1 failed`; restoring -> `4 passed`. New test checks packet, checkpoint event and reopened capsule.
+- Wet: full suite `715 passed, 5 skipped, 301 subtests passed in 343.61s`; focused `72 passed, 30 subtests in 7.44s`; unified `6/6`; direct OmniRoute smoke green.
+- Gate: first `4/5` stale git_head after metadata-only commit `4d2113c -> b38c1f5`; reconciled metadata only to `b38c1f50b0e8bba368ec398577d01cb4ea602f3e`; second `5/5`.
+- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
+- Decision: provenance fix complete; user decision gate remains the only blocker.
+- Evidence: `/tmp/stagewarden-result-provenance-persisted-2026-09-29j20.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j20.log`.
 
 ## Product direction
 - One operational tree of nodes.

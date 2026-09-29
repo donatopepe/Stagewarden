@@ -793,6 +793,20 @@ class GoalLoopResultPacketProvenanceTests(unittest.TestCase):
         )
 
 
+    def test_provenance_survives_event_replay_projection(self) -> None:
+        import stagewarden.goal_loop_orchestrator as mod
+        orchestrator = self._orchestrator("auto")
+        self.addCleanup(orchestrator.knowledge.close)
+        with patch.object(mod, "_pi_available", return_value=False):
+            ready = orchestrator._get_ready_nodes()
+            self.assertTrue(ready)
+            orchestrator._execute_node(ready[0])
+        projection = orchestrator.events.replay(node_id=ready[0].node_id)
+        self.assertEqual(
+            projection["nodes"][ready[0].node_id].get("execution_mode"), "mock",
+            "event replay must preserve execution provenance",
+        )
+
     def test_provenance_reaches_event_and_capsule_recovery_records(self) -> None:
         import stagewarden.goal_loop_orchestrator as mod
         orchestrator = self._orchestrator("auto")
