@@ -4,16 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD on runtime; one silent capability loss found and deliberately NOT fixed.** No code change.
-- Objective: follow-on to cycle 190. Credentials are not the only precondition, so what ELSE can silently disable a capability? Metric/threshold: silent capability disables, threshold `0` for fail-closed violations; observations outside approved scope recorded rather than fixed.
-- Found, not fixed: `stagewarden/shell_views.py:38-40` sets `readline = None` on `ImportError` with no report. Verified by execution, not by reading: with readline forced to `None`, `_configure_readline(config)` returns `False`, and the interactive banner at `shell_views.py:848-849` prints nothing, so a user cannot tell that history and tab-completion are unavailable, as opposed to the line simply never being mentioned.
-- Why not fixed, it fails the project's own tests twice over: it is **not** a fail-closed violation — not destructive, causes no incorrect result, allows no unsafe action, it is a convenience feature going quiet; and interactive shell history is **not** in the approved priority list (node-first MVP, OmniRoute free, context-aware chunking/compaction, persistent file-read recovery, JSONL events/replay, terminal node purpose, Node Knowledge Store, code index), so fixing it would be inventing scope, which cycle 178 established must not happen. Recorded as an observation for the user, not a defect to action.
-- Contrasting surfaces that are correctly loud: `stagewarden/tools/files.py:1197` and `:1212` convert `ImportError` into a `ValueError` naming the missing capability; `stagewarden/secrets.py open_login_page` reports `STAGEWARDEN_SKIP_BROWSER` explicitly as "Browser skipped. Open manually: <url>" with an actionable substitute.
-- Wet: spot-check `154 passed, 79 subtests passed in 10.22s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`. No code change, so the cycle-189 full-suite baseline at identical code carries by proof.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `bffc9bc -> cf6a321`; reconciled metadata only to `cf6a321e5d5ed8bd7c887bc5ea2c546f7a18aafe`; second `5/5`.
-- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
-- Decision: hold on runtime. The user decision gate remains the only blocker.
-- Evidence: `/tmp/stagewarden-optional-deps-2026-09-29j18.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j18.log`.
+- Outcome: **FIXED real node-first MVP provenance defect.** Minimal TDD runtime/test change; policy unchanged.
+- Objective: successful `ResultPacket`s without truthful `execution_mode`, threshold `0`. In auto mode missing pi fell back to mock execution, marked the node completed, and emitted no provenance, making mock completion indistinguishable from real AI completion.
+- Baseline: `3/3` provenance assertions failed. All cases completed, but `packet.get('execution_mode')` was `None`.
+- Fixed cases/order: auto with pi unavailable -> mock; explicit mock; real pi path with production call stubbed.
+- Change: compute `effective_mode` at the actual execution branch (`mock` for explicit mock and auto fallback, `pi` for explicit pi and auto pi) and add `execution_mode` to successful `ResultPacket`. Existing auto fallback policy remains exactly as configured. No provider/model/fallback/routing/scheduler/parallel change.
+- TDD RED `3 failed, 45 deselected` -> GREEN `3 passed, 45 deselected`; guard removal -> `3 failed`; restore -> `3 passed`. New `GoalLoopResultPacketProvenanceTests` covers all three modes.
+- Wet: full suite `714 passed, 5 skipped, 301 subtests passed in 338.08s`; focused `71 passed, 30 subtests in 7.44s`; unified `6/6`; direct OmniRoute smoke green.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `cf6a321 -> 4d2113c`; reconciled metadata only to `4d2113cd90473645311a13d43143c46367621c5c`; second `5/5`.
+- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`.
+- Decision: fix complete; user decision gate remains the only blocker.
+- Evidence: `/tmp/stagewarden-result-provenance-2026-09-29j19.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j19.log`.
 
 ## Product direction
 - One operational tree of nodes.

@@ -1,5 +1,20 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 192: corretto difetto reale MVP — provenance mancante nei `ResultPacket` del goal loop
+
+- **Esito:** fix TDD minimo nel core node-first. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- **Obiettivo:** correggere un difetto reale fail-closed/auditability trovato dall'audit delle precondizioni del cycle 191. In auto mode, pi mancante ricadeva silenziosamente su mock execution; il `ResultPacket` riuscito non portava la provenance, rendendo una completion mock indistinguibile da una completion AI reale. Metrica/soglia: `ResultPacket` riusciti senza `execution_mode` veritiero, soglia `0`.
+- **Casi fissi/ordine:** 1 auto mode con pi assente → mock; 2 mock esplicito; 3 percorso pi reale (chiamata production stub, nessun provider esterno).
+- **Baseline:** `3/3` asserzioni provenance fallite. Tutti i casi completavano, ma `packet.get('execution_mode')` era `None`.
+- **Blast radius:** core goal-loop node-first. La policy auto fallback esistente è preservata, ma l'audit trail ometteva la verità: un nodo completato da mock fallback emetteva la stessa forma di packet di uno completato da pi reale. Un utente poteva scambiare un successo mock per lavoro AI.
+- **Fix:** calcolato `effective_mode` nel branch di esecuzione reale: `mock` per mock esplicito e fallback auto, `pi` per pi esplicito e auto pi riuscito. Aggiunto `execution_mode` al `ResultPacket` riuscito. Nessun cambio alla policy provider/model/fallback; fallback auto esistente preservato esattamente, ora il packet è veritiero.
+- **TDD:** RED `3 failed, 45 deselected` → GREEN `3 passed, 45 deselected`. **Rimozione guardia:** tolto il campo `execution_mode` → `3 failed`; ripristinato → `3 passed`.
+- **Test:** nuova classe `GoalLoopResultPacketProvenanceTests` in `tests/test_goal_loop_orchestrator.py`: auto fallback registra mock; mock esplicito registra mock; percorso pi reale registra pi.
+- **Wet:** `714 passed, 5 skipped, 301 subtests in 338.08s`; focused goal/event/executor `71 passed, 30 subtests in 7.44s`; unified `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `cf6a321 -> 4d2113c`; riconciliato solo metadata a `4d2113cd90473645311a13d43143c46367621c5c`; secondo gate `5/5`.
+- **Policy:** esecuzione seriale preservata; nessun legacy parallel; provider/model/fallback/routing/scheduler invariati. Gate decisionale utente ancora aperto.
+- Evidenza: `/tmp/stagewarden-result-provenance-2026-09-29j19.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j19.log`.
+
 ### Iterazione bounded completata — cycle 191: HOLD — audit delle dipendenze opzionali; una perdita di capability silenziosa **trovata e deliberatamente non corretta**
 
 - **Esito:** HOLD sul runtime. Nessuna modifica al codice.

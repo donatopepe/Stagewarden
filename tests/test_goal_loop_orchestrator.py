@@ -793,6 +793,23 @@ class GoalLoopResultPacketProvenanceTests(unittest.TestCase):
         )
 
 
+    def test_provenance_reaches_event_and_capsule_recovery_records(self) -> None:
+        import stagewarden.goal_loop_orchestrator as mod
+        orchestrator = self._orchestrator("auto")
+        self.addCleanup(orchestrator.knowledge.close)
+        with patch.object(mod, "_pi_available", return_value=False):
+            ready = orchestrator._get_ready_nodes()
+            self.assertTrue(ready)
+            orchestrator._execute_node(ready[0])
+        node_id = ready[0].node_id
+        events = orchestrator.events.read(node_id=node_id, event="node_cycle_checkpoint")
+        self.assertTrue(events)
+        self.assertEqual(events[-1]["details"].get("execution_mode"), "mock")
+        capsule = orchestrator.knowledge.load_node_execution_capsule(
+            "goal-loop", node_id, node_uuid=ready[0].node_uuid
+        )
+        self.assertEqual(capsule["capsule"].get("execution_mode"), "mock")
+
 class GoalLoopControlSocketTests(unittest.TestCase):
     """Tests for goal loop TCP control socket."""
 

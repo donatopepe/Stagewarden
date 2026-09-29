@@ -101,6 +101,7 @@ class NodeState:
     max_retries: int = 0
     cycle_id: int = 0
     cycle_phase: str = "ready"
+    execution_mode: str | None = None
     context_revision: int = 0
     last_checkpoint: str | None = None
     cycle_budget: dict[str, int] = field(default_factory=lambda: {
@@ -126,6 +127,7 @@ class NodeState:
             "max_retries": self.max_retries,
             "cycle_id": self.cycle_id,
             "cycle_phase": self.cycle_phase,
+            "execution_mode": self.execution_mode,
             "context_revision": self.context_revision,
             "last_checkpoint": self.last_checkpoint,
             "cycle_budget": dict(self.cycle_budget),
@@ -227,7 +229,7 @@ class GoalLoopOrchestrator:
                 continue
             for name in (
                 "node_uuid", "status", "active_work", "session_id", "last_run_at", "output_summary",
-                "error_message", "retry_count", "cycle_id", "cycle_phase", "context_revision",
+                "error_message", "retry_count", "cycle_id", "cycle_phase", "execution_mode", "context_revision",
                 "last_checkpoint",
             ):
                 if name in saved:
@@ -566,6 +568,9 @@ Do NOT include any text before or after the JSON object.'''
                 )
                 result = self._mock_execution(node_state.node_id)
 
+        # Keep node/capsule/event projections truthful about which execution path
+        # actually produced this outcome, including auto -> mock fallback.
+        node_state.execution_mode = effective_mode
         # apply result
         node_state.cycle_phase = "verify"
         if result.get("ok"):
@@ -636,6 +641,7 @@ Do NOT include any text before or after the JSON object.'''
             cycle_id=node_state.cycle_id,
             cycle_phase=node_state.cycle_phase,
             context_revision=node_state.context_revision,
+            execution_mode=node_state.execution_mode,
             checkpoint=node_state.last_checkpoint,
             packet=self._pending_parent_packets.get(node_state.node_id, {}),
         )
