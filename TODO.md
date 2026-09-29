@@ -1,5 +1,19 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 181: HOLD — drift metadata-only riconciliato, baseline portata avanti per prova
+
+- **Esito:** HOLD. Nessuna modifica a runtime, test o script; nessun nuovo bersaglio. Gate decisionale utente ancora pending.
+- **Obiettivo:** applicare esattamente il criterio del cycle 179: se `git diff <baseline sorgente/test/script>..HEAD -- stagewarden tests scripts` è vuoto, portare avanti la baseline per prova; eseguire spot-check wet economico; riconciliare HEAD; rilanciare gate a cinque casi; fermarsi. Metrica/soglia: drift sorgente/test/script non spiegato `0` e gate `5/5`.
+- **Prova baseline:** `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` è vuoto. HEAD è avanzato solo via commit metadata-only `3cf637c -> 74c27aa`; path cambiati: `.pi-loop.json`, `.stagewarden_handoff.json`, `AGENT_HANDOFF.md`, `HANDOFF.md`, `TODO.md`. Nessun sorgente, test o script cambiato. Full validation del cycle 180 porta avanti per prova, non per assunzione.
+- **Spot-check wet:** `tests/test_tools.py`, goal loop, event stream, mutation journal, caveman, modelprefs, memory: `154 passed, 79 subtests, 10.29s`.
+- **Smoke:** `OmniRoute free route OK (auto/coding:free)`, exit 0. Collection: 714 test raccolti; 4 test OpenRouter-key restano intenzionalmente skipped.
+- **Gate primo run:** `4/5`; case4 fallito perché `.stagewarden_handoff.json` aveva ancora `3cf637c`, mentre HEAD reale era `74c27aa`. Drift esterno atteso, non failure sorgente.
+- **Riconciliazione:** aggiornato solo `.stagewarden_handoff.json` `git_head` a `74c27aa037db3b891f77c889db1dde9d6d32e472`; nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- **Gate dopo riconciliazione:** `5/5`.
+- **Stato:** `main`, worktree unico, CodeGraph `140 files / 3825 nodes / 13116 edges` corrente, JSON `waiting`/current-step `waiting`/user question `pending`, task durevole `c05d5335` su `*/5 * * * *`.
+- **Decisione:** fermarsi. Nessun full suite rerun perché diff sorgente/test/script vuoto. Nessun nuovo scope MVP inventato mentre il gate utente resta pending. Loop lasciato invariato.
+- Evidenza: `/tmp/stagewarden-hold-2026-09-29j8.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j8.log`.
+
 ### Iterazione bounded completata — cycle 180: `.gitignore` non decodificabile crashava governance Git e il fix doveva essere NON-DISTRUTTIVO
 
 - **Obiettivo:** invece di registrare un terzo HOLD identico, usare l'hold economico per verificare una pretesa del cycle 178 — che la lista delle superfici MVP approvate fosse completamente misurata. Il cycle 176 aveva enumerato 23 siti `read_text`/`read_bytes` e misurato quelli che alimentano superfici approvate, lasciandone tre da seguire. Questo ciclo li ha misurati. Metrica/soglia: chiamate che sfuggono su un `.gitignore` non decodificabile, soglia `0`.
