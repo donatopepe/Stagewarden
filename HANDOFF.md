@@ -4,17 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD on runtime**, plus two handoff-document defects found and fixed. No runtime, test or script change.
-- Objective: continue the cycle-184 bookkeeping audit on the Markdown handoffs, which had not been audited. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, exactly one "Latest bounded iteration" heading, Next action proposing no unapproved scope.
-- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` empty, no external drift at tick start, `git_head` already aligned.
-- Defect 1, duplicate "Latest" heading: this file had TWO `## Latest bounded iteration` headings, the second a 149-line stale archive citing 9 obsolete HEADs, so a reader seeking the current iteration would land on superseded content. Retitled `## Historical bounded iterations (superseded)`. Nothing deleted; the archive stays readable.
-- Defect 2, Next action contradicted the blocker: `## Next action` instructed building a live multiplexer UI, which is unapproved scope and directly contradicted this file's own `## Current phase` blocked status. Rewritten to the gate, the full outstanding decision list, the cycle-179 diff rule, and an explicit record that the old proposal was NOT performed.
-- Related: `AGENT_HANDOFF.md` said the multiplexer UI "remains open", ambiguous between available and authorized; corrected to OPEN and UNAPPROVED, noting `EventStream.follow(node_id)` already exists and is complete.
-- Wet: spot-check `154 passed, 79 subtests passed in 10.46s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected, 4 OpenRouter-key skips intentional.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `d1d4dd9 -> 9ca4072`; reconciled metadata only to `9ca407243d781fc85b37126a602397e28d3546c2`; second `5/5`.
+- Outcome: **HOLD on runtime. `TODO.md` audited and no defect found** — a valid negative. No runtime, test, script or TODO change.
+- Objective: audit `TODO.md`, the file the recurring loop is told to work only from, never audited in cycles 184-185. Cycle 185 found a `Next action` proposing unapproved scope, so the same class was worth searching here. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, unapproved instructions in `TODO.md` `0`, load-bearing `[x]` claims re-verified by execution.
+- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` empty, no external drift at tick start.
+- Finding 1, the valuable negative: the file has exactly 3 open `[ ]` items and all three are correctly approval-gated (approve residual v3 decisions; bring only APPROVED extension/subagent capabilities; add migration and temporary compatibility layer). Each is phrased as a pending approval, not work to start, so nothing here would have directed a following agent into unauthorized work. No `TODO.md` edit was made and no defect was manufactured to match the previous cycle.
+- Finding 2: `TODO.md` claims the unified validation matrix and fixed runner are complete and green, so the runner was re-executed rather than trusted: all 6 gates returned `passed=True`, overall `passed=True`, exit 0.
+- Finding 3: the standing serial-execution rule re-verified; no parallel enablement in `goal_loop_control.py` or `config.py`.
+- Wet: spot-check `154 passed, 79 subtests passed in 10.30s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected, 4 OpenRouter-key skips intentional.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `9ca4072 -> c32a5cb`; reconciled metadata only to `c32a5cb956a39f7a76bf8f0baf07034a106fddbb`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change. Loop unchanged.
-- Decision: hold on runtime; no scope invented.
-- Evidence: `/tmp/stagewarden-hold-2026-09-29j12.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j12.log`.
+- Decision: hold on runtime; no scope invented. A negative result is a valid outcome.
+- Evidence: `/tmp/stagewarden-hold-2026-09-29j13.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j13.log`.
 
 ## Product direction
 - One operational tree of nodes.

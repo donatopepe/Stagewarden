@@ -1,5 +1,18 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 186: HOLD — audit di `TODO.md` completato, **nessun difetto trovato** (risultato negativo)
+
+- **Esito:** HOLD sul runtime. Nessuna modifica a runtime, test, script o TODO. Nessun difetto è stato fabbricato per far quadrare il ciclo.
+- **Obiettivo:** auditare `TODO.md` — il file da cui il loop è istruito a "lavorare solo" — mai auditato nei cicli 184-185. Il cycle 185 aveva trovato un `Next action` che proponeva scope non approvato, quindi valeva la pena cercare la stessa classe di difetto qui. Metrica/soglia: drift sorgente/test/script non spiegato `0`; gate `5/5`; istruzioni non approvate in `TODO.md` = `0`; claim `[x]` portanti riverificate per esecuzione.
+- **Prova baseline:** `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` vuoto, nessun drift esterno.
+- **Risultato 1 — NESSUNA istruzione non approvata in `TODO.md` (negativo, ed è il risultato di valore).** L'intero file ha esattamente **3** item aperti `[ ]`, e tutti e tre sono correttamente contingentati sull'approvazione: riga 2874 "Approvare le decisioni residue per la release v3 completa"; riga 2958 "Portare solo extension/subagent capability approvate"; riga 2959 "Aggiungere migrazione dati e compatibility layer temporaneo". Ciascuno è formulato come approvazione in sospeso, **non** come lavoro da avviare. Diversamente dal difetto del cycle 185, niente avrebbe indirizzato un agente successivo verso lavoro non autorizzato. **Nessuna modifica a `TODO.md`.**
+- **Risultato 2 — claim `[x]` portanti riverificati per ESECUZIONE, non per assunzione.** `TODO.md` dichiara completi e verdi la matrice di validazione unificata e il runner fisso. Rieseguito `scripts/run_unified_validation.py --timeout 600`: tutti i **6** gate con `passed=True` (`simulation_matrix`, `targeted_mvp`, `full_discovery`, `cli_smoke`, `omniroute_free`, `docs_hygiene`), `passed=True` complessivo, exit 0. Il claim regge.
+- **Risultato 3 — regola di esecuzione seriale riverificata:** nessun abilitazione parallel in `goal_loop_control.py` o `config.py`.
+- **Wet:** spot-check `154 passed, 79 subtests, 10.30s`; smoke `OmniRoute free route OK (auto/coding:free)`; `716 tests collected`, 4 OpenRouter-key skips intenzionali.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `9ca4072 -> c32a5cb` (solo 5 file metadata, diff sorgente/test/script vuoto). Riconciliato solo metadata a `c32a5cb956a39f7a76bf8f0baf07034a106fddbb`. Secondo gate `5/5`.
+- **Decisione:** HOLD sul runtime. Nessun cambio provider/model/fallback/routing/scheduler/parallel. Nessun scope inventato. Un risultato negativo è un esito valido.
+- Evidenza: `/tmp/stagewarden-hold-2026-09-29j13.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j13.log`.
+
 ### Iterazione bounded completata — cycle 185: HOLD + due difetti dei documenti di handoff (heading duplicato e Next action che proponeva scope non approvato)
 
 - **Esito:** HOLD sul runtime, più due difetti reali dei documenti di handoff corretti. Nessuna modifica a runtime, test o script.
