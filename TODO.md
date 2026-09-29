@@ -1,5 +1,28 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 200: HOLD — sincronizzazione metadata mirror `6/6`
+
+- **Esito:** HOLD. Metadata allineati; nessuna modifica runtime/test/script.
+- **Obiettivo:** sincronizzare tutti i mirror metadata dopo aver trovato marker TODO/JSON stale. Nessun runtime scope.
+- **Metrica/soglia:** coerenza metadata corrente, soglia `6/6`.
+- **Casi fissi/ordine:** AGENT_HANDOFF objective/HEAD; HANDOFF latest/HEAD; TODO top cycle 200; JSON waiting/current-step/question/HEAD/latest observation cycle 200; singleton loop `c05d5335` su `*/5 * * * *` recurring/durable; diff sorgente/test/script vuoto e dirty paths metadata-only.
+- **Baseline:** `4/6`: AGENT/HANDOFF PASS; TODO top ancora cycle 197 FAIL; JSON observation ancora cycle 199 FAIL; loop PASS; nessun runtime drift PASS.
+- **Fix:** aggiornati solo `TODO.md` top marker e `.stagewarden_handoff.json` observation; log/storia precedenti preservati.
+- **Wet:** targeted `95 passed, 51 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`; gate `5/5`.
+- **Policy:** nessun cambio provider/model/fallback/routing/scheduler/parallel. Gate decisionale utente resta blocker.
+- Evidenza: `/tmp/stagewarden-metadata-sync-baseline-2026-09-29j26.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j26.log`.
+
+### Iterazione bounded completata — cycle 199: HOLD — audit metadata `5/5`, drift stale-document corretto
+
+- **Esito:** HOLD. Audit metadata passato, ma trovato e corretto drift dei documenti stale. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare coerenza corrente di tutti gli artefatti handoff e loop. Metrica/soglia: matrix metadata `5/5`; source/test/script drift `0`.
+- **Baseline matrix:** `5/5`: AGENT_HANDOFF objective/current HEAD; HANDOFF latest/current HEAD; TODO top/current cycle; JSON waiting/current-step/question/HEAD; un solo task loop durevole invariato.
+- **Difetto trovato:** AGENT_HANDOFF, HANDOFF e TODO erano ancora ai marker cycle 196/197, mentre JSON era già aggiornato a HEAD `11696838`. È drift metadata, non runtime.
+- **Fix:** sincronizzati tutti i quattro documenti/JSON a cycle 199/current HEAD; nessun cambio codice, policy o loop.
+- **Wet:** targeted `95 passed, 51 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`; gate `5/5`.
+- **Decisione:** HOLD sul runtime; gate utente resta blocker. Nessun scope inventato.
+- Evidenza: `/tmp/stagewarden-handoff-sync-2026-09-29j26.log`.
+
 ### Iterazione bounded completata — cycle 197: provenance incoming child result persistita e ripristinata dal parent
 
 - **Esito:** completata la provenance sul lato parent dopo reopen. Nessun cambio provider/model/fallback/routing/scheduler/parallel.

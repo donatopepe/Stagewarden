@@ -4,16 +4,13 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **Parent-side incoming result persistence/reopen completed.** Minimal runtime/test change; policy unchanged.
-- Objective: incoming child result/provenance missing after handoff save + orchestrator reopen, threshold `0`. Cycle 196 final report/context was truthful in memory, but `parent.messages_received` was omitted from `NodeState.as_dict` and parent capsule was not persisted after child result arrival; reopen lost typed result and `EXECUTION_MODE`.
-- Change: serialize/restore `messages_received` and persist parent capsule immediately after child->parent result append. No provider/model/fallback/routing/scheduler/parallel change.
-- Fixed case: auto/mock child result reaches parent with `EXECUTION_MODE`; handoff save includes it; orchestrator reopen restores it. Existing packet/event/capsule/replay provenance stays green.
-- TDD: focused provenance `7 passed`; removing parent persistence -> `1 failed`; restoring -> `7 passed`.
-- Wet: full suite `718 passed, 5 skipped, 301 subtests passed in 359.17s`; focused `95 passed, 51 subtests in 7.58s`; unified `6/6`; direct OmniRoute smoke green.
-- Gate: first `4/5` stale git_head after metadata-only commit `afc672c -> c100efb`; reconciled metadata only to `c100efb25dd30adb36da7bb113289bec38efcc37`; second `5/5`.
-- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
-- Decision: parent persistence fix complete; user decision gate remains the only blocker.
-- Evidence: `/tmp/stagewarden-provenance-parent-persistence-2026-09-29j24.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j24.log`.
+- Outcome: **HOLD; metadata mirror synchronization completed.** No runtime, test or script change.
+- Objective: synchronize all handoff mirrors to cycle 200/current HEAD. Metric/threshold: source/test/script drift `0`, metadata consistency `6/6`, gate `5/5`.
+- Proof: source/test/script diff since `c100efb` is empty; actual HEAD `11696838` changed metadata only. Earlier AGENT_HANDOFF/HANDOFF/TODO/JSON markers were stale; AGENT_HANDOFF/TODO/JSON now current, and this block closes the remaining HANDOFF drift.
+- Wet: targeted `95 passed, 51 subtests passed`; direct OmniRoute smoke green. No runtime/provider/model/fallback/routing/scheduler/parallel change.
+- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop unchanged.
+- Decision: hold; no runtime scope invented while user decision gate pending.
+- Evidence: `/tmp/stagewarden-metadata-sync-baseline-2026-09-29j26.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j26.log`.
 
 ## Product direction
 - One operational tree of nodes.
