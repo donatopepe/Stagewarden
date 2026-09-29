@@ -1,5 +1,19 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 188: il no-op `project_brief` è RISOLTO come NON-problema — il **record** era sbagliato, non il codice
+
+- **Esito:** chiuso l'ultimo item runtime rimasto aperto nel record. Modifica al solo commento, nessun cambio di comportamento.
+- **Obiettivo:** risolvere il "dangling statement" `project_brief`, registrato come osservazione dal cycle 171 e portato come issue nota per ~100 cicli. Metrica/soglia: loader che solleva su `project_brief` di tipo sbagliato, soglia `0`. Casi fissi/ordine: 1 stringa, 2 lista, 3 int, 4 null; 5 controlli: dict, campo assente, JSON malformato, root non-dict.
+- **RISULTATO: NON È UN DIFETTO. Il record era sbagliato, non il codice.**
+- **Perché la lettura originale era errata.** Il sorgente mostra una comprensione dict seguita da un `if/else` pendente. Non lo è. **Prova AST:** l'argomento keyword `project_brief` è un unico `ast.IfExp` (conditional expression) con test `isinstance(payload.get('project_brief', {}), dict)`, body la comprensione dict, orelse `{}`. Python valuta prima la condizione, quindi la comprensione **non** gira mai su un non-dict. L'aspetto "pendente" è puramente un artefatto di a capo di riga.
+- **Misurato, 8 casi attraverso il loader reale, 0 sollevamenti:** stringa → `{}`; lista → `{}`; int → `{}`; null → `{}`; dict → `{'owner': 'me'}` (chiave lowercase/trim corretta); campo assente → `{}`; JSON malformato → `{}`; root non-dict → `{}`.
+- **Modifica:** solo commento chiarificativo, nessun cambio di comportamento. `git diff --stat`: 1 file, **4 insertions, 0 deletions**. Tutti gli 8 casi riverificati identici **dopo** il commento.
+- **Secondo audit, mai fatto prima su questa struttura:** il log `entries` del JSON (121 elementi, 142221 byte). **0** duplicati veri per identità per-elemento, e **0** elementi che affermano una correzione o implementazione mai avvenuta. I 15 "duplicati" apparenti erano un **mio errore di chiave**: avevo indicizzato su `(task, phase, timestamp)`, che sono campi **per run**, quindi completamenti di nodi distinti nello stesso run collassavano. Re-indizzato su identità per-elemento incluso `summary` e `details`: 0 duplicati. Stessa disciplina del caso di corruzione latin-1 del cycle 177 — verificare che la misurazione sia reale prima di riportarla.
+- **Wet (suite completa obbligatoria perché il sorgente è cambiato):** `711 passed, 5 skipped, 301 subtests in 335.14s`; spot-check `154 passed, 79 subtests, 10.20s`; smoke `OmniRoute free route OK (auto/coding:free)`; unified validation `6/6`, complessivo `True`.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `b62a40e -> db1c3e5` che ha acquisito anche il commento di 4 righe. Riconciliato solo metadata a `db1c3e581698ba4c06a5ff78ddc87682e11a6833`. Secondo gate `5/5`.
+- **Decisione:** chiuso il no-op registrato come NON difetto. Nessun cambio provider/model/fallback/routing/scheduler/parallel. Il gate decisionale utente resta l'unico blocco.
+- Evidenza: `/tmp/stagewarden-project-brief-2026-09-29j15.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j15.log`.
+
 ### Iterazione bounded completata — cycle 187: HOLD + escalation misurata sulla cadenza del loop
 
 - **Esito:** HOLD sul runtime, più una **escalation misurata** all'utente sulla cadenza del loop. Nessuna modifica a runtime, test, script, loop o TODO.

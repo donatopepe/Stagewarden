@@ -4,16 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD on runtime**, plus a measured escalation to the user on loop cadence. No runtime, test, script, loop or TODO change.
-- Objective: audit `.pi-loop.json`, the last un-audited instruction artifact and the one driving every future cycle, then attach a number to the cadence question cycle 178 deferred. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, loop prompt carrying all four safety constraints, cadence options recorded not actioned.
-- Loop prompt audit, clean and negative: one durable task `c05d5335`, recurring, cron `*/5 * * * *`; prompt 915 chars correctly carrying stop/record on the user decision gate, no secrets, no new worktree, and no legacy parallel execution; `createdAt` 2026-09-23T10:45:31 and `lastFiredAt` 2026-09-29T16:16:52 coherent. No defect, no edit, and unlike the cycle-185 `HANDOFF.md` defect the loop prompt does not direct unauthorized work.
-- Measured cadence fact: the last commit touching `stagewarden`/`tests`/`scripts` is `3cf637c` at 2026-09-29T14:39:08. Since then 7 metadata-only commits, so 7 consecutive cycles (181-187) produced ZERO runtime change, and `TODO.md` holds 271 cycle sections. The loop fires every 5 minutes, so each no-op cycle costs a full agent turn.
-- Escalated, NOT actioned, because cadence is user-owned per the cycle-178 decision: (a) keep the 5-minute cadence, ~12 full turns per hour all producing no runtime change; (b) suspend until the gate is answered, zero wasted turns but loses external-drift detection; (c) slow to hourly, keeping drift detection at roughly 1/12 the cost.
-- Wet: spot-check `154 passed, 79 subtests passed in 10.21s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `c32a5cb -> b62a40e`; reconciled metadata only to `b62a40ef1127e67c49871a5ea55d142e7981e6cb`; second `5/5`.
+- Outcome: **RESOLVED the `project_brief` "no-op" as a non-issue** — the record was wrong, not the code. Comment-only change; no behaviour change.
+- Objective: resolve the last open runtime item carried in the record, the `project_brief` "dangling statement" recorded since cycle 171 and carried ~100 cycles. Metric/threshold: loader raising on a wrong-typed `project_brief`, threshold `0`. Fixed cases/order: 1 string, 2 list, 3 int, 4 null; 5 controls: dict, missing field, malformed JSON, non-dict root.
+- Why the original reading was wrong: the source looks like a dict comprehension followed by a dangling `if/else` statement. It is not. AST proof: the `project_brief` keyword argument is a single `ast.IfExp` whose test is `isinstance(payload.get('project_brief', {}), dict)`, body the dict comprehension, orelse `{}`. Python evaluates the condition first, so the comprehension never runs against a non-dict. The dangling appearance is purely a line-wrap artifact.
+- Measured, 8 cases through the real loader, 0 raises: string, list, int and null all degrade to `{}`; dict yields `{'owner': 'me'}` with correct lowercase/trim; missing field, malformed JSON and non-dict root all `{}`.
+- Change: clarifying comment only, no behaviour change; `git diff --stat` 1 file, 4 insertions, 0 deletions; all 8 cases re-verified identical afterwards.
+- Second audit, first ever on this structure: the JSON `entries` log (121 entries, 142221 bytes) has 0 true duplicates by per-entry identity and 0 entries asserting a fix that never happened. The apparent 15 duplicates were my own key error, from keying on `(task, phase, timestamp)`, which are per-run fields, so distinct node completions in one run collided. Re-keyed on per-entry identity: 0 duplicates.
+- Wet, full suite required because source changed: `711 passed, 5 skipped, 301 subtests passed in 335.14s`; spot-check `154 passed, 79 subtests`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; unified validation `6/6`, overall `True`.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `b62a40e -> db1c3e5`; reconciled metadata only to `db1c3e581698ba4c06a5ff78ddc87682e11a6833`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
-- Decision: hold on runtime; no scope invented.
-- Evidence: `/tmp/stagewarden-hold-2026-09-29j14.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j14.log`.
+- Decision: close the recorded no-op as NOT a defect. The user decision gate remains the only blocker.
+- Evidence: `/tmp/stagewarden-project-brief-2026-09-29j15.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j15.log`.
 
 ## Product direction
 - One operational tree of nodes.
