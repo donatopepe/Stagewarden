@@ -8,6 +8,90 @@ from stagewarden.modelprefs import ModelPreferences
 
 
 class ModelSelectionPolicyTests(unittest.TestCase):
+    NON_OBJECT_PREFS = {
+        "top-level list": "[1, 2]",
+        "top-level string": '"a string"',
+        "top-level number": "42",
+        "null": "null",
+    }
+
+    def test_non_object_prefs_file_never_breaks_agent_construction(self) -> None:
+        """Agent.__init__ loads model preferences, so a wrong-shaped file crashed it.
+
+        A measurement across the three agent.py loaders found this the only
+        reachable one: memory and rag already fail closed, and malformed JSON was
+        already tolerated by the caller, but a root that parses to a list, string,
+        number or null raised AttributeError past the caller's except tuple.
+        """
+        from stagewarden.agent import Agent
+        from stagewarden.config import AgentConfig
+
+        for label in self.NON_OBJECT_PREFS:
+            with self.subTest(prefs=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.model_prefs_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.model_prefs_path.write_text(
+                        self.NON_OBJECT_PREFS[label], encoding="utf-8"
+                    )
+                    try:
+                        Agent(config)
+                    except Exception as exc:  # noqa: BLE001 - the defect under test
+                        self.fail(f"Agent() with {label} raised {type(exc).__name__}: {exc}")
+                    self.assertEqual(
+                        ModelPreferences.load(config.model_prefs_path),
+                        ModelPreferences.default(),
+                    )
+
+    def test_corrupt_prefs_never_breaks_agent_and_non_object_loads_defaults(self) -> None:
+        """Every corrupt prefs shape must leave Agent usable.
+
+        Non-object roots are additionally asserted to return default() from load
+        itself, matching the missing-file contract. Malformed JSON is asserted
+        only at the Agent level, because _apply_workspace_model_preferences is the
+        component that already tolerates decode errors.
+        """
+        from stagewarden.agent import Agent
+        from stagewarden.config import AgentConfig
+
+        malformed = {
+            "not json": "this is not json",
+            "truncated": '{"enabled_models": [',
+            "empty file": "",
+        }
+        for label, body in malformed.items():
+            with self.subTest(prefs=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.model_prefs_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.model_prefs_path.write_text(body, encoding="utf-8")
+                    self.assertIsNotNone(Agent(config))
+
+        for label, body in self.NON_OBJECT_PREFS.items():
+            with self.subTest(prefs=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.model_prefs_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.model_prefs_path.write_text(body, encoding="utf-8")
+                    self.assertEqual(
+                        ModelPreferences.load(config.model_prefs_path),
+                        ModelPreferences.default(),
+                    )
+                    self.assertIsNotNone(Agent(config))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            config = AgentConfig(workspace_root=Path(tmp))
+            self.assertEqual(
+                ModelPreferences.load(config.model_prefs_path), ModelPreferences.default()
+            )
+            self.assertIsNotNone(Agent(config))
+            prefs = ModelPreferences.default()
+            prefs.preferred_model = "local"
+            prefs.save(config.model_prefs_path)
+            self.assertEqual(
+                ModelPreferences.load(config.model_prefs_path).preferred_model, "local"
+            )
+
     def test_manual_selection_and_fallback_policy_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "models.json"

@@ -674,6 +674,13 @@ class ModelPreferences:
         if not path.exists():
             return cls.default()
         payload = loads_text(read_text_utf8(path))
+        if not isinstance(payload, dict):
+            # An unusable persisted root is treated exactly like a missing file:
+            # default preferences. Agent.__init__ loads this through
+            # _apply_workspace_model_preferences, which tolerates decode errors,
+            # but a root that parses to a list/string/number/null raised
+            # AttributeError past that tuple and broke agent construction.
+            return cls.default()
         return cls(
             enabled_models=[str(item) for item in payload.get("enabled_models", [])],
             preferred_model=str(payload["preferred_model"]) if payload.get("preferred_model") else None,
