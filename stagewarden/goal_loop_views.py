@@ -504,8 +504,13 @@ def register_custom_node(name: str, skill_path: str, purpose: str = "") -> dict[
     skill_file = Path(skill_path).resolve()
     if not skill_file.exists():
         return {"ok": False, "error": f"Skill file not found: {skill_path}"}
-    # Read first line for description
-    content = skill_file.read_text(encoding="utf-8").strip()
+    # Read first line for description. A skill file is user-authored, so treat an
+    # undecodable one exactly like a missing or empty one rather than raising
+    # UnicodeDecodeError out of node registration.
+    try:
+        content = skill_file.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError) as exc:
+        return {"ok": False, "error": f"Skill file is not valid UTF-8: {exc}"}
     if not content:
         return {"ok": False, "error": f"Skill file is empty: {skill_path}"}
     node = {

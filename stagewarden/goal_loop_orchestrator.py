@@ -278,7 +278,13 @@ class GoalLoopOrchestrator:
             if skill_path:
                 skill_file = Path(skill_path).resolve()
                 if skill_file.exists():
-                    prompt_text += skill_file.read_text(encoding="utf-8")
+                    # A skill file is user-authored, so an undecodable one is
+                    # reported like a missing one instead of raising
+                    # UnicodeDecodeError out of goal-loop node construction.
+                    try:
+                        prompt_text += skill_file.read_text(encoding="utf-8")
+                    except (OSError, UnicodeError) as exc:
+                        prompt_text += f"(skill file not valid UTF-8: {exc})"
                 else:
                     prompt_text += f"(skill file not found: {skill_path})"
             prompt_text += f"\n\nTask: {self.task}\nNode: {nid}\nPurpose: {cn.get('purpose', '')}"

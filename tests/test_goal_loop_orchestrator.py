@@ -645,6 +645,86 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                           ("blocked", "pending"))
 
 
+class CustomNodeSkillFileTests(unittest.TestCase):
+    """Custom-node skill files are user-authored, so per the cycle-172 ranking
+    they are among the most likely inputs to be corrupt. Both readers decoded
+    them unguarded, so invalid UTF-8 raised out of node registration and out of
+    goal-loop node construction."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        # CUSTOM_NODES_PATH is repo-relative, so it MUST be redirected or the
+        # test would read and write the real repository.
+        import stagewarden.goal_loop_views as views
+        self.views = views
+        self.addCleanup(setattr, views, "CUSTOM_NODES_PATH", views.CUSTOM_NODES_PATH)
+        views.CUSTOM_NODES_PATH = self.root / "goal_loop_custom_nodes.json"
+
+    def _skill(self, name: str, body: bytes) -> Path:
+        path = self.root / name
+        path.write_bytes(body)
+        return path
+
+    def test_registration_rejects_an_undecodable_skill_file(self) -> None:
+        bodies = {
+            "binary garbage": b"\xff\xfe\x00\x01\x80\x81 not utf-8",
+            "lone continuation": b"\x80\x81\x82 only continuation bytes",
+            "truncated utf8": b"# Skill\nvalid \xc3",
+        }
+        for label, body in bodies.items():
+            with self.subTest(skill=label):
+                skill = self._skill(f"{label}.md", body)
+                result = self.views.register_custom_node("probe", str(skill), purpose="p")
+                self.assertIs(result.get("ok"), False, f"{label} must be refused: {result}")
+                self.assertIn("utf-8", str(result.get("error", "")).lower())
+                # a refused node must NOT be persisted
+                self.assertEqual(self.views.load_custom_nodes(), [])
+
+    def test_goal_loop_builds_a_custom_node_from_an_undecodable_skill_file(self) -> None:
+        for label, body in {
+            "binary garbage": b"\xff\xfe not utf-8",
+            "lone continuation": b"\x80\x81 only continuation",
+            "truncated utf8": b"# Skill\nvalid \xc3",
+        }.items():
+            with self.subTest(skill=label):
+                skill = self._skill(f"{label}-build.md", body)
+                self.views.save_custom_nodes([{
+                    "node_id": "custom.probe", "skill_path": str(skill),
+                    "purpose": "p", "template": "custom", "inputs": [],
+                    # parented under the default root, otherwise the custom node
+                    # becomes a second root and the tree invariant rejects it
+                    "parent_id": "root.scope",
+                }])
+                orchestrator = GoalLoopOrchestrator(
+                    AgentConfig(workspace_root=self.root / f"ws-{label}"),
+                    "probe task", execution_mode="pi", json_mode=True,
+                )
+                self.addCleanup(orchestrator.knowledge.close)
+                node = orchestrator.nodes["custom.probe"]
+                self.assertEqual(node.purpose, "p")
+                self.assertIn("not valid utf-8", node.prompt.lower())
+
+    def test_skill_file_controls_keep_their_existing_behaviour(self) -> None:
+        good = self._skill("GOOD.md", b"# Good skill\nbody\n")
+        self.assertIs(self.views.register_custom_node("g", str(good)).get("ok"), True)
+
+        empty = self._skill("EMPTY.md", b"")
+        result = self.views.register_custom_node("e", str(empty))
+        self.assertIs(result.get("ok"), False)
+        self.assertIn("empty", str(result.get("error", "")).lower())
+
+        missing = self.root / "NOPE.md"
+        result = self.views.register_custom_node("m", str(missing))
+        self.assertIs(result.get("ok"), False)
+        self.assertIn("not found", str(result.get("error", "")).lower())
+
+        # a corrupt REGISTRY stays tolerated (already fail-closed in cycle 175)
+        self.views.CUSTOM_NODES_PATH.write_bytes(b"\xff\xfe not utf-8")
+        self.assertEqual(self.views.load_custom_nodes(), [])
+
+
 class GoalLoopControlSocketTests(unittest.TestCase):
     """Tests for goal loop TCP control socket."""
 
