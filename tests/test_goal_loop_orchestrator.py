@@ -32,6 +32,28 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             stderr=stderr,
         )
 
+    def _pi_exec(self, stdout: str, task: str = "pi probe", returncode: int = 0,
+                 stderr: str = ""):
+        """Call the REAL GoalLoopOrchestrator._pi_execution with a mocked pi process.
+
+        Tests must exercise the production parser, not a copy of it: the earlier
+        test_pi_execution_* cases re-implemented the ANSI regex and json.loads
+        inline, so a real uncaught crash in _pi_execution went unnoticed for 150+
+        cycles.
+        """
+        orchestrator = GoalLoopOrchestrator(
+            AgentConfig(workspace_root=self.tmp_dir / task.replace(" ", "_")),
+            task,
+            execution_mode="pi",
+            json_mode=True,
+        )
+        self.addCleanup(lambda: orchestrator.knowledge.close())
+        node = orchestrator.nodes["root.scope"]
+        completed = self._build_result(stdout, returncode=returncode, stderr=stderr)
+        with patch("stagewarden.goal_loop_orchestrator.subprocess.run", return_value=completed), \
+                patch("stagewarden.goal_loop_orchestrator.shutil.which", return_value="/usr/bin/pi"):
+            return orchestrator._pi_execution(node)
+
     def test_execution_mode_serial_gate_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -360,66 +382,58 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             resumed.knowledge.close()
 
     def test_pi_execution_parses_clean_json(self) -> None:
-        """Valid JSON output with summary/messages is parsed correctly."""
-        mock_stdout = json.dumps({
+        """Valid JSON output with summary/messages is parsed by the real method."""
+        stdout = json.dumps({
             "summary": "Node completed.",
             "messages": [
                 {"FROM": "node.a", "TO": "node.b", "TYPE": "status",
-                 "SUMMARY": "done", "PRIORITY": "low", "TOLERANCE IMPACT": "none"}
+                 "SUMMARY": "done", "PRIORITY": "low", "TOLERANCE_IMPACT": "none"}
             ],
             "output": "some output",
-            "error": None,
         })
-        result = self._build_result(mock_stdout)
-        # We need to actually run through _pi_execution... but it requires a NodeState.
-        # Instead test the parsing logic directly.
-        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as G
-        # The parsing is inline in _pi_execution, test the ANSI stripping logic
-        import re as _re
-        ansi_clean = _re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', result.stdout)
-        ansi_clean = _re.sub(r'\x1b\][^\x07]*\x07', '', ansi_clean)
-        ansi_clean = _re.sub(r'\x1b\\\\', '', ansi_clean)
-        ansi_clean = ansi_clean.strip()
-        data = json.loads(ansi_clean)
-        self.assertEqual(data["summary"], "Node completed.")
-        self.assertEqual(len(data["messages"]), 1)
-        self.assertEqual(data["messages"][0]["FROM"], "node.a")
+        result = self._pi_exec(stdout, task="clean json")
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["summary"], "Node completed.")
+        self.assertEqual(len(result["messages"]), 1)
+        self.assertEqual(result["messages"][0]["FROM"], "node.a")
+        self.assertEqual(result["output"], "some output")
 
     def test_pi_execution_strips_ansi_notification(self) -> None:
-        """ANSI notification sequences around JSON are stripped."""
-        raw = '\x1b]777;notify;\u03c0;{"summary":"ok","messages":[]}\x07{"summary":"ok","messages":[]}'
-        import re as _re
-        ansi_clean = _re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', raw)
-        ansi_clean = _re.sub(r'\x1b\][^\x07]*\x07', '', ansi_clean)
-        ansi_clean = _re.sub(r'\x1b\\\\', '', ansi_clean)
-        ansi_clean = ansi_clean.strip()
-        self.assertEqual(ansi_clean, '{"summary":"ok","messages":[]}')
-        data = json.loads(ansi_clean)
-        self.assertEqual(data["summary"], "ok")
+        """A notification OSC carrying its own 'summary' must not win the parse.
+
+        The payload deliberately puts the real JSON FIRST and the notify
+        envelope SECOND, so if OSC stripping is broken the last-object regex
+        picks the notification's summary instead of the real one. An earlier
+        version of this test placed them the other way and passed even with OSC
+        stripping removed, because the regex fallback masked the regression.
+        """
+        raw = ('{"summary":"real","messages":[]}'
+               '\x1b]777;notify;{"summary":"NOTIFY","messages":[]}\x07')
+        result = self._pi_exec(raw, task="ansi order")
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["summary"], "real")
+
+    def test_pi_execution_ignores_ansi_escaped_json_envelope(self) -> None:
+        """A CSI-wrapped JSON body must still parse after CSI stripping."""
+        raw = '\x1b[1;32m{"summary":"coloured","messages":[]}\x1b[0m'
+        result = self._pi_exec(raw, task="ansi csi")
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["summary"], "coloured")
 
     def test_pi_execution_fallback_to_raw_text(self) -> None:
-        """Non-JSON output falls back to summary text."""
+        """Non-JSON output still falls back to summary text (legacy pi text mode)."""
         raw = "Hello from pi, I completed the task."
-        import re as _re
-        ansi_clean = _re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', raw)
-        ansi_clean = _re.sub(r'\x1b\][^\x07]*\x07', '', ansi_clean)
-        ansi_clean = _re.sub(r'\x1b\\\\', '', ansi_clean)
-        ansi_clean = ansi_clean.strip()
-        # Try JSON, should fail
-        with self.assertRaises(json.JSONDecodeError):
-            json.loads(ansi_clean)
-        # Fallback: treat as summary text
-        summary = ansi_clean[:500]
-        self.assertEqual(summary, "Hello from pi, I completed the task.")
+        result = self._pi_exec(raw, task="text fallback")
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["summary"], raw)
+        self.assertEqual(result["messages"], [])
 
     def test_pi_execution_regex_finds_json_in_noise(self) -> None:
-        """JSON object embedded in other text is extracted via regex."""
-        noisy = "Some text\n{\"summary\":\"found\",\"messages\":[]}\ntrailing"
-        import re as _re
-        match = _re.search(r'\{.*\}', noisy, _re.DOTALL)
-        self.assertIsNotNone(match)
-        data = json.loads(match.group(0))
-        self.assertEqual(data["summary"], "found")
+        """JSON object embedded in other text is extracted by the real method."""
+        noisy = 'Some text\n{"summary":"found","messages":[]}\ntrailing'
+        result = self._pi_exec(noisy, task="noise")
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["summary"], "found")
 
     def test_pi_execution_handles_multiple_json_objects(self) -> None:
         """When multiple JSON objects exist, the last one with 'summary' wins."""
@@ -427,12 +441,9 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             '{"summary":"first","messages":[],"output":"","error":null}\n'
             '{"summary":"second","messages":[],"output":"","error":null}'
         )
-        import re as _re
-        # Find all JSON objects containing "summary"
-        objects = _re.findall(r'\{[^{}]*"summary"[^{}]*\}', output)
-        self.assertEqual(len(objects), 2)
-        last = json.loads(objects[-1])
-        self.assertEqual(last["summary"], "second")
+        result = self._pi_exec(output, task="multiple objects")
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["summary"], "second")
 
     def test_pi_execution_rejects_wrong_typed_messages_instead_of_crashing(self) -> None:
         """A wrong-typed 'messages' must fail closed, not raise inside node execution.
