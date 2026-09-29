@@ -25,7 +25,61 @@ class _Response:
         return json.dumps({"choices": [{"message": {"content": self.content}}]}).encode()
 
 
+class _RawBodyResponse:
+    """Return an arbitrary decoded JSON body, to exercise wrong-shape upstream payloads."""
+
+    def __init__(self, body: object) -> None:
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self) -> bytes:
+        return json.dumps(self.body).encode()
+
+
 class OmniRouteAdapterTests(unittest.TestCase):
+    def test_wrong_shape_upstream_response_falls_back_instead_of_crashing(self) -> None:
+        wrong_shapes = ([], {"choices": "not-a-list"}, {"choices": ["not-a-dict"]}, {"choices": 7})
+
+        for body in wrong_shapes:
+            with self.subTest(body=body):
+                attempts: list[str] = []
+
+                def fake_urlopen(request, timeout):
+                    payload = json.loads(request.data)
+                    attempts.append(payload["model"])
+                    return _RawBodyResponse(body)
+
+                with patch.object(sys, "argv", ["run_model", "--node-contract", "cheap", "test prompt"]), patch.object(
+                    run_model_omniroute.urllib.request, "urlopen", side_effect=fake_urlopen
+                ), patch.dict(os.environ, {"STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free"}):
+                    self.assertEqual(run_model_omniroute.main(), 1)
+                self.assertEqual(
+                    attempts,
+                    ["auto/coding:free", "auto/best-free", "coding-free-fallback"],
+                    f"every free route must be attempted before failing closed, got {attempts!r}",
+                )
+
+    def test_wrong_shape_upstream_response_then_recovers_on_free_fallback(self) -> None:
+        attempts: list[str] = []
+
+        def fake_urlopen(request, timeout):
+            payload = json.loads(request.data)
+            attempts.append(payload["model"])
+            if len(attempts) == 1:
+                return _RawBodyResponse({"choices": "not-a-list"})
+            return _Response(json.dumps({"summary": "recovered", "messages": []}))
+
+        with patch.object(sys, "argv", ["run_model", "--node-contract", "cheap", "test prompt"]), patch.object(
+            run_model_omniroute.urllib.request, "urlopen", side_effect=fake_urlopen
+        ), patch.dict(os.environ, {"STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free"}):
+            self.assertEqual(run_model_omniroute.main(), 0)
+        self.assertEqual(attempts[:2], ["auto/coding:free", "auto/best-free"])
+
     def test_node_contract_rejects_wrong_contract_and_uses_free_fallback(self) -> None:
         attempts: list[str] = []
 

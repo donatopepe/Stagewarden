@@ -1,5 +1,17 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 146: validation artifacts verificate in wet reale
+
+- **Obiettivo:** convertire in evidenza wet reale gli artefatti di validazione storicamente dichiarati ma mai eseguiti in questo ambiente, e auditare i 5 test saltati; nessun cambio runtime.
+- **Metrica/soglia:** casi di validazione passati; soglia 100% dei 6 casi fissi con tutte le skip spiegate.
+- **Casi fissi/ordine:** 1 gate matrix; 2 unified validation; 3 CLI smoke; 4 docs hygiene; 5 simulation matrix; 6 skip audit.
+- **Baseline:** gate `5/5`; gli artefatti unified/CLI/docs/simulation erano claim storici non verificati wet. `run_unified_validation.py` inizialmente sembrava hangare (exit 124), ma il default di timeout del runner è 1800s per gate: era il mio timeout esterno a 300s, non un difetto del repository.
+- **Variabile unica:** nessuna modifica di codice; solo esecuzione wet con il venv pytest del cycle 145.
+- **Esiti wet reali:** 1 gate `5/5`; 2 unified validation `6/6` PASS (exit 0, `/tmp/stagewarden-unified-validation-2026-09-28gi.log`); 3 CLI `baseline`/`model limits`/`events replay` rc=0/0/0; 4 docs `docs_checked=17`, `docs_errors=0`; 5 simulation matrix `29/29`, coverage `selected 29 / observed 29 / passed 29 / rate 1.0`; 6 skip audit: 4 skip richiedono chiave API OpenRouter (segreto, NON fornito) e 1 skip live OmniRoute abilitabile con `RUN_OMNIROUTE_LIVE_TEST=1`.
+- **Bonus verificato:** smoke live OmniRoute free reale → `OmniRoute free route OK (auto/coding:free)` exit 0; `RUN_OMNIROUTE_LIVE_TEST=1 pytest tests/test_omniroute_adapter.py` → `4 passed`. Suite completa con flag live → `654 passed, 4 skipped` (i 4 residui sono solo quelli che richiedono la chiave OpenRouter). Evidenza: `/tmp/stagewarden-validation-evidence-2026-09-28gi.log`.
+- **Drift esterno:** commit esterno `63baf05 -> 12b30cd` a metà ciclo; `git_head` riconciliato a `12b30cd946da56b2f62877b95929b2ec8bd6ddb4`. Gate post-riconciliazione `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gi-post.log` = `5/5`.
+- **Note:** nessun run ha modificato file tracciati del repository; nessuna modifica a provider/model/fallback/scheduler/parallelismo.
+
 ### Iterazione bounded completata — cycle 145: pytest environment restored (BLOCKER RISOLTO)
 
 - **Obiettivo:** rimuovere il blocker ambientale `pytest` che impediva ogni test wet da oltre 140 cicli, senza toccare il runtime.

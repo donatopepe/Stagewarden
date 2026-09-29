@@ -101,7 +101,7 @@ def main() -> int:
             else:
                 print(content)
             return 0
-        except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError, json.JSONDecodeError) as exc:
+        except (urllib.error.URLError, TimeoutError, KeyError, IndexError, TypeError, AttributeError, ValueError, json.JSONDecodeError) as exc:
             errors.append({"model": model, "error": str(exc)})
     print(json.dumps({"error": "all free OmniRoute routes failed", "provider": provider, "attempts": errors}))
     return 1
