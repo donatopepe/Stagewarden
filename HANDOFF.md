@@ -4,17 +4,21 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD on runtime with one precision correction to the record.** No code change this cycle.
-- Objective: cycle 188 changed source (comment only), so the cycle-179 diff criterion required the full suite; then verify every remaining carried claim by measurement rather than trusting register summaries. Metric/threshold: unexplained source/test/script drift `0`, gate `5/5`, every carried claim classified, key-gated skip count exact.
-- Diff criterion: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` shows 1 file, 4 insertions, the cycle-188 comment. Source changed, so the full suite was required.
-- Full suite: `711 passed, 5 skipped, 301 subtests passed in 336.02s`; confirming rerun `333.94s`. Zero regressions from the cycle-188 comment.
-- Register audit, ACCURATE: `issue_register` (4) and `risk_register` (5) checked item by item. The genuinely open risks are exactly the v3 approval gate (high, user-owned), multi-node OmniRoute free stability (medium, unproven), and the OpenRouter external check that needs a key and is correctly never run. Nothing overstated or understated.
-- Correction: `pytest -rs` shows the 5 skips split into **4 genuinely key-gated** (`tests/test_agent_integration.py:398`, `tests/test_handoff.py:161` and `:223`, `tests/test_trace_cli.py:461`) and **1 not key-gated at all** — `tests/test_omniroute_adapter.py:129` `test_local_free_route_live`, gated only by `RUN_OMNIROUTE_LIVE_TEST=1`, an opt-in flag needing no credential. Re-run with the flag: `6 passed, 4 subtests, 1.89s`, no secret involved.
-- Why it matters: reporting "5 skipped" invited the reading that all five wait on an OpenRouter key and that the free-route live path is unverified. It **is** verified. Only the 4 real key-gated tests remain blocked, and that is a deliberate, correct state.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `db1c3e5 -> cea42af`; reconciled metadata only to `cea42afc4fe58ddfe56c933b6dd8c1da187fde9a`; second `5/5`.
+- Outcome: **HOLD on runtime; no silent credential dependence found — a valid negative.** No code change.
+- Objective: cycle 189 established that the 5th skip is opt-in and needs no credential, which raises a sharper question than the original: is any behaviour SILENTLY credential-dependent at runtime, a hidden fail-open rather than a visible skip? Metric/threshold: silent credential-dependent behaviour changes, threshold `0`.
+- Result: no silent fail-open. Clean.
+- Surface audited, every credential-shaped env read in `stagewarden`:
+  - `stagewarden/handoff.py:313` assigns `env["ANTHROPIC_AUTH_TOKEN"] = os.environ[source_env]` — a direct subscript that WOULD raise `KeyError`, but the same statement is guarded by `and source_env in os.environ`, so the subscript is only reached when the key exists. Correctly guarded, not a latent crash.
+  - `stagewarden/status_dashboard_views.py:403` reports an absent credential VISIBLY as `missing:TOKEN_ENV` rather than ignoring it.
+  - `stagewarden/openrouter_benchmark.py:247` and `stagewarden/model_catalog.py:257` use `.get()` and degrade safely.
+  - `stagewarden/secrets.py:132,135` are configuration flags, not credential fallbacks.
+- Verified by execution, not by reading: every credential-shaped env var cleared, then the reporting path confirmed to emit `missing:TOKEN_ENV`.
+- Why it matters: the project's whole discipline is fail-closed. A test that SKIPS is visible; a feature that silently degrades when a credential is absent is an invisible fail-open, and would be far worse than the 4 legitimately blocked tests. There is none.
+- Wet: spot-check `154 passed, 79 subtests passed in 10.18s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`. No code change, so the cycle-189 full-suite baseline at the same code carries by proof.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `cea42af -> bffc9bc`; reconciled metadata only to `bffc9bc8fb05a1e9ad754d493658da88c6535f46`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
 - Decision: hold on runtime. The user decision gate remains the only blocker.
-- Evidence: `/tmp/stagewarden-skip-breakdown-2026-09-29j16.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j16.log`.
+- Evidence: `/tmp/stagewarden-credential-audit-2026-09-29j17.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j17.log`.
 
 ## Product direction
 - One operational tree of nodes.

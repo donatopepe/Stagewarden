@@ -1,5 +1,22 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 190: HOLD, negativo — nessun fail-open silenzioso sulle credenziali
+
+- **Esito:** HOLD sul runtime, risultato **negativo** sull'ultima superficie runtime non auditata. Nessuna modifica al codice.
+- **Obiettivo:** il cycle 189 ha stabilito che il 5° skip è opt-in e non richiede credenziali. Questo solleva una domanda più affilata della precedente: esiste comportamento **silenziosamente** dipendente dalle credenziali a runtime, cioè un fail-open nascosto invece di uno skip visibile? Metrica/soglia: cambiamenti di comportamento silenziosamente dipendenti da credenziali, soglia `0`.
+- **RISULTATO: NESSUN fail-open silenzioso. Pulito.**
+- **Superficie auditata**, ogni lettura di env a forma credenziale in `stagewarden`:
+  - `stagewarden/handoff.py:313` — `env["ANTHROPIC_AUTH_TOKEN"] = os.environ[source_env]`: è un **subscript diretto**, che solleverebbe `KeyError`, ma la stessa istruzione è protetta da `and source_env in os.environ`, quindi il subscript è raggiunto solo se la chiave esiste. Correttamente protetto, non un crash latente.
+  - `stagewarden/status_dashboard_views.py:403` — `token_state = "set" if os.environ.get(...) else f"missing:{...}"`: una credenziale assente viene **riportata visibilmente** come `missing:TOKEN_ENV`, mai ignorata.
+  - `stagewarden/openrouter_benchmark.py:247` e `stagewarden/model_catalog.py:257` — usano `.get()` e degradano in sicurezza.
+  - `stagewarden/secrets.py:132,135` — flag di configurazione, non fallback su credenziali.
+- **Verificato per esecuzione, non per lettura:** svuotate tutte le variabili env a forma credenziale, poi confermato che il percorso di reporting emette `missing:TOKEN_ENV`.
+- **Perché conta:** tutta la disciplina del progetto è fail-closed. Un test che salta è **visibile**; una feature che degrada silenziosamente quando manca una credenziale è un fail-open **invisibile**, e sarebbe molto peggio dei 4 test legittimamente bloccati. Non ce n'è.
+- **Wet:** spot-check `154 passed, 79 subtests, 10.18s`; smoke `OmniRoute free route OK (auto/coding:free)`. Nessuna modifica al codice in questo ciclo; la baseline suite completa del cycle 189 sullo stesso codice porta avanti per prova.
+- **Gate:** primo run `4/5` su `git_head` stale dopo commit esterno `cea42af -> bffc9bc`; riconciliato solo metadata a `bffc9bc8fb05a1e9ad754d493658da88c6535f46`; secondo gate `5/5`.
+- **Decisione:** HOLD sul runtime. Nessun cambio provider/model/fallback/routing/scheduler/parallel. Il gate decisionale utente resta l'unico blocco.
+- Evidenza: `/tmp/stagewarden-credential-audit-2026-09-29j17.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j17.log`.
+
 ### Iterazione bounded completata — cycle 189: HOLD + correzione di precisione sulla scomposizione degli skip
 
 - **Esito:** HOLD sul runtime, più una correzione di precisione al record. **Nessuna modifica al codice in questo ciclo.**
