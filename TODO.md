@@ -1,5 +1,18 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 197: provenance incoming child result persistita e ripristinata dal parent
+
+- **Esito:** completata la provenance sul lato parent dopo reopen. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- **Obiettivo:** il cycle 196 provava report/context finali, ma `parent.messages_received` restava memoria transiente: `NodeState.as_dict` lo ometteva e nessuna capsule parent veniva persistita immediatamente dopo l'arrivo del child result. Reopen perdeva quindi result typed e `EXECUTION_MODE`. Metrica/soglia: incoming child result/provenance mancante dopo handoff save + orchestrator reopen, soglia `0`.
+- **Baseline:** run reale: `parent.messages_received` in memoria conteneva child result con `EXECUTION_MODE=mock`, ma `goal_loop_context.node_details` persistito non aveva `messages_received` e il parent riaperto aveva lista vuota.
+- **Fix:** serializzati `messages_received` in `NodeState.as_dict`; ripristinati in `_restore_node_capsules`; persistita la capsule parent subito dopo append del child→parent result. Nessun cambio policy.
+- **Caso fisso:** result child auto/mock arriva al parent con `EXECUTION_MODE`; handoff save lo include; orchestrator reopen lo ripristina. Provenance packet/event/capsule/replay esistente resta verde.
+- **TDD:** focused provenance `7 passed`. Rimozione persistenza parent → `1 failed`; ripristino → `7 passed`.
+- **Wet:** `718 passed, 5 skipped, 301 subtests in 359.17s`; focused goal/event/executor/node knowledge `95 passed, 51 subtests in 7.58s`; unified `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit metadata-only `afc672c -> c100efb`; riconciliato solo metadata a `c100efb25dd30adb36da7bb113289bec38efcc37`; secondo gate `5/5`.
+- **Policy:** esecuzione seriale preservata; nessun legacy parallel; provider/model/fallback/routing/scheduler invariati. Gate decisionale utente ancora blocker.
+- Evidenza: `/tmp/stagewarden-provenance-parent-persistence-2026-09-29j24.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j24.log`.
+
 ### Iterazione bounded completata — cycle 196: HOLD, provenance completa fino a report finale/context (risultato negativo)
 
 - **Esito:** HOLD. Nessuna modifica a runtime o test; nessun plumbing duplicato inventato.

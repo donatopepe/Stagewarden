@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 195: completed provenance at the typed child->parent result boundary. Cycle 194 replay was truthful, but parent.messages_received still omitted EXECUTION_MODE, so in-memory upward aggregation could lose the mock/pi distinction before persistence. Fix adds EXECUTION_MODE to typed child->parent result message. Fixed auto->mock packet/event/capsule/replay/parent message, explicit mock, real pi, restore. TDD focused 6 passed; removing parent field -> 1 failed, restoring -> 6 passed. Full suite 717 passed, 5 skipped, 301 subtests; unified 6/6; smoke green. Gate 4/5 stale git_head after metadata-only commit 6dcf194 -> afc672c, reconciled to afc672c973ae. No provider/model/fallback/routing/scheduler/parallel change.",
+  "latest_observation": "Cycle 197: completed provenance on parent-side persistence/reopen. Cycle 196 proved final report/context, but parent.messages_received was only serialized by NodeState.as_dict and not persisted immediately after child result arrival; reopen lost the incoming typed result and EXECUTION_MODE. Fix: serialize messages_received in NodeState.as_dict, restore it, and persist parent capsule immediately after child->parent result append. Fixed auto->mock packet/event/capsule/replay/parent message/handoff/reopen, mock, pi. TDD focused 7 passed; removing parent persist -> 1 failed, restoring -> 7 passed. Full suite 718 passed, 5 skipped, 301 subtests; unified 6/6; smoke green. Gate 4/5 stale git_head after metadata-only commit afc672c -> c100efb, reconciled to c100efb25dd3. No provider/model/fallback/routing/scheduler/parallel change.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "afc672c973ae847043592ad022d687d6ee095cd8",
+  "git_head": "c100efb25dd30adb36da7bb113289bec38efcc37",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
