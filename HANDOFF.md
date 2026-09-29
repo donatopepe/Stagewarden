@@ -4,13 +4,13 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD; metadata mirror synchronization completed.** No runtime, test or script change.
-- Objective: synchronize all handoff mirrors to cycle 200/current HEAD. Metric/threshold: source/test/script drift `0`, metadata consistency `6/6`, gate `5/5`.
-- Proof: source/test/script diff since `c100efb` is empty; actual HEAD `11696838` changed metadata only. Earlier AGENT_HANDOFF/HANDOFF/TODO/JSON markers were stale; AGENT_HANDOFF/TODO/JSON now current, and this block closes the remaining HANDOFF drift.
-- Wet: targeted `95 passed, 51 subtests passed`; direct OmniRoute smoke green. No runtime/provider/model/fallback/routing/scheduler/parallel change.
-- State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop unchanged.
-- Decision: hold; no runtime scope invented while user decision gate pending.
-- Evidence: `/tmp/stagewarden-metadata-sync-baseline-2026-09-29j26.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j26.log`.
+- Outcome: **HOLD; metadata baseline `5/5`.** No runtime, test or script change.
+- Objective: verify mirror state after cycle 201. Metric/threshold: metadata consistency `5/5`, source/test/script drift `0`.
+- Proof: no external HEAD drift at tick start; all mirrors synchronized to cycle 202/current HEAD `d9ce49c`; source/test/script diff since `c100efb` empty.
+- Wet: targeted `161 passed, 79 subtests passed`; direct OmniRoute smoke green.
+- State: `main`, sole worktree, CodeGraph current, JSON waiting/current step waiting/question pending, loop unchanged. No provider/model/fallback/routing/scheduler/parallel change.
+- Decision: hold; user decision gate blocker.
+- Evidence: `/tmp/stagewarden-metadata-baseline-2026-09-29j30.log`.
 
 ## Product direction
 - One operational tree of nodes.

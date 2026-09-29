@@ -1,5 +1,27 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 202: HOLD — metadata baseline `5/5`, nessun drift esterno
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare mirror metadata dopo cycle 201. Metrica/soglia: coerenza metadata `5/5`, drift sorgente/test/script `0`.
+- **Prova:** nessun drift HEAD al tick; tutti i mirror sincronizzati a cycle 202/HEAD `d9ce49c`; diff sorgente/test/script rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-baseline-2026-09-29j30.log`.
+
+### Iterazione bounded completata — cycle 201: HOLD — final metadata mirror gate `6/6` dopo drift esterno
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** gate metadata finale dopo drift esterno. Metrica/soglia: gate `6/6`, drift sorgente/test/script `0`.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Primo gate:** `5/6`, solo `git_head`, dopo commit metadata-only esterno `1169683 -> d9ce49c` a metà ciclo. Diff sorgente/test/script rispetto a `c100efb` rimasto vuoto.
+- **Riconciliazione:** aggiornati solo `git_head/latest_observation` in `.stagewarden_handoff.json`. Nessun cambio runtime/test/script/provider/model/fallback/routing/scheduler/parallel.
+- **Secondo gate:** `6/6`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-final-metadata-gate-2026-09-29j29.log`.
+
 ### Iterazione bounded completata — cycle 200: HOLD — sincronizzazione metadata mirror `6/6`
 
 - **Esito:** HOLD. Metadata allineati; nessuna modifica runtime/test/script.
