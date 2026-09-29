@@ -1,5 +1,18 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 182: HOLD — secondo drift metadata-only consecutivo, baseline ancora provata
+
+- **Esito:** HOLD. Nessuna modifica a runtime, test o script; nessun nuovo bersaglio. Gate decisionale utente ancora pending.
+- **Obiettivo:** applicare criterio diff del cycle 179; metrica/soglia: drift sorgente/test/script non spiegato `0`, gate `5/5`.
+- **Prova baseline:** `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` vuoto. External commit `74c27aa -> df9b898` ha cambiato solo metadata (`.pi-loop.json`, `.stagewarden_handoff.json`, `AGENT_HANDOFF.md`, `HANDOFF.md`, `TODO.md`). Nessun codice, test o script; baseline full cycle 180 portata avanti per prova.
+- **Spot-check wet:** `154 passed, 79 subtests` in `10.19s`; smoke `OmniRoute free route OK (auto/coding:free)`; `716 tests collected`, 4 OpenRouter-key skips intenzionali.
+- **Gate primo run:** `4/5`, solo case4 per `git_head` JSON ancora `74c27aa` mentre HEAD reale era `df9b898`. Drift metadata-only atteso.
+- **Riconciliazione:** aggiornato solo `.stagewarden_handoff.json` a `df9b8987e9d581cee2bfb82ae4c16cd909649da0`; nessun cambio runtime/provider/model/fallback/routing/scheduler/parallel.
+- **Gate dopo riconciliazione:** `5/5`.
+- **Stato:** `main`, worktree unico, CodeGraph `140/3825/13116` corrente, JSON waiting/current-step waiting/question pending, loop durevole `c05d5335` su `*/5 * * * *`.
+- **Decisione:** fermarsi; nessun full suite rerun perché diff sorgente/test/script vuoto; nessun nuovo scope inventato mentre il gate utente è pending.
+- Evidenza: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j9.log` e spot-check `/tmp/stagewarden-cycle182-spotcheck.tmp`.
+
 ### Iterazione bounded completata — cycle 181: HOLD — drift metadata-only riconciliato, baseline portata avanti per prova
 
 - **Esito:** HOLD. Nessuna modifica a runtime, test o script; nessun nuovo bersaglio. Gate decisionale utente ancora pending.
