@@ -192,6 +192,57 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertEqual(loaded["capsule"]["last_checkpoint"], "alpha")
                 self.assertEqual(loaded["source"]["type"], "node_execution_capsule")
 
+    def test_corrupt_search_source_json_is_skipped_not_raised(self) -> None:
+        corrupt = ('{"type":', "not json at all", "[1, 2, 3]", '"a bare string"', "null")
+
+        for value in corrupt:
+            with self.subTest(source_json=value):
+                with tempfile.TemporaryDirectory() as tmp:
+                    with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                        store.record_context(
+                            tree_id="tree",
+                            node_id="node",
+                            parent_node_id=None,
+                            purpose="p",
+                            status="ok",
+                            content="find the widget",
+                        )
+                        store.connection.execute(
+                            "UPDATE knowledge SET source_json = ? WHERE namespace = 'context'",
+                            (value,),
+                        )
+                        self.assertEqual(store.search("widget"), [])
+
+    def test_search_keeps_valid_source_json_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                store.record_context(
+                    tree_id="tree",
+                    node_id="node",
+                    parent_node_id=None,
+                    purpose="p",
+                    status="ok",
+                    content="find the widget",
+                )
+                results = store.search("widget")
+                self.assertEqual(len(results), 1)
+                self.assertEqual(results[0]["source"], {"type": "runtime", "node_id": "node", "purpose": "p"})
+                self.assertNotIn("source_json", results[0])
+
+    def test_corrupt_code_relations_source_json_is_skipped_not_raised(self) -> None:
+        corrupt = ('{"type":', "not json at all", "[1, 2, 3]", '"a bare string"', "null")
+
+        for value in corrupt:
+            with self.subTest(source_json=value):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    (root / "m.py").write_text("import os\ndef f():\n    return os\n", encoding="utf-8")
+                    with NodeKnowledgeStore(root / "knowledge.sqlite") as store:
+                        store.index_python(root, node_id="node", tree_id="tree")
+                        self.assertTrue(store.code_relations(), "control: relations exist before corruption")
+                        store.connection.execute("UPDATE code_relations SET source_json = ?", (value,))
+                        self.assertEqual(store.code_relations(), [])
+
     def test_node_execution_capsule_uuid_scope_rejects_other_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"

@@ -19,6 +19,18 @@ def _relative_path(path: Path, root: Path) -> str:
 
 
 
+def _decode_source(raw: Any) -> dict[str, Any] | None:
+    """Decode a persisted source_json column, returning None when unusable.
+
+    A corrupt row must not abort retrieval, so malformed, truncated and
+    wrong-shaped values are reported as absent rather than raised.
+    """
+    try:
+        decoded = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return decoded if isinstance(decoded, dict) else None
+
 class NodeKnowledgeStore:
     """Local node-scoped knowledge/history store for MVP execution.
 
@@ -355,7 +367,10 @@ class NodeKnowledgeStore:
             if tokens and score == 0:
                 continue
             item = dict(row)
-            item["source"] = json.loads(item.pop("source_json"))
+            source = _decode_source(item.pop("source_json", None))
+            if source is None:
+                continue
+            item["source"] = source
             scored.append((score, item))
         scored.sort(key=lambda pair: (-pair[0], pair[1]["created_at"], pair[1]["entry_id"]))
         return [item for _, item in scored[:limit]]
@@ -548,7 +563,10 @@ class NodeKnowledgeStore:
         results = []
         for row in rows:
             item = dict(row)
-            item["source"] = json.loads(item.pop("source_json"))
+            source = _decode_source(item.pop("source_json", None))
+            if source is None:
+                continue
+            item["source"] = source
             results.append(item)
         return results
 

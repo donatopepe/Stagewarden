@@ -1,5 +1,16 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 149: TDD fix difetto fail-closed `load_node_execution_capsule`
+
+- **Obiettivo:** terzo difetto reale della stessa classe: il loader di capsule del Node Knowledge Store decodificava `content` e `source_json` senza gestire JSON malformato/troncato né validare i tipi decodificati, quindi un checkpoint capsule corrotto crashava il restore del goal loop oppure restituiva spazzatura.
+- **Metrica/soglia:** `tests/test_node_knowledge.py`; soglia 100% dei casi fissi che devono chiudere con `KeyError`, con round-trip intatto. Gate `5/5`; unified validation `6/6`.
+- **Casi fissi/ordine:** 1 content troncato · 2 content stringa grezza · 3 `source_json` troncato · 4 `source_json` lista · 5 content lista · 6 content stringa · 7 (controllo) capsule intatta round-trip.
+- **Baseline (difetto riprodotto):** content troncato e stringa grezza e `source_json` troncato → `JSONDecodeError` non gestito; radici decodificate non-dict (lista/stringa) → valore arbitrario restituito. `goal_loop_orchestrator._restore_node_capsules` intercetta solo `KeyError`, quindi un capsule corrotto rendeva l'intero goal loop non riprendibile.
+- **Variabile unica:** in `load_node_execution_capsule` la decodifica di `content` e `source_json` è stata racchiusa in un unico boundary fail-closed che intercetta `TypeError` e `ValueError` (`JSONDecodeError` è sottoclasse di `ValueError`) e richiede che **entrambe** le radici decodificate siano dict; in caso contrario solleva `KeyError("Corrupt execution capsule ...")`, contratto che il restore del goal loop già gestiva. Nessuna migrazione di schema, nessun auto-repair, nessun cambio a provider/model/fallback/routing/scheduler/parallelismo.
+- **TDD:** RED `6 failed, 15 passed` → GREEN `15 passed, 6 subtests passed`. Riconferma rimuovendo la guardia → `9 failed, 12 passed`; ripristinata → `15 passed, 6 subtests passed`.
+- **Regressione:** suite prioritaria `115 passed, 19 subtests passed in 12.86s`; suite completa con flag live `662 passed, 4 skipped, 19 subtests passed in 333.53s (0:05:33)`, 0 fallimenti (era 660). Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-capsule-failclosed-defect-2026-09-28gl.log`.
+- **Drift esterno:** commit esterno `af520a0 -> 2c01da2` ha acquisito fix e test; `git_head` riconciliato a `2c01da2e3c085c66c06bdd9ae3ed7ff83d7fe8bd`.
+
 ### Iterazione bounded completata — cycle 148: TDD fix difetto fail-closed `_read_tool_operations`
 
 - **Obiettivo:** correggere un secondo difetto reale della stessa classe di cycle 147: `_read_tool_operations` validava la forma di primo livello del payload ma non del campo annidato `operations`, quindi un checkpoint persistente con `operations` non-dict crashava l'executor con `AttributeError` invece di fallire chiuso a `{}`.
