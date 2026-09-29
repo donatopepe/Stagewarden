@@ -725,6 +725,74 @@ class CustomNodeSkillFileTests(unittest.TestCase):
         self.assertEqual(self.views.load_custom_nodes(), [])
 
 
+class GoalLoopResultPacketProvenanceTests(unittest.TestCase):
+    """A node's ResultPacket is the project's audit record. In `auto` mode a
+    missing pi falls back to mock execution, but the packet carried no execution
+    mode, so a run with NO AI backend produced persisted evidence
+    byte-identical to a real one. The two-gate test says a finding is fixed only
+    when it is both a safety issue and in approved scope; this is both: node-first
+    MVP is the top approved priority, and claiming completion for work that never
+    ran is a misleading success."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def _orchestrator(self, mode: str):
+        return GoalLoopOrchestrator(
+            AgentConfig(workspace_root=self.root / mode),
+            "provenance task", execution_mode=mode, json_mode=True,
+        )
+
+    def test_mock_fallback_in_auto_mode_is_recorded_in_the_result_packet(self) -> None:
+        import stagewarden.goal_loop_orchestrator as mod
+
+        orchestrator = self._orchestrator("auto")
+        self.addCleanup(orchestrator.knowledge.close)
+        with patch.object(mod, "_pi_available", return_value=False):
+            ready = orchestrator._get_ready_nodes()
+            self.assertTrue(ready, "expected a ready node")
+            orchestrator._execute_node(ready[0])
+
+        packet = orchestrator._pending_parent_packets[ready[0].node_id]["result_packet"]
+        self.assertIsNotNone(packet)
+        self.assertEqual(
+            packet.get("execution_mode"), "mock",
+            "a node completed by mock fallback must say so in its ResultPacket",
+        )
+        self.assertEqual(ready[0].status, "completed")
+
+    def test_explicit_mock_mode_is_also_recorded(self) -> None:
+        orchestrator = self._orchestrator("mock")
+        self.addCleanup(orchestrator.knowledge.close)
+        ready = orchestrator._get_ready_nodes()
+        self.assertTrue(ready)
+        orchestrator._execute_node(ready[0])
+        packet = orchestrator._pending_parent_packets[ready[0].node_id]["result_packet"]
+        self.assertIsNotNone(packet)
+        self.assertEqual(packet.get("execution_mode"), "mock")
+
+    def test_real_pi_execution_is_recorded_as_pi(self) -> None:
+        import stagewarden.goal_loop_orchestrator as mod
+
+        orchestrator = self._orchestrator("auto")
+        self.addCleanup(orchestrator.knowledge.close)
+        with patch.object(mod, "_pi_available", return_value=True), \
+             patch.object(orchestrator, "_pi_execution",
+                          return_value={"ok": True, "summary": "real", "messages": [],
+                                         "evidence": ["e"]}):
+            ready = orchestrator._get_ready_nodes()
+            self.assertTrue(ready)
+            orchestrator._execute_node(ready[0])
+        packet = orchestrator._pending_parent_packets[ready[0].node_id]["result_packet"]
+        self.assertIsNotNone(packet)
+        self.assertEqual(
+            packet.get("execution_mode"), "pi",
+            "a node completed by real pi execution must record pi, not mock",
+        )
+
+
 class GoalLoopControlSocketTests(unittest.TestCase):
     """Tests for goal loop TCP control socket."""
 

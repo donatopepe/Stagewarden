@@ -1,5 +1,20 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 191: HOLD — audit delle dipendenze opzionali; una perdita di capability silenziosa **trovata e deliberatamente non corretta**
+
+- **Esito:** HOLD sul runtime. Nessuna modifica al codice.
+- **Obiettivo:** follow-on del cycle 190. Le credenziali non sono l'unica precondizione, quindi: **cos'altro può disattivare silenziosamente una capability?** Metrica/soglia: disattivazioni silenziose di capability, soglia `0` per le violazioni fail-closed; osservazioni fuori scope approvato registrate e non corrette.
+- **TROVATO, NON CORRETTO — una genuina perdita silenziosa di capability:** `stagewarden/shell_views.py:38-40` imposta `readline = None` su `ImportError` senza alcun report. **Verificato per esecuzione, non per lettura:** con `readline` forzato a `None`, `_configure_readline(config)` restituisce `False` e il banner interattivo a `shell_views.py:848-849` (`if ... and _configure_readline(config): sink.write(f"History file: ...")`) **non stampa nulla**. L'utente quindi non può distinguere che history e tab-completion non sono disponibili dal fatto che la riga non sia mai menzionata.
+- **PERCHÉ NON CORRETTO — fallisce due volte i test del progetto stesso:**
+  1. **Non è una violazione fail-closed.** Non distruttivo, non causa risultati errati, non consente azioni non sicure. È una feature di comodità che tace.
+  2. **La history della shell interattiva NON è nella lista priorità approvata** (node-first MVP, OmniRoute free, context-aware chunking/compaction, persistent file-read recovery, JSONL events/replay, terminal node purpose, Node Knowledge Store, code index). Correggere sarebbe inventare scope, che il cycle 178 ha stabilito essere vietato.
+- Registrato come **osservazione per l'utente**, non come difetto da agire.
+- **Superfici correttamente rumorose, come contrasto:** `stagewarden/tools/files.py:1197` e `:1212` convertono `ImportError` in un `ValueError` che nomina la capability mancante; `stagewarden/secrets.py open_login_page` riporta `STAGEWARDEN_SKIP_BROWSER` esplicitamente come "Browser skipped. Open manually: &lt;url&gt;", fornendo anche il sostituto azionabile.
+- **Wet:** spot-check `154 passed, 79 subtests, 10.22s`; smoke `OmniRoute free route OK (auto/coding:free)`. Nessuna modifica al codice; la baseline suite completa del cycle 189 sullo stesso codice porta avanti per prova.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit esterno `bffc9bc -> cf6a321`; riconciliato solo metadata a `cf6a321e5d5ed8bd7c887bc5ea2c546f7a18aafe`; secondo gate `5/5`.
+- **Decisione:** HOLD sul runtime. Nessun cambio provider/model/fallback/routing/scheduler/parallel. Il gate decisionale utente resta l'unico blocco.
+- Evidenza: `/tmp/stagewarden-optional-deps-2026-09-29j18.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j18.log`.
+
 ### Iterazione bounded completata — cycle 190: HOLD, negativo — nessun fail-open silenzioso sulle credenziali
 
 - **Esito:** HOLD sul runtime, risultato **negativo** sull'ultima superficie runtime non auditata. Nessuna modifica al codice.

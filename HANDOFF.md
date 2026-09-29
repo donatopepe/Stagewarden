@@ -4,21 +4,16 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD on runtime; no silent credential dependence found — a valid negative.** No code change.
-- Objective: cycle 189 established that the 5th skip is opt-in and needs no credential, which raises a sharper question than the original: is any behaviour SILENTLY credential-dependent at runtime, a hidden fail-open rather than a visible skip? Metric/threshold: silent credential-dependent behaviour changes, threshold `0`.
-- Result: no silent fail-open. Clean.
-- Surface audited, every credential-shaped env read in `stagewarden`:
-  - `stagewarden/handoff.py:313` assigns `env["ANTHROPIC_AUTH_TOKEN"] = os.environ[source_env]` — a direct subscript that WOULD raise `KeyError`, but the same statement is guarded by `and source_env in os.environ`, so the subscript is only reached when the key exists. Correctly guarded, not a latent crash.
-  - `stagewarden/status_dashboard_views.py:403` reports an absent credential VISIBLY as `missing:TOKEN_ENV` rather than ignoring it.
-  - `stagewarden/openrouter_benchmark.py:247` and `stagewarden/model_catalog.py:257` use `.get()` and degrade safely.
-  - `stagewarden/secrets.py:132,135` are configuration flags, not credential fallbacks.
-- Verified by execution, not by reading: every credential-shaped env var cleared, then the reporting path confirmed to emit `missing:TOKEN_ENV`.
-- Why it matters: the project's whole discipline is fail-closed. A test that SKIPS is visible; a feature that silently degrades when a credential is absent is an invisible fail-open, and would be far worse than the 4 legitimately blocked tests. There is none.
-- Wet: spot-check `154 passed, 79 subtests passed in 10.18s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`. No code change, so the cycle-189 full-suite baseline at the same code carries by proof.
-- Gate: first `4/5` on stale `git_head` after metadata-only commit `cea42af -> bffc9bc`; reconciled metadata only to `bffc9bc8fb05a1e9ad754d493658da88c6535f46`; second `5/5`.
+- Outcome: **HOLD on runtime; one silent capability loss found and deliberately NOT fixed.** No code change.
+- Objective: follow-on to cycle 190. Credentials are not the only precondition, so what ELSE can silently disable a capability? Metric/threshold: silent capability disables, threshold `0` for fail-closed violations; observations outside approved scope recorded rather than fixed.
+- Found, not fixed: `stagewarden/shell_views.py:38-40` sets `readline = None` on `ImportError` with no report. Verified by execution, not by reading: with readline forced to `None`, `_configure_readline(config)` returns `False`, and the interactive banner at `shell_views.py:848-849` prints nothing, so a user cannot tell that history and tab-completion are unavailable, as opposed to the line simply never being mentioned.
+- Why not fixed, it fails the project's own tests twice over: it is **not** a fail-closed violation — not destructive, causes no incorrect result, allows no unsafe action, it is a convenience feature going quiet; and interactive shell history is **not** in the approved priority list (node-first MVP, OmniRoute free, context-aware chunking/compaction, persistent file-read recovery, JSONL events/replay, terminal node purpose, Node Knowledge Store, code index), so fixing it would be inventing scope, which cycle 178 established must not happen. Recorded as an observation for the user, not a defect to action.
+- Contrasting surfaces that are correctly loud: `stagewarden/tools/files.py:1197` and `:1212` convert `ImportError` into a `ValueError` naming the missing capability; `stagewarden/secrets.py open_login_page` reports `STAGEWARDEN_SKIP_BROWSER` explicitly as "Browser skipped. Open manually: <url>" with an actionable substitute.
+- Wet: spot-check `154 passed, 79 subtests passed in 10.22s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`. No code change, so the cycle-189 full-suite baseline at identical code carries by proof.
+- Gate: first `4/5` on stale `git_head` after metadata-only commit `bffc9bc -> cf6a321`; reconciled metadata only to `cf6a321e5d5ed8bd7c887bc5ea2c546f7a18aafe`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
 - Decision: hold on runtime. The user decision gate remains the only blocker.
-- Evidence: `/tmp/stagewarden-credential-audit-2026-09-29j17.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j17.log`.
+- Evidence: `/tmp/stagewarden-optional-deps-2026-09-29j18.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j18.log`.
 
 ## Product direction
 - One operational tree of nodes.

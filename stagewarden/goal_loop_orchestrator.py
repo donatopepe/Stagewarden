@@ -546,13 +546,20 @@ Do NOT include any text before or after the JSON object.'''
         self._emit_node_event(node_state, "node_cycle_started", node_state.active_work, cycle_id=node_state.cycle_id, context_revision=node_state.context_revision)
         self._emit_node_event(node_state, "work", node_state.active_work, cycle_id=node_state.cycle_id, context_revision=node_state.context_revision)
         if self.execution_mode == EXECUTION_MODE_MOCK:
+            effective_mode = EXECUTION_MODE_MOCK
             result = self._mock_execution(node_state.node_id)
         elif self.execution_mode == EXECUTION_MODE_PI:
+            effective_mode = EXECUTION_MODE_PI
             result = self._pi_execution(node_state)
         else:  # auto
             if _pi_available():
+                effective_mode = EXECUTION_MODE_PI
                 result = self._pi_execution(node_state)
             else:
+                # Record the fallback in the ResultPacket as well as on stderr.
+                # Without it a run with no AI backend produced persisted evidence
+                # byte-identical to a real one, which is a misleading success.
+                effective_mode = EXECUTION_MODE_MOCK
                 sys.stderr.write(
                     "[goal-loop] pi not available, falling back to mock execution. "
                     "Install pi for real AI-powered node execution.\n"
@@ -575,6 +582,10 @@ Do NOT include any text before or after the JSON object.'''
                 "status": "completed",
                 "summary": node_state.output_summary,
                 "evidence": result.get("evidence", []),
+                # Provenance: which mode actually produced this packet. A packet
+                # from mock fallback is not the same artifact as one from a real
+                # AI run, and the two must stay distinguishable in the audit trail.
+                "execution_mode": effective_mode,
             }
             self._pending_parent_packets[node_state.node_id]["result_packet"] = result_packet
             if node_state.parent_node_id:
