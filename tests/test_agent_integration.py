@@ -15,6 +15,7 @@ from stagewarden.planner import PlanStep
 from stagewarden.provider_registry import model_token_env
 from stagewarden.modelprefs import ModelPreferences
 from stagewarden.project_handoff import ProjectHandoff
+from stagewarden.project_handoff import ProjectHandoff
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -177,6 +178,56 @@ def write_resume_rate_limit_stub(root: Path) -> Path:
 
 
 class AgentIntegrationTests(unittest.TestCase):
+    NON_OBJECT_HANDOFF = {
+        "top-level list": "[1, 2]",
+        "top-level string": '"a string"',
+        "top-level number": "42",
+        "null": "null",
+    }
+
+    def test_non_object_handoff_file_never_breaks_agent_construction(self) -> None:
+        """.stagewarden_handoff.json is the central project state file.
+
+        Agent.__init__ loads it, and load_project_handoff read payload.get(...)
+        unguarded, so a root that is a list, string, number or null made
+        Agent(config) itself raise AttributeError.
+        """
+        for label, body in self.NON_OBJECT_HANDOFF.items():
+            with self.subTest(handoff=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.handoff_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.handoff_path.write_text(body, encoding="utf-8")
+                    try:
+                        Agent(config)
+                    except Exception as exc:  # noqa: BLE001 - the defect under test
+                        self.fail(f"Agent() with {label} raised {type(exc).__name__}: {exc}")
+                    self.assertEqual(
+                        ProjectHandoff.load(config.handoff_path).status,
+                        ProjectHandoff().status,
+                    )
+
+    def test_corrupt_handoff_controls_still_behave_as_before(self) -> None:
+        """Controls: shapes already tolerated, a missing file, and a real round-trip."""
+        tolerated = {
+            "not json": "this is not json",
+            "truncated": '{"task": "x"',
+            "empty file": "",
+        }
+        for label, body in tolerated.items():
+            with self.subTest(handoff=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    config.handoff_path.parent.mkdir(parents=True, exist_ok=True)
+                    config.handoff_path.write_text(body, encoding="utf-8")
+                    self.assertIsNotNone(Agent(config))
+        with tempfile.TemporaryDirectory() as tmp:
+            config = AgentConfig(workspace_root=Path(tmp))
+            self.assertIsNotNone(Agent(config))
+            handoff = ProjectHandoff(status="planned")
+            handoff.save(config.handoff_path)
+            self.assertEqual(ProjectHandoff.load(config.handoff_path).status, "planned")
+
     def _openrouter_env_name(self) -> str:
         candidate = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
         if os.environ.get(candidate):

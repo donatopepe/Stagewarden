@@ -1281,6 +1281,12 @@ def load_project_handoff(cls: type[Any], path: Path) -> Any:
     if not path.exists():
         return cls()
     payload = loads_text(read_text_utf8(path))
+    if not isinstance(payload, dict):
+        # An unusable persisted root is treated exactly like a missing file. This
+        # is the central project state file and Agent.__init__ loads it through a
+        # guard that omits AttributeError, which is what a list/string/number/null
+        # root raises from .get(); degrading here keeps agent construction alive.
+        return cls()
     context = cls(
         task=str(payload.get("task", "")),
         goal=dict(payload.get("goal", {})) if isinstance(payload.get("goal", {}), dict) else {},
