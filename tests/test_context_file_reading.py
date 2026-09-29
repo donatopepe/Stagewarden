@@ -68,11 +68,18 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             executor = self._executor(root, file_chunk_chars=5)
             step_id = "node.wrongtyped_replay"
             try:
-                executor._run_action(
+                result = executor._run_action(
                     {"type": "read_file", "path": 123}, step_id=step_id
                 )
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["error_type"], "invalid_output")
+                self.assertEqual(result["field"], "path")
                 replay = executor.events.replay(node_id=step_id)["nodes"][step_id]
                 self.assertEqual(replay["status"], "failed")
+                self.assertEqual(replay["field"], "path")
+                rejected = executor.events.read(node_id=step_id, event="action_field_rejected")
+                self.assertEqual(len(rejected), 1)
+                self.assertEqual(rejected[0]["details"]["field"], "path")
             finally:
                 executor.close()
 

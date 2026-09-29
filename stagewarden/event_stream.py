@@ -131,10 +131,10 @@ class EventStream:
                         )
                         if key in details
                     })
-                    if event_item.get("event") == "file_read_failure":
+                    if event_item.get("event") in {"file_read_failure", "action_field_rejected"}:
                         state.update({
                             key: details.get(key)
-                            for key in ("path", "error", "status")
+                            for key in ("path", "error", "status", "action_type", "field")
                             if key in details
                         })
                     if event_item.get("event") in {"mutation_failure", "mutation_recovery", "mutation_replay"}:
