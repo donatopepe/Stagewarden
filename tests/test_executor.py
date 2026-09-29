@@ -97,6 +97,79 @@ class FakeHandoff:
 
 
 class ExecutorTests(unittest.TestCase):
+    WRONG_TYPED_REQUIRED_FIELDS = (
+        ("shell", "command", 123),
+        ("shell", "command", {"k": 1}),
+        ("shell_session_send", "session_id", {"k": 1}),
+        ("search_files", "pattern", 123),
+        ("search_files", "pattern", {"k": 1}),
+        ("git_commit", "message", 123),
+        ("git_commit", "message", {"k": 1}),
+        ("git_file_history", "path", 123),
+        ("git_file_history", "path", {"k": 1}),
+        ("copy_path_file", "source", 123),
+        ("copy_path_file", "source", {"k": 1}),
+        ("copy_path_file", "destination", 123),
+        ("copy_path_file", "destination", {"k": 1}),
+        ("move_path_file", "source", 123),
+        ("move_path_file", "source", {"k": 1}),
+        ("move_path_file", "destination", 123),
+        ("move_path_file", "destination", {"k": 1}),
+        ("patch_files", "diff", 123),
+        ("patch_files", "diff", {"k": 1}),
+        ("preview_patch_files", "diff", 123),
+        ("preview_patch_files", "diff", {"k": 1}),
+        ("delete_range_file", "start_line", "abc"),
+        ("delete_range_file", "start_line", {"k": 1}),
+        ("delete_range_file", "end_line", "abc"),
+        ("delete_range_file", "end_line", {"k": 1}),
+        ("replace_range_file", "start_line", "abc"),
+        ("replace_range_file", "start_line", {"k": 1}),
+        ("replace_range_file", "end_line", "abc"),
+        ("replace_range_file", "end_line", {"k": 1}),
+        ("normalize_line_endings_file", "newline", {"k": 1}),
+    )
+
+    def _executor_for_workspace(self, root: Path) -> Executor:
+        return Executor(
+            config=AgentConfig(workspace_root=root),
+            router=ModelRouter(),
+            handoff=FakeHandoff([]),
+            memory=MemoryStore(),
+        )
+
+    def test_wrong_typed_required_action_fields_fail_closed_for_every_tool(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "f.txt").write_text("hello world\n", encoding="utf-8")
+            executor = self._executor_for_workspace(root)
+            try:
+                for action_type, field, bad in self.WRONG_TYPED_REQUIRED_FIELDS:
+                    with self.subTest(action_type=action_type, field=field, bad=bad):
+                        payload = {"type": action_type, field: bad}
+                        try:
+                            result = executor._run_action(payload, step_id="node.types")
+                        except Exception as exc:  # noqa: BLE001 - the defect under test
+                            self.fail(
+                                f"{action_type}.{field}={bad!r} raised "
+                                f"{type(exc).__name__}: {exc}"
+                            )
+                        self.assertFalse(
+                            result["ok"],
+                            f"{action_type}.{field}={bad!r} must fail closed",
+                        )
+            finally:
+                executor.close()
+
+    def test_wrong_typed_required_action_fields_are_covered_by_the_schema_matrix(self) -> None:
+        """Every (action, field) exercised above must be a real required field."""
+        for action_type, field, _ in self.WRONG_TYPED_REQUIRED_FIELDS:
+            if action_type == "normalize_line_endings_file":
+                continue  # newline is an optional field, covered separately
+            with self.subTest(action_type=action_type, field=field):
+                schema = MODEL_ACTION_SCHEMAS[action_type]
+                self.assertIn(field, schema["required"])
+
     def test_extracts_chatgpt_usage_limit_time(self) -> None:
         message = (
             "You've hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), "

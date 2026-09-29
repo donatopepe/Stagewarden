@@ -167,6 +167,11 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
 
 DESTRUCTIVE_ACTION_TOKENS = ("delete", "remove", "destroy", "wipe", "reset", "drop", "format", "purge")
 
+# Required action fields that must be integers rather than strings. Every other
+# required field in MODEL_ACTION_SCHEMAS is a string, so the boundary validator
+# can be driven by the schema table without restating each field's type.
+MODEL_ACTION_NUMERIC_REQUIRED_FIELDS = frozenset({"count", "start_line", "end_line"})
+
 
 class Executor:
     def __init__(
@@ -1894,6 +1899,50 @@ class Executor:
             start = text.find("{", start + 1)
         return None
 
+    def _invalid_required_action_field(
+        self, action_type: Any, action: dict[str, Any]
+    ) -> tuple[str, str] | None:
+        """Return (field, message) when a required action field has the wrong type.
+
+        Model output is untrusted input: every required field is validated here
+        once, so no individual action branch has to guard its own fields and a
+        wrong-typed value can never escape as an uncaught TypeError/ValueError.
+        """
+        schema = MODEL_ACTION_SCHEMAS.get(str(action_type))
+        if not isinstance(schema, dict):
+            return None
+        for field in schema.get("required", []):
+            if field not in action:
+                continue
+            value = action[field]
+            expected = int if field in MODEL_ACTION_NUMERIC_REQUIRED_FIELDS else str
+            if isinstance(value, bool) or not isinstance(value, expected):
+                kind = "an integer" if expected is int else "a string"
+                return field, f"Action field '{field}' must be {kind}."
+        return None
+
+    def _action_field_failure(
+        self, step_id: str, action_type: str, field: str, message: str
+    ) -> dict[str, Any]:
+        self.events.append(
+            "action_field_rejected",
+            tree_id="executor",
+            node_id=step_id or None,
+            purpose="fail-closed model action field validation",
+            message=message,
+            action_type=action_type,
+            field=field,
+            error=message,
+            status="failed",
+        )
+        return {
+            "ok": False,
+            "message": message,
+            "error_type": "invalid_output",
+            "action_type": action_type,
+            "field": field,
+        }
+
     def _run_action(
         self,
         action: dict[str, Any],
@@ -1914,6 +1963,11 @@ class Executor:
             if prior and prior.get("status") == "in_flight":
                 recovered_in_flight = True
                 self.events.append("mutation_recovery", tree_id="executor", node_id=step_id or None, purpose="recover in-flight mutation", message=prior.get("message", ""), mutation_key=mutation_key, action_type=action_type)
+        invalid = self._invalid_required_action_field(action_type, action)
+        if invalid is not None:
+            field, message = invalid
+            return self._action_field_failure(step_id, str(action_type), field, message)
+
         if action_type == "shell":
             operation_id = self._start_tool_operation(action_type=str(action_type), action=action, step_id=step_id)
             command = str(action.get("command", ""))
