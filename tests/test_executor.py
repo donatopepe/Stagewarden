@@ -181,6 +181,58 @@ class ExecutorTests(unittest.TestCase):
                     "would not exercise the guard",
                 )
 
+    def test_sequence_action_field_rejects_unhashable_elements(self) -> None:
+        unhashable = ([{"a": 1}], [["a"]], [[{"a": 1}]], [None, {"b": 2}])
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "f.txt").write_text("hello world\n", encoding="utf-8")
+            executor = self._executor_for_workspace(root)
+            try:
+                for tags in unhashable:
+                    with self.subTest(tags=tags):
+                        payload = {
+                            "type": "rag_add",
+                            "phase": "p",
+                            "title": "t",
+                            "content": "c",
+                            "tags": tags,
+                        }
+                        try:
+                            result = executor._run_action(payload, step_id="node.tags")
+                        except Exception as exc:  # noqa: BLE001 - the defect under test
+                            self.fail(
+                                f"rag_add tags={tags!r} raised {type(exc).__name__}: {exc}"
+                            )
+                        self.assertFalse(
+                            result["ok"], f"rag_add tags={tags!r} must fail closed"
+                        )
+            finally:
+                executor.close()
+
+    def test_sequence_action_field_still_accepts_hashable_containers(self) -> None:
+        accepted = ("single", ["a", "b"], {"a", "b"}, {"a": 1}, ("a", "b"))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executor = self._executor_for_workspace(root)
+            try:
+                for tags in accepted:
+                    with self.subTest(tags=tags):
+                        result = executor._run_action(
+                            {
+                                "type": "rag_add",
+                                "phase": "p",
+                                "title": "t",
+                                "content": "c",
+                                "tags": tags,
+                            },
+                            step_id="node.tags.ok",
+                        )
+                        self.assertTrue(
+                            result["ok"], f"rag_add tags={tags!r} must stay accepted"
+                        )
+            finally:
+                executor.close()
+
     def test_wrong_typed_optional_action_fields_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

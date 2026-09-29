@@ -1950,6 +1950,12 @@ class Executor:
     @staticmethod
     def _wrong_typed_action_field(field: str, value: Any, expected: Any) -> str | None:
         if not isinstance(value, bool) and isinstance(value, expected):
+            if expected is not str and isinstance(value, (list, tuple, set, frozenset)):
+                # A container of the right type can still carry elements the
+                # consumer cannot hash, which would fail deeper in the tool.
+                for element in value:
+                    if isinstance(element, (dict, list, set, frozenset)):
+                        return f"Action field '{field}' has unsupported element types."
             return None
         if expected is int:
             return f"Action field '{field}' must be an integer."
