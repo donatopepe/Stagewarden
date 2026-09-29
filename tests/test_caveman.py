@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from stagewarden.agent import Agent
-from stagewarden.caveman import CavemanManager
+from stagewarden.caveman import CavemanManager, CavemanState
 from stagewarden.config import AgentConfig
 
 
@@ -17,6 +17,38 @@ class CavemanTests(unittest.TestCase):
         "top-level number": "42",
         "null": "null",
     }
+
+    def test_caveman_state_load_owns_tolerance_for_every_unusable_payload(self) -> None:
+        """The loader itself must degrade, not leave a shape to its caller.
+
+        Cycle 164 fixed only a non-dict root here and left malformed JSON raising,
+        tolerated solely by CavemanManager.load_state. That is the half-fix
+        pattern the cycle-170 rule forbids, and the same reasoning was falsified
+        twice before (ModelPreferences at execute_step, ProjectHandoff at the
+        goal loop). Every other loader hardened in cycles 162-170 owns tolerance
+        for all shapes; this one now does too.
+        """
+        for label, body in {
+            "not json": "this is not json",
+            "truncated": '{"active":',
+            "empty file": "",
+        }.items():
+            with self.subTest(state=label):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "caveman.json"
+                    path.write_text(body, encoding="utf-8")
+                    self.assertEqual(CavemanState.load(path), CavemanState())
+                    with tempfile.TemporaryDirectory() as tmp2:
+                        config = AgentConfig(workspace_root=Path(tmp2))
+                        config.caveman_state_path.parent.mkdir(parents=True, exist_ok=True)
+                        config.caveman_state_path.write_text(body, encoding="utf-8")
+                        self.assertIsNotNone(
+                            CavemanManager().load_state(config)
+                        )
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(
+                CavemanState.load(Path(tmp) / "absent.json"), CavemanState()
+            )
 
     def test_non_object_caveman_state_never_breaks_agent_construction(self) -> None:
         """Agent.__init__ loads caveman state, so a wrong-shaped file crashed it.
