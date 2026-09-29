@@ -6,12 +6,12 @@ Node-first MVP is fail-closed against untrusted input at three boundaries: the m
 ## Latest bounded iteration
 - Outcome: **HOLD.** No runtime, test or script change; no new target. User decision gate remains pending.
 - Objective: apply cycle-179 diff criterion; metric/threshold: unexplained source/test/script drift `0`, gate `5/5`.
-- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` is empty. External `74c27aa -> df9b898` changed only `.pi-loop.json`, `.stagewarden_handoff.json`, `AGENT_HANDOFF.md`, `HANDOFF.md`, `TODO.md`. No code, tests or scripts changed; cycle-180 baseline carries by proof.
-- Wet spot-check: `154 passed, 79 subtests passed in 10.19s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected, 4 OpenRouter-key skips intentional.
-- First gate: `4/5`, case4 only, because JSON `git_head` held `74c27aa` while actual HEAD was `df9b898`. Expected metadata drift. Reconciled only `.stagewarden_handoff.json` to `df9b8987e9d581cee2bfb82ae4c16cd909649da0`; second gate `5/5`.
+- Proof: `git diff --stat 3cf637c..HEAD -- stagewarden tests scripts` is empty. External `df9b898 -> f40140b` changed only `.pi-loop.json`, `.stagewarden_handoff.json`, `AGENT_HANDOFF.md`, `HANDOFF.md`, `TODO.md`. No code, tests or scripts changed; cycle-180 baseline carries by proof.
+- Wet spot-check: `154 passed, 79 subtests passed in 9.77s`; direct OmniRoute smoke `OmniRoute free route OK (auto/coding:free)`; `716` tests collected, 4 OpenRouter-key skips intentional.
+- First gate: `4/5`, case4 only, because JSON `git_head` held `df9b898` while actual HEAD was `f40140b`. Expected metadata drift. Reconciled only `.stagewarden_handoff.json` to `f40140bfbce7fc1928b2cb38d9a64985ae1f7617`; second gate `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change. Loop unchanged.
 - Decision: stop. No full-suite rerun because source/test/script diff empty. No new MVP scope invented while gate pending.
-- Evidence: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j9.log`; spot-check `/tmp/stagewarden-cycle182-spotcheck.tmp`.
+- Evidence: `/tmp/stagewarden-hold-2026-09-29j10.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j10.log`.
 
 ## Product direction
 - One operational tree of nodes.
