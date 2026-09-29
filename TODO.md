@@ -1,5 +1,16 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 147: TDD fix difetto fail-closed adapter OmniRoute
+
+- **Obiettivo:** correggere un difetto reale dell'adapter OmniRoute: su corpi upstream con forma errata l'adapter crashava con `TypeError`/`AttributeError` non gestito invece di fallire chiuso e ripiegare sulle route free successive.
+- **Metrica/soglia:** targeted adapter pass rate; soglia 100% con tutti e 3 le forme errate che ritornano rc=1 dopo aver esaurito i fallback. Gate matrix `5/5`; unified validation `6/6`.
+- **Casi fissi/ordine:** 1 body lista `[]` · 2 `choices` stringa · 3 `message` non-dict · 4 (controllo) `choices: [{}]` già ok. Ordine nel test: `test_wrong_shape_upstream_response_falls_back_instead_of_crashing` (4 subtest) poi `test_wrong_shape_upstream_response_then_recovers_on_free_fallback`.
+- **Baseline (difetto riprodotto):** `body=[]` → `TypeError` non gestito, 1 solo tentativo; `choices="not-a-list"` → `TypeError`, 1 tentativo; `choices=["not-a-dict"]` → `TypeError`, 1 tentativo; controllo `choices=[{}]` → rc=1 con 3 tentativi.
+- **Variabile unica:** una riga di sorgente in `scripts/run_model_omniroute.py` — aggiunta di `TypeError` e `AttributeError` alla tupla delle eccezioni gestite, così i corpi con forma errata falliscono chiusi e l'adapter prova la route free successiva invece di crashare. Nessun cambio a provider/model/fallback/routing/scheduler/parallelismo; l'ordine dei fallback free resta invariato.
+- **TDD:** RED `5 failed, 4 passed, 1 skipped` (TypeError a `run_model_omniroute.py:87`) → GREEN `5 passed, 1 skipped, 4 subtests passed`.
+- **Regressione:** suite completa con flag live `656 passed, 4 skipped, 4 subtests passed in 344.29s (0:05:44)`, 0 fallimenti (era 654+4, +2 nuovi test). Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Evidenza: `/tmp/stagewarden-omniroute-failclosed-defect-2026-09-28gj.log`.
+- **Drift esterno:** commit esterno `12b30cd -> bdca18b` ha acquisito fix e test; `git_head` riconciliato a `bdca18be15c921b6a6d921c71fc4e711c22d93db`. Gate `/tmp/stagewarden-bounded-iteration-gate-2026-09-28gj.log` = `5/5`.
+
 ### Iterazione bounded completata — cycle 146: validation artifacts verificate in wet reale
 
 - **Obiettivo:** convertire in evidenza wet reale gli artefatti di validazione storicamente dichiarati ma mai eseguiti in questo ambiente, e auditare i 5 test saltati; nessun cambio runtime.

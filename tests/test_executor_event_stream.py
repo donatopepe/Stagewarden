@@ -40,6 +40,94 @@ class ExecutorEventStreamTests(unittest.TestCase):
             self.assertEqual(started[0]["details"]["operation_id"], completed[0]["details"]["operation_id"])
             self.assertEqual(replay["in_flight_tools"], {})
 
+    def test_corrupt_tool_operations_shape_fails_closed_to_empty(self) -> None:
+        wrong_shapes = ([], "oops", 7, None, True)
+
+        for shape in wrong_shapes:
+            with self.subTest(shape=shape):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    config = AgentConfig(workspace_root=root)
+                    executor = Executor(
+                        config=config,
+                        router=ModelRouter(),
+                        handoff=HandoffManager(),
+                        memory=MemoryStore(),
+                        project_handoff=ProjectHandoff(),
+                        rag=DesignRag(),
+                    )
+                    executor.close()
+                    config.tool_operation_path.write_text(
+                        json.dumps({"operations": shape}), encoding="utf-8"
+                    )
+                    self.assertEqual(executor._read_tool_operations(), {})
+
+    def test_tool_operations_top_level_wrong_shape_fails_closed_to_empty(self) -> None:
+        for body in ("[]", '"oops"', "7", "null"):
+            with self.subTest(body=body):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = AgentConfig(workspace_root=Path(tmp))
+                    executor = Executor(
+                        config=config,
+                        router=ModelRouter(),
+                        handoff=HandoffManager(),
+                        memory=MemoryStore(),
+                        project_handoff=ProjectHandoff(),
+                        rag=DesignRag(),
+                    )
+                    executor.close()
+                    config.tool_operation_path.write_text(body, encoding="utf-8")
+                    self.assertEqual(executor._read_tool_operations(), {})
+
+    def test_truncated_tool_operations_file_fails_closed_to_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = AgentConfig(workspace_root=Path(tmp))
+            executor = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=HandoffManager(),
+                memory=MemoryStore(),
+                project_handoff=ProjectHandoff(),
+                rag=DesignRag(),
+            )
+            executor.close()
+            config.tool_operation_path.write_text('{"operations": {"tool-1"', encoding="utf-8")
+            self.assertEqual(executor._read_tool_operations(), {})
+
+    def test_resume_after_corrupt_tool_operations_shape_still_recovers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = AgentConfig(workspace_root=root)
+            first = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=HandoffManager(),
+                memory=MemoryStore(),
+                project_handoff=ProjectHandoff(),
+                rag=DesignRag(),
+            )
+            first._start_tool_operation(
+                action_type="shell_session_send",
+                action={"session_id": "session-1"},
+                step_id="node.shell",
+            )
+            first.close()
+            config.tool_operation_path.write_text(
+                json.dumps({"operations": None}), encoding="utf-8"
+            )
+
+            resumed = Executor(
+                config=config,
+                router=ModelRouter(),
+                handoff=HandoffManager(),
+                memory=MemoryStore(),
+                project_handoff=ProjectHandoff(),
+                rag=DesignRag(),
+            )
+            self.assertEqual(resumed._read_tool_operations(), {})
+            self.assertEqual(resumed.events.read(event="tool_recovery"), [])
+            resumed.close()
+
     def test_non_file_tool_recovery_is_persisted_and_retry_denied(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

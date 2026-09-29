@@ -2809,6 +2809,8 @@ class Executor:
         except (OSError, ValueError):
             return {}
         operations = payload.get("operations", {}) if isinstance(payload, dict) else {}
+        if not isinstance(operations, dict):
+            return {}
         return {str(key): dict(value) for key, value in operations.items() if isinstance(value, dict)}
 
     def _write_tool_operations(self, operations: dict[str, dict[str, Any]]) -> None:
@@ -2879,6 +2881,8 @@ class Executor:
         except (OSError, ValueError):
             return {}
         operations = payload.get("operations", {}) if isinstance(payload, dict) else {}
+        if not isinstance(operations, dict):
+            return {}
         return {str(key): dict(value) for key, value in operations.items() if isinstance(value, dict)}
 
     def _write_tool_operations(self, operations: dict[str, dict[str, Any]]) -> None:
