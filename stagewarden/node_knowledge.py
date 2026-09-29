@@ -212,8 +212,16 @@ class NodeKnowledgeStore:
         if row is None:
             raise KeyError(f"No execution capsule for {tree_id}:{node_id}")
         item = dict(row)
-        item["capsule"] = json.loads(item["content"])
-        item["source"] = json.loads(item.pop("source_json"))
+        try:
+            capsule = json.loads(item["content"])
+            source = json.loads(item["source_json"])
+        except (TypeError, ValueError) as exc:
+            raise KeyError(f"Corrupt execution capsule for {tree_id}:{node_id}") from exc
+        if not isinstance(capsule, dict) or not isinstance(source, dict):
+            raise KeyError(f"Corrupt execution capsule for {tree_id}:{node_id}")
+        item["capsule"] = capsule
+        item["source"] = source
+        item.pop("source_json")
         return item
 
     def record_context(

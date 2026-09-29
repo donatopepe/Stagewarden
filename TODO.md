@@ -1,5 +1,17 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 148: TDD fix difetto fail-closed `_read_tool_operations`
+
+- **Obiettivo:** correggere un secondo difetto reale della stessa classe di cycle 147: `_read_tool_operations` validava la forma di primo livello del payload ma non del campo annidato `operations`, quindi un checkpoint persistente con `operations` non-dict crashava l'executor con `AttributeError` invece di fallire chiuso a `{}`.
+- **Metrica/soglia:** test mirati su `tests/test_executor_event_stream.py`; soglia 100% dei casi fissi con `{}` per ogni forma corrotta. Gate `5/5`; unified validation `6/6`.
+- **Casi fissi/ordine:** 1 forma annidata (subtest: list, str, int, null, bool) · 2 forma di primo livello (subtest: `[]`, `"oops"`, `7`, `null`) · 3 file troncato · 4 resume dopo checkpoint corrotto.
+- **Baseline (difetto riprodotto):** `operations=[]` / `"oops"` / `7` / `None` → `AttributeError: ... has no attribute 'items'` non gestito. Controlli già corretti: payload di primo livello errato e file troncato restituivano già `{}`.
+- **Variabile unica:** guardia annidata `if not isinstance(operations, dict): return {}` in **entrambe** le copie identiche di `_read_tool_operations` dentro `class Executor` (2 righe di sorgente). Nessun cambio a provider/model/fallback/routing/scheduler/parallelismo, nessun cambio alla struttura del checkpoint.
+- **TDD:** RED `6 failed, 6 passed, 4 subtests passed` (`AttributeError` a `executor.py:2882`) → GREEN `7 passed, 9 subtests passed`. Riconferma della validità dei test rimuovendo temporaneamente la guardia → di nuovo `6 failed`, ripristinata → `7 passed`.
+- **Nota su un test:** la prima stesura di `test_resume_after_corrupt_tool_operations_shape_still_recovers` asseriva erroneamente `replay()["in_flight_tools"] == {}`; `replay()` ricostruisce dallo stream JSONL degli eventi, non dal file di checkpoint, quindi l'asserzione corretta è `_read_tool_operations() == {}` e nessun evento `tool_recovery`. Test corretto prima di considerarlo verde.
+- **Regressione:** suite completa con flag live `660 passed, 4 skipped, 13 subtests passed in 334.74s (0:05:34)`, 0 fallimenti (era 656+13 subtest). Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-toolops-failclosed-defect-2026-09-28gk.log`.
+- **Drift esterno:** commit esterno `5eec66e -> af520a0` ha acquisito fix e test; `git_head` riconciliato a `af520a0b82e3b45dbd507bd55e8df9b1b2f9e09c`.
+
 ### Iterazione bounded completata — cycle 147: TDD fix difetto fail-closed adapter OmniRoute
 
 - **Obiettivo:** correggere un difetto reale dell'adapter OmniRoute: su corpi upstream con forma errata l'adapter crashava con `TypeError`/`AttributeError` non gestito invece di fallire chiuso e ripiegare sulle route free successive.

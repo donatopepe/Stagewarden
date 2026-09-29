@@ -153,6 +153,45 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertEqual(first["schema_version"], second["schema_version"])
                 self.assertTrue(store.code_search("ancestor_only", node_id="ancestor"))
 
+    def _save_capsule(self, store: NodeKnowledgeStore) -> None:
+        store.save_node_execution_capsule(
+            tree_id="goal-loop",
+            node_id="root.scope",
+            parent_node_id=None,
+            purpose="alpha",
+            capsule={"node_uuid": "uuid-alpha", "status": "running", "last_checkpoint": "alpha"},
+        )
+
+    def test_corrupt_capsule_json_fails_closed_to_keyerror(self) -> None:
+        corrupt_rows = (
+            ('{"last_checkpoint": "a"', '{"type":"node_execution_capsule"}'),
+            ("not json at all", '{"type":"node_execution_capsule"}'),
+            ('{"node_uuid":"u"}', '{"type":'),
+            ('{"node_uuid":"u"}', "[1, 2, 3]"),
+            ('["not", "a", "capsule"]', '{"type":"node_execution_capsule"}'),
+            ('"a bare string"', '{"type":"node_execution_capsule"}'),
+        )
+
+        for content, source in corrupt_rows:
+            with self.subTest(content=content, source=source):
+                with tempfile.TemporaryDirectory() as tmp:
+                    with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                        self._save_capsule(store)
+                        store.connection.execute(
+                            "UPDATE knowledge SET content = ?, source_json = ? WHERE namespace = 'capsule'",
+                            (content, source),
+                        )
+                        with self.assertRaises(KeyError):
+                            store.load_node_execution_capsule("goal-loop", "root.scope")
+
+    def test_intact_capsule_still_round_trips_after_corrupt_rejection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+                self._save_capsule(store)
+                loaded = store.load_node_execution_capsule("goal-loop", "root.scope", node_uuid="uuid-alpha")
+                self.assertEqual(loaded["capsule"]["last_checkpoint"], "alpha")
+                self.assertEqual(loaded["source"]["type"], "node_execution_capsule")
+
     def test_node_execution_capsule_uuid_scope_rejects_other_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "knowledge.sqlite"
