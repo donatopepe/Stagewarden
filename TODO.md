@@ -1,5 +1,35 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 178: BLOCCATA E REGISTRATA — il gate decisionale utente è in attesa, non resta alcun bersaglio autorizzato
+
+- **Esito:** ferma e registrata. Nessuna modifica a runtime, nessuna modifica ai test, **nessun nuovo bersaglio di misurazione**, perché non ne resta nessuno autorizzato.
+- **Perché questo ciclo non misura nulla di nuovo:** il cycle 177 ha chiuso l'ultima superficie prioritaria MVP non misurata. La lista permanente è ora **misurata** e non più assunta:
+  1. esecuzione seriale node-first e pacchetti tipizzati (storico, preservato)
+  2. visibilità terminale del node-purpose (test di proiezione del replay)
+  3. eventi e replay JSONL (cycle 174, corruzione a byte)
+  4. Node Knowledge Store (cicli 145-152, 175)
+  5. capsule di esecuzione node-scoped (cicli 175, 176)
+  6. code index (cycle 177, NEGATIVO)
+  7. context-aware chunking/compaction (lettura cycle 176, già protetta)
+  8. persistent file-read recovery (cicli 161, 169)
+  9. tolleranza alla corruzione dello stato persistito (cicli 162-172, 175 NEGATIVO, 176; settings, handoff, memory, models, rag, caveman, trace, mutations, events)
+- I cicli 175 e 177 sono stati entrambi **negativi**, e hanno chiuso superfici che il handoff di questo repository elencava come non testate. È il segnale: riauditare queste superfici una terza volta non troverebbe nulla, e cercare un bersaglio nuovo fuori dalla lista approvata sarebbe inventare scope.
+- **IL BLOCCO, in chiaro:** il gate decisionale utente è in attesa ed è l'unico blocco funzionale. Decisioni in sospeso, nessuna delle quali un agente può auto-approvare:
+  - `question-1` — "What is the concrete deliverable or decision you want from me?"
+  - scope v3 e sezione 21 di `docs/specs/stagewarden-v3.md`
+  - capacità extension / subagent
+  - migrazione e layer di compatibilità temporanei
+  - riorganizzazione di `TODO.md` (molto grande e ripetitivo; la compressione non è approvata)
+  - comportamento UTF-8 BOM (il BOM è preservato nel contenuto decodificato e incluso nell'hash del contenuto; rimuoverlo cambierebbe hash e confronti)
+  - promozione della sonda di audit generale a test permanente
+- **NON-blocchi, registrati perché non vengano scambiati per blocchi:**
+  - 4 test sono skipped perché richiedono una chiave API OpenRouter. Nessun secret è o sarà fornito, e la suite è progettata per passare senza.
+  - La stabilità multi-nodo sulla rotta free OmniRoute **non è provata**. È una proprietà del modello free upstream, non un difetto: emette output malformati/troncati, JSON fuori contratto e marcatori di successo avvolti in prosa. La gestione fail-closed è corretta e **non è stata indebolita di proposito**. Lo smoke diretto sulla rotta free passa.
+  - Il doppio letto di `project_brief` in `load_project_handoff` è un no-op registrato, senza crash riprodotto; sta fuori da ogni scope a variabile singola approvato.
+- **Cosa deve fare da qui il loop ricorrente:** riconciliare il drift esterno di HEAD, rilanciare il gate a cinque casi, e fermarsi. **Non** deve rilanciare l'intera suite a ogni tick salvo che il drift tocchi sorgente o test, e **non** deve cercare nuove classi di difetti fuori dalla lista prioritaria approvata. La pianificazione del loop è lasciata esattamente come l'utente l'ha configurata; **se sia opportuno sospenderlo mentre il gate è in attesa è una decisione utente**, registrata come tale e non agita unilateralmente.
+- **Drift esterno osservato:** un commit esterno ha fatto avanzare HEAD da `dd5f56f` a `5f8b93b` **a metà ciclo** e ha anche committato i metadati del cycle 177, lasciando l'albero di lavoro completamente pulito. Il primo gate è risultato `4/5` per il case4 (HEAD non allineato); `git_head` è stato riconciliato a `5f8b93bcfacadceab0b4d80b1343aaffee09d9ed` e il gate rilanciato dà `5/5`. Nessun cambio a runtime, API, provider o modello.
+- **Baseline (conferma wet mentre bloccato):** suite completa con flag live `710 passed, 4 skipped, 297 subtests passed in 338.45s (0:05:38)`, 0 fallimenti. Live smoke `OmniRoute free route OK (auto/coding:free)` exit 0. Unified validation `6/6` PASS exit 0. Gate `5/5`. Evidenza: `/tmp/stagewarden-blocked-baseline-2026-09-28j5.log`.
+
 ### Iterazione bounded completata — cycle 177: RISULTATO NEGATIVO — la superficie code index era già completamente fail-closed
 
 - **Obiettivo:** misurare l'ultima superficie prioritaria MVP ancora non misurata, il **code index**. La lista permanente nomina "Node Knowledge Store and code index", e il cycle 176 aveva chiuso il percorso della capsule, lasciando il code index non misurato. Metrica/soglia: operazioni di code index che sfuggono, soglia `0`.
