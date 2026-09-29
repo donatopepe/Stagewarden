@@ -33,9 +33,18 @@ class CavemanState:
     def load(cls, path: Path) -> "CavemanState":
         if not path.exists():
             return cls()
-        payload = loads_text(read_text_utf8(path))
-        # A persisted root that is not an object is treated like a missing state
-        # rather than raising: Agent.__init__ loads this through
+        try:
+            payload = loads_text(read_text_utf8(path))
+        except (OSError, UnicodeDecodeError, TypeError, ValueError):
+            # Every unusable persisted payload is treated exactly like a missing
+            # file: the default state. Cycle 164 fixed only the non-dict root and
+            # left malformed JSON to be absorbed by CavemanManager.load_state,
+            # which is the half-fix pattern: the loader is the shared boundary
+            # and must own the tolerance, exactly as MemoryStore, ModelPreferences
+            # and ProjectHandoff now do.
+            return cls()
+        # A persisted root that is not an object is also treated like a missing
+        # state rather than raising: Agent.__init__ loads this through
         # CavemanManager.load_state, so an AttributeError here would abort agent
         # construction instead of degrading to the default state.
         if not isinstance(payload, dict):
