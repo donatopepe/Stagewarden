@@ -1,5 +1,17 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 194: provenance `execution_mode` completata fino alla proiezione `replay`
+
+- **Esito:** completata la fix provenance del cycle 193 sull'ultimo consumer persistito. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- **Obiettivo:** il cycle 193 aveva messo `execution_mode` in `NodeState`, capsule e details del checkpoint, ma la proiezione `EventStream.replay` lo scartava ancora; un consumer di replay non poteva quindi distinguere mock da pi reale. Metrica/soglia: outcome mock/reale con `execution_mode` assente in packet, capsule, event details, projection replay o `NodeState` restore, soglia `0`.
+- **Fix:** aggiunto `execution_mode` alla proiezione node di `EventStream.replay`. Nessun cambio policy.
+- **Casi fissi:** auto → mock su packet/event/capsule/replay; mock esplicito; pi reale; capsule restore.
+- **TDD:** focused provenance `5 passed`. Rimossa la field replay → `1 failed`; ripristinata → `5 passed`.
+- **Wet:** `716 passed, 5 skipped, 301 subtests in 347.11s`; focused goal/event/executor `73 passed, 30 subtests in 7.45s`; unified `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Gate:** primo `4/5` su `git_head` stale dopo commit metadata-only `b38c1f5 -> 6dcf194`; riconciliato solo metadata a `6dcf1943894505752440309fba850b27581ad84b`; secondo gate `5/5`.
+- **Policy:** esecuzione seriale preservata; nessun legacy parallel; provider/model/fallback/routing/scheduler invariati. Gate decisionale utente ancora aperto.
+- Evidenza: `/tmp/stagewarden-result-provenance-replay-2026-09-29j21.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j21.log`.
+
 ### Iterazione bounded completata — cycle 193: provenance `execution_mode` propagata a capsule, evento e replay
 
 - **Esito:** estesa la fix provenance del cycle 192 a tutte le superfici persistite di audit. Nessun cambio provider/model/fallback/routing/scheduler/parallel.

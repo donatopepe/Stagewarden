@@ -4,17 +4,17 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **Provenance propagated to capsule/event replay.** Minimal runtime/test change; policy unchanged.
-- Objective: persisted audit surfaces must not omit `execution_mode` now present in `ResultPacket`. Metric/threshold: mock/real outcome with missing provenance in packet, capsule, event details or restored `NodeState`, threshold `0`.
-- Baseline: cycle-192 packet tests were green, but a focused event/capsule check showed packet provenance did not reach the checkpoint event or reopened capsule.
-- Change: add `NodeState.execution_mode`; include it in `NodeState.as_dict` capsule payload; restore it in `_restore_node_capsules`; include it in `node_cycle_checkpoint` details; keep `ResultPacket` mode from the actual effective branch. Auto fallback remains mock, now truthful in packet, capsule and replay event.
-- Fixed cases: auto -> mock, all surfaces say mock; explicit mock says mock; real pi says pi; capsule restore preserves mode.
-- TDD: focused provenance `4 passed`; removing event/capsule field -> `1 failed`; restoring -> `4 passed`. New test checks packet, checkpoint event and reopened capsule.
-- Wet: full suite `715 passed, 5 skipped, 301 subtests passed in 343.61s`; focused `72 passed, 30 subtests in 7.44s`; unified `6/6`; direct OmniRoute smoke green.
-- Gate: first `4/5` stale git_head after metadata-only commit `4d2113c -> b38c1f5`; reconciled metadata only to `b38c1f50b0e8bba368ec398577d01cb4ea602f3e`; second `5/5`.
+- Outcome: **Execution provenance completed through the final replay projection.** Minimal runtime/test change; policy unchanged.
+- Objective: mock/real outcome with `execution_mode` missing in packet, capsule, event details, replay projection or restored `NodeState`, threshold `0`.
+- Baseline: cycle 193 persisted `NodeState`, capsule and checkpoint event, but `EventStream.replay` still dropped `execution_mode`; a replay consumer could not distinguish mock from pi again.
+- Change: add `execution_mode` to replay node projection. No provider/model/fallback/routing/scheduler/parallel policy change.
+- Fixed cases: auto -> mock across packet/event/capsule/replay; explicit mock; real pi; capsule restore.
+- TDD: focused provenance `5 passed`; removing replay field -> `1 failed`; restoring -> `5 passed`.
+- Wet: full suite `716 passed, 5 skipped, 301 subtests passed in 347.11s`; focused `73 passed, 30 subtests in 7.45s`; unified `6/6`; direct OmniRoute smoke green.
+- Gate: first `4/5` stale git_head after metadata-only commit `b38c1f5 -> 6dcf194`; reconciled metadata only to `6dcf1943894505752440309fba850b27581ad84b`; second `5/5`.
 - State: `main`, sole worktree, CodeGraph `140/3825/13116` current, JSON waiting/current step waiting/question pending, durable loop `c05d5335` on `*/5 * * * *`. No provider/model/fallback/routing/scheduler/parallel change.
-- Decision: provenance fix complete; user decision gate remains the only blocker.
-- Evidence: `/tmp/stagewarden-result-provenance-persisted-2026-09-29j20.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j20.log`.
+- Decision: provenance path complete; user decision gate remains the only blocker.
+- Evidence: `/tmp/stagewarden-result-provenance-replay-2026-09-29j21.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j21.log`.
 
 ## Product direction
 - One operational tree of nodes.

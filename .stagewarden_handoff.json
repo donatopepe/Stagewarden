@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 193: extended cycle-192 provenance fix through the persisted audit surfaces. Baseline defect: execution_mode was in ResultPacket only; node capsule/replay event/cycle-checkpoint could still omit it. Fixed by adding NodeState.execution_mode, persisting it in NodeState.as_dict/capsule restore, and emitting it in node_cycle_checkpoint event details. Fixed cases: auto->mock provenance reaches packet, event and capsule; explicit mock; real pi path; capsule restore. TDD focused 4 provenance tests green after fix; removing event/capsule field fails 1, restoring passes 4. Full suite 715 passed, 5 skipped, 301 subtests; unified 6/6; smoke green. Gate 4/5 stale git_head after metadata-only commit 4d2113c -> b38c1f5, reconciled to b38c1f50b0e8. No provider/model/fallback/routing/scheduler/parallel change.",
+  "latest_observation": "Cycle 194: provenance now survives the COMPLETE persisted path. Cycle 193 added NodeState/capsule/checkpoint event, but EventStream.replay projection still dropped execution_mode, so a consumer reading replay could not distinguish mock from pi again. Fix: add execution_mode to replay node projection. Fixed auto->mock packet/event/capsule/replay, explicit mock, real pi, capsule restore. TDD focused 5 passed; removing replay field -> 1 failed, restoring -> 5 passed. Full suite 716 passed, 5 skipped, 301 subtests; unified 6/6; smoke green. Gate 4/5 stale git_head after metadata-only commit b38c1f5 -> 6dcf194, reconciled to 6dcf19438945. No provider/model/fallback/routing/scheduler/parallel change.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "b38c1f50b0e8bba368ec398577d01cb4ea602f3e",
+  "git_head": "6dcf1943894505752440309fba850b27581ad84b",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
