@@ -167,10 +167,18 @@ MODEL_ACTION_SCHEMAS: dict[str, dict[str, Any]] = {
 
 DESTRUCTIVE_ACTION_TOKENS = ("delete", "remove", "destroy", "wipe", "reset", "drop", "format", "purge")
 
-# Required action fields that must be integers rather than strings. Every other
-# required field in MODEL_ACTION_SCHEMAS is a string, so the boundary validator
-# can be driven by the schema table without restating each field's type.
-MODEL_ACTION_NUMERIC_REQUIRED_FIELDS = frozenset({"count", "start_line", "end_line"})
+# Action fields that must be integers rather than strings. Every other REQUIRED
+# field in MODEL_ACTION_SCHEMAS is a string, so the boundary validator can be
+# driven by the schema table without restating each field's type. Integer names
+# are shared by the required and optional paths, because the same name can be
+# required in one action and optional in another (e.g. count).
+MODEL_ACTION_INTEGER_FIELDS = frozenset({"count", "start_line", "end_line", "limit", "line_number", "occurrence"})
+# Optional action fields whose type was measured to be load-bearing: supplying a
+# wrong type to any of these raises before the tool could use it. Optional fields
+# outside these sets are already defensive and are deliberately left untouched, so
+# genuine boolean options (dry_run/overwrite/recursive/stat) are never rejected.
+MODEL_ACTION_STRING_OPTIONAL_FIELDS = frozenset({"base_path", "cwd", "glob", "path", "pattern", "revision"})
+MODEL_ACTION_SEQUENCE_FIELDS = frozenset({"tags"})
 
 
 class Executor:
@@ -1914,12 +1922,40 @@ class Executor:
         for field in schema.get("required", []):
             if field not in action:
                 continue
-            value = action[field]
-            expected = int if field in MODEL_ACTION_NUMERIC_REQUIRED_FIELDS else str
-            if isinstance(value, bool) or not isinstance(value, expected):
-                kind = "an integer" if expected is int else "a string"
-                return field, f"Action field '{field}' must be {kind}."
+            expected = int if field in MODEL_ACTION_INTEGER_FIELDS else str
+            invalid = self._wrong_typed_action_field(field, action[field], expected)
+            if invalid is not None:
+                return field, invalid
+        for field in schema.get("optional", []):
+            if field not in action:
+                continue
+            expected = self._optional_action_field_type(field)
+            if expected is None:
+                continue
+            invalid = self._wrong_typed_action_field(field, action[field], expected)
+            if invalid is not None:
+                return field, invalid
         return None
+
+    @staticmethod
+    def _optional_action_field_type(field: str) -> type | tuple[type, ...] | None:
+        if field in MODEL_ACTION_INTEGER_FIELDS:
+            return int
+        if field in MODEL_ACTION_STRING_OPTIONAL_FIELDS:
+            return str
+        if field in MODEL_ACTION_SEQUENCE_FIELDS:
+            return (str, list, tuple, set, dict)
+        return None
+
+    @staticmethod
+    def _wrong_typed_action_field(field: str, value: Any, expected: Any) -> str | None:
+        if not isinstance(value, bool) and isinstance(value, expected):
+            return None
+        if expected is int:
+            return f"Action field '{field}' must be an integer."
+        if expected is str:
+            return f"Action field '{field}' must be a string."
+        return f"Action field '{field}' has an unsupported value type."
 
     def _action_field_failure(
         self, step_id: str, action_type: str, field: str, message: str

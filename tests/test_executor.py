@@ -127,7 +127,38 @@ class ExecutorTests(unittest.TestCase):
         ("replace_range_file", "start_line", {"k": 1}),
         ("replace_range_file", "end_line", "abc"),
         ("replace_range_file", "end_line", {"k": 1}),
+        ("delete_range_file", "end_line", "abc"),
+        ("delete_range_file", "end_line", {"k": 1}),
+        ("replace_range_file", "start_line", "abc"),
+        ("replace_range_file", "start_line", {"k": 1}),
         ("normalize_line_endings_file", "newline", {"k": 1}),
+    )
+
+    WRONG_TYPED_OPTIONAL_FIELDS = (
+        ("search_files", "limit", "abc"),
+        ("search_files", "limit", {"k": 1}),
+        ("search_files", "base_path", 123),
+        ("search_files", "base_path", {"k": 1}),
+        ("shell", "cwd", 123),
+        ("shell", "cwd", {"k": 1}),
+        ("search_files", "glob", 123),
+        ("search_files", "glob", {"k": 1}),
+        ("git_log", "path", 123),
+        ("git_log", "path", {"k": 1}),
+        ("git_log", "limit", "abc"),
+        ("git_log", "limit", {"k": 1}),
+        ("git_show", "revision", 123),
+        ("git_show", "revision", {"k": 1}),
+        ("git_file_history", "limit", "abc"),
+        ("git_file_history", "limit", {"k": 1}),
+        ("delete_backward_file", "line_number", "abc"),
+        ("delete_backward_file", "line_number", {"k": 1}),
+        ("delete_backward_file", "occurrence", "abc"),
+        ("delete_backward_file", "occurrence", {"k": 1}),
+        ("search_replace_file", "count", "abc"),
+        ("search_replace_file", "count", {"k": 1}),
+        ("rag_add", "tags", 123),
+        ("rag_add", "tags", True),
     )
 
     def _executor_for_workspace(self, root: Path) -> Executor:
@@ -137,6 +168,49 @@ class ExecutorTests(unittest.TestCase):
             handoff=FakeHandoff([]),
             memory=MemoryStore(),
         )
+
+    def test_wrong_typed_optional_action_fields_are_covered_by_the_schema_matrix(self) -> None:
+        """Every (action, field) exercised above must be a declared optional field."""
+        for action_type, field, _ in self.WRONG_TYPED_OPTIONAL_FIELDS:
+            with self.subTest(action_type=action_type, field=field):
+                self.assertIn(
+                    field,
+                    MODEL_ACTION_SCHEMAS[action_type]["optional"],
+                    f"{action_type} does not declare optional field {field!r}; "
+                    "an undeclared field is legitimately ignored, so this case "
+                    "would not exercise the guard",
+                )
+
+    def test_wrong_typed_optional_action_fields_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "f.txt").write_text("hello world\n", encoding="utf-8")
+            executor = self._executor_for_workspace(root)
+            try:
+                for action_type, field, bad in self.WRONG_TYPED_OPTIONAL_FIELDS:
+                    with self.subTest(action_type=action_type, field=field, bad=bad):
+                        payload = {"type": action_type}
+                        for required in MODEL_ACTION_SCHEMAS[action_type]["required"]:
+                            payload.setdefault(
+                                required,
+                                1 if required in ("count", "start_line", "end_line") else "x",
+                            )
+                        payload[field] = bad
+                        try:
+                            result = executor._run_action(payload, step_id="node.opt")
+                        except Exception as exc:  # noqa: BLE001 - the defect under test
+                            self.fail(
+                                f"{action_type}.{field}={bad!r} raised "
+                                f"{type(exc).__name__}: {exc}"
+                            )
+                        self.assertFalse(
+                            result["ok"],
+                            f"{action_type}.{field}={bad!r} must fail closed",
+                        )
+                        self.assertEqual(result["error_type"], "invalid_output")
+                        self.assertEqual(result["field"], field)
+            finally:
+                executor.close()
 
     def test_wrong_typed_required_action_fields_fail_closed_for_every_tool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
