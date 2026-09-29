@@ -4,14 +4,13 @@
 Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD; final metadata gate `6/6`.** No runtime, test or script change.
-- Objective: final gate after metadata-only external drift. Metric/threshold: gate `6/6`, source/test/script drift `0`.
+- Outcome: **HOLD; metadata mirror check `6/6`.** No runtime, test or script change.
+- Objective: verify mirrors after cycle 205. Metric/threshold: consistency `6/6`, source/test/script drift `0`.
+- Proof: HEAD `42a9e42`; all mirrors synchronized to cycle 205/current HEAD; source/test/script diff since `c100efb` empty.
 - Wet: targeted `161 passed, 79 subtests passed`; direct OmniRoute smoke green.
-- First: `5/6`, stale `git_head` after metadata-only commit `d9ce49c -> 2b44024`; runtime diff empty.
-- Fix: JSON `git_head/latest_observation` only; second gate `6/6`.
-- State: `main`, sole worktree, CodeGraph current, JSON waiting/current-step waiting/question pending, loop unchanged. No policy change.
+- State: `main`, sole worktree, CodeGraph current, JSON waiting/current step waiting/question pending, loop unchanged. No policy change.
 - Decision: hold; user decision gate blocker.
-- Evidence: `/tmp/stagewarden-metadata-gate-2026-09-29j31.log`.
+- Evidence: `/tmp/stagewarden-metadata-check-2026-09-29j34.log`.
 
 ## Product direction
 - One operational tree of nodes.

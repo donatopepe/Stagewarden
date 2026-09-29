@@ -1,5 +1,45 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 206: HOLD — metadata mirror check `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare mirror dopo cycle 205. Metrica/soglia: coerenza `6/6`, drift sorgente/test/script `0`.
+- **Prova:** HEAD `42a9e42`; tutti i mirror sincronizzati a cycle 205/HEAD; diff sorgente/test/script rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-check-2026-09-29j34.log`.
+
+### Iterazione bounded completata — cycle 205: HOLD — un mirror metadata stale corretto, gate `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** correggere un mirror metadata stale trovato nel cycle 205. Metrica/soglia: coerenza mirror `6/6`, drift sorgente/test/script `0`.
+- **Baseline:** AGENT_HANDOFF, TODO, JSON, loop, worktree e CodeGraph correnti; `HANDOFF.md` descriveva ancora cycle 204.
+- **Fix:** aggiornato solo il blocco latest di `HANDOFF.md` a cycle 205/HEAD `42a9e42`; nessun runtime scope.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`.
+- **Decisione:** HOLD; gate decisionale utente blocker. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- Evidenza: `/tmp/stagewarden-metadata-mirror-2026-09-29j33.log`; gate: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j33.log`.
+
+### Iterazione bounded completata — cycle 204: HOLD — metadata check con drift post-check, gate finale `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare metadata dopo cycle 203. Metrica/soglia: coerenza metadata `5/5`, drift sorgente/test/script `0`, gate finale `6/6` dopo riconciliazione drift.
+- **Prova:** diff sorgente/test/script rispetto a `c100efb` vuoto. Drift metadata-only `2b44024 -> 42a9e42` arrivato dopo i primi check; riconciliato solo JSON.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`; local guards green.
+- **Gate:** finale `6/6`.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-metadata-check-2026-09-29j32.log`; gate finale `/tmp/stagewarden-bounded-iteration-gate-2026-09-29j32.log`.
+
+### Iterazione bounded completata — cycle 204: HOLD — metadata mirrors current, targeted wet green
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare coerenza metadata e baseline dopo cycle 203. Metrica/soglia: matrix metadata `5/5`, drift sorgente/test/script `0`.
+- **Prova:** AGENT_HANDOFF, HANDOFF, TODO, JSON e loop correnti; HEAD `2b44024`; diff runtime rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`; local guards green.
+- **Decisione:** HOLD; user decision gate blocker. Nessun cambio provider/model/fallback/routing/scheduler/parallel.
+- Evidenza: `/tmp/stagewarden-metadata-check-2026-09-29j32.log`.
+
 ### Iterazione bounded completata — cycle 203: HOLD — final metadata gate `6/6` dopo drift esterno
 
 - **Esito:** HOLD. Nessuna modifica runtime/test/script.

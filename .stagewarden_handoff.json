@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 203: HOLD, final metadata gate after external metadata-only drift d9ce49c -> 2b44024. Source/test/script diff since c100efb empty. Targeted wet 161 passed, 79 subtests; OmniRoute smoke green; JSON reconciled metadata only; rerun gate 6/6. No runtime/policy change.",
+  "latest_observation": "Cycle 206: HOLD, metadata mirrors current and check 6/6. HEAD 42a9e42; source/test/script diff since c100efb empty. Targeted 161 passed, 79 subtests; OmniRoute smoke green. No runtime/policy change; user decision gate blocker.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "2b44024b1423f48f8b32e7d507dfeb646f9404dc",
+  "git_head": "42a9e425dc249bb4f0e08e90881aa13d614e0756",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
