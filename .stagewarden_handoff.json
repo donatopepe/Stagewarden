@@ -48,9 +48,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 351: approved MVP scope remains waiting; no unchecked approved runtime TODO slice. Metadata/runtime baseline gate 6/6 at HEAD 9078230; targeted 161 passed, 79 subtests; direct OmniRoute smoke green; multi-node instability fail-closed; no runtime/policy change.",
+  "latest_observation": "Cycle 352: approved MVP scope remains waiting; no unchecked approved runtime TODO slice. Metadata/runtime baseline gate 6/6 at HEAD b2d405c; targeted 161 passed, 79 subtests; direct OmniRoute smoke green; multi-node instability fail-closed; no runtime/policy change.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "90782300d45f3a60a90f244eb1c777b89393fc2d",
+  "git_head": "b2d405c56a3af6006f4516bcb35ffa3c663d97dc",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
