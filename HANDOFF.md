@@ -5,12 +5,12 @@ Node-first MVP is fail-closed against untrusted input at three boundaries: the m
 
 ## Latest bounded iteration
 - Outcome: **HOLD; metadata mirror check `6/6`.** No runtime, test or script change.
-- Objective: verify mirrors after cycle 298. Metric/threshold: consistency `6/6`, source/test/script drift `0`.
-- Proof: HEAD `3c0970e`; mirrors reconciled to cycle 299/HEAD; source/test/script diff since `c100efb` empty.
+- Objective: verify mirrors after cycle 299. Metric/threshold: consistency `6/6`, source/test/script drift `0`.
+- Proof: HEAD `8315b1d`; mirrors reconciled to cycle 300/HEAD; source/test/script diff since `c100efb` empty.
 - Wet: targeted `161 passed, 79 subtests passed`; direct OmniRoute smoke green.
 - State: `main`, sole worktree, CodeGraph current, JSON waiting/current step waiting/question pending, loop unchanged. No policy change.
 - Decision: hold; user decision gate blocker.
-- Evidence: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29k161.log`....................................
+- Evidence: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29k164.log`.....................................
 
 ## Product direction
 - One operational tree of nodes.
