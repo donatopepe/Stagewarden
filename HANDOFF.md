@@ -1,16 +1,16 @@
 # Stagewarden Handoff Summary
 
 ## Current phase
-Node-first MVP is fail-closed against untrusted input at three boundaries: the model response (cycles 147), persisted state (148-151), and now the model-action boundary (153). Cycles 147-153 fixed eight real defects across three classes. All validation artifacts are wet-verified green. The project remains fail-closed at user decision gate: no new runtime scope authorized until v3/extension/migration approved. Multi-node route stability remains unproven. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
+Node-first MVP remains fail-closed against untrusted input at model, persisted state and model-action boundaries. V3 section 21 is approved. Serial execution and provider/model/fallback/routing remain unchanged; extensions/subagents and v2 migration/compatibility are declined. Multi-node OmniRoute free remains externally unstable and fail-closed. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD; metadata mirror check `6/6`.** No runtime, test or script change.
-- Objective: verify mirrors after cycle 345. Metric/threshold: consistency `6/6`, source/test/script drift `0`.
-- Proof: HEAD `ff76256`; mirrors reconciled to cycle 346/HEAD; source/test/script diff since `c100efb` empty.
-- Wet: targeted `161 passed, 79 subtests passed`; direct OmniRoute smoke green.
-- State: `main`, sole worktree, CodeGraph current, JSON waiting/current step waiting/question pending, loop unchanged. No policy change.
-- Decision: hold; user decision gate blocker.
-- Evidence: `/tmp/stagewarden-bounded-iteration-gate-2026-09-30k275.log`..............................................................................
+- Outcome: **HOLD; v3 approval recorded and MVP continuation gate `6/6`.** No runtime/test/script change.
+- Objective: persist user approval and reconcile mirrors. Metric/threshold: approval/mirror matrix `6/6`, runtime diff `0`.
+- Proof: HEAD `d3bbf74`; answer persisted in `.stagewarden_handoff.json`; TODO v3 approval checked; extensions/subagents and v2 migration remain unchecked by explicit decision.
+- Wet: full pytest `718 passed, 5 skipped, 301 subtests`; unified validation `6/6`; direct OmniRoute smoke green; JSON/compile/diff guards green.
+- State: `main`, sole worktree, CodeGraph current, JSON question answered/status waiting, loop unchanged. No provider/model/fallback/routing/scheduler/parallel change.
+- Decision: continue only approved MVP TODO work; fail-closed on unstable multi-node OmniRoute.
+- Evidence: `/tmp/stagewarden-v3-approval-gate-2026-09-30.log`..............................................................................
 
 ## Product direction
 - One operational tree of nodes.
