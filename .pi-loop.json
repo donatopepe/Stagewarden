@@ -1,14 +1,3 @@
 {
-  "tasks": [
-    {
-      "id": "c05d5335",
-      "cron": "*/5 * * * *",
-      "prompt": "Continue Stagewarden MVP work automatically in one bounded iteration. Read AGENTS.md, AGENT_HANDOFF.md, HANDOFF.md, TODO.md, canonical Hermes memory when available. Verify main worktree and CodeGraph. Work only from TODO.md: prioritize node-first MVP, OmniRoute free tests, context-aware chunking/compaction, persistent file-read recovery, JSONL events/replay, terminal node purpose visibility, Node Knowledge Store and code index. Use main worktree only; no secrets; no new worktree. Before editing define one objective, metric, threshold, fixed test cases and baseline. Make smallest TDD change, run targeted wet tests, update TODO.md, AGENT_HANDOFF.md, HANDOFF.md, and .stagewarden_handoff.json with evidence. Stop/record blocker on repeated external OmniRoute malformed output, missing environment, failing tests, or user decision gate. Do not enable legacy parallel execution or silently change provider/model.",
-      "createdAt": 1790153131693,
-      "recurring": true,
-      "durable": true,
-      "label": "stagewarden-mvp-continue",
-      "lastFiredAt": 1790757413369
-    }
-  ]
+  "tasks": []
 }
