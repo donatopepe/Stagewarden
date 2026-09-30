@@ -4,13 +4,13 @@
 Node-first MVP remains fail-closed against untrusted input at model, persisted state and model-action boundaries. V3 section 21 is approved. Serial execution and provider/model/fallback/routing remain unchanged; extensions/subagents and v2 migration/compatibility are declined. Multi-node OmniRoute free remains externally unstable and fail-closed. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD; v3 approval recorded and MVP continuation gate `6/6`.** No runtime/test/script change.
-- Objective: persist user approval and reconcile mirrors. Metric/threshold: approval/mirror matrix `6/6`, runtime diff `0`.
-- Proof: HEAD `838deb4`; answer persisted in `.stagewarden_handoff.json`; TODO v3 approval checked; extensions/subagents and v2 migration remain unchecked by explicit decision.
+- Outcome: **HOLD; approved MVP scope remains waiting, metadata gate `6/6`.** No runtime/test/script change.
+- Objective: verify approved scope, mirrors and runtime baseline. Metric/threshold: gate `6/6`, runtime diff `0`.
+- Proof: HEAD `b7d6bd5`; answer persisted in `.stagewarden_handoff.json`; TODO v3 approval checked; no unchecked approved runtime slice; extensions/subagents and v2 migration remain unchecked by explicit decision.
 - Wet: targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; unified validation `6/6`; direct OmniRoute smoke green; JSON/compile/diff guards green.
 - State: `main`, sole worktree, CodeGraph current, JSON question answered/status waiting, loop unchanged. No provider/model/fallback/routing/scheduler/parallel change.
 - Decision: continue only approved MVP TODO work; fail-closed on unstable multi-node OmniRoute.
-- Evidence: `/tmp/stagewarden-cycle348-baseline-2026-09-30.log`..............................................................................
+- Evidence: `/tmp/stagewarden-cycle350-baseline-2026-09-30.log`..............................................................................
 
 ## Product direction
 - One operational tree of nodes.

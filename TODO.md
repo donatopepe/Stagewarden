@@ -1,11 +1,31 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 350: HOLD — approved MVP scope remains waiting; metadata gate `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script; nessun unchecked approved MVP slice in TODO.
+- **Obiettivo:** verificare approved scope, mirrors e runtime baseline. Metrica/soglia: gate `6/6`, runtime diff `0`.
+- **Decisione:** serialità e provider/model/fallback/routing invariati; extensions/subagents e migrazione v2 escluse; multi-node OmniRoute instabile fail-closed.
+- **Prova:** HEAD `b7d6bd5`; JSON approval persisted and aligned; CodeGraph current; runtime diff rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; direct smoke green; JSON/compile/diff guards verdi.
+- **Stato:** `main`, worktree unico, JSON `waiting`/`waiting`, loop invariato; nessun policy change.
+- Evidenza: `/tmp/stagewarden-cycle350-baseline-2026-09-30.log`.
+
+### Iterazione bounded completata — cycle 349: HOLD — approved MVP scope remains waiting; metadata gate `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script; nessun unchecked approved MVP slice in TODO.
+- **Obiettivo:** verificare approved scope, mirrors e runtime baseline. Metrica/soglia: gate `6/6`, runtime diff `0`.
+- **Decisione:** serialità e provider/model/fallback/routing invariati; extensions/subagents e migrazione v2 escluse; multi-node OmniRoute instabile fail-closed.
+- **Prova:** HEAD `b7d6bd5`; JSON approval persisted and aligned; CodeGraph current; runtime diff rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; direct smoke green; JSON/compile/diff guards verdi.
+- **Stato:** `main`, worktree unico, JSON `waiting`/`waiting`, loop invariato; nessun policy change.
+- Evidenza: `/tmp/stagewarden-cycle349-gate-2026-09-30.log`.
+
 ### Iterazione bounded completata — cycle 347: v3 approval recorded — MVP continuation gate `6/6`
 
-- **Esito:** HOLD bounded. V3 section 21 approvata; nessuna modifica runtime/test/script.
-- **Obiettivo:** persistere decisione utente e allineare mirror. Metrica/soglia: matrix decisione/mirror `6/6`, drift runtime `0`.
+- **Esito:** HOLD. Approved MVP scope remains waiting; nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare approved scope, mirrors e runtime baseline. Metrica/soglia: gate `6/6`, drift runtime `0`.
 - **Decisione:** serialità e provider/model/fallback/routing invariati; extensions/subagents e migrazione/compatibility v2 escluse; multi-node OmniRoute instabile resta fail-closed.
-- **Prova:** answer persisted in `.stagewarden_handoff.json`; HEAD `838deb4`; `user_question` answered/logged; runtime diff rispetto a `c100efb` vuoto.
+- **Prova:** answer persisted in `.stagewarden_handoff.json`; HEAD `b7d6bd5`; `user_question` answered/logged; no unchecked approved runtime slice; runtime diff rispetto a `c100efb` vuoto.
 - **Wet:** targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; unified validation `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`; `json.tool`/`py_compile`/`git diff --check` verdi.
 - **Stato:** `main`, worktree unico, CodeGraph corrente, JSON `waiting`/`waiting`, question answered, loop `c05d5335` invariato.
 - Evidenza: `/tmp/stagewarden-cycle348-baseline-2026-09-30.log`.
