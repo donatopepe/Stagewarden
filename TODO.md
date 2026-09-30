@@ -1,5 +1,16 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 271: HOLD — metadata mirror check `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script.
+- **Obiettivo:** verificare mirror dopo cycle 270. Metrica/soglia: coerenza `6/6`, drift sorgente/test/script `0`.
+- **Prova:** HEAD `c4255e5` (commit esterno metadata-only `cc9dfbb -> c4255e5`); diff sorgente/test/script rispetto a `c100efb` vuoto; `git_head` JSON riconciliato in cycle 271.
+- **Gate:** primo `5/6` su `git_head` stale; riconciliato solo metadata; secondo gate `6/6`.
+- **Wet:** targeted `161 passed, 79 subtests`; smoke `OmniRoute free route OK (auto/coding:free)`; `json.tool`/`py_compile`/`git diff --check` verdi.
+- **Stato:** `main`, worktree unico, CodeGraph corrente, JSON waiting/current-step waiting/question pending, loop invariato; nessun policy change.
+- **Decisione:** HOLD; gate decisionale utente blocker.
+- Evidenza: `/tmp/stagewarden-bounded-iteration-gate-2026-09-29k78.log`.
+
 ### Iterazione bounded completata — cycle 270: HOLD — metadata mirror check `6/6`
 
 - **Esito:** HOLD. Nessuna modifica runtime/test/script.
