@@ -48,9 +48,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 347: v3 section 21 approval recorded; extensions/subagents and v2 migration/compatibility declined. Metadata mirror reconciliation after external metadata-only commit ff76256 -> d3bbf74. Full pytest 718 passed, 5 skipped, 301 subtests; unified validation 6/6; direct OmniRoute smoke green; runtime diff empty. Multi-node instability remains fail-closed; no runtime/policy change.",
+  "latest_observation": "Cycle 347: v3 section 21 approval recorded; extensions/subagents and v2 migration/compatibility declined. Metadata mirror reconciliation after external metadata-only commit d3bbf74 -> 838deb4. Full pytest 718 passed, 5 skipped, 301 subtests; unified validation 6/6; direct OmniRoute smoke green; runtime diff empty. Multi-node instability remains fail-closed; no runtime/policy change.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "d3bbf74cbecfd4b612d23af21d59d148f751fd98",
+  "git_head": "838deb49a565f1f41ffa99c4c7e1e1b34e9728e9",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {

@@ -5,10 +5,10 @@
 - **Esito:** HOLD bounded. V3 section 21 approvata; nessuna modifica runtime/test/script.
 - **Obiettivo:** persistere decisione utente e allineare mirror. Metrica/soglia: matrix decisione/mirror `6/6`, drift runtime `0`.
 - **Decisione:** serialità e provider/model/fallback/routing invariati; extensions/subagents e migrazione/compatibility v2 escluse; multi-node OmniRoute instabile resta fail-closed.
-- **Prova:** answer persisted in `.stagewarden_handoff.json`; HEAD `d3bbf74`; `user_question` answered/logged; runtime diff rispetto a `c100efb` vuoto.
-- **Wet:** full pytest `718 passed, 5 skipped, 301 subtests`; unified validation `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`; `json.tool`/`py_compile`/`git diff --check` verdi.
+- **Prova:** answer persisted in `.stagewarden_handoff.json`; HEAD `838deb4`; `user_question` answered/logged; runtime diff rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; unified validation `6/6`; smoke `OmniRoute free route OK (auto/coding:free)`; `json.tool`/`py_compile`/`git diff --check` verdi.
 - **Stato:** `main`, worktree unico, CodeGraph corrente, JSON `waiting`/`waiting`, question answered, loop `c05d5335` invariato.
-- Evidenza: `/tmp/stagewarden-v3-approval-gate-2026-09-30.log`.
+- Evidenza: `/tmp/stagewarden-cycle348-baseline-2026-09-30.log`.
 
 ### Iterazione bounded completata — cycle 346: HOLD — metadata mirror check `6/6`
 
