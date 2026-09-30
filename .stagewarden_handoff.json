@@ -7,22 +7,7 @@
     "status": "active"
   },
   "project_budget": {},
-  "user_question": {
-    "question_id": "question-1",
-    "question": "What is the concrete deliverable or decision you want from me?",
-    "reason": "clarification",
-    "context": {
-      "task": "capabilities",
-      "reasons": [
-        "Task does not express a clear product or management outcome."
-      ],
-      "escalation_required": true
-    },
-    "status": "pending",
-    "asked_at": "2026-09-23T20:36:13+00:00",
-    "answered_at": null,
-    "answer": null
-  },
+  "user_question": {},
   "user_question_log": [
     {
       "question_id": "question-1",
@@ -39,15 +24,31 @@
       "asked_at": "2026-09-23T20:36:13+00:00",
       "answered_at": null,
       "answer": null
+    },
+    {
+      "question_id": "question-1",
+      "question": "What is the concrete deliverable or decision you want from me?",
+      "reason": "clarification",
+      "context": {
+        "task": "capabilities",
+        "reasons": [
+          "Task does not express a clear product or management outcome."
+        ],
+        "escalation_required": true
+      },
+      "status": "answered",
+      "asked_at": "2026-09-23T20:36:13+00:00",
+      "answered_at": "2026-09-30T07:03:34+00:00",
+      "answer": "Approvo v3 secondo section 21. Mantieni serialit\u00e0, provider/model/fallback/routing invariati. Nessuna migrazione v2 e nessun subagent/plugin. Continua MVP da TODO; mantieni fail-closed su OmniRoute multi-node instabile."
     }
   ],
   "project_brief": {},
   "status": "waiting",
-  "waiting_reason": "User decision gate required for full v3, approved extensions/subagents, or migration/compatibility. Multi-node OmniRoute free external route unstable: live malformed/truncated, wrong-contract JSON, and prose-wrapped success marker; fail-closed preserved. No new runtime item selected.",
+  "waiting_reason": "V3 approved according to section 21. Serial execution and provider/model/fallback/routing remain unchanged. Extensions/subagents and v2 migration/compatibility explicitly declined. Multi-node OmniRoute free remains externally unstable; fail-closed preserved; no uncompleted MVP runtime TODO slice selected.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 346: HOLD, metadata mirror check after cycle 345. External metadata-only commit ecde828 -> ff76256 reconciled. Source/test/script diff since c100efb empty; targeted 161 passed, 79 subtests; smoke green; final gate 6/6. No runtime/policy change; user decision gate blocker.",
+  "latest_observation": "Cycle 347: v3 scope approved; metadata mirrors pending validation. No runtime/policy change.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
   "git_head": "ff76256d72b03e09f83948b27e44af97c6f92b9d",
   "git_head_baseline": "a7224e2",
@@ -193,7 +194,8 @@
   "prince2_roles": {},
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
-  "updated_at": "2026-09-28T09:45:09+02:00",
+  "goal_loop_context": {},
+  "updated_at": "2026-09-30T07:03:34+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -2740,7 +2742,7 @@
           },
           "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
           "error_message": null,
-          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
+          "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
           "messages_sent": [
             {
               "FROM": "root.scope",
@@ -2814,7 +2816,7 @@
         },
         "output_summary": "Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.",
         "error_message": null,
-        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (≤ 200 files) to identify code quality, security, and dependency issues. Out‑of‑Scope: Multi‑repo analysis, performance",
+        "pi_stdout": "{\n  \"summary\": \"Scope, out-of-scope, outputs, acceptance criteria, and risk posture for the tiny repository inspection plan have been defined.\",\n  \"messages\": [\n    {\n      \"FROM\": \"root.scope\",\n      \"TO\": \"root.decompose\",\n      \"TYPE\": \"result\",\n      \"SUMMARY\": \"Scope definition completed\",\n      \"DETAILS\": \"Scope: Perform a lightweight inspection of a single Git repository (\u2264\u202f200\u202ffiles) to identify code quality, security, and dependency issues. Out\u2011of\u2011Scope: Multi\u2011repo analysis, performance",
         "messages_sent": [
           {
             "FROM": "root.scope",
@@ -4373,16 +4375,57 @@
           "answer": null
         }
       }
+    },
+    {
+      "timestamp": "2026-09-30T07:03:34+00:00",
+      "phase": "user_question_answered",
+      "iteration": 229,
+      "task": "capabilities",
+      "summary": "Question answered: Approvo v3 secondo section 21. Mantieni serialit\u00e0, provider/model/fallback/routing invariati. Nessuna migrazione v2 e ne",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "question": {
+          "question_id": "question-1",
+          "question": "What is the concrete deliverable or decision you want from me?",
+          "reason": "clarification",
+          "context": {
+            "task": "capabilities",
+            "reasons": [
+              "Task does not express a clear product or management outcome."
+            ],
+            "escalation_required": true
+          },
+          "status": "answered",
+          "asked_at": "2026-09-23T20:36:13+00:00",
+          "answered_at": "2026-09-30T07:03:34+00:00",
+          "answer": "Approvo v3 secondo section 21. Mantieni serialit\u00e0, provider/model/fallback/routing invariati. Nessuna migrazione v2 e nessun subagent/plugin. Continua MVP da TODO; mantieni fail-closed su OmniRoute multi-node instabile."
+        }
+      }
+    },
+    {
+      "timestamp": "2026-09-30T07:03:34+00:00",
+      "phase": "v3_scope_approved",
+      "iteration": 229,
+      "task": "capabilities",
+      "summary": "User approved v3 section 21; declined extensions/subagents and v2 migration/compatibility.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": null,
+      "details": {
+        "serial_default": true,
+        "provider_model_fallback_routing_unchanged": true,
+        "extensions_subagents": "declined",
+        "v2_migration_compatibility": "declined",
+        "omniroute_multi_node": "fail_closed_external_blocker"
+      }
     }
-  ],
-  "recent_changes": [
-    "stagewarden/planner.py and stagewarden/goal_loop_orchestrator.py: deterministic node UUIDs in plan/node state, prompt, WorkPacket and capsule.",
-    "stagewarden/executor.py and stagewarden/event_stream.py: node_uuid in model context budget, prompt cache scope, JSONL events and replay.",
-    "tests/*, TODO.md, AGENT_HANDOFF.md and HANDOFF.md: UUID matrix, wet evidence and handoff alignment."
-  ],
-  "next_steps": [
-    "Select next substantive TODO item only after fresh startup protocol and approved scope.",
-    "Keep parallel opt-in, broader ancestor/descendant retrieval and provider/model policy changes untouched.",
-    "Do not retry unstable multi-node OmniRoute until external route behavior changes; retain fail-closed blocker."
   ]
 }
