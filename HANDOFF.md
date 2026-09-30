@@ -6,11 +6,11 @@ Node-first MVP remains fail-closed against untrusted input at model, persisted s
 ## Latest bounded iteration
 - Outcome: **HOLD; approved MVP scope remains waiting, metadata gate `6/6`.** No runtime/test/script change.
 - Objective: verify approved scope, mirrors and runtime baseline. Metric/threshold: gate `6/6`, runtime diff `0`.
-- Proof: HEAD `440c4ab`; answer persisted in `.stagewarden_handoff.json`; TODO v3 approval checked; no unchecked approved runtime slice; extensions/subagents and v2 migration remain unchecked by explicit decision.
+- Proof: HEAD `3f435f7`; answer persisted in `.stagewarden_handoff.json`; TODO v3 approval checked; no unchecked approved runtime slice; extensions/subagents and v2 migration remain unchecked by explicit decision.
 - Wet: targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; unified validation `6/6`; direct OmniRoute smoke green; JSON/compile/diff guards green.
 - State: `main`, sole worktree, CodeGraph current, JSON question answered/status waiting, loop unchanged. No provider/model/fallback/routing/scheduler/parallel change.
 - Decision: continue only approved MVP TODO work; fail-closed on unstable multi-node OmniRoute.
-- Evidence: `/tmp/stagewarden-cycle353-baseline-2026-09-30.log`..............................................................................
+- Evidence: `/tmp/stagewarden-cycle354-baseline-2026-09-30.log`..............................................................................
 
 ## Product direction
 - One operational tree of nodes.

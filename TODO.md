@@ -1,5 +1,15 @@
 # Stagewarden — TODO unico
 
+### Iterazione bounded completata — cycle 354: HOLD — approved MVP scope remains waiting; metadata gate `6/6`
+
+- **Esito:** HOLD. Nessuna modifica runtime/test/script; nessun unchecked approved MVP slice in TODO.
+- **Obiettivo:** verificare approved scope, mirrors e runtime baseline. Metrica/soglia: gate `6/6`, runtime diff `0`.
+- **Decisione:** serialità e provider/model/fallback/routing invariati; extensions/subagents e migrazione v2 escluse; multi-node OmniRoute instabile fail-closed.
+- **Prova:** HEAD `3f435f7`; JSON approval persisted and aligned; CodeGraph current; runtime diff rispetto a `c100efb` vuoto.
+- **Wet:** targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; direct smoke green; JSON/compile/diff guards verdi.
+- **Stato:** `main`, worktree unico, JSON `waiting`/`waiting`, loop invariato; nessun policy change.
+- Evidenza: `/tmp/stagewarden-cycle354-baseline-2026-09-30.log`.
+
 ### Iterazione bounded completata — cycle 353: HOLD — approved MVP scope remains waiting; metadata gate `6/6`
 
 - **Esito:** HOLD. Nessuna modifica runtime/test/script; nessun unchecked approved MVP slice in TODO.
