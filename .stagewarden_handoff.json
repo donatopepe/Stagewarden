@@ -47,9 +47,9 @@
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Cycle 323: HOLD, metadata mirror check after cycle 322. External metadata-only commit 8879c59 -> aa28911 reconciled. Source/test/script diff since c100efb empty; targeted 161 passed, 79 subtests; smoke green; final gate 6/6. No runtime/policy change; user decision gate blocker.",
+  "latest_observation": "Cycle 324: HOLD, metadata mirror check after cycle 323. External metadata-only commit aa28911 -> 4cd8fb3 reconciled. Source/test/script diff since c100efb empty; targeted 161 passed, 79 subtests; smoke green; final gate 6/6. No runtime/policy change; user decision gate blocker.",
   "plan_status": "MVP implementation waiting at user decision gate; no-new-runtime decision matrix 3/3 and unified validation 6/6; task-scoped node UUID/capsule gates green; Node Knowledge/code-index/context/recovery/event/mutation gates green; no provider/model/fallback/parallel policy change.",
-  "git_head": "aa28911f122d5fc701d6df27d7da2a3840754c28",
+  "git_head": "4cd8fb3d09ee333f5479742c71c913a289f629d9",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
