@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-28T09:51:55+00:00",
+  "generated_at": "2026-10-05T10:32:08+00:00",
   "models": [
     {
       "aliases": [
@@ -566,14 +566,9 @@
       "cost_per_output_token_usd": 1.14e-06,
       "features": [
         "frequency_penalty",
-        "logit_bias",
         "logprobs",
-        "min_p",
         "output:text",
-        "presence_penalty",
-        "repetition_penalty",
         "seed",
-        "stop",
         "structured_output",
         "temperature",
         "text",
@@ -672,33 +667,18 @@
     },
     {
       "aliases": [
-        "DeepSeek: R1 Distill Llama 70B",
         "deepseek/deepseek-r1-distill-llama-70b",
-        "deepseek: r1 distill llama 70b",
         "deepseek:deepseek-r1-distill-llama-70b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.8,
-      "context_window": 8192,
-      "cost_per_input_token_usd": 8e-07,
-      "cost_per_output_token_usd": 8e-07,
-      "features": [
-        "frequency_penalty",
-        "include_reasoning",
-        "output:text",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "temperature",
-        "text",
-        "top_k",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "deepseek/deepseek-r1-distill-llama-70b",
-      "model_name": "DeepSeek: R1 Distill Llama 70B",
+      "model_name": "deepseek/deepseek-r1-distill-llama-70b",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1802,9 +1782,9 @@
         "minimax: minimax m1",
         "minimax:minimax-m1"
       ],
-      "blended_price_usd_per_1m_tokens": 0.85,
+      "blended_price_usd_per_1m_tokens": 0.96,
       "context_window": 1000000,
-      "cost_per_input_token_usd": 4e-07,
+      "cost_per_input_token_usd": 5.5e-07,
       "cost_per_output_token_usd": 2.2e-06,
       "features": [
         "frequency_penalty",
@@ -1975,15 +1955,14 @@
         "minimax: minimax m2.7",
         "minimax:minimax-m2.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.53,
+      "blended_price_usd_per_1m_tokens": 0.37,
       "context_window": 204800,
-      "cost_per_input_token_usd": 3e-07,
-      "cost_per_output_token_usd": 1.2e-06,
+      "cost_per_input_token_usd": 2.1e-07,
+      "cost_per_output_token_usd": 8.4e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
         "logit_bias",
-        "logprobs",
         "min_p",
         "output:text",
         "presence_penalty",
@@ -1996,7 +1975,6 @@
         "text",
         "tool_use",
         "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -2267,6 +2245,7 @@
         "repetition_penalty",
         "seed",
         "stop",
+        "structured_output",
         "temperature",
         "text",
         "tool_use",
@@ -2848,7 +2827,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -2913,22 +2893,19 @@
       "cost_per_output_token_usd": 1e-05,
       "features": [
         "file",
-        "frequency_penalty",
         "image",
         "include_reasoning",
-        "logit_bias",
         "logprobs",
         "output:image",
         "output:text",
-        "presence_penalty",
         "reasoning",
         "seed",
-        "stop",
         "structured_output",
         "temperature",
         "text",
         "top_logprobs",
-        "top_p"
+        "top_p",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -2961,7 +2938,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -2994,7 +2972,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3027,7 +3006,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3060,7 +3040,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3112,7 +3093,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 27,
       "latency_rank": null,
@@ -3144,7 +3126,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3176,7 +3159,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -3209,7 +3193,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3239,7 +3224,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3271,7 +3257,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -3304,7 +3291,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3337,7 +3325,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 3,
       "latency_rank": null,
@@ -3370,7 +3359,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 2,
       "latency_rank": null,
@@ -3403,7 +3393,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 32,
       "latency_rank": null,
@@ -3436,7 +3427,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -3469,7 +3461,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3487,10 +3480,10 @@
         "openai/gpt-oss-120b",
         "openai:gpt-oss-120b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.26,
+      "blended_price_usd_per_1m_tokens": 0.07,
       "context_window": 131072,
-      "cost_per_input_token_usd": 1.5e-07,
-      "cost_per_output_token_usd": 6e-07,
+      "cost_per_input_token_usd": 3.7e-08,
+      "cost_per_output_token_usd": 1.7e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -3910,10 +3903,10 @@
         "qwen: qwen3 30b a3b instruct 2507",
         "qwen:qwen3-30b-a3b-instruct-2507"
       ],
-      "blended_price_usd_per_1m_tokens": 0.15,
+      "blended_price_usd_per_1m_tokens": 0.08,
       "context_window": 262144,
-      "cost_per_input_token_usd": 1e-07,
-      "cost_per_output_token_usd": 3e-07,
+      "cost_per_input_token_usd": 4.815e-08,
+      "cost_per_output_token_usd": 1.9305e-07,
       "features": [
         "frequency_penalty",
         "logit_bias",
@@ -5181,7 +5174,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 27,
       "latency_rank": null,
@@ -5214,7 +5208,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -5247,7 +5242,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -5281,7 +5277,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 3,
       "latency_rank": null,
@@ -5315,7 +5312,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 2,
       "latency_rank": null,
@@ -5350,7 +5348,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 32,
       "latency_rank": null,
@@ -5385,7 +5384,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -5851,7 +5851,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -5927,7 +5928,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -5961,7 +5963,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -5995,7 +5998,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6028,7 +6032,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6081,7 +6086,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 27,
       "latency_rank": null,
@@ -6113,7 +6119,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6145,7 +6152,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -6178,7 +6186,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6231,7 +6240,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -6265,7 +6275,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6319,7 +6330,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 3,
       "latency_rank": null,
@@ -6373,7 +6385,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 2,
       "latency_rank": null,
@@ -6407,7 +6420,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 32,
       "latency_rank": null,
@@ -6441,7 +6455,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -6475,7 +6490,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
