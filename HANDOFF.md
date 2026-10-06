@@ -1,5 +1,12 @@
 # Stagewarden Handoff Summary
 
+## Current requested work
+- User clarified JEV is an optional add-on decision model alongside classic LLM; it must not replace/change the existing LLM/provider/fallback/routing.
+- Chosen `/skill:mvp-first-agent-workflow`; direct analysis, no subagent. User says JEV efficiency in decision process is already demonstrated. `TODO.md` proposes serial JEV→policy→existing LLM-on-uncertainty; Stagewarden tests validate faithful integration/no regressions, not re-prove supplied evidence.
+- Added isolated `DecisionClassifier` interface plus API and llama.cpp adapters (explicit `off|api|llama_cpp`; not connected to orchestrator). 12 tests pass; HTTP stub wet smoke passes. No actual JEV/llama.cpp available, API payload remains provisional, and no runtime decisions changed.
+- Pi codemode docs explicitly show `models.getModelOfType("classifier", "typesafe", "jev-latest")`. Do not port codemode/skill-loader; no runtime/test changes yet.
+- Checkout HEAD `8b32359`; existing dirty files and `.pi-loop.json.lock` retained. V3 serial/exclusions unchanged.
+
 ## Current phase
 Node-first MVP remains fail-closed against untrusted input at model, persisted state and model-action boundaries. V3 section 21 is approved. Serial execution and provider/model/fallback/routing remain unchanged; extensions/subagents and v2 migration/compatibility are declined. Multi-node OmniRoute free remains externally unstable and fail-closed. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 

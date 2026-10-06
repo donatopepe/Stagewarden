@@ -531,6 +531,67 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertEqual(level, "autonomous")
         self.assertIn("reversible", reason)
 
+    def test_optional_classifier_can_raise_but_never_lower_autonomy_caution(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        orchestrator = GoalLoopOrchestrator(self.config, "optional classifier", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+        node = orchestrator.nodes["root.scope"]
+
+        class FakeClassifier:
+            backend = "test"
+            def __init__(self, label): self.label = label
+            def classify(self, request):
+                self.request = request
+                return DecisionResult(self.label, 0.99, "test", "fake", {
+                    "autonomous": 0.0, "report": 0.0, "ask_user": 1.0, "stop": 0.0
+                })
+
+        classifier = FakeClassifier("autonomous")
+        orchestrator._decision_classifier = classifier
+        with patch("stagewarden.goal_loop_orchestrator.classify_decision", return_value=("ask_user", "fixed safety rule")):
+            proceed, reason = orchestrator._autonomy_gate(node)
+        self.assertFalse(proceed)  # Deterministic ask_user remains authoritative.
+        self.assertEqual(node.decision_evidence["label"], "autonomous")
+        self.assertEqual(reason, "fixed safety rule")
+        self.assertEqual(node.decision_evidence["policy_action"], "blocked_json_mode")
+        self.assertEqual(classifier.request.labels, ("autonomous", "report", "ask_user", "stop"))
+
+    def test_optional_classifier_may_raise_caution(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        orchestrator = GoalLoopOrchestrator(self.config, "optional classifier", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+        node = orchestrator.nodes["root.scope"]
+        class FakeClassifier:
+            backend = "test"
+            def classify(self, request):
+                return DecisionResult("stop", 0.99, "test", "fake", {
+                    "autonomous": 0.0, "report": 0.0, "ask_user": 0.0, "stop": 1.0
+                })
+        orchestrator._decision_classifier = FakeClassifier()
+        with patch("stagewarden.goal_loop_orchestrator.classify_decision", return_value=("autonomous", "fixed")):
+            proceed, reason = orchestrator._autonomy_gate(node)
+        self.assertFalse(proceed)
+        self.assertEqual(reason, "Decision classifier advised stop.")
+        self.assertEqual(node.decision_evidence["policy_action"], "blocked")
+
+    def test_optional_classifier_ask_user_blocks_in_json_mode(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        orchestrator = GoalLoopOrchestrator(self.config, "optional classifier", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+        node = orchestrator.nodes["root.scope"]
+        class FakeClassifier:
+            backend = "test"
+            def classify(self, request):
+                return DecisionResult("ask_user", 0.99, "test", "fake", {
+                    "autonomous": 0.0, "report": 0.0, "ask_user": 1.0, "stop": 0.0
+                })
+        orchestrator._decision_classifier = FakeClassifier()
+        with patch("stagewarden.goal_loop_orchestrator.classify_decision", return_value=("autonomous", "fixed")):
+            proceed, reason = orchestrator._autonomy_gate(node)
+        self.assertFalse(proceed)
+        self.assertEqual(node.status, "blocked")
+        self.assertEqual(node.decision_evidence["policy_action"], "blocked_json_mode")
+
     def test_tolerance_violation_detected(self) -> None:
         """check_tolerance_violation returns violation when threshold=none."""
         from stagewarden.goal_loop_orchestrator import check_tolerance_violation

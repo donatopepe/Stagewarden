@@ -1,5 +1,72 @@
 # Stagewarden — TODO unico
 
+## Nuova richiesta — ricognizione sorgenti, modelli decisionali, skills e Pi codemode
+
+**Stato: adapter di classificazione isolati implementati; nessuna integrazione nell'orchestratore o cambiamento di decisioni runtime.** JEV è opzionale affiancato al LLM classico; LLM/provider/fallback/routing restano invariati. Esistono adapter predisposti per API e llama.cpp, ma contratto remoto e modello locale non sono verificati qui; test reali rimandati al PC autorizzato. Serialità e gate v3 conservati.
+
+### Obiettivo e criterio di successo
+Produrre un piano verificabile per integrare in Stagewarden modelli decisionali (incluso “jev”, interpretato provvisoriamente come classificatore JEV/pi classifier), skills e concetti selezionati da Pi Agent codemode. **Rubrica: 7/7**: (1) sorgenti upstream identificati e fissati; (2) license/provenienza; (3) analisi codemode; (4) confini architetturali e sicurezza; (5) compatibilità con v3 esplicitata; (6) fasi/test/criteri di accettazione; (7) mirror handoff allineati.
+
+### Evidenze e reference scaricato
+- `external_sources/pi-mono/` — clone shallow aggiornato di `https://github.com/badlogic/pi-mono.git`; HEAD `23cf2b948dc626c234f81d6fee7d9978b4c43631` (2026-10-06). Pi coding-agent è incluso nel monorepo; package `packages/coding-agent`, insieme a `agent`, `ai`, `protocol`, `mcp`.
+- Pi locale installato: documentazione codemode in `/usr/lib/node_modules/@earendil-works/pi-coding-agent/docs/codemode.md` (reference esterna, non Stagewarden source).
+- Riferimenti preesistenti: `docs/source_references.md`, `.pi/pi-learning-benchmark.md`; sorgenti Codex/Kilo/Caveman menzionati lì non risultano presenti nel checkout osservato (directory `external_sources` assente prima del clone). Non scaricati ora: prioritizzare in una fase separata dopo chiarimento scope/licenze.
+- Licenza del monorepo verificata nel root `LICENSE`: MIT; package coding-agent include licenza MIT in package metadata. Va comunque conservato NOTICE/provenienza e verificata ogni dipendenza prima di redistribuire/portare codice. Mantenere source research isolato: non importare dipendenze/runtime o workflow Pi automaticamente.
+
+### Analisi tecnica Pi codemode (documentazione locale + checkout upstream fissato)
+- Esegue script JavaScript in sandbox QuickJS asincrono; niente Node, filesystem, rete o timer. Accesso esterno mediato da `tools` e `models`.
+- Le chiamate agli strumenti sono reali/non transazionali: errori successivi non annullano effetti; chiamate non attese possono essere cancellate. Serve await esplicito, timeout, limiti output e policy autorizzativa.
+- `text/image` filtrano/emettono risultati; limiti configurabili output e numero chiamate. Codemode può orchestrare in parallelo tool/model; ogni fan-out aumenta rischio effetti duplicati e va vietato o circoscritto nel default Stagewarden seriale.
+- API modello espone classificazione batch per item (choice/score/bool), probabilità/confidenza, provider/modello, usage e stop/error/aborted. `models.md` upstream identifica Jev (TypeSafe), `jev-latest`; auth può passare da `TYPESAFE_API_KEY`, OpenRouter, Cloudflare, Vercel AI Gateway o OpenCode. Richiede provider/account configurato: non è un modello locale né garanzia di disponibilità/costo/latency.
+- Distinzione essenziale: model decision support non è autorizzazione. Classifier produce proposta con confidenza/probabilità; Stagewarden deve validare schema, soglie e policy deterministiche, registrare input/output/provenienza/versione e fail-closed su errore, bassa confidenza o risposta invalida. Nessuna mutazione autonoma.
+- Distribuzione prevista dall'utente: due modalità per lo stesso modello decisionale, selezionabili in configurazione: (a) servizio JEV via API Internet; (b) modello decisionale caricato localmente in `llama.cpp` su altro PC. Questo ambiente non ha JEV/llama.cpp installati e i test runtime sono rinviati al PC dell'utente quando ne darà accesso. La disponibilità concreta del formato/pesi JEV compatibile con llama.cpp, endpoint API e schema va verificata lì/contro documentazione ufficiale; non assumere che l'API TypeSafe JEV e il modello locale siano intercambiabili finché il contratto classifier non viene verificato. Mai scaricare/eseguire pesi non verificati.
+- Skills sono istruzioni/dati caricabili; definire manifest, trust/provenienza, scope, versioning, capabilities minime e approvazione. Non eseguire skill come codice arbitrario.
+
+### Piano storico proposto (superato dalla richiesta di implementazione fattibile)
+1. **Gate di compatibilità:** mantenere serialità. «Procedi» vale per il piano, ma non basta a revocare i divieti specifici su extensions/subagents o cambiare provider/model/routing. Assumere Jev = classifier TypeSafe/Pi, senza integrazione provider.
+2. **Inventario e due diligence:** leggere licenze/NOTICE e architettura dei package Pi; confrontare API codemode, extension, skills, model registry con Stagewarden; inventario delle dipendenze, minacce, privacy/segreti e aggiornamento pinned/hash. Nessun copia/incolla non attribuito.
+3. **Spec Stagewarden indipendente:** skill registry con schema/versione/hash e trust; DecisionProvider astratto (provider/model opzionali, input strutturato, risposta tipizzata, confidence/usage/error); policy engine deterministico e audit log. Nessun legame hard-coded al provider “jev”.
+4. **Prototipo minimo seriale, se approvato:** una skill locale read-only e un DecisionProvider mock deterministico; classificazione non bloccante/consigli consultivi; persistenza evidence packet/eventi; UI mostra decisione e motivazione sintetica; nessuna modifica provider/fallback/routing o esecuzione parallela.
+5. **Codemode: scelta esplicita:** non incorporare QuickJS genericamente nell'MVP. Nel Pi source callable list deriva dai tools di sessione; ogni tool call esegue davvero e registra l'evento, l'abort non annulla gli effetti già completati. Usa worker + QuickJS wasm, memory limit 256 MiB; timeout default infinito se non configurato; model calls max concurrency 4. `--tools` non necessariamente limita gli MCP tools callable dal codemode. Worker non è isolamento completo dal processo. Per Stagewarden preferire workflow dichiarativo seriale; eventuale runtime script richiede approvazione, capability allowlist, schema, timeout finito, budget, audit e gate per side effects.
+6. **Test & acceptance:** unit test parser/schema, confidence threshold, errore/aborted, prompt injection skill, deny tool non autorizzato, replay/audit; integrazione wet con mock; smoke provider reale solo con credenziali configurate e consenso, senza log segreti. Criterio iniziale: tutti i test security/policy verdi, zero side effect non autorizzati, decisione riproducibile e tracciabile.
+7. **Valutazione comparativa:** dataset fisso, baseline regole deterministiche e classifier JEV, metriche correttezza/calibrazione/costo/latency definite prima. Mai promuovere classifier a decisore senza soglia concordata e human override.
+8. **Chiusura:** aggiornare spec v3 (nuova sezione/decisione), manifest reference e test/evidence; riallineare `AGENT_HANDOFF.md`, `HANDOFF.md`, `.stagewarden_handoff.json` e TODO.
+
+### Implementazione locale — stato aggiornato da memoria altro PC
+- TypeSafe adapter usa il contratto System One ufficiale identificato nel checkout Pi pinned: endpoint `/v1/systemone`, Bearer key, schema choice/probabilities. Local adapter usa il readout Jev-Style-v3 effettivo: completions, 1 token, logprobs=10, slot `->`, differenza yes/no, temperature da config/env.
+- Adapter resta isolato e non collegato all'orchestratore; backend off di default. Nessuna decisione runtime e nessun routing LLM modificati.
+- Test aggiornati a wire fixtures derivati dai test Pi e modello locale; wet stub test e test di errore necessari. Test non esercitano servizi reali: validazione reale differita al Mac autorizzato.
+
+### Rischi / non assunti
+- «Procedi» autorizza l'analisi e pianificazione, non modifica esplicitamente i gate v3. Jev viene assunto come classifier Pi/TypeSafe, senza integrazione provider al momento.
+- Le decisioni storiche vietano proprio alcune parti implicate dalla richiesta (extensions/subagents); necessaria riconciliazione esplicita.
+- Sorgenti upstream cambiano; clone shallow pinna un commit, non equivale a certificazione di “latest” oltre timestamp.
+- Eseguire tool tramite codemode comporta effetti reali e non rollbackabili; sandbox JS non basta come sandbox di sicurezza per strumenti.
+- Pi docs: `/usr/lib/node_modules/@earendil-works/pi-coding-agent/docs/codemode.md`; upstream reference: `external_sources/pi-mono/packages/coding-agent/docs/`.
+- Dettagli esaminati nel clone: `packages/coding-agent/docs/codemode.md`, `cli.md` (tools/codemode opt-in, accessibilità MCP da codemode) e `models.md`. Documentazione nomina esplicitamente `models.getModelOfType("classifier", "typesafe", "jev-latest")`: interpretazione JEV confermata come classificatore TypeSafe in Pi, non decision engine generale. `models.classify()` controlla `stopReason`/`errorMessage`; massimo quattro chiamate classifier/image contemporanee per script. Per Stagewarden l'esperimento deve essere una singola classificazione seriale, output JSON tipizzato, no tool effects. `src/extensions/codemode/tool.ts` marca tool model-only, vieta script annidati e applica loadout callable; `execute.ts` documenta effetti reali. Implementazione di riferimento, non da importare direttamente in Python. Licenza root `LICENSE` MIT.
+
+### Esito diretto / decisione
+- Baseline: documenti/repo esaminati in un percorso diretto, senza subagent e senza nuove dipendenze. Criterio qualitativo predefinito: rubrica `7/7` descritta sopra; esito `7/7` per il deliverable di piano. Non equivale a validazione runtime o accuratezza/efficienza misurata del classifier.
+- Decisione/contesto aggiornati dall'utente: JEV è add-on opzionale al LLM classico; non sostituisce né cambia modello/provider/fallback/routing. L'utente indica che l'efficienza decisionale è già dimostrata. Le verifiche Stagewarden sono d'integrazione: preservazione del comportamento e misure operative locali, non una nuova prova del principio.
+- Architettura proposta: due stadi seriali, opt-in. (1) JEV classifica prima input e restituisce label/confidence/schema; (2) policy deterministica applica i gate. Solo input non sicuri/ambigui/bassa confidenza o classi che richiedono ragionamento passano al LLM esistente, senza cambiare la sua selezione/routing. LLM resta disponibile come sempre e mantiene policy invariata. Evitare chiamare entrambi su ogni caso se obiettivo è ridurre costo/latency; la modalità “JEV + LLM sempre” è confronto alternativo, non default efficiente.
+- **Backends:** interfaccia `DecisionClassifier` con adapter `api` e `llama_cpp`; selezione esplicita, nessun silent fallback. Memoria HermesVault su altro PC fornisce implementazione Pi funzionante e protocollo reale: API TypeSafe System One `https://api.typesafe.ai/v1/systemone`, model `jev-latest`, env key `TYPESAFE_API_KEY`, request `{model,state,questions}` e typed choice probabilities; locale Jev-Style-v3 llama.cpp `127.0.0.1:8081/v1/completions`, verdict-slot `logit(yes)-logit(no)` per opzione, softmax con temperature globale `0.8279`. Questi valori/documenti sono target di compatibilità, non validazione runtime su questo PC. La memoria riporta test precedenti sul Mac (88% overall, 95% non-ambiguous; 24 item), evidenza utente preesistente.
+- La memoria Pi implementa `jev_decide` come tool esplicito che LLM può scegliere, non come classifier forzato su ogni decisione: guidance consente uso per choice/verifica finita, no per code/creative, e una sola chiamata per decisione. Stagewarden deve mantenere opt-in/consultivo e policy deterministica, senza instradare o cambiare modello LLM.
+- Non assumere che JEV sia sempre più rapido/economico: verificare latenza, costo, accuratezza e tasso di escalation. Se classifier è indisponibile, invalido o incerto, fail closed verso percorso LLM/policy classica. Nessun side effect autorizzato dal classifier.
+- Integrazione di pattern soltanto: output tipizzato, schema validation, timeout/output cap, side-effect separation, provenance. Nessun Pi codemode, arbitrary JS, filesystem/rete, MCP o tool callable nel POC.
+- V3: rimane serialità; non si cambia modello LLM preesistente né il routing/fallback associato. JEV è solo route decisionale opt-in davanti al flusso classico, con fallback esplicito al comportamento esistente.
+
+
+### Piano e gate successivi
+1. **Spec test prima del codice:** fissare casi rappresentativi e risultato atteso basati sul processo decisionale già validato. Verificare che l'integrazione JEV→policy→LLM su incertezza/complessità preservi le decisioni corrette e il beneficio operativo; misurare latenza/costo/escalation nel contesto Stagewarden. Le soglie numeriche vanno fissate prima dei test e valutano l'integrazione, non ridefiniscono la dimostrazione di principio.
+2. **Design dual-backend:** API JEV Internet e modello decisionale locale llama.cpp dietro la stessa interfaccia; selezione esplicita da config, schema condiviso, timeout/cap, fallback al flusso LLM classico in caso di errore. Vietato passare automaticamente da backend locale a remoto o viceversa.
+3. **Test su altro PC:** quando l'utente rende disponibile il PC, verificare installazione llama.cpp, modello/pesi/formato, API raggiungibilità/autenticazione, stessa batteria di conformance e telemetria; nessun test runtime è dichiarato prima di allora.
+3. **Offline test:** unit/mock per classi, confidenza, input avversariali, output malformato, errore/timeout e fallback. Classifier non può dare tool permission o mutare stato.
+4. **Wet-run autorizzato:** casi non sensibili; registrare provider/model/usage/error, latenza/costo ed eventi; controllare che non ci siano effetti laterali e che esecuzione resti seriale.
+5. **Accettazione:** v3 invariato; accuracy entro margine preregistrato; efficienza misurabilmente migliore della baseline; ogni failure ricade sul flusso classico. Se soglia non raggiunta, mantenere modalità disattivata/scartare POC.
+
+### Storico
+
+
 ### Iterazione bounded completata — cycle 357: HOLD — approved MVP scope remains waiting; metadata gate `6/6`
 
 - **Esito:** HOLD. Nessuna modifica runtime/test/script; nessun unchecked approved MVP slice in TODO.

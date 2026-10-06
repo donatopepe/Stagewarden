@@ -19,6 +19,7 @@ from .textcodec import utc_now
 from .goal_loop_views import build_goal_loop_report, _read_prompt_template
 from .node_knowledge import NodeKnowledgeStore
 from .event_stream import EventStream
+from .decision_classifier import DecisionClassifierError, DecisionRequest, classifier_from_env
 
 # ── execution mode ──────────────────────────────────────────────────────────
 EXECUTION_MODE_MOCK = "mock"
@@ -97,6 +98,7 @@ class NodeState:
     output_summary: str | None = None
     error_message: str | None = None
     pi_stdout: str = ""
+    decision_evidence: dict[str, Any] | None = None
     retry_count: int = 0
     max_retries: int = 0
     cycle_id: int = 0
@@ -123,6 +125,7 @@ class NodeState:
             "output_summary": self.output_summary or "",
             "error_message": self.error_message,
             "pi_stdout": self.pi_stdout[:500] if self.pi_stdout else "",
+            "decision_evidence": dict(self.decision_evidence) if self.decision_evidence else None,
             "retry_count": self.retry_count,
             "max_retries": self.max_retries,
             "cycle_id": self.cycle_id,
@@ -175,6 +178,13 @@ class GoalLoopOrchestrator:
             )
         self.execution_mode = execution_mode
         self.json_mode = json_mode
+        self._decision_classifier = None
+        self._decision_classifier_error: str | None = None
+        try:
+            self._decision_classifier = classifier_from_env()
+        except (DecisionClassifierError, ValueError) as exc:
+            self._decision_classifier_error = str(exc)
+            sys.stderr.write(f"[goal-loop] optional decision classifier disabled: {exc}; using deterministic policy.\\n")
         self.handoff = ProjectHandoff.load(config.handoff_path)
         self.blueprint = build_goal_loop_report(config, task)
         self.nodes: dict[str, NodeState] = {}
@@ -432,16 +442,72 @@ Do NOT include any text before or after the JSON object.'''
     # ── autonomy / tolerance gates ──────────────────────────────────────────
 
     def _autonomy_gate(self, node_state: NodeState) -> tuple[bool, str | None]:
-        """Classify the node execution decision.
-        Returns (proceed, reason).
-        In interactive mode (not json_mode), prompts user for high-risk decisions."""
+        """Apply deterministic autonomy policy; optional classifier can only raise risk."""
         level, reason = classify_decision(node_state.purpose, "medium")
+        decision_evidence: dict[str, Any] | None = None
+        if self._decision_classifier_error:
+            decision_evidence = {"error": self._decision_classifier_error, "fallback": "deterministic_policy"}
+        if self._decision_classifier is not None:
+            request = DecisionRequest(
+                text=json.dumps({
+                    "task": self.task,
+                    "node_id": node_state.node_id,
+                    "purpose": node_state.purpose,
+                    "acceptance_criteria": node_state.acceptance_criteria,
+                    "tolerances": node_state.tolerances,
+                }, ensure_ascii=False),
+                question="Which autonomy gate should apply to this node?",
+                labels=("autonomous", "report", "ask_user", "stop"),
+            )
+            try:
+                classified = self._decision_classifier.classify(request)
+                proposed = classified.label
+                decision_evidence = {
+                    "backend": classified.backend,
+                    "model": classified.model,
+                    "label": proposed,
+                    "confidence": classified.confidence,
+                    "distribution": dict(classified.distribution),
+                }
+                # Classifier is advisory: it may increase required caution, never
+                # downgrade a deterministic stop/ask_user/report result.
+                rank = {"autonomous": 0, "report": 1, "ask_user": 2, "stop": 3}
+                if proposed in rank and rank[proposed] > rank.get(level, 0):
+                    level, reason = proposed, f"Decision classifier advised {proposed}."
+                if proposed == "stop":
+                    node_state.status = "blocked"
+                    node_state.error_message = "Decision classifier advised stop."
+                    decision_evidence["policy_action"] = "blocked"
+                elif proposed == "ask_user":
+                    decision_evidence["policy_action"] = "user_confirmation_required"
+            except (DecisionClassifierError, ValueError) as exc:
+                decision_evidence = {"error": str(exc), "fallback": "deterministic_policy"}
+        node_state.decision_evidence = decision_evidence
+        if decision_evidence is not None:
+            sys.stderr.write(f"[goal-loop] decision model: {json.dumps(decision_evidence, ensure_ascii=True)}\n")
+            self.events.append(
+                "decision_classifier", tree_id="goal-loop", node_id=node_state.node_id,
+                parent_node_id=node_state.parent_node_id, purpose=node_state.purpose,
+                node_uuid=node_state.node_uuid, evidence=decision_evidence,
+            )
         if level == "stop":
             node_state.status = "blocked"
             node_state.error_message = reason
             return (False, reason)
         if level == "ask_user":
             sys.stderr.write(f"[goal-loop] autonomy gate: {reason}\n")
+            if decision_evidence is not None and decision_evidence.get("label") == "ask_user" and not self.json_mode:
+                try:
+                    answer = input(f"Decision classifier requests confirmation for node '{node_state.node_id}'. Proceed? [y/N] ")
+                    if answer.strip().lower() in {"y", "yes"}:
+                        decision_evidence["policy_action"] = "user_confirmed"
+                        return (True, reason)
+                except (EOFError, KeyboardInterrupt):
+                    pass
+                node_state.status = "blocked"
+                node_state.error_message = "User declined or did not confirm classifier escalation."
+                decision_evidence["policy_action"] = "user_declined_or_unavailable"
+                return (False, reason)
             if not self.json_mode:
                 # Interactive prompt
                 try:
@@ -459,9 +525,14 @@ Do NOT include any text before or after the JSON object.'''
                     node_state.status = "blocked"
                     node_state.error_message = "No user input for high-risk decision."
                     return (False, "No user input.")
-            # JSON mode: record but proceed
-            sys.stderr.write(f"[goal-loop] autonomy gate (proceeding): {reason}\n")
-            return (True, reason)
+            # JSON mode cannot collect consent: do not auto-approve elevated risk.
+            sys.stderr.write(f"[goal-loop] autonomy gate blocked in JSON mode: {reason}\n")
+            node_state.status = "blocked"
+            node_state.error_message = "User confirmation required in interactive mode."
+            if node_state.decision_evidence is None:
+                node_state.decision_evidence = {}
+            node_state.decision_evidence["policy_action"] = "blocked_json_mode"
+            return (False, reason)
         if level == "report":
             sys.stderr.write(f"[goal-loop] autonomy gate: {reason}\n")
             return (True, reason)
