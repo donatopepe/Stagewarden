@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 from typing import Any
 
 from .config import AgentConfig
@@ -471,6 +472,79 @@ def render_goal_loop_status(report: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _parse_skill_frontmatter(content: str) -> tuple[str, str]:
+    if not content.startswith("---\n"):
+        return "", ""
+    end = content.find("\n---", 4)
+    if end < 0:
+        return "", ""
+    fields: dict[str, str] = {}
+    for line in content[4:end].splitlines():
+        key, sep, value = line.partition(":")
+        if sep and key.strip() in {"name", "description"}:
+            fields[key.strip()] = value.strip().strip("\"'")
+    return fields.get("name", ""), fields.get("description", "")
+
+
+def load_skill_catalog(skill_dirs: list[Path] | None = None) -> list[dict[str, str]]:
+    """Discover bounded Markdown SKILL.md files; contents are inert prompt data."""
+    roots = skill_dirs or [Path.cwd() / ".stagewarden" / "skills"]
+    found: list[dict[str, str]] = []
+    seen: set[Path] = set()
+    for root in roots:
+        resolved_root = root.resolve()
+        if not resolved_root.is_dir():
+            continue
+        for path in sorted(resolved_root.rglob("SKILL.md")):
+            resolved = path.resolve()
+            if not resolved.is_relative_to(resolved_root) or resolved in seen:
+                continue
+            seen.add(resolved)
+            try:
+                content = resolved.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                continue
+            if not content.strip() or len(content) > 64_000:
+                continue
+            name, description = _parse_skill_frontmatter(content)
+            found.append({"name": name or resolved.parent.name, "description": description[:500],
+                          "path": str(resolved), "content": content})
+    return found
+
+
+def resolve_node_skills(skill_names: list[str], skill_dirs: list[Path] | None = None) -> tuple[list[dict[str, str]], list[str]]:
+    if len(skill_names) > 10:
+        return [], ["A node may use at most 10 skills."]
+    catalog = {item["name"]: item for item in load_skill_catalog(skill_dirs)}
+    resolved: list[dict[str, str]] = []
+    errors: list[str] = []
+    for name in skill_names:
+        item = catalog.get(name)
+        if item is None:
+            errors.append(f"Skill not found: {name}")
+        else:
+            resolved.append(item)
+    total_chars = sum(len(item["content"]) for item in resolved)
+    if total_chars > 128_000:
+        return [], ["Assigned skills exceed the 128000-character aggregate limit."]
+    return resolved, errors
+
+
+def load_node_skill_assignments(workspace_root: Path) -> dict[str, list[str]]:
+    """Load optional node_id -> skill names mapping from workspace config."""
+    path = workspace_root / ".stagewarden" / "goal_loop_skills.json"
+    try:
+        import json
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(node_id): [name for name in names if isinstance(name, str)]
+            for node_id, names in data.items()
+            if isinstance(names, list) and len(names) <= 20}
+
+
 def load_custom_nodes() -> list[dict[str, Any]]:
     """Load custom node definitions from .stagewarden/goal_loop_custom_nodes.json"""
     try:
@@ -493,31 +567,45 @@ def save_custom_nodes(nodes: list[dict[str, Any]]) -> None:
     )
 
 
-def register_custom_node(name: str, skill_path: str, purpose: str = "") -> dict[str, object]:
-    """Register a custom goal loop node from an extension skill."""
+def register_custom_node(name: str, skill_path: str = "", purpose: str = "", skills: list[str] | None = None,
+                         skill_dirs: list[Path] | None = None) -> dict[str, object]:
+    """Register custom goal-loop node with one legacy skill or multiple named skills."""
     nodes = load_custom_nodes()
     # Check for duplicate
     for n in nodes:
         if n.get("node_id") == name or n.get("node_id") == f"custom.{name}":
             return {"ok": False, "error": f"Node '{name}' already registered."}
-    # Read skill file to validate it exists
-    skill_file = Path(skill_path).resolve()
-    if not skill_file.exists():
+    requested_skills = list(skills or [])
+    if len(set(requested_skills)) != len(requested_skills) or any(not name or name.strip() != name for name in requested_skills):
+        return {"ok": False, "error": "Skill names must be unique, non-empty, and trimmed."}
+    if not skill_path and not requested_skills:
+        return {"ok": False, "error": "Provide skill_path or at least one skill name."}
+    skill_file = Path(skill_path).resolve() if skill_path else None
+    if skill_file is not None and not skill_file.is_file():
         return {"ok": False, "error": f"Skill file not found: {skill_path}"}
+    resolved_skills, skill_errors = resolve_node_skills(requested_skills, skill_dirs)
+    if skill_errors:
+        return {"ok": False, "error": "; ".join(skill_errors)}
     # Read first line for description. A skill file is user-authored, so treat an
     # undecodable one exactly like a missing or empty one rather than raising
     # UnicodeDecodeError out of node registration.
-    try:
-        content = skill_file.read_text(encoding="utf-8").strip()
-    except (OSError, UnicodeError) as exc:
-        return {"ok": False, "error": f"Skill file is not valid UTF-8: {exc}"}
-    if not content:
-        return {"ok": False, "error": f"Skill file is empty: {skill_path}"}
+    content = ""
+    if skill_file is not None:
+        try:
+            content = skill_file.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError) as exc:
+            return {"ok": False, "error": f"Skill file is not valid UTF-8: {exc}"}
+        if not content:
+            return {"ok": False, "error": f"Skill file is empty: {skill_file}"}
     node = {
         "node_id": f"custom.{name}",
         "purpose": purpose or f"Custom node: {name}",
         "template": "custom",
-        "skill_path": str(skill_file.relative_to(Path.cwd()) if skill_file.is_relative_to(Path.cwd()) else skill_file),
+        "skill_path": (str(skill_file.relative_to(Path.cwd()) if skill_file.is_relative_to(Path.cwd()) else skill_file)
+                       if skill_file is not None else ""),
+        "skills": requested_skills,
+        "skill_hashes": {item["name"]: hashlib.sha256(item["content"].encode("utf-8")).hexdigest()
+                         for item in resolved_skills},
         "dependencies": [],
         "tests": ["Custom node completes without error."],
         "tolerances": {},
@@ -531,7 +619,7 @@ def register_custom_node(name: str, skill_path: str, purpose: str = "") -> dict[
     return {
         "ok": True,
         "node_id": node["node_id"],
-        "message": f"Custom node '{name}' registered from {skill_path}.",
+        "message": f"Custom node '{name}' registered with {len(requested_skills) + bool(skill_path)} skill(s).",
         "node": node,
     }
 
@@ -546,4 +634,6 @@ def render_custom_nodes_report(nodes: list[dict[str, Any]]) -> str:
         skill = n.get("skill_path", "")
         if skill:
             lines.append(f"  skill: {skill}")
+        for skill_name in n.get("skills", []):
+            lines.append(f"  skill: {skill_name}")
     return "\n".join(lines)

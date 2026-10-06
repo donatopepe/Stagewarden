@@ -767,6 +767,58 @@ class CustomNodeSkillFileTests(unittest.TestCase):
                 self.assertEqual(node.purpose, "p")
                 self.assertIn("not valid utf-8", node.prompt.lower())
 
+    def test_catalog_registers_multiple_skills_for_node(self) -> None:
+        skill_root = self.root / ".stagewarden" / "skills"
+        (skill_root / "review").mkdir(parents=True)
+        (skill_root / "review" / "SKILL.md").write_text(
+            "---\nname: review\ndescription: Review safely\n---\nReview instructions.", encoding="utf-8"
+        )
+        (skill_root / "tests").mkdir(parents=True)
+        (skill_root / "tests" / "SKILL.md").write_text("# Test skill\nRun focused tests.", encoding="utf-8")
+        catalog = self.views.load_skill_catalog([skill_root])
+        self.assertEqual([item["name"] for item in catalog], ["review", "tests"])
+        with patch.object(self.views, "Path", wraps=Path):
+            # Register uses workspace-root catalog; point cwd to the test root so fixture is in-scope.
+            with patch("stagewarden.goal_loop_views.Path.cwd", return_value=self.root):
+                result = self.views.register_custom_node("multi", purpose="Review", skills=["review", "tests"])
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["node"]["skills"], ["review", "tests"])
+        self.assertEqual(set(result["node"]["skill_hashes"]), {"review", "tests"})
+        self.assertEqual(self.views.resolve_node_skills(["review"] * 11, [skill_root])[1],
+                         ["A node may use at most 10 skills."])
+
+    def test_named_skills_are_added_to_each_assigned_node_prompt(self) -> None:
+        skill_root = self.root / "ws" / ".stagewarden" / "skills"
+        (skill_root / "one").mkdir(parents=True)
+        (skill_root / "one" / "SKILL.md").write_text("---\nname: one\ndescription: one\n---\nNODE SKILL BODY", encoding="utf-8")
+        workspace = self.root / "ws"
+        config_dir = workspace / ".stagewarden"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "goal_loop_skills.json").write_text(
+            json.dumps({"root.scope": ["one"], "missing.node": ["one"]}), encoding="utf-8"
+        )
+        orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=workspace), "skill assignment", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+        self.assertIn("NODE SKILL BODY", orchestrator.nodes["root.scope"].prompt)
+        self.assertNotIn("NODE SKILL BODY", orchestrator.nodes[next(n for n in orchestrator.nodes if n != "root.scope")].prompt)
+
+    def test_skill_registry_and_node_assignment_are_workspace_scoped(self) -> None:
+        from stagewarden.goal_loop_views import load_node_skill_assignments
+        workspace = self.root / "workspace"
+        skill_root = workspace / ".stagewarden" / "skills" / "inspect"
+        skill_root.mkdir(parents=True)
+        (skill_root / "SKILL.md").write_text("---\nname: inspect\n---\nInspect only.", encoding="utf-8")
+        node = GoalLoopOrchestrator(AgentConfig(workspace_root=workspace), "skills", json_mode=True)
+        self.addCleanup(node.knowledge.close)
+        # Capture per-node assignment registry read by fresh loop construction.
+        (workspace / ".stagewarden" / "goal_loop_skills.json").write_text(
+            json.dumps({"root.scope": ["inspect"]}), encoding="utf-8"
+        )
+        fresh = GoalLoopOrchestrator(AgentConfig(workspace_root=workspace), "skills", json_mode=True)
+        self.addCleanup(fresh.knowledge.close)
+        self.assertIn("Inspect only.", fresh.nodes["root.scope"].prompt)
+        self.assertEqual(load_node_skill_assignments(workspace), {"root.scope": ["inspect"]})
+
     def test_skill_file_controls_keep_their_existing_behaviour(self) -> None:
         good = self._skill("GOOD.md", b"# Good skill\nbody\n")
         self.assertIs(self.views.register_custom_node("g", str(good)).get("ok"), True)

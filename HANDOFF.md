@@ -3,15 +3,18 @@
 ## Current requested work
 - User clarified JEV is an optional add-on decision model alongside classic LLM; it must not replace/change the existing LLM/provider/fallback/routing.
 - Chosen `/skill:mvp-first-agent-workflow`; direct analysis, no subagent. User says JEV efficiency in decision process is already demonstrated. `TODO.md` proposes serial JEV→policy→existing LLM-on-uncertainty; Stagewarden tests validate faithful integration/no regressions, not re-prove supplied evidence.
-- Added isolated `DecisionClassifier` interface plus API and llama.cpp adapters (explicit `off|api|llama_cpp`; not connected to orchestrator). 12 tests pass; HTTP stub wet smoke passes. No actual JEV/llama.cpp available, API payload remains provisional, and no runtime decisions changed.
-- Pi codemode docs explicitly show `models.getModelOfType("classifier", "typesafe", "jev-latest")`. Do not port codemode/skill-loader; no runtime/test changes yet.
-- Checkout HEAD `8b32359`; existing dirty files and `.pi-loop.json.lock` retained. V3 serial/exclusions unchanged.
+- Obsidian details revealed working implementation contracts. Classifier adapters now follow TypeSafe System One and JevStyle-v3 llama.cpp verdict-slot protocol. Opt-in `api|llama_cpp` is wired to goal-loop autonomy gate; default off, deterministic policy authoritative, can only raise caution. LLM path unchanged.
+- Targeted tests `72 passed, 16 subtests`; full suite `738 passed, 5 skipped, 301 subtests`. HTTP stub smoke only; no actual JEV/GGUF installed, live backend test deferred.
+- Pi codemode docs explicitly show `models.getModelOfType("classifier", "typesafe", "jev-latest")`. Do not port codemode/skill-loader; adapters use typed contracts without arbitrary script execution.
+- Checkout HEAD `8b32359`; modified files include handoff mirrors, TODO, classifier and orchestrator; worktree now has no unrelated lockfile. V3 serial/exclusions and classic LLM route unchanged.
 
 ## Current phase
 Node-first MVP remains fail-closed against untrusted input at model, persisted state and model-action boundaries. V3 section 21 is approved. Serial execution and provider/model/fallback/routing remain unchanged; extensions/subagents and v2 migration/compatibility are declined. Multi-node OmniRoute free remains externally unstable and fail-closed. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
-- Outcome: **HOLD; approved MVP scope remains waiting, metadata gate `6/6`.** No runtime/test/script change.
+- Classifier integration: targeted `72 passed, 16 subtests`; full suite `738 passed, 5 skipped, 301 subtests`; local HTTP stub only, real API/GGUF awaits configured Mac.
+- Prior MVP waiting baseline below is historical, predates current classifier integration.
+- Outcome: **HOLD; approved MVP scope remains waiting, metadata gate `6/6`.**
 - Objective: verify approved scope, mirrors and runtime baseline. Metric/threshold: gate `6/6`, runtime diff `0`.
 - Proof: HEAD `65ac04d`; answer persisted in `.stagewarden_handoff.json`; TODO v3 approval checked; no unchecked approved runtime slice; extensions/subagents and v2 migration remain unchecked by explicit decision.
 - Wet: targeted `161 passed, 79 subtests`; historical full pytest `718 passed, 5 skipped, 301 subtests`; unified validation `6/6`; direct OmniRoute smoke green; JSON/compile/diff guards green.

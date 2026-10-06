@@ -2,7 +2,7 @@
 
 ## Nuova richiesta — ricognizione sorgenti, modelli decisionali, skills e Pi codemode
 
-**Stato: adapter di classificazione isolati implementati; nessuna integrazione nell'orchestratore o cambiamento di decisioni runtime.** JEV è opzionale affiancato al LLM classico; LLM/provider/fallback/routing restano invariati. Esistono adapter predisposti per API e llama.cpp, ma contratto remoto e modello locale non sono verificati qui; test reali rimandati al PC autorizzato. Serialità e gate v3 conservati.
+**Stato: classifier JevStyle locale/API implementati e collegati in modo opt-in al gate goal-loop; LLM classico intatto.** Utente fornisce evidenza di efficienza JEV già validata altrove. Il classifier è consultivo: policy deterministica mantiene autorità, default off, fail-closed su errori e serialità v3 invariata. Test backend reali rimangono rinviati al PC con installazione.
 
 ### Obiettivo e criterio di successo
 Produrre un piano verificabile per integrare in Stagewarden modelli decisionali (incluso “jev”, interpretato provvisoriamente come classificatore JEV/pi classifier), skills e concetti selezionati da Pi Agent codemode. **Rubrica: 7/7**: (1) sorgenti upstream identificati e fissati; (2) license/provenienza; (3) analisi codemode; (4) confini architetturali e sicurezza; (5) compatibilità con v3 esplicitata; (6) fasi/test/criteri di accettazione; (7) mirror handoff allineati.
@@ -32,10 +32,11 @@ Produrre un piano verificabile per integrare in Stagewarden modelli decisionali 
 7. **Valutazione comparativa:** dataset fisso, baseline regole deterministiche e classifier JEV, metriche correttezza/calibrazione/costo/latency definite prima. Mai promuovere classifier a decisore senza soglia concordata e human override.
 8. **Chiusura:** aggiornare spec v3 (nuova sezione/decisione), manifest reference e test/evidence; riallineare `AGENT_HANDOFF.md`, `HANDOFF.md`, `.stagewarden_handoff.json` e TODO.
 
-### Implementazione locale — stato aggiornato da memoria altro PC
-- TypeSafe adapter usa il contratto System One ufficiale identificato nel checkout Pi pinned: endpoint `/v1/systemone`, Bearer key, schema choice/probabilities. Local adapter usa il readout Jev-Style-v3 effettivo: completions, 1 token, logprobs=10, slot `->`, differenza yes/no, temperature da config/env.
-- Adapter resta isolato e non collegato all'orchestratore; backend off di default. Nessuna decisione runtime e nessun routing LLM modificati.
-- Test aggiornati a wire fixtures derivati dai test Pi e modello locale; wet stub test e test di errore necessari. Test non esercitano servizi reali: validazione reale differita al Mac autorizzato.
+### Implementazione classifier — stato aggiornato
+- `stagewarden/decision_classifier.py`: TypeSafe System One conforme upstream Pi (`/v1/systemone`, key `TYPESAFE_API_KEY`, `jev-latest`, schema `state/questions`, answer choice + probabilities); llama.cpp Jev-Style v3 con endpoint `/v1/completions`, `logprobs:10`, un verdict slot per label (`logit yes - no`), softmax con T configurabile (default documentato 0.8279); richieste seriali.
+- `_autonomy_gate` dell'orchestratore usa backend solo se esplicitamente abilitato. Il classifier non può ridurre cautela, stop blocca, ask_user richiede conferma (in JSON blocca); determinismo e validazioni restano autorità. Errori non interrompono, ricadono sulla policy deterministica; evidenza viene aggiunta a eventi/capsule/stderr.
+- Backend disattivato per default; LLM classico, provider/fallback/routing e scheduler non modificati.
+- Verifica: mirati classifier+orchestrator `72 passed, 16 subtests`; suite completa `738 passed, 5 skipped, 301 subtests`; HTTP smoke con stub. Nessun endpoint JEV o modello llama.cpp reale disponibile qui, per cui nessuna prova end-to-end del backend.
 
 ### Rischi / non assunti
 - «Procedi» autorizza l'analisi e pianificazione, non modifica esplicitamente i gate v3. Jev viene assunto come classifier Pi/TypeSafe, senza integrazione provider al momento.

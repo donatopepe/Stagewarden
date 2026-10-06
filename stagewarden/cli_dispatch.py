@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import shlex
 from pathlib import Path
 
@@ -701,16 +702,55 @@ def run_cli() -> int:
             else:
                 print(_goal_loop_views.render_goal_loop_status(report))
             return 0
+        if task == "goal loop skills":
+            skills = _goal_loop_views.load_skill_catalog([config.workspace_root / ".stagewarden" / "skills"])
+            visible = [{k: item[k] for k in ("name", "description", "path")} for item in skills]
+            print(dumps_ascii({"skills": visible}, indent=2) if args.json else "\n".join(f"{s['name']}: {s['description']} ({s['path']})" for s in visible))
+            return 0
+        if task.startswith("goal loop skills assign "):
+            raw_names = task.removeprefix("goal loop skills assign ").strip()
+            if not raw_names:
+                print("Usage: goal loop skills assign <node_id> <skill1,skill2>")
+                return 1
+            parts = raw_names.split(maxsplit=1)
+            if len(parts) == 2:
+                node_id, names_arg = parts
+                names = [value for value in names_arg.split(",") if value]
+                resolved, errors = _goal_loop_views.resolve_node_skills(
+                    names, [config.workspace_root / ".stagewarden" / "skills"]
+                )
+                if errors:
+                    result = {"ok": False, "error": "; ".join(errors)}
+                else:
+                    mapping = _goal_loop_views.load_node_skill_assignments(config.workspace_root)
+                    mapping[node_id] = names
+                    path = config.workspace_root / ".stagewarden" / "goal_loop_skills.json"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(dumps_ascii(mapping, indent=2), encoding="utf-8")
+                    result = {"ok": True, "node_id": node_id, "skills": names,
+                              "skill_hashes": {item["name"]: hashlib.sha256(item["content"].encode("utf-8")).hexdigest() for item in resolved}}
+                print(dumps_ascii(result, indent=2) if args.json else result.get("error", result))
+                return 0 if result.get("ok") else 1
+            print("Usage: goal loop skills assign <node_id> <skill1,skill2>")
+            return 1
         if task.startswith("goal loop add-node "):
             rest = task.removeprefix("goal loop add-node ").strip()
-            parts = rest.split(maxsplit=2)
+            parts = rest.split(maxsplit=3)
             if len(parts) < 2:
-                print("Usage: goal loop add-node <name> <skill_path> [purpose]")
+                print("Usage: goal loop add-node <name> <skill_path|--skills=name1,name2> [purpose]")
                 return 1
             name = parts[0]
-            skill_path = parts[1]
-            purpose = parts[2] if len(parts) >= 3 else ""
-            result = _goal_loop_views.register_custom_node(name, skill_path, purpose)
+            if parts[1].startswith("--skills="):
+                skill_names = [value for value in parts[1].removeprefix("--skills=").split(",") if value]
+                purpose = parts[2] if len(parts) >= 3 else ""
+                result = _goal_loop_views.register_custom_node(
+                    name, purpose=purpose, skills=skill_names,
+                    skill_dirs=[config.workspace_root / ".stagewarden" / "skills"],
+                )
+            else:
+                skill_path = parts[1]
+                purpose = parts[2] if len(parts) >= 3 else ""
+                result = _goal_loop_views.register_custom_node(name, skill_path, purpose)
             if args.json:
                 print(dumps_ascii(result, indent=2))
             else:

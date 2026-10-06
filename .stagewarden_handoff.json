@@ -44,11 +44,11 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Local adapter slice implemented and tested; orchestrator integration remains gated on real backend contract/availability.",
+  "waiting_reason": "Optional decision classifier is implemented and opt-in wired into goal-loop autonomy gate. Full suite passes; real TypeSafe/llama.cpp runtime validation awaits configured Mac. Backend default off. Deterministic policy and classic LLM/provider route unchanged.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Added optional typed classifier adapters for API and llama.cpp, disabled by default and not wired to the orchestrator. 12 focused tests pass; localhost HTTP stub smoke passes. Neither test exercises real TypeSafe JEV or llama.cpp. Classic LLM route unchanged.",
+  "latest_observation": "Obsidian working Pi Jev extension reviewed. TypeSafe System One and JevStyle-v3 local verdict-slot implementations integrated into optional goal-loop autonomy gate; default off, advisory only, deterministic policy authoritative. Targeted 72 passed + 16 subtests; full suite 738 passed, 5 skipped, 301 subtests. Local HTTP stub only; real API/GGUF test pending configured Mac.",
   "plan_status": "MVP runtime implementation remains waiting at historic decision gate. New authorized work: bounded source analysis/planning for advisory decision model, trusted skills and codemode-inspired serial workflow; no provider/runtime/parallel policy change. Pi codemode security findings and integration plan recorded in TODO; no tests run this turn.",
   "git_head": "65ac04dcdb47e7e90607937cc1f0bd4aabaf7139",
   "git_head_baseline": "a7224e2",
@@ -195,7 +195,7 @@
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
   "goal_loop_context": {},
-  "updated_at": "2026-10-06T15:05:00+00:00",
+  "updated_at": "2026-10-06T17:25:00+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",

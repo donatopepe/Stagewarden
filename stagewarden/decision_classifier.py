@@ -185,6 +185,8 @@ class LlamaCppJevStyleClassifier(_JsonHttpClassifier):
                  max_response_bytes: int = 64_000) -> None:
         parsed = urlsplit(endpoint)
         allowed_path = parsed.path == "/v1/completions"
+        if parsed.scheme not in {"http", "https"}:
+            raise ValueError("llama.cpp endpoint must use HTTP or HTTPS.")
         if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
             raise ValueError("Remote llama.cpp endpoints must use HTTPS.")
         if parsed.scheme == "https" and not api_key:
@@ -204,6 +206,11 @@ class LlamaCppJevStyleClassifier(_JsonHttpClassifier):
         if not math.isfinite(temperature) or temperature <= 0:
             raise DecisionClassifierError("STAGEWARDEN_JEV_TEMPERATURE must be finite and positive.")
         endpoint = os.environ.get("STAGEWARDEN_LLAMA_CPP_URL", "http://127.0.0.1:8081/v1/completions")
+        parsed = urlsplit(endpoint)
+        if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise DecisionClassifierError("Remote llama.cpp endpoints must use HTTPS.")
+        if parsed.scheme == "https" and not os.environ.get("STAGEWARDEN_LLAMA_CPP_API_KEY"):
+            raise DecisionClassifierError("Remote llama.cpp endpoint requires STAGEWARDEN_LLAMA_CPP_API_KEY.")
         return cls(endpoint=endpoint, model=os.environ.get("STAGEWARDEN_LLAMA_CPP_MODEL", "jev"),
                    api_key=os.environ.get("STAGEWARDEN_LLAMA_CPP_API_KEY"), timeout_seconds=timeout)
 
