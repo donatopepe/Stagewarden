@@ -78,8 +78,7 @@ class OmniRouteAdapterTests(unittest.TestCase):
                     "STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free",
                     "STAGEWARDEN_OMNIROUTE_MAX_TOKENS": value,
                 }):
-                    with self.assertRaisesRegex(ValueError, "STAGEWARDEN_OMNIROUTE_MAX_TOKENS"):
-                        run_model_omniroute.main()
+                    self.assertEqual(run_model_omniroute.main(), 2)
         self.assertFalse(attempted)
 
     def test_nonfree_routes_fail_closed_when_no_free_candidate(self) -> None:

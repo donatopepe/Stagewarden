@@ -105,12 +105,17 @@ def main() -> int:
             if is_critic
             else [{"role": "user", "content": prompt}]
         )
+    try:
+        max_tokens = _positive_int_env("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", 4096)
+    except ValueError as exc:
+        print(json.dumps({"error": str(exc), "provider": provider}))
+        return 2
     for model in models:
         payload = json.dumps({
             "model": model,
             "messages": messages,
             "temperature": 0,
-            "max_tokens": _positive_int_env("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", 4096),
+            "max_tokens": max_tokens,
             "stream": False,
         }).encode()
         request = urllib.request.Request(
