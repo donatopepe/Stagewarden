@@ -180,6 +180,21 @@ class EventStreamTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "corrupt event stream"):
                     stream.append("third", tree_id="tree")
 
+    def test_hash_chain_rejects_unparseable_line_inside_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            stream.append("first", tree_id="tree")
+            stream.append("second", tree_id="tree")
+            lines = path.read_text(encoding="utf-8").splitlines()
+            lines.insert(1, "not-json")
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            report = stream.verify_integrity()
+            self.assertFalse(report["valid"])
+            self.assertTrue(report["chain_corrupted"])
+            with self.assertRaisesRegex(ValueError, "corrupt event stream"):
+                stream.append("third", tree_id="tree")
+
     def test_event_hash_chain_detects_record_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"

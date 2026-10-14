@@ -63,7 +63,7 @@ class EventStream:
         with self._lock, self._process_lock():
             integrity = self.verify_integrity()
             chain_errors = [item for item in integrity["errors"] if item["error"] != "invalid_json"]
-            if integrity.get("chain_corrupted") or any(item["error"] == "unchained_record_after_chain" for item in integrity["errors"]):
+            if integrity.get("chain_corrupted") or any(item["error"] in {"unchained_record_after_chain", "unchained_record_within_chain", "chain_after_legacy_records"} for item in integrity["errors"]):
                 raise ValueError(f"Cannot append to corrupt event stream: {integrity['errors']}")
             chained_count = integrity["events_verified"]
             previous_hash = "0" * 64
@@ -96,10 +96,12 @@ class EventStream:
         """
         sequence = 0
         previous_hash = "0" * 64
+        chain_position = 0
         verified = 0
         unchained = 0
         chain_started = False
         chain_corrupted = False
+        unparseable_after_chain = False
         errors: list[dict[str, Any]] = []
         if not self.path.exists():
             return {"valid": True, "events_verified": 0, "unchained_events": 0, "errors": []}
@@ -110,6 +112,8 @@ class EventStream:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 errors.append({"line": line_number, "error": "invalid_json"})
+                if chain_started:
+                    unparseable_after_chain = True
                 continue
             if not isinstance(record, dict):
                 errors.append({"line": line_number, "error": "invalid_record"})
@@ -121,15 +125,23 @@ class EventStream:
             record_previous = details.get("previous_event_hash")
             if record_sequence is None and record_hash is None and record_previous is None:
                 unchained += 1
-                if chain_started:
+                if chain_started or chain_position:
                     chain_corrupted = True
-                    errors.append({"line": line_number, "error": "unchained_record_after_chain"})
+                    errors.append({"line": line_number, "error": "unchained_record_within_chain"})
+                continue
+            if unchained:
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "chain_after_legacy_records"})
                 continue
             expected_sequence = sequence + 1
             if record_sequence != expected_sequence:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "sequence_mismatch"})
                 continue
+            if unparseable_after_chain:
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "unparseable_line_inside_chain"})
+                unparseable_after_chain = False
             if record_previous != previous_hash:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "previous_hash_mismatch"})
@@ -144,8 +156,9 @@ class EventStream:
                 errors.append({"line": line_number, "error": "event_hash_mismatch"})
                 continue
             sequence = expected_sequence
-            previous_hash = record_hash
+            chain_position = expected_sequence
             chain_started = True
+            previous_hash = record_hash
             verified += 1
         return {"valid": not errors, "events_verified": verified, "unchained_events": unchained, "chain_corrupted": chain_corrupted, "errors": errors}
 
