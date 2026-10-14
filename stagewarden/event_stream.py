@@ -133,14 +133,14 @@ class EventStream:
                 errors.append({"line": line_number, "error": "chain_after_legacy_records"})
                 continue
             expected_sequence = sequence + 1
-            if record_sequence != expected_sequence:
-                chain_corrupted = True
-                errors.append({"line": line_number, "error": "sequence_mismatch"})
-                continue
             if unparseable_after_chain:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "unparseable_line_inside_chain"})
                 break
+            if record_sequence != expected_sequence:
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "sequence_mismatch"})
+                continue
             if record_previous != previous_hash:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "previous_hash_mismatch"})
