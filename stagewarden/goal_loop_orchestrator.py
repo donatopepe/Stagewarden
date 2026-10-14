@@ -246,24 +246,38 @@ class GoalLoopOrchestrator:
                 continue
             if not isinstance(saved, dict):
                 continue
+            if saved.get("node_uuid") != node.node_uuid:
+                continue
             saved_context = saved.get("compacted_context")
-            if not isinstance(saved_context, str):
-                try:
-                    snapshots = self.knowledge.search(
-                        "Node context revision", node_id=node.node_id, namespace="context", limit=100
+            try:
+                snapshots = self.knowledge.search(
+                    "Node context revision", node_id=node.node_id, namespace="context", limit=100
+                )
+                matching = [
+                    item for item in snapshots
+                    if item.get("tree_id") == "goal-loop"
+                    and item.get("kind") == "node_context"
+                    and item.get("source", {}).get("node_uuid") == node.node_uuid
+                ]
+                if matching:
+                    newest = max(
+                        matching,
+                        key=lambda item: (
+                            int(str(item.get("entry_id", "")).rsplit("-", 1)[-1])
+                            if str(item.get("entry_id", "")).rsplit("-", 1)[-1].isdigit() else -1,
+                            item.get("created_at", ""),
+                        ),
                     )
-                    matching = [
-                        item for item in snapshots
-                        if item.get("tree_id") == "goal-loop"
-                        and item.get("kind") == "node_context"
-                        and item.get("source", {}).get("node_uuid") == node.node_uuid
-                    ]
-                    if matching:
-                        newest = max(matching, key=lambda item: (item.get("created_at", ""), item.get("entry_id", "")))
+                    snapshot_revision = int(str(newest["entry_id"]).rsplit("-", 1)[-1])
+                    capsule_revision = saved.get("context_revision", -1)
+                    capsule_revision = capsule_revision if isinstance(capsule_revision, int) and not isinstance(capsule_revision, bool) else -1
+                    if snapshot_revision >= capsule_revision or not isinstance(saved_context, str):
                         saved_context = str(newest.get("content", ""))
-                except (KeyError, TypeError, ValueError):
+                        saved["context_revision"] = snapshot_revision
+            except (KeyError, TypeError, ValueError):
+                if not isinstance(saved_context, str):
                     saved_context = ""
-                saved["compacted_context"] = saved_context or ""
+            saved["compacted_context"] = saved_context if isinstance(saved_context, str) else ""
             received = saved.get("messages_received")
             if isinstance(received, list):
                 node.messages_received = [dict(item) for item in received if isinstance(item, dict)]

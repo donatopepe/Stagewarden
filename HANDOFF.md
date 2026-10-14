@@ -7,7 +7,7 @@
 - Validation: focused `unittest` 65 tests passed; complete pytest suite `743 passed, 5 skipped, 301 subtests` via `--ignore=external_sources` (317.16s). `compileall`, JSON and `git diff --check` pass.
 - Budget hardening added after skills/custom prompt loading: final prompt includes assigned skills in estimation, fails closed when fixed instructions exceed safe budget; node-local context is fit to remaining budget. Heuristic remains 3 chars/token. Targeted: 66 passed/16 subtests.
 - OmniRoute adapter now sends only requested/fallback IDs explicitly marked free; invalid paid-only config fails before HTTP. Full suite after these changes: 746 passed, 5 skipped, 301 subtests.
-- Recovery hardening: node context snapshot stores node UUID in provenance; capsule restore falls back to latest UUID-matched knowledge snapshot if capsule lacks context. Restart recovery regression added. Focused `test_goal_loop_orchestrator` + `test_node_knowledge`: 81 passed, 37 subtests; full regression pending.
+- Recovery hardening: node context snapshot stores node UUID in provenance; capsule restore selects latest UUID-matched snapshot when revision is >= capsule revision, preventing stale capsule from winning ties. Restart/revision-precedence regressions added. Focused `test_goal_loop_orchestrator` + `test_node_knowledge`: 81 passed, 37 subtests; full suite 747 passed, 5 skipped, 301 subtests.
 - Next priority: full regression, real provider tokenizer/output cap, wet mock run.
 
 ## Terminology

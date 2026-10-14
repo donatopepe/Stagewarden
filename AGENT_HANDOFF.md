@@ -9,9 +9,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Requisito test confermato: ogni test con modello remoto deve usare solo modelli esplicitamente free e fallire chiuso senza candidato free. `scripts/run_model_omniroute.py` filtra ora requested e fallback via marker `:free`, `-free`, `/free`, `free-`; mai invia candidato non marcato.
 - Memory loader usa token count solo con contatore esplicito; non è integrato tokenizer reale.
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
-- Context snapshot knowledge ora include UUID nel provenance; resume ripristina snapshot UUID-scoped se capsule legacy/non completa omette contesto. Test restart/recovery aggiunto.
+- Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - `compileall`, JSON handoff e `git diff --check` passano.
-- Test recovery/context mirati `tests.test_goal_loop_orchestrator tests.test_node_knowledge`: 81 passed, 37 subtests. Suite completa dopo ultimo recovery change pending. Free-route suite prima: 7 passed, 1 skipped, 4 subtests.
+- Test recovery/context mirati aggiornati: eseguiti test restore e precedence; full suite da ripetere dopo ultimo fix tie-break. Ultima full suite prima di fix: 747 passed, 5 skipped, 301 subtests.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, compaction, snapshot UUID provenance e recovery post-restart.
@@ -40,7 +40,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Eseguire full suite dopo restore hardening.
+1. Eseguire test focused e full suite dopo fix recovery tie-break.
 2. Integrare tokenizer/cap backend reale oppure fail-closed.
 3. Wet-run mock e verificare free-model marker contro catalogo autorevole.
 

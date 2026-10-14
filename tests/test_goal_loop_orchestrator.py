@@ -121,6 +121,30 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(restored.context_revision, expected_revision)
             self.assertIn("durable node-local recovery fact", restored.compacted_context)
 
+    def test_newer_context_snapshot_wins_over_stale_capsule_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root_path = Path(tmp)
+            first = GoalLoopOrchestrator(AgentConfig(workspace_root=root_path), "snapshot precedence", execution_mode="mock", json_mode=True)
+            node = first.nodes["root.scope"]
+            first._append_node_context(node, "note", "newest persisted context value")
+            revision = node.context_revision
+            first.knowledge.save_node_execution_capsule(
+                tree_id="goal-loop", node_id=node.node_id,
+                parent_node_id=node.parent_node_id, purpose=node.purpose,
+                capsule={
+                    "node_uuid": node.node_uuid, "status": "pending",
+                    "context_revision": max(0, revision - 1), "compacted_context": "stale capsule value",
+                },
+            )
+            first.knowledge.close()
+
+            resumed = GoalLoopOrchestrator(AgentConfig(workspace_root=root_path), "snapshot precedence", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: resumed.knowledge.close())
+            restored = resumed.nodes[node.node_id]
+            self.assertEqual(restored.context_revision, revision)
+            self.assertIn("newest persisted context value", restored.compacted_context)
+            self.assertNotIn("stale capsule value", restored.compacted_context)
+
     def test_execution_mode_serial_gate_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
