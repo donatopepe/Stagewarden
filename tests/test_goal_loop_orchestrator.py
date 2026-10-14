@@ -884,6 +884,21 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         run.assert_not_called()
         orch.knowledge.close()
 
+    def test_invalid_output_cap_policy_env_fails_before_backend(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        node = orch.nodes["root.scope"]
+        for value in ("maybe", "2", "enabled", "truth"):
+            with self.subTest(value=value), patch.dict(os.environ, {
+                "STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute",
+                "STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP": value,
+            }), patch("stagewarden.goal_loop_orchestrator.subprocess.run") as run:
+                result = orch._pi_execution(node)
+                self.assertFalse(result["ok"])
+                self.assertIn("must be a boolean", result["error"])
+                run.assert_not_called()
+        orch.knowledge.close()
+
     def test_pi_backend_fails_closed_when_output_cap_required_but_unknown(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "test task", execution_mode="pi")
