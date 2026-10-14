@@ -44,12 +44,12 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Optional decision classifier is implemented and opt-in wired into goal-loop autonomy gate. Full suite passes; real TypeSafe/llama.cpp runtime validation awaits configured Mac. Backend default off. Deterministic policy and classic LLM/provider route unchanged.",
+  "waiting_reason": "Resumed node-context/codemode task. Upstream source mirrors refreshed; baseline focused suite passes. Next inspect memory/context, model-capacity metadata, node knowledge and prompt assembly before implementation. Preserve serial v3 and existing provider/LLM route.",
   "current_step_id": null,
   "current_step_title": null,
   "current_step_status": "waiting",
-  "latest_observation": "Obsidian working Pi Jev extension reviewed. TypeSafe System One and JevStyle-v3 local verdict-slot implementations integrated into optional goal-loop autonomy gate; default off, advisory only, deterministic policy authoritative. Targeted 72 passed + 16 subtests; full suite 738 passed, 5 skipped, 301 subtests. Local HTTP stub only; real API/GGUF test pending configured Mac.",
-  "plan_status": "MVP runtime implementation remains waiting at historic decision gate. New authorized work: bounded source analysis/planning for advisory decision model, trusted skills and codemode-inspired serial workflow; no provider/runtime/parallel policy change. Pi codemode security findings and integration plan recorded in TODO; no tests run this turn.",
+  "latest_observation": "2026-10-14: upstream shallow refs in TODO: Pi 2688aba7dc177020ef5da5492a966ed28ad619bd; Claude Code 9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e; Codex 7eed30ad1beaebc20b7d848ce9ee887525a379b0. Focused baseline tests/test_memory_context.py + tests/test_goal_loop_orchestrator.py: 63 passed, 16 subtests; compileall and diff check pass. No application code changed.",
+  "plan_status": "Authorized continuation: (1) inspect source designs in pinned upstreams; (2) map per-node context assembly; (3) define per-model input/output/tool reserve; (4) implement bounded token-aware packet and deterministic node-local compaction; (5) implement serial audited context codemode with explicit allowlist/no arbitrary eval; (6) validate isolation, overflow, restart/replay, wet-run and v3 regression. Score rubric in TODO; target >=7/8. No provider/routing/parallel changes.",
   "git_head": "65ac04dcdb47e7e90607937cc1f0bd4aabaf7139",
   "git_head_baseline": "a7224e2",
   "risk_register": [
@@ -195,7 +195,7 @@
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
   "goal_loop_context": {},
-  "updated_at": "2026-10-06T17:25:00+00:00",
+  "updated_at": "2026-10-06T18:10:00+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",

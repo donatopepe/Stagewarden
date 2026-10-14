@@ -1,45 +1,41 @@
 # Agent Handoff
 
 ## Current objective
-Integrate optional Jev decision support using working Pi extension documented in Obsidian; preserve classic LLM path, deterministic policy and v3 seriality.
+Riprendere e completare contesto isolato per ogni nodo, token budgeting per modello, auto-compattazione e codemode limitato; conservare serialità/policy/routing v3. Nessuna implementazione codice ancora in questa ripresa.
 
 ## Current state
-- User requested «implementa, guarda memoria obsidian ... estensione pi agent funzionante» and «continua in autonomia».
-- Obsidian details read: Pi extension implements TypeSafe System One API (`https://api.typesafe.ai/v1/systemone`, `TYPESAFE_API_KEY`, `{model,state,questions}` typed choice/probabilities) and local JevStyle-v3 llama.cpp `/v1/completions` verdict slots (`logprobs:10`, `logit(yes)-logit(no)`, softmax T=0.8279). Source: `Memory/Backups/pi-local-decision-model/jev-decide-extension.ts`, `Memory/Modelli-IA-locali/jev-decision-model.md`, and pinned Pi repo tests.
-- `stagewarden/decision_classifier.py` implements API/local protocols. `goal_loop_orchestrator._autonomy_gate` invokes only when `STAGEWARDEN_DECISION_BACKEND=api|llama_cpp`; default off. Classifier may raise caution/block, never lower deterministic caution or authorize. Errors fail to deterministic policy. Evidence logged and added to node capsule.
-- Targeted tests: `72 passed, 16 subtests`. Full suite: `738 passed, 5 skipped, 301 subtests`. Local HTTP stub smoke passed; does not prove real TypeSafe or GGUF compatibility. `compileall`, JSON parse, `git diff --check` pass.
-- No changes to classic LLM, provider/fallback/routing, scheduler or serial execution. This host lacks live JEV/GGUF; real test awaits configured Mac.
+- Supporto skill nodali preesistente: workspace `.stagewarden/skills`, assegnazione per node ID, solo Markdown bounded/non eseguibile.
+- Sorgenti shallow in `external_sources/` aggiornate/scaricate: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`. Directory ignored da Git; provenienza e refs in TODO. Non ancora analizzate comparativamente.
+- Baseline `tests/test_memory_context.py tests/test_goal_loop_orchestrator.py`: 63 passed, 16 subtests; `compileall` + diff check puliti. pytest installato in `/tmp/stagewarden-test-venv`; suite completa non eseguita.
+- Contesto configurato già ha `max_chars`, ma non è token-aware né specifico per profilo modello; auto-compattazione e codemode di contesto nodale non dimostrati/implementati.
 
 ## Recent changes
-- `stagewarden/decision_classifier.py`: TypeSafe System One and JevStyle-v3 adapters.
-- `stagewarden/goal_loop_orchestrator.py`: opt-in advisory autonomy-gate integration.
-- `tests/test_decision_classifier.py`, `tests/test_goal_loop_orchestrator.py`: protocol/security/safety coverage.
-- `TODO.md`, `HANDOFF.md`, `.stagewarden_handoff.json`: synchronized.
+- `TODO.md`: obiettivo, refs upstream, rischi, criteri e piano incrementale aggiornati.
+- Nessun codice applicativo modificato.
 
 ## Important files
-- `TODO.md`: scope, evidence, limits and next steps.
-- `stagewarden/decision_classifier.py`: backend contract and adapters.
-- `stagewarden/goal_loop_orchestrator.py`: deterministic autonomy gate.
-- `external_sources/pi-mono/packages/ai/test/typesafe-system-one.test.ts`: upstream TypeSafe wire contract.
+- `stagewarden/goal_loop_views.py`: skill discovery and persistence.
+- `stagewarden/goal_loop_orchestrator.py`: per-node prompt assembly.
+- `.stagewarden/goal_loop_skills.json`: workspace assignments (created by CLI).
+- `.stagewarden/skills/`: Markdown skill root.
 
 ## Technical decisions
-- Decision model remains optional advisor, not replacement for LLM. Default backend off.
-- Deterministic policy is authoritative; JEV can only elevate caution; errors fall back to deterministic policy.
-- `api` and `llama_cpp` selected explicitly; no silent switching. Remote HTTP denied; remote llama.cpp requires HTTPS + API key.
-- Pi extension patterns adopted; no arbitrary codemode, tool/MCP exposure or model-routing change.
+- Skill content is prompt data only, never executed. Workspace-bounded discovery prevents arbitrary external-path loading for named skills.
+- Assignments keyed to node ID, avoiding shared/global prompt contamination. Node UUID isolation remains existing behavior.
+- Legacy custom `skill_path` supported for compatibility; named skills use bounded registry.
 
 ## Open issues
-- No live API or JevStyle GGUF available here; actual Mac wet-run pending.
-- Goal loop calls classifier at each autonomy gate when opted in; assess whether selective invocation is desired before routine enablement.
+- Assignment references must be maintained when node IDs change; no migration/update helper yet.
+- Skill content is untrusted prompt data; model prompt injection remains a residual risk, mitigated only by labeling/limits and policy boundaries.
 
 ## Next steps
-1. On configured Mac, run one real API and/or llama.cpp test; verify logs, schema and latency.
-2. Review invocation frequency/cost; retain opt-in and serial call.
-3. Keep runtime fallback/classic LLM unchanged; update evidence after wet run.
+1. Test CLI commands end-to-end from a temporary workspace and inspect assignment JSON.
+2. Consider report command to show assignments/hashes by node.
+3. Avoid wiring skills into tools/capabilities without explicit design authorization.
 
 ## Commands
 ```bash
-python -m json.tool .stagewarden_handoff.json
 python -m compileall -q stagewarden tests
 /tmp/stagewarden-venv/bin/python -m pytest -q
+codegraph status .
 ```

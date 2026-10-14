@@ -1,17 +1,25 @@
 # Stagewarden Handoff Summary
 
-## Current requested work
+## Current requested work (2026-10-14)
+- Resume completing context for every node, token limits per model, automatic compaction, and implement context codemode. Preserve v3 seriality and existing LLM/provider/fallback/routing. No application code changed this turn.
+- Updated/shallow upstream sources: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`; sources ignored by root git; licenses/provenance and update plan in TODO.
+- Baseline: focused memory-context + goal-loop tests `63 passed, 16 subtests`; compileall and diff check clean. Full suite not run. pytest temp venv `/tmp/stagewarden-test-venv`.
+- First next action: inspect module files fully, compare upstream patterns with references, then design per-model input/output/tool token budgets and node-local compaction before changing code.
+
+## Historical JEV/skills status
 - User clarified JEV is an optional add-on decision model alongside classic LLM; it must not replace/change the existing LLM/provider/fallback/routing.
 - Chosen `/skill:mvp-first-agent-workflow`; direct analysis, no subagent. User says JEV efficiency in decision process is already demonstrated. `TODO.md` proposes serial JEV→policy→existing LLM-on-uncertainty; Stagewarden tests validate faithful integration/no regressions, not re-prove supplied evidence.
 - Obsidian details revealed working implementation contracts. Classifier adapters now follow TypeSafe System One and JevStyle-v3 llama.cpp verdict-slot protocol. Opt-in `api|llama_cpp` is wired to goal-loop autonomy gate; default off, deterministic policy authoritative, can only raise caution. LLM path unchanged.
 - Targeted tests `72 passed, 16 subtests`; full suite `738 passed, 5 skipped, 301 subtests`. HTTP stub smoke only; no actual JEV/GGUF installed, live backend test deferred.
 - Pi codemode docs explicitly show `models.getModelOfType("classifier", "typesafe", "jev-latest")`. Do not port codemode/skill-loader; adapters use typed contracts without arbitrary script execution.
-- Checkout HEAD `8b32359`; modified files include handoff mirrors, TODO, classifier and orchestrator; worktree now has no unrelated lockfile. V3 serial/exclusions and classic LLM route unchanged.
+- Skills now workspace-scoped per node: catalog `.stagewarden/skills`, assignment registry `.stagewarden/goal_loop_skills.json`, named multi-skill custom nodes, safe bounded Markdown only. CLI supports list/assign. Content labeled untrusted prompt data.
+- Checkout HEAD `8b32359`; handoff mirrors, TODO, skill views/orchestrator/CLI/tests and classifier files modified. V3 serial/exclusions and classic LLM route unchanged.
 
 ## Current phase
 Node-first MVP remains fail-closed against untrusted input at model, persisted state and model-action boundaries. V3 section 21 is approved. Serial execution and provider/model/fallback/routing remain unchanged; extensions/subagents and v2 migration/compatibility are declined. Multi-node OmniRoute free remains externally unstable and fail-closed. Loop active every 5 minutes (`stagewarden-mvp-continue`, task `c05d5335`).
 
 ## Latest bounded iteration
+- Skill feature validation: full suite `741 passed, 5 skipped, 301 subtests`; focused goal-loop/classifier `75 passed, 16 subtests`; CodeGraph current. Per-node Markdown skills implemented, workspace-bounded and not executable.
 - Classifier integration: targeted `72 passed, 16 subtests`; full suite `738 passed, 5 skipped, 301 subtests`; local HTTP stub only, real API/GGUF awaits configured Mac.
 - Prior MVP waiting baseline below is historical, predates current classifier integration.
 - Outcome: **HOLD; approved MVP scope remains waiting, metadata gate `6/6`.**

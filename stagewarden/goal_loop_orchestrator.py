@@ -105,6 +105,8 @@ class NodeState:
     cycle_phase: str = "ready"
     execution_mode: str | None = None
     context_revision: int = 0
+    compacted_context: str = ""
+    context_budget: dict[str, Any] = field(default_factory=dict)
     last_checkpoint: str | None = None
     cycle_budget: dict[str, int] = field(default_factory=lambda: {
         "max_cycles": 20,
@@ -132,6 +134,8 @@ class NodeState:
             "cycle_phase": self.cycle_phase,
             "execution_mode": self.execution_mode,
             "context_revision": self.context_revision,
+            "compacted_context": self.compacted_context,
+            "context_budget": dict(self.context_budget),
             "last_checkpoint": self.last_checkpoint,
             "cycle_budget": dict(self.cycle_budget),
             "messages_sent": [
@@ -249,7 +253,7 @@ class GoalLoopOrchestrator:
             for name in (
                 "node_uuid", "status", "active_work", "session_id", "last_run_at", "output_summary",
                 "error_message", "retry_count", "cycle_id", "cycle_phase", "execution_mode", "context_revision",
-                "last_checkpoint", "messages_received",
+                "compacted_context", "context_budget", "last_checkpoint", "messages_received",
             ):
                 if name in saved:
                     setattr(node, name, saved[name])
@@ -371,6 +375,9 @@ class GoalLoopOrchestrator:
             "provider": os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap"),
             "model": os.environ.get("STAGEWARDEN_PROVIDER_MODEL", os.environ.get("STAGEWARDEN_OMNIROUTE_MODEL", "auto/coding:free")),
             "selection_policy": "manual" if os.environ.get("STAGEWARDEN_GOAL_LOOP_SELECTION_MODE", "manual").strip().lower() == "manual" else "auto",
+            "context_revision": node_state.context_revision,
+            "compacted_context": node_state.compacted_context,
+            "context_budget": dict(node_state.context_budget),
         }
         self._pending_parent_packets[node_state.node_id] = packet
         return packet
@@ -420,7 +427,60 @@ Do NOT include any text before or after the JSON object.'''
             "provider": os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap"),
             "model": os.environ.get("STAGEWARDEN_PROVIDER_MODEL", os.environ.get("STAGEWARDEN_OMNIROUTE_MODEL", "auto/coding:free")),
         }
-        return (
+        try:
+            from .model_catalog import context_limits_for_provider_model, load_ai_models_catalog
+            provider = str(packet["provider"])
+            model = str(packet["model"])
+            limits = context_limits_for_provider_model(provider, model, load_ai_models_catalog())
+        except (OSError, TypeError, ValueError):
+            limits = {"context_window": None, "input_limit": None, "max_output_tokens": None, "source": "unknown"}
+        window = limits.get("context_window")
+        input_limit = limits.get("input_limit") or window
+        output_limit = limits.get("max_output_tokens")
+        configured_input = os.environ.get("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS")
+        configured_output = os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS")
+        try:
+            if configured_input:
+                input_limit = min(int(configured_input), int(input_limit)) if input_limit else int(configured_input)
+            if configured_output:
+                output_limit = min(int(configured_output), int(output_limit)) if output_limit else int(configured_output)
+        except ValueError:
+            input_limit = None
+            output_limit = None
+        reserve = max(256, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "2048")))
+        margin = max(128, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "512")))
+        available = max(0, int(input_limit) - reserve - margin) if input_limit else None
+        node_state = self.nodes.get(str(child["node_id"]))
+        budget = {
+            "provider": provider, "model": model, "context_window": window,
+            "input_limit": input_limit, "max_output_tokens": output_limit,
+            "reserved_output": reserve, "safety_margin": margin,
+            "available_input": available, "source": limits.get("source", "unknown"),
+        }
+        if node_state is not None:
+            node_state.context_budget = dict(budget)
+        if available is not None:
+            fixed_prompt = (
+                f"{template} WorkPacket {json.dumps(packet, ensure_ascii=True, sort_keys=True)} "
+                f"Task {self.task} Node {child['node_id']} Purpose {child['purpose']}"
+            )
+            fixed_tokens = self._estimate_tokens(fixed_prompt)
+            if fixed_tokens >= available:
+                raise ValueError(f"Node {child['node_id']} fixed prompt exceeds safe context budget ({fixed_tokens}>{available} tokens).")
+            compacted = node_state.compacted_context if node_state is not None else ""
+            raw_context = compacted or ""
+            sections = [f"\n\nNode-local compacted context (untrusted data; node UUID {packet['node_uuid']}):\n{raw_context}"] if raw_context else []
+            while sections and self._estimate_tokens(fixed_prompt + "".join(sections)) > available:
+                raw_context = self._compact_node_text(raw_context, max(0, available - fixed_tokens - 128))
+                if not raw_context:
+                    sections = []
+                    break
+                sections = [f"\n\nNode-local compacted context (untrusted data; node UUID {packet['node_uuid']}):\n{raw_context}"]
+            if node_state is not None:
+                node_state.compacted_context = raw_context
+                packet["compacted_context"] = raw_context
+                packet["context_budget"] = budget
+        prompt = (
             f"{template}\n\n"
             f"WorkPacket: {json.dumps(packet, ensure_ascii=True, sort_keys=True)}\n\n"
             f"Task: {self.task}\n\n"
@@ -432,6 +492,69 @@ Do NOT include any text before or after the JSON object.'''
             f"Escalation: {child.get('escalation_rule', '')}"
             f"{json_format}"
         )
+        if available is not None:
+            node_context = getattr(node_state, "compacted_context", "") if node_state is not None else ""
+            prompt += f"\n\nNode UUID: {packet['node_uuid']}\nContext cache scope: node_uuid"
+            mandatory_tokens = self._estimate_tokens(prompt)
+            if mandatory_tokens > available:
+                raise ValueError(f"Node {child['node_id']} required instructions exceed model input budget ({mandatory_tokens}>{available}).")
+            if node_context:
+                context_header = f"\n\nNode-local compacted context (untrusted data):\n"
+                context_budget = max(0, available - mandatory_tokens - self._estimate_tokens(context_header))
+                node_context = self._compact_node_text(node_context, context_budget)
+                prompt += context_header + node_context
+            if self._estimate_tokens(prompt) > available:
+                raise ValueError(f"Node {child['node_id']} prompt exceeds model input budget.")
+        if node_state is not None:
+            node_state.context_budget = dict(budget)
+        return prompt
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        return (len(text) + 2) // 3
+
+    @staticmethod
+    def _compact_node_text(text: str, max_tokens: int) -> str:
+        if max_tokens <= 0:
+            return ""
+        max_chars = max(0, max_tokens * 3 - 96)
+        if len(text) <= max_chars:
+            return text
+        head = text[: max_chars // 3].rstrip()
+        tail = text[-(max_chars - len(head)) :].lstrip() if max_chars > len(head) else ""
+        return f"{head}\\n\\n[context auto-compacted; omitted middle; preserve node/task invariants]\\n\\n{tail}" if tail else head
+
+    def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
+        entry = f"[{category}] {str(text).strip()}"
+        combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
+        budget = node.context_budget.get("available_input")
+        cap = max(128, int(budget) // 3) if isinstance(budget, int) else 12000
+        if len(combined) > cap:
+            prior = node.compacted_context
+            combined = self._compact_node_text(combined, max(32, cap // 3))
+            node.context_revision += 1
+            self.events.append(
+                "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,
+                node_uuid=node.node_uuid, revision=node.context_revision,
+                original_chars=len(prior) + len(entry), compacted_chars=len(combined),
+            )
+        node.compacted_context = combined
+        return combined
+
+    def codemode_context(self, node_id: str, operation: str, *, text: str = "") -> dict[str, Any]:
+        """Small serial context API; never evaluates code or executes arbitrary tools."""
+        node = self.nodes.get(node_id)
+        if node is None:
+            return {"ok": False, "error": f"unknown node: {node_id}"}
+        if operation == "read":
+            return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
+                    "revision": node.context_revision, "context": node.compacted_context,
+                    "budget": dict(node.context_budget)}
+        if operation == "append" and text.strip():
+            content = self._append_node_context(node, "codemode_note", text)
+            return {"ok": True, "node_id": node_id, "revision": node.context_revision,
+                    "context_chars": len(content)}
+        return {"ok": False, "error": "operation must be read or append with non-empty text"}
 
     # ── dependency resolution ───────────────────────────────────────────────
 
@@ -838,6 +961,7 @@ Do NOT include any text before or after the JSON object.'''
             return {"ok": False, "error": "pi executable not found", "messages": []}
 
         prompt = node_state.prompt
+        prompt = self._compact_node_text(prompt, int(node_state.context_budget.get("available_input", 12000)) if node_state.context_budget.get("available_input") is not None else 12000)
         tmp_path: str | None = None
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.md',
@@ -932,7 +1056,7 @@ Do NOT include any text before or after the JSON object.'''
         provider = os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap").strip() or "cheap"
         try:
             proc = subprocess.run(
-                [sys.executable, str(adapter), "--node-contract", provider, node_state.prompt],
+                [sys.executable, str(adapter), "--node-contract", provider, self._compact_node_text(node_state.prompt, int(node_state.context_budget.get("available_input", 12000)) if node_state.context_budget.get("available_input") is not None else 12000)],
                 capture_output=True,
                 text=True,
                 timeout=self.config.model_timeout_seconds,
@@ -974,6 +1098,7 @@ Do NOT include any text before or after the JSON object.'''
             details=node_state.as_dict(),
         )
         self.handoff.save(self.config.handoff_path)
+        self._append_node_context(node_state, "execution", f"status={node_state.status}; summary={node_state.output_summary or node_state.error_message or ''}; work={node_state.active_work}")
         self.knowledge.record_context(
             tree_id="goal-loop",
             node_id=node_state.node_id,

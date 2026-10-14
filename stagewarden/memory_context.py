@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 DEFAULT_MEMORY_FILES = (
@@ -77,7 +77,13 @@ def _resolve_root(raw: object, workspace_root: Path, issues: list[MemoryContextI
     return resolved
 
 
-def load_memory_context(workspace_root: Path, settings_path: Path) -> MemoryContext:
+def load_memory_context(
+    workspace_root: Path,
+    settings_path: Path,
+    *,
+    max_tokens: int | None = None,
+    token_counter: Callable[[str], int] | None = None,
+) -> MemoryContext:
     issues: list[MemoryContextIssue] = []
     try:
         payload = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
@@ -146,6 +152,32 @@ def load_memory_context(workspace_root: Path, settings_path: Path) -> MemoryCont
     content = "\n\n".join(chunks)
     if len(content) > max_chars:
         content = content[:max_chars].rstrip() + "\n[truncated by memory.max_chars]"
+    if max_tokens is not None:
+        if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens < 0:
+            issues.append(_issue("error", "max_tokens must be a non-negative integer"))
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
+        if token_counter is None:
+            issues.append(_issue("error", "token_counter is required when max_tokens is set"))
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
+        try:
+            token_count = token_counter(content)
+            if isinstance(token_count, bool) or not isinstance(token_count, int) or token_count < 0:
+                raise ValueError("token counter returned invalid count")
+            if token_count > max_tokens:
+                suffix = "\\n[truncated by memory token budget]"
+                low, high = 0, len(content)
+                while low < high:
+                    middle = (low + high + 1) // 2
+                    candidate = content[:middle].rstrip() + suffix
+                    if token_counter(candidate) <= max_tokens:
+                        low = middle
+                    else:
+                        high = middle - 1
+                candidate = content[:low].rstrip() + suffix
+                content = candidate if token_counter(candidate) <= max_tokens else ""
+        except Exception as exc:
+            issues.append(_issue("error", f"token counting failed: {exc}"))
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
     return MemoryContext(True, content, tuple(loaded), tuple(issues), max_chars)
 
 

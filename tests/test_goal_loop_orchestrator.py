@@ -54,6 +54,22 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 patch("stagewarden.goal_loop_orchestrator.shutil.which", return_value="/usr/bin/pi"):
             return orchestrator._pi_execution(node)
 
+    def test_node_context_codemode_is_uuid_scoped_and_compacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "context test", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            root = orchestrator.nodes["root.scope"]
+            other = orchestrator.nodes[next(node_id for node_id in orchestrator.nodes if node_id != "root.scope")]
+            first = orchestrator.codemode_context(root.node_id, "append", text="private root fact")
+            self.assertTrue(first["ok"])
+            self.assertIn("private root fact", orchestrator.codemode_context(root.node_id, "read")["context"])
+            self.assertNotIn("private root fact", orchestrator.codemode_context(other.node_id, "read")["context"])
+            before = root.context_revision
+            orchestrator._append_node_context(root, "test", "long " * 10000)
+            self.assertGreater(root.context_revision, before)
+            self.assertNotIn("private root fact", other.compacted_context)
+            self.assertFalse(orchestrator.codemode_context(root.node_id, "eval", text="__import__('os').system('true')")["ok"])
+
     def test_execution_mode_serial_gate_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -43,6 +43,20 @@ class MemoryContextTests(unittest.TestCase):
             self.assertLessEqual(len(context.content), 500 + len("\n[truncated by memory.max_chars]"))
             self.assertIn("pi-memory.md", context.content)
 
+    def test_token_budget_compacts_only_with_supplied_counter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("important durable facts " * 200, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            missing_counter = load_memory_context(root, path, max_tokens=20)
+            self.assertFalse(missing_counter.ok)
+            compacted = load_memory_context(root, path, max_tokens=20, token_counter=lambda text: (len(text) + 3) // 4)
+            self.assertTrue(compacted.ok)
+            self.assertLessEqual((len(compacted.content) + 3) // 4, 20)
+            self.assertIn("truncated by memory token budget", compacted.content)
+
     def test_missing_optional_file_is_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
