@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 from pathlib import Path
@@ -25,9 +26,84 @@ class EventStream:
             "details": _redact(details),
         }
         with self._lock:
+            integrity = self.verify_integrity()
+            chain_errors = [item for item in integrity["errors"] if item["error"] != "invalid_json"]
+            if chain_errors:
+                raise ValueError(f"Cannot append to corrupt event stream: {chain_errors}")
+            chained_count = integrity["events_verified"]
+            previous_hash = "0" * 64
+            if chained_count:
+                for existing in reversed(self._read_lines()):
+                    try:
+                        existing_record = json.loads(existing)
+                        existing_details = existing_record.get("details", {})
+                    except (json.JSONDecodeError, AttributeError):
+                        continue
+                    if isinstance(existing_details, dict) and existing_details.get("event_hash"):
+                        previous_hash = existing_details["event_hash"]
+                        break
+            details_with_chain = dict(payload["details"])
+            details_with_chain.update({
+                "event_sequence": chained_count + 1,
+                "previous_event_hash": previous_hash,
+            })
+            payload["details"] = details_with_chain
+            payload["details"]["event_hash"] = hashlib.sha256(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n")
         return payload
+
+    def verify_integrity(self) -> dict[str, Any]:
+        """Verify event records that carry optional sequence/hash metadata.
+
+        Legacy streams without metadata remain valid but are reported as
+        unchained. This detects accidental edits, not malicious rewriting.
+        """
+        sequence = 0
+        previous_hash = "0" * 64
+        verified = 0
+        unchained = 0
+        errors: list[dict[str, Any]] = []
+        if not self.path.exists():
+            return {"valid": True, "events_verified": 0, "unchained_events": 0, "errors": []}
+        for line_number, line in enumerate(self._read_lines(), start=1):
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                errors.append({"line": line_number, "error": "invalid_json"})
+                continue
+            if not isinstance(record, dict):
+                errors.append({"line": line_number, "error": "invalid_record"})
+                continue
+            details = record.get("details")
+            details = details if isinstance(details, dict) else {}
+            record_sequence = details.get("event_sequence")
+            record_hash = details.get("event_hash")
+            record_previous = details.get("previous_event_hash")
+            if record_sequence is None and record_hash is None and record_previous is None:
+                unchained += 1
+                continue
+            expected_sequence = sequence + 1
+            if record_sequence != expected_sequence:
+                errors.append({"line": line_number, "error": "sequence_mismatch"})
+                continue
+            if record_previous != previous_hash:
+                errors.append({"line": line_number, "error": "previous_hash_mismatch"})
+                continue
+            unsigned = dict(record)
+            unsigned_details = dict(details)
+            unsigned_details.pop("event_hash", None)
+            unsigned["details"] = unsigned_details
+            expected_hash = hashlib.sha256(json.dumps(unsigned, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+            if record_hash != expected_hash:
+                errors.append({"line": line_number, "error": "event_hash_mismatch"})
+                continue
+            sequence = expected_sequence
+            previous_hash = record_hash
+            verified += 1
+        return {"valid": not errors, "events_verified": verified, "unchained_events": unchained, "errors": errors}
 
     def _read_lines(self) -> list[str]:
         # The stream is append-only JSONL, so it can accumulate bytes that are

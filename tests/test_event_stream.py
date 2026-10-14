@@ -35,6 +35,24 @@ class EventStreamTests(unittest.TestCase):
             replay = stream.replay()
             self.assertEqual(replay["nodes"]["leaf"]["status"], "completed")
             self.assertEqual(replay["nodes"]["leaf"]["purpose"], "Inspect source")
+            verified = stream.verify_integrity()
+            self.assertTrue(verified["valid"])
+            self.assertEqual(verified["events_verified"], 2)
+
+    def test_event_hash_chain_detects_record_tampering(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            stream.append("start", tree_id="tree", node_id="n", message="original")
+            stream.append("result", tree_id="tree", node_id="n", message="done")
+            self.assertTrue(stream.verify_integrity()["valid"])
+            raw = path.read_text(encoding="utf-8").replace("original", "tampered")
+            path.write_text(raw, encoding="utf-8")
+            report = stream.verify_integrity()
+            self.assertFalse(report["valid"])
+            self.assertEqual(report["errors"][0]["error"], "event_hash_mismatch")
+            with self.assertRaisesRegex(ValueError, "corrupt event stream"):
+                stream.append("next", tree_id="tree", node_id="n")
 
     def test_readers_survive_undecodable_bytes_in_the_event_stream(self) -> None:
         """read() and follow() decoded events.jsonl with no error handling, so

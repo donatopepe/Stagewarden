@@ -157,6 +157,11 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             with self.subTest(byte_cap=byte_cap):
                 compacted = GoalLoopOrchestrator._compact_node_text("🙂é\\n" * 100, byte_cap)
                 self.assertLessEqual(len(compacted.encode("utf-8")), byte_cap)
+        # Exercise every sub-marker cap: result must never exceed byte ceiling.
+        mixed = "🙂é\\n" * 100
+        for byte_cap in range(1, 80):
+            compacted = GoalLoopOrchestrator._compact_node_text(mixed, byte_cap)
+            self.assertLessEqual(len(compacted.encode("utf-8")), byte_cap)
 
     def test_node_context_codemode_is_uuid_scoped_and_compacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

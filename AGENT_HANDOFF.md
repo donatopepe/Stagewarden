@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Ripresa sessione 2026-10-14: `main`, working tree iniziale aveva solo modifica a questo handoff; nessuna modifica di codice in questa continuazione. Focused wet regression appena eseguita: `tests/test_goal_loop_orchestrator.py tests/test_omniroute_adapter.py` → 87 passed, 1 skipped, 51 subtests (10.86s). `compileall`, JSON parse e `git diff --check` passano.
+- Ripresa sessione 2026-10-14: `main`; full suite pre-edit: 766 passed, 5 skipped, 332 subtests. Corretto boundary bug in compaction UTF-8: trimming/head-tail split potevano oltrepassare byte cap per caratteri multibyte o cap minuscolo. Aggiunto trimming entro hard ceiling, inclusione marker nel limite e regressioni per cap 1/8/10/100/300 bytes, più scan per tutti i cap 1–79 su UTF-8 misto. Focused goal-loop: 76 passed, 36 subtests (ripetuto dopo estensione cap 1–79). Full wet suite post-fix: 766 passed, 5 skipped, 337 subtests (346.58s; codice invariato dall’estensione test-only). `compileall`, JSON parse e `git diff --check` passano.
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
 - Budget finale controlla prompt standard + skills; over-budget fail-closed, context node limitato al residuo. Metadata dichiara `token_counter=utf8_byte_upper_bound_v1` e `accounting_unit=utf8_bytes_upper_bound_not_provider_tokens`; test verifica marker su NodeState e WorkPacket. Goal-loop 74 passed/28 subtests; full suite 761 passed/5 skipped/320 subtests (317.82s).
 - Test remoto ora free-only anche nei benchmark OpenRouter espliciti: `STAGEWARDEN_TEST_FREE_MODEL` default `auto/coding:free`; live test saltano se override non termina `:free`, smoke shell fallisce chiuso. OmniRoute free detection accetta suffisso `:free` e due alias fallback esatti (`auto/best-free`, `coding-free-fallback`); respinge `/free/` segmento permissivo e substring incidentali. Adapter: 11 passed/1 skipped/20 subtests; full suite: 765 passed/5 skipped/329 subtests (438.64s).
@@ -22,6 +22,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - `scripts/run_model_omniroute.py`, `tests/test_omniroute_adapter.py`: filtraggio free-only con fallback e fail-closed testati offline.
 - `stagewarden/memory_context.py`: loader bounded con token counter esplicito.
 - `tests/test_goal_loop_orchestrator.py`, `tests/test_memory_context.py`: isolamento, overflow e codemode.
+- `stagewarden/goal_loop_orchestrator.py::_compact_node_text`: limite UTF-8 byte della compaction.
 - `TODO.md`, `HANDOFF.md`, `.stagewarden_handoff.json`: contesto e roadmap.
 
 ## Important files
@@ -42,7 +43,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Event replay semantics non implementate/verificate.
 
 ## Next steps
-1. Full suite già riportata come 766 passed, 5 skipped, 332 subtests nel handoff compatto; rifarla dopo ogni modifica di codice (questa continuazione non ha cambiato codice).
+1. Full regression post-fix: 766 passed, 5 skipped, 337 subtests; final static checks in corso.
 2. Verificare tokenizer provider e output-cap solo con evidenza runtime disponibile; nessuna chiamata remota non necessaria, test remoti free-only.
 3. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback.
 

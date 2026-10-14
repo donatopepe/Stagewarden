@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Core node context/budget/codemode work is implemented. Latest continuation focused tests: 87 passed, 1 skipped, 51 subtests; no code edits. Provider tokenizer, backend-enforced output caps, event replay, and semantic/loss-aware compaction remain unverified or open; preserve fail-closed options and free-only remote tests.",
+  "waiting_reason": "Fixed UTF-8 compaction byte-cap boundary bug; added tiny-cap/multibyte regressions plus 1–79 byte cap scan. Post-fix full suite: 766 passed, 5 skipped, 337 subtests; goal-loop 76 passed, 36 subtests. Provider tokenizer, backend-enforced output caps, event replay, and semantic/loss-aware compaction remain unverified or open; preserve fail-closed options and free-only remote tests.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
