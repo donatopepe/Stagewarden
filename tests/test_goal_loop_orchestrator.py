@@ -901,6 +901,22 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 run.assert_not_called()
         orch.knowledge.close()
 
+    def test_unknown_input_budget_can_be_required_or_explicitly_overridden(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "input budget policy", execution_mode="pi")
+        self.addCleanup(lambda: orch.knowledge.close())
+        node = orch.nodes["root.scope"]
+        definition = next(item for item in orch.blueprint["child_prompts"] if item["node_id"] == node.node_id)
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET": "true"}):
+            with self.assertRaisesRegex(ValueError, "Input-token limit unknown"):
+                orch._enforce_node_prompt_budget(node, definition)
+        with patch.dict(os.environ, {
+            "STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET": "true",
+            "STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "12000",
+        }):
+            orch._enforce_node_prompt_budget(node, definition)
+        self.assertEqual(node.context_budget["input_limit"], 12000)
+
     def test_pi_backend_fails_closed_when_output_cap_required_but_unknown(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "test task", execution_mode="pi")

@@ -5,13 +5,13 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 
 ## Current state
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
-- Budget finale controlla prompt standard + skills; over-budget fail-closed, context node limitato al residuo. Metadata dichiara `token_counter=utf8_byte_upper_bound_v1` e `accounting_unit=utf8_bytes_upper_bound_not_provider_tokens`; evita di leggere byte budget come token provider.
+- Budget finale controlla prompt standard + skills; over-budget fail-closed, context node limitato al residuo. Metadata dichiara `token_counter=utf8_byte_upper_bound_v1` e `accounting_unit=utf8_bytes_upper_bound_not_provider_tokens`; test verifica marker su NodeState e WorkPacket. Goal-loop 74 passed/28 subtests; full suite 761 passed/5 skipped/320 subtests (317.82s).
 - Test remoto ora free-only anche nei benchmark OpenRouter espliciti: `STAGEWARDEN_TEST_FREE_MODEL` default `auto/coding:free`; live test saltano se override non termina `:free`, smoke shell fallisce chiuso. OmniRoute adapter filtra requested/fallback con marker dichiarati free.
 - Memory loader usa token count solo con contatore esplicito; tokenizer runtime non presente (`transformers`, `tiktoken`, `tokenizers`, `sentencepiece` assenti). Wet mock `run_loop` verifica nodi/eventi/capsule e restart terminale; fix resume precedente ignorava capsule completed/failed, ora ripristina stato terminale e campi bounded (context/revision/messages/output/error). OmniRoute riceve max_tokens clampato a minimo tra cap catalogo, reserve e override, ma è richiesta non garanzia provider; env max tokens OmniRoute e limiti goal-loop input/output/reserve/margin validati come interi positivi; config malformata fallisce chiusa invece di annullare silently tutti i limiti. Opt-in `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP=true` fail-closes prima subprocess sia con Pi che OmniRoute: nessuno dei due backend dimostra enforcement. Default off preserva behavior esistente.
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace. OmniRoute subprocess pulisce cap ereditato quando sconosciuto. Adapter valida max_tokens prima dei tentativi; input invalido -> JSON error/exit 2. `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP` accetta solo boolean literal; valori ambigui falliscono prima del backend. Goal-loop 74 passed/28 subtests; full suite 761 passed/5 skipped/320 subtests (320.95s).
+- Strict budget env distingue unset (default) da vuoto/whitespace (errore). OmniRoute max_tokens invalido ritorna JSON/exit 2. `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP` valida boolean fail-closed. Nuovo opt-in `STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET=true` rifiuta input limit unknown; esplicito `STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS` ammesso come override.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
@@ -41,9 +41,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Testare budget consumer per non rinominare/convertire accounting_unit in provider tokens senza tokenizer.
+1. Eseguire focused/full suite dopo input-budget opt-in; assicurare override esplicito rimuove unknown.
 2. Integrare tokenizer/usage solo con evidence provider, mantenere UTF-8 estimator fallback.
-3. Full regression e output-cap evidence backend; test remoti free-only.
+3. Verificare output-cap con evidence backend; test remoti free-only.
 
 ## Commands
 ```bash
