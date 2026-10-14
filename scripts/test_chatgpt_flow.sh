@@ -26,7 +26,9 @@ if not token:
     raise SystemExit("OpenRouter API key is required for this smoke test.")
 
 smoke_dir = Path(os.environ["SMOKE_DIR"])
-fixed_model = "google/gemini-3.1-pro-preview"
+fixed_model = os.environ.get("STAGEWARDEN_TEST_FREE_MODEL", "auto/coding:free")
+if not fixed_model.endswith(":free"):
+    raise SystemExit("STAGEWARDEN_TEST_FREE_MODEL must end in :free; refusing potentially paid smoke test.")
 stub = smoke_dir / "run_model_test_stub"
 stub.write_text(
     dedent(

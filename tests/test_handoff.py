@@ -13,9 +13,11 @@ from stagewarden.provider_registry import model_token_env
 
 
 class HandoffTests(unittest.TestCase):
-    FIXED_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview"
+    FIXED_OPENROUTER_MODEL = os.environ.get("STAGEWARDEN_TEST_FREE_MODEL", "auto/coding:free")
 
     def _openrouter_env_name(self) -> str:
+        if not self.FIXED_OPENROUTER_MODEL.endswith(":free"):
+            self.skipTest("Live model test requires STAGEWARDEN_TEST_FREE_MODEL ending in :free.")
         candidate = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
         if os.environ.get(candidate):
             return candidate

@@ -39,7 +39,7 @@ from tests.test_agent_integration import write_resume_network_stub
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXED_OPENROUTER_MODEL = "google/gemini-3.1-pro-preview"
+FIXED_OPENROUTER_MODEL = os.environ.get("STAGEWARDEN_TEST_FREE_MODEL", "auto/coding:free")
 
 
 def _handle_role_command(command, agent, config, *, input_stream=None, output_stream=None):
@@ -459,6 +459,8 @@ class TraceAndCliTests(unittest.TestCase):
             self.assertIn("numeric", payload)
 
     def test_openrouter_benchmark_cli_reports_multi_suite_baseline(self) -> None:
+        if not FIXED_OPENROUTER_MODEL.endswith(":free"):
+            self.skipTest("Live model test requires STAGEWARDEN_TEST_FREE_MODEL ending in :free.")
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             env_name = model_token_env().get("cheap") or "OPENROUTER_API_KEY"

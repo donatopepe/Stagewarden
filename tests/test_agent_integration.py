@@ -259,6 +259,8 @@ class AgentIntegrationTests(unittest.TestCase):
             self.assertEqual(ProjectHandoff.load(config.handoff_path).status, "planned")
 
     def _openrouter_env_name(self) -> str:
+        if os.environ.get("STAGEWARDEN_TEST_FREE_MODEL", "auto/coding:free").endswith(":free") is False:
+            self.skipTest("Live model tests require STAGEWARDEN_TEST_FREE_MODEL ending in :free.")
         candidate = model_token_env().get("cheap") or "OPENROUTER_API_KEY"
         if os.environ.get(candidate):
             return candidate

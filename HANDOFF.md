@@ -13,7 +13,7 @@
 
 ## Terminology
 - User requests generic naming: call it “decision model”, not vendor/model-specific name. Vendor names only in technical provenance/reference notes.
-- User requires Stagewarden remote-model tests to use free models only; prevent paid fallback. OmniRoute adapter now filters requested/fallback IDs by explicit free marker and fails closed before HTTP when none qualify. Offline adapter tests cover paid requested model, free fallback, and zero HTTP for invalid candidates.
+- User requires Stagewarden remote-model tests free-only. OmniRoute adapter filters requested/fallback IDs. Previously overlooked OpenRouter benchmark stubs in `test_handoff.py`, `test_trace_cli.py`, `test_agent_integration.py` and `scripts/test_chatgpt_flow.sh` hardcoded paid preview model. Replaced by `STAGEWARDEN_TEST_FREE_MODEL` default `auto/coding:free`; live cases skip or smoke fails closed if model lacks `:free`. Targeted suites: 240 passed, 4 skipped, 15 subtests.
 
 ## Historical decision-model/skills status
 - User clarified the decision model is an optional add-on alongside classic LLM; it must not replace/change existing LLM/provider/fallback/routing.
