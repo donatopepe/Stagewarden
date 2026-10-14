@@ -37,6 +37,17 @@ def _free_model_candidates(requested: str, fallbacks: tuple[str, ...]) -> tuple[
     return tuple(dict.fromkeys(model for model in candidates if is_explicitly_free_model(model)))
 
 
+def _positive_int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    try:
+        value = int(raw) if raw is not None else default
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a positive integer") from exc
+    if value < 1:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
 MODEL_MAP = {
     "local": DEFAULT_MODEL,
     "cheap": DEFAULT_MODEL,
@@ -97,7 +108,7 @@ def main() -> int:
             "model": model,
             "messages": messages,
             "temperature": 0,
-            "max_tokens": int(os.environ.get("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", "4096")),
+            "max_tokens": _positive_int_env("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", 4096),
             "stream": False,
         }).encode()
         request = urllib.request.Request(
