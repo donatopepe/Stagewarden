@@ -52,6 +52,52 @@ class EventStreamTests(unittest.TestCase):
             self.assertTrue(verified["valid"])
             self.assertEqual(verified["events_verified"], 2)
 
+    def test_windows_process_lock_locks_one_initialized_byte(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            events_path = stream.path
+            class FakeLockFile:
+                def __init__(self, wrapped):
+                    self.wrapped = wrapped
+                def __enter__(self): return self
+                def __exit__(self, *_args): self.wrapped.close()
+                def seek(self, *args): return self.wrapped.seek(*args)
+                def read(self, *args): return self.wrapped.read(*args)
+                def write(self, *args): return self.wrapped.write(*args)
+                def flush(self): return self.wrapped.flush()
+                def fileno(self): return self.wrapped.fileno()
+
+            fake_file = None
+            real_open = open
+            def open_lock(*_args, **_kwargs):
+                nonlocal fake_file
+                lock_path = events_path.with_name(events_path.name + ".lock")
+                fake_file = FakeLockFile(real_open(lock_path, "a+b"))
+                return fake_file
+
+            calls = []
+            class FakeMsvcrt:
+                LK_LOCK = 1
+                LK_UNLCK = 2
+                @staticmethod
+                def locking(_fd, mode, length):
+                    calls.append((mode, fake_file.wrapped.tell(), length))
+
+            from unittest.mock import patch
+            real_path_open = Path.open
+            def patched_path_open(path, *args, **kwargs):
+                if path.name.endswith(".lock"):
+                    return open_lock()
+                return real_path_open(path, *args, **kwargs)
+            with patch("os.name", "nt"), patch.dict("sys.modules", {"msvcrt": FakeMsvcrt}):
+                with patch.object(Path, "open", patched_path_open):
+                    with stream._process_lock():
+                        pass
+            self.assertEqual([length for _mode, _offset, length in calls], [1, 1])
+            self.assertEqual(calls[0][0], FakeMsvcrt.LK_LOCK)
+            self.assertEqual(calls[1][0], FakeMsvcrt.LK_UNLCK)
+            self.assertEqual(len(stream.path.with_name(stream.path.name + ".lock").read_bytes()), 1)
+
     def test_shared_path_instances_serialize_concurrent_appends(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"
@@ -105,6 +151,10 @@ class EventStreamTests(unittest.TestCase):
                 process.start()
             for process in processes:
                 process.join(timeout=30)
+            for process in processes:
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=5)
             self.assertTrue(all(not process.is_alive() for process in processes))
             self.assertEqual([process.exitcode for process in processes], [0, 0])
             self.assertTrue(errors.empty())

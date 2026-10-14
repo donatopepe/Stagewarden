@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Hardened EventStream chain against tampering/insertion/reordering and serialized writers intra-process plus cross-process using sidecar advisory locks. Spawned-process test and full suite pass: 770 passed, 5 skipped, 339 subtests. `_process_lock()` typed and imports consolidated; mypy unavailable. Provider tokenizer, backend-enforced output caps, and semantic/loss-aware compaction remain unverified; preserve fail-closed options and free-only remote tests.",
+  "waiting_reason": "Hardened EventStream integrity and concurrent append across threads/processes; canonical sidecar path unifies symlink aliases. Spawn test now terminates stragglers; direct stdin spawn probe was invalid and had no successful child writes. Focused 21 passed/7 subtests. Provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

@@ -4,7 +4,8 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Continuazione: allineato sidecar process lock al path canonico risolto, evitando lock distinti quando target è aperto via symlink. Aggiunto regression test alias path; EventStream 21 passed/7 subtests; `py_compile` pass.
+- Investigazione regressione 2026-10-14: tentativo manuale multiprocessing `spawn` da stdin non è un test valido: child Python non può importare `__main__` da `<stdin>` (`FileNotFoundError`), comando scaduto in attesa queue. Nessun processo figlio ha completato append; nessun impatto repository noto. Il test pytest usa helper top-level in file ed è il percorso valido e ora termina esplicitamente eventuali processi appesi; EventStream 21 passed/7 subtests.
+- Continuazione: allineato sidecar process lock al path canonico risolto, evitando lock distinti quando target è aperto via symlink. Aggiunto regression test alias path; EventStream 21 passed/7 subtests; full suite 771 passed, 5 skipped, 339 subtests (316.81s). Rimossa annotazione `ContextManager` fuorviante dal generator decorato `@contextmanager`; focused, py_compile, compileall, JSON e diff checks passano.
 - Continuazione 2026-10-14: aggiunto sidecar advisory lock cross-process in `EventStream.append()` (fcntl POSIX, msvcrt Windows), oltre al lock condiviso intra-process; test `spawn` con 2 processi × 10 append simultanei preserva chain. EventStream 20 passed/7 subtests; full suite 770 passed, 5 skipped, 339 subtests (317.32s). Nel seguito tipizzato `_process_lock() -> ContextManager[None]`; import typing consolidati. mypy non installato, ma py_compile/focused/compileall/JSON/diff checks passano.
 - Continuazione 2026-10-14: EventStream usa lock condiviso per path canonicale tra istanze nello stesso processo; prima lock per istanza consentiva race sequence/hash chain su file condiviso. Aggiunto concurrency wet test (2 writer × 25 append); focused ripetuto: 19 passed/7 subtests. Full suite precedente a questa ripresa: 769 passed, 5 skipped, 339 subtests (317.10s). Nessuna ulteriore modifica implementativa in questo turno; static checks passano.
 - Continuazione: rinforzata hash-chain eventi contro inserzione non firmata in mezzo alla chain e riordino; ora append rifiuta corruzione chain rilevata senza bloccare righe JSONL non decodificabili legacy. Casi insert/reverse aggiunti. EventStream tests 18 passed, 7 subtests; full suite: 768 passed, 5 skipped, 339 subtests (428.61s). `compileall`, handoff JSON parse e `git diff --check` passano.
@@ -49,7 +50,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Event replay semantics non implementate/verificate.
 
 ## Next steps
-1. Full regression post-fix: 768 passed, 5 skipped, 339 subtests; static checks passano.
+1. Full regression post-fix: 771 passed, 5 skipped, 339 subtests; eseguire static checks finali.
 2. Verificare tokenizer provider e output-cap solo con evidenza runtime disponibile; nessuna chiamata remota non necessaria, test remoti free-only.
 3. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback.
 

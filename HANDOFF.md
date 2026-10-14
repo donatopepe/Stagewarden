@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Fixed EventStream sidecar-lock path canonicalization for symlink aliases. EventStream tests terminate spawned workers if timeout; manual spawn-from-stdin probe invalid (`__main__` not importable), no child append. Focused 21 passed/7 subtests; latest full suite 771 passed, 5 skipped, 339 subtests.
 - Added sidecar advisory file lock to serialize EventStream appends across processes (`fcntl` POSIX, `msvcrt` Windows); spawned-process regression: 2 writers × 10 append operations, valid chain. Focused 20 passed/7 subtests; full suite 770 passed, 5 skipped, 339 subtests (317.32s). `_process_lock()` annotated as `ContextManager[None]`; imports consolidated. mypy unavailable, py_compile and static checks pass.
 - Fixed in-process concurrent EventStream writers across separate instances by sharing a lock keyed on canonical stream path; test runs 2 writer threads × 25 appends and verifies chain. Focused rerun 19 passed/7 subtests; latest full suite remains 769 passed, 5 skipped, 339 subtests (317.10s).
 - Hardened event hash chain against unsigned insertion/reordering; append fails closed on detected chain corruption while retaining legacy invalid-JSONL tolerance. Focused EventStream: 18 passed, 7 subtests. Full suite: 768 passed, 5 skipped, 339 subtests (428.61s). Static checks pass.
