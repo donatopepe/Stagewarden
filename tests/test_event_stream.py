@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import multiprocessing
 import tempfile
 import threading
@@ -197,9 +198,7 @@ class EventStreamTests(unittest.TestCase):
             stream = EventStream(path)
             for message in ("one", "two", "three"):
                 stream.append("tick", tree_id="tree", message=message)
-            lines = path.read_text(encoding="utf-8").splitlines()
-            import json
-            records = [json.loads(line) for line in lines]
+            records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
             records[1]["details"]["event_sequence"] = 99
             records[1]["details"]["event_hash"] = "bad-hash"
             # Change third record too; verifier must stop at seq-gap, not inspect tail.
@@ -209,6 +208,21 @@ class EventStreamTests(unittest.TestCase):
             self.assertFalse(report["valid"])
             self.assertEqual(report["events_verified"], 1)
             self.assertEqual([e["error"] for e in report["errors"]], ["sequence_mismatch"])
+
+    def test_hash_chain_stops_at_first_previous_hash_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            for message in ("one", "two", "three"):
+                stream.append("tick", tree_id="tree", message=message)
+            records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            records[1]["details"]["previous_event_hash"] = "wrong-parent"
+            records[2]["details"]["event_sequence"] = 99
+            path.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
+            report = stream.verify_integrity()
+            self.assertFalse(report["valid"])
+            self.assertEqual(report["events_verified"], 1)
+            self.assertEqual([item["error"] for item in report["errors"]], ["previous_hash_mismatch"])
 
     def test_hash_chain_rejects_unparseable_line_inside_chain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

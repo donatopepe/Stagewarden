@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "EventStream propagates persistent chain_broken for invalid trailing JSON on signed stream; append rejects and replay sees valid prefix only. Full suite: 774 passed, 5 skipped, 339 subtests (319.18s). Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "EventStream verification halts at first sequence discontinuity, preserving only valid prefix count and not scanning suffix. Regression and full suite pass: 775 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

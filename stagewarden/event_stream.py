@@ -151,7 +151,7 @@ class EventStream:
             if record_previous != previous_hash:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "previous_hash_mismatch"})
-                continue
+                break
             unsigned = dict(record)
             unsigned_details = dict(details)
             unsigned_details.pop("event_hash", None)
@@ -160,7 +160,7 @@ class EventStream:
             if record_hash != expected_hash:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "event_hash_mismatch"})
-                continue
+                break
             sequence = expected_sequence
             chain_started = True
             previous_hash = record_hash

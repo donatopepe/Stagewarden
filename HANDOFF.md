@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Integrity verifier now halts on first sequence discontinuity; regression injects sequence 99 then corrupted tail seq 100 and verifies only valid prefix is counted. Focused 25 passed/7 subtests; full suite 775 passed, 5 skipped, 339 subtests (319.52s).
 - Fixed `verify_integrity()` propagation of persistent `chain_broken` for invalid trailing bytes/JSON on a signed stream. Append now rejects; read/replay expose only valid prefix. EventStream 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.18s).
 - EventStream append now uses a single consistent integrity/error predicate; legacy unchained count retained. Focused 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.62s).
 - Extended EventStream fail-closed checks to invalid/non-object lines after legacy unchained records; prevents appending past malformed legacy tail. Focused 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.89s).
