@@ -9,7 +9,8 @@
 - Next priority: complete regression, real provider tokenizer/output cap, restore post-restart and wet mock run.
 
 ## Terminology
-- User requests generic naming: call it “decision model”, not JEV/model-specific name. Vendor-specific names may remain only in technical provenance/reference notes.
+- User requests generic naming: call it “decision model”, not vendor/model-specific name. Vendor names only in technical provenance/reference notes.
+- User requires Stagewarden remote-model tests to use free models only; prevent paid fallback. OmniRoute adapter now filters requested/fallback IDs by explicit free marker and fails closed before HTTP when none qualify. Offline adapter tests cover paid requested model, free fallback, and zero HTTP for invalid candidates.
 
 ## Historical decision-model/skills status
 - User clarified the decision model is an optional add-on alongside classic LLM; it must not replace/change existing LLM/provider/fallback/routing.

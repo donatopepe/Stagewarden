@@ -42,6 +42,43 @@ class _RawBodyResponse:
 
 
 class OmniRouteAdapterTests(unittest.TestCase):
+    def test_paid_requested_model_is_never_sent_or_used_as_fallback(self) -> None:
+        attempts: list[str] = []
+
+        def fake_urlopen(request, timeout):
+            attempts.append(json.loads(request.data)["model"])
+            if len(attempts) == 1:
+                raise run_model_omniroute.urllib.error.URLError("try next free route")
+            return _Response("safe")
+
+        env = {
+            "STAGEWARDEN_PROVIDER_MODEL": "provider/paid-model",
+            "STAGEWARDEN_OMNIROUTE_FREE_MODELS": "provider/no-cost-free,provider/also-free",
+        }
+        with patch.object(sys, "argv", ["run_model", "cheap", "test prompt"]), patch.object(
+            run_model_omniroute.urllib.request, "urlopen", side_effect=fake_urlopen
+        ), patch.dict(os.environ, env):
+            self.assertEqual(run_model_omniroute.main(), 0)
+        self.assertEqual(attempts, ["provider/no-cost-free", "provider/also-free"])
+        self.assertTrue(all(run_model_omniroute.is_explicitly_free_model(model) for model in attempts))
+
+    def test_nonfree_routes_fail_closed_when_no_free_candidate(self) -> None:
+        attempted = False
+
+        def unexpected_urlopen(request, timeout):
+            nonlocal attempted
+            attempted = True
+            raise AssertionError("paid model must not be sent")
+
+        with patch.object(sys, "argv", ["run_model", "cheap", "test prompt"]), patch.object(
+            run_model_omniroute.urllib.request, "urlopen", side_effect=unexpected_urlopen
+        ), patch.dict(os.environ, {
+            "STAGEWARDEN_PROVIDER_MODEL": "provider/paid-model",
+            "STAGEWARDEN_OMNIROUTE_FREE_MODELS": "provider/standard-model",
+        }):
+            self.assertEqual(run_model_omniroute.main(), 1)
+        self.assertFalse(attempted)
+
     def test_wrong_shape_upstream_response_falls_back_instead_of_crashing(self) -> None:
         wrong_shapes = ([], {"choices": "not-a-list"}, {"choices": ["not-a-dict"]}, {"choices": 7})
 

@@ -23,6 +23,20 @@ FREE_FALLBACKS = tuple(
     ).split(",")
     if item.strip()
 )
+FREE_MODEL_MARKERS = (":free", "-free", "/free", "free-")
+
+
+def is_explicitly_free_model(model: str) -> bool:
+    """Accept only model IDs explicitly marked as free; never infer by provider name."""
+    normalized = model.strip().lower()
+    return bool(normalized) and any(marker in normalized for marker in FREE_MODEL_MARKERS)
+
+
+def _free_model_candidates(requested: str, fallbacks: tuple[str, ...]) -> tuple[str, ...]:
+    candidates = (requested, *fallbacks)
+    return tuple(dict.fromkeys(model for model in candidates if is_explicitly_free_model(model)))
+
+
 MODEL_MAP = {
     "local": DEFAULT_MODEL,
     "cheap": DEFAULT_MODEL,
@@ -43,7 +57,18 @@ def main() -> int:
         return 2
     provider, prompt = sys.argv[1 + argument_offset], sys.argv[2 + argument_offset]
     requested = os.environ.get("STAGEWARDEN_PROVIDER_MODEL") or MODEL_MAP.get(provider, DEFAULT_MODEL)
-    models = tuple(dict.fromkeys((requested, *FREE_FALLBACKS)))
+    free_fallbacks = tuple(
+        item.strip()
+        for item in os.environ.get(
+            "STAGEWARDEN_OMNIROUTE_FREE_MODELS",
+            "auto/coding:free,auto/best-free,coding-free-fallback",
+        ).split(",")
+        if item.strip()
+    )
+    models = _free_model_candidates(requested, free_fallbacks)
+    if not models:
+        print(json.dumps({"error": "no explicitly free OmniRoute model configured", "provider": provider}))
+        return 1
     errors: list[dict[str, str]] = []
     is_critic = "devil advocate" in prompt.lower() or "project assurance critic" in prompt.lower()
     if node_contract:

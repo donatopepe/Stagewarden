@@ -4,6 +4,9 @@
 
 **Stato: tranche iniziale implementata; budget prompt section-aware verificato nei test mirati.** Contesto goal-loop UUID-scoped, budget input da catalogo/config, riserva output/margine, auto-compattazione deterministica e API codemode read/append seriale; memory loader token-aware solo se riceve un contatore tokenizer. Nessun routing/provider/fallback mutato. Persistenza knowledge presente; restano restore/replay esplicito, tokenizer reale e full regression post-hardening.
 
+### Vincolo test e costo
+- Qualsiasi test Stagewarden con chiamate a modelli remoti deve selezionare esplicitamente route/modelli gratuiti e fallire chiuso se route tenta fallback a modello non-free. Nessun test deve consumare API a pagamento. `run_model_omniroute.py` accetta solo ID con marker free (`:free`, `-free`, `/free`, `free-`) e non fa richieste se non trova candidati validi. Test unitari/mock restano offline.
+
 ### Obiettivo e criterio di successo
 Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, gestendo context-window e compattazione per modello senza modificare routing/provider/fallback o serialità v3. **Rubrica fissa 8/8**: (1) upstream pinned/provenance; (2) contratto contesto isolato per nodo; (3) budget token context/output/tool per provider-modello; (4) compattazione loss-aware e persistente; (5) codemode confinato, cancellabile e auditato; (6) test di isolamento, limiti e recovery; (7) nessuna regressione v3; (8) TODO e handoff allineati. Metric: punteggio rubrica ≥7/8 prima della chiusura MVP.
 
