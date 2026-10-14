@@ -9,12 +9,13 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Requisito test confermato: ogni test con modello remoto deve usare solo modelli esplicitamente free e fallire chiuso senza candidato free. `scripts/run_model_omniroute.py` filtra ora requested e fallback via marker `:free`, `-free`, `/free`, `free-`; mai invia candidato non marcato.
 - Memory loader usa token count solo con contatore esplicito; non è integrato tokenizer reale.
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
-- Ultima modifica runtime aggiunge persistenza knowledge e evento revision/hash.
+- Context snapshot knowledge ora include UUID nel provenance; resume ripristina snapshot UUID-scoped se capsule legacy/non completa omette contesto. Test restart/recovery aggiunto.
 - `compileall`, JSON handoff e `git diff --check` passano.
-- Test adapter free-route: 7 passed, 1 skipped, 4 subtests. Full regression dopo prompt hardening precede free-route change; rerun completo pending.
+- Test recovery/context mirati `tests.test_goal_loop_orchestrator tests.test_node_knowledge`: 81 passed, 37 subtests. Suite completa dopo ultimo recovery change pending. Free-route suite prima: 7 passed, 1 skipped, 4 subtests.
 
 ## Recent changes
-- `stagewarden/goal_loop_orchestrator.py`: token budget finale inclusivo delle skills, compaction e persistence context node-scoped.
+- `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, compaction, snapshot UUID provenance e recovery post-restart.
+- `tests/test_goal_loop_orchestrator.py`: regressione resume snapshot context node-scoped.
 - `tests/test_goal_loop_orchestrator.py`: regressione skill eccedente budget fail-closed.
 - `scripts/run_model_omniroute.py`, `tests/test_omniroute_adapter.py`: filtraggio free-only con fallback e fail-closed testati offline.
 - `stagewarden/memory_context.py`: loader bounded con token counter esplicito.
@@ -39,9 +40,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Eseguire suite completa dopo free-route hardening.
+1. Eseguire full suite dopo restore hardening.
 2. Integrare tokenizer/cap backend reale oppure fail-closed.
-3. Test restore post-restart e wet-run mock.
+3. Wet-run mock e verificare free-model marker contro catalogo autorevole.
 
 ## Commands
 ```bash

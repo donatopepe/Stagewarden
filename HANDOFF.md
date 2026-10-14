@@ -5,8 +5,10 @@
 - Sources refreshed: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`; license/provenance and upstream patterns in TODO.
 - Implemented first tranche: per-node context/budget/revision in NodeState capsules; catalog+env input/output limits and reserve; safe prompt budget, compaction; serial read/append context API, no eval/tool execution; memory loader accepts exact caller tokenizer or fails closed. Append now persists node-scoped knowledge revision/hash event.
 - Validation: focused `unittest` 65 tests passed; complete pytest suite `743 passed, 5 skipped, 301 subtests` via `--ignore=external_sources` (317.16s). `compileall`, JSON and `git diff --check` pass.
-- Budget hardening added after skills/custom prompt loading: final prompt includes assigned skills in estimation, fails closed when fixed instructions exceed safe budget; node-local context is fit to remaining budget. Heuristic remains 3 chars/token. Targeted: 66 passed/16 subtests; rerun full suite pending.
-- Next priority: complete regression, real provider tokenizer/output cap, restore post-restart and wet mock run.
+- Budget hardening added after skills/custom prompt loading: final prompt includes assigned skills in estimation, fails closed when fixed instructions exceed safe budget; node-local context is fit to remaining budget. Heuristic remains 3 chars/token. Targeted: 66 passed/16 subtests.
+- OmniRoute adapter now sends only requested/fallback IDs explicitly marked free; invalid paid-only config fails before HTTP. Full suite after these changes: 746 passed, 5 skipped, 301 subtests.
+- Recovery hardening: node context snapshot stores node UUID in provenance; capsule restore falls back to latest UUID-matched knowledge snapshot if capsule lacks context. Restart recovery regression added. Focused `test_goal_loop_orchestrator` + `test_node_knowledge`: 81 passed, 37 subtests; full regression pending.
+- Next priority: full regression, real provider tokenizer/output cap, wet mock run.
 
 ## Terminology
 - User requests generic naming: call it “decision model”, not vendor/model-specific name. Vendor names only in technical provenance/reference notes.

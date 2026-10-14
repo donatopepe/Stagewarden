@@ -246,6 +246,24 @@ class GoalLoopOrchestrator:
                 continue
             if not isinstance(saved, dict):
                 continue
+            saved_context = saved.get("compacted_context")
+            if not isinstance(saved_context, str):
+                try:
+                    snapshots = self.knowledge.search(
+                        "Node context revision", node_id=node.node_id, namespace="context", limit=100
+                    )
+                    matching = [
+                        item for item in snapshots
+                        if item.get("tree_id") == "goal-loop"
+                        and item.get("kind") == "node_context"
+                        and item.get("source", {}).get("node_uuid") == node.node_uuid
+                    ]
+                    if matching:
+                        newest = max(matching, key=lambda item: (item.get("created_at", ""), item.get("entry_id", "")))
+                        saved_context = str(newest.get("content", ""))
+                except (KeyError, TypeError, ValueError):
+                    saved_context = ""
+                saved["compacted_context"] = saved_context or ""
             received = saved.get("messages_received")
             if isinstance(received, list):
                 node.messages_received = [dict(item) for item in received if isinstance(item, dict)]
@@ -606,7 +624,7 @@ Do NOT include any text before or after the JSON object.'''
             tree_id="goal-loop", node_id=node.node_id, parent_node_id=node.parent_node_id,
             purpose=node.purpose, status=node.status, content=combined,
             title=f"Node context revision {node.context_revision}", kind="node_context",
-            entry_id=f"node-context-{node.node_uuid}-{node.context_revision}",
+            entry_id=f"node-context-{node.node_uuid}-{node.context_revision}", node_uuid=node.node_uuid,
         )
         self.events.append(
             "node_context_updated", tree_id="goal-loop", node_id=node.node_id,

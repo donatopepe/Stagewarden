@@ -2,7 +2,7 @@
 
 ## Nuova richiesta — ricognizione sorgenti, modelli decisionali, skills e Pi codemode
 
-**Stato: tranche iniziale implementata; budget prompt section-aware verificato nei test mirati.** Contesto goal-loop UUID-scoped, budget input da catalogo/config, riserva output/margine, auto-compattazione deterministica e API codemode read/append seriale; memory loader token-aware solo se riceve un contatore tokenizer. Nessun routing/provider/fallback mutato. Persistenza knowledge presente; restano restore/replay esplicito, tokenizer reale e full regression post-hardening.
+**Stato: tranche iniziale implementata; budget prompt section-aware e route OmniRoute free-only verificati.** Contesto goal-loop UUID-scoped, budget input da catalogo/config, riserva output/margine, auto-compattazione deterministica e API codemode read/append seriale; memory loader token-aware solo se riceve un contatore tokenizer. Nessun routing/provider/fallback mutato. Persistenza knowledge presente; restano restore/replay esplicito, tokenizer reale e full regression post-hardening.
 
 ### Vincolo test e costo
 - Qualsiasi test Stagewarden con chiamate a modelli remoti deve selezionare esplicitamente route/modelli gratuiti e fallire chiuso se route tenta fallback a modello non-free. Nessun test deve consumare API a pagamento. `run_model_omniroute.py` accetta solo ID con marker free (`:free`, `-free`, `/free`, `free-`) e non fa richieste se non trova candidati validi. Test unitari/mock restano offline.

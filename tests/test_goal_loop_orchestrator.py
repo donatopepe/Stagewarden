@@ -99,6 +99,28 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertNotIn("private root fact", other.compacted_context)
             self.assertFalse(orchestrator.codemode_context(root.node_id, "eval", text="__import__('os').system('true')")["ok"])
 
+    def test_node_context_restores_from_persisted_revision_after_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root_path = Path(tmp)
+            first = GoalLoopOrchestrator(AgentConfig(workspace_root=root_path), "restore context", execution_mode="mock", json_mode=True)
+            node = first.nodes["root.scope"]
+            first.codemode_context(node.node_id, "append", text="durable node-local recovery fact")
+            expected_revision = node.context_revision
+            expected_uuid = node.node_uuid
+            first.knowledge.save_node_execution_capsule(
+                tree_id="goal-loop", node_id=node.node_id,
+                parent_node_id=node.parent_node_id, purpose=node.purpose,
+                capsule={"node_uuid": expected_uuid, "status": "pending", "context_revision": expected_revision},
+            )
+            first.knowledge.close()
+
+            resumed = GoalLoopOrchestrator(AgentConfig(workspace_root=root_path), "restore context", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: resumed.knowledge.close())
+            restored = resumed.nodes[node.node_id]
+            self.assertEqual(restored.node_uuid, expected_uuid)
+            self.assertEqual(restored.context_revision, expected_revision)
+            self.assertIn("durable node-local recovery fact", restored.compacted_context)
+
     def test_execution_mode_serial_gate_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

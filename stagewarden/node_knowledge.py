@@ -248,10 +248,13 @@ class NodeKnowledgeStore:
         title: str = "node context",
         kind: str = "context_snapshot",
         entry_id: str | None = None,
+        node_uuid: str | None = None,
     ) -> str:
         clean = content.strip()
         identifier = entry_id or f"context-{self._hash(f'{tree_id}:{node_id}:{purpose}:{clean}')[-16:]}"
         source = {"type": "runtime", "node_id": node_id, "purpose": purpose}
+        if node_uuid is not None:
+            source["node_uuid"] = node_uuid
         self.connection.execute(
             """
             INSERT OR REPLACE INTO knowledge
