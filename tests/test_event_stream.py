@@ -75,6 +75,21 @@ class EventStreamTests(unittest.TestCase):
             self.assertTrue(report["valid"], report["errors"])
             self.assertEqual(report["events_verified"], 50)
 
+    def test_alias_paths_share_process_lock_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "events.jsonl"
+            alias = root / "alias.jsonl"
+            target.touch()
+            alias.symlink_to(target)
+            direct_stream = EventStream(target)
+            alias_stream = EventStream(alias)
+            self.assertEqual(direct_stream._lock, alias_stream._lock)
+            self.assertEqual(
+                direct_stream.path.resolve().with_name("events.jsonl.lock"),
+                alias_stream.path.resolve().with_name("events.jsonl.lock"),
+            )
+
     def test_separate_process_writers_preserve_hash_chain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"

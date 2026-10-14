@@ -6,7 +6,7 @@ import os
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, ContextManager, Iterable
 
 
 class EventStream:
@@ -23,9 +23,10 @@ class EventStream:
             self._lock = self._path_locks.setdefault(lock_key, threading.RLock())
 
     @contextmanager
-    def _process_lock(self):
+    def _process_lock(self) -> ContextManager[None]:
         """Serialize appends across processes using a sidecar advisory lock."""
-        lock_path = self.path.with_name(self.path.name + ".lock")
+        canonical_path = self.path.resolve()
+        lock_path = canonical_path.with_name(canonical_path.name + ".lock")
         with lock_path.open("a+b") as handle:
             if os.name == "nt":
                 import msvcrt
