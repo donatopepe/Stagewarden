@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- EventStream append now uses a single consistent integrity/error predicate; legacy unchained count retained. Focused 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.62s).
 - Extended EventStream fail-closed checks to invalid/non-object lines after legacy unchained records; prevents appending past malformed legacy tail. Focused 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.89s).
 - Renamed verifier flag `unparseable_after_chain` to `chain_broken` for accurate persistent-state naming. Runtime behavior unchanged; focused 23 passed/7 subtests and static checks pass.
 - EventStream verifier now prioritizes invalid-JSON/legacy boundary before sequence checks; malformed sequence on subsequent record cannot advance/skip the corrupt suffix. Adversarial probe confirms only one valid-prefix event; full suite 773 passed, 5 skipped, 339 subtests (319.14s).

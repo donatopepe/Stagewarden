@@ -253,20 +253,21 @@ class EventStreamTests(unittest.TestCase):
             stream.append("node_start", tree_id="tree-1", node_id="node.a", purpose="inspect")
             with stream.path.open("ab") as handle:
                 handle.write(b"\xff\xfe not utf-8\n")
-            stream.append("node_end", tree_id="tree-1", node_id="node.a", purpose="inspect")
+            with self.assertRaisesRegex(ValueError, "corrupt event stream"):
+                stream.append("node_end", tree_id="tree-1", node_id="node.a", purpose="inspect")
 
             events = stream.read()
-            self.assertEqual([e["event"] for e in events], ["node_start", "node_end"])
+            self.assertEqual([e["event"] for e in events], ["node_start"])
 
             # the bad bytes are line 2, so a cursor of 2 must still return node_end
             self.assertEqual(
-                [e["event"] for e in stream.follow("node.a", after=2)], ["node_end"]
+                [e["event"] for e in stream.follow("node.a", after=2)], []
             )
             self.assertEqual(
-                [e["event"] for e in stream.follow("node.a", after=1)], ["node_end"]
+                [e["event"] for e in stream.follow("node.a", after=1)], []
             )
             replayed = stream.replay(node_id="node.a")
-            self.assertEqual(replayed["nodes"]["node.a"]["last_event"], "node_end")
+            self.assertEqual(replayed["nodes"]["node.a"]["last_event"], "node_start")
             self.assertEqual(replayed["nodes"]["node.a"]["purpose"], "inspect")
 
     def test_replay_projects_in_flight_tool_and_clears_on_completion(self) -> None:
