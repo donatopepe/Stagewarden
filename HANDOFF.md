@@ -1,6 +1,8 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Renamed verifier flag `unparseable_after_chain` to `chain_broken` for accurate persistent-state naming. Runtime behavior unchanged; focused 23 passed/7 subtests and static checks pass.
+- EventStream verifier now prioritizes invalid-JSON/legacy boundary before sequence checks; malformed sequence on subsequent record cannot advance/skip the corrupt suffix. Adversarial probe confirms only one valid-prefix event; full suite 773 passed, 5 skipped, 339 subtests (319.14s).
 - Reordered EventStream verifier checks so invalid-JSON boundary is handled before sequence-mismatch logic; corrupted suffix stops at first later hashed record. Focused 23 passed/7 subtests; full suite 773 passed, 5 skipped, 339 subtests (319.09s).
 - Integrity verifier now stops immediately at first hashed record following invalid JSON inside chain, reports only valid prefix, and append refuses corrupted suffix. EventStream 23 passed/7 subtests; full suite 773 passed, 5 skipped, 339 subtests (319.16s).
 - Integrity verification stops counting verified chain at first unparsable line within it (reports valid prefix only), instead of resuming at next apparently linked event; test checks `events_verified == 1`. Full suite 773 passed, 5 skipped, 339 subtests (318.37s).

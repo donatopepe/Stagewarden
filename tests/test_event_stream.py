@@ -162,6 +162,17 @@ class EventStreamTests(unittest.TestCase):
             self.assertTrue(report["valid"], report["errors"])
             self.assertEqual(report["events_verified"], 20)
 
+    def test_invalid_line_after_legacy_events_blocks_later_append(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            path.write_text('{"event":"legacy","details":{}}\nnot-json\n', encoding="utf-8")
+            report = stream.verify_integrity()
+            self.assertFalse(report["valid"])
+            self.assertTrue(report["chain_corrupted"])
+            with self.assertRaisesRegex(ValueError, "corrupt event stream"):
+                stream.append("later", tree_id="tree")
+
     def test_event_hash_chain_rejects_unhashed_insertion_and_reordering(self) -> None:
         for corruption in ("insert", "reverse"):
             with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as tmp:

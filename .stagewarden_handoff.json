@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "EventStream verifier checks malformed-JSON boundary before sequence continuity, stops at first later hashed record, and prevents appending onto corrupted suffix. Full suite: 773 passed, 5 skipped, 339 subtests (319.09s). Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "EventStream verifier stops at malformed JSON boundary; state flag renamed chain_broken to reflect persistent corruption semantics. Focused 23 passed/7 subtests and static checks pass. Latest full suite 773 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

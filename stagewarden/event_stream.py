@@ -100,7 +100,8 @@ class EventStream:
         unchained = 0
         chain_started = False
         chain_corrupted = False
-        unparseable_after_chain = False
+        chain_broken = False
+        unchained_event_seen = False
         errors: list[dict[str, Any]] = []
         if not self.path.exists():
             return {"valid": True, "events_verified": 0, "unchained_events": 0, "errors": []}
@@ -111,11 +112,13 @@ class EventStream:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 errors.append({"line": line_number, "error": "invalid_json"})
-                if chain_started:
-                    unparseable_after_chain = True
+                if chain_started or unchained_event_seen:
+                    chain_broken = True
                 continue
             if not isinstance(record, dict):
                 errors.append({"line": line_number, "error": "invalid_record"})
+                if chain_started or unchained_event_seen:
+                    chain_broken = True
                 continue
             details = record.get("details")
             details = details if isinstance(details, dict) else {}
@@ -124,11 +127,12 @@ class EventStream:
             record_previous = details.get("previous_event_hash")
             if record_sequence is None and record_hash is None and record_previous is None:
                 unchained += 1
+                unchained_event_seen = True
                 if chain_started:
                     chain_corrupted = True
                     errors.append({"line": line_number, "error": "unchained_record_within_chain"})
                 continue
-            if unparseable_after_chain:
+            if chain_broken:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "unparseable_line_inside_chain"})
                 break
@@ -158,6 +162,7 @@ class EventStream:
             chain_started = True
             previous_hash = record_hash
             verified += 1
+        chain_corrupted = chain_corrupted or (unchained_event_seen and bool(errors))
         return {"valid": not errors and not chain_corrupted, "events_verified": verified, "unchained_events": unchained, "chain_corrupted": chain_corrupted, "errors": errors}
 
     def _read_lines(self) -> list[str]:
