@@ -62,9 +62,12 @@ class EventStream:
         }
         with self._lock, self._process_lock():
             integrity = self.verify_integrity()
-            chain_errors = [item for item in integrity["errors"] if item["error"] != "invalid_json"]
-            if integrity.get("chain_corrupted") or any(item["error"] in {"unchained_record_after_chain", "unchained_record_within_chain", "chain_after_legacy_records"} for item in integrity["errors"]):
-                raise ValueError(f"Cannot append to corrupt event stream: {integrity['errors']}")
+            append_errors = [
+                item for item in integrity["errors"]
+                if item["error"] != "invalid_json" or integrity.get("chain_corrupted")
+            ]
+            if integrity.get("chain_corrupted") or any(item["error"] != "invalid_json" for item in integrity["errors"]):
+                raise ValueError(f"Cannot append to corrupt event stream: {append_errors}")
             chained_count = integrity["events_verified"]
             previous_hash = "0" * 64
             if chained_count:
@@ -136,7 +139,7 @@ class EventStream:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "unparseable_line_inside_chain"})
                 break
-            if unchained:
+            if unchained_event_seen:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "chain_after_legacy_records"})
                 break
