@@ -1078,10 +1078,13 @@ Do NOT include any text before or after the JSON object.'''
     def _pi_execution(self, node_state: NodeState) -> dict[str, Any]:
         """Execute one node through the selected user-owned model boundary."""
         backend = os.environ.get("STAGEWARDEN_GOAL_LOOP_BACKEND", "pi").strip().lower()
+        output_cap_required = os.environ.get("STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP", "").strip().lower() in {"1", "true", "yes", "on"}
         if backend == "omniroute":
             return self._omniroute_execution(node_state)
         if backend not in {"pi", ""}:
             return {"ok": False, "error": f"unsupported goal-loop backend '{backend}'", "messages": []}
+        if output_cap_required and node_state.context_budget.get("max_output_tokens") is not None:
+            return {"ok": False, "error": "Pi CLI integration cannot enforce the required output-token cap; configure an enforcing backend or disable STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP.", "messages": []}
         pi_bin = shutil.which("pi")
         if not pi_bin:
             return {"ok": False, "error": "pi executable not found", "messages": []}
