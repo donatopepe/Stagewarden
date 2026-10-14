@@ -39,6 +39,24 @@ class EventStreamTests(unittest.TestCase):
             self.assertTrue(verified["valid"])
             self.assertEqual(verified["events_verified"], 2)
 
+    def test_event_hash_chain_rejects_unhashed_insertion_and_reordering(self) -> None:
+        for corruption in ("insert", "reverse"):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "events.jsonl"
+                stream = EventStream(path)
+                stream.append("first", tree_id="tree", message="1")
+                stream.append("second", tree_id="tree", message="2")
+                lines = path.read_text(encoding="utf-8").splitlines()
+                if corruption == "insert":
+                    import json
+                    lines.insert(1, json.dumps({"event": "injected", "details": {}}))
+                else:
+                    lines.reverse()
+                path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                self.assertFalse(stream.verify_integrity()["valid"])
+                with self.assertRaisesRegex(ValueError, "corrupt event stream"):
+                    stream.append("third", tree_id="tree")
+
     def test_event_hash_chain_detects_record_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"

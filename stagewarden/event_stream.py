@@ -28,8 +28,8 @@ class EventStream:
         with self._lock:
             integrity = self.verify_integrity()
             chain_errors = [item for item in integrity["errors"] if item["error"] != "invalid_json"]
-            if chain_errors:
-                raise ValueError(f"Cannot append to corrupt event stream: {chain_errors}")
+            if integrity.get("chain_corrupted") or any(item["error"] == "unchained_record_after_chain" for item in integrity["errors"]):
+                raise ValueError(f"Cannot append to corrupt event stream: {integrity['errors']}")
             chained_count = integrity["events_verified"]
             previous_hash = "0" * 64
             if chained_count:
@@ -63,6 +63,8 @@ class EventStream:
         previous_hash = "0" * 64
         verified = 0
         unchained = 0
+        chain_started = False
+        chain_corrupted = False
         errors: list[dict[str, Any]] = []
         if not self.path.exists():
             return {"valid": True, "events_verified": 0, "unchained_events": 0, "errors": []}
@@ -84,12 +86,17 @@ class EventStream:
             record_previous = details.get("previous_event_hash")
             if record_sequence is None and record_hash is None and record_previous is None:
                 unchained += 1
+                if chain_started:
+                    chain_corrupted = True
+                    errors.append({"line": line_number, "error": "unchained_record_after_chain"})
                 continue
             expected_sequence = sequence + 1
             if record_sequence != expected_sequence:
+                chain_corrupted = True
                 errors.append({"line": line_number, "error": "sequence_mismatch"})
                 continue
             if record_previous != previous_hash:
+                chain_corrupted = True
                 errors.append({"line": line_number, "error": "previous_hash_mismatch"})
                 continue
             unsigned = dict(record)
@@ -98,12 +105,14 @@ class EventStream:
             unsigned["details"] = unsigned_details
             expected_hash = hashlib.sha256(json.dumps(unsigned, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
             if record_hash != expected_hash:
+                chain_corrupted = True
                 errors.append({"line": line_number, "error": "event_hash_mismatch"})
                 continue
             sequence = expected_sequence
             previous_hash = record_hash
+            chain_started = True
             verified += 1
-        return {"valid": not errors, "events_verified": verified, "unchained_events": unchained, "errors": errors}
+        return {"valid": not errors, "events_verified": verified, "unchained_events": unchained, "chain_corrupted": chain_corrupted, "errors": errors}
 
     def _read_lines(self) -> list[str]:
         # The stream is append-only JSONL, so it can accumulate bytes that are
