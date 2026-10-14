@@ -96,7 +96,6 @@ class EventStream:
         """
         sequence = 0
         previous_hash = "0" * 64
-        chain_position = 0
         verified = 0
         unchained = 0
         chain_started = False
@@ -125,7 +124,7 @@ class EventStream:
             record_previous = details.get("previous_event_hash")
             if record_sequence is None and record_hash is None and record_previous is None:
                 unchained += 1
-                if chain_started or chain_position:
+                if chain_started:
                     chain_corrupted = True
                     errors.append({"line": line_number, "error": "unchained_record_within_chain"})
                 continue
@@ -142,6 +141,7 @@ class EventStream:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "unparseable_line_inside_chain"})
                 unparseable_after_chain = False
+                continue
             if record_previous != previous_hash:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "previous_hash_mismatch"})
@@ -156,7 +156,6 @@ class EventStream:
                 errors.append({"line": line_number, "error": "event_hash_mismatch"})
                 continue
             sequence = expected_sequence
-            chain_position = expected_sequence
             chain_started = True
             previous_hash = record_hash
             verified += 1

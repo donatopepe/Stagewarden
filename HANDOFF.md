@@ -1,6 +1,8 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Removed unused integrity-verifier `chain_position` bookkeeping; no behavior change. Focused EventStream 23 passed/7 subtests; static checks pass.
+- `EventStream.verify_integrity()` now returns `valid=false` whenever `chain_corrupted=true`, including when malformed JSON is between hashed events but no subsequent hash comparison itself errors. EventStream 23 passed/7 subtests; full suite 773 passed, 5 skipped, 339 subtests (318.01s).
 - EventStream integrity now rejects hash-chain continuation after an invalid JSON line, preventing silent chain breaks; terminal invalid tail remains readable until continuation. Regression included. EventStream 23 passed/7 subtests; full suite 773 passed, 5 skipped, 339 subtests (318.64s).
 - Added mocked Windows `msvcrt` branch test verifying one-byte lock/unlock at offset zero and sentinel byte initialization. Focused EventStream 22 passed/7 subtests; full suite 772 passed, 5 skipped, 339 subtests (318.93s). Windows-native execution remains unavailable.
 - Fixed EventStream sidecar-lock path canonicalization for symlink aliases. EventStream tests terminate spawned workers if timeout; manual spawn-from-stdin probe invalid (`__main__` not importable), no child append. Focused 21 passed/7 subtests; latest full suite 771 passed, 5 skipped, 339 subtests.
