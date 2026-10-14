@@ -11,7 +11,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Validazione post terminal-restore fix: focused restart/mocking 2 passed; full `pytest --ignore=external_sources`: 751 passed, 5 skipped, 301 subtests (317.28s). Compileall/JSON/diff check da ripetere.
+- Validazione dopo Pi output-cap guard: goal-loop mirati 66 passed/16 subtests; full `pytest --ignore=external_sources`: 752 passed, 5 skipped, 301 subtests (318.48s). Compileall/JSON/diff check da ripetere.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
@@ -41,9 +41,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Documentare opt-in output-cap guard in config/CLI pubblico se previsto.
-2. Integrare tokenizer/usage reali se adapter li espone; altrimenti mantenere estimator conservativo.
-3. Rieseguire full regression dopo output-cap guard; test remoti free-only.
+1. Test real Pi CLI output usage non eseguire senza provider/model free configurato; opt-in guard già fail-closed quando cap richiesto.
+2. Integrare tokenizer/usage reali solo se adapter li espone; mantenere estimator conservativo.
+3. Rieseguire full regression dopo regressione default-vs-required; test remoti free-only.
 
 ## Commands
 ```bash

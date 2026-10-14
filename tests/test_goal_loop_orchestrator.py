@@ -513,6 +513,26 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(resumed_node.last_checkpoint, "node_cycle_checkpoint:1:1")
             resumed.knowledge.close()
 
+    def test_pi_output_cap_guard_only_blocks_when_explicitly_required(self) -> None:
+        import stagewarden.goal_loop_orchestrator as mod
+        orchestrator = GoalLoopOrchestrator(
+            AgentConfig(workspace_root=self.tmp_dir / "pi-output-cap"),
+            "pi output cap", execution_mode="pi", json_mode=True,
+        )
+        self.addCleanup(lambda: orchestrator.knowledge.close())
+        node = orchestrator.nodes["root.scope"]
+        node.context_budget["max_output_tokens"] = 384
+        completed = self._build_result(json.dumps({"summary": "ok", "messages": []}))
+        with patch.dict(os.environ, {
+            "STAGEWARDEN_GOAL_LOOP_BACKEND": "pi",
+            "STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP": "",
+        }), patch.object(mod.shutil, "which", return_value="/usr/bin/pi"), patch.object(
+            mod.subprocess, "run", return_value=completed
+        ) as run:
+            result = orchestrator._pi_execution(node)
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(run.call_args.args[0][:3], ["/usr/bin/pi", "--print", "--no-tools"])
+
     def test_pi_execution_parses_clean_json(self) -> None:
         """Valid JSON output with summary/messages is parsed by the real method."""
         stdout = json.dumps({
