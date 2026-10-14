@@ -55,6 +55,21 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 patch("stagewarden.goal_loop_orchestrator.shutil.which", return_value="/usr/bin/pi"):
             return orchestrator._pi_execution(node)
 
+    def test_invalid_token_budget_environment_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            for key, value in (
+                ("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS", "0"),
+                ("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS", "-1"),
+                ("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "not-number"),
+                ("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "2048.0"),
+            ):
+                with self.subTest(key=key, value=value), patch.dict(os.environ, {key: value}):
+                    with self.assertRaisesRegex(ValueError, key):
+                        GoalLoopOrchestrator(
+                            AgentConfig(workspace_root=Path(tmp) / key),
+                            "invalid budget", execution_mode="mock", json_mode=True,
+                        )
+
     def test_final_prompt_budget_includes_assigned_skills_and_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

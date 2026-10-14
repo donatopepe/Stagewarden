@@ -28,6 +28,18 @@ EXECUTION_MODE_AUTO = "auto"       # try pi, fall back to mock
 EXECUTION_MODE_PI = "pi"           # fail if pi not available
 _AVAILABLE_PI: bool | None = None  # cached detection
 
+def _positive_env_int(name: str, default: int | None = None) -> int | None:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a positive integer") from exc
+    if value < 1:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
 def _pi_available() -> bool:
     global _AVAILABLE_PI
     if _AVAILABLE_PI is not None:
@@ -493,18 +505,14 @@ Do NOT include any text before or after the JSON object.'''
         window = limits.get("context_window")
         input_limit = limits.get("input_limit") or window
         output_limit = limits.get("max_output_tokens")
-        configured_input = os.environ.get("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS")
-        configured_output = os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS")
-        try:
-            if configured_input:
-                input_limit = min(int(configured_input), int(input_limit)) if input_limit else int(configured_input)
-            if configured_output:
-                output_limit = min(int(configured_output), int(output_limit)) if output_limit else int(configured_output)
-        except ValueError:
-            input_limit = None
-            output_limit = None
-        reserve = max(256, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "2048")))
-        margin = max(128, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "512")))
+        configured_input = _positive_env_int("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS")
+        configured_output = _positive_env_int("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS")
+        if configured_input is not None:
+            input_limit = min(configured_input, int(input_limit)) if input_limit else configured_input
+        if configured_output is not None:
+            output_limit = min(configured_output, int(output_limit)) if output_limit else configured_output
+        reserve = max(256, _positive_env_int("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", 2048))
+        margin = max(128, _positive_env_int("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", 512))
         available = max(0, int(input_limit) - reserve - margin) if input_limit else None
         node_state = self.nodes.get(str(child["node_id"]))
         budget = {
@@ -575,17 +583,14 @@ Do NOT include any text before or after the JSON object.'''
             limits = {"context_window": None, "input_limit": None, "max_output_tokens": None, "source": "unknown"}
         input_limit = limits.get("input_limit") or limits.get("context_window")
         output_limit = limits.get("max_output_tokens")
-        try:
-            configured_input = os.environ.get("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS")
-            configured_output = os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS")
-            if configured_input:
-                input_limit = min(int(configured_input), int(input_limit)) if input_limit else int(configured_input)
-            if configured_output:
-                output_limit = min(int(configured_output), int(output_limit)) if output_limit else int(configured_output)
-            reserve = max(256, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "2048")))
-            margin = max(128, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "512")))
-        except ValueError as exc:
-            raise ValueError("Invalid goal-loop token budget configuration") from exc
+        configured_input = _positive_env_int("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS")
+        configured_output = _positive_env_int("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS")
+        if configured_input is not None:
+            input_limit = min(configured_input, int(input_limit)) if input_limit else configured_input
+        if configured_output is not None:
+            output_limit = min(configured_output, int(output_limit)) if output_limit else configured_output
+        reserve = max(256, _positive_env_int("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", 2048))
+        margin = max(128, _positive_env_int("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", 512))
         available = max(0, int(input_limit) - reserve - margin) if input_limit else None
         budget = {
             "provider": provider, "model": model,
