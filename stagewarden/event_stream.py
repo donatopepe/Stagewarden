@@ -81,6 +81,9 @@ class EventStream:
                         previous_hash = existing_details["event_hash"]
                         break
             details_with_chain = dict(payload["details"])
+            details_with_chain.pop("event_sequence", None)
+            details_with_chain.pop("previous_event_hash", None)
+            details_with_chain.pop("event_hash", None)
             details_with_chain.update({
                 "event_sequence": chained_count + 1,
                 "previous_event_hash": previous_hash,

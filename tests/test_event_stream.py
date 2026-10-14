@@ -192,6 +192,21 @@ class EventStreamTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "corrupt event stream"):
                     stream.append("third", tree_id="tree")
 
+    def test_append_cannot_override_reserved_chain_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            stream.append(
+                "event", tree_id="tree", event_sequence=900,
+                previous_event_hash="forged-parent", event_hash="forged-digest",
+            )
+            first = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(first["details"]["event_sequence"], 1)
+            self.assertEqual(first["details"]["previous_event_hash"], "0" * 64)
+            self.assertNotEqual(first["details"]["event_hash"], "forged-digest")
+            stream.append("next", tree_id="tree")
+            self.assertTrue(stream.verify_integrity()["valid"])
+
     def test_hash_chain_stops_at_first_sequence_gap(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"
