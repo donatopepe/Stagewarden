@@ -824,6 +824,21 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         run.assert_not_called()
         orch.knowledge.close()
 
+    def test_pi_backend_fails_closed_when_output_cap_required_but_unknown(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        node = orch.nodes["root.scope"]
+        node.context_budget["max_output_tokens"] = None
+        with patch.dict(os.environ, {
+            "STAGEWARDEN_GOAL_LOOP_BACKEND": "pi",
+            "STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP": "true",
+        }), patch("stagewarden.goal_loop_orchestrator.subprocess.run") as run:
+            result = orch._pi_execution(node)
+        self.assertFalse(result["ok"])
+        self.assertIn("whether or not the provider limit is known", result["error"])
+        run.assert_not_called()
+        orch.knowledge.close()
+
     def test_work_and_result_packets_preserve_node_purpose(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "test task", execution_mode="mock")

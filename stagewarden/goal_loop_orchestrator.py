@@ -1083,8 +1083,8 @@ Do NOT include any text before or after the JSON object.'''
             return self._omniroute_execution(node_state)
         if backend not in {"pi", ""}:
             return {"ok": False, "error": f"unsupported goal-loop backend '{backend}'", "messages": []}
-        if output_cap_required and node_state.context_budget.get("max_output_tokens") is not None:
-            return {"ok": False, "error": "Pi CLI integration cannot enforce the required output-token cap; configure an enforcing backend or disable STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP.", "messages": []}
+        if output_cap_required:
+            return {"ok": False, "error": "Pi CLI integration cannot enforce a required output-token cap, whether or not the provider limit is known; configure an enforcing backend or disable STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP.", "messages": []}
         pi_bin = shutil.which("pi")
         if not pi_bin:
             return {"ok": False, "error": "pi executable not found", "messages": []}
