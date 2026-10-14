@@ -70,7 +70,7 @@ class OmniRouteAdapterTests(unittest.TestCase):
             attempted = True
             raise AssertionError("invalid output cap must block network call")
 
-        for value in ("0", "-3", "nan", "many"):
+        for value in ("0", "-3", "nan", "many", "4096.0"): 
             with self.subTest(value=value):
                 with patch.object(sys, "argv", ["run_model", "cheap", "test prompt"]), patch.object(
                     run_model_omniroute.urllib.request, "urlopen", side_effect=unexpected_urlopen
