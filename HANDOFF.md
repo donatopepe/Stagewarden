@@ -1,10 +1,11 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
-- Resume completing context for every node, token limits per model, automatic compaction, and implement context codemode. Preserve v3 seriality and existing LLM/provider/fallback/routing. No application code changed this turn.
-- Updated/shallow upstream sources: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`; sources ignored by root git; licenses/provenance and update plan in TODO.
-- Baseline: focused memory-context + goal-loop tests `63 passed, 16 subtests`; compileall and diff check clean. Full suite not run. pytest temp venv `/tmp/stagewarden-test-venv`.
-- First next action: inspect module files fully, compare upstream patterns with references, then design per-model input/output/tool token budgets and node-local compaction before changing code.
+- User requested solve/continue per-node context, model token caps, compaction, codemode; preserve v3 seriality/provider/routing/policy.
+- Sources refreshed: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`; license/provenance and upstream patterns in TODO.
+- Implemented first tranche: per-node context/budget/revision in NodeState capsules; catalog+env input/output limits and reserve; safe prompt budget, compaction; serial read/append context API, no eval/tool execution; memory loader accepts exact caller tokenizer or fails closed. Append now persists node-scoped knowledge revision/hash event.
+- Validation: focused after persistence 94 passed/26 subtests. Full suite before persistence `743 passed, 5 skipped, 301 subtests` via `pytest --ignore=external_sources -q`; rerun full after final code change pending. compileall/JSON/diff check pending.
+- Next priority: required-section-aware prompt builder including custom/skills, context persistence to node knowledge/restart restore, real provider tokenizer/output cap, wet mock run.
 
 ## Historical JEV/skills status
 - User clarified JEV is an optional add-on decision model alongside classic LLM; it must not replace/change the existing LLM/provider/fallback/routing.

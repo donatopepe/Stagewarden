@@ -1,9 +1,9 @@
 {
   "_format": "stagewarden_project_handoff",
   "_version": 1,
-  "task": "capabilities",
+  "task": "node-context-token-budget-codemode",
   "goal": {
-    "summary": "Implement and validate node-first MVP using OmniRoute free: serial bottom-up scheduler, WorkPacket/ResultPacket, visible node purpose, Node Knowledge Store and code-aware Python retrieval.",
+    "summary": "Complete UUID-scoped context per goal-loop node, model-aware token budgeting, bounded compaction and read/append context codemode while preserving Stagewarden v3 serial/provider/policy behavior.",
     "status": "active"
   },
   "project_budget": {},
@@ -44,13 +44,13 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Resumed node-context/codemode task. Upstream source mirrors refreshed; baseline focused suite passes. Next inspect memory/context, model-capacity metadata, node knowledge and prompt assembly before implementation. Preserve serial v3 and existing provider/LLM route.",
-  "current_step_id": null,
-  "current_step_title": null,
-  "current_step_status": "waiting",
-  "latest_observation": "2026-10-14: upstream shallow refs in TODO: Pi 2688aba7dc177020ef5da5492a966ed28ad619bd; Claude Code 9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e; Codex 7eed30ad1beaebc20b7d848ce9ee887525a379b0. Focused baseline tests/test_memory_context.py + tests/test_goal_loop_orchestrator.py: 63 passed, 16 subtests; compileall and diff check pass. No application code changed.",
-  "plan_status": "Authorized continuation: (1) inspect source designs in pinned upstreams; (2) map per-node context assembly; (3) define per-model input/output/tool reserve; (4) implement bounded token-aware packet and deterministic node-local compaction; (5) implement serial audited context codemode with explicit allowlist/no arbitrary eval; (6) validate isolation, overflow, restart/replay, wet-run and v3 regression. Score rubric in TODO; target >=7/8. No provider/routing/parallel changes.",
-  "git_head": "65ac04dcdb47e7e90607937cc1f0bd4aabaf7139",
+  "waiting_reason": "Initial implementation and full Stagewarden regression passed. Continue with required-section-aware budgeting, persistence to node knowledge, and real provider tokenizer/output limits.",
+  "current_step_id": "node-context-hardening",
+  "current_step_title": "Harden budgeting, context persistence, and codemode integration",
+  "current_step_status": "active",
+  "latest_observation": "2026-10-14: per-node context/budget/revision, catalog/env budgets, reserve, compaction, serial read/append context API and token-counter gated memory loader implemented. Focused tests: 94 passed, 26 subtests. Full suite excluding external_sources: 743 passed, 5 skipped, 301 subtests. compileall/JSON/diff check pass.",
+  "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
+  "git_head": "bbae713100c5db1b700a256294a936c8e970582e",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4427,5 +4427,12 @@
         "omniroute_multi_node": "fail_closed_external_blocker"
       }
     }
-  ]
+  ],
+  "validation": {
+    "focused": "94 passed, 26 subtests",
+    "full": "743 passed, 5 skipped, 301 subtests; pytest --ignore=external_sources -q",
+    "compileall": "passed",
+    "json": "passed",
+    "git_diff_check": "passed"
+  }
 }

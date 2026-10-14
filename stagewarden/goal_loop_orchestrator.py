@@ -1,6 +1,7 @@
 """Stagewarden goal loop orchestrator for multi-node, hierarchical execution."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -539,6 +540,17 @@ Do NOT include any text before or after the JSON object.'''
                 original_chars=len(prior) + len(entry), compacted_chars=len(combined),
             )
         node.compacted_context = combined
+        self.knowledge.record_context(
+            tree_id="goal-loop", node_id=node.node_id, parent_node_id=node.parent_node_id,
+            purpose=node.purpose, status=node.status, content=combined,
+            title=f"Node context revision {node.context_revision}", kind="node_context",
+            entry_id=f"node-context-{node.node_uuid}-{node.context_revision}",
+        )
+        self.events.append(
+            "node_context_updated", tree_id="goal-loop", node_id=node.node_id,
+            node_uuid=node.node_uuid, revision=node.context_revision,
+            context_chars=len(combined), content_hash=hashlib.sha256(combined.encode("utf-8")).hexdigest(),
+        )
         return combined
 
     def codemode_context(self, node_id: str, operation: str, *, text: str = "") -> dict[str, Any]:

@@ -63,6 +63,8 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             first = orchestrator.codemode_context(root.node_id, "append", text="private root fact")
             self.assertTrue(first["ok"])
             self.assertIn("private root fact", orchestrator.codemode_context(root.node_id, "read")["context"])
+            saved = orchestrator.knowledge.search("private root fact", node_id=root.node_id, namespace="context")
+            self.assertTrue(saved)
             self.assertNotIn("private root fact", orchestrator.codemode_context(other.node_id, "read")["context"])
             before = root.context_revision
             orchestrator._append_node_context(root, "test", "long " * 10000)
