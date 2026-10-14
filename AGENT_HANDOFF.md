@@ -11,7 +11,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). Budget contract regression ora verifica anche `available_input` positivo e invariato tra NodeState e WorkPacket, oltre estimator Unicode/tag.
+- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). OmniRoute subprocess ora rimuove `STAGEWARDEN_OMNIROUTE_MAX_TOKENS` ereditato quando nessun cap noto/configurato, prevenendo limite stale non correlato al node budget. Regression test copre cap presente e sconosciuto.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
@@ -41,7 +41,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Verificare limiti/budget e contatore in entrambi prompt/work-packet paths; metadata deve dichiarare estimator conservativo.
+1. Eseguire test focused e full suite dopo pulizia max_tokens ereditato.
 2. Integrare tokenizer/usage solo con evidence provider, mantenere UTF-8 estimator fallback.
 3. Verificare output-cap enforcement con evidence backend, non request metadata; mantenere test remoti free-only.
 

@@ -925,6 +925,20 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         run.assert_not_called()
         orch.knowledge.close()
 
+    def test_omniroute_backend_clears_inherited_output_cap_when_budget_unknown(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        node = orch.nodes["root.scope"]
+        node.context_budget.update({"max_output_tokens": None, "reserved_output": None})
+        completed = subprocess.CompletedProcess(args=["adapter"], returncode=1, stdout="{}", stderr="failed")
+        with patch.dict(os.environ, {
+            "STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute",
+            "STAGEWARDEN_OMNIROUTE_MAX_TOKENS": "1234",
+        }), patch("stagewarden.goal_loop_orchestrator.subprocess.run", return_value=completed) as run:
+            orch._pi_execution(node)
+        self.assertNotIn("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", run.call_args.kwargs["env"])
+        orch.knowledge.close()
+
     def test_omniroute_backend_applies_provider_output_cap_to_request_env(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "test task", execution_mode="pi")

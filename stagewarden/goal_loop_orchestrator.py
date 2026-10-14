@@ -1199,6 +1199,8 @@ Do NOT include any text before or after the JSON object.'''
         caps = [int(value) for value in (output_cap, reserved_output, configured_output) if isinstance(value, (int, str)) and str(value).isdigit() and int(value) > 0]
         if caps:
             child_env["STAGEWARDEN_OMNIROUTE_MAX_TOKENS"] = str(min(caps))
+        else:
+            child_env.pop("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", None)
         try:
             proc = subprocess.run(
                 [sys.executable, str(adapter), "--node-contract", provider, self._compact_node_text(node_state.prompt, int(node_state.context_budget.get("available_input", 12000)) if node_state.context_budget.get("available_input") is not None else 12000)],
