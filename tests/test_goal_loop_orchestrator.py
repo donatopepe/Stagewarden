@@ -177,6 +177,14 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 self.assertEqual(restored["node_uuid"], node.node_uuid)
             capsules.close()
             orchestrator.knowledge.close()
+            resumed = GoalLoopOrchestrator(
+                AgentConfig(workspace_root=Path(tmp)), "wet mock verification",
+                execution_mode="mock", json_mode=True,
+            )
+            self.addCleanup(lambda: resumed.knowledge.close())
+            resumed_statuses = {node.node_id: node.status for node in resumed.nodes.values()}
+            self.assertTrue(resumed_statuses)
+            self.assertTrue(all(status == "completed" for status in resumed_statuses.values()))
 
     def test_execution_mode_serial_gate_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -281,7 +281,15 @@ class GoalLoopOrchestrator:
             received = saved.get("messages_received")
             if isinstance(received, list):
                 node.messages_received = [dict(item) for item in received if isinstance(item, dict)]
-            if saved.get("status") in {"completed", "failed"}:
+            terminal_status = saved.get("status")
+            if terminal_status in {"completed", "failed"}:
+                if isinstance(saved_context, str) and saved_context:
+                    node.compacted_context = saved_context
+                    node.context_revision = int(saved.get("context_revision", node.context_revision) or 0)
+                node.messages_received = [dict(item) for item in received] if isinstance(received, list) else []
+                node.status = str(terminal_status)
+                node.output_summary = str(saved.get("output_summary", node.output_summary) or "")
+                node.error_message = saved.get("error_message")
                 continue
             for name in (
                 "node_uuid", "status", "active_work", "session_id", "last_run_at", "output_summary",
