@@ -11,7 +11,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). Matrix env testa unset => default reserve 2048/margin 512; invalid vuoto/whitespace, zero, negative, float e testo fail-closed. Goal-loop 71 passed/24 subtests; full suite 758 passed, 5 skipped, 314 subtests (318.79s).
+- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). Budget contract regression ora verifica anche `available_input` positivo e invariato tra NodeState e WorkPacket, oltre estimator Unicode/tag.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.

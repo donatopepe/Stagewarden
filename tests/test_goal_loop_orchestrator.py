@@ -87,8 +87,10 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.addCleanup(lambda: orchestrator.knowledge.close())
             node = orchestrator.nodes["root.scope"]
             self.assertEqual(node.context_budget["token_counter"], "utf8_byte_upper_bound_v1")
+            self.assertGreater(node.context_budget["available_input"], 0)
             packet = orchestrator._build_work_packet(node)
             self.assertEqual(packet["context_budget"]["token_counter"], "utf8_byte_upper_bound_v1")
+            self.assertEqual(packet["context_budget"]["available_input"], node.context_budget["available_input"])
             self.assertEqual(
                 GoalLoopOrchestrator._estimate_tokens("é🙂"),
                 len("é🙂".encode("utf-8")),
