@@ -7,12 +7,15 @@
 - Validation: focused after persistence 94 passed/26 subtests. Full suite before persistence `743 passed, 5 skipped, 301 subtests` via `pytest --ignore=external_sources -q`; rerun full after final code change pending. compileall/JSON/diff check pending.
 - Next priority: required-section-aware prompt builder including custom/skills, context persistence to node knowledge/restart restore, real provider tokenizer/output cap, wet mock run.
 
-## Historical JEV/skills status
-- User clarified JEV is an optional add-on decision model alongside classic LLM; it must not replace/change the existing LLM/provider/fallback/routing.
-- Chosen `/skill:mvp-first-agent-workflow`; direct analysis, no subagent. User says JEV efficiency in decision process is already demonstrated. `TODO.md` proposes serial JEV→policy→existing LLM-on-uncertainty; Stagewarden tests validate faithful integration/no regressions, not re-prove supplied evidence.
-- Obsidian details revealed working implementation contracts. Classifier adapters now follow TypeSafe System One and JevStyle-v3 llama.cpp verdict-slot protocol. Opt-in `api|llama_cpp` is wired to goal-loop autonomy gate; default off, deterministic policy authoritative, can only raise caution. LLM path unchanged.
+## Terminology
+- User requests generic naming: call it “decision model”, not JEV/model-specific name. Vendor-specific names may remain only in technical provenance/reference notes.
+
+## Historical decision-model/skills status
+- User clarified the decision model is an optional add-on alongside classic LLM; it must not replace/change existing LLM/provider/fallback/routing.
+- Chosen `/skill:mvp-first-agent-workflow`; direct analysis, no subagent. User says decision-model efficiency in decision process is already demonstrated. `TODO.md` proposes serial decision-model→policy→existing LLM-on-uncertainty; Stagewarden tests validate faithful integration/no regressions, not re-prove supplied evidence.
+- Obsidian details revealed working implementation contracts. Classifier adapters follow documented TypeSafe System One and local llama.cpp verdict-slot protocol. Opt-in `api|llama_cpp` is wired to goal-loop autonomy gate; default off, deterministic policy authoritative, can only raise caution. LLM path unchanged.
 - Targeted tests `72 passed, 16 subtests`; full suite `738 passed, 5 skipped, 301 subtests`. HTTP stub smoke only; no actual JEV/GGUF installed, live backend test deferred.
-- Pi codemode docs explicitly show `models.getModelOfType("classifier", "typesafe", "jev-latest")`. Do not port codemode/skill-loader; adapters use typed contracts without arbitrary script execution.
+- Pi codemode docs cite a specific classifier as upstream example only; Stagewarden terminology remains generic: decision model. Do not port codemode/skill-loader; adapters use typed contracts without arbitrary script execution.
 - Skills now workspace-scoped per node: catalog `.stagewarden/skills`, assignment registry `.stagewarden/goal_loop_skills.json`, named multi-skill custom nodes, safe bounded Markdown only. CLI supports list/assign. Content labeled untrusted prompt data.
 - Checkout HEAD `8b32359`; handoff mirrors, TODO, skill views/orchestrator/CLI/tests and classifier files modified. V3 serial/exclusions and classic LLM route unchanged.
 
