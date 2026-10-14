@@ -23,16 +23,22 @@ FREE_FALLBACKS = tuple(
     ).split(",")
     if item.strip()
 )
-FREE_MODEL_MARKERS = (":free", "-free", "/free", "free-")
+FREE_MODEL_MARKERS = (":free", "/free/")
 DEFAULT_MAX_TOKENS = 4096
 MIN_MAX_TOKENS = 1
 MAX_MAX_TOKENS = 131072
 
 
 def is_explicitly_free_model(model: str) -> bool:
-    """Accept only model IDs explicitly marked as free; never infer by provider name."""
+    """Accept explicit free tiers; reject incidental words like ``not-free``."""
     normalized = model.strip().lower()
-    return bool(normalized) and any(marker in normalized for marker in FREE_MODEL_MARKERS)
+    if not normalized:
+        return False
+    return (
+        normalized.endswith(":free")
+        or "/free/" in normalized
+        or normalized in {"auto/best-free", "coding-free-fallback"}
+    )
 
 
 def _free_model_candidates(requested: str, fallbacks: tuple[str, ...]) -> tuple[str, ...]:

@@ -42,6 +42,25 @@ class _RawBodyResponse:
 
 
 class OmniRouteAdapterTests(unittest.TestCase):
+    def test_free_model_detection_rejects_incidental_free_substrings(self) -> None:
+        accepted = (
+            "provider/model:free",
+            "provider/free/model",
+            "coding-free-fallback",
+        )
+        rejected = (
+            "provider/model-not-free",
+            "provider/freebie/model",
+            "provider/not-free/model",
+            "provider/model:free-ish",
+        )
+        for model in accepted:
+            with self.subTest(model=model):
+                self.assertTrue(run_model_omniroute.is_explicitly_free_model(model))
+        for model in rejected:
+            with self.subTest(model=model):
+                self.assertFalse(run_model_omniroute.is_explicitly_free_model(model))
+
     def test_paid_requested_model_is_never_sent_or_used_as_fallback(self) -> None:
         attempts: list[str] = []
 
@@ -53,13 +72,13 @@ class OmniRouteAdapterTests(unittest.TestCase):
 
         env = {
             "STAGEWARDEN_PROVIDER_MODEL": "provider/paid-model",
-            "STAGEWARDEN_OMNIROUTE_FREE_MODELS": "provider/no-cost-free,provider/also-free",
+            "STAGEWARDEN_OMNIROUTE_FREE_MODELS": "provider/no-cost:free,provider/also:free",
         }
         with patch.object(sys, "argv", ["run_model", "cheap", "test prompt"]), patch.object(
             run_model_omniroute.urllib.request, "urlopen", side_effect=fake_urlopen
         ), patch.dict(os.environ, env):
             self.assertEqual(run_model_omniroute.main(), 0)
-        self.assertEqual(attempts, ["provider/no-cost-free", "provider/also-free"])
+        self.assertEqual(attempts, ["provider/no-cost:free", "provider/also:free"])
         self.assertTrue(all(run_model_omniroute.is_explicitly_free_model(model) for model in attempts))
 
     def test_invalid_output_token_limit_fails_before_http(self) -> None:
