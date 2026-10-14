@@ -30,8 +30,10 @@ _AVAILABLE_PI: bool | None = None  # cached detection
 
 def _positive_env_int(name: str, default: int | None = None) -> int | None:
     raw = os.environ.get(name)
-    if raw is None or raw == "":
+    if raw is None:
         return default
+    if raw.strip() == "":
+        raise ValueError(f"{name} must be a positive integer")
     try:
         value = int(raw)
     except (TypeError, ValueError) as exc:

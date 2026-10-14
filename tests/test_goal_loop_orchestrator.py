@@ -62,6 +62,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 ("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS", "-1"),
                 ("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "not-number"),
                 ("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "2048.0"),
+                ("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "   "),
             ):
                 with self.subTest(key=key, value=value), patch.dict(os.environ, {key: value}):
                     with self.assertRaisesRegex(ValueError, key):
