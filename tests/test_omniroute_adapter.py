@@ -70,7 +70,7 @@ class OmniRouteAdapterTests(unittest.TestCase):
             attempted = True
             raise AssertionError("invalid output cap must block network call")
 
-        for value in ("0", "-3", "nan", "many", "4096.0", "", "   "):  
+        for value in ("0", "-3", "nan", "many", "4096.0", "", "   ", "131073"):   
             with self.subTest(value=value):
                 with patch.object(sys, "argv", ["run_model", "cheap", "test prompt"]), patch.object(
                     run_model_omniroute.urllib.request, "urlopen", side_effect=unexpected_urlopen
@@ -79,6 +79,39 @@ class OmniRouteAdapterTests(unittest.TestCase):
                     "STAGEWARDEN_OMNIROUTE_MAX_TOKENS": value,
                 }):
                     self.assertEqual(run_model_omniroute.main(), 2)
+        self.assertFalse(attempted)
+
+    def test_output_token_limit_accepts_documented_upper_bound(self) -> None:
+        attempts: list[dict[str, object]] = []
+
+        def fake_urlopen(request, timeout):
+            attempts.append(json.loads(request.data))
+            return _Response("ok")
+
+        with patch.object(sys, "argv", ["run_model", "cheap", "test prompt"]), patch.object(
+            run_model_omniroute.urllib.request, "urlopen", side_effect=fake_urlopen
+        ), patch.dict(os.environ, {
+            "STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free",
+            "STAGEWARDEN_OMNIROUTE_MAX_TOKENS": "131072",
+        }):
+            self.assertEqual(run_model_omniroute.main(), 0)
+        self.assertEqual(attempts[0]["max_tokens"], 131072)
+
+    def test_output_token_limit_rejects_overflow_before_http(self) -> None:
+        attempted = False
+
+        def unexpected_urlopen(request, timeout):
+            nonlocal attempted
+            attempted = True
+            raise AssertionError("out-of-range output cap must block HTTP")
+
+        with patch.object(sys, "argv", ["run_model", "cheap", "test prompt"]), patch.object(
+            run_model_omniroute.urllib.request, "urlopen", side_effect=unexpected_urlopen
+        ), patch.dict(os.environ, {
+            "STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free",
+            "STAGEWARDEN_OMNIROUTE_MAX_TOKENS": "131073",
+        }):
+            self.assertEqual(run_model_omniroute.main(), 2)
         self.assertFalse(attempted)
 
     def test_nonfree_routes_fail_closed_when_no_free_candidate(self) -> None:

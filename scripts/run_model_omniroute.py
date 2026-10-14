@@ -24,6 +24,9 @@ FREE_FALLBACKS = tuple(
     if item.strip()
 )
 FREE_MODEL_MARKERS = (":free", "-free", "/free", "free-")
+DEFAULT_MAX_TOKENS = 4096
+MIN_MAX_TOKENS = 1
+MAX_MAX_TOKENS = 131072
 
 
 def is_explicitly_free_model(model: str) -> bool:
@@ -37,7 +40,7 @@ def _free_model_candidates(requested: str, fallbacks: tuple[str, ...]) -> tuple[
     return tuple(dict.fromkeys(model for model in candidates if is_explicitly_free_model(model)))
 
 
-def _positive_int_env(name: str, default: int) -> int:
+def _positive_int_env(name: str, default: int, *, maximum: int = MAX_MAX_TOKENS) -> int:
     raw = os.environ.get(name)
     if raw is not None and not raw.strip():
         raise ValueError(f"{name} must be a positive integer")
@@ -45,8 +48,8 @@ def _positive_int_env(name: str, default: int) -> int:
         value = int(raw) if raw is not None else default
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{name} must be a positive integer") from exc
-    if value < 1:
-        raise ValueError(f"{name} must be a positive integer")
+    if value < MIN_MAX_TOKENS or value > maximum:
+        raise ValueError(f"{name} must be an integer in [{MIN_MAX_TOKENS}, {maximum}]")
     return value
 
 
@@ -106,7 +109,9 @@ def main() -> int:
             else [{"role": "user", "content": prompt}]
         )
     try:
-        max_tokens = _positive_int_env("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", 4096)
+        max_tokens = _positive_int_env(
+            "STAGEWARDEN_OMNIROUTE_MAX_TOKENS", DEFAULT_MAX_TOKENS,
+        )
     except ValueError as exc:
         print(json.dumps({"error": str(exc), "provider": provider}))
         return 2

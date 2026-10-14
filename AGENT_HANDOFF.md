@@ -11,7 +11,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Strict budget env distingue unset (default) da vuoto/whitespace (errore). OmniRoute max_tokens invalido ritorna JSON/exit 2. `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP` valida boolean fail-closed. Nuovo opt-in `STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET=true` rifiuta input limit unknown; esplicito `STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS` ammesso come override.
+- Strict budget env distingue unset (default) da vuoto/whitespace (errore). OmniRoute max_tokens invalido/out-of-range ritorna JSON/exit 2; int bound 1..131072, default 4096, evita overflow DoS/corruzione budget. `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP` valida boolean fail-closed. Opt-in input-budget tested: 75 passed/28 subtests; full suite 762 passed/5 skipped/320 subtests (318.85s). `STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET=true` rifiuta limit unknown, input override esplicito consente progress.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
