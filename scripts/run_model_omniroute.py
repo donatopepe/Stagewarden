@@ -39,6 +39,8 @@ def _free_model_candidates(requested: str, fallbacks: tuple[str, ...]) -> tuple[
 
 def _positive_int_env(name: str, default: int) -> int:
     raw = os.environ.get(name)
+    if raw is not None and not raw.strip():
+        raise ValueError(f"{name} must be a positive integer")
     try:
         value = int(raw) if raw is not None else default
     except (TypeError, ValueError) as exc:

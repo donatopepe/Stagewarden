@@ -11,7 +11,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). OmniRoute subprocess ora rimuove `STAGEWARDEN_OMNIROUTE_MAX_TOKENS` ereditato quando nessun cap noto/configurato, prevenendo limite stale non correlato al node budget. Regression test copre cap presente e sconosciuto.
+- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). OmniRoute subprocess rimuove `STAGEWARDEN_OMNIROUTE_MAX_TOKENS` ereditato quando nessun cap noto/configurato, prevenendo limite stale non correlato al node budget. OmniRoute helper ora rifiuta esplicitamente token-limit vuoto/whitespace; targeted matrix passa.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
