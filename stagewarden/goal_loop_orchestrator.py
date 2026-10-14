@@ -296,16 +296,19 @@ class GoalLoopOrchestrator:
         from .goal_loop_views import load_custom_nodes, load_node_skill_assignments, resolve_node_skills
         skill_assignments = load_node_skill_assignments(self.config.workspace_root)
         skills_root = self.config.workspace_root / ".stagewarden" / "skills"
+        skill_instructions: dict[str, str] = {}
         for node_id, skill_names in skill_assignments.items():
             node = self.nodes.get(node_id)
             if not node:
                 continue
             skill_items, errors = resolve_node_skills(skill_names, [skills_root])
             if skill_items or errors:
-                node.prompt += "\n\n## Assigned skills (untrusted prompt data)\n"
-                node.prompt += "\n\n".join(f"### {item['name']}\n{item['content']}" for item in skill_items)
+                addition = "\n\n## Assigned skills (untrusted prompt data)\n"
+                addition += "\n\n".join(f"### {item['name']}\n{item['content']}" for item in skill_items)
                 if errors:
-                    node.prompt += "\n\n" + "\n".join(f"(skill unavailable: {error})" for error in errors)
+                    addition += "\n\n" + "\n".join(f"(skill unavailable: {error})" for error in errors)
+                skill_instructions[node_id] = addition
+
         # Load custom nodes from .stagewarden/goal_loop_custom_nodes.json
         for cn in load_custom_nodes():
             nid = cn["node_id"]
@@ -352,6 +355,18 @@ class GoalLoopOrchestrator:
                 node_uuid=node_uuid,
                 max_retries=default_retries,
             )
+        for node in self.nodes.values():
+            child = self.blueprint.get("child_prompts", [])
+            definition = next((item for item in child if item.get("node_id") == node.node_id), None)
+            if definition is None:
+                definition = {
+                    "node_id": node.node_id, "parent_id": node.parent_node_id,
+                    "purpose": node.purpose, "dependencies": node.dependencies,
+                    "acceptance_criteria": node.acceptance_criteria, "tests": node.tests,
+                    "tolerances": node.tolerances,
+                }
+            node.prompt += skill_instructions.get(node.node_id, "")
+            self._enforce_node_prompt_budget(node, definition, skill_instructions.get(node.node_id, ""))
 
     def _build_work_packet(self, node_state: NodeState) -> dict[str, Any]:
         if node_state.node_id != "root.scope" and node_state.parent_node_id not in self.nodes:
@@ -458,8 +473,6 @@ Do NOT include any text before or after the JSON object.'''
             "reserved_output": reserve, "safety_margin": margin,
             "available_input": available, "source": limits.get("source", "unknown"),
         }
-        if node_state is not None:
-            node_state.context_budget = dict(budget)
         if available is not None:
             fixed_prompt = (
                 f"{template} WorkPacket {json.dumps(packet, ensure_ascii=True, sort_keys=True)} "
@@ -509,6 +522,55 @@ Do NOT include any text before or after the JSON object.'''
         if node_state is not None:
             node_state.context_budget = dict(budget)
         return prompt
+
+    def _enforce_node_prompt_budget(self, node: NodeState, child: dict[str, Any], added_instructions: str = "") -> None:
+        """Apply resolved model budget to final prompt, including assigned skills/custom text."""
+        try:
+            from .model_catalog import context_limits_for_provider_model, load_ai_models_catalog
+            provider = os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap")
+            model = os.environ.get("STAGEWARDEN_PROVIDER_MODEL", os.environ.get("STAGEWARDEN_OMNIROUTE_MODEL", "auto/coding:free"))
+            limits = context_limits_for_provider_model(provider, model, load_ai_models_catalog())
+        except (OSError, TypeError, ValueError):
+            limits = {"context_window": None, "input_limit": None, "max_output_tokens": None, "source": "unknown"}
+        input_limit = limits.get("input_limit") or limits.get("context_window")
+        output_limit = limits.get("max_output_tokens")
+        try:
+            configured_input = os.environ.get("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS")
+            configured_output = os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS")
+            if configured_input:
+                input_limit = min(int(configured_input), int(input_limit)) if input_limit else int(configured_input)
+            if configured_output:
+                output_limit = min(int(configured_output), int(output_limit)) if output_limit else int(configured_output)
+            reserve = max(256, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "2048")))
+            margin = max(128, int(os.environ.get("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "512")))
+        except ValueError as exc:
+            raise ValueError("Invalid goal-loop token budget configuration") from exc
+        available = max(0, int(input_limit) - reserve - margin) if input_limit else None
+        budget = {
+            "provider": provider, "model": model,
+            "context_window": limits.get("context_window"), "input_limit": input_limit,
+            "max_output_tokens": output_limit, "reserved_output": reserve,
+            "safety_margin": margin, "available_input": available,
+            "source": limits.get("source", "unknown"),
+        }
+        node.context_budget = budget
+        if available is None:
+            return
+        effective_tokens = self._estimate_tokens(node.prompt)
+        if added_instructions:
+            effective_tokens = self._estimate_tokens(node.prompt[:-len(added_instructions)]) + self._estimate_tokens(added_instructions)
+        if effective_tokens > available:
+            raise ValueError(
+                f"Node {node.node_id} prompt (including custom instructions/skills) exceeds safe context budget "
+                f"({effective_tokens}>{available} estimated tokens)."
+            )
+        context = node.compacted_context
+        if context:
+            remaining = available - effective_tokens - 64
+            context = self._compact_node_text(context, max(0, remaining))
+            node.compacted_context = context
+        if effective_tokens + self._estimate_tokens(context) > available:
+            raise ValueError(f"Node {node.node_id} prompt and node context exceed safe context budget.")
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:

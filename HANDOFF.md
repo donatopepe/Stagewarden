@@ -4,8 +4,9 @@
 - User requested solve/continue per-node context, model token caps, compaction, codemode; preserve v3 seriality/provider/routing/policy.
 - Sources refreshed: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`; license/provenance and upstream patterns in TODO.
 - Implemented first tranche: per-node context/budget/revision in NodeState capsules; catalog+env input/output limits and reserve; safe prompt budget, compaction; serial read/append context API, no eval/tool execution; memory loader accepts exact caller tokenizer or fails closed. Append now persists node-scoped knowledge revision/hash event.
-- Validation: focused after persistence 94 passed/26 subtests. Full suite before persistence `743 passed, 5 skipped, 301 subtests` via `pytest --ignore=external_sources -q`; rerun full after final code change pending. compileall/JSON/diff check pending.
-- Next priority: required-section-aware prompt builder including custom/skills, context persistence to node knowledge/restart restore, real provider tokenizer/output cap, wet mock run.
+- Validation: focused `unittest` 65 tests passed; complete pytest suite `743 passed, 5 skipped, 301 subtests` via `--ignore=external_sources` (317.16s). `compileall`, JSON and `git diff --check` pass.
+- Budget hardening added after skills/custom prompt loading: final prompt includes assigned skills in estimation, fails closed when fixed instructions exceed safe budget; node-local context is fit to remaining budget. Heuristic remains 3 chars/token. Targeted: 66 passed/16 subtests; rerun full suite pending.
+- Next priority: complete regression, real provider tokenizer/output cap, restore post-restart and wet mock run.
 
 ## Terminology
 - User requests generic naming: call it “decision model”, not JEV/model-specific name. Vendor-specific names may remain only in technical provenance/reference notes.

@@ -54,6 +54,33 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 patch("stagewarden.goal_loop_orchestrator.shutil.which", return_value="/usr/bin/pi"):
             return orchestrator._pi_execution(node)
 
+    def test_final_prompt_budget_includes_assigned_skills_and_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skills = root / ".stagewarden" / "skills"
+            skills.mkdir(parents=True)
+            (skills / "large" / "SKILL.md").parent.mkdir(parents=True)
+            (skills / "large" / "SKILL.md").write_text(
+                "---\nname: large\ndescription: oversized skill\n---\n" + "skill requirement " * 3500,
+                encoding="utf-8",
+            )
+            (root / ".stagewarden" / "goal_loop_skills.json").write_text(
+                json.dumps({"root.scope": ["large"]}), encoding="utf-8"
+            )
+            from stagewarden.goal_loop_views import load_node_skill_assignments, resolve_node_skills
+            self.assertEqual(load_node_skill_assignments(root), {"root.scope": ["large"]})
+            self.assertEqual(len(resolve_node_skills(["large"], [skills])[0][0]["content"]), 63_049)
+            with patch.dict(os.environ, {
+                "STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "5000",
+                "STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE": "256",
+                "STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN": "128",
+            }, clear=False):
+                with self.assertRaisesRegex(ValueError, "including custom instructions/skills"):
+                    GoalLoopOrchestrator(
+                        AgentConfig(workspace_root=root), "budget test",
+                        execution_mode="mock", json_mode=True,
+                    )
+
     def test_node_context_codemode_is_uuid_scoped_and_compacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "context test", execution_mode="mock", json_mode=True)

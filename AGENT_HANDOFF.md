@@ -5,14 +5,16 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 
 ## Current state
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
+- Budget finale ora controlla prompt standard più skills assegnate dopo caricamento: fallisce chiuso se supera il limite disponibile; context node viene limitato al residuo. Conteggio resta euristica 3 char/token.
 - Memory loader usa token count solo con contatore esplicito; non è integrato tokenizer reale.
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Ultima modifica runtime aggiunge persistenza knowledge e evento revision/hash.
 - `compileall`, JSON handoff e `git diff --check` passano.
-- Test non eseguiti: interpreter `/tmp/stagewarden-test-venv` non esiste più; pytest non installato nel Python attivo. `venv_pytest` ha link interpreter Mac non valido qui. Prima delle ultime modifiche: suite mirati 94 passed/26 subtests; suite complessiva 743 passed, 5 skipped, 301 subtests.
+- Ultima validazione dopo budget hardening: suite mirata `tests.test_goal_loop_orchestrator tests.test_memory_context`: 66 passed, 16 subtests. Full suite passata prima dell’hardening: 743 passed, 5 skipped, 301 subtests; da rieseguire.
 
 ## Recent changes
-- `stagewarden/goal_loop_orchestrator.py`: token budget, compaction e persistence context node-scoped.
+- `stagewarden/goal_loop_orchestrator.py`: token budget finale inclusivo delle skills, compaction e persistence context node-scoped.
+- `tests/test_goal_loop_orchestrator.py`: regressione skill eccedente budget fail-closed.
 - `stagewarden/memory_context.py`: loader bounded con token counter esplicito.
 - `tests/test_goal_loop_orchestrator.py`, `tests/test_memory_context.py`: isolamento, overflow e codemode.
 - `TODO.md`, `HANDOFF.md`, `.stagewarden_handoff.json`: contesto e roadmap.
@@ -35,9 +37,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Procurare Python/pytest valido e rieseguire suite mirati e completa.
-2. Hardening prompt budgeting con sezioni obbligatorie e test overflow.
-3. Integrare tokenizer/cap backend reale oppure fail-closed.
+1. Eseguire suite completa dopo hardening e risolvere regressioni.
+2. Integrare tokenizer/cap backend reale oppure fail-closed.
+3. Test restore post-restart e wet-run mock.
 4. Test restore e wet-run mock; allineare handoff e TODO.
 
 ## Commands
