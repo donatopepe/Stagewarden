@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Continuation check: branch `main`; only pre-existing dirty file was `AGENT_HANDOFF.md`. Focused wet tests `tests/test_goal_loop_orchestrator.py tests/test_omniroute_adapter.py`: 87 passed, 1 skipped, 51 subtests (10.86s). No implementation changes made; tokenizer/output-cap remain blocked without backend evidence.
 - User requested solve/continue per-node context, model token caps, compaction, codemode; preserve v3 seriality/provider/routing/policy.
 - Sources refreshed: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`; license/provenance and upstream patterns in TODO.
 - Implemented first tranche: per-node context/budget/revision in NodeState capsules; catalog+env input/output limits and reserve; safe prompt budget, compaction; serial read/append context API, no eval/tool execution; memory loader accepts exact caller tokenizer or fails closed. Append now persists node-scoped knowledge revision/hash event.

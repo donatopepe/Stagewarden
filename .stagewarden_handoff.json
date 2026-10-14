@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Initial implementation and full Stagewarden regression passed. Continue with required-section-aware budgeting, persistence to node knowledge, and real provider tokenizer/output limits.",
+  "waiting_reason": "Core node context/budget/codemode work is implemented. Latest continuation focused tests: 87 passed, 1 skipped, 51 subtests; no code edits. Provider tokenizer, backend-enforced output caps, event replay, and semantic/loss-aware compaction remain unverified or open; preserve fail-closed options and free-only remote tests.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

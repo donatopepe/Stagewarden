@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Ripresa sessione 2026-10-14: `main`, working tree iniziale aveva solo modifica a questo handoff; nessuna modifica di codice in questa continuazione. Focused wet regression appena eseguita: `tests/test_goal_loop_orchestrator.py tests/test_omniroute_adapter.py` → 87 passed, 1 skipped, 51 subtests (10.86s). `compileall`, JSON parse e `git diff --check` passano.
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
 - Budget finale controlla prompt standard + skills; over-budget fail-closed, context node limitato al residuo. Metadata dichiara `token_counter=utf8_byte_upper_bound_v1` e `accounting_unit=utf8_bytes_upper_bound_not_provider_tokens`; test verifica marker su NodeState e WorkPacket. Goal-loop 74 passed/28 subtests; full suite 761 passed/5 skipped/320 subtests (317.82s).
 - Test remoto ora free-only anche nei benchmark OpenRouter espliciti: `STAGEWARDEN_TEST_FREE_MODEL` default `auto/coding:free`; live test saltano se override non termina `:free`, smoke shell fallisce chiuso. OmniRoute free detection accetta suffisso `:free` e due alias fallback esatti (`auto/best-free`, `coding-free-fallback`); respinge `/free/` segmento permissivo e substring incidentali. Adapter: 11 passed/1 skipped/20 subtests; full suite: 765 passed/5 skipped/329 subtests (438.64s).
@@ -11,7 +12,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Strict budget env distingue unset (default) da vuoto/whitespace (errore). OmniRoute max_tokens bound 1..131072 (default 4096), over-range fail-fast JSON/exit 2; adapter tests 10 passed/1 skipped/12 subtests. Full suite 764 passed/5 skipped/321 subtests (317.74s). `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP` valida boolean fail-closed. Opt-in input-budget tested: 75 passed/28 subtests; full suite 762 passed/5 skipped/320 subtests (318.85s). `STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET=true` rifiuta limit unknown, input override esplicito consente progress. Policy input budget valida ora boolean literal; `maybe`/`2`/`enabled` rifiutati.
+- Strict budget env distingue unset (default) da vuoto/whitespace (errore). OmniRoute max_tokens bound 1..131072 (default 4096), over-range fail-fast JSON/exit 2; adapter tests 10 passed/1 skipped/12 subtests. Full suite 764 passed/5 skipped/321 subtests (317.74s). `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP` valida boolean fail-closed. Opt-in input-budget tested: 75 passed/28 subtests; full suite 762 passed/5 skipped/320 subtests (318.85s). `STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET=true` rifiuta limit unknown, input override esplicito consente progress. Policy input budget valida ora boolean literal; `maybe`/`2`/`enabled` rifiutati. Goal-loop 76 passed/31 subtests; full suite 766 passed/5 skipped/332 subtests (342.96s).
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
@@ -35,15 +36,15 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Budget da catalogo/env; limiti ignoti non si inventano.
 
 ## Open issues
-- Stima token e overhead tool/schema/system non verificati su backend.
-- Memory token compaction non collegata al caller; compattazione non semantica.
-- Verificare prompt custom/skills e preservazione sezioni obbligatorie.
-- Testare restore post-restart e wet-run con ambiente pytest funzionante.
+- Tokenizer provider e overhead tool/schema/system non verificati; UTF-8 byte upper bound non è token count.
+- Memory token compaction non collegata al caller; compattazione resta non semantica/loss-aware non verificata.
+- Output-cap backend non verificato: OmniRoute `max_tokens` è solo request; Pi CLI senza cap documentato. Opt-in fail-closed presente.
+- Event replay semantics non implementate/verificate.
 
 ## Next steps
-1. Eseguire focused/full regression dopo input-budget policy boolean validation.
-2. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback.
-3. Output-cap enforcement richiede evidence backend, non request metadata; test remoti restano free-only.
+1. Full suite già riportata come 766 passed, 5 skipped, 332 subtests nel handoff compatto; rifarla dopo ogni modifica di codice (questa continuazione non ha cambiato codice).
+2. Verificare tokenizer provider e output-cap solo con evidenza runtime disponibile; nessuna chiamata remota non necessaria, test remoti free-only.
+3. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback.
 
 ## Commands
 ```bash
