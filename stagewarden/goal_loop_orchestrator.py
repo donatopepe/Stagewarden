@@ -654,7 +654,17 @@ Do NOT include any text before or after the JSON object.'''
         tail_bytes = max_bytes - head_bytes
         head = raw[:head_bytes].decode("utf-8", errors="ignore").rstrip()
         tail = raw[-tail_bytes:].decode("utf-8", errors="ignore").lstrip() if tail_bytes else ""
-        return f"{head}{marker}{tail}" if tail else head
+        # The UTF-8 boundary decoders can drop partial code points and trimming
+        # removes additional bytes. Reconcile against the hard byte ceiling,
+        # including the marker, instead of assuming split sizes are sufficient.
+        while head and len((head + marker + tail).encode("utf-8")) > max_tokens:
+            excess = len((head + marker + tail).encode("utf-8")) - max_tokens
+            if len(head.encode("utf-8")) >= len(tail.encode("utf-8")):
+                head = head[:-max(1, excess)].rstrip()
+            else:
+                tail = tail[max(1, excess):].lstrip()
+        result = f"{head}{marker}{tail}" if head else f"{marker}{tail}"
+        return result if len(result.encode("utf-8")) <= max_tokens else ""
 
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
         entry = f"[{category}] {str(text).strip()}"
