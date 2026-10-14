@@ -2,7 +2,7 @@
 
 ## Nuova richiesta — ricognizione sorgenti, modelli decisionali, skills e Pi codemode
 
-**Stato: tranche iniziale implementata; budget prompt section-aware e route OmniRoute free-only verificati.** Contesto goal-loop UUID-scoped, budget input da catalogo/config, riserva output/margine, auto-compattazione deterministica e API codemode read/append seriale; memory loader token-aware solo se riceve un contatore tokenizer. Nessun routing/provider/fallback mutato. Persistenza knowledge con recovery snapshot UUID-scoped e test restart implementati; full regression verde. Restano tokenizer reale e replay/event semantics.
+**Stato: tranche iniziale implementata; budget prompt section-aware, estimator UTF-8 conservativo e route OmniRoute free-only verificati.** Contesto goal-loop UUID-scoped, budget input da catalogo/config, riserva output/margine, auto-compattazione deterministica e API codemode read/append seriale; memory loader token-aware solo se riceve un contatore tokenizer. Nessun routing/provider/fallback mutato. Persistenza knowledge con recovery snapshot UUID-scoped e test restart implementati; full regression verde. Restano tokenizer reale e replay/event semantics.
 
 ### Vincolo test e costo
 - Qualsiasi test Stagewarden con chiamate a modelli remoti deve selezionare esplicitamente route/modelli gratuiti e fallire chiuso se route tenta fallback a modello non-free. Nessun test deve consumare API a pagamento. `run_model_omniroute.py` accetta solo ID con marker free (`:free`, `-free`, `/free`, `free-`) e non fa richieste se non trova candidati validi. Test unitari/mock restano offline.
@@ -26,7 +26,7 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 
 ### Implementato in Stagewarden — tranche 1
 - `NodeState`: `compacted_context`, `context_revision`, `context_budget` serializzati nel capsule handoff e ripristinati per nodo.
-- `_generate_node_prompt`: ricava limiti provider/modello dal catalogo e override env `STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS`, `STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS`; riserva output (`STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE`, default 2048) + safety margin (default 512). Include UUID cache scope; errore se parti obbligatorie superano budget. Heuristica prudente 3 chars/token.
+- `_generate_node_prompt`: ricava limiti provider/modello dal catalogo e override env `STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS`, `STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS`; riserva output (`STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE`, default 2048) + safety margin (default 512). Include UUID cache scope; errore se parti obbligatorie superano budget. Estimator fallback tokenizer-free UTF-8 bytes conservativo; non dichiarare equivalenza esatta ai token provider.
 - `codemode_context(node_id, read|append)`: interfaccia seriale read/append, non esegue codice né altri tool. Appends categoria-noted e compaction revision local; contesto incluso nei WorkPacket/prompt come untrusted data.
 - `load_memory_context(..., max_tokens, token_counter)`: taglio token-bound tramite token counter esatto; senza counter o con errore fail-closed, non assume chars/token come tokens.
 - Test aggiunti per token limit, isolation nodo, append, compaction e rifiuto `eval`.

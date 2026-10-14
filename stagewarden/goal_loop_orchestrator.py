@@ -504,6 +504,7 @@ Do NOT include any text before or after the JSON object.'''
             "input_limit": input_limit, "max_output_tokens": output_limit,
             "reserved_output": reserve, "safety_margin": margin,
             "available_input": available, "source": limits.get("source", "unknown"),
+            "token_counter": "conservative_chars_v1",
         }
         if available is not None:
             fixed_prompt = (
@@ -584,6 +585,7 @@ Do NOT include any text before or after the JSON object.'''
             "max_output_tokens": output_limit, "reserved_output": reserve,
             "safety_margin": margin, "available_input": available,
             "source": limits.get("source", "unknown"),
+            "token_counter": "conservative_chars_v1",
         }
         node.context_budget = budget
         if available is None:
@@ -606,27 +608,37 @@ Do NOT include any text before or after the JSON object.'''
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        return (len(text) + 2) // 3
+        """Conservative tokenizer-free upper bound: UTF-8 bytes, not character count.
+
+        This deliberately overestimates common English text and handles Unicode
+        without treating a multibyte string as one cheap token per character.
+        It is a safety bound, not provider tokenizer equivalence.
+        """
+        return len(text.encode("utf-8"))
 
     @staticmethod
     def _compact_node_text(text: str, max_tokens: int) -> str:
         if max_tokens <= 0:
             return ""
-        max_chars = max(0, max_tokens * 3 - 96)
-        if len(text) <= max_chars:
+        marker = "\n\n[context auto-compacted; omitted middle; preserve node/task invariants]\n\n"
+        max_bytes = max(0, max_tokens - len(marker.encode("utf-8")))
+        if len(text.encode("utf-8")) <= max_bytes:
             return text
-        head = text[: max_chars // 3].rstrip()
-        tail = text[-(max_chars - len(head)) :].lstrip() if max_chars > len(head) else ""
-        return f"{head}\\n\\n[context auto-compacted; omitted middle; preserve node/task invariants]\\n\\n{tail}" if tail else head
+        raw = text.encode("utf-8")
+        head_bytes = max_bytes // 2
+        tail_bytes = max_bytes - head_bytes
+        head = raw[:head_bytes].decode("utf-8", errors="ignore").rstrip()
+        tail = raw[-tail_bytes:].decode("utf-8", errors="ignore").lstrip() if tail_bytes else ""
+        return f"{head}{marker}{tail}" if tail else head
 
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
         entry = f"[{category}] {str(text).strip()}"
         combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
         budget = node.context_budget.get("available_input")
-        cap = max(128, int(budget) // 3) if isinstance(budget, int) else 12000
-        if len(combined) > cap:
+        cap = max(128, int(budget)) if isinstance(budget, int) else 12000
+        if len(combined.encode("utf-8")) > cap:
             prior = node.compacted_context
-            combined = self._compact_node_text(combined, max(32, cap // 3))
+            combined = self._compact_node_text(combined, max(32, cap))
             node.context_revision += 1
             self.events.append(
                 "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,

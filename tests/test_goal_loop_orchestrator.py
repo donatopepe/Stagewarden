@@ -81,6 +81,12 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                         execution_mode="mock", json_mode=True,
                     )
 
+    def test_budget_estimator_uses_utf8_bytes_and_compaction_respects_byte_cap(self) -> None:
+        self.assertEqual(GoalLoopOrchestrator._estimate_tokens("aé🙂"), len("aé🙂".encode("utf-8")))
+        compacted = GoalLoopOrchestrator._compact_node_text("🙂" * 1000, 300)
+        self.assertLessEqual(len(compacted.encode("utf-8")), 300)
+        self.assertIn("context auto-compacted", compacted)
+
     def test_node_context_codemode_is_uuid_scoped_and_compacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "context test", execution_mode="mock", json_mode=True)
