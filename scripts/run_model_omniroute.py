@@ -36,7 +36,6 @@ def is_explicitly_free_model(model: str) -> bool:
         return False
     return (
         normalized.endswith(":free")
-        or "/free/" in normalized
         or normalized in {"auto/best-free", "coding-free-fallback"}
     )
 

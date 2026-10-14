@@ -6,7 +6,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 ## Current state
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
 - Budget finale controlla prompt standard + skills; over-budget fail-closed, context node limitato al residuo. Metadata dichiara `token_counter=utf8_byte_upper_bound_v1` e `accounting_unit=utf8_bytes_upper_bound_not_provider_tokens`; test verifica marker su NodeState e WorkPacket. Goal-loop 74 passed/28 subtests; full suite 761 passed/5 skipped/320 subtests (317.82s).
-- Test remoto ora free-only anche nei benchmark OpenRouter espliciti: `STAGEWARDEN_TEST_FREE_MODEL` default `auto/coding:free`; live test saltano se override non termina `:free`, smoke shell fallisce chiuso. OmniRoute adapter filtra requested/fallback con marker dichiarati free.
+- Test remoto ora free-only anche nei benchmark OpenRouter espliciti: `STAGEWARDEN_TEST_FREE_MODEL` default `auto/coding:free`; live test saltano se override non termina `:free`, smoke shell fallisce chiuso. OmniRoute free detection accetta suffisso `:free` e due alias fallback esatti (`auto/best-free`, `coding-free-fallback`); respinge `/free/` segmento permissivo e substring incidentali. Adapter tests: 11 passed/1 skipped/20 subtests.
 - Memory loader usa token count solo con contatore esplicito; tokenizer runtime non presente (`transformers`, `tiktoken`, `tokenizers`, `sentencepiece` assenti). Wet mock `run_loop` verifica nodi/eventi/capsule e restart terminale; fix resume precedente ignorava capsule completed/failed, ora ripristina stato terminale e campi bounded (context/revision/messages/output/error). OmniRoute riceve max_tokens clampato a minimo tra cap catalogo, reserve e override, ma è richiesta non garanzia provider; env max tokens OmniRoute e limiti goal-loop input/output/reserve/margin validati come interi positivi; config malformata fallisce chiusa invece di annullare silently tutti i limiti. Opt-in `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP=true` fail-closes prima subprocess sia con Pi che OmniRoute: nessuno dei due backend dimostra enforcement. Default off preserva behavior esistente.
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
@@ -41,7 +41,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Full regression dopo hardening free-model classifier.
+1. Full suite post free-model classifier: 765 passed/5 skipped/328 subtests (427.59s); adapter 11 passed/1 skipped/19 subtests.
 2. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback.
 3. Output-cap enforcement richiede evidence backend, non request metadata.
 

@@ -45,12 +45,13 @@ class OmniRouteAdapterTests(unittest.TestCase):
     def test_free_model_detection_rejects_incidental_free_substrings(self) -> None:
         accepted = (
             "provider/model:free",
-            "provider/free/model",
+            "auto/best-free",
             "coding-free-fallback",
         )
         rejected = (
             "provider/model-not-free",
             "provider/freebie/model",
+            "provider/free/model",
             "provider/not-free/model",
             "provider/model:free-ish",
         )
