@@ -523,6 +523,7 @@ Do NOT include any text before or after the JSON object.'''
             "reserved_output": reserve, "safety_margin": margin,
             "available_input": available, "source": limits.get("source", "unknown"),
             "token_counter": "utf8_byte_upper_bound_v1",
+            "accounting_unit": "utf8_bytes_upper_bound_not_provider_tokens",
         }
         if available is not None:
             fixed_prompt = (
@@ -601,6 +602,7 @@ Do NOT include any text before or after the JSON object.'''
             "safety_margin": margin, "available_input": available,
             "source": limits.get("source", "unknown"),
             "token_counter": "utf8_byte_upper_bound_v1",
+            "accounting_unit": "utf8_bytes_upper_bound_not_provider_tokens",
         }
         node.context_budget = budget
         if available is None:
