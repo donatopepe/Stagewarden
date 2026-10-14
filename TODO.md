@@ -26,7 +26,7 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 
 ### Implementato in Stagewarden — tranche 1
 - `NodeState`: `compacted_context`, `context_revision`, `context_budget` serializzati nel capsule handoff e ripristinati per nodo.
-- `_generate_node_prompt`: ricava limiti provider/modello dal catalogo e override env `STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS`, `STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS`; riserva output (`STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE`, default 2048) + safety margin (default 512). Include UUID cache scope; errore se parti obbligatorie superano budget. Estimator fallback tokenizer-free UTF-8 bytes conservativo; non dichiarare equivalenza esatta ai token provider.
+- `_generate_node_prompt`: ricava limiti provider/modello dal catalogo e override env `STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS`, `STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS`; riserva output (`STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE`, default 2048) + safety margin (default 512). Include UUID cache scope; errore se parti obbligatorie superano budget. Estimator fallback `utf8_byte_upper_bound_v1`: UTF-8 bytes conservativi, tokenizer-free; non dichiarare equivalenza esatta ai token provider.
 - `codemode_context(node_id, read|append)`: interfaccia seriale read/append, non esegue codice né altri tool. Appends categoria-noted e compaction revision local; contesto incluso nei WorkPacket/prompt come untrusted data.
 - `load_memory_context(..., max_tokens, token_counter)`: taglio token-bound tramite token counter esatto; senza counter o con errore fail-closed, non assume chars/token come tokens.
 - Test aggiunti per token limit, isolation nodo, append, compaction e rifiuto `eval`.

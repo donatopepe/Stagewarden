@@ -5,16 +5,17 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 
 ## Current state
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
-- Budget finale ora controlla prompt standard più skills assegnate dopo caricamento: fallisce chiuso se supera limite disponibile; context node limitato al residuo. Stima tokenizer-free ora usa UTF-8 byte upper bound per input testuale; non equivale a tokenizer provider.
+- Budget finale ora controlla prompt standard più skills assegnate dopo caricamento: fallisce chiuso se supera limite disponibile; context node limitato al residuo. Stima tokenizer-free usa UTF-8 byte upper bound identificato in metadata come `utf8_byte_upper_bound_v1`; non equivale a tokenizer provider.
 - Requisito test confermato: ogni test con modello remoto deve usare solo modelli esplicitamente free e fallire chiuso senza candidato free. `scripts/run_model_omniroute.py` filtra ora requested e fallback via marker `:free`, `-free`, `/free`, `free-`; mai invia candidato non marcato.
 - Memory loader usa token count solo con contatore esplicito; non è integrato tokenizer reale.
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
-- `compileall`, JSON handoff e `git diff --check` passano.
-- Validazione dopo recovery tie-break: focused `tests.test_goal_loop_orchestrator tests.test_node_knowledge`: 82 passed, 37 subtests. Full suite: 748 passed, 5 skipped, 301 subtests (351.22s). `compileall`, JSON e `git diff --check` da ripetere prima chiusura.
+- Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
+- Validazione dopo tagging algoritmo e byte-budget fix: mirati goal-loop/memory 69 passed/16 subtests; compileall, JSON e diff check passano. Full `pytest --ignore=external_sources` prima di queste modifiche: 749 passed, 5 skipped, 301 subtests; ripetere full per chiusura.
 
 ## Recent changes
-- `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, compaction, snapshot UUID provenance e recovery post-restart.
+- `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
+- `tests/test_goal_loop_orchestrator.py`: test estimator Unicode e byte-cap compaction.
 - `tests/test_goal_loop_orchestrator.py`: regressione resume snapshot context node-scoped.
 - `tests/test_goal_loop_orchestrator.py`: regressione skill eccedente budget fail-closed.
 - `scripts/run_model_omniroute.py`, `tests/test_omniroute_adapter.py`: filtraggio free-only con fallback e fail-closed testati offline.
@@ -29,7 +30,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - `stagewarden/node_knowledge.py`: store persistente per nodo.
 
 ## Technical decisions
-- Token accounting provider-exact richiede tokenizer/usage backend caller; UTF-8 byte estimator è fallback conservativo, non equivalenza esatta.
+- Token accounting provider-exact richiede tokenizer/usage backend caller; UTF-8 byte estimator è fallback conservativo, non equivalenza esatta. Il nome metadata dichiara esplicitamente algoritmo, non tokenizer reale.
 - Context node UUID-owned; codemode read/append soltanto, niente eval/shell/tool calls.
 - Budget da catalogo/env; limiti ignoti non si inventano.
 
@@ -40,9 +41,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Eseguire test focused e full suite dopo fix recovery tie-break.
-2. Integrare tokenizer/cap backend reale oppure fail-closed.
-3. Wet-run mock e verificare free-model marker contro catalogo autorevole.
+1. Cercare tokenizer/usage reali esposti dal provider dietro adapter senza alterare routing; altrimenti mantenere estimator dichiaratamente conservativo.
+2. Integrare output cap backend reale; mantenere test free-only.
+3. Verificare wet-run mock e replay eventi.
 
 ## Commands
 ```bash

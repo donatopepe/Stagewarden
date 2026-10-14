@@ -504,7 +504,7 @@ Do NOT include any text before or after the JSON object.'''
             "input_limit": input_limit, "max_output_tokens": output_limit,
             "reserved_output": reserve, "safety_margin": margin,
             "available_input": available, "source": limits.get("source", "unknown"),
-            "token_counter": "conservative_chars_v1",
+            "token_counter": "utf8_byte_upper_bound_v1",
         }
         if available is not None:
             fixed_prompt = (
@@ -585,7 +585,7 @@ Do NOT include any text before or after the JSON object.'''
             "max_output_tokens": output_limit, "reserved_output": reserve,
             "safety_margin": margin, "available_input": available,
             "source": limits.get("source", "unknown"),
-            "token_counter": "conservative_chars_v1",
+            "token_counter": "utf8_byte_upper_bound_v1",
         }
         node.context_budget = budget
         if available is None:
@@ -600,8 +600,8 @@ Do NOT include any text before or after the JSON object.'''
             )
         context = node.compacted_context
         if context:
-            remaining = available - effective_tokens - 64
-            context = self._compact_node_text(context, max(0, remaining))
+            remaining = max(0, available - effective_tokens - 64)
+            context = self._compact_node_text(context, remaining)
             node.compacted_context = context
         if effective_tokens + self._estimate_tokens(context) > available:
             raise ValueError(f"Node {node.node_id} prompt and node context exceed safe context budget.")

@@ -86,6 +86,10 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         compacted = GoalLoopOrchestrator._compact_node_text("🙂" * 1000, 300)
         self.assertLessEqual(len(compacted.encode("utf-8")), 300)
         self.assertIn("context auto-compacted", compacted)
+        self.assertEqual(
+            GoalLoopOrchestrator._estimate_tokens(compacted),
+            len(compacted.encode("utf-8")),
+        )
 
     def test_node_context_codemode_is_uuid_scoped_and_compacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
