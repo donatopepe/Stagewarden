@@ -59,10 +59,13 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             for key, value in (
                 ("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS", "0"),
+                ("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS", " "),
                 ("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS", "-1"),
+                ("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS", ""),
                 ("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "not-number"),
-                ("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "2048.0"),
                 ("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", "   "),
+                ("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", "2048.0"),
+                ("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", ""),
             ):
                 with self.subTest(key=key, value=value), patch.dict(os.environ, {key: value}):
                     with self.assertRaisesRegex(ValueError, key):

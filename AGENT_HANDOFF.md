@@ -11,7 +11,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Strict budget env helper ora distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). Regressione matrix include whitespace; test targeted passa.
+- Strict budget env helper distingue unset (default ammesso) da stringa vuota/whitespace (config invalida fail-closed). Matrix ampliata: input whitespace, output vuoto, reserve whitespace, margin vuoto; targeted passa con 8 subtests.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
@@ -41,9 +41,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Aggiungere test unset accetta default, whitespace rifiutato per tutti i budget env.
-2. Eseguire full suite e compile/JSON/diff checks.
-3. Integrare tokenizer/usage solo con evidence provider, mantenere estimator conservativo.
+1. Integrare tokenizer/usage solo con evidence provider, mantenere estimator conservativo.
+2. Verificare output-cap enforcement con evidence backend, non request metadata.
+3. Mantenere test remoti free-only.
 
 ## Commands
 ```bash
