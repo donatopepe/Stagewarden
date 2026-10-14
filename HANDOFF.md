@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Reordered EventStream verifier checks so invalid-JSON boundary is handled before sequence-mismatch logic; corrupted suffix stops at first later hashed record. Focused 23 passed/7 subtests; full suite 773 passed, 5 skipped, 339 subtests (319.09s).
 - Integrity verifier now stops immediately at first hashed record following invalid JSON inside chain, reports only valid prefix, and append refuses corrupted suffix. EventStream 23 passed/7 subtests; full suite 773 passed, 5 skipped, 339 subtests (319.16s).
 - Integrity verification stops counting verified chain at first unparsable line within it (reports valid prefix only), instead of resuming at next apparently linked event; test checks `events_verified == 1`. Full suite 773 passed, 5 skipped, 339 subtests (318.37s).
 - Removed unused integrity-verifier `chain_position` bookkeeping; no behavior change. Focused EventStream 23 passed/7 subtests; static checks pass.

@@ -128,15 +128,15 @@ class EventStream:
                     chain_corrupted = True
                     errors.append({"line": line_number, "error": "unchained_record_within_chain"})
                 continue
-            if unchained:
-                chain_corrupted = True
-                errors.append({"line": line_number, "error": "chain_after_legacy_records"})
-                continue
-            expected_sequence = sequence + 1
             if unparseable_after_chain:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "unparseable_line_inside_chain"})
                 break
+            if unchained:
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "chain_after_legacy_records"})
+                break
+            expected_sequence = sequence + 1
             if record_sequence != expected_sequence:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "sequence_mismatch"})
