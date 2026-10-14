@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Fixed UTF-8 compaction byte-cap boundary bug and added tiny-cap tests. Added EventStream hash-chain integrity verification and tamper regression; post-change full suite: 767 passed, 5 skipped, 337 subtests. Cleared local assume-unchanged flags so source changes remain visible. Provider tokenizer, backend-enforced output caps, and semantic/loss-aware compaction remain unverified; preserve fail-closed options and free-only remote tests.",
+  "waiting_reason": "Hardened EventStream hash chain against tampering, unsigned insertion, and reordering; post-change full suite: 768 passed, 5 skipped, 339 subtests. Provider tokenizer, backend-enforced output caps, and semantic/loss-aware compaction remain unverified; preserve fail-closed options and free-only remote tests.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -38,6 +39,29 @@ class EventStreamTests(unittest.TestCase):
             verified = stream.verify_integrity()
             self.assertTrue(verified["valid"])
             self.assertEqual(verified["events_verified"], 2)
+
+    def test_shared_path_instances_serialize_concurrent_appends(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            streams = [EventStream(path), EventStream(path)]
+            failures: list[BaseException] = []
+
+            def writer(index: int) -> None:
+                try:
+                    for item in range(25):
+                        streams[index].append("tick", tree_id="tree", node_id=f"n{index}", message=str(item))
+                except BaseException as exc:
+                    failures.append(exc)
+
+            threads = [threading.Thread(target=writer, args=(index,)) for index in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            self.assertEqual(failures, [])
+            report = EventStream(path).verify_integrity()
+            self.assertTrue(report["valid"], report["errors"])
+            self.assertEqual(report["events_verified"], 50)
 
     def test_event_hash_chain_rejects_unhashed_insertion_and_reordering(self) -> None:
         for corruption in ("insert", "reverse"):

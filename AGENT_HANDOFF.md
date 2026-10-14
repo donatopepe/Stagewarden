@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Continuazione: rinforzata hash-chain eventi contro inserzione non firmata in mezzo alla chain e riordino; ora append rifiuta corruzione chain rilevata. Aggiunti casi insert/reverse; EventStream tests 18 passed, 7 subtests. Full suite da eseguire prima di chiudere.
+- Continuazione: rinforzata hash-chain eventi contro inserzione non firmata in mezzo alla chain e riordino; ora append rifiuta corruzione chain rilevata senza bloccare righe JSONL non decodificabili legacy. Casi insert/reverse aggiunti. EventStream tests 18 passed, 7 subtests; full suite: 768 passed, 5 skipped, 339 subtests (428.61s). `compileall`, handoff JSON parse e `git diff --check` passano.
 - Continuazione 2026-10-14: aggiunta integrità hash-chain append-only in `EventStream`, `verify_integrity()` segnala JSON invalido/record alterati e append rifiuta catena verificabile corrotta; legacy e linee JSON invalide restano leggibili per compatibilità. Tamper test e chain tests inclusi. Full wet suite: 767 passed, 5 skipped, 337 subtests (505.57s); `compileall`, JSON parse e `git diff --check` passano. Ripristinati anche i bit locali Git `assume-unchanged` sui file Stagewarden: nessuna differenza codice rispetto a HEAD; evitare che future modifiche siano occultate.
 - Ripresa sessione 2026-10-14: `main`; full suite pre-edit: 766 passed, 5 skipped, 332 subtests. Corretto boundary bug in compaction UTF-8: trimming/head-tail split potevano oltrepassare byte cap per caratteri multibyte o cap minuscolo. Aggiunto trimming entro hard ceiling, inclusione marker nel limite e regressioni per cap 1/8/10/100/300 bytes, più scan per tutti i cap 1–79 su UTF-8 misto. Focused goal-loop: 76 passed, 36 subtests (ripetuto dopo estensione cap 1–79). Full wet suite post-fix: 766 passed, 5 skipped, 337 subtests (346.58s; codice invariato dall’estensione test-only). `compileall`, JSON parse e `git diff --check` passano.
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
@@ -46,7 +46,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Event replay semantics non implementate/verificate.
 
 ## Next steps
-1. Full regression post-fix: 766 passed, 5 skipped, 337 subtests; final static checks in corso.
+1. Full regression post-fix: 768 passed, 5 skipped, 339 subtests; static checks passano.
 2. Verificare tokenizer provider e output-cap solo con evidenza runtime disponibile; nessuna chiamata remota non necessaria, test remoti free-only.
 3. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback.
 

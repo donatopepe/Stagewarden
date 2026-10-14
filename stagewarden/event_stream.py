@@ -10,10 +10,15 @@ from typing import Any, Iterable
 class EventStream:
     """Append-only redacted JSONL event stream with deterministic replay."""
 
+    _path_locks_guard = threading.Lock()
+    _path_locks: dict[str, threading.RLock] = {}
+
     def __init__(self, path: Path) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
+        lock_key = str(path.resolve())
+        with self._path_locks_guard:
+            self._lock = self._path_locks.setdefault(lock_key, threading.RLock())
 
     def append(self, event: str, *, tree_id: str, node_id: str | None = None, parent_node_id: str | None = None, purpose: str = "", message: str = "", **details: Any) -> dict[str, Any]:
         payload = {

@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
-- Added append-only event hash-chain metadata and `EventStream.verify_integrity()`; tampering is detected, and append rejects corrupted verifiable chains while tolerating legacy/unparseable JSONL lines. Full suite: 767 passed, 5 skipped, 337 subtests (505.57s). Static checks pass. Cleared local `assume-unchanged` flags from Stagewarden source/test paths so future changes remain visible.
+- Hardened event hash chain against unsigned insertion/reordering; append fails closed on detected chain corruption while retaining legacy invalid-JSONL tolerance. Focused EventStream: 18 passed, 7 subtests. Full suite: 768 passed, 5 skipped, 339 subtests (428.61s). Static checks pass.
 - Continuation baseline: full suite 766 passed, 5 skipped, 332 subtests. Found/fixed `_compact_node_text` UTF-8 boundary bug where trimming multibyte data could exceed tiny byte cap; added cap edge regressions and scan 1–79 bytes. Post-fix focused goal-loop 76 passed/36 subtests (repeated after test-only extension); full suite 766 passed, 5 skipped, 337 subtests (346.58s; implementation unchanged after suite). Tokenizer/output-cap remain blocked without backend evidence.
 - User requested solve/continue per-node context, model token caps, compaction, codemode; preserve v3 seriality/provider/routing/policy.
 - Sources refreshed: Pi `2688aba7dc177020ef5da5492a966ed28ad619bd`, Claude Code `9b4f0d6ef8ceaf62f6b46babb9a4d84bec541a2e`, Codex `7eed30ad1beaebc20b7d848ce9ee887525a379b0`; license/provenance and upstream patterns in TODO.
