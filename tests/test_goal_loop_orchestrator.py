@@ -73,6 +73,27 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.nodes["root.scope"].context_budget["reserved_output"], 2048)
             self.assertEqual(orchestrator.nodes["root.scope"].context_budget["safety_margin"], 512)
 
+    def test_budget_metadata_labels_counter_on_both_prompt_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict(os.environ, {
+                "STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000",
+                "STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE": "256",
+                "STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN": "128",
+            }):
+                orchestrator = GoalLoopOrchestrator(
+                    AgentConfig(workspace_root=Path(tmp)), "counter metadata",
+                    execution_mode="mock", json_mode=True,
+                )
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            self.assertEqual(node.context_budget["token_counter"], "utf8_byte_upper_bound_v1")
+            packet = orchestrator._build_work_packet(node)
+            self.assertEqual(packet["context_budget"]["token_counter"], "utf8_byte_upper_bound_v1")
+            self.assertEqual(
+                GoalLoopOrchestrator._estimate_tokens("é🙂"),
+                len("é🙂".encode("utf-8")),
+            )
+
     def test_invalid_token_budget_environment_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             for key, value in (
