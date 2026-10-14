@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Integrity chain fail-closed completato: previous-hash mismatch e record hash con digest errato ora terminano scansione al primo failure, oltre a sequence gap. Aggiunto test mismatch+tail maligno; EventStream 26 passed/7 subtests; full suite 776 passed, 5 skipped, 339 subtests (319.91s).
 - Chain verifier fail-closed completato: sequence discontinuity ora interrompe scansione al primo record fuori sequenza (prima registrava errore ma esaminava suffix). Regression muta seq=99 e tail seq=100, attesta `events_verified=1` e solo primo errore. EventStream 25 passed/7 subtests; full suite 775 passed, 5 skipped, 339 subtests (319.52s).
 - Corretto fail-closed: errore append ora include persistent `chain_broken` anche per invalid JSON in coda a stream firmato (prima il flag non veniva riflesso in `chain_corrupted` se non seguiva record valido). Test stream invalido ora verifica append rifiutato e replay limitato al prefisso. EventStream 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.18s).
 - Cleanup del verifier: removed predicate append ridondante, usa flag di integrity/error unico; legacy counter resta coerente. EventStream 24 passed/7 subtests; compileall/JSON/diff checks passano. Full suite post-cleanup 774 passed/5 skipped/339 subtests (319.62s).

@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Hash-chain verifier halts at first previous-hash mismatch or event-digest mismatch, not scanning later suffix; regression verifies valid-prefix count with malicious tail. Focused 26 passed/7 subtests; full suite 776 passed, 5 skipped, 339 subtests (319.91s).
 - Integrity verifier now halts on first sequence discontinuity; regression injects sequence 99 then corrupted tail seq 100 and verifies only valid prefix is counted. Focused 25 passed/7 subtests; full suite 775 passed, 5 skipped, 339 subtests (319.52s).
 - Fixed `verify_integrity()` propagation of persistent `chain_broken` for invalid trailing bytes/JSON on a signed stream. Append now rejects; read/replay expose only valid prefix. EventStream 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.18s).
 - EventStream append now uses a single consistent integrity/error predicate; legacy unchained count retained. Focused 24 passed/7 subtests; full suite 774 passed, 5 skipped, 339 subtests (319.62s).
