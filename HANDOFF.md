@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Fixed in-process concurrent EventStream writers across separate instances by sharing a lock keyed on canonical stream path; test runs 2 writer threads × 25 appends and verifies chain. Focused rerun 19 passed/7 subtests; latest full suite remains 769 passed, 5 skipped, 339 subtests (317.10s).
 - Hardened event hash chain against unsigned insertion/reordering; append fails closed on detected chain corruption while retaining legacy invalid-JSONL tolerance. Focused EventStream: 18 passed, 7 subtests. Full suite: 768 passed, 5 skipped, 339 subtests (428.61s). Static checks pass.
 - Continuation baseline: full suite 766 passed, 5 skipped, 332 subtests. Found/fixed `_compact_node_text` UTF-8 boundary bug where trimming multibyte data could exceed tiny byte cap; added cap edge regressions and scan 1–79 bytes. Post-fix focused goal-loop 76 passed/36 subtests (repeated after test-only extension); full suite 766 passed, 5 skipped, 337 subtests (346.58s; implementation unchanged after suite). Tokenizer/output-cap remain blocked without backend evidence.
 - User requested solve/continue per-node context, model token caps, compaction, codemode; preserve v3 seriality/provider/routing/policy.

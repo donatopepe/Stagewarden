@@ -1,11 +1,23 @@
 from __future__ import annotations
 
+import multiprocessing
 import tempfile
 import threading
 import unittest
 from pathlib import Path
 
 from stagewarden.event_stream import EventStream
+
+
+def _event_process_writer(path: str, index: int, barrier, errors) -> None:
+    try:
+        stream = EventStream(Path(path))
+        barrier.wait(timeout=10)
+        for item in range(10):
+            stream.append("tick", tree_id="tree", node_id=f"p{index}", message=str(item))
+    except BaseException as exc:
+        errors.put(repr(exc))
+        raise
 
 
 class EventStreamTests(unittest.TestCase):
@@ -62,6 +74,28 @@ class EventStreamTests(unittest.TestCase):
             report = EventStream(path).verify_integrity()
             self.assertTrue(report["valid"], report["errors"])
             self.assertEqual(report["events_verified"], 50)
+
+    def test_separate_process_writers_preserve_hash_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            context = multiprocessing.get_context("spawn")
+            barrier = context.Barrier(2)
+            errors = context.Queue()
+
+            processes = [
+                context.Process(target=_event_process_writer, args=(str(path), index, barrier, errors))
+                for index in range(2)
+            ]
+            for process in processes:
+                process.start()
+            for process in processes:
+                process.join(timeout=30)
+            self.assertTrue(all(not process.is_alive() for process in processes))
+            self.assertEqual([process.exitcode for process in processes], [0, 0])
+            self.assertTrue(errors.empty())
+            report = EventStream(path).verify_integrity()
+            self.assertTrue(report["valid"], report["errors"])
+            self.assertEqual(report["events_verified"], 20)
 
     def test_event_hash_chain_rejects_unhashed_insertion_and_reordering(self) -> None:
         for corruption in ("insert", "reverse"):

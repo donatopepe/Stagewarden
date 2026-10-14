@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -20,6 +22,33 @@ class EventStream:
         with self._path_locks_guard:
             self._lock = self._path_locks.setdefault(lock_key, threading.RLock())
 
+    @contextmanager
+    def _process_lock(self):
+        """Serialize appends across processes using a sidecar advisory lock."""
+        lock_path = self.path.with_name(self.path.name + ".lock")
+        with lock_path.open("a+b") as handle:
+            if os.name == "nt":
+                import msvcrt
+                handle.seek(0)
+                if handle.read(1) == b"":
+                    handle.seek(0)
+                    handle.write(b"0")
+                    handle.flush()
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+                try:
+                    yield
+                finally:
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
     def append(self, event: str, *, tree_id: str, node_id: str | None = None, parent_node_id: str | None = None, purpose: str = "", message: str = "", **details: Any) -> dict[str, Any]:
         payload = {
             "event": event,
@@ -30,7 +59,7 @@ class EventStream:
             "message": message,
             "details": _redact(details),
         }
-        with self._lock:
+        with self._lock, self._process_lock():
             integrity = self.verify_integrity()
             chain_errors = [item for item in integrity["errors"] if item["error"] != "invalid_json"]
             if integrity.get("chain_corrupted") or any(item["error"] == "unchained_record_after_chain" for item in integrity["errors"]):
