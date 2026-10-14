@@ -9,7 +9,7 @@
 - OmniRoute adapter now sends only requested/fallback IDs explicitly marked free; invalid paid-only config fails before HTTP. Full suite after these changes: 746 passed, 5 skipped, 301 subtests.
 - Recovery hardening: node context snapshot stores node UUID in provenance; capsule restore selects latest UUID-matched snapshot when revision is >= capsule revision, preventing stale capsule from winning ties. Restart/revision-precedence regressions added. Focused `test_goal_loop_orchestrator` + `test_node_knowledge`: 82 passed, 37 subtests; full suite after tie-break fix 748 passed, 5 skipped, 301 subtests.
 - Token fallback now counts UTF-8 bytes, metadata records `utf8_byte_upper_bound_v1`, and compaction caps bytes. Unicode regression verifies count and cap. Focused suite 69 passed/16 subtests; compileall/JSON/diff check pass; full suite rerun pending.
-- Next priority: full regression, real provider tokenizer/output cap, wet mock run.
+- Wet mock `run_loop` now exercises production loop: all nodes complete, JSONL has context-update and tree-end events, persisted capsules verified by reopening SQLite. OmniRoute call now forwards effective max_tokens = minimum nonzero of catalog max output, reserve, configured override; targeted mocked subprocess asserts cap. Pi CLI path exposes no portable max-output flag in current integration; provider enforcement remains unknown. Full regression pending.
 
 ## Terminology
 - User requests generic naming: call it “decision model”, not vendor/model-specific name. Vendor names only in technical provenance/reference notes.

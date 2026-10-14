@@ -14,6 +14,7 @@ from unittest.mock import patch, MagicMock
 from stagewarden.config import AgentConfig
 from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator, NodeState
 from stagewarden.goal_loop_views import build_goal_loop_report
+from stagewarden.node_knowledge import NodeKnowledgeStore
 
 
 class GoalLoopPiExecutionTests(unittest.TestCase):
@@ -154,6 +155,28 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(restored.context_revision, revision)
             self.assertIn("newest persisted context value", restored.compacted_context)
             self.assertNotIn("stale capsule value", restored.compacted_context)
+
+    def test_mock_run_loop_emits_events_and_persists_completed_capsules(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(
+                AgentConfig(workspace_root=Path(tmp)), "wet mock verification",
+                execution_mode="mock", json_mode=True,
+            )
+            report = orchestrator.run_loop()
+            self.assertEqual(report["final_status"], "completed")
+            self.assertTrue(all(node["status"] == "completed" for node in report["node_details"].values()))
+            events = orchestrator.events.read()
+            self.assertTrue(any(event.get("event") == "node_context_updated" for event in events))
+            self.assertTrue(any(event.get("event") == "tree_end" for event in events))
+            capsules = NodeKnowledgeStore(Path(tmp) / ".stagewarden" / "node-knowledge.sqlite")
+            for node in orchestrator.nodes.values():
+                restored = capsules.load_node_execution_capsule(
+                    "goal-loop", node.node_id, node_uuid=node.node_uuid
+                )["capsule"]
+                self.assertEqual(restored["status"], "completed")
+                self.assertEqual(restored["node_uuid"], node.node_uuid)
+            capsules.close()
+            orchestrator.knowledge.close()
 
     def test_execution_mode_serial_gate_has_three_fixed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -769,6 +792,20 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         stored = orch._pending_parent_packets[node.node_id]
         self.assertEqual(stored["result_packet"]["packet_type"], "ResultPacket")
         self.assertEqual(stored["result_packet"]["child_node_id"], node.node_id)
+
+    def test_omniroute_backend_applies_provider_output_cap_to_request_env(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        node = orch.nodes["root.scope"]
+        node.context_budget.update({"max_output_tokens": 900, "reserved_output": 700})
+        completed = subprocess.CompletedProcess(args=["adapter"], returncode=1, stdout="{}", stderr="failed")
+        with patch.dict(os.environ, {
+            "STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute",
+            "STAGEWARDEN_OMNIROUTE_MAX_TOKENS": "1200",
+        }), patch("stagewarden.goal_loop_orchestrator.subprocess.run", return_value=completed) as run:
+            orch._pi_execution(node)
+        self.assertEqual(run.call_args.kwargs["env"]["STAGEWARDEN_OMNIROUTE_MAX_TOKENS"], "700")
+        orch.knowledge.close()
 
     def test_omniroute_backend_fails_closed_without_summary(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO

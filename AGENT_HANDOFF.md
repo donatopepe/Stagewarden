@@ -7,11 +7,11 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Implementati contesto/revision UUID-scoped per nodo, budget input da catalogo/config con riserva output/margine, compattazione, persistenza knowledge e append/read contestuale.
 - Budget finale ora controlla prompt standard più skills assegnate dopo caricamento: fallisce chiuso se supera limite disponibile; context node limitato al residuo. Stima tokenizer-free usa UTF-8 byte upper bound identificato in metadata come `utf8_byte_upper_bound_v1`; non equivale a tokenizer provider.
 - Requisito test confermato: ogni test con modello remoto deve usare solo modelli esplicitamente free e fallire chiuso senza candidato free. `scripts/run_model_omniroute.py` filtra ora requested e fallback via marker `:free`, `-free`, `/free`, `free-`; mai invia candidato non marcato.
-- Memory loader usa token count solo con contatore esplicito; non è integrato tokenizer reale.
+- Memory loader usa token count solo con contatore esplicito; tokenizer runtime non presente (`transformers`, `tiktoken`, `tokenizers`, `sentencepiece` assenti). Wet mock `run_loop` verifica nodi/eventi/capsule. OmniRoute riceve ora max_tokens clampato a minimo tra cap output catalogo, output reserve e override; cap provider-exact non verificato live.
 - Terminologia decision model: usare nome generico, non nominare JEV come modello.
 - Context snapshot knowledge include UUID nel provenance; recovery seleziona snapshot UUID-scoped di revision >= capsule (snapshot wins on tie), evita capsule stale. Test restart e precedence aggiunti.
 - Stima token fallback modificata da 3 char/token a UTF-8 byte bound, gestendo correttamente testo Unicode; compattazione ora rispetta cap byte. Non equivale a tokenizer provider reale.
-- Validazione dopo tagging algoritmo e byte-budget fix: mirati goal-loop/memory 69 passed/16 subtests; compileall, JSON e diff check passano. Full `pytest --ignore=external_sources` prima di queste modifiche: 749 passed, 5 skipped, 301 subtests; ripetere full per chiusura.
+- Validazione dopo tagging algoritmo e byte-budget fix: mirati goal-loop/memory 69 passed/16 subtests; full `pytest --ignore=external_sources`: 749 passed, 5 skipped, 301 subtests (315.38s). Compileall, JSON e diff check passano.
 
 ## Recent changes
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
@@ -41,9 +41,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Testare restore post-restart e wet-run con ambiente pytest funzionante.
 
 ## Next steps
-1. Cercare tokenizer/usage reali esposti dal provider dietro adapter senza alterare routing; altrimenti mantenere estimator dichiaratamente conservativo.
-2. Integrare output cap backend reale; mantenere test free-only.
-3. Verificare wet-run mock e replay eventi.
+1. Verificare effective output cap per adapter Pi: comando disponibile non espone flag portabile, restare fail-closed/documentare limite.
+2. Integrare tokenizer/usage reali se adapter li espone; altrimenti mantenere estimator conservativo.
+3. Rieseguire suite completa dopo output-cap forwarding; test remoti free-only.
 
 ## Commands
 ```bash

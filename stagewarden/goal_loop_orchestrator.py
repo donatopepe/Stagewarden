@@ -1172,13 +1172,20 @@ Do NOT include any text before or after the JSON object.'''
         if not adapter.exists():
             return {"ok": False, "error": f"OmniRoute adapter not found: {adapter}", "messages": []}
         provider = os.environ.get("STAGEWARDEN_GOAL_LOOP_PROVIDER", "cheap").strip() or "cheap"
+        child_env = dict(os.environ)
+        output_cap = node_state.context_budget.get("max_output_tokens")
+        reserved_output = node_state.context_budget.get("reserved_output")
+        configured_output = child_env.get("STAGEWARDEN_GOAL_LOOP_OUTPUT_TOKENS")
+        caps = [int(value) for value in (output_cap, reserved_output, configured_output) if isinstance(value, (int, str)) and str(value).isdigit() and int(value) > 0]
+        if caps:
+            child_env["STAGEWARDEN_OMNIROUTE_MAX_TOKENS"] = str(min(caps))
         try:
             proc = subprocess.run(
                 [sys.executable, str(adapter), "--node-contract", provider, self._compact_node_text(node_state.prompt, int(node_state.context_budget.get("available_input", 12000)) if node_state.context_budget.get("available_input") is not None else 12000)],
                 capture_output=True,
                 text=True,
                 timeout=self.config.model_timeout_seconds,
-                env=dict(os.environ),
+                env=child_env,
                 check=False,
             )
         except subprocess.TimeoutExpired:
