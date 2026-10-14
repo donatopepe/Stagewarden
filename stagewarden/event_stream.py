@@ -160,7 +160,7 @@ class EventStream:
             chain_started = True
             previous_hash = record_hash
             verified += 1
-        return {"valid": not errors, "events_verified": verified, "unchained_events": unchained, "chain_corrupted": chain_corrupted, "errors": errors}
+        return {"valid": not errors and not chain_corrupted, "events_verified": verified, "unchained_events": unchained, "chain_corrupted": chain_corrupted, "errors": errors}
 
     def _read_lines(self) -> list[str]:
         # The stream is append-only JSONL, so it can accumulate bytes that are

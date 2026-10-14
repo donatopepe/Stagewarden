@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Hardened EventStream integrity and concurrent append across threads/processes; canonical sidecar path unifies symlink aliases. Added mocked Windows msvcrt branch validation; full suite 772 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "EventStream now rejects hashed-chain continuation after invalid JSON between records; invalid trailing tail remains tolerated until chain continues. Regression and full suite pass: 773 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
