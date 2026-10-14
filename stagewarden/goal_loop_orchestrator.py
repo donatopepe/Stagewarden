@@ -1080,6 +1080,8 @@ Do NOT include any text before or after the JSON object.'''
         backend = os.environ.get("STAGEWARDEN_GOAL_LOOP_BACKEND", "pi").strip().lower()
         output_cap_required = os.environ.get("STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP", "").strip().lower() in {"1", "true", "yes", "on"}
         if backend == "omniroute":
+            if output_cap_required:
+                return {"ok": False, "error": "OmniRoute max_tokens is a request, not verified enforcement; configure a backend with verifiable cap enforcement or disable STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP.", "messages": []}
             return self._omniroute_execution(node_state)
         if backend not in {"pi", ""}:
             return {"ok": False, "error": f"unsupported goal-loop backend '{backend}'", "messages": []}

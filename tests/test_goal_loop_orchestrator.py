@@ -851,6 +851,20 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertEqual(stored["result_packet"]["packet_type"], "ResultPacket")
         self.assertEqual(stored["result_packet"]["child_node_id"], node.node_id)
 
+    def test_required_output_cap_blocks_omniroute_unverified_limit_before_http(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        node = orch.nodes["root.scope"]
+        with patch.dict(os.environ, {
+            "STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute",
+            "STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP": "true",
+        }), patch("stagewarden.goal_loop_orchestrator.subprocess.run") as run:
+            result = orch._pi_execution(node)
+        self.assertFalse(result["ok"])
+        self.assertIn("not verified enforcement", result["error"])
+        run.assert_not_called()
+        orch.knowledge.close()
+
     def test_omniroute_backend_applies_provider_output_cap_to_request_env(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "test task", execution_mode="pi")
