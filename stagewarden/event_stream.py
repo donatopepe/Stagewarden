@@ -140,8 +140,7 @@ class EventStream:
             if unparseable_after_chain:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "unparseable_line_inside_chain"})
-                unparseable_after_chain = False
-                continue
+                break
             if record_previous != previous_hash:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "previous_hash_mismatch"})
