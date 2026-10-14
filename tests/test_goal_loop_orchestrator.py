@@ -901,6 +901,17 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 run.assert_not_called()
         orch.knowledge.close()
 
+    def test_input_budget_policy_requires_boolean_literal(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        self.addCleanup(lambda: orch.knowledge.close())
+        node = orch.nodes["root.scope"]
+        definition = next(item for item in orch.blueprint["child_prompts"] if item["node_id"] == node.node_id)
+        for value in ("maybe", "2", "enabled"):
+            with self.subTest(value=value), patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET": value}):
+                with self.assertRaisesRegex(ValueError, "must be a boolean"):
+                    orch._enforce_node_prompt_budget(node, definition)
+
     def test_unknown_input_budget_can_be_required_or_explicitly_overridden(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "input budget policy", execution_mode="pi")

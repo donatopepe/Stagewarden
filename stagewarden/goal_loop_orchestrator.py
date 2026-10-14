@@ -594,7 +594,10 @@ Do NOT include any text before or after the JSON object.'''
             output_limit = min(configured_output, int(output_limit)) if output_limit else configured_output
         reserve = max(256, _positive_env_int("STAGEWARDEN_GOAL_LOOP_OUTPUT_RESERVE", 2048))
         margin = max(128, _positive_env_int("STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN", 512))
-        if input_limit is None and os.environ.get("STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET", "").strip().lower() in {"1", "true", "yes", "on"}:
+        require_input_budget_raw = os.environ.get("STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET", "").strip().lower()
+        if require_input_budget_raw not in {"", "0", "false", "no", "off", "1", "true", "yes", "on"}:
+            raise ValueError("STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET must be a boolean value")
+        if input_limit is None and require_input_budget_raw in {"1", "true", "yes", "on"}:
             raise ValueError(
                 f"Input-token limit unknown for {provider}/{model}; set STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS "
                 "or disable STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET."
