@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Observed output-cap enforcement added: OmniRoute node path rejects provider-reported output overruns with an explicit cap_violation (observation-based, never fabricated, REQUIRE_OUTPUT_CAP still fail-closed). EventStream explicit migration and deliverables B/C (§5 6/6) closed. Full suite 808 passed, 5 skipped, 361 subtests (333.97s). Native Windows runtime and provider-exact tokenizer remain unverified.",
+  "waiting_reason": "Pluggable goal-loop token counter (STAGEWARDEN_GOAL_LOOP_TOKEN_COUNTER): labelled UTF-8 byte default, external module:attribute counters reported unverified, unknown/unimportable/bad returns fail closed; compaction stays byte-bounded. Also closed: observed output-cap overrun rejection, EventStream explicit migration, deliverables B/C and §5 6/6. Full suite 809 passed, 5 skipped, 364 subtests (332.71s). Native Windows locking remains unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

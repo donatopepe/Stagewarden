@@ -421,11 +421,24 @@ class NodeKnowledgeStore:
                 (*params, max(1, int(limit)) * 20),
             ).fetchall()
         scored: list[tuple[int, dict[str, Any]]] = []
+        phrase = " ".join(query.replace("_", " ").replace("/", " ").split()).lower() if tokens else ""
         for row in rows:
-            haystack = " ".join((row["title"], row["purpose"], row["content"], row["kind"])).lower()
-            score = sum(1 for token in tokens if token in haystack) if tokens else 0
-            if tokens and score == 0:
-                continue
+            title = str(row["title"] or "").lower()
+            purpose = str(row["purpose"] or "").lower()
+            content = str(row["content"] or "").lower()
+            kind = str(row["kind"] or "").lower()
+            if tokens:
+                haystack = " ".join((title, purpose, content, kind))
+                score = sum(
+                    3 * title.count(token) + 2 * purpose.count(token) + content.count(token) + kind.count(token)
+                    for token in tokens
+                )
+                if phrase and phrase in haystack:
+                    score += 5
+                if score == 0:
+                    continue
+            else:
+                score = 0
             item = dict(row)
             source = _decode_source(item.pop("source_json", None))
             if source is None:

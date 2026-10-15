@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Plugglable goal-loop token counter: `STAGEWARDEN_GOAL_LOOP_TOKEN_COUNTER` (default labelled UTF-8 byte bound; `module:attribute` external counter reported unverified; unknown/unimportable/non-integer fail closed). Metadata/events report the active counter; compaction remains byte-bounded. Full suite 809 passed/5 skipped/364 subtests (332.71s); statics clean.
 - Output-cap observation: OmniRoute node path now inspects provider-reported output tokens and fails closed with an explicit `cap_violation` when the requested cap is exceeded (observation-based, not tokenizer equivalence). Full suite 808 passed/5 skipped/361 subtests (333.97s); statics clean.
 - EventStream `migrate_legacy_to_chain()`: explicit-only legacy→hash-chain migration, atomic rewrite, fail-closed on torn tail/corruption/mixed content, idempotent. Full suite 807 passed/5 skipped/361 subtests (333.81s); statics clean.
 - Deliverable C (global multi-model): regression added proving catalog entries cannot widen router candidates beyond the provider registry nor bypass paid/free policy; catalog remains annotation-only data. Full suite 805 passed/5 skipped/361 subtests (335.71s); statics clean.

@@ -239,6 +239,20 @@ class NodeKnowledgeStoreTests(unittest.TestCase):
                 self.assertEqual(results[0]["source"], {"type": "runtime", "node_id": "node", "purpose": "p"})
                 self.assertNotIn("source_json", results[0])
 
+    def test_search_lexical_weighting_is_deterministic_and_phrase_aware(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+            title_hit = store.record_context(tree_id="t", node_id="n", parent_node_id=None, purpose="p", status="ok", content="misc", title="widget registry")
+            purpose_hit = store.record_context(tree_id="t", node_id="n", parent_node_id=None, purpose="widget registry", status="ok", content="misc", title="note")
+            phrase_hit = store.record_context(tree_id="t", node_id="n", parent_node_id=None, purpose="p", status="ok", content="widget registry table", title="note two")
+            scattered = store.record_context(tree_id="t", node_id="n", parent_node_id=None, purpose="p", status="ok", content="widget and registry separately", title="note three")
+            ordered = [item["entry_id"] for item in store.search("widget registry", node_id="n")]
+            self.assertEqual(len(ordered), 4)
+            self.assertLess(ordered.index(title_hit), ordered.index(purpose_hit))
+            self.assertLess(ordered.index(purpose_hit), ordered.index(phrase_hit))
+            self.assertLess(ordered.index(phrase_hit), ordered.index(scattered))
+            self.assertEqual(ordered, [item["entry_id"] for item in store.search("widget registry", node_id="n")])
+            self.assertEqual(len(store.search("", node_id="n")), 4)
+
     def test_corrupt_code_relations_source_json_is_skipped_not_raised(self) -> None:
         corrupt = ('{"type":', "not json at all", "[1, 2, 3]", '"a bare string"', "null")
 
