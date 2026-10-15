@@ -230,6 +230,23 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertNotIn("private root fact", other.compacted_context)
             self.assertFalse(orchestrator.codemode_context(root.node_id, "eval", text="__import__('os').system('true')")["ok"])
 
+    def test_node_context_compaction_event_emitted_only_after_persist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "compact persistence", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.context_budget["available_input"] = 128
+            original_record = orchestrator.knowledge.record_context
+            def fail_record(**kwargs):
+                raise OSError("disk failure")
+            orchestrator.knowledge.record_context = fail_record
+            result = orchestrator.codemode_context(node.node_id, "append", text="x" * 120, expected_revision=0)
+            self.assertFalse(result["ok"])
+            self.assertEqual(node.context_revision, 0)
+            self.assertEqual(node.compacted_context, "")
+            self.assertEqual(orchestrator.events.read(event="node_context_compacted"), [])
+            orchestrator.knowledge.record_context = original_record
+
     def test_node_context_append_persistence_error_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "persistence failure", execution_mode="mock", json_mode=True)

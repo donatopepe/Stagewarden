@@ -680,14 +680,10 @@ Do NOT include any text before or after the JSON object.'''
         combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
         budget = node.context_budget.get("available_input")
         cap = max(128, budget) if isinstance(budget, int) and not isinstance(budget, bool) else 12000
-        if len(combined.encode("utf-8")) > cap:
+        was_compacted = len(combined.encode("utf-8")) > cap
+        if was_compacted:
             prior = node.compacted_context
             combined = self._compact_node_text(combined, max(32, cap))
-            self.events.append(
-                "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,
-                node_uuid=node.node_uuid, revision=node.context_revision,
-                original_chars=len(prior) + len(entry), compacted_chars=len(combined),
-            )
         node.context_revision += 1
         node.compacted_context = combined
         self.knowledge.record_context(
@@ -696,6 +692,12 @@ Do NOT include any text before or after the JSON object.'''
             title=f"Node context revision {node.context_revision}", kind="node_context",
             entry_id=f"node-context-{node.node_uuid}-{node.context_revision}", node_uuid=node.node_uuid,
         )
+        if was_compacted:
+            self.events.append(
+                "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,
+                node_uuid=node.node_uuid, revision=node.context_revision,
+                original_chars=len(prior) + len(entry), compacted_chars=len(combined),
+            )
         self.events.append(
             "node_context_updated", tree_id="goal-loop", node_id=node.node_id,
             node_uuid=node.node_uuid, revision=node.context_revision,
