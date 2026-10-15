@@ -82,6 +82,24 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(context.content, "")
             self.assertIn("counter transient failure", context.report()["diagnostics"][0])
 
+    def test_discontinuous_counter_never_returns_over_budget_suffix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("abcdef" * 50, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            def discontinuous(text: str) -> int:
+                if text == "\n[truncated by memory token budget]":
+                    return 35
+                if "truncated by memory token budget" in text:
+                    return 100
+                return len(text)
+            context = load_memory_context(root, path, max_tokens=40, token_counter=discontinuous)
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertIn("no truncated memory candidate fits", context.report()["diagnostics"][0])
+
     def test_token_counter_exception_during_binary_search_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

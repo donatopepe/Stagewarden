@@ -180,22 +180,29 @@ def load_memory_context(
                 suffix_count = token_counter(suffix)
                 if isinstance(suffix_count, bool) or not isinstance(suffix_count, int) or suffix_count < 0:
                     raise ValueError("token counter returned invalid suffix count")
-                # Do not assume arbitrary pluggable counters are monotone over
-                # prefixes. Shrink geometrically and accept only an observed fit;
-                # suffix alone is already verified to fit, so termination is bounded.
-                source_content = content
-                end = len(source_content)
-                candidate = suffix
-                while end > 0:
-                    probe = source_content[:end].rstrip() + suffix
-                    candidate_count = token_counter(probe)
-                    if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 0:
-                        raise ValueError("token counter returned invalid count during compaction")
-                    if candidate_count <= max_tokens:
-                        candidate = probe
-                        break
-                    end //= 2
-                content = candidate
+                if suffix_count > max_tokens:
+                    content = ""
+                    issues.append(_issue("error", "token budget too small for truncation marker"))
+                else:
+                    # Do not assume arbitrary pluggable counters are monotone over
+                    # prefixes. Keep only candidates actually measured within budget;
+                    # if a discontinuous estimator never finds one, fail closed empty.
+                    source_content = content
+                    end = len(source_content)
+                    content = ""
+                    fitted = False
+                    while end > 0:
+                        probe = source_content[:end].rstrip() + suffix
+                        candidate_count = token_counter(probe)
+                        if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 0:
+                            raise ValueError("token counter returned invalid count during compaction")
+                        if candidate_count <= max_tokens:
+                            content = probe
+                            fitted = True
+                            break
+                        end //= 2
+                    if not fitted:
+                        issues.append(_issue("error", "no truncated memory candidate fits token budget"))
             try:
                 final_token_count = token_counter(content)
                 if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
@@ -207,6 +214,8 @@ def load_memory_context(
         except Exception as exc:
             issues.append(_issue("error", f"token counting failed: {exc}"))
             return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name)
+        if any(issue.level == "error" for issue in issues):
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)
     return MemoryContext(True, content, tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)
 
 
