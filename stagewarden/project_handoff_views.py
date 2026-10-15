@@ -220,6 +220,31 @@ def stage_view(handoff: Any) -> dict[str, object]:
     budget_view = handoff.project_budget_view()
     question_view = handoff.user_question_view()
     checkpoint_recovery = checkpoint_recovery_status(handoff)
+    evidence_refs: list[str] = []
+    for entry in list(getattr(handoff, "entries", []) or [])[-20:]:
+        details = getattr(entry, "details", None)
+        value = details.get("quality_gate_evidence") if isinstance(details, dict) else None
+        if value:
+            evidence_refs.append(str(value)[:200])
+    latest_observation = str(getattr(handoff, "latest_observation", "") or "").strip()
+    lessons = [
+        str(item.get("lesson", "")).strip()
+        for item in (getattr(handoff, "lessons_log", []) or [])
+        if isinstance(item, dict) and str(item.get("lesson", "")).strip()
+    ]
+    evidence_present = bool(evidence_refs or latest_observation)
+    boundary_reached = boundary_decision != "continue_current_stage"
+    gate_state = "not_reached" if not boundary_reached else ("ready" if evidence_present else "blocked_missing_evidence")
+    end_stage_report = {
+        "boundary_decision": boundary_decision,
+        "stage_health": stage_health,
+        "gate_state": gate_state,
+        "evidence_gate": "satisfied" if evidence_present else "insufficient_evidence_fail_closed",
+        "evidence_refs": evidence_refs[-3:],
+        "latest_observation": latest_observation[:200],
+        "lessons": lessons[-5:],
+        "next_action": next_action,
+    }
     return {
         "closed_steps": closed_steps,
         "active_step": active_step,
@@ -230,6 +255,7 @@ def stage_view(handoff: Any) -> dict[str, object]:
         "backlog_statuses": backlog_statuses,
         "recovery_state": recovery_state,
         "stage_health": stage_health,
+        "end_stage_report": end_stage_report,
         "next_action": next_action,
         "project_budget": budget_view,
         "user_question": question_view,
@@ -278,6 +304,12 @@ def rendered_stage_view(handoff: Any) -> str:
         f"plan_status={pid_boundary['plan_status']} updated_at={pid_boundary['updated_at']}"
     )
     lines.append(f"- stage_health: {stage_health}")
+    report = view["end_stage_report"]
+    lines.append(f"- end_stage_gate: {report['gate_state']} ({report['evidence_gate']})")
+    if report["evidence_refs"]:
+        lines.append(f"- end_stage_evidence: {'; '.join(report['evidence_refs'])}")
+    if report["lessons"]:
+        lines.append(f"- end_stage_lessons: {'; '.join(report['lessons'])}")
     lines.append(
         f"- project_budget: status={budget['status']} "
         f"budget_usd={budget['budget_usd'] if budget['budget_usd'] is not None else 'none'} "

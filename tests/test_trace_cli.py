@@ -5721,6 +5721,25 @@ class TraceAndCliTests(unittest.TestCase):
         self.assertIn("checkpoint_recovery: status=active pending=1", rendered)
         self.assertIn("latest_checkpoint=deliver-product", rendered)
 
+    def test_end_stage_report_gate_fails_closed_without_evidence(self) -> None:
+        handoff = ProjectHandoff(task="end stage gate")
+        handoff.plan_status = "deliver-product: completed"
+        view = handoff.stage_view()
+        report = view["end_stage_report"]
+        self.assertEqual(view["boundary_decision"], "close_project")
+        self.assertEqual(report["gate_state"], "blocked_missing_evidence")
+        self.assertEqual(report["evidence_gate"], "insufficient_evidence_fail_closed")
+        self.assertIn("- end_stage_gate: blocked_missing_evidence", handoff.rendered_stage_view())
+        handoff.record_action(phase="delivery", summary="completed with tool evidence", details={"quality_gate_evidence": "pytest: 12 passed"})
+        report2 = handoff.stage_view()["end_stage_report"]
+        self.assertEqual(report2["gate_state"], "ready")
+        self.assertEqual(report2["evidence_gate"], "satisfied")
+        self.assertEqual(report2["evidence_refs"][-1], "pytest: 12 passed")
+        handoff.record_lesson(step_id="deliver-product", lesson_type="success", lesson="gate closed with evidence")
+        report3 = handoff.stage_view()["end_stage_report"]
+        self.assertTrue(any("gate closed with evidence" in item for item in report3["lessons"]))
+        self.assertIn("end_stage_lessons: gate closed with evidence", handoff.rendered_stage_view())
+
     def test_sources_status_reports_external_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

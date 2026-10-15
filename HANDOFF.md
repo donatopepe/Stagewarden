@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- §5 context-evolution rubric 3/6→6/6: A6 compaction events add section + UTF-8 byte counts + accounting unit; A3 node-close lesson ritual (handoff lessons log + knowledge `kind=lesson`, idempotent per terminal status); A4 targeted ancestor-lesson reactivation via parent-chain walk, injected in the node prompt only within the model input budget, isolation preserved. Full suite 803 passed/5 skipped/361 subtests (338.91s); statics clean.
 - `PROMPT_MASTER_100.md` added: engineered prompt driving the fixed 8/8 acceptance rubric (R1-R8) with invariants, DoD, current-state study, PRINCE2/multi-model/context deliverables and MVP-first method; baseline scored 7/8, iteration 1 closes the handoff-record gap.
 - File-read checkpoint/complete validates session/hash/content types and Unicode encoding before mutation; malformed payload regression coverage. Focused 57 passed/40 subtests; full suite 800 passed, 5 skipped, 361 subtests (333.03s).
 - File-read session creation validates strict integer chunk/total limits (bool rejected); preserves empty executor node ID compatibility. Focused 50 passed/35 subtests; full suite 800 passed, 5 skipped, 356 subtests (326.15s).
