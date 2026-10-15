@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Legacy-only EventStream remains valid; non-object or malformed tail records after legacy entries now mark corruption and halt verification. Regression and full suite pass: 781 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "EventStream verification now halts immediately at malformed JSON after legacy or hashed records; hostile suffix is not scanned. Regression and full suite pass: 781 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

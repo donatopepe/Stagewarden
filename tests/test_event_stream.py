@@ -176,6 +176,10 @@ class EventStreamTests(unittest.TestCase):
             self.assertTrue(report["valid"], report["errors"])
             self.assertFalse(report["chain_corrupted"])
             self.assertEqual(report["unchained_events"], 2)
+            stream.append("legacy-three", tree_id="tree")
+            after_append = stream.verify_integrity()
+            self.assertTrue(after_append["valid"], after_append["errors"])
+            self.assertEqual(after_append["unchained_events"], 3)
 
     def test_non_object_record_after_legacy_stream_is_corruption(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

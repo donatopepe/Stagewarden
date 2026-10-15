@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Event verifier now halts immediately at invalid JSON after legacy/hashed stream starts; stops scanning hostile suffix. Updated regression. Focused 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (317.17s).
 - Non-object JSON values (e.g. `[]`) after legacy records now mark stream corrupt and stop verification; append fails closed. Regression added. EventStream 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (319.99s).
 - Added explicit regression for legacy-only event stream validity and accurate unchained count. EventStream 30 passed/7 subtests; full suite 780 passed, 5 skipped, 339 subtests (317.91s).
 - Simplified legacy unchained-event integrity logic without changing compatibility: legacy-only stream remains valid; later switch into signed-chain is corruption. Focused 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.58s).

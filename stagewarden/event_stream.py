@@ -64,6 +64,17 @@ class EventStream:
             integrity = self.verify_integrity()
             if not integrity["valid"]:
                 raise ValueError(f"Cannot append to corrupt event stream: {integrity['errors']}")
+            if integrity.get("unchained_events", 0):
+                # Preserve legacy format until explicit migration; never create
+                # a mixed legacy/signed log that verifier must reject later.
+                legacy_details = dict(payload["details"])
+                legacy_details.pop("event_sequence", None)
+                legacy_details.pop("previous_event_hash", None)
+                legacy_details.pop("event_hash", None)
+                payload["details"] = legacy_details
+                with self.path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n")
+                return payload
             chained_count = integrity["events_verified"]
             previous_hash = "0" * 64
             if chained_count:
