@@ -302,7 +302,10 @@ class EventStream:
         in_flight_tools: dict[str, dict[str, Any]] = {}
         tool_recoveries: list[dict[str, Any]] = []
         terminal_node_statuses = {"completed", "failed", "cancelled", "canceled", "skipped", "blocked"}
-        terminal_event_names = {"node_end", "node_completed", "node_failed", "node_cancelled", "node_canceled"}
+        terminal_event_names = {
+            "node_end", "node_completed", "node_failed", "node_cancelled", "node_canceled",
+            "node_skipped", "node_blocked",
+        }
         last_event: dict[str, Any] | None = None
         for event_item in self.read(node_id=node_id):
             event_name = event_item.get("event")
