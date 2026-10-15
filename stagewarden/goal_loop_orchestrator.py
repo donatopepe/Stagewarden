@@ -1026,12 +1026,17 @@ Do NOT include any text before or after the JSON object.'''
             )
         except Exception as exc:
             # Handoff persistence is secondary to preserving primary event audit.
-            self.events.append(
-                "node_handoff_persist_failure", tree_id="goal-loop",
-                node_id=node_state.node_id, parent_node_id=node_state.parent_node_id,
-                purpose="record handoff failure", node_uuid=node_state.node_uuid,
-                message=exc.__class__.__name__, source_event=event,
-            )
+            try:
+                self.events.append(
+                    "node_handoff_persist_failure", tree_id="goal-loop",
+                    node_id=node_state.node_id, parent_node_id=node_state.parent_node_id,
+                    purpose="record handoff failure", node_uuid=node_state.node_uuid,
+                    message=exc.__class__.__name__, source_event=event,
+                )
+            except Exception:
+                # Primary event is already committed; do not convert secondary
+                # audit failure into a false failure of the lifecycle transition.
+                pass
 
     def _execute_node(self, node_state: NodeState) -> None:
         self.current_iteration += 1

@@ -280,20 +280,23 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
-    def test_node_event_survives_handoff_persistence_failure(self) -> None:
+    def test_node_event_survives_handoff_and_secondary_audit_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "handoff failure", execution_mode="mock", json_mode=True)
             self.addCleanup(lambda: orchestrator.knowledge.close())
             node = orchestrator.nodes["root.scope"]
             original_record = type(orchestrator.handoff).record_action
+            original_event_append = orchestrator.events.append
             def fail_handoff(_self, **kwargs):
                 raise OSError("handoff storage unavailable")
+            def fail_secondary(event, **kwargs):
+                if event == "node_handoff_persist_failure":
+                    raise OSError("secondary audit unavailable")
+                return original_event_append(event, **kwargs)
             type(orchestrator.handoff).record_action = fail_handoff
+            orchestrator.events.append = fail_secondary
             orchestrator._emit_node_event(node, "node_checkpoint", "checkpoint")
             self.assertEqual(len(orchestrator.events.read(event="node_checkpoint")), 1)
-            failures = orchestrator.events.read(event="node_handoff_persist_failure")
-            self.assertEqual(len(failures), 1)
-            self.assertEqual(failures[0]["message"], "OSError")
             type(orchestrator.handoff).record_action = original_record
 
     def test_node_event_survives_capsule_persistence_failure(self) -> None:
