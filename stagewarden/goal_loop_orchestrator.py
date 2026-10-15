@@ -161,6 +161,7 @@ class NodeState:
     lessons_recorded: list[str] = field(default_factory=list)
     issues_recorded: list[str] = field(default_factory=list)
     risks_recorded: list[str] = field(default_factory=list)
+    quality_recorded: list[str] = field(default_factory=list)
     _context_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def as_dict(self) -> dict[str, object]:
@@ -1607,6 +1608,41 @@ Do NOT include any text before or after the JSON object.'''
         node_state.lessons_recorded.append(status)
         self._record_node_issue(node_state)
         self._record_node_risk(node_state)
+        self._record_node_quality(node_state)
+
+    _QUALITY_NODE_STATUSES: frozenset[str] = frozenset({"completed", "failed", "blocked", "skipped"})
+    _QUALITY_STATUS_BY_NODE_STATUS: dict[str, str] = {
+        "completed": "passed",
+        "failed": "failed",
+        "blocked": "blocked",
+        "skipped": "not_delivered",
+    }
+
+    def _record_node_quality(self, node_state: NodeState) -> None:
+        """PRINCE2 Quality register: one evidence-aware entry per terminal node status.
+
+        A node may only be reported as `passed` when some recorded output exists.
+        Completion without any observable evidence is recorded as
+        `insufficient_evidence` instead of inventing a pass, and a failing secondary
+        write is reported without masking the node state.
+        """
+        status = str(node_state.status)
+        if status not in self._QUALITY_NODE_STATUSES or status in node_state.quality_recorded:
+            return
+        evidence = (node_state.pi_stdout or node_state.output_summary or node_state.error_message or "").strip()
+        quality_status = self._QUALITY_STATUS_BY_NODE_STATUS.get(status, "unknown")
+        if status == "completed" and not evidence:
+            quality_status = "insufficient_evidence"
+            evidence = "no model/tool output recorded for this node"
+        try:
+            self.handoff.record_quality(
+                step_id=node_state.node_id,
+                status=quality_status,
+                evidence=evidence or f"node closed with status {status}",
+            )
+        except Exception as exc:
+            sys.stderr.write(f"[goal-loop] quality handoff record failed for {node_state.node_id}: {exc}\n")
+        node_state.quality_recorded.append(status)
 
     def _record_node_risk(self, node_state: NodeState) -> None:
         """PRINCE2 Risk Log: open one node-scoped risk per terminal failure, close on completion.

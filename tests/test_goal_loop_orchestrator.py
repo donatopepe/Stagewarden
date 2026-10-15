@@ -427,6 +427,34 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             seeds = [item for item in orchestrator.handoff.risk_register if item.get("risk") == "projectseedrisk"]
             self.assertEqual(seeds[0]["status"], "open")
 
+    def test_terminal_node_quality_register_is_evidence_aware_and_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "quality register", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.status = "completed"
+            node.output_summary = "qualityevidencepayload"
+            orchestrator._record_node_execution_to_handoff(node)
+            orchestrator._record_node_execution_to_handoff(node)
+            entries = [item for item in orchestrator.handoff.quality_register if item.get("step_id") == node.node_id]
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(entries[0]["status"], "passed")
+            self.assertIn("qualityevidencepayload", entries[0]["evidence"])
+            empty = orchestrator.nodes["subnode.generator"]
+            empty.status = "completed"
+            empty.output_summary = ""
+            empty.error_message = None
+            empty.pi_stdout = ""
+            orchestrator._record_node_execution_to_handoff(empty)
+            empty_entries = [item for item in orchestrator.handoff.quality_register if item.get("step_id") == empty.node_id]
+            self.assertEqual(len(empty_entries), 1)
+            self.assertEqual(empty_entries[0]["status"], "insufficient_evidence")
+            node.status = "failed"
+            node.error_message = "failedqualitypayload"
+            orchestrator._record_node_execution_to_handoff(node)
+            statuses = [item["status"] for item in orchestrator.handoff.quality_register if item.get("step_id") == node.node_id]
+            self.assertEqual(statuses, ["passed", "failed"])
+
     def test_node_event_primary_audit_failure_attempts_secondary_handoff_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "primary audit failure", execution_mode="mock", json_mode=True)

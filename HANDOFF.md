@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Unified-validation matrix now includes a `handoff_alignment` gate (command + stdout marker) with fail-closed runner evaluation; wet-run green, existing gates untouched. Full suite 818 passed/5 skipped/364 subtests (333.76s); statics clean.
 - Handoff-alignment checker: `scripts/check_handoff_alignment.py` validates required AGENT_HANDOFF.md sections, non-empty HANDOFF.md and required `.stagewarden_handoff.json` keys; exit 1 with errors, wet-run green on the real repo. Full suite 817 passed/5 skipped/364 subtests (333.10s); statics clean.
 - Portable EventStream locking: flock/msvcrt backend selection plus atomic O_EXCL fallback with bounded env-configurable spin and fail-closed timeout; Windows branch now exercised with fake msvcrt including release on exception. Full suite 814 passed/5 skipped/364 subtests (333.95s); statics clean.
 - PRINCE2 Risk Log per node: one scoped risk per terminal failure (idempotent) and closure only of that node's risks on completion, leaving project-seeded and other-node risks untouched. Full suite 812 passed/5 skipped/364 subtests (332.65s); statics clean.

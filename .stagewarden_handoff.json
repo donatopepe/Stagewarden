@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Handoff-alignment checker added (scripts/check_handoff_alignment.py) validating required AGENT_HANDOFF.md sections, non-empty HANDOFF.md and required .stagewarden_handoff.json keys; wet-run green, tests cover malformed fixtures and exit codes. Also closed: portable EventStream locking, PRINCE2 issue/risk logs, evidence-gated end-stage report, deterministic lexical search, pluggable token counter, observed output-cap rejection, EventStream explicit migration and §5 6/6. Full suite 817 passed, 5 skipped, 364 subtests (333.10s). Native Windows runtime and provider-exact tokenizer remain unverified.",
+  "waiting_reason": "Unified-validation matrix now gates handoff alignment (scripts/check_handoff_alignment.py, returncode+stdout marker, fail-closed runner evaluation, wet-run green). Also closed: portable EventStream locking, PRINCE2 issue/risk logs, evidence-gated end-stage report, deterministic lexical search, pluggable token counter, observed output-cap rejection, EventStream explicit migration and §5 6/6. Full suite 818 passed, 5 skipped, 364 subtests (333.76s). Native Windows runtime and provider-exact tokenizer remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
