@@ -258,7 +258,7 @@ class EventStreamTests(unittest.TestCase):
             report = stream.verify_integrity()
             self.assertFalse(report["valid"])
             self.assertEqual(report["events_verified"], 1)
-            self.assertEqual([item["error"] for item in report["errors"]], ["previous_hash_mismatch"])
+            self.assertEqual([item["error"] for item in report["errors"]], ["invalid_previous_hash"])
 
     def test_hash_chain_stops_at_first_event_digest_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

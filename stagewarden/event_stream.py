@@ -163,6 +163,20 @@ class EventStream:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "invalid_event_hash"})
                 break
+            if (
+                len(record_previous) != 64
+                or any(char not in "0123456789abcdef" for char in record_previous)
+            ):
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "invalid_previous_hash"})
+                break
+            if (
+                len(record_hash) != 64
+                or any(char not in "0123456789abcdef" for char in record_hash)
+            ):
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "invalid_event_hash"})
+                break
             if record_previous != previous_hash:
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "previous_hash_mismatch"})
