@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- NodeKnowledgeStore serializes capsule operations and knowledge search with RLock for cross-thread SQLite safety. Focused 104 passed/57 subtests; full suite 799 passed, 5 skipped, 352 subtests (333.30s).
 - EventStream primary lifecycle write failure now best-effort handoff-records error and returns without crashing executor; does not claim primary audit success. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (335.32s).
 - Primary EventStream append error now triggers best-effort ProjectHandoff failure record, then propagates; regression verifies failure phase. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (347.96s).
 - Primary EventStream append failure now propagates and cannot be represented as successful lifecycle audit; secondary handoff failure note best-effort only. Regression verifies no fallback lifecycle event. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (326.64s).

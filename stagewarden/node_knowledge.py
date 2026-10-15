@@ -309,73 +309,80 @@ class NodeKnowledgeStore:
         session_id: str | None = None,
     ) -> dict[str, Any]:
         identifier = session_id or f"file-read-{self._hash(f'{tree_id}:{node_id}:{path}:{content_hash}')[-16:]}"
-        existing = self.connection.execute(
-            "SELECT tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash FROM file_reads WHERE session_id = ?",
-            (identifier,),
-        ).fetchone()
-        requested = (tree_id, node_id, path, purpose, max(1, int(chunk_size)), max(0, int(total_chars)), content_hash)
-        if existing is not None:
-            stored = tuple(existing[key] for key in ("tree_id", "node_id", "path", "purpose", "chunk_size", "total_chars", "content_hash"))
-            if stored != requested:
-                raise ValueError(f"File read session identity conflict: {identifier}")
-        else:
-            self.connection.execute(
-                """INSERT INTO file_reads
-                (session_id, tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (identifier, *requested),
-            )
-            self.connection.commit()
-        return self.file_read_status(identifier)
+        with self._lock:
+            existing = self.connection.execute(
+                "SELECT tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash FROM file_reads WHERE session_id = ?",
+                (identifier,),
+            ).fetchone()
+            requested = (tree_id, node_id, path, purpose, max(1, int(chunk_size)), max(0, int(total_chars)), content_hash)
+            if existing is not None:
+                stored = tuple(existing[key] for key in ("tree_id", "node_id", "path", "purpose", "chunk_size", "total_chars", "content_hash"))
+                if stored != requested:
+                    raise ValueError(f"File read session identity conflict: {identifier}")
+            else:
+                self.connection.execute(
+                    """INSERT INTO file_reads
+                    (session_id, tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (identifier, *requested),
+                )
+                self.connection.commit()
+            row = self.connection.execute("SELECT * FROM file_reads WHERE session_id = ?", (identifier,)).fetchone()
+            return dict(row)
 
     def file_read_status(self, session_id: str) -> dict[str, Any]:
-        row = self.connection.execute("SELECT * FROM file_reads WHERE session_id = ?", (session_id,)).fetchone()
-        if row is None:
-            raise KeyError(f"Unknown file read session: {session_id}")
-        return dict(row)
+        with self._lock:
+            row = self.connection.execute("SELECT * FROM file_reads WHERE session_id = ?", (session_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"Unknown file read session: {session_id}")
+            return dict(row)
 
     def checkpoint_file_chunk(self, session_id: str, *, start: int, content: str, content_hash: str) -> dict[str, Any]:
         if isinstance(start, bool) or not isinstance(start, int):
             raise ValueError("File checkpoint start offset must be an integer.")
-        state = self.file_read_status(session_id)
-        if state["status"] != "active":
-            raise ValueError("File read session is not active.")
-        if content_hash != state["content_hash"]:
-            raise ValueError("File content hash changed during read.")
-        if int(start) != int(state["next_offset"]):
-            raise ValueError(f"Unexpected file chunk offset {start}; expected {state['next_offset']}.")
-        if len(content) > int(state["chunk_size"]):
-            raise ValueError(f"File chunk exceeds checkpoint size {state['chunk_size']}.")
-        end = int(start) + len(content)
-        if end > int(state["total_chars"]):
-            raise ValueError(f"File chunk exceeds total file size {state['total_chars']}.")
-        self.connection.execute(
-            "INSERT OR REPLACE INTO file_read_chunks (session_id, start_offset, end_offset, content, content_hash) VALUES (?, ?, ?, ?, ?)",
-            (session_id, int(start), end, content, content_hash),
-        )
-        self.connection.execute("UPDATE file_reads SET next_offset = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?", (end, session_id))
-        self.connection.commit()
-        return self.file_read_status(session_id)
+        with self._lock:
+            state = self.file_read_status(session_id)
+            if state["status"] != "active":
+                raise ValueError("File read session is not active.")
+            if content_hash != state["content_hash"]:
+                raise ValueError("File content hash changed during read.")
+            if int(start) != int(state["next_offset"]):
+                raise ValueError(f"Unexpected file chunk offset {start}; expected {state['next_offset']}.")
+            if len(content) > int(state["chunk_size"]):
+                raise ValueError(f"File chunk exceeds checkpoint size {state['chunk_size']}.")
+            end = int(start) + len(content)
+            if end > int(state["total_chars"]):
+                raise ValueError(f"File chunk exceeds total file size {state['total_chars']}.")
+            self.connection.execute(
+                "INSERT OR REPLACE INTO file_read_chunks (session_id, start_offset, end_offset, content, content_hash) VALUES (?, ?, ?, ?, ?)",
+                (session_id, int(start), end, content, content_hash),
+            )
+            self.connection.execute("UPDATE file_reads SET next_offset = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?", (end, session_id))
+            self.connection.commit()
+            return self.file_read_status(session_id)
 
     def complete_file_read(self, session_id: str, *, content_hash: str) -> dict[str, Any]:
-        state = self.file_read_status(session_id)
-        if state["status"] != "active":
-            raise ValueError("File read session is already complete.")
-        if content_hash != state["content_hash"]:
-            raise ValueError("File content hash changed before completion.")
-        if int(state["next_offset"]) != int(state["total_chars"]):
-            raise ValueError("File read is incomplete.")
-        self.connection.execute("UPDATE file_reads SET status = 'complete', updated_at = CURRENT_TIMESTAMP WHERE session_id = ?", (session_id,))
-        self.connection.commit()
-        return self.file_read_status(session_id)
+        with self._lock:
+            state = self.file_read_status(session_id)
+            if state["status"] != "active":
+                raise ValueError("File read session is already complete.")
+            if content_hash != state["content_hash"]:
+                raise ValueError("File content hash changed before completion.")
+            if int(state["next_offset"]) != int(state["total_chars"]):
+                raise ValueError("File read is incomplete.")
+            self.connection.execute("UPDATE file_reads SET status = 'complete', updated_at = CURRENT_TIMESTAMP WHERE session_id = ?", (session_id,))
+            self.connection.commit()
+            return self.file_read_status(session_id)
 
     def read_file_content(self, session_id: str) -> str:
-        rows = self.connection.execute("SELECT start_offset, content FROM file_read_chunks WHERE session_id = ? ORDER BY start_offset", (session_id,)).fetchall()
-        return "".join(str(row["content"]) for row in rows)
+        with self._lock:
+            rows = self.connection.execute("SELECT start_offset, content FROM file_read_chunks WHERE session_id = ? ORDER BY start_offset", (session_id,)).fetchall()
+            return "".join(str(row["content"]) for row in rows)
 
     def file_read_chunk_count(self, session_id: str) -> int:
-        row = self.connection.execute("SELECT COUNT(*) AS count FROM file_read_chunks WHERE session_id = ?", (session_id,)).fetchone()
-        return int(row["count"] if row else 0)
+        with self._lock:
+            row = self.connection.execute("SELECT COUNT(*) AS count FROM file_read_chunks WHERE session_id = ?", (session_id,)).fetchone()
+            return int(row["count"] if row else 0)
 
     def search(self, query: str, *, node_id: str | None = None, namespace: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
         tokens = self._tokens(query)
