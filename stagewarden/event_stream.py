@@ -116,6 +116,7 @@ class EventStream:
                 errors.append({"line": line_number, "error": "invalid_json"})
                 if chain_started or unchained_event_seen:
                     chain_broken = True
+                    break
                 continue
             if not isinstance(record, dict):
                 errors.append({"line": line_number, "error": "invalid_record"})

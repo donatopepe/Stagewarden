@@ -312,7 +312,7 @@ class EventStreamTests(unittest.TestCase):
             self.assertFalse(report["valid"])
             self.assertTrue(report["chain_corrupted"])
             self.assertEqual(report["events_verified"], 1)
-            self.assertIn("unparseable_line_inside_chain", {item["error"] for item in report["errors"]})
+            self.assertIn("invalid_json", {item["error"] for item in report["errors"]})
             with self.assertRaisesRegex(ValueError, "corrupt event stream"):
                 stream.append("third", tree_id="tree")
 
