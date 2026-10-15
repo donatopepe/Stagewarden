@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Legacy prefix followed by malformed gap is no longer exposed when later signed chain exists; verifier zeros verified boundary. read/follow/replay regression. EventStream 39 passed/18 subtests; full suite 789 passed, 5 skipped, 350 subtests (317.49s).
 - Replay terminal statuses are case/whitespace normalized; regression covers terminal spellings. EventStream 38 passed/18 subtests; full suite 788 passed, 5 skipped, 350 subtests (317.24s).
 - Replay checkpoint updates matching operation+node record without duplicate; regression checks collision isolation. EventStream 38 passed/12 subtests; full suite 788 passed, 5 skipped, 344 subtests (316.73s).
 - Replay now retains all active operations for reused IDs across nodes with unique node-qualified keys; regression covers both starts. EventStream 37 passed/12 subtests; full suite 787 passed, 5 skipped, 344 subtests (317.89s).

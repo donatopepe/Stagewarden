@@ -319,7 +319,7 @@ class EventStream:
                 ), None)
                 if matching_key is not None:
                     operation_key = matching_key
-                elif operation_id not in in_flight_tools:
+                elif not any(active.get("operation_id") == operation_id for active in in_flight_tools.values()):
                     operation_key = operation_id
                 else:
                     operation_key = f"{event_operation_node or '<unknown>'}:{operation_id}"

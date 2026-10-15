@@ -428,6 +428,17 @@ class EventStreamTests(unittest.TestCase):
             active = stream.replay()["in_flight_tools"]
             self.assertEqual({item["node_id"] for item in active.values()}, {"node-a", "node-b"})
 
+    def test_replay_duplicate_id_keeps_base_key_for_node_without_collision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("tool_started", tree_id="tree", node_id="node-a", operation_id="op-a")
+            stream.append("tool_started", tree_id="tree", node_id="node-b", operation_id="op-b")
+            stream.append("tool_started", tree_id="tree", node_id="node-a", operation_id="op-b")
+            active = stream.replay()["in_flight_tools"]
+            self.assertEqual(active["op-a"]["node_id"], "node-a")
+            self.assertEqual(active["op-b"]["node_id"], "node-b")
+            self.assertEqual(active["node-a:op-b"]["node_id"], "node-a")
+
     def test_replay_checkpoint_updates_matching_duplicate_operation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Fixed read-boundary bug for legacy records followed by malformed gap before signed record: verifier now clears readable prefix when malformed record follows legacy data, and read/follow/replay expose nothing. Added regression for all three consumers. EventStream 39 passed/18 subtests; full suite 789 passed, 5 skipped, 350 subtests (317.49s).
 - Replay terminal-state reconciliation now normalizes case/whitespace and recognizes cancelled/canceled; parameterized regressions cover terminal status spellings. EventStream 38 passed/18 subtests; full suite 788 passed, 5 skipped, 350 subtests (317.24s).
 - Replay checkpoint handling now updates existing matching (operation ID, node ID) record instead of creating duplicate active entries; regression verifies checkpoint only updates correct node among ID collisions. EventStream 38 passed/12 subtests; full suite 788 passed, 5 skipped, 344 subtests (316.73s).
 - Replay collision fix now retains both active operations when operation ID is reused across nodes, rather than dropping earlier node's entry; qualified keys unique under repeated collisions. Added two-node retention regression. EventStream 37 passed/12 subtests; full suite 787 passed, 5 skipped, 344 subtests (317.89s).
