@@ -118,6 +118,7 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(context.content, "")
             self.assertEqual(context.token_count, 0)
             self.assertIn("token budget too small", context.report()["diagnostics"][0])
+            self.assertEqual(context.report()["issue_count"], len(context.report()["issues"]))
 
     def test_no_fit_counter_failure_does_not_report_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -279,6 +280,32 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("not_provider_tokenizer", context.token_counter_name)
             self.assertLessEqual(executor._estimate_memory_tokens(section.body), 80)
             self.assertIn("not_provider_tokenizer", section.body)
+            executor.close()
+
+    def test_prompt_memory_budget_counter_exception_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("sensitive memory " * 20, encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            calls = 0
+            def counter(text: str) -> int:
+                nonlocal calls
+                calls += 1
+                if calls > 2:
+                    raise RuntimeError("outer section counter failure")
+                return len(text)
+            executor._estimate_memory_tokens = counter
+            step = PlanStep(id="step", title="Read context", instruction="inspect", validation="v")
+            packet = executor._build_model_communication_packet(
+                task="inspect", step=step, plan=[step], last_observation="none",
+                provider_limits={"available_input": 10},
+            )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertNotIn("sensitive memory", section.body)
+            self.assertIn("outer section counter failure", section.body)
             executor.close()
 
     def test_prompt_memory_budget_reports_nonconverging_outer_counter(self) -> None:

@@ -1552,7 +1552,18 @@ class Executor:
                 candidate_body = _executor_prompting.bounded_context(
                     candidate_body, candidate.max_chars, label="hermes_obsidian_memory",
                 )
-                used = memory_counter(candidate_body)
+                try:
+                    used = memory_counter(candidate_body)
+                except Exception as exc:
+                    from dataclasses import replace
+                    from .memory_context import MemoryContextIssue
+                    external_memory = replace(
+                        candidate,
+                        content="",
+                        token_count=0,
+                        issues=candidate.issues + (MemoryContextIssue("error", f"memory section counter failed: {exc}"),),
+                    )
+                    break
                 if isinstance(used, bool) or not isinstance(used, int) or used < 0:
                     candidate = self.config.memory_context_with_budget(
                         0, memory_counter, counter_name=counter_name,
