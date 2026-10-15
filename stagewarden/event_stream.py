@@ -293,7 +293,8 @@ class EventStream:
         nodes: dict[str, dict[str, Any]] = {}
         in_flight_tools: dict[str, dict[str, Any]] = {}
         tool_recoveries: list[dict[str, Any]] = []
-        terminal_node_statuses = {"completed", "failed", "cancelled", "skipped", "blocked"}
+        terminal_node_statuses = {"completed", "failed", "cancelled", "canceled", "skipped", "blocked"}
+        terminal_event_names = {"node_end", "node_completed", "node_failed", "node_cancelled", "node_canceled"}
         last_event: dict[str, Any] | None = None
         for event_item in self.read(node_id=node_id):
             event_name = event_item.get("event")
@@ -327,7 +328,6 @@ class EventStream:
                 })
 
             event_node_id = event_item.get("node_id")
-            terminal_event_names = {"node_end", "node_completed", "node_failed", "node_cancelled", "node_canceled"}
             if event_name in terminal_event_names and isinstance(event_node_id, str) and event_node_id:
                 for active_id, active in list(in_flight_tools.items()):
                     if active.get("node_id") == event_node_id:

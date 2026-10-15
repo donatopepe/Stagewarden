@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Replay reconciliation removes stale in-flight tool entries when node state becomes terminal. Focused EventStream 34 passed/7 subtests; full suite 784 passed, 5 skipped, 339 subtests (316.90s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Replay clears stale in-flight tool entries on embedded terminal node state and explicit terminal node events. EventStream 35 passed/7 subtests; full suite 785 passed, 5 skipped, 339 subtests (317.36s); compileall/diff-check pass. Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
