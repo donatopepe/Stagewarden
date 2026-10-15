@@ -1010,17 +1010,31 @@ Do NOT include any text before or after the JSON object.'''
             details.setdefault("capsule_persist_error", exc.__class__.__name__)
             capsule_entry_id = None
         details.setdefault("capsule_entry_id", capsule_entry_id)
-        self.events.append(
-            event,
-            tree_id="goal-loop",
-            node_id=node_state.node_id,
-            parent_node_id=node_state.parent_node_id,
-            purpose=purpose,
-            node_uuid=node_state.node_uuid,
-            message=message,
-            node=node_state.as_dict(),
-            **details,
-        )
+        try:
+            self.events.append(
+                event,
+                tree_id="goal-loop",
+                node_id=node_state.node_id,
+                parent_node_id=node_state.parent_node_id,
+                purpose=purpose,
+                node_uuid=node_state.node_uuid,
+                message=message,
+                node=node_state.as_dict(),
+                **details,
+            )
+        except Exception as exc:
+            # If primary audit persistence fails, do not pretend the lifecycle
+            # event was recorded or continue into secondary handoff writes.
+            try:
+                self.handoff.record_action(
+                    phase=f"goal_loop_node_event_persist_failure_{event}",
+                    task=self.task,
+                    summary=f"Node {node_state.node_id}: primary event persistence failed.",
+                    details={"event": event, "error": exc.__class__.__name__, "node": node_state.as_dict()},
+                )
+            except Exception:
+                pass
+            raise
         try:
             self.handoff.record_action(
                 phase=f"goal_loop_node_{event}",

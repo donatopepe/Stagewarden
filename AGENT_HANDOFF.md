@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- `_emit_node_event` now treats stderr diagnostics as secondary; closed/broken stderr cannot prevent capsule/event/handoff path. Added redirected-stderr OSError regression. Goal-loop 83 passed/36 subtests; full suite 798 passed, 5 skipped, 352 subtests (330.40s).
 - Replay terminal event set now clears in-flight tool records on `node_skipped`/`node_blocked` as well as end/complete/fail/cancel variants. Parameterized test covers both. EventStream 41 passed/20 subtests; full suite 797 passed, 5 skipped, 352 subtests (335.63s).
 - Replay checkpoint updates now collapse pre-existing duplicate active records for same `(operation_id,node_id)`, preventing stale duplicate tool entries after repeated checkpoints. Added regression: one latest checkpoint record remains. EventStream 41 passed/18 subtests; full suite 797 passed, 5 skipped, 350 subtests (333.36s).
 - If both secondary ProjectHandoff and its failure-event append fail, `_emit_node_event` now suppresses that secondary exception after primary lifecycle event is committed; avoids false transition failure. Expanded regression injects both failures. Goal-loop 82 passed/36 subtests; full suite 796 passed, 5 skipped, 350 subtests (326.66s).

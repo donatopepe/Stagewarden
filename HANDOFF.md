@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Node lifecycle event emission survives broken stderr diagnostic write; event/capsule/handoff path continues. Regression added. Goal-loop 83 passed/36 subtests; full suite 798 passed, 5 skipped, 352 subtests (330.40s).
 - Replay clears in-flight tools on explicit `node_skipped`/`node_blocked` events; parameterized coverage. EventStream 41 passed/20 subtests; full suite 797 passed, 5 skipped, 352 subtests (335.63s).
 - Replay checkpoint reconciliation collapses duplicate active records for same operation/node, retaining latest checkpoint; EventStream 41 passed/18 subtests; full suite 797 passed, 5 skipped, 350 subtests (333.36s).
 - Lifecycle transition no longer bubbles secondary handoff-failure-event append error after primary event commit; regression injects both secondary failures. Goal-loop 82 passed/36 subtests; full suite 796 passed, 5 skipped, 350 subtests (326.66s).
