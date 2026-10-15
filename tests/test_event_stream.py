@@ -194,6 +194,17 @@ class EventStreamTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "corrupt event stream"):
                 stream.append("later", tree_id="tree")
 
+    def test_legacy_stream_without_final_newline_requires_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            path.write_text('{"event":"legacy","details":{}}', encoding="utf-8")
+            report = stream.verify_integrity()
+            self.assertTrue(report["valid"], report["errors"])
+            with self.assertRaisesRegex(ValueError, "torn trailing record"):
+                stream.append("later", tree_id="tree")
+            self.assertEqual(path.read_text(encoding="utf-8"), '{"event":"legacy","details":{}}')
+
     def test_invalid_line_after_legacy_events_blocks_later_append(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"

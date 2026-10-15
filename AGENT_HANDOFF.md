@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Legacy-to-hash transition hardened: legacy append remains legacy; callers cannot inject reserved hash metadata on legacy stream; hashed append on legacy log fails explicit migration-required error instead of mixing formats. Regression covers count and blocked downgrade. Focused 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (318.06s).
 - Fixed append on legacy-only streams: append now emits unchained legacy-format record and strips reserved hash keys until explicit migration; avoids silently converting legacy log into rejected mixed stream. Regression appends legacy third event, verifies valid/count=3. EventStream 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (317.13s).
 - Integrity verifier now stops immediately at invalid JSON after legacy records or chain start, rather than scanning potentially hostile suffix; regression expectation updated. EventStream 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (317.17s).
 - Added non-object legacy-tail regression and fixed verifier to mark corruption/break at that line after legacy records. EventStream 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (319.99s).

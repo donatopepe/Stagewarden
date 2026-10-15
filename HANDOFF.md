@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Prevented silent legacy→hashed stream transition: legacy append strips/blocks caller reserved chain metadata; requesting signed append on legacy file requires explicit migration. Regression covers both, no mixed-format stream. Full suite 781 passed, 5 skipped, 339 subtests (318.06s).
 - Preserved legacy-only append behavior: appends remain unchained and strip caller-supplied chain metadata until explicit migration, avoiding mixed-format log corruption. Regression confirms legacy count increments to 3. Focused 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (317.13s).
 - Event verifier now halts immediately at invalid JSON after legacy/hashed stream starts; stops scanning hostile suffix. Updated regression. Focused 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (317.17s).
 - Non-object JSON values (e.g. `[]`) after legacy records now mark stream corrupt and stop verification; append fails closed. Regression added. EventStream 31 passed/7 subtests; full suite 781 passed, 5 skipped, 339 subtests (319.99s).
