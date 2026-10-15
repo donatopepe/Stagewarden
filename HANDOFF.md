@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- PRINCE2 Quality register per node: `_record_node_quality` writes one evidence-aware entry per terminal status (`completed`→`passed`, `failed`/`blocked`/`skipped` mapped, idempotent), downgrades completion without recorded output to `insufficient_evidence`, and reports secondary-write failures without masking node state. Full suite 819 passed/5 skipped/364 subtests (325.28s); statics clean.
 - Unified-validation matrix now includes a `handoff_alignment` gate (command + stdout marker) with fail-closed runner evaluation; wet-run green, existing gates untouched. Full suite 818 passed/5 skipped/364 subtests (333.76s); statics clean.
 - Handoff-alignment checker: `scripts/check_handoff_alignment.py` validates required AGENT_HANDOFF.md sections, non-empty HANDOFF.md and required `.stagewarden_handoff.json` keys; exit 1 with errors, wet-run green on the real repo. Full suite 817 passed/5 skipped/364 subtests (333.10s); statics clean.
 - Portable EventStream locking: flock/msvcrt backend selection plus atomic O_EXCL fallback with bounded env-configurable spin and fail-closed timeout; Windows branch now exercised with fake msvcrt including release on exception. Full suite 814 passed/5 skipped/364 subtests (333.95s); statics clean.

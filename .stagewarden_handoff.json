@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Unified-validation matrix now gates handoff alignment (scripts/check_handoff_alignment.py, returncode+stdout marker, fail-closed runner evaluation, wet-run green). Also closed: portable EventStream locking, PRINCE2 issue/risk logs, evidence-gated end-stage report, deterministic lexical search, pluggable token counter, observed output-cap rejection, EventStream explicit migration and §5 6/6. Full suite 818 passed, 5 skipped, 364 subtests (333.76s). Native Windows runtime and provider-exact tokenizer remain unverified.",
+  "waiting_reason": "PRINCE2 Quality register ritual now records one evidence-aware node-scoped entry per terminal status (completed→passed, failed→failed, blocked→blocked, skipped→not_delivered; completion without recorded output downgraded to insufficient_evidence; idempotent; secondary-write failure reported without masking node state). Also closed: unified-validation handoff-alignment gate, portable EventStream locking, PRINCE2 issue/risk logs, evidence-gated end-stage report, deterministic lexical search, pluggable token counter, observed output-cap rejection, EventStream explicit migration and §5 6/6. Full suite 819 passed, 5 skipped, 364 subtests (325.28s). Native Windows runtime and provider-exact tokenizer remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
