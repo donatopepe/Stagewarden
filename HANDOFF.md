@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- EventStream `migrate_legacy_to_chain()`: explicit-only legacy→hash-chain migration, atomic rewrite, fail-closed on torn tail/corruption/mixed content, idempotent. Full suite 807 passed/5 skipped/361 subtests (333.81s); statics clean.
 - Deliverable C (global multi-model): regression added proving catalog entries cannot widen router candidates beyond the provider registry nor bypass paid/free policy; catalog remains annotation-only data. Full suite 805 passed/5 skipped/361 subtests (335.71s); statics clean.
 - Deliverable B (PRINCE2): `stage_view` gains an evidence-gated `end_stage_report` (gate_state/evidence_gate/evidence refs/lessons) rendered as `end_stage_gate` lines; missing evidence at a boundary fails closed. Full suite 804 passed/5 skipped/361 subtests (342.45s); statics clean.
 - §5 context-evolution rubric 3/6→6/6: A6 compaction events add section + UTF-8 byte counts + accounting unit; A3 node-close lesson ritual (handoff lessons log + knowledge `kind=lesson`, idempotent per terminal status); A4 targeted ancestor-lesson reactivation via parent-chain walk, injected in the node prompt only within the model input budget, isolation preserved. Full suite 803 passed/5 skipped/361 subtests (338.91s); statics clean.

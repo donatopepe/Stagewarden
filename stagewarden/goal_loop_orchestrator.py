@@ -1465,12 +1465,44 @@ Do NOT include any text before or after the JSON object.'''
         messages = payload.get("messages", [])
         if not isinstance(messages, list):
             return {"ok": False, "error": "OmniRoute node messages must be an array", "messages": [], "output": stdout[:2000]}
+        requested_cap = child_env.get("STAGEWARDEN_OMNIROUTE_MAX_TOKENS")
+        observed_output = self._observed_output_tokens(payload)
+        if requested_cap is not None and observed_output is not None and observed_output > int(requested_cap):
+            return {
+                "ok": False,
+                "error": f"Provider exceeded requested output cap ({observed_output}>{int(requested_cap)} tokens); cap enforcement is not verifiable, failing closed.",
+                "messages": [],
+                "output": stdout[:2000],
+                "cap_violation": {"observed_output_tokens": observed_output, "requested_cap": int(requested_cap)},
+            }
         return {
             "ok": True,
             "summary": str(payload["summary"]),
             "messages": [item for item in messages if isinstance(item, dict)],
             "output": payload.get("output", ""),
         }
+
+    @staticmethod
+    def _observed_output_tokens(payload: dict[str, Any]) -> int | None:
+        """Read provider-reported output tokens when present; never invent a value."""
+        merged: dict[str, Any] = {}
+        for key in ("usage", "token_usage"):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                merged.update(value)
+        for key in ("completion_tokens", "output_tokens", "total_output_tokens"):
+            if key not in merged:
+                continue
+            value = merged[key]
+            if isinstance(value, bool):
+                continue
+            try:
+                number = int(float(str(value).strip()))
+            except (TypeError, ValueError):
+                continue
+            if number >= 0:
+                return number
+        return None
 
     # ── handoff ─────────────────────────────────────────────────────────────
 

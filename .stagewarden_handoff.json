@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Deliverables B and C closed 5/5: evidence-gated `end_stage_report` fails closed at boundaries without evidence; catalog proven annotation-only (cannot add router candidates or bypass paid/free policy). §5 context-evolution rubric 6/6. Full suite 805 passed, 5 skipped, 361 subtests (335.71s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "EventStream explicit legacy→hash-chain migration implemented (atomic, fail-closed, idempotent, never implicit). Deliverables B/C 5/5 and §5 context-evolution 6/6 closed. Full suite 807 passed, 5 skipped, 361 subtests (333.81s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

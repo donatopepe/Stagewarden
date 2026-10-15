@@ -1326,6 +1326,34 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("summary", result["error"])
 
+    def test_omniroute_observed_output_token_overrun_fails_closed(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        node = orch.nodes["root.scope"]
+        node.context_budget.update({"max_output_tokens": 128, "reserved_output": None, "available_input": 4096})
+        overrun = subprocess.CompletedProcess(
+            args=["adapter"], returncode=0,
+            stdout='{"summary":"s","messages":[],"usage":{"completion_tokens":999}}', stderr="",
+        )
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run", return_value=overrun
+        ):
+            result = orch._pi_execution(node)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["cap_violation"], {"observed_output_tokens": 999, "requested_cap": 128})
+        self.assertIn("exceeded requested output cap", result["error"])
+        within = subprocess.CompletedProcess(
+            args=["adapter"], returncode=0,
+            stdout='{"summary":"s","messages":[],"usage":{"completion_tokens":10}}', stderr="",
+        )
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run", return_value=within
+        ):
+            accepted = orch._pi_execution(node)
+        self.assertTrue(accepted["ok"])
+        self.assertNotIn("cap_violation", accepted)
+        orch.knowledge.close()
+
     def test_pi_execution_handles_nonzero_returncode(self) -> None:
         """_pi_execution returns error on non-zero pi exit."""
         import subprocess as _sp
