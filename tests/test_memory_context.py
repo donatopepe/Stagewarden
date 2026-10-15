@@ -147,6 +147,8 @@ class MemoryContextTests(unittest.TestCase):
             )
             self.assertLessEqual(context.token_count, 80)
             self.assertIn("not_provider_tokenizer", context.token_counter_name)
+            self.assertLessEqual(executor._estimate_memory_tokens(section.body), 80)
+            self.assertIn("not_provider_tokenizer", section.body)
             executor.close()
 
     def test_prompt_includes_configured_context_without_writing_external_root(self) -> None:

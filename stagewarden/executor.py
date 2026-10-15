@@ -1537,12 +1537,30 @@ class Executor:
         memory_summary = _executor_prompting.bounded_context(self.memory.summarize(), 2000, label="memory_summary")
         available_memory_tokens = (provider_limits or {}).get("available_input")
         if isinstance(available_memory_tokens, int) and not isinstance(available_memory_tokens, bool):
-            memory_budget = max(0, min(available_memory_tokens, 4000))
             memory_counter = self._estimate_memory_tokens
-            external_memory = self.config.memory_context_with_budget(
-                memory_budget, memory_counter,
-                counter_name=f"executor_char_ratio_{self._context_chars_per_token:g}_not_provider_tokenizer",
-            )
+            counter_name = f"executor_char_ratio_{self._context_chars_per_token:g}_not_provider_tokenizer"
+            memory_budget = max(0, min(available_memory_tokens, 4000))
+            # Count injected content plus diagnostics and accounting metadata, not
+            # just source Markdown. Shrink content budget until full section fits.
+            for _ in range(6):
+                candidate = self.config.memory_context_with_budget(
+                    memory_budget, memory_counter, counter_name=counter_name,
+                )
+                candidate_body = _executor_prompting.render_external_memory_context(candidate)
+                if candidate.token_limit is not None:
+                    candidate_body += f"\n\n[accounting: {candidate.token_counter_name}; tokens={candidate.token_count}/{candidate.token_limit}]"
+                candidate_body = _executor_prompting.bounded_context(
+                    candidate_body, candidate.max_chars, label="hermes_obsidian_memory",
+                )
+                used = memory_counter(candidate_body)
+                if used <= available_memory_tokens:
+                    external_memory = candidate
+                    break
+                memory_budget = max(0, memory_budget - (used - available_memory_tokens))
+            else:
+                external_memory = self.config.memory_context_with_budget(
+                    0, memory_counter, counter_name=counter_name,
+                )
         else:
             external_memory = self.config.memory_context
         execution_log = _executor_prompting.bounded_context(self.memory.detailed_summary(), 4000, label="execution_log")
