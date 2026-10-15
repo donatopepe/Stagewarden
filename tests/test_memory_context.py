@@ -100,6 +100,25 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(context.content, "")
             self.assertIn("no truncated memory candidate fits", context.report()["diagnostics"][0])
 
+    def test_marker_budget_failure_returns_zero_count_and_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("source text " * 10, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            def counter(text: str) -> int:
+                if text == "":
+                    raise AssertionError("no-fit marker case must return without recounting empty text")
+                if "truncated by memory token budget" in text:
+                    return 50
+                return len(text)
+            context = load_memory_context(root, path, max_tokens=40, token_counter=counter)
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertEqual(context.token_count, 0)
+            self.assertIn("token budget too small", context.report()["diagnostics"][0])
+
     def test_no_fit_counter_failure_does_not_report_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

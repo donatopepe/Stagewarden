@@ -181,8 +181,8 @@ def load_memory_context(
                 if isinstance(suffix_count, bool) or not isinstance(suffix_count, int) or suffix_count < 0:
                     raise ValueError("token counter returned invalid suffix count")
                 if suffix_count > max_tokens:
-                    content = ""
                     issues.append(_issue("error", "token budget too small for truncation marker"))
+                    return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
                 else:
                     # Do not assume arbitrary pluggable counters are monotone over
                     # prefixes. Keep only candidates actually measured within budget;
