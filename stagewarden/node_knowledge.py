@@ -190,39 +190,41 @@ class NodeKnowledgeStore:
             "node_uuid": capsule.get("node_uuid"),
             "checkpoint": capsule.get("last_checkpoint"),
         }
-        self.connection.execute(
-            """
-            INSERT OR REPLACE INTO knowledge
-            (entry_id, namespace, tree_id, node_id, parent_node_id, kind, purpose,
-             status, title, content, source_json, content_hash)
-            VALUES (?, 'capsule', ?, ?, ?, 'node_execution_capsule', ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                entry_id,
-                tree_id,
-                node_id,
-                parent_node_id,
-                purpose,
-                str(capsule.get("status", "unknown")),
-                "Node execution capsule",
-                serialized,
-                json.dumps(source, ensure_ascii=True, sort_keys=True),
-                self._hash(serialized),
-            ),
-        )
-        self.connection.commit()
-        return entry_id
+        with self._lock:
+            self.connection.execute(
+                """
+                INSERT OR REPLACE INTO knowledge
+                (entry_id, namespace, tree_id, node_id, parent_node_id, kind, purpose,
+                 status, title, content, source_json, content_hash)
+                VALUES (?, 'capsule', ?, ?, ?, 'node_execution_capsule', ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    entry_id,
+                    tree_id,
+                    node_id,
+                    parent_node_id,
+                    purpose,
+                    str(capsule.get("status", "unknown")),
+                    "Node execution capsule",
+                    serialized,
+                    json.dumps(source, ensure_ascii=True, sort_keys=True),
+                    self._hash(serialized),
+                ),
+            )
+            self.connection.commit()
+            return entry_id
 
     def load_node_execution_capsule(self, tree_id: str, node_id: str, *, node_uuid: str | None = None) -> dict[str, Any]:
-        row = self.connection.execute(
-            """
-            SELECT * FROM knowledge
-            WHERE namespace = 'capsule' AND tree_id = ? AND node_id = ?
-              AND (? IS NULL OR json_extract(source_json, '$.node_uuid') = ?)
-            ORDER BY created_at DESC, entry_id DESC LIMIT 1
-            """,
-            (tree_id, node_id, node_uuid, node_uuid),
-        ).fetchone()
+        with self._lock:
+            row = self.connection.execute(
+                """
+                SELECT * FROM knowledge
+                WHERE namespace = 'capsule' AND tree_id = ? AND node_id = ?
+                  AND (? IS NULL OR json_extract(source_json, '$.node_uuid') = ?)
+                ORDER BY created_at DESC, entry_id DESC LIMIT 1
+                """,
+                (tree_id, node_id, node_uuid, node_uuid),
+            ).fetchone()
         if row is None:
             raise KeyError(f"No execution capsule for {tree_id}:{node_id}")
         item = dict(row)
@@ -386,10 +388,11 @@ class NodeKnowledgeStore:
             clauses.append("namespace = ?")
             params.append(namespace)
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-        rows = self.connection.execute(
-            f"SELECT * FROM knowledge {where} ORDER BY created_at DESC LIMIT ?",
-            (*params, max(1, int(limit)) * 20),
-        ).fetchall()
+        with self._lock:
+            rows = self.connection.execute(
+                f"SELECT * FROM knowledge {where} ORDER BY created_at DESC LIMIT ?",
+                (*params, max(1, int(limit)) * 20),
+            ).fetchall()
         scored: list[tuple[int, dict[str, Any]]] = []
         for row in rows:
             haystack = " ".join((row["title"], row["purpose"], row["content"], row["kind"])).lower()
