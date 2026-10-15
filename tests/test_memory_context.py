@@ -60,6 +60,7 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(compacted.token_limit, 20)
             self.assertEqual(compacted.token_counter_name, "test_char_estimator")
             self.assertEqual(compacted.report()["content_tokens"], compacted.token_count)
+            self.assertTrue(all(isinstance(item, str) for item in compacted.report()["diagnostics"]))
             self.assertIn("truncated by memory token budget", compacted.content)
 
     def test_missing_optional_file_is_warning(self) -> None:

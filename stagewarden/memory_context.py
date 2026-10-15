@@ -21,6 +21,9 @@ class MemoryContextIssue:
     message: str
     path: str = ""
 
+    def __str__(self) -> str:
+        return f"{self.level}: {self.message}" + (f" [{self.path}]" if self.path else "")
+
 @dataclass(frozen=True, slots=True)
 class MemoryContext:
     enabled: bool
@@ -51,6 +54,7 @@ class MemoryContext:
             "token_limit": self.token_limit,
             "token_counter": self.token_counter_name,
             "content_tokens": self.token_count,
+            "diagnostics": [str(issue) for issue in self.issues],
         }
 
 
