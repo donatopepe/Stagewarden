@@ -408,6 +408,14 @@ class EventStreamTests(unittest.TestCase):
             self.assertEqual(replayed["nodes"]["node.a"]["last_event"], "node_start")
             self.assertEqual(replayed["nodes"]["node.a"]["purpose"], "inspect")
 
+    def test_replay_preserves_both_nodes_when_operation_id_reused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("tool_started", tree_id="tree", node_id="node-a", operation_id="shared", tool="shell")
+            stream.append("tool_started", tree_id="tree", node_id="node-b", operation_id="shared", tool="shell")
+            active = stream.replay()["in_flight_tools"]
+            self.assertEqual({item["node_id"] for item in active.values()}, {"node-a", "node-b"})
+
     def test_replay_does_not_clear_other_nodes_operation_with_same_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

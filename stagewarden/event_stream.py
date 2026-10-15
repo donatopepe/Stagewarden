@@ -305,13 +305,19 @@ class EventStream:
             if isinstance(operation_id, str) and operation_id and event_name in {"tool_started", "tool_checkpoint"}:
                 prior_operation = in_flight_tools.get(operation_id)
                 prior_node_id = prior_operation.get("node_id") if prior_operation else None
-                if prior_operation is not None and prior_node_id != event_item.get("node_id"):
+                event_operation_node = event_item.get("node_id")
+                if prior_operation is not None and prior_node_id != event_operation_node:
                     in_flight_tools.pop(operation_id, None)
-                    operation_key = f"{event_item.get('node_id') or '<unknown>'}:{operation_id}"
+                    prior_key = f"{prior_node_id or '<unknown>'}:{operation_id}"
+                    while prior_key in in_flight_tools:
+                        prior_key = f"{prior_key}:duplicate"
+                    in_flight_tools[prior_key] = prior_operation
+                    operation_key = f"{event_operation_node or '<unknown>'}:{operation_id}"
+                    while operation_key in in_flight_tools:
+                        operation_key = f"{operation_key}:duplicate"
                 else:
                     operation_key = operation_id
                 in_flight_tools[operation_key] = {
-                    "operation_id": operation_id,
                     "operation_id": operation_id,
                     "node_id": event_item.get("node_id"),
                     "tool": details.get("tool"),
