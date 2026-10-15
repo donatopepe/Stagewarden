@@ -293,6 +293,7 @@ class EventStream:
         nodes: dict[str, dict[str, Any]] = {}
         in_flight_tools: dict[str, dict[str, Any]] = {}
         tool_recoveries: list[dict[str, Any]] = []
+        terminal_node_statuses = {"completed", "failed", "cancelled", "skipped", "blocked"}
         last_event: dict[str, Any] | None = None
         for event_item in self.read(node_id=node_id):
             event_name = event_item.get("event")
@@ -369,6 +370,10 @@ class EventStream:
                             )
                             if key in node
                         })
+                        if node.get("status") in terminal_node_statuses:
+                            for active_id, active in list(in_flight_tools.items()):
+                                if active.get("node_id") == event_node_id:
+                                    in_flight_tools.pop(active_id, None)
             last_event = event_item
         return {
             "tree_id": last_event.get("tree_id") if last_event else None,
