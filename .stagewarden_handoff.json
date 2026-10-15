@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Legacy-only EventStream append remains legacy format; reserved hash metadata injection is rejected and signed append on legacy file requires explicit migration, preventing mixed-format corruption. Full suite: 781 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Legacy append now validates complete newline framing and rejects torn tail without modifying data; signed append proceeds only after verified legacy records. Regression and full suite pass: 782 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
