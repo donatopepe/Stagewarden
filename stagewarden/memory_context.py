@@ -177,16 +177,35 @@ def load_memory_context(
                 raise ValueError("token counter returned invalid count")
             if token_count > max_tokens:
                 suffix = "\n[truncated by memory token budget]"
-                low, high = 0, len(content)
-                while low < high:
-                    middle = (low + high + 1) // 2
-                    candidate = content[:middle].rstrip() + suffix
-                    if token_counter(candidate) <= max_tokens:
-                        low = middle
-                    else:
-                        high = middle - 1
-                candidate = content[:low].rstrip() + suffix
-                content = candidate if token_counter(candidate) <= max_tokens else ""
+                suffix_count = token_counter(suffix)
+                if isinstance(suffix_count, bool) or not isinstance(suffix_count, int) or suffix_count < 0:
+                    raise ValueError("token counter returned invalid suffix count")
+                if suffix_count > max_tokens:
+                    content = ""
+                else:
+                    # Binary search is valid for monotone estimators; custom
+                    # counters need not be monotone, so verify result and fail
+                    # closed rather than trust a violated assumption.
+                    low, high = 0, len(content)
+                    while low < high:
+                        middle = (low + high + 1) // 2
+                        candidate = content[:middle].rstrip() + suffix
+                        candidate_count = token_counter(candidate)
+                        if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 0:
+                            raise ValueError("token counter returned invalid count during compaction")
+                        if candidate_count <= max_tokens:
+                            low = middle
+                        else:
+                            high = middle - 1
+                    candidate = content[:low].rstrip() + suffix
+                    candidate_count = token_counter(candidate)
+                    if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 0:
+                        raise ValueError("token counter returned invalid final count")
+                    content = candidate if candidate_count <= max_tokens else ""
+                    if content:
+                        content_count = token_counter(content)
+                        if isinstance(content_count, bool) or not isinstance(content_count, int) or content_count > max_tokens:
+                            raise ValueError("compacted memory exceeds token budget")
             try:
                 final_token_count = token_counter(content)
                 if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:

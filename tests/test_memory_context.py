@@ -82,6 +82,43 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(context.content, "")
             self.assertIn("counter transient failure", context.report()["diagnostics"][0])
 
+    def test_token_counter_exception_during_binary_search_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("abcdef" * 50, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            calls = 0
+            def counter(text: str) -> int:
+                nonlocal calls
+                calls += 1
+                if calls > 2:
+                    raise RuntimeError("search failed")
+                return len(text)
+            context = load_memory_context(root, path, max_tokens=40, token_counter=counter, token_counter_name="flaky")
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertIn("search failed", context.report()["diagnostics"][0])
+
+    def test_non_monotonic_counter_candidate_is_verified_before_return(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("abcdef" * 50, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            def non_monotonic(text: str) -> int:
+                if "truncated by memory token budget" in text:
+                    return 5
+                if len(text) > 30:
+                    return 200
+                return len(text)
+            context = load_memory_context(root, path, max_tokens=40, token_counter=non_monotonic)
+            self.assertTrue(context.ok)
+            self.assertLessEqual(context.token_count, 40)
+            self.assertIn("truncated by memory token budget", context.content)
+
     def test_final_counter_type_failure_fails_closed_with_counter_identity(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
