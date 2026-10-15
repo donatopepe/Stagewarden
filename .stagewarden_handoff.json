@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Per-node codemode read/append serialized for expected_revision CAS; concurrent stale appends yield one success and one conflict. Goal-loop 77 passed/36 subtests; full suite 791 passed, 5 skipped, 350 subtests (317.76s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Codemode append catches persistence failure and restores in-memory context/revision; OSError simulation verifies rollback. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (318.00s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

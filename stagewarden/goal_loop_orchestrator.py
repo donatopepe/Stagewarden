@@ -721,11 +721,20 @@ Do NOT include any text before or after the JSON object.'''
             previous_context = node.compacted_context
             previous_revision = node.context_revision
             try:
-                return self._codemode_context_locked(node, operation, text=text, expected_revision=expected_revision)
+                result = self._codemode_context_locked(node, operation, text=text, expected_revision=expected_revision)
             except Exception as exc:
                 node.compacted_context = previous_context
                 node.context_revision = previous_revision
                 return {"ok": False, "error": f"context persistence failed: {exc.__class__.__name__}"}
+            if operation == "append" and result.get("ok"):
+                if not self.knowledge.has_context_revision(
+                    tree_id="goal-loop", node_id=node.node_id,
+                    node_uuid=node.node_uuid, revision=node.context_revision,
+                ):
+                    node.compacted_context = previous_context
+                    node.context_revision = previous_revision
+                    return {"ok": False, "error": "context persistence verification failed"}
+            return result
 
     def _codemode_context_locked(
         self, node: NodeState, operation: str, *, text: str,

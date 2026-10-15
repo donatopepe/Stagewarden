@@ -240,6 +240,15 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(node.context_revision, before_revision)
             self.assertEqual(node.compacted_context, "")
             orchestrator.knowledge.record_context = original_record
+            def silent_record(**kwargs):
+                return "not-persisted"
+            orchestrator.knowledge.record_context = silent_record
+            silent = orchestrator.codemode_context(node.node_id, "append", text="silent failure", expected_revision=before_revision)
+            self.assertFalse(silent["ok"])
+            self.assertEqual(silent["error"], "context persistence verification failed")
+            self.assertEqual(node.context_revision, before_revision)
+            self.assertEqual(node.compacted_context, "")
+            orchestrator.knowledge.record_context = original_record
 
     def test_node_context_expected_revision_serializes_concurrent_appends(self) -> None:
         import threading
