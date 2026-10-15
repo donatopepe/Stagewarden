@@ -296,12 +296,27 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(node.context_revision, before_revision)
             self.assertEqual(node.compacted_context, "")
             orchestrator.knowledge.record_context = original_record
+            def mismatched_record(**kwargs):
+                original_record(**kwargs)
+                orchestrator.knowledge.connection.execute(
+                    "UPDATE knowledge SET content = 'tampered' WHERE entry_id = ?",
+                    (kwargs["entry_id"],),
+                )
+                orchestrator.knowledge.connection.commit()
+            orchestrator.knowledge.record_context = mismatched_record
+            mismatch = orchestrator.codemode_context(node.node_id, "append", text="integrity", expected_revision=before_revision)
+            self.assertFalse(mismatch["ok"])
+            self.assertEqual(mismatch["error"], "context persistence verification failed: content mismatch")
+            self.assertEqual(node.context_revision, before_revision)
+            orchestrator.knowledge.connection.execute("DELETE FROM knowledge WHERE node_id = ?", (node.node_id,))
+            orchestrator.knowledge.connection.commit()
+            orchestrator.knowledge.record_context = original_record
             def silent_record(**kwargs):
                 return "not-persisted"
             orchestrator.knowledge.record_context = silent_record
             silent = orchestrator.codemode_context(node.node_id, "append", text="silent failure", expected_revision=before_revision)
             self.assertFalse(silent["ok"])
-            self.assertEqual(silent["error"], "context persistence verification failed")
+            self.assertEqual(silent["error"], "context persistence verification failed: missing revision")
             self.assertEqual(node.context_revision, before_revision)
             self.assertEqual(node.compacted_context, "")
             orchestrator.knowledge.record_context = original_record

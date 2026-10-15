@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Durable append followed by audit failure restores exact committed SQLite context into memory via UUID/revision lookup; tested equality. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.07s).
 - Context append now persists revision before memory mutation/audit events; failed write emits neither update nor compaction event. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.70s).
 - Zero input budget now remains zero (no 128-byte floor) for context append/compaction; regression verifies rejection of nonempty append. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (321.56s).
 - After durable SQLite write, later audit-event failure now preserves in-memory revision/context and reports persisted-but-audit-failed instead of false rollback. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (320.25s).

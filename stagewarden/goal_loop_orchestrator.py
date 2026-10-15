@@ -775,13 +775,23 @@ Do NOT include any text before or after the JSON object.'''
                 node.context_revision = previous_revision
                 return {"ok": False, "error": f"context persistence failed: {exc.__class__.__name__}"}
             if operation == "append" and result.get("ok"):
-                if not self.knowledge.has_context_revision(
-                    tree_id="goal-loop", node_id=node.node_id,
-                    node_uuid=node.node_uuid, revision=node.context_revision,
-                ):
+                try:
+                    durable_context = self.knowledge.get_context_revision(
+                        tree_id="goal-loop", node_id=node.node_id,
+                        node_uuid=node.node_uuid, revision=node.context_revision,
+                    )
+                except Exception as exc:
                     node.compacted_context = previous_context
                     node.context_revision = previous_revision
-                    return {"ok": False, "error": "context persistence verification failed"}
+                    return {"ok": False, "error": f"context persistence verification failed: {exc.__class__.__name__}"}
+                if durable_context is None:
+                    node.compacted_context = previous_context
+                    node.context_revision = previous_revision
+                    return {"ok": False, "error": "context persistence verification failed: missing revision"}
+                if durable_context != node.compacted_context:
+                    node.compacted_context = previous_context
+                    node.context_revision = previous_revision
+                    return {"ok": False, "error": "context persistence verification failed: content mismatch"}
             return result
 
     def _codemode_context_locked(
