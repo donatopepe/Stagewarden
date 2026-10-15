@@ -714,35 +714,25 @@ Do NOT include any text before or after the JSON object.'''
         node = self.nodes.get(node_id)
         if node is None:
             return {"ok": False, "error": f"unknown node: {node_id}"}
+        if operation not in {"read", "append"}:
+            return {"ok": False, "error": "operation must be read or append with non-empty text"}
+        if expected_revision is not None:
+            if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+                return {"ok": False, "error": "expected_revision must be a non-negative integer"}
+            if expected_revision != node.context_revision:
+                return {
+                    "ok": False,
+                    "error": "context revision conflict",
+                    "node_id": node_id,
+                    "node_uuid": node.node_uuid,
+                    "expected_revision": expected_revision,
+                    "current_revision": node.context_revision,
+                }
         if operation == "read":
-            if expected_revision is not None:
-                if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
-                    return {"ok": False, "error": "expected_revision must be a non-negative integer"}
-                if expected_revision != node.context_revision:
-                    return {
-                        "ok": False,
-                        "error": "context revision conflict",
-                        "node_id": node_id,
-                        "node_uuid": node.node_uuid,
-                        "expected_revision": expected_revision,
-                        "current_revision": node.context_revision,
-                    }
             return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
                     "revision": node.context_revision, "context": node.compacted_context,
                     "budget": dict(node.context_budget)}
         if operation == "append" and isinstance(text, str) and text.strip():
-            if expected_revision is not None:
-                if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
-                    return {"ok": False, "error": "expected_revision must be a non-negative integer"}
-                if expected_revision != node.context_revision:
-                    return {
-                        "ok": False,
-                        "error": "context revision conflict",
-                        "node_id": node_id,
-                        "node_uuid": node.node_uuid,
-                        "expected_revision": expected_revision,
-                        "current_revision": node.context_revision,
-                    }
             content = self._append_node_context(node, "codemode_note", text)
             return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
                     "revision": node.context_revision, "context_chars": len(content)}

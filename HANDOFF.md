@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Codemode read now optionally checks expected_revision and rejects stale snapshots; regression checks current/stale reads. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.44s).
 - Codemode append rejects non-string payload safely (no `.strip()` exception); goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.62s).
 - Codemode context append offers expected-revision CAS and returns UUID; all context writes increment revision, stale/invalid revision rejected. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.10s).
 - Compaction near marker boundary retains marker and bounded payload at/above 75 bytes; edge tests pass. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.05s).

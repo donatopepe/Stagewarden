@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Codemode `read` now optionally validates expected_revision too, returning revision-conflict metadata rather than serving stale snapshot; tests cover stale/current reads. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.44s).
 - Restricted codemode append now rejects non-string payloads cleanly rather than raising on `.strip()`; regression uses `text=None`. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.62s).
 - Codemode append supports optimistic `expected_revision`: rejects stale writes and boolean/negative/non-integer revision; successful append returns node UUID. Revision now increments on every context write (previously only compaction), making CAS meaningful. Added stale-write regression. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.10s).
 - Compaction handles cap == marker bytes by returning marker and caps > marker bytes by retaining marker with bounded payload; parameterized 75–99-byte edge tests pass. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.05s).
