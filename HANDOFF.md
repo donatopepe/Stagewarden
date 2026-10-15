@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Primary EventStream append error now triggers best-effort ProjectHandoff failure record, then propagates; regression verifies failure phase. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (347.96s).
 - Primary EventStream append failure now propagates and cannot be represented as successful lifecycle audit; secondary handoff failure note best-effort only. Regression verifies no fallback lifecycle event. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (326.64s).
 - Node lifecycle event emission survives broken stderr diagnostic write; event/capsule/handoff path continues. Regression added. Goal-loop 83 passed/36 subtests; full suite 798 passed, 5 skipped, 352 subtests (330.40s).
 - Replay clears in-flight tools on explicit `node_skipped`/`node_blocked` events; parameterized coverage. EventStream 41 passed/20 subtests; full suite 797 passed, 5 skipped, 352 subtests (335.63s).

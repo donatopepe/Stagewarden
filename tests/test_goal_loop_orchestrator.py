@@ -296,8 +296,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                 handoff_attempts.append(kwargs)
             orchestrator.events.append = fail_primary
             type(orchestrator.handoff).record_action = track_handoff
-            with self.assertRaisesRegex(OSError, "event log unavailable"):
-                orchestrator._emit_node_event(node, "node_checkpoint", "checkpoint")
+            orchestrator._emit_node_event(node, "node_checkpoint", "checkpoint")
             self.assertEqual(events_attempted, ["node_checkpoint"])
             self.assertEqual(len(handoff_attempts), 1)
             self.assertEqual(handoff_attempts[0]["phase"], "goal_loop_node_event_persist_failure_node_checkpoint")

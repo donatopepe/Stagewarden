@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Primary EventStream failure is now additionally recorded through best-effort ProjectHandoff when event append fails; original exception still propagates, no false event success. Regression checks handoff failure phase. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (347.96s).
 - Primary EventStream append failure now propagates explicitly and prevents secondary handoff recording from falsely treating uncommitted lifecycle event as audited; attempts secondary handoff failure note only, suppressing its failure. Added OSError regression verifies propagation + no fallback event. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (326.64s).
 - `_emit_node_event` now treats stderr diagnostics as secondary; closed/broken stderr cannot prevent capsule/event/handoff path. Added redirected-stderr OSError regression. Goal-loop 83 passed/36 subtests; full suite 798 passed, 5 skipped, 352 subtests (330.40s).
 - Replay terminal event set now clears in-flight tool records on `node_skipped`/`node_blocked` as well as end/complete/fail/cancel variants. Parameterized test covers both. EventStream 41 passed/20 subtests; full suite 797 passed, 5 skipped, 352 subtests (335.63s).

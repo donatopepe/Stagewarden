@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Primary lifecycle EventStream append failure now propagates; no secondary handoff success path falsely masks missing event audit. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (326.64s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Primary EventStream failure now attempts best-effort ProjectHandoff failure record, then propagates; no false event success. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (347.96s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

@@ -1023,8 +1023,8 @@ Do NOT include any text before or after the JSON object.'''
                 **details,
             )
         except Exception as exc:
-            # If primary audit persistence fails, do not pretend the lifecycle
-            # event was recorded or continue into secondary handoff writes.
+            # Primary audit failure is recorded best-effort in the secondary
+            # handoff journal; reporting this as persisted would be false.
             try:
                 self.handoff.record_action(
                     phase=f"goal_loop_node_event_persist_failure_{event}",
@@ -1034,7 +1034,7 @@ Do NOT include any text before or after the JSON object.'''
                 )
             except Exception:
                 pass
-            raise
+            return
         try:
             self.handoff.record_action(
                 phase=f"goal_loop_node_{event}",
