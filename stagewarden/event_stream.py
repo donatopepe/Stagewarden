@@ -100,6 +100,74 @@ class EventStream:
                 handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n")
         return payload
 
+    def migrate_legacy_to_chain(self) -> dict[str, Any]:
+        """Explicitly convert a pure legacy (unchained) stream to hash-chained records.
+
+        This never runs implicitly: `append` keeps writing plain legacy records for
+        legacy streams. Migration fails closed on torn tails, invalid JSON or
+        non-object records, mixed chained/legacy content and corrupt streams, and
+        rewrites the file atomically through a sibling temp file plus os.replace.
+        Already-chained streams are reported and left untouched (idempotent).
+        """
+        with self._lock, self._process_lock():
+            if not self.path.exists():
+                return {"status": "missing", "migrated": 0, "events_verified": 0}
+            raw = self.path.read_bytes()
+            if not raw.strip():
+                return {"status": "empty", "migrated": 0, "events_verified": 0}
+            integrity = self.verify_integrity()
+            unchained = int(integrity.get("unchained_events", 0))
+            verified = int(integrity.get("events_verified", 0))
+            if unchained == 0:
+                if integrity.get("valid") and verified > 0:
+                    return {"status": "already_chained", "migrated": 0, "events_verified": verified}
+                if integrity.get("valid"):
+                    return {"status": "empty", "migrated": 0, "events_verified": 0}
+            if not integrity.get("valid"):
+                raise ValueError(f"Cannot migrate event stream: {integrity.get('errors')}")
+            if verified:
+                raise ValueError("Cannot migrate event stream: mixed chained and legacy records.")
+            if not raw.endswith(b"\n"):
+                raise ValueError("Cannot migrate event stream: torn trailing record.")
+            records: list[dict[str, Any]] = []
+            for line_number, line in enumerate(self._read_lines(), start=1):
+                if not line.strip():
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Cannot migrate event stream: invalid JSON at line {line_number}.") from exc
+                if not isinstance(record, dict):
+                    raise ValueError(f"Cannot migrate event stream: invalid record at line {line_number}.")
+                details = record.get("details")
+                details = dict(details) if isinstance(details, dict) else {}
+                reserved = {"event_sequence", "previous_event_hash", "event_hash"}
+                if reserved.intersection(details):
+                    raise ValueError("Cannot migrate event stream: hash-chain metadata already present.")
+                record = dict(record)
+                record["details"] = details
+                records.append(record)
+            previous_hash = "0" * 64
+            lines: list[str] = []
+            for index, record in enumerate(records, start=1):
+                details = dict(record["details"])
+                details["event_sequence"] = index
+                details["previous_event_hash"] = previous_hash
+                record = dict(record)
+                record["details"] = details
+                record["details"]["event_hash"] = hashlib.sha256(
+                    json.dumps(record, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                previous_hash = record["details"]["event_hash"]
+                lines.append(json.dumps(record, ensure_ascii=True, sort_keys=True))
+            temp_path = self.path.with_name(self.path.name + ".migrate.tmp")
+            with temp_path.open("w", encoding="utf-8") as handle:
+                handle.write("\n".join(lines) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, self.path)
+            return {"status": "migrated", "migrated": len(lines), "events_verified": len(lines)}
+
     def verify_integrity(self) -> dict[str, Any]:
         """Verify event records that carry optional sequence/hash metadata.
 

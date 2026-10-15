@@ -183,6 +183,52 @@ class EventStreamTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "hash-chain metadata"):
                 stream.append("new-format", tree_id="tree", event_sequence=1)
 
+    def test_migrate_legacy_to_chain_is_explicit_atomic_and_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            path.write_text(
+                '{"event":"legacy-one","details":{"k":"v"}}\n{"event":"legacy-two","node_id":"n1","details":{}}\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(stream.verify_integrity()["unchained_events"], 2)
+            self.assertNotIn("event_hash", path.read_text(encoding="utf-8"))
+            result = stream.migrate_legacy_to_chain()
+            self.assertEqual(result, {"status": "migrated", "migrated": 2, "events_verified": 2})
+            report = stream.verify_integrity()
+            self.assertTrue(report["valid"], report["errors"])
+            self.assertEqual(report["events_verified"], 2)
+            self.assertEqual(report["unchained_events"], 0)
+            migrated_bytes = path.read_bytes()
+            self.assertEqual(stream.migrate_legacy_to_chain()["status"], "already_chained")
+            self.assertEqual(path.read_bytes(), migrated_bytes)
+            stream.append("after-migration", tree_id="tree")
+            after_append = stream.verify_integrity()
+            self.assertEqual(after_append["events_verified"], 3)
+            self.assertEqual(after_append["unchained_events"], 0)
+
+    def test_migrate_legacy_fails_closed_on_torn_tail_and_corruption(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            path.write_text('{"event":"legacy","details":{}}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "torn trailing record"):
+                stream.migrate_legacy_to_chain()
+            self.assertEqual(path.read_text(encoding="utf-8"), '{"event":"legacy","details":{}}')
+            path.write_text('{"event":"legacy","details":{}}\nnot-json\n', encoding="utf-8")
+            original = path.read_text(encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Cannot migrate"):
+                stream.migrate_legacy_to_chain()
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
+            path.write_text('{"event":"legacy","details":{}}\n[]\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Cannot migrate"):
+                stream.migrate_legacy_to_chain()
+            missing = EventStream(Path(tmp) / "missing.jsonl")
+            self.assertEqual(missing.migrate_legacy_to_chain()["status"], "missing")
+            blank = Path(tmp) / "blank.jsonl"
+            blank.write_text("\n", encoding="utf-8")
+            self.assertEqual(EventStream(blank).migrate_legacy_to_chain()["status"], "empty")
+
     def test_non_object_record_after_legacy_stream_is_corruption(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"
