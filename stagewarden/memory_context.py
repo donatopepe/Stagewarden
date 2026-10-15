@@ -187,3 +187,8 @@ def render_memory_context(context: MemoryContext) -> str:
     if not context.content:
         return "Memory context enabled but no readable Markdown files were loaded."
     return context.content
+
+
+def character_counter(text: str) -> int:
+    """Offline character-count token counter for injection; NOT provider tokens."""
+    return len(text)

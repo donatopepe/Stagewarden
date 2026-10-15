@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "EventStream explicit legacy→hash-chain migration implemented (atomic, fail-closed, idempotent, never implicit). Deliverables B/C 5/5 and §5 context-evolution 6/6 closed. Full suite 807 passed, 5 skipped, 361 subtests (333.81s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Observed output-cap enforcement added: OmniRoute node path rejects provider-reported output overruns with an explicit cap_violation (observation-based, never fabricated, REQUIRE_OUTPUT_CAP still fail-closed). EventStream explicit migration and deliverables B/C (§5 6/6) closed. Full suite 808 passed, 5 skipped, 361 subtests (333.97s). Native Windows runtime and provider-exact tokenizer remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Output-cap observation: OmniRoute node path now inspects provider-reported output tokens and fails closed with an explicit `cap_violation` when the requested cap is exceeded (observation-based, not tokenizer equivalence). Full suite 808 passed/5 skipped/361 subtests (333.97s); statics clean.
 - EventStream `migrate_legacy_to_chain()`: explicit-only legacy→hash-chain migration, atomic rewrite, fail-closed on torn tail/corruption/mixed content, idempotent. Full suite 807 passed/5 skipped/361 subtests (333.81s); statics clean.
 - Deliverable C (global multi-model): regression added proving catalog entries cannot widen router candidates beyond the provider registry nor bypass paid/free policy; catalog remains annotation-only data. Full suite 805 passed/5 skipped/361 subtests (335.71s); statics clean.
 - Deliverable B (PRINCE2): `stage_view` gains an evidence-gated `end_stage_report` (gate_state/evidence_gate/evidence refs/lessons) rendered as `end_stage_gate` lines; missing evidence at a boundary fails closed. Full suite 804 passed/5 skipped/361 subtests (342.45s); statics clean.

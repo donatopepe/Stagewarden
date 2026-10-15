@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import os
 import shutil
@@ -12,7 +13,7 @@ import threading
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .config import AgentConfig
 from .project_handoff import ProjectHandoff
@@ -88,6 +89,35 @@ def check_tolerance_violation(tolerances: dict[str, str],
 
 
 # ── data classes ─────────────────────────────────────────────────────────────
+
+DEFAULT_TOKEN_COUNTER = "utf8_byte_upper_bound_v1"
+_UNVERIFIED_COUNTER_ACCOUNTING_UNIT = "external_token_counter_not_provider_verified"
+
+
+def _load_token_counter(spec: str) -> Callable[[str], int]:
+    """Resolve the goal-loop token counter, failing closed on unknown specs.
+
+    The default returns the UTF-8 byte length as a conservative upper bound and is
+    explicitly NOT provider tokenizer equivalence. External counters use the
+    explicit ``module:attribute`` form and are reported as unverified.
+    """
+    clean = str(spec or "").strip() or DEFAULT_TOKEN_COUNTER
+    if clean == DEFAULT_TOKEN_COUNTER:
+        return lambda text: len(text.encode("utf-8"))
+    if ":" not in clean:
+        raise ValueError(
+            f"Unknown goal-loop token counter {clean!r}; use {DEFAULT_TOKEN_COUNTER!r} or 'module:attribute'."
+        )
+    module_name, _, attribute = clean.partition(":")
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as exc:
+        raise ValueError(f"Goal-loop token counter module {module_name!r} is unavailable: {exc}") from exc
+    counter = getattr(module, attribute, None)
+    if not callable(counter):
+        raise ValueError(f"Goal-loop token counter {clean!r} is not callable.")
+    return counter
+
 
 @dataclass
 class NodeState:
@@ -214,6 +244,15 @@ class GoalLoopOrchestrator:
         self.events = EventStream(config.event_path)
         self.message_bus = MessageBus()
         self.current_iteration = 0
+        self._token_counter_name = os.environ.get(
+            "STAGEWARDEN_GOAL_LOOP_TOKEN_COUNTER", ""
+        ).strip() or DEFAULT_TOKEN_COUNTER
+        self._token_counter = _load_token_counter(self._token_counter_name)
+        self._accounting_unit = (
+            "utf8_bytes_upper_bound_not_provider_tokens"
+            if self._token_counter_name == DEFAULT_TOKEN_COUNTER
+            else _UNVERIFIED_COUNTER_ACCOUNTING_UNIT
+        )
         self._initialize_nodes()
         self._validate_tree_invariants()
         self._restore_node_capsules()
@@ -524,8 +563,8 @@ Do NOT include any text before or after the JSON object.'''
             "input_limit": input_limit, "max_output_tokens": output_limit,
             "reserved_output": reserve, "safety_margin": margin,
             "available_input": available, "source": limits.get("source", "unknown"),
-            "token_counter": "utf8_byte_upper_bound_v1",
-            "accounting_unit": "utf8_bytes_upper_bound_not_provider_tokens",
+            "token_counter": self._token_counter_name,
+            "accounting_unit": self._accounting_unit,
         }
         if available is not None:
             fixed_prompt = (
@@ -618,8 +657,8 @@ Do NOT include any text before or after the JSON object.'''
             "max_output_tokens": output_limit, "reserved_output": reserve,
             "safety_margin": margin, "available_input": available,
             "source": limits.get("source", "unknown"),
-            "token_counter": "utf8_byte_upper_bound_v1",
-            "accounting_unit": "utf8_bytes_upper_bound_not_provider_tokens",
+            "token_counter": self._token_counter_name,
+            "accounting_unit": self._accounting_unit,
         }
         node.context_budget = budget
         if available is None:
@@ -640,15 +679,17 @@ Do NOT include any text before or after the JSON object.'''
         if effective_tokens + self._estimate_tokens(context) > available:
             raise ValueError(f"Node {node.node_id} prompt and node context exceed safe context budget.")
 
-    @staticmethod
-    def _estimate_tokens(text: str) -> int:
-        """Conservative tokenizer-free upper bound: UTF-8 bytes, not character count.
+    def _estimate_tokens(self, text: str) -> int:
+        """Count prompt budget units with the configured counter.
 
-        This deliberately overestimates common English text and handles Unicode
-        without treating a multibyte string as one cheap token per character.
-        It is a safety bound, not provider tokenizer equivalence.
+        The default counter is UTF-8 bytes: a conservative upper bound that is NOT
+        provider tokenizer equivalence. A plugged external counter is reported with
+        an unverified accounting unit and must return a non-negative integer.
         """
-        return len(text.encode("utf-8"))
+        value = self._token_counter(text)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError("Goal-loop token counter must return a non-negative integer.")
+        return value
 
     @staticmethod
     def _compact_node_text(text: str, max_tokens: int) -> str:
@@ -745,7 +786,7 @@ Do NOT include any text before or after the JSON object.'''
                 compacted_utf8_bytes=len(combined.encode("utf-8")),
                 cap_utf8_bytes=(int(node.context_budget.get("available_input"))
                                 if isinstance(node.context_budget.get("available_input"), int) else None),
-                accounting_unit="utf8_bytes_upper_bound_not_provider_tokens",
+                accounting_unit=self._accounting_unit,
             )
         self.events.append(
             "node_context_updated", tree_id="goal-loop", node_id=node.node_id,
@@ -753,7 +794,7 @@ Do NOT include any text before or after the JSON object.'''
             context_chars=len(combined), content_hash=hashlib.sha256(combined.encode("utf-8")).hexdigest(),
             section="node_local_context",
             context_utf8_bytes=len(combined.encode("utf-8")),
-            accounting_unit="utf8_bytes_upper_bound_not_provider_tokens",
+            accounting_unit=self._accounting_unit,
         )
         return combined
 

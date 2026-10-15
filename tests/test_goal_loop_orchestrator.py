@@ -94,7 +94,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(packet["context_budget"]["accounting_unit"], "utf8_bytes_upper_bound_not_provider_tokens")
             self.assertEqual(packet["context_budget"]["available_input"], node.context_budget["available_input"])
             self.assertEqual(
-                GoalLoopOrchestrator._estimate_tokens("é🙂"),
+                orchestrator._estimate_tokens("é🙂"),
                 len("é🙂".encode("utf-8")),
             )
 
@@ -145,12 +145,14 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                     )
 
     def test_budget_estimator_uses_utf8_bytes_and_compaction_respects_byte_cap(self) -> None:
-        self.assertEqual(GoalLoopOrchestrator._estimate_tokens("aé🙂"), len("aé🙂".encode("utf-8")))
+        orchestrator = GoalLoopOrchestrator(self.config, "budget estimator", execution_mode="mock", json_mode=True)
+        self.addCleanup(lambda: orchestrator.knowledge.close())
+        self.assertEqual(orchestrator._estimate_tokens("aé🙂"), len("aé🙂".encode("utf-8")))
         compacted = GoalLoopOrchestrator._compact_node_text("🙂" * 1000, 300)
         self.assertLessEqual(len(compacted.encode("utf-8")), 300)
         self.assertIn("context auto-compacted", compacted)
         self.assertEqual(
-            GoalLoopOrchestrator._estimate_tokens(compacted),
+            orchestrator._estimate_tokens(compacted),
             len(compacted.encode("utf-8")),
         )
         for byte_cap in (1, 8, 10, 100, 300):
@@ -170,6 +172,25 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         for byte_cap in range(1, 80):
             compacted = GoalLoopOrchestrator._compact_node_text(mixed, byte_cap)
             self.assertLessEqual(len(compacted.encode("utf-8")), byte_cap)
+
+    def test_token_counter_is_pluggable_and_unknown_specs_fail_closed(self) -> None:
+        spec = "stagewarden.memory_context:character_counter"
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_TOKEN_COUNTER": spec}):
+            plugged = GoalLoopOrchestrator(self.config, "plugged counter", execution_mode="mock", json_mode=True)
+        self.addCleanup(lambda: plugged.knowledge.close())
+        self.assertEqual(plugged._token_counter_name, spec)
+        self.assertEqual(plugged._accounting_unit, "external_token_counter_not_provider_verified")
+        self.assertEqual(plugged._estimate_tokens("ééé"), 3)
+        self.assertEqual(plugged.nodes["root.scope"].context_budget["token_counter"], spec)
+        self.assertEqual(
+            plugged.nodes["root.scope"].context_budget["accounting_unit"],
+            "external_token_counter_not_provider_verified",
+        )
+        for bad in ("bogus", "does.not.exist:counter", "stagewarden.memory_context:missing_attribute"):
+            with self.subTest(spec=bad), patch.dict(
+                os.environ, {"STAGEWARDEN_GOAL_LOOP_TOKEN_COUNTER": bad}
+            ), self.assertRaises(ValueError):
+                GoalLoopOrchestrator(self.config, "bad counter", execution_mode="mock", json_mode=True)
 
     def test_node_context_codemode_is_uuid_scoped_and_compacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
