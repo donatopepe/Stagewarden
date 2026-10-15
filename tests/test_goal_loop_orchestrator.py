@@ -280,6 +280,18 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
+    def test_node_event_survives_stderr_failure(self) -> None:
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "stderr failure", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                stderr.write = lambda _value: (_ for _ in ()).throw(OSError("closed stderr"))
+                orchestrator._emit_node_event(node, "node_checkpoint", "checkpoint")
+            self.assertEqual(len(orchestrator.events.read(event="node_checkpoint")), 1)
+
     def test_node_event_survives_handoff_and_secondary_audit_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "handoff failure", execution_mode="mock", json_mode=True)

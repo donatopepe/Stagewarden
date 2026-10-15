@@ -999,7 +999,11 @@ Do NOT include any text before or after the JSON object.'''
         )
         if message:
             line += f" work={message}"
-        sys.stderr.write(line + "\n")
+        try:
+            sys.stderr.write(line + "\n")
+        except Exception:
+            # Console diagnostics are secondary; event persistence remains authoritative.
+            pass
         try:
             capsule_entry_id = self._persist_node_capsule(node_state)
         except Exception as exc:

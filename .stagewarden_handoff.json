@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Replay checkpoint reconciliation collapses duplicate in-flight records for same operation+node, latest record retained. EventStream 41 passed/18 subtests; full suite 797 passed, 5 skipped, 350 subtests (333.36s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Replay clears in-flight tools on explicit node_skipped/node_blocked terminal events too; parameterized regression. EventStream 41 passed/20 subtests; full suite 797 passed, 5 skipped, 352 subtests (335.63s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
