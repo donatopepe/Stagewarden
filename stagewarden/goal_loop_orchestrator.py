@@ -679,7 +679,7 @@ Do NOT include any text before or after the JSON object.'''
         entry = f"[{category}] {str(text).strip()}"
         combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
         budget = node.context_budget.get("available_input")
-        cap = max(128, int(budget)) if isinstance(budget, int) else 12000
+        cap = max(128, budget) if isinstance(budget, int) and not isinstance(budget, bool) else 12000
         if len(combined.encode("utf-8")) > cap:
             prior = node.compacted_context
             combined = self._compact_node_text(combined, max(32, cap))

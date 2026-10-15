@@ -208,7 +208,13 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             )
             self.assertFalse(boolean_budget["ok"])
             self.assertEqual(boolean_budget["max_append_bytes"], 12000)
+            root.context_budget["available_input"] = True
+            root.compacted_context = "a" * 127
+            compacted_boolean_budget = orchestrator._append_node_context(root, "test", "b" * 2)
+            self.assertLessEqual(len(compacted_boolean_budget.encode("utf-8")), 12000)
             root.context_budget["available_input"] = None
+            root.compacted_context = "private root fact"
+            root.context_revision = first["revision"]
             self.assertIn("private root fact", orchestrator.codemode_context(root.node_id, "read")["context"])
             stale_read = orchestrator.codemode_context(root.node_id, "read", expected_revision=0)
             self.assertFalse(stale_read["ok"])
