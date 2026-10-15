@@ -720,7 +720,23 @@ Do NOT include any text before or after the JSON object.'''
         with node._context_lock:
             if operation == "read":
                 try:
-                    return self._codemode_context_locked(node, operation, text=text, expected_revision=expected_revision)
+                    revision = node.context_revision
+                    snapshot = node.compacted_context
+                    budget = dict(node.context_budget)
+                    if expected_revision is not None and (
+                        isinstance(expected_revision, bool)
+                        or not isinstance(expected_revision, int)
+                        or expected_revision < 0
+                    ):
+                        return {"ok": False, "error": "expected_revision must be a non-negative integer"}
+                    if expected_revision is not None and expected_revision != revision:
+                        return {
+                            "ok": False, "error": "context revision conflict",
+                            "node_id": node.node_id, "node_uuid": node.node_uuid,
+                            "expected_revision": expected_revision, "current_revision": revision,
+                        }
+                    return {"ok": True, "node_id": node.node_id, "node_uuid": node.node_uuid,
+                            "revision": revision, "context": snapshot, "budget": budget}
                 except Exception as exc:
                     return {"ok": False, "error": f"context read failed: {exc.__class__.__name__}"}
             previous_context = node.compacted_context

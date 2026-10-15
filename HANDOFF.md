@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- NodeKnowledgeStore serializes persistent context verify/write with RLock; codemode read failures report separately without mutating in-memory context. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (316.94s).
 - Context append verifies persisted UUID-scoped revision after write; silent persistence no-op rolls back memory/revision. Regression added. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (317.43s).
 - Codemode append rolls back in-memory context/revision and reports sanitized error if persistent write fails; regression simulates OSError. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (318.00s).
 - Per-node codemode APIs serialize read/append for optimistic CAS; race regression gives one success/one conflict. SQLite connection permits serialized cross-thread use. Goal-loop 77 passed/36 subtests; full suite 791 passed, 5 skipped, 350 subtests (317.76s).

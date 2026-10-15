@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Codemode append verifies persisted UUID-scoped revision after record; silent no-op persistence causes rollback/error. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (317.43s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "NodeKnowledgeStore serializes persistent context checks and writes; per-node codemode serializes read/append CAS; persistence errors reported separately. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (316.94s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

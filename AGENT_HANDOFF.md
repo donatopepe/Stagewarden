@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- NodeKnowledgeStore now serializes context revision verification and writes via RLock, avoiding concurrent SQLite connection use despite `check_same_thread=False`; codemode catches read errors separately and does not rollback context on read failure. Full suite 792 passed, 5 skipped, 350 subtests (316.94s); goal-loop 78 passed/36 subtests.
 - Codemode append now verifies expected UUID-scoped context revision exists in persistent SQLite after recording; if persistence silently no-ops, in-memory state/revision rolls back and failure returned. Added silent-write regression. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (317.43s).
 - Codemode append now catches persistence failures and restores in-memory context/revision, returning sanitized class-only error; simulated SQLite OSError regression verifies rollback. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (318.00s).
 - Codemode context read/append now serialize per node using NodeState lock; concurrent expected_revision=0 appends yield exactly one success and one conflict. SQLite knowledge connection configured cross-thread-capable for serialized access. Test added. Goal-loop 77 passed/36 subtests; full suite 791 passed, 5 skipped, 350 subtests (317.76s).
