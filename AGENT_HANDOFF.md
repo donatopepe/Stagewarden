@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Compaction hardening in progress: `_compact_node_text` now reserves space for explicitly labeled structural context (`[execution]`, `[invariant]`, `[invariants]`, `[acceptance_criteria]`, `[tolerances]`) plus omission marker before ordinary excerpts; tested under UTF-8 byte caps including tight budgets. Focused memory/goal-loop tests: 98 passed, 39 subtests; 1..259 byte × 3 input property matrix passed; compileall + diff-check passed. Remaining: align `TODO.md`, run broad regression, update handoff state.
+- Compaction hardening completed: `_compact_node_text` reserves budget for explicit structural labels (`[execution]`, `[invariant]`, `[invariants]`, `[acceptance_criteria]`, `[tolerances]`) and omission marker before ordinary excerpts; does not claim semantic summarization. Focused memory/goal-loop tests 98 passed, 39 subtests; 1..259 byte × 3 input property matrix passed; full suite 819 passed, 5 skipped, 364 subtests (322.78s); compileall + handoff alignment + diff-check clean. `TODO.md` aligned.
 - EventStream replay verified; stale open-issue entry removed: `replay()` reconstructs node state, scopes in-flight operations by node, closes active operations on terminal node status or `tool_recovery`, and projects recovery status with `retry_authorized=false` unless explicitly recorded otherwise. `tests/test_event_stream.py`: 45 passed, 20 subtests (1.05s). This verifies replay projection, not automatic retries or process restart orchestration.
 - PRINCE2 Quality register ritual closed 1/3 → 3/3: `_record_node_quality` appends exactly one node-scoped quality entry per terminal status (`completed`→`passed`, `failed`→`failed`, `blocked`→`blocked`, `skipped`→`not_delivered`), idempotent via `quality_recorded` on `NodeState`. A `completed` node with no recorded model/tool output is reported as `insufficient_evidence` instead of an invented pass, and a failing secondary handoff write is logged to stderr without masking node state. Test covers evidence-aware pass, empty-evidence fallback, idempotency and the passed→failed transition. Full suite 819 passed, 5 skipped, 364 subtests (325.28s).
 - Unified-validation integration closed 1/3 → 3/3: the fixed-order matrix (`tests/data/unified_validation_matrix.json`) now carries a `handoff_alignment` gate running `scripts/check_handoff_alignment.py` with `returncode: 0` + `stdout_contains: handoff_alignment=ok`. A runner test asserts the gate definition, executes the real command (wet-run green), and proves `_evaluate` fails closed on a synthetic non-zero/empty output. Existing gates are untouched. Full suite 818 passed, 5 skipped, 364 subtests (333.76s).
@@ -138,13 +138,13 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 
 ## Open issues
 - Tokenizer provider e overhead tool/schema/system non verificati; UTF-8 byte upper bound non è token count.
-- Memory token compaction non collegata al caller; compattazione resta non semantica/loss-aware non verificata.
+- Memory token compaction non collegata al caller; semantic/loss-aware compaction remains unverified. Structural-label preservation is conservative truncation policy, not a semantic summary.
 - Output-cap backend non verificato: OmniRoute `max_tokens` è solo request; Pi CLI senza cap documentato. Opt-in fail-closed presente.
 
 ## Next steps
-1. Mantenere handoff allineati ai risultati runtime recenti; full suite corrente: 819 passed, 5 skipped, 364 subtests.
+1. Conservare structural compaction labeling senza chiamarla semantic/loss-aware.
 2. Verificare tokenizer provider, overhead prompt e output-cap solo con evidenza runtime disponibile; nessuna chiamata remota non necessaria, test remoti free-only.
-3. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback. Compaction loss-aware collegata al caller resta aperta.
+3. Valutare integrazione memory-context token-aware e compaction loss-aware solo con criterio/testability espliciti; non introdurre prompt/provider changes in assenza di evidenza.
 
 ## Commands
 ```bash
