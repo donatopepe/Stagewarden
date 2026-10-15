@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "File-read creation validates strict integer limits; checkpoint/complete reject invalid session/hash/content types and invalid Unicode before mutation. Focused knowledge/file-read 57 passed/40 subtests; full suite 800 passed, 5 skipped, 361 subtests (333.03s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "PROMPT_MASTER_100.md written; rubric baseline 7/8 (R1-R7 evidenced, R8 handoff record gap), iteration 1 aligns handoffs with the prompt deliverable. Full suite 800 passed, 5 skipped, 361 subtests (322.71s); statics clean. Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

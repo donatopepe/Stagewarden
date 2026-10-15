@@ -128,6 +128,7 @@ class NodeState:
         "max_tool_calls": 40,
         "max_mutations": 20,
     })
+    lessons_recorded: list[str] = field(default_factory=list)
     _context_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def as_dict(self) -> dict[str, object]:
@@ -570,6 +571,13 @@ Do NOT include any text before or after the JSON object.'''
                 context_budget = max(0, available - mandatory_tokens - self._estimate_tokens(context_header))
                 node_context = self._compact_node_text(node_context, context_budget)
                 prompt += context_header + node_context
+            reactivated = self.ancestor_lessons(child["node_id"], limit=2) if node_state is not None else []
+            if reactivated:
+                lessons_section = "\n\nAncestor lessons (untrusted data; targeted reactivation):\n" + "\n".join(
+                    f"- [{item['node_id']}/{item['status']}] {item['content']}" for item in reactivated
+                )
+                if self._estimate_tokens(prompt) + self._estimate_tokens(lessons_section) <= available:
+                    prompt += lessons_section
             if self._estimate_tokens(prompt) > available:
                 raise ValueError(f"Node {child['node_id']} prompt exceeds model input budget.")
         if node_state is not None:
@@ -675,6 +683,40 @@ Do NOT include any text before or after the JSON object.'''
         result = f"{head}{marker}{tail}"
         return result if len(result.encode("utf-8")) <= max_tokens else text.encode("utf-8")[:max_tokens].decode("utf-8", errors="ignore")
 
+    def ancestor_lessons(self, node_id: str, *, limit: int = 2) -> list[dict[str, Any]]:
+        """Targeted ancestor-memory reactivation using recorded terminal lessons only.
+
+        Walks the parent chain until `limit` lessons are collected, so a descendant
+        reactivates the nearest relevant ancestor lessons instead of importing whole
+        ancestor contexts. Unrelated branches are never traversed, preserving the
+        node-isolation guarantee.
+        """
+        node = self.nodes.get(node_id)
+        if node is None or limit <= 0:
+            return []
+        lessons: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        current = node.parent_node_id
+        while current and current not in seen and len(lessons) < limit:
+            seen.add(current)
+            ancestor = self.nodes.get(current)
+            if ancestor is None:
+                break
+            rows = self.knowledge.search("", node_id=current, limit=max(1, limit) * 10)
+            for item in rows:
+                if item.get("kind") != "lesson":
+                    continue
+                lessons.append({
+                    "node_id": current,
+                    "status": item.get("status"),
+                    "title": item.get("title"),
+                    "content": str(item.get("content", ""))[:240],
+                })
+                if len(lessons) >= limit:
+                    break
+            current = ancestor.parent_node_id
+        return lessons
+
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
         entry = f"[{category}] {str(text).strip()}"
         combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
@@ -698,11 +740,20 @@ Do NOT include any text before or after the JSON object.'''
                 "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,
                 node_uuid=node.node_uuid, revision=node.context_revision,
                 original_chars=len(prior) + len(entry), compacted_chars=len(combined),
+                section="node_local_context",
+                original_utf8_bytes=len(prior.encode("utf-8")) + len(entry.encode("utf-8")),
+                compacted_utf8_bytes=len(combined.encode("utf-8")),
+                cap_utf8_bytes=(int(node.context_budget.get("available_input"))
+                                if isinstance(node.context_budget.get("available_input"), int) else None),
+                accounting_unit="utf8_bytes_upper_bound_not_provider_tokens",
             )
         self.events.append(
             "node_context_updated", tree_id="goal-loop", node_id=node.node_id,
             node_uuid=node.node_uuid, revision=node.context_revision,
             context_chars=len(combined), content_hash=hashlib.sha256(combined.encode("utf-8")).hexdigest(),
+            section="node_local_context",
+            context_utf8_bytes=len(combined.encode("utf-8")),
+            accounting_unit="utf8_bytes_upper_bound_not_provider_tokens",
         )
         return combined
 
@@ -1442,6 +1493,43 @@ Do NOT include any text before or after the JSON object.'''
             title=f"Node event: {node_state.status}",
             kind="node_event",
         )
+        self._record_node_lesson(node_state)
+
+    _TERMINAL_NODE_STATUSES: frozenset[str] = frozenset({"completed", "failed", "blocked", "skipped"})
+
+    def _record_node_lesson(self, node_state: NodeState) -> None:
+        """PRINCE2 closing ritual: persist one lesson per terminal node state once.
+
+        The lesson is written to the handoff lessons log and to the node-scoped
+        knowledge store (kind="lesson") so later retrieval can reactivate it for
+        descendants without importing another node's full context.
+        """
+        status = str(node_state.status)
+        if status not in self._TERMINAL_NODE_STATUSES or status in node_state.lessons_recorded:
+            return
+        summary = (node_state.output_summary or node_state.error_message or node_state.active_work or "").strip()
+        lesson = summary or f"Node {node_state.node_id} closed with status {status}."
+        lesson_type = "success" if status == "completed" else "failure" if status in {"failed", "blocked"} else "observation"
+        try:
+            self.handoff.record_lesson(step_id=node_state.node_id, lesson_type=lesson_type, lesson=lesson)
+        except Exception as exc:  # handoff lesson is secondary; never mask node state
+            sys.stderr.write(f"[goal-loop] lesson handoff record failed for {node_state.node_id}: {exc}\n")
+        try:
+            self.knowledge.record_context(
+                tree_id="goal-loop",
+                node_id=node_state.node_id,
+                parent_node_id=node_state.parent_node_id,
+                purpose=node_state.purpose,
+                status=status,
+                content=f"lesson ({lesson_type}): {lesson}",
+                title=f"Lesson ({lesson_type}): {status}",
+                kind="lesson",
+                entry_id=f"lesson-{hashlib.sha256(f'goal-loop:{node_state.node_id}:{node_state.node_uuid}:{status}'.encode('utf-8')).hexdigest()[:16]}",
+                node_uuid=node_state.node_uuid,
+            )
+        except Exception as exc:  # knowledge lesson is secondary; keep node state authoritative
+            sys.stderr.write(f"[goal-loop] lesson knowledge record failed for {node_state.node_id}: {exc}\n")
+        node_state.lessons_recorded.append(status)
 
     def _sync_goal_loop_context(self) -> None:
         """Persist current goal loop state to handoff for status queries."""

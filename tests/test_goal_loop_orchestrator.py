@@ -280,6 +280,83 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
+    def test_compaction_observability_reports_section_bytes_and_accounting_unit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "compact observability", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.context_budget["available_input"] = 128
+            combined = orchestrator._append_node_context(node, "execution", "àè" * 60)
+            self.assertTrue(combined)
+            compacted = orchestrator.events.read(event="node_context_compacted")
+            self.assertTrue(compacted)
+            event = compacted[-1]
+            details = event["details"]
+            self.assertEqual(details["section"], "node_local_context")
+            self.assertEqual(details["accounting_unit"], "utf8_bytes_upper_bound_not_provider_tokens")
+            self.assertEqual(details["cap_utf8_bytes"], 128)
+            self.assertGreater(details["original_utf8_bytes"], details["compacted_utf8_bytes"])
+            self.assertLessEqual(details["compacted_utf8_bytes"], 128)
+            updated = orchestrator.events.read(event="node_context_updated")
+            self.assertTrue(updated)
+            updated_details = updated[-1]["details"]
+            self.assertEqual(updated_details["section"], "node_local_context")
+            self.assertEqual(updated_details["context_utf8_bytes"], len(node.compacted_context.encode("utf-8")))
+            self.assertEqual(updated_details["accounting_unit"], "utf8_bytes_upper_bound_not_provider_tokens")
+
+    def test_ancestor_lessons_reactivate_parent_chain_without_cross_branch_leak(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "100000"}):
+                orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "ancestor memory", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            parent = orchestrator.nodes["orchestrator.graph"]
+            child = orchestrator.nodes["subnode.generator"]
+            unrelated = orchestrator.nodes["implementation.refactor"]
+            self.assertEqual(child.parent_node_id, parent.node_id)
+            parent.status = "completed"
+            parent.output_summary = "ancestorlessonunique"
+            orchestrator._record_node_execution_to_handoff(parent)
+            unrelated.status = "completed"
+            unrelated.output_summary = "unrelatedlessonunique"
+            orchestrator._record_node_execution_to_handoff(unrelated)
+            lessons = orchestrator.ancestor_lessons(child.node_id, limit=2)
+            self.assertTrue(any("ancestorlessonunique" in item["content"] for item in lessons))
+            self.assertFalse(any("unrelatedlessonunique" in item["content"] for item in lessons))
+            self.assertEqual(orchestrator.ancestor_lessons("unknown.node", limit=2), [])
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "100000"}):
+                prompt = orchestrator._generate_node_prompt({
+                    "node_id": child.node_id,
+                    "purpose": child.purpose,
+                    "template": "",
+                    "tolerances": {},
+                    "dependencies": [],
+                    "tests": [],
+                    "escalation_rule": "",
+                })
+            self.assertIn("Ancestor lessons (untrusted data; targeted reactivation):", prompt)
+            self.assertIn("ancestorlessonunique", prompt)
+            self.assertNotIn("unrelatedlessonunique", prompt)
+            self.assertEqual(orchestrator.knowledge.search("ancestorlessonunique", node_id=child.node_id), [])
+
+    def test_terminal_node_records_lesson_once_and_rejects_duplicates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "lesson ritual", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.status = "completed"
+            node.output_summary = "verifiedflawlesslesson"
+            orchestrator._record_node_execution_to_handoff(node)
+            orchestrator._record_node_execution_to_handoff(node)
+            lessons = [item for item in orchestrator.handoff.lessons_log if item.get("step_id") == node.node_id]
+            self.assertEqual(len(lessons), 1)
+            self.assertEqual(lessons[0]["type"], "success")
+            self.assertIn("verifiedflawlesslesson", lessons[0]["lesson"])
+            stored = orchestrator.knowledge.search("verifiedflawlesslesson", node_id=node.node_id)
+            self.assertTrue(any(item.get("kind") == "lesson" for item in stored))
+            node.status = "running"
+            orchestrator._record_node_execution_to_handoff(node)
+            self.assertEqual(len([item for item in orchestrator.handoff.lessons_log if item.get("step_id") == node.node_id]), 1)
+
     def test_node_event_primary_audit_failure_attempts_secondary_handoff_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "primary audit failure", execution_mode="mock", json_mode=True)
