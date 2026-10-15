@@ -114,9 +114,11 @@ class EventStream:
         chain_corrupted = False
         chain_broken = False
         unchained_event_seen = False
+        verified_lines = 0
         errors: list[dict[str, Any]] = []
         if not self.path.exists():
-            return {"valid": True, "events_verified": 0, "unchained_events": 0, "errors": []}
+            return {"valid": True, "events_verified": 0, "unchained_events": 0,
+                    "chain_started": False, "verified_lines": 0, "errors": []}
         for line_number, line in enumerate(self._read_lines(), start=1):
             if not line.strip():
                 continue
@@ -146,6 +148,7 @@ class EventStream:
                     break
                 unchained += 1
                 unchained_event_seen = True
+                verified_lines = line_number
                 continue
             if chain_broken:
                 chain_corrupted = True
@@ -203,8 +206,11 @@ class EventStream:
             chain_started = True
             previous_hash = record_hash
             verified += 1
+            verified_lines = line_number
         chain_corrupted = chain_corrupted or chain_broken or (unchained_event_seen and chain_started)
-        return {"valid": not errors and not chain_corrupted, "events_verified": verified, "unchained_events": unchained, "chain_corrupted": chain_corrupted, "errors": errors}
+        return {"valid": not errors and not chain_corrupted, "events_verified": verified,
+                "unchained_events": unchained, "chain_corrupted": chain_corrupted,
+                "chain_started": chain_started, "verified_lines": verified_lines, "errors": errors}
 
     def _read_lines(self) -> list[str]:
         # The stream is append-only JSONL, so it can accumulate bytes that are
@@ -219,7 +225,13 @@ class EventStream:
         if not self.path.exists():
             return []
         events: list[dict[str, Any]] = []
-        for line in self._read_lines():
+        integrity = self.verify_integrity()
+        # Legacy logs remain readable, but a partially corrupted signed stream
+        # only exposes events in its verified prefix.
+        max_verified_line = integrity.get("verified_lines") if integrity.get("chain_corrupted") else None
+        for line_index, line in enumerate(self._read_lines(), start=1):
+            if max_verified_line is not None and line_index > max_verified_line:
+                break
             if not line.strip():
                 continue
             try:
@@ -244,8 +256,12 @@ class EventStream:
             return self.read(node_id=node_id, event=event)
         if not self.path.exists():
             return []
+        integrity = self.verify_integrity()
+        max_verified_line = integrity.get("verified_lines") if integrity.get("chain_corrupted") else None
         events: list[dict[str, Any]] = []
         for line_number, line in enumerate(self._read_lines(), start=1):
+            if max_verified_line is not None and line_number > max_verified_line:
+                break
             if line_number <= cursor or not line.strip():
                 continue
             try:

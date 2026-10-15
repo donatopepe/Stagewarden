@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "EventStream policy clarified: fresh/hashed stream appends signed events; legacy-only file append remains unchained; torn tail fails closed and legacy-to-hash migration is not implicit. Full suite: 782 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Signed EventStream readers now expose only the integrity-verified prefix after corruption; read/follow/replay cannot consume hostile suffix records. Focused suite 33 passed, 7 subtests; compileall/diff-check pass, full suite not rerun. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

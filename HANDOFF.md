@@ -1,6 +1,8 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Signed EventStream readers expose only integrity-verified prefix after corruption; read/follow/replay no longer parse hostile suffix. Focused suite 33 passed, 7 subtests; compileall/diff-check pass. Full suite not rerun.
+- Simplified legacy torn-tail framing check to require final newline after record parsing; no whole-file byte recount. Focused 32 passed/7 subtests; full suite 782 passed, 5 skipped, 339 subtests (318.15s).
 - Clarified EventStream policy: fresh streams and already-hashed streams append signed events; legacy streams append legacy-format only. No legacy migration implicit. EventStream 32 passed/7 subtests; full suite 782 passed, 5 skipped, 339 subtests (317.68s).
 - Legacy append now checks file byte size against complete newline-delimited records and refuses torn final records without modifying data. Regression verifies no rewrite; EventStream 32 passed/7 subtests; full suite 782 passed, 5 skipped, 339 subtests (318.17s).
 - Prevented silent legacy→hashed stream transition: legacy append strips/blocks caller reserved chain metadata; requesting signed append on legacy file requires explicit migration. Regression covers both, no mixed-format stream. Full suite 781 passed, 5 skipped, 339 subtests (318.06s).

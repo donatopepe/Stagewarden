@@ -369,10 +369,23 @@ class EventStreamTests(unittest.TestCase):
                     self.assertEqual(stream.follow("node.a", after=1), [])
                     self.assertIsInstance(stream.replay(), dict)
 
+    def test_corrupt_hashed_suffix_is_not_returned_by_read_follow_or_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            stream.append("node_start", tree_id="tree", node_id="n", message="trusted")
+            stream.append("node_end", tree_id="tree", node_id="n", message="trusted end")
+            lines = path.read_text(encoding="utf-8").splitlines()
+            lines[1] = "{malformed"
+            lines.append(json.dumps({"event": "node_end", "node_id": "n", "message": "untrusted"}))
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            self.assertEqual([e["message"] for e in stream.read(node_id="n")], ["trusted"] )
+            self.assertEqual([e["message"] for e in stream.follow("n", after=0)], ["trusted"])
+            replay = stream.replay(node_id="n")
+            self.assertEqual(replay["nodes"]["n"]["message"], "trusted")
+
     def test_undecodable_bytes_do_not_hide_surrounding_valid_events(self) -> None:
-        """The point of the auditability surface: valid events on BOTH sides of
-        undecodable bytes must still replay, and line numbers must survive so
-        the follow() cursor keeps addressing the right event."""
+        """Readers tolerate malformed data in a legacy stream; signed-chain corruption is prefix-only."""
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")
             stream.append("node_start", tree_id="tree-1", node_id="node.a", purpose="inspect")
