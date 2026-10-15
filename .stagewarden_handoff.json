@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "§5 context-evolution rubric closed 3/6→6/6: A6 compaction observability (section + UTF-8 byte counts + accounting unit), A3 node-close lesson ritual (handoff + knowledge kind=lesson, idempotent), A4 targeted ancestor-lesson reactivation within input budget preserving isolation. Full suite 803 passed, 5 skipped, 361 subtests (338.91s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Deliverable B (PRINCE2) closed 4/5→5/5: evidence-gated `end_stage_report` in stage_view/rendered_stage_view fails closed at a boundary without recorded evidence and turns ready when quality-gate evidence exists. §5 context-evolution rubric 6/6 (A6 observability, A3 lesson ritual, A4 targeted ancestor reactivation). Full suite 804 passed, 5 skipped, 361 subtests (342.45s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

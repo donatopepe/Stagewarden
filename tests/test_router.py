@@ -84,6 +84,28 @@ class RouterTests(unittest.TestCase):
         }
         self.assertIn(router.recommend_route("simple task", "inspect workspace").provider, {"cheap", "openai"})
 
+    def test_catalog_extension_cannot_widen_candidates_or_bypass_paid_policy(self) -> None:
+        router = ModelRouter()
+        router.configure(enabled_models=["cheap"], selection_mode="auto", allow_paid_provider=False)
+        router._catalog = lambda: {
+            "models": [
+                {"provider": "ghostprovider", "model_id": "ghost-1", "blended_price_usd_per_1m_tokens": 0.0,
+                 "intelligence_rank": 1, "speed_rank": 1, "context_window": 10_000_000, "features": ["tools"]},
+                {"provider": "cheap", "model_id": "provider-default", "blended_price_usd_per_1m_tokens": 0.0},
+            ]
+        }
+        recommendation = router.recommend_route("simple task", "inspect workspace")
+        self.assertNotEqual(recommendation.provider, "ghostprovider")
+        self.assertNotEqual(recommendation.provider_model, "ghost-1")
+        paid_router = ModelRouter()
+        paid_router.configure(enabled_models=["cheap"], selection_mode="auto", allow_paid_provider=False)
+        paid_router._catalog = lambda: {
+            "models": [{"provider": "cheap", "model_id": "provider-default", "blended_price_usd_per_1m_tokens": 7.5}]
+        }
+        paid_route = paid_router.recommend_route("simple task", "inspect workspace")
+        self.assertEqual(paid_route.provider_model, None)
+        self.assertEqual(paid_route.rationale, "fallback to active provider")
+
     def test_complex_debug_task_prefers_gpt(self) -> None:
         router = ModelRouter()
         model = router.choose_model("debug a complex traceback in production", "implement fix")
