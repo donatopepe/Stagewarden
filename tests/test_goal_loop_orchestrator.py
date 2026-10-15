@@ -196,6 +196,13 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertFalse(oversize["ok"])
             self.assertEqual(oversize["error"], "context append exceeds node byte budget")
             self.assertEqual(root.context_revision, revision_before_oversize)
+            root.context_budget["available_input"] = 0
+            zero_budget = orchestrator.codemode_context(
+                root.node_id, "append", text="x", expected_revision=revision_before_oversize,
+            )
+            self.assertFalse(zero_budget["ok"])
+            self.assertEqual(zero_budget["max_append_bytes"], 0)
+            self.assertEqual(root.context_revision, revision_before_oversize)
             surrogate = orchestrator.codemode_context(
                 root.node_id, "append", text="\ud800", expected_revision=revision_before_oversize,
             )

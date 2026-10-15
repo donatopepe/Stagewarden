@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Context compaction audit event now emitted only after successful persistent write; failed compaction append rolls back and leaves no false event. Goal-loop 79 passed/36 subtests; full suite 793 passed, 5 skipped, 350 subtests (317.40s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Codemode preserves memory alignment if append commits but subsequent audit fails; reports durable context + audit error without false rollback. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (320.25s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

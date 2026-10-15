@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- After durable SQLite write, later audit-event failure now preserves in-memory revision/context and reports persisted-but-audit-failed instead of false rollback. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (320.25s).
 - `node_context_compacted` event now follows successful persistent write; failed append rolls back without false compaction audit. Goal-loop 79 passed/36 subtests; full suite 793 passed, 5 skipped, 350 subtests (317.40s).
 - `_append_node_context` also rejects bool-as-int budget pitfall, applying 12000-byte conservative fallback; regression covers compaction. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (317.54s).
 - Codemode read uses atomic locked in-memory snapshot; no persistence probe; SQLite outage cannot falsely fail read. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (317.45s).
