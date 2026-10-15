@@ -1571,7 +1571,24 @@ class Executor:
                     candidate = replace(candidate, issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),))
                     external_memory = candidate
                     break
-                memory_budget = max(0, memory_budget - max(1, used - available_memory_tokens))
+                next_budget = max(0, memory_budget - max(1, used - available_memory_tokens))
+                if _ == 5:
+                    from dataclasses import replace
+                    from .memory_context import MemoryContextIssue
+                    external_memory = replace(
+                        candidate,
+                        issues=candidate.issues + (MemoryContextIssue("error", "memory section budget did not converge"),),
+                    )
+                    break
+                if next_budget >= memory_budget:
+                    from dataclasses import replace
+                    from .memory_context import MemoryContextIssue
+                    external_memory = replace(
+                        candidate,
+                        issues=candidate.issues + (MemoryContextIssue("error", "memory section budget did not converge"),),
+                    )
+                    break
+                memory_budget = next_budget
             else:
                 from dataclasses import replace
                 from .memory_context import MemoryContextIssue
