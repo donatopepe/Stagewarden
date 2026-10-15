@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- EventStream chain verifier now validates parent and digest format as exactly 64 lowercase hex chars before comparison; malformed string metadata rejected. Focused 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (318.69s).
 - EventStream verifier now rejects records missing chain metadata once chain started, and requires string parent hash/digest before comparisons; malformed non-string fields fail closed. Focused 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.49s).
 - Event sequence verifier requires non-bool integer; Python `True == 1` had allowed malformed boolean sequence through. Regression recomputes valid digest around boolean sequence and confirms rejection. Focused 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (319.03s).
 - Simplified EventStream append corruption exception to use verifier errors directly; no runtime change. Focused 28 passed/7 subtests; full suite 778 passed, 5 skipped, 339 subtests.

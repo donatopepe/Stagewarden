@@ -62,7 +62,7 @@ class EventStream:
         }
         with self._lock, self._process_lock():
             integrity = self.verify_integrity()
-            if integrity.get("chain_corrupted") or any(item["error"] != "invalid_json" for item in integrity["errors"]):
+            if not integrity["valid"]:
                 raise ValueError(f"Cannot append to corrupt event stream: {integrity['errors']}")
             chained_count = integrity["events_verified"]
             previous_hash = "0" * 64
