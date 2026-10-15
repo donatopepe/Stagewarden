@@ -143,7 +143,11 @@ class EventStream:
                 errors.append({"line": line_number, "error": "chain_after_legacy_records"})
                 break
             expected_sequence = sequence + 1
-            if record_sequence != expected_sequence:
+            if (
+                isinstance(record_sequence, bool)
+                or not isinstance(record_sequence, int)
+                or record_sequence != expected_sequence
+            ):
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "sequence_mismatch"})
                 break

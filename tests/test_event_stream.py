@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import multiprocessing
 import tempfile
@@ -206,6 +207,26 @@ class EventStreamTests(unittest.TestCase):
             self.assertNotEqual(first["details"]["event_hash"], "forged-digest")
             stream.append("next", tree_id="tree")
             self.assertTrue(stream.verify_integrity()["valid"])
+
+    def test_hash_chain_rejects_boolean_sequence_even_if_digest_matches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            stream.append("tick", tree_id="tree")
+            record = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+            record["details"]["event_sequence"] = True
+            unsigned = dict(record)
+            unsigned_details = dict(record["details"])
+            unsigned_details.pop("event_hash")
+            unsigned["details"] = unsigned_details
+            record["details"]["event_hash"] = hashlib.sha256(
+                json.dumps(unsigned, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            report = stream.verify_integrity()
+            self.assertFalse(report["valid"])
+            self.assertEqual(report["events_verified"], 0)
+            self.assertEqual(report["errors"][0]["error"], "sequence_mismatch")
 
     def test_hash_chain_stops_at_first_sequence_gap(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
