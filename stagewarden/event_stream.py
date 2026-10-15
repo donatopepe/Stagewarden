@@ -395,7 +395,8 @@ class EventStream:
                             )
                             if key in node
                         })
-                        if node.get("status") in terminal_node_statuses:
+                        node_status = node.get("status")
+                        if isinstance(node_status, str) and node_status.strip().lower() in terminal_node_statuses:
                             for active_id, active in list(in_flight_tools.items()):
                                 if active.get("node_id") == event_node_id:
                                     in_flight_tools.pop(active_id, None)
