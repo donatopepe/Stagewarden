@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Compaction marker boundary validated through 99 bytes; marker retained with bounded payload whenever it fits. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.05s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Codemode append supports optimistic expected_revision CAS; context revision increments on every write, stale/invalid writes rejected. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.10s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

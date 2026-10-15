@@ -718,7 +718,7 @@ Do NOT include any text before or after the JSON object.'''
             return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
                     "revision": node.context_revision, "context": node.compacted_context,
                     "budget": dict(node.context_budget)}
-        if operation == "append" and text.strip():
+        if operation == "append" and isinstance(text, str) and text.strip():
             if expected_revision is not None:
                 if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
                     return {"ok": False, "error": "expected_revision must be a non-negative integer"}

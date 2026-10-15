@@ -186,6 +186,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(stale["current_revision"], root.context_revision)
             self.assertNotIn("stale write", root.compacted_context)
             self.assertFalse(orchestrator.codemode_context(root.node_id, "append", text="bad revision", expected_revision=True)["ok"])
+            self.assertFalse(orchestrator.codemode_context(root.node_id, "append", text=None)["ok"])
             self.assertIn("private root fact", orchestrator.codemode_context(root.node_id, "read")["context"])
             saved = orchestrator.knowledge.search("private root fact", node_id=root.node_id, namespace="context")
             self.assertTrue(saved)
