@@ -187,9 +187,12 @@ def load_memory_context(
                         high = middle - 1
                 candidate = content[:low].rstrip() + suffix
                 content = candidate if token_counter(candidate) <= max_tokens else ""
-            final_token_count = token_counter(content)
-            if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
-                raise ValueError("token counter returned invalid count")
+            try:
+                final_token_count = token_counter(content)
+                if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
+                    raise ValueError("token counter returned invalid count")
+            except Exception as exc:
+                raise ValueError(f"token counter returned invalid count: {exc}") from exc
             if final_token_count > max_tokens:
                 raise ValueError("compacted memory exceeds token budget")
         except Exception as exc:
