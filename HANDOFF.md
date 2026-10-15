@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Context append verifies exact persisted content, not only revision row; read errors/missing/mismatch reject and rollback. Tampered-row regression. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.69s).
 - Durable append followed by audit failure restores exact committed SQLite context into memory via UUID/revision lookup; tested equality. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.07s).
 - Context append now persists revision before memory mutation/audit events; failed write emits neither update nor compaction event. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.70s).
 - Zero input budget now remains zero (no 128-byte floor) for context append/compaction; regression verifies rejection of nonempty append. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (321.56s).

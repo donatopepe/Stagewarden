@@ -1000,7 +1000,11 @@ Do NOT include any text before or after the JSON object.'''
         if message:
             line += f" work={message}"
         sys.stderr.write(line + "\n")
-        capsule_entry_id = self._persist_node_capsule(node_state)
+        try:
+            capsule_entry_id = self._persist_node_capsule(node_state)
+        except Exception as exc:
+            details.setdefault("capsule_persist_error", exc.__class__.__name__)
+            capsule_entry_id = None
         details.setdefault("capsule_entry_id", capsule_entry_id)
         self.events.append(
             event,

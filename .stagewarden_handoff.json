@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "If post-commit audit fails, memory is reconciled from exact durable UUID/revision context snapshot; regression checks equality. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.07s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Append verifies exact persisted context content and UUID/revision; missing row, mismatch, or DB check error rolls back. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.69s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

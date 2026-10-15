@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Append persistence verification now compares exact stored content against candidate in-memory snapshot (not merely row existence); DB read errors/missing row/content mismatch all fail and rollback. Added tampered-row regression. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.69s).
 - After durable SQLite append but later audit error, rollback handler now loads exact committed context content by UUID/revision and restores memory to it; regression compares in-memory and durable snapshot. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.07s).
 - Context append now commits SQLite revision first, then updates memory and emits audit events; failed SQLite writes leave no falsely successful `node_context_updated` or compaction event. Regression asserts both absent on failure. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.70s).
 - Codemode append and context compaction now respect exact zero `available_input` instead of clamping to 128 bytes; appends reject any nonempty input at zero budget. Regression added. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (321.56s).

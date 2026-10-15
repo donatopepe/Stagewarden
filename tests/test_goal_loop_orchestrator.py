@@ -280,6 +280,22 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
+    def test_node_event_survives_capsule_persistence_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "capsule failure", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            original_persist = orchestrator._persist_node_capsule
+            def fail_capsule(_node):
+                raise OSError("capsule storage unavailable")
+            orchestrator._persist_node_capsule = fail_capsule
+            orchestrator._emit_node_event(node, "node_checkpoint", "checkpoint")
+            events = orchestrator.events.read(event="node_checkpoint")
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["details"]["capsule_entry_id"], None)
+            self.assertEqual(events[0]["details"]["capsule_persist_error"], "OSError")
+            orchestrator._persist_node_capsule = original_persist
+
     def test_node_context_append_persistence_error_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "persistence failure", execution_mode="mock", json_mode=True)
