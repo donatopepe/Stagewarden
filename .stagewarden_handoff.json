@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Replay keeps bare key for first operation-ID occurrence and qualifies cross-node collisions without renaming other operation IDs. EventStream 40 passed/18 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.61s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Tiny-cap UTF-8 compaction preserves fitting prefix when omission marker exceeds cap. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.62s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

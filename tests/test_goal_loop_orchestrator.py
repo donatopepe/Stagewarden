@@ -157,6 +157,11 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             with self.subTest(byte_cap=byte_cap):
                 compacted = GoalLoopOrchestrator._compact_node_text("🙂é\\n" * 100, byte_cap)
                 self.assertLessEqual(len(compacted.encode("utf-8")), byte_cap)
+        # For caps just above marker size, output must remain bounded and retain marker when possible.
+        for byte_cap in range(75, 100):
+            compacted = GoalLoopOrchestrator._compact_node_text("a" * 1000, byte_cap)
+            self.assertLessEqual(len(compacted.encode("utf-8")), byte_cap)
+            self.assertIn("context auto-compacted", compacted)
         # Under marker size, preserve available input prefix instead of dropping all context.
         tiny = GoalLoopOrchestrator._compact_node_text("🙂abcdef", 4)
         self.assertEqual(tiny, "🙂")

@@ -649,9 +649,12 @@ Do NOT include any text before or after the JSON object.'''
         marker = "\n\n[context auto-compacted; omitted middle; preserve node/task invariants]\n\n"
         if len(text.encode("utf-8")) <= max_tokens:
             return text
-        if max_tokens <= len(marker.encode("utf-8")):
+        marker_bytes = len(marker.encode("utf-8"))
+        if max_tokens < marker_bytes:
             return text.encode("utf-8")[:max_tokens].decode("utf-8", errors="ignore")
-        max_bytes = max_tokens - len(marker.encode("utf-8"))
+        if max_tokens == marker_bytes:
+            return marker
+        max_bytes = max_tokens - marker_bytes
         raw = text.encode("utf-8")
         head_bytes = max_bytes // 2
         tail_bytes = max_bytes - head_bytes
@@ -660,14 +663,16 @@ Do NOT include any text before or after the JSON object.'''
         # The UTF-8 boundary decoders can drop partial code points and trimming
         # removes additional bytes. Reconcile against the hard byte ceiling,
         # including the marker, instead of assuming split sizes are sufficient.
-        while head and len((head + marker + tail).encode("utf-8")) > max_tokens:
+        while len((head + marker + tail).encode("utf-8")) > max_tokens and (head or tail):
             excess = len((head + marker + tail).encode("utf-8")) - max_tokens
-            if len(head.encode("utf-8")) >= len(tail.encode("utf-8")):
+            if len(head.encode("utf-8")) >= len(tail.encode("utf-8")) and head:
                 head = head[:-max(1, excess)].rstrip()
-            else:
+            elif tail:
                 tail = tail[max(1, excess):].lstrip()
-        result = f"{head}{marker}{tail}" if head else f"{marker}{tail}"
-        return result if len(result.encode("utf-8")) <= max_tokens else ""
+            else:
+                break
+        result = f"{head}{marker}{tail}"
+        return result if len(result.encode("utf-8")) <= max_tokens else text.encode("utf-8")[:max_tokens].decode("utf-8", errors="ignore")
 
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
         entry = f"[{category}] {str(text).strip()}"
