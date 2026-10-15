@@ -1017,12 +1017,21 @@ Do NOT include any text before or after the JSON object.'''
             node=node_state.as_dict(),
             **details,
         )
-        self.handoff.record_action(
-            phase=f"goal_loop_node_{event}",
-            task=self.task,
-            summary=f"Node {node_state.node_id}: {message or event}.",
-            details={"event": event, "node": node_state.as_dict(), **details},
-        )
+        try:
+            self.handoff.record_action(
+                phase=f"goal_loop_node_{event}",
+                task=self.task,
+                summary=f"Node {node_state.node_id}: {message or event}.",
+                details={"event": event, "node": node_state.as_dict(), **details},
+            )
+        except Exception as exc:
+            # Handoff persistence is secondary to preserving primary event audit.
+            self.events.append(
+                "node_handoff_persist_failure", tree_id="goal-loop",
+                node_id=node_state.node_id, parent_node_id=node_state.parent_node_id,
+                purpose="record handoff failure", node_uuid=node_state.node_uuid,
+                message=exc.__class__.__name__, source_event=event,
+            )
 
     def _execute_node(self, node_state: NodeState) -> None:
         self.current_iteration += 1

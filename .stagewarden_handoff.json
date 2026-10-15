@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Append verifies exact persisted context content and UUID/revision; missing row, mismatch, or DB check error rolls back. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.69s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Node event emission survives capsule persistence errors, recording null capsule ref and error class; runtime event remains auditable. Goal-loop 81 passed/36 subtests; full suite 795 passed, 5 skipped, 350 subtests (334.60s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Node event emission no longer aborts if execution-capsule persistence fails; emits audit event with null capsule_entry_id and capsule_persist_error class, preserving runtime observation while honestly reporting missing capsule. Regression injects OSError. Goal-loop 81 passed/36 subtests; full suite 795 passed, 5 skipped, 350 subtests (334.60s).
 - Append persistence verification now compares exact stored content against candidate in-memory snapshot (not merely row existence); DB read errors/missing row/content mismatch all fail and rollback. Added tampered-row regression. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.69s).
 - After durable SQLite append but later audit error, rollback handler now loads exact committed context content by UUID/revision and restores memory to it; regression compares in-memory and durable snapshot. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.07s).
 - Context append now commits SQLite revision first, then updates memory and emits audit events; failed SQLite writes leave no falsely successful `node_context_updated` or compaction event. Regression asserts both absent on failure. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.70s).
