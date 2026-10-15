@@ -366,6 +366,25 @@ class MemoryContextTests(unittest.TestCase):
             # source memory is still excluded and outer prompt compaction owns that limit.
             executor.close()
 
+    def test_legacy_memory_char_cap_is_applied_to_final_rendered_section(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("ordinary durable fact " * 200, encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"], "max_chars": 500}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            step = PlanStep(id="step", title="Read context", instruction="inspect", validation="v")
+            packet = executor._build_model_communication_packet(
+                task="inspect", step=step, plan=[step], last_observation="none",
+                provider_limits={"available_input": 1000},
+            )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertLessEqual(len(section.body), 500 + len("\n[truncated by hermes_obsidian_memory]"))
+            self.assertIn("ordinary durable fact", section.body)
+            self.assertIn("truncated", section.body)
+            executor.close()
+
     def test_prompt_includes_configured_context_without_writing_external_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -1612,6 +1612,12 @@ class Executor:
                 )
         else:
             external_memory = self.config.memory_context
+        external_memory_body = _executor_prompting.render_external_memory_context(external_memory)
+        if external_memory.token_limit is not None:
+            external_memory_body += f"\n\n[accounting: {external_memory.token_counter_name}; tokens={external_memory.token_count}/{external_memory.token_limit}]"
+        if len(external_memory_body) > external_memory.max_chars:
+            suffix = "\n[truncated by memory.max_chars]" if external_memory.token_limit is None else "\n[truncated hermes_obsidian_memory]"
+            external_memory_body = external_memory_body[:max(0, external_memory.max_chars - len(suffix))].rstrip() + suffix
         execution_log = _executor_prompting.bounded_context(self.memory.detailed_summary(), 4000, label="execution_log")
         handoff_log = _executor_prompting.bounded_context(self.project_handoff.detailed_summary(), 4000, label="handoff_log")
         active_role = self._role_for_step(task=task, step=step)
@@ -1693,13 +1699,7 @@ class Executor:
             PromptSection("Thread Start", thread_start),
             PromptSection("Node Context Identity", context_identity),
             PromptSection("Task", task),
-            PromptSection("Configured Hermes/Obsidian memory", _executor_prompting.bounded_context(
-                _executor_prompting.render_external_memory_context(external_memory)
-                + (f"\n\n[accounting: {external_memory.token_counter_name}; tokens={external_memory.token_count}/{external_memory.token_limit}]"
-                   if external_memory.token_limit is not None else ""),
-                external_memory.max_chars,
-                label="hermes_obsidian_memory",
-            )),
+            PromptSection("Configured Hermes/Obsidian memory", external_memory_body),
             PromptSection("Turn Context", turn_context),
             PromptSection("Coding work package controls", coding_work_package_controls),
             PromptSection("Model context files", model_context),
