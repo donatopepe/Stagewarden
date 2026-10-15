@@ -164,6 +164,19 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             compacted = GoalLoopOrchestrator._compact_node_text("a" * 1000, byte_cap)
             self.assertLessEqual(len(compacted.encode("utf-8")), byte_cap)
             self.assertIn("context auto-compacted", compacted)
+        # Structural lines survive bounded compaction instead of being clipped by head/tail slicing.
+        required = "[execution] keep task invariant\n" + ("x" * 1000) + "\n[acceptance_criteria] verify output"
+        required_compacted = GoalLoopOrchestrator._compact_node_text(required, 300)
+        self.assertLessEqual(len(required_compacted.encode("utf-8")), 300)
+        self.assertIn("[execution] keep task invariant", required_compacted)
+        self.assertIn("[acceptance_criteria] verify output", required_compacted)
+        self.assertIn("context auto-compacted", required_compacted)
+        too_small = GoalLoopOrchestrator._compact_node_text(
+            "[execution] " + ("x" * 1000) + "\n[acceptance_criteria] required", 100,
+        )
+        self.assertLessEqual(len(too_small.encode("utf-8")), 100)
+        self.assertIn("[execution]", too_small)
+        self.assertIn("context auto-compacted", too_small)
         # Under marker size, preserve available input prefix instead of dropping all context.
         tiny = GoalLoopOrchestrator._compact_node_text("🙂abcdef", 4)
         self.assertEqual(tiny, "🙂")

@@ -707,6 +707,55 @@ Do NOT include any text before or after the JSON object.'''
             return text.encode("utf-8")[:max_tokens].decode("utf-8", errors="ignore")
         if max_tokens == marker_bytes:
             return marker
+
+        # Preserve explicit structural lines at both ends before allocating any
+        # remaining bytes to the ordinary head/tail excerpts. These labels are
+        # deliberately narrow; arbitrary prose is not promoted to an invariant.
+        structural_prefixes = ("[execution]", "[invariant]", "[invariants]", "[acceptance_criteria]", "[tolerances]")
+        lines = text.splitlines(keepends=True)
+        required: list[str] = []
+        required_indices: set[int] = set()
+        for index, line in enumerate(lines):
+            if line.lstrip().startswith(structural_prefixes):
+                required.append(line.rstrip("\r\n"))
+                required_indices.add(index)
+        if required:
+            required_text = "\n".join(required)
+            required_bytes = len(required_text.encode("utf-8"))
+            if required_bytes + marker_bytes <= max_tokens:
+                # Evenly trim oversized required lines, retaining their labels,
+                # and report omission visibly. Otherwise preserve earliest labels.
+                room = max_tokens - marker_bytes
+                while len(required_text.encode("utf-8")) > room:
+                    longest = max(range(len(required)), key=lambda i: len(required[i].encode("utf-8")))
+                    label_end = required[longest].find("]") + 1
+                    if label_end <= 0 or len(required[longest]) <= label_end:
+                        break
+                    required[longest] = required[longest][:label_end] + " …"
+                    required_text = "\n".join(required)
+                    if len(required_text.encode("utf-8")) > room:
+                        for candidate_index, item in enumerate(required):
+                            if candidate_index == longest:
+                                continue
+                            label_end = item.find("]") + 1
+                            if label_end > 0:
+                                required[candidate_index] = item[:label_end] + " …"
+                        required_text = "\n".join(required)
+                if len(required_text.encode("utf-8")) <= room:
+                    return required_text + marker
+            else:
+                kept: list[str] = []
+                used = marker_bytes
+                for item in required:
+                    encoded = item.encode("utf-8")
+                    if used + len(encoded) + (1 if kept else 0) > max_tokens:
+                        break
+                    kept.append(item)
+                    used += len(encoded) + (1 if len(kept) > 1 else 0)
+                required_text = "\n".join(kept)
+                if required_text:
+                    return required_text + marker
+
         max_bytes = max_tokens - marker_bytes
         raw = text.encode("utf-8")
         head_bytes = max_bytes // 2
