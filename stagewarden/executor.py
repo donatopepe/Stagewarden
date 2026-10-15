@@ -1627,7 +1627,9 @@ class Executor:
             PromptSection("Node Context Identity", context_identity),
             PromptSection("Task", task),
             PromptSection("Configured Hermes/Obsidian memory", _executor_prompting.bounded_context(
-                _executor_prompting.render_external_memory_context(external_memory),
+                _executor_prompting.render_external_memory_context(external_memory)
+                + (f"\n\n[accounting: {external_memory.token_counter_name}; tokens={external_memory.token_count}/{external_memory.token_limit}]"
+                   if external_memory.token_limit is not None else ""),
                 external_memory.max_chars,
                 label="hermes_obsidian_memory",
             )),

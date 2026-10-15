@@ -99,6 +99,7 @@ class MemoryContextTests(unittest.TestCase):
             section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
             self.assertIn("critical memory phrase", section.body)
             self.assertIn("truncated by memory token budget", section.body)
+            self.assertIn("not_provider_tokenizer", section.body)
             context = executor.config.memory_context_with_budget(
                 80, executor._estimate_memory_tokens,
                 counter_name="executor_configured_estimator_not_provider_tokenizer",
