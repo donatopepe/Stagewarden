@@ -757,7 +757,14 @@ Do NOT include any text before or after the JSON object.'''
                     persisted = False
                 if persisted:
                     # Durable state takes precedence over a later audit/log failure;
-                    # keep memory aligned with SQLite rather than advertise rollback.
+                    # restore the exact committed snapshot from SQLite.
+                    durable_context = self.knowledge.get_context_revision(
+                        tree_id="goal-loop", node_id=node.node_id,
+                        node_uuid=node.node_uuid, revision=persisted_revision,
+                    )
+                    if durable_context is not None:
+                        node.context_revision = persisted_revision
+                        node.compacted_context = durable_context
                     return {
                         "ok": False,
                         "error": f"context persisted but audit failed: {exc.__class__.__name__}",

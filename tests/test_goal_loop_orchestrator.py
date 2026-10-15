@@ -251,7 +251,12 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             result = orchestrator.codemode_context(node.node_id, "append", text="durable note", expected_revision=0)
             self.assertFalse(result["ok"])
             self.assertEqual(result["error"], "context persisted but audit failed: OSError")
+            self.assertEqual(result["revision"], 1)
             self.assertEqual(node.context_revision, 1)
+            durable = orchestrator.knowledge.get_context_revision(
+                tree_id="goal-loop", node_id=node.node_id, node_uuid=node.node_uuid, revision=1,
+            )
+            self.assertEqual(node.compacted_context, durable)
             self.assertIn("durable note", node.compacted_context)
             self.assertTrue(orchestrator.knowledge.has_context_revision(
                 tree_id="goal-loop", node_id=node.node_id, node_uuid=node.node_uuid, revision=1,

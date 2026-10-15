@@ -238,6 +238,18 @@ class NodeKnowledgeStore:
         item.pop("source_json")
         return item
 
+    def get_context_revision(
+        self, *, tree_id: str, node_id: str, node_uuid: str, revision: int,
+    ) -> str | None:
+        entry_id = f"node-context-{node_uuid}-{revision}"
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT content FROM knowledge WHERE entry_id = ? AND namespace = 'context' "
+                "AND tree_id = ? AND node_id = ?",
+                (entry_id, tree_id, node_id),
+            ).fetchone()
+            return str(row["content"]) if row is not None else None
+
     def has_context_revision(
         self, *, tree_id: str, node_id: str, node_uuid: str, revision: int,
     ) -> bool:
