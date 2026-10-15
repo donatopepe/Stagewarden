@@ -481,7 +481,7 @@ def model_context_files_section(executor: Any) -> str:
     lines = [
         f"- handoff_file: {executor.config.handoff_path.name}",
         f"- memory_file: {executor.config.memory_path.name}",
-        f"- configured_markdown_memory: enabled={executor.config.memory_context.enabled} files={len(executor.config.memory_context.files)} issues={len(executor.config.memory_context.issues)}",
+        f"- configured_markdown_memory: enabled={executor._external_memory_context.enabled} files={len(executor._external_memory_context.files)} issues={len(executor._external_memory_context.issues)}",
         f"- trace_file: {executor.config.trace_path.name}",
         f"- recovery_state: {view['recovery_state']}",
         f"- backlog_status: ready={backlog['ready']} planned={backlog['planned']} in_progress={backlog['in_progress']} blocked={backlog['blocked']} done={backlog['done']}",

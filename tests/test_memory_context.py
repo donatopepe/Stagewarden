@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from unittest.mock import PropertyMock, patch
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
@@ -299,6 +300,22 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("not_provider_tokenizer", context.token_counter_name)
             self.assertLessEqual(executor._estimate_memory_tokens(section.body), 80)
             self.assertIn("not_provider_tokenizer", section.body)
+            executor.close()
+
+    def test_prompt_memory_loader_exception_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("private durable payload", encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            step = PlanStep(id="step", title="Read", instruction="inspect", validation="v")
+            with patch.object(type(executor.config), "memory_context", new_callable=PropertyMock, side_effect=OSError("loader disk failure")):
+                packet = executor._build_model_communication_packet(task="inspect", step=step, plan=[step], last_observation="none")
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertNotIn("private durable payload", section.body)
+            self.assertIn("loader disk failure", section.body)
             executor.close()
 
     def test_prompt_memory_budget_counter_exception_fails_closed(self) -> None:

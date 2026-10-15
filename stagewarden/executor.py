@@ -1542,10 +1542,22 @@ class Executor:
             memory_budget = max(0, min(available_memory_tokens, 4000))
             # Count injected content plus diagnostics and accounting metadata, not
             # just source Markdown. Shrink content budget until full section fits.
+            counter_failed = False
             for _ in range(6):
-                candidate = self.config.memory_context_with_budget(
-                    memory_budget, memory_counter, counter_name=counter_name,
-                )
+                try:
+                    candidate = self.config.memory_context_with_budget(
+                        memory_budget, memory_counter, counter_name=counter_name,
+                    )
+                except Exception as exc:
+                    from .memory_context import MemoryContext, MemoryContextIssue
+                    external_memory = MemoryContext(
+                        enabled=True, content="", files=(),
+                        issues=(MemoryContextIssue("error", f"memory token counter failed: {exc}"),),
+                        max_chars=12000, token_limit=memory_budget,
+                        token_counter_name=counter_name, token_count=0,
+                    )
+                    counter_failed = True
+                    break
                 candidate_body = _executor_prompting.render_external_memory_context(candidate)
                 if candidate.token_limit is not None:
                     candidate_body += f"\n\n[accounting: {candidate.token_counter_name}; tokens={candidate.token_count}/{candidate.token_limit}]"
@@ -1572,6 +1584,7 @@ class Executor:
                     from .memory_context import MemoryContextIssue
                     candidate = replace(candidate, issues=candidate.issues + (MemoryContextIssue("error", "memory section counter returned invalid value"),))
                     external_memory = candidate
+                    counter_failed = True
                     break
                 if used <= available_memory_tokens:
                     external_memory = candidate
@@ -1611,7 +1624,16 @@ class Executor:
                     issues=external_memory.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
                 )
         else:
-            external_memory = self.config.memory_context
+            try:
+                external_memory = self.config.memory_context
+            except Exception as exc:
+                from .memory_context import MemoryContext, MemoryContextIssue
+                external_memory = MemoryContext(
+                    enabled=True, content="", files=(),
+                    issues=(MemoryContextIssue("error", f"memory context loading failed: {exc}"),),
+                    max_chars=12000,
+                )
+        self._external_memory_context = external_memory
         external_memory_body = _executor_prompting.render_external_memory_context(external_memory)
         if external_memory.token_limit is not None:
             external_memory_body += f"\n\n[accounting: {external_memory.token_counter_name}; tokens={external_memory.token_count}/{external_memory.token_limit}]"
