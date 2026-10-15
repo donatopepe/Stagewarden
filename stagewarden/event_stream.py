@@ -65,12 +65,11 @@ class EventStream:
             if not integrity["valid"]:
                 raise ValueError(f"Cannot append to corrupt event stream: {integrity['errors']}")
             if integrity.get("unchained_events", 0):
-                expected_file_size = sum(len(line.encode("utf-8")) + 1 for line in self._read_lines())
-                actual_file_size = self.path.stat().st_size
-                if actual_file_size != expected_file_size:
+                if not self.path.read_bytes().endswith(b"\n"):
                     raise ValueError("Legacy event stream has torn trailing record; recovery required.")
                 reserved = {"event_sequence", "previous_event_hash", "event_hash"}
-                if reserved.intersection(payload["details"]):
+                supplied_reserved = reserved.intersection(payload["details"])
+                if supplied_reserved:
                     raise ValueError("Legacy stream append cannot set hash-chain metadata.")
                 with self.path.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n")
