@@ -314,7 +314,9 @@ class EventStream:
                     "status": "in_flight",
                 }
             elif isinstance(operation_id, str) and operation_id and event_name in {"tool_result", "tool_recovery"}:
-                in_flight_tools.pop(operation_id, None)
+                active = in_flight_tools.get(operation_id)
+                if active is not None and active.get("node_id") == event_item.get("node_id"):
+                    in_flight_tools.pop(operation_id, None)
             if event_name == "tool_recovery" and isinstance(operation_id, str) and operation_id:
                 details = {**details, "retry_authorized": False}
                 tool_recoveries.append({
