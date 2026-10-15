@@ -645,10 +645,13 @@ Do NOT include any text before or after the JSON object.'''
     def _compact_node_text(text: str, max_tokens: int) -> str:
         if max_tokens <= 0:
             return ""
+        max_tokens = int(max_tokens)
         marker = "\n\n[context auto-compacted; omitted middle; preserve node/task invariants]\n\n"
-        max_bytes = max(0, max_tokens - len(marker.encode("utf-8")))
-        if len(text.encode("utf-8")) <= max_bytes:
+        if len(text.encode("utf-8")) <= max_tokens:
             return text
+        if max_tokens <= len(marker.encode("utf-8")):
+            return text.encode("utf-8")[:max_tokens].decode("utf-8", errors="ignore")
+        max_bytes = max_tokens - len(marker.encode("utf-8"))
         raw = text.encode("utf-8")
         head_bytes = max_bytes // 2
         tail_bytes = max_bytes - head_bytes

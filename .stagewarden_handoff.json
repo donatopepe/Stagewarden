@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Malformed gap after legacy records now clears verified prefix if stream is corrupt; read/follow/replay expose none. EventStream 39 passed/18 subtests; full suite 789 passed, 5 skipped, 350 subtests (317.49s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Replay keeps bare key for first operation-ID occurrence and qualifies cross-node collisions without renaming other operation IDs. EventStream 40 passed/18 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.61s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
