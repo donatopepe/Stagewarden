@@ -180,6 +180,8 @@ class EventStreamTests(unittest.TestCase):
             after_append = stream.verify_integrity()
             self.assertTrue(after_append["valid"], after_append["errors"])
             self.assertEqual(after_append["unchained_events"], 3)
+            with self.assertRaisesRegex(ValueError, "hash-chain metadata"):
+                stream.append("new-format", tree_id="tree", event_sequence=1)
 
     def test_non_object_record_after_legacy_stream_is_corruption(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
