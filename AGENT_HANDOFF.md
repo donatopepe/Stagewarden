@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Codemode context append now rejects invalid UTF-8 surrogate payloads cleanly before byte-count/persist; regression ensures revision unchanged. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (319.62s).
 - Codemode append now rejects a single oversized UTF-8 payload against node byte budget before mutating context/revision; regression validates failure leaves revision unchanged. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.62s).
 - Codemode operation validation now safely rejects non-string operation values as well as unsupported strings; regression uses operation=None. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.05s).
 - Codemode revision validation is unified for read and append: unsupported operations reject before revision logic, invalid revision input rejected consistently, stale revisions conflict. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.52s).

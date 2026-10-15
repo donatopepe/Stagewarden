@@ -734,7 +734,7 @@ Do NOT include any text before or after the JSON object.'''
                     "budget": dict(node.context_budget)}
         if operation == "append" and isinstance(text, str) and text.strip():
             budget = node.context_budget.get("available_input")
-            max_append_bytes = max(128, int(budget)) if isinstance(budget, int) else 12000
+            max_append_bytes = max(128, budget) if isinstance(budget, int) and not isinstance(budget, bool) else 12000
             try:
                 append_bytes = len(text.encode("utf-8"))
             except UnicodeEncodeError:
