@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Codemode read and append optionally validate expected_revision; stale snapshots/writes rejected, successful revisions monotonic. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.44s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Codemode read/append share expected_revision validation; unsupported operation rejects before revision checks. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.52s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

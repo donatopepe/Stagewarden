@@ -714,7 +714,7 @@ Do NOT include any text before or after the JSON object.'''
         node = self.nodes.get(node_id)
         if node is None:
             return {"ok": False, "error": f"unknown node: {node_id}"}
-        if operation not in {"read", "append"}:
+        if not isinstance(operation, str) or operation not in {"read", "append"}:
             return {"ok": False, "error": "operation must be read or append with non-empty text"}
         if expected_revision is not None:
             if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:

@@ -187,6 +187,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertNotIn("stale write", root.compacted_context)
             self.assertFalse(orchestrator.codemode_context(root.node_id, "append", text="bad revision", expected_revision=True)["ok"])
             self.assertFalse(orchestrator.codemode_context(root.node_id, "append", text=None)["ok"])
+            self.assertFalse(orchestrator.codemode_context(root.node_id, None)["ok"])
             self.assertIn("private root fact", orchestrator.codemode_context(root.node_id, "read")["context"])
             stale_read = orchestrator.codemode_context(root.node_id, "read", expected_revision=0)
             self.assertFalse(stale_read["ok"])
