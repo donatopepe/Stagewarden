@@ -714,47 +714,49 @@ Do NOT include any text before or after the JSON object.'''
         structural_prefixes = ("[execution]", "[invariant]", "[invariants]", "[acceptance_criteria]", "[tolerances]")
         lines = text.splitlines(keepends=True)
         required: list[str] = []
-        required_indices: set[int] = set()
-        for index, line in enumerate(lines):
+        ordinary: list[str] = []
+        for line in lines:
             if line.lstrip().startswith(structural_prefixes):
                 required.append(line.rstrip("\r\n"))
-                required_indices.add(index)
-        if required:
-            required_text = "\n".join(required)
-            required_bytes = len(required_text.encode("utf-8"))
-            if required_bytes + marker_bytes <= max_tokens:
-                # Evenly trim oversized required lines, retaining their labels,
-                # and report omission visibly. Otherwise preserve earliest labels.
-                room = max_tokens - marker_bytes
-                while len(required_text.encode("utf-8")) > room:
-                    longest = max(range(len(required)), key=lambda i: len(required[i].encode("utf-8")))
-                    label_end = required[longest].find("]") + 1
-                    if label_end <= 0 or len(required[longest]) <= label_end:
-                        break
-                    required[longest] = required[longest][:label_end] + " …"
-                    required_text = "\n".join(required)
-                    if len(required_text.encode("utf-8")) > room:
-                        for candidate_index, item in enumerate(required):
-                            if candidate_index == longest:
-                                continue
-                            label_end = item.find("]") + 1
-                            if label_end > 0:
-                                required[candidate_index] = item[:label_end] + " …"
-                        required_text = "\n".join(required)
-                if len(required_text.encode("utf-8")) <= room:
-                    return required_text + marker
             else:
-                kept: list[str] = []
-                used = marker_bytes
+                ordinary.append(line)
+        if required:
+            room = max_tokens - marker_bytes
+            # Preserve labels and their full text while possible; when required
+            # material itself exceeds budget, shrink text but never invent a pass.
+            if len("\n".join(required).encode("utf-8")) > room:
+                longest = max(range(len(required)), key=lambda i: len(required[i].encode("utf-8")))
+                label_end = required[longest].find("]") + 1
+                if label_end > 0 and len(required[longest]) > label_end:
+                    required[longest] = required[longest][:label_end] + " …"
+            required_text = "\n".join(required)
+            if len(required_text.encode("utf-8")) > room:
+                required_text = ""
                 for item in required:
-                    encoded = item.encode("utf-8")
-                    if used + len(encoded) + (1 if kept else 0) > max_tokens:
+                    label_end = item.find("]") + 1
+                    if label_end <= 0:
+                        continue
+                    candidate = (required_text + "\n" if required_text else "") + item[:label_end]
+                    if len(candidate.encode("utf-8")) > room:
                         break
-                    kept.append(item)
-                    used += len(encoded) + (1 if len(kept) > 1 else 0)
-                required_text = "\n".join(kept)
-                if required_text:
-                    return required_text + marker
+                    required_text = candidate
+                if len(required_text.encode("utf-8")) > room:
+                    required_text = required_text.encode("utf-8")[:room].decode("utf-8", errors="ignore")
+            structural_bytes = len(required_text.encode("utf-8"))
+            excerpt_budget = max(0, room - structural_bytes)
+            excerpt_source = "".join(ordinary).strip()
+            excerpt_raw = excerpt_source.encode("utf-8")
+            if excerpt_budget and len(excerpt_raw) > excerpt_budget:
+                head_budget = excerpt_budget // 2
+                tail_budget = excerpt_budget - head_budget
+                head = excerpt_raw[:head_budget].decode("utf-8", errors="ignore").rstrip()
+                tail = excerpt_raw[-tail_budget:].decode("utf-8", errors="ignore").lstrip() if tail_budget else ""
+                excerpt_source = head + tail
+                # Reconcile bytes once if UTF-8 boundaries left output over cap.
+                if len(excerpt_source.encode("utf-8")) > excerpt_budget:
+                    excerpt_source = excerpt_source.encode("utf-8")[:excerpt_budget].decode("utf-8", errors="ignore")
+            result = required_text + marker + excerpt_source
+            return result if len(result.encode("utf-8")) <= max_tokens else required_text + marker
 
         max_bytes = max_tokens - marker_bytes
         raw = text.encode("utf-8")

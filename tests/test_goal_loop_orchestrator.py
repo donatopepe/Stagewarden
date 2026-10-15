@@ -171,6 +171,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertIn("[execution] keep task invariant", required_compacted)
         self.assertIn("[acceptance_criteria] verify output", required_compacted)
         self.assertIn("context auto-compacted", required_compacted)
+        self.assertTrue("xxxx" in required_compacted or "output" in required_compacted)
         too_small = GoalLoopOrchestrator._compact_node_text(
             "[execution] " + ("x" * 1000) + "\n[acceptance_criteria] required", 100,
         )
