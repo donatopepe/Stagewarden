@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- EventStream replay verified; stale open-issue entry removed: `replay()` reconstructs node state, scopes in-flight operations by node, closes active operations on terminal node status or `tool_recovery`, and projects recovery status with `retry_authorized=false` unless explicitly recorded otherwise. `tests/test_event_stream.py`: 45 passed, 20 subtests (1.05s). This verifies replay projection, not automatic retries or process restart orchestration.
 - PRINCE2 Quality register ritual closed 1/3 → 3/3: `_record_node_quality` appends exactly one node-scoped quality entry per terminal status (`completed`→`passed`, `failed`→`failed`, `blocked`→`blocked`, `skipped`→`not_delivered`), idempotent via `quality_recorded` on `NodeState`. A `completed` node with no recorded model/tool output is reported as `insufficient_evidence` instead of an invented pass, and a failing secondary handoff write is logged to stderr without masking node state. Test covers evidence-aware pass, empty-evidence fallback, idempotency and the passed→failed transition. Full suite 819 passed, 5 skipped, 364 subtests (325.28s).
 - Unified-validation integration closed 1/3 → 3/3: the fixed-order matrix (`tests/data/unified_validation_matrix.json`) now carries a `handoff_alignment` gate running `scripts/check_handoff_alignment.py` with `returncode: 0` + `stdout_contains: handoff_alignment=ok`. A runner test asserts the gate definition, executes the real command (wet-run green), and proves `_evaluate` fails closed on a synthetic non-zero/empty output. Existing gates are untouched. Full suite 818 passed, 5 skipped, 364 subtests (333.76s).
 - Handoff-alignment checker closed 0/3 → 3/3: new `scripts/check_handoff_alignment.py` validates that `AGENT_HANDOFF.md` contains every required section heading, `HANDOFF.md` exists and is non-empty, and `.stagewarden_handoff.json` is a JSON object with `status`/`waiting_reason`/`current_step_id`/`current_step_title`/`current_step_status` plus a non-empty `waiting_reason`; exit 1 lists every structural error and exit 0 means aligned. Tests cover aligned/malformed fixtures, missing artifacts, empty/missing keys, exit codes, and a wet-run against the real repository. Full suite 817 passed, 5 skipped, 364 subtests (333.10s).
@@ -138,12 +139,11 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Tokenizer provider e overhead tool/schema/system non verificati; UTF-8 byte upper bound non è token count.
 - Memory token compaction non collegata al caller; compattazione resta non semantica/loss-aware non verificata.
 - Output-cap backend non verificato: OmniRoute `max_tokens` è solo request; Pi CLI senza cap documentato. Opt-in fail-closed presente.
-- Event replay semantics non implementate/verificate.
 
 ## Next steps
-1. Full regression post-fix: 771 passed, 5 skipped, 339 subtests; eseguire static checks finali.
-2. Verificare tokenizer provider e output-cap solo con evidenza runtime disponibile; nessuna chiamata remota non necessaria, test remoti free-only.
-3. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback.
+1. Mantenere handoff allineati ai risultati runtime recenti; full suite corrente: 819 passed, 5 skipped, 364 subtests.
+2. Verificare tokenizer provider, overhead prompt e output-cap solo con evidenza runtime disponibile; nessuna chiamata remota non necessaria, test remoti free-only.
+3. Integrare tokenizer/usage solo con evidence provider; mantenere UTF-8 estimator fallback. Compaction loss-aware collegata al caller resta aperta.
 
 ## Commands
 ```bash

@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Event replay discrepancy resolved: `EventStream.replay()` projects node state, node-scoped in-flight tools and recovery closure; terminal node events clear active tools. Tests prove retry denial is preserved and no retry is inferred. Focused `tests/test_event_stream.py`: 45 passed/20 subtests (1.05s). This is replay projection, not restart orchestration.
 - PRINCE2 Quality register per node: `_record_node_quality` writes one evidence-aware entry per terminal status (`completed`→`passed`, `failed`/`blocked`/`skipped` mapped, idempotent), downgrades completion without recorded output to `insufficient_evidence`, and reports secondary-write failures without masking node state. Full suite 819 passed/5 skipped/364 subtests (325.28s); statics clean.
 - Unified-validation matrix now includes a `handoff_alignment` gate (command + stdout marker) with fail-closed runner evaluation; wet-run green, existing gates untouched. Full suite 818 passed/5 skipped/364 subtests (333.76s); statics clean.
 - Handoff-alignment checker: `scripts/check_handoff_alignment.py` validates required AGENT_HANDOFF.md sections, non-empty HANDOFF.md and required `.stagewarden_handoff.json` keys; exit 1 with errors, wet-run green on the real repo. Full suite 817 passed/5 skipped/364 subtests (333.10s); statics clean.
