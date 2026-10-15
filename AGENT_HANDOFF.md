@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Hardening sequence schema: verifier now accepts only non-bool integers for `event_sequence`; bool `true` previously compared equal to 1 and could pass sequence continuity. Added test with correctly recomputed digest proving bool sequence rejected. EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (319.03s).
 - Cleanup append path: removed derived `append_errors` list and use integrity report directly in exception; no behavior change. EventStream 28 passed/7 subtests; full suite 778 passed, 5 skipped, 339 subtests (319.51s); static checks pass.
 - Closed metadata spoofing path: `append(..., **details)` now strips caller-supplied `event_sequence`, `previous_event_hash`, `event_hash` before writing authoritative chain fields. Regression for forged metadata then valid second append. EventStream 28 passed/7 subtests; full suite 778 passed, 5 skipped, 339 subtests (319.51s).
 - Hash-chain hardening completo: sequence, previous-hash e content-digest mismatch interrompono verify al primo errore. Aggiunto digest tampering + malicious tail test. EventStream 27 passed/7 subtests; full suite 777 passed, 5 skipped, 339 subtests (319.13s).

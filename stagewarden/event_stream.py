@@ -128,6 +128,10 @@ class EventStream:
             record_hash = details.get("event_hash")
             record_previous = details.get("previous_event_hash")
             if record_sequence is None and record_hash is None and record_previous is None:
+                if chain_started:
+                    chain_corrupted = True
+                    errors.append({"line": line_number, "error": "missing_chain_metadata"})
+                    break
                 unchained += 1
                 unchained_event_seen = True
                 if chain_started:
@@ -150,6 +154,14 @@ class EventStream:
             ):
                 chain_corrupted = True
                 errors.append({"line": line_number, "error": "sequence_mismatch"})
+                break
+            if not isinstance(record_previous, str):
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "invalid_previous_hash"})
+                break
+            if not isinstance(record_hash, str):
+                chain_corrupted = True
+                errors.append({"line": line_number, "error": "invalid_event_hash"})
                 break
             if record_previous != previous_hash:
                 chain_corrupted = True
