@@ -164,6 +164,19 @@ class EventStreamTests(unittest.TestCase):
             self.assertTrue(report["valid"], report["errors"])
             self.assertEqual(report["events_verified"], 20)
 
+    def test_legacy_only_stream_is_valid_and_reports_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            path.write_text(
+                '{"event":"legacy-one","details":{}}\n{"event":"legacy-two","details":{}}\n',
+                encoding="utf-8",
+            )
+            report = stream.verify_integrity()
+            self.assertTrue(report["valid"], report["errors"])
+            self.assertFalse(report["chain_corrupted"])
+            self.assertEqual(report["unchained_events"], 2)
+
     def test_invalid_line_after_legacy_events_blocks_later_append(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"
