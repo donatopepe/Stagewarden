@@ -27,6 +27,27 @@ class UnifiedValidationRunnerTests(unittest.TestCase):
         for name, result in cases:
             self.assertTrue(result, name)
 
+    def test_handoff_alignment_gate_is_present_and_fails_closed(self) -> None:
+        import subprocess
+        import sys
+        matrix = runner.load_matrix()
+        gates = {gate["id"]: gate for gate in matrix["gates"]}
+        self.assertIn("handoff_alignment", gates)
+        gate = gates["handoff_alignment"]
+        self.assertEqual(gate["command"], ["python3", "scripts/check_handoff_alignment.py"])
+        self.assertEqual(gate["expect"], {"returncode": 0, "stdout_contains": "handoff_alignment=ok"})
+        completed = subprocess.run(
+            [sys.executable, "scripts/check_handoff_alignment.py"],
+            cwd=runner.ROOT, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("handoff_alignment=ok", completed.stdout)
+        good = {"command": gate["command"], "returncode": 0, "duration_ms": 1, "stdout": "handoff_alignment=ok\n", "stderr": ""}
+        bad = {"command": gate["command"], "returncode": 1, "duration_ms": 1, "stdout": "", "stderr": "missing section"}
+        self.assertEqual(runner._evaluate(gate, [good]), (True, "ok"))
+        passed, _detail = runner._evaluate(gate, [bad])
+        self.assertFalse(passed)
+
 
 if __name__ == "__main__":
     unittest.main()

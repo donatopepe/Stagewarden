@@ -42,6 +42,12 @@
       "label": "UTF-8/no-BOM, links and diff hygiene",
       "command": ["python3", "scripts/check_unified_validation.py", "--docs-only"],
       "expect": {"returncode": 0}
+    },
+    {
+      "id": "handoff_alignment",
+      "label": "AGENT_HANDOFF.md / HANDOFF.md / .stagewarden_handoff.json alignment",
+      "command": ["python3", "scripts/check_handoff_alignment.py"],
+      "expect": {"returncode": 0, "stdout_contains": "handoff_alignment=ok"}
     }
   ]
 }
