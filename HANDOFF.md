@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Codemode rejects oversized individual append payload above node UTF-8 byte budget without advancing context revision; goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.62s).
 - Codemode rejects non-string operation values safely before dispatch; goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.05s).
 - Codemode read/append share revision validation; unsupported operation rejects first. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.52s).
 - Codemode read now optionally checks expected_revision and rejects stale snapshots; regression checks current/stale reads. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.44s).

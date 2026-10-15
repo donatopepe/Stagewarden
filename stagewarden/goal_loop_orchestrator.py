@@ -735,14 +735,18 @@ Do NOT include any text before or after the JSON object.'''
         if operation == "append" and isinstance(text, str) and text.strip():
             budget = node.context_budget.get("available_input")
             max_append_bytes = max(128, int(budget)) if isinstance(budget, int) else 12000
-            if len(text.encode("utf-8")) > max_append_bytes:
+            try:
+                append_bytes = len(text.encode("utf-8"))
+            except UnicodeEncodeError:
+                return {"ok": False, "error": "context append must contain valid UTF-8 text"}
+            if append_bytes > max_append_bytes:
                 return {
                     "ok": False,
                     "error": "context append exceeds node byte budget",
                     "node_id": node_id,
                     "node_uuid": node.node_uuid,
                     "max_append_bytes": max_append_bytes,
-                    "provided_bytes": len(text.encode("utf-8")),
+                    "provided_bytes": append_bytes,
                 }
             content = self._append_node_context(node, "codemode_note", text)
             return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
