@@ -159,6 +159,7 @@ class NodeState:
         "max_mutations": 20,
     })
     lessons_recorded: list[str] = field(default_factory=list)
+    issues_recorded: list[str] = field(default_factory=list)
     _context_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def as_dict(self) -> dict[str, object]:
@@ -1603,6 +1604,43 @@ Do NOT include any text before or after the JSON object.'''
         except Exception as exc:  # knowledge lesson is secondary; keep node state authoritative
             sys.stderr.write(f"[goal-loop] lesson knowledge record failed for {node_state.node_id}: {exc}\n")
         node_state.lessons_recorded.append(status)
+        self._record_node_issue(node_state)
+
+    _ISSUE_NODE_STATUSES: frozenset[str] = frozenset({"failed", "blocked"})
+
+    def _record_node_issue(self, node_state: NodeState) -> None:
+        """PRINCE2 Issue Log: open one issue per terminal failure, close on completion.
+
+        Issues are opened once per terminal failure status and closed when the same
+        node later completes, so the register reflects the live tolerance state.
+        Failure to write the register is reported without masking node state.
+        """
+        status = str(node_state.status)
+        if status in self._ISSUE_NODE_STATUSES and status not in node_state.issues_recorded:
+            summary = (node_state.error_message or node_state.output_summary or node_state.active_work or "").strip()
+            try:
+                self.handoff.record_issue(
+                    step_id=node_state.node_id,
+                    severity="critical" if status == "failed" else "major",
+                    summary=summary or f"Node {node_state.node_id} {status} without recorded reason.",
+                )
+            except Exception as exc:
+                sys.stderr.write(f"[goal-loop] issue handoff record failed for {node_state.node_id}: {exc}\n")
+            node_state.issues_recorded.append(status)
+        elif status == "completed":
+            open_issues = [
+                item for item in list(getattr(self.handoff, "issue_register", []) or [])
+                if str(item.get("step_id", "")).strip() == node_state.node_id
+                and str(item.get("status", "open")).strip().lower() != "closed"
+            ]
+            if open_issues:
+                try:
+                    self.handoff.close_issues_for_step(
+                        step_id=node_state.node_id,
+                        resolution="Node completed within tolerance.",
+                    )
+                except Exception as exc:
+                    sys.stderr.write(f"[goal-loop] issue close failed for {node_state.node_id}: {exc}\n")
 
     def _sync_goal_loop_context(self) -> None:
         """Persist current goal loop state to handoff for status queries."""

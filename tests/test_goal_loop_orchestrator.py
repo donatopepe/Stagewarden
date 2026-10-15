@@ -378,6 +378,30 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             orchestrator._record_node_execution_to_handoff(node)
             self.assertEqual(len([item for item in orchestrator.handoff.lessons_log if item.get("step_id") == node.node_id]), 1)
 
+    def test_terminal_failure_opens_issue_and_completion_closes_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "issue ritual", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.status = "blocked"
+            node.error_message = "blockedpayload"
+            orchestrator._record_node_execution_to_handoff(node)
+            orchestrator._record_node_execution_to_handoff(node)
+            issues = [item for item in orchestrator.handoff.issue_register if item.get("step_id") == node.node_id]
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0]["status"], "open")
+            self.assertEqual(issues[0]["severity"], "major")
+            self.assertIn("blockedpayload", issues[0]["summary"])
+            node.status = "failed"
+            node.error_message = "failedpayload"
+            orchestrator._record_node_execution_to_handoff(node)
+            issues = [item for item in orchestrator.handoff.issue_register if item.get("step_id") == node.node_id]
+            self.assertEqual([item["severity"] for item in issues], ["major", "critical"])
+            node.status = "completed"
+            orchestrator._record_node_execution_to_handoff(node)
+            self.assertTrue(all(item["status"] == "closed" for item in issues))
+            self.assertTrue(all(item.get("resolution") for item in issues))
+
     def test_node_event_primary_audit_failure_attempts_secondary_handoff_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "primary audit failure", execution_mode="mock", json_mode=True)
