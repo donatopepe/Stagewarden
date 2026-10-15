@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Compaction near marker boundary retains marker and bounded payload at/above 75 bytes; edge tests pass. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (318.05s).
 - Compaction marker boundary fixed for caps >=75 bytes; marker retained with tiny content and output stays bounded. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.58s).
 - Tiny-cap UTF-8 compaction preserves fitting text prefix without marker when marker cannot fit; goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.62s).
 - Replay retains bare key for first operation-ID occurrence and qualifies only collisions; regression preserves legacy lookup when unrelated operations precede it. EventStream 40 passed/18 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.61s).

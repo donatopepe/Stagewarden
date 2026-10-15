@@ -682,12 +682,12 @@ Do NOT include any text before or after the JSON object.'''
         if len(combined.encode("utf-8")) > cap:
             prior = node.compacted_context
             combined = self._compact_node_text(combined, max(32, cap))
-            node.context_revision += 1
             self.events.append(
                 "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,
                 node_uuid=node.node_uuid, revision=node.context_revision,
                 original_chars=len(prior) + len(entry), compacted_chars=len(combined),
             )
+        node.context_revision += 1
         node.compacted_context = combined
         self.knowledge.record_context(
             tree_id="goal-loop", node_id=node.node_id, parent_node_id=node.parent_node_id,
@@ -702,8 +702,15 @@ Do NOT include any text before or after the JSON object.'''
         )
         return combined
 
-    def codemode_context(self, node_id: str, operation: str, *, text: str = "") -> dict[str, Any]:
-        """Small serial context API; never evaluates code or executes arbitrary tools."""
+    def codemode_context(
+        self, node_id: str, operation: str, *, text: str = "",
+        expected_revision: int | None = None,
+    ) -> dict[str, Any]:
+        """Small serial context API; never evaluates code or executes arbitrary tools.
+
+        Append callers may provide expected_revision for optimistic concurrency,
+        preventing stale snapshots from silently appending against newer context.
+        """
         node = self.nodes.get(node_id)
         if node is None:
             return {"ok": False, "error": f"unknown node: {node_id}"}
@@ -712,9 +719,21 @@ Do NOT include any text before or after the JSON object.'''
                     "revision": node.context_revision, "context": node.compacted_context,
                     "budget": dict(node.context_budget)}
         if operation == "append" and text.strip():
+            if expected_revision is not None:
+                if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+                    return {"ok": False, "error": "expected_revision must be a non-negative integer"}
+                if expected_revision != node.context_revision:
+                    return {
+                        "ok": False,
+                        "error": "context revision conflict",
+                        "node_id": node_id,
+                        "node_uuid": node.node_uuid,
+                        "expected_revision": expected_revision,
+                        "current_revision": node.context_revision,
+                    }
             content = self._append_node_context(node, "codemode_note", text)
-            return {"ok": True, "node_id": node_id, "revision": node.context_revision,
-                    "context_chars": len(content)}
+            return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
+                    "revision": node.context_revision, "context_chars": len(content)}
         return {"ok": False, "error": "operation must be read or append with non-empty text"}
 
     # ── dependency resolution ───────────────────────────────────────────────

@@ -177,8 +177,15 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.addCleanup(lambda: orchestrator.knowledge.close())
             root = orchestrator.nodes["root.scope"]
             other = orchestrator.nodes[next(node_id for node_id in orchestrator.nodes if node_id != "root.scope")]
-            first = orchestrator.codemode_context(root.node_id, "append", text="private root fact")
+            first = orchestrator.codemode_context(root.node_id, "append", text="private root fact", expected_revision=0)
             self.assertTrue(first["ok"])
+            self.assertEqual(first["node_uuid"], root.node_uuid)
+            stale = orchestrator.codemode_context(root.node_id, "append", text="stale write", expected_revision=0)
+            self.assertFalse(stale["ok"])
+            self.assertEqual(stale["error"], "context revision conflict")
+            self.assertEqual(stale["current_revision"], root.context_revision)
+            self.assertNotIn("stale write", root.compacted_context)
+            self.assertFalse(orchestrator.codemode_context(root.node_id, "append", text="bad revision", expected_revision=True)["ok"])
             self.assertIn("private root fact", orchestrator.codemode_context(root.node_id, "read")["context"])
             saved = orchestrator.knowledge.search("private root fact", node_id=root.node_id, namespace="context")
             self.assertTrue(saved)
