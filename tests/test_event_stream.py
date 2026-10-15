@@ -439,6 +439,16 @@ class EventStreamTests(unittest.TestCase):
             self.assertEqual(active["op-b"]["node_id"], "node-b")
             self.assertEqual(active["node-a:op-b"]["node_id"], "node-a")
 
+    def test_replay_checkpoint_collapses_duplicate_records_for_same_node(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("tool_started", tree_id="tree", node_id="node-a", operation_id="shared", message="start")
+            stream.append("tool_checkpoint", tree_id="tree", node_id="node-a", operation_id="shared", message="checkpoint")
+            stream.append("tool_checkpoint", tree_id="tree", node_id="node-a", operation_id="shared", message="checkpoint again")
+            active = stream.replay()["in_flight_tools"]
+            self.assertEqual(len(active), 1)
+            self.assertEqual(active["shared"]["message"], "checkpoint again")
+
     def test_replay_checkpoint_updates_matching_duplicate_operation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

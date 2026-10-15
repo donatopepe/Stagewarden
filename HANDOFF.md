@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Lifecycle transition no longer bubbles secondary handoff-failure-event append error after primary event commit; regression injects both secondary failures. Goal-loop 82 passed/36 subtests; full suite 796 passed, 5 skipped, 350 subtests (326.66s).
 - Lifecycle event preserved when secondary handoff recording fails; failure logged as `node_handoff_persist_failure` with error class. Goal-loop 82 passed/36 subtests; full suite 796 passed, 5 skipped, 350 subtests (350.46s).
 - Node event emission survives capsule persistence failure, annotating null capsule ref + error class rather than losing runtime event. Goal-loop 81 passed/36 subtests; full suite 795 passed, 5 skipped, 350 subtests (334.60s).
 - Context append verifies exact persisted content, not only revision row; read errors/missing/mismatch reject and rollback. Tampered-row regression. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (323.69s).

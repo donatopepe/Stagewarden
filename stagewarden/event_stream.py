@@ -312,13 +312,15 @@ class EventStream:
             operation_id = details.get("operation_id")
             if isinstance(operation_id, str) and operation_id and event_name in {"tool_started", "tool_checkpoint"}:
                 event_operation_node = event_item.get("node_id")
-                matching_key = next((
+                matching_keys = [
                     key for key, active in in_flight_tools.items()
                     if active.get("operation_id") == operation_id
                     and active.get("node_id") == event_operation_node
-                ), None)
-                if matching_key is not None:
-                    operation_key = matching_key
+                ]
+                if matching_keys:
+                    operation_key = matching_keys[0]
+                    for duplicate_key in matching_keys[1:]:
+                        in_flight_tools.pop(duplicate_key, None)
                 elif not any(active.get("operation_id") == operation_id for active in in_flight_tools.values()):
                     operation_key = operation_id
                 else:
