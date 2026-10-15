@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Tiny-cap UTF-8 compaction preserves fitting prefix when omission marker exceeds cap. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.62s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Compaction marker boundary fixed: cap equal marker returns marker; cap above marker retains marker and bounded payload. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.58s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
