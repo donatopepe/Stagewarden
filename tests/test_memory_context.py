@@ -101,7 +101,7 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(context.content, "")
             self.assertIn("search failed", context.report()["diagnostics"][0])
 
-    def test_non_monotonic_counter_candidate_is_verified_before_return(self) -> None:
+    def test_non_monotonic_counter_does_not_escape_budget(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             memory = root / "memory"

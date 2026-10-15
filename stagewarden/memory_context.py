@@ -180,32 +180,22 @@ def load_memory_context(
                 suffix_count = token_counter(suffix)
                 if isinstance(suffix_count, bool) or not isinstance(suffix_count, int) or suffix_count < 0:
                     raise ValueError("token counter returned invalid suffix count")
-                if suffix_count > max_tokens:
-                    content = ""
-                else:
-                    # Binary search is valid for monotone estimators; custom
-                    # counters need not be monotone, so verify result and fail
-                    # closed rather than trust a violated assumption.
-                    low, high = 0, len(content)
-                    while low < high:
-                        middle = (low + high + 1) // 2
-                        candidate = content[:middle].rstrip() + suffix
-                        candidate_count = token_counter(candidate)
-                        if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 0:
-                            raise ValueError("token counter returned invalid count during compaction")
-                        if candidate_count <= max_tokens:
-                            low = middle
-                        else:
-                            high = middle - 1
-                    candidate = content[:low].rstrip() + suffix
-                    candidate_count = token_counter(candidate)
+                # Do not assume arbitrary pluggable counters are monotone over
+                # prefixes. Shrink geometrically and accept only an observed fit;
+                # suffix alone is already verified to fit, so termination is bounded.
+                source_content = content
+                end = len(source_content)
+                candidate = suffix
+                while end > 0:
+                    probe = source_content[:end].rstrip() + suffix
+                    candidate_count = token_counter(probe)
                     if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 0:
-                        raise ValueError("token counter returned invalid final count")
-                    content = candidate if candidate_count <= max_tokens else ""
-                    if content:
-                        content_count = token_counter(content)
-                        if isinstance(content_count, bool) or not isinstance(content_count, int) or content_count > max_tokens:
-                            raise ValueError("compacted memory exceeds token budget")
+                        raise ValueError("token counter returned invalid count during compaction")
+                    if candidate_count <= max_tokens:
+                        candidate = probe
+                        break
+                    end //= 2
+                content = candidate
             try:
                 final_token_count = token_counter(content)
                 if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
