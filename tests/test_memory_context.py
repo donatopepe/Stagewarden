@@ -82,6 +82,27 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(context.content, "")
             self.assertIn("counter transient failure", context.report()["diagnostics"][0])
 
+    def test_final_counter_type_failure_fails_closed_with_counter_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("short memory", encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            calls = 0
+            def counter(text: str):
+                nonlocal calls
+                calls += 1
+                return len(text) if calls == 1 else True
+            context = load_memory_context(
+                root, path, max_tokens=1000, token_counter=counter,
+                token_counter_name="bad-final-counter",
+            )
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertEqual(context.token_counter_name, "bad-final-counter")
+            self.assertIn("invalid count", context.report()["diagnostics"][0])
+
     def test_missing_optional_file_is_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
