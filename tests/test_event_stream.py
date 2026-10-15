@@ -369,6 +369,18 @@ class EventStreamTests(unittest.TestCase):
                     self.assertEqual(stream.follow("node.a", after=1), [])
                     self.assertIsInstance(stream.replay(), dict)
 
+    def test_corrupt_legacy_prefix_before_signed_chain_is_not_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            stream.append("signed", tree_id="tree", node_id="n", message="signed")
+            signed = path.read_text(encoding="utf-8")
+            path.write_text('{"event":"legacy","node_id":"n","details":{}}\nnot-json\n' + signed, encoding="utf-8")
+            self.assertEqual(stream.read(node_id="n"), [])
+            self.assertEqual(stream.follow("n", after=0), [])
+            self.assertEqual(stream.follow("n", after=1), [])
+            self.assertEqual(stream.replay(node_id="n")["nodes"], {})
+
     def test_corrupt_hashed_suffix_is_not_returned_by_read_follow_or_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"

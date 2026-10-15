@@ -130,6 +130,8 @@ class EventStream:
                 errors.append({"line": line_number, "error": "invalid_json"})
                 if chain_started or unchained_event_seen or signed_stream:
                     chain_broken = True
+                    if unchained_event_seen and not chain_started:
+                        verified_lines = 0
                     break
                 pending_prefix_errors = True
                 continue
@@ -137,6 +139,8 @@ class EventStream:
                 errors.append({"line": line_number, "error": "invalid_record"})
                 if chain_started or unchained_event_seen or signed_stream:
                     chain_broken = True
+                    if unchained_event_seen and not chain_started:
+                        verified_lines = 0
                     break
                 pending_prefix_errors = True
                 continue
@@ -241,6 +245,8 @@ class EventStream:
         # Legacy logs remain readable, but a partially corrupted signed stream
         # only exposes events in its verified prefix.
         max_verified_line = integrity.get("verified_lines") if integrity.get("chain_corrupted") else None
+        if any(error.get("error") == "invalid_prefix_before_chain" for error in integrity.get("errors", [])):
+            max_verified_line = 0
         for line_index, line in enumerate(self._read_lines(), start=1):
             if max_verified_line is not None and line_index > max_verified_line:
                 break
@@ -270,6 +276,8 @@ class EventStream:
             return []
         integrity = self.verify_integrity()
         max_verified_line = integrity.get("verified_lines") if integrity.get("chain_corrupted") else None
+        if any(error.get("error") == "invalid_prefix_before_chain" for error in integrity.get("errors", [])):
+            max_verified_line = 0
         events: list[dict[str, Any]] = []
         for line_number, line in enumerate(self._read_lines(), start=1):
             if max_verified_line is not None and line_number > max_verified_line:
