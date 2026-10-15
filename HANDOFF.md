@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- PRINCE2 Risk Log per node: one scoped risk per terminal failure (idempotent) and closure only of that node's risks on completion, leaving project-seeded and other-node risks untouched. Full suite 812 passed/5 skipped/364 subtests (332.65s); statics clean.
 - PRINCE2 Issue Log at node close: one issue per terminal failure (failed→critical, blocked→major, idempotent, secondary-write failure reported) and automatic closure of open node issues on later completion. Full suite 811 passed/5 skipped/364 subtests (333.58s); statics clean.
 - Deterministic lexical search upgrade: field-weighted token scoring (title 3, purpose 2, content/kind 1) plus exact-phrase bonus, stable deterministic tie-break, empty-query behaviour preserved, no semantic claim. Full suite 810 passed/5 skipped/364 subtests (333.61s); statics clean.
 - Plugglable goal-loop token counter: `STAGEWARDEN_GOAL_LOOP_TOKEN_COUNTER` (default labelled UTF-8 byte bound; `module:attribute` external counter reported unverified; unknown/unimportable/non-integer fail closed). Metadata/events report the active counter; compaction remains byte-bounded. Full suite 809 passed/5 skipped/364 subtests (332.71s); statics clean.

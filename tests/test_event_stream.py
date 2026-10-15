@@ -123,6 +123,50 @@ class EventStreamTests(unittest.TestCase):
             self.assertTrue(report["valid"], report["errors"])
             self.assertEqual(report["events_verified"], 50)
 
+    def test_windows_process_lock_releases_on_body_exception(self) -> None:
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            calls = []
+            class FakeMsvcrt:
+                LK_LOCK = 1
+                LK_UNLCK = 2
+                @staticmethod
+                def locking(_fd, mode, length):
+                    calls.append(mode)
+            with patch("os.name", "nt"), patch.dict("sys.modules", {"msvcrt": FakeMsvcrt}):
+                with self.assertRaises(RuntimeError):
+                    with stream._process_lock():
+                        raise RuntimeError("boom")
+            self.assertEqual(calls, [FakeMsvcrt.LK_LOCK, FakeMsvcrt.LK_UNLCK])
+
+    def test_excl_fallback_lock_is_bounded_and_fails_closed(self) -> None:
+        import os
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            stream = EventStream(path)
+            excl = path.resolve().with_name(path.resolve().name + ".lock.excl")
+            with patch.object(EventStream, "_lock_backend", staticmethod(lambda: "excl")):
+                with stream._process_lock():
+                    self.assertTrue(excl.exists())
+                self.assertFalse(excl.exists())
+                stream.append("fallback-event", tree_id="tree")
+                self.assertTrue(stream.verify_integrity()["valid"])
+            excl.write_text("held", encoding="utf-8")
+            with patch.object(EventStream, "_lock_backend", staticmethod(lambda: "excl")), patch.dict(
+                os.environ, {"STAGEWARDEN_EVENT_STREAM_LOCK_TIMEOUT_SECONDS": "0.2"}
+            ):
+                with self.assertRaises(TimeoutError):
+                    with stream._process_lock():
+                        pass
+            with patch.object(EventStream, "_lock_backend", staticmethod(lambda: "excl")), patch.dict(
+                os.environ, {"STAGEWARDEN_EVENT_STREAM_LOCK_TIMEOUT_SECONDS": "0"}
+            ):
+                with self.assertRaises(ValueError):
+                    with stream._process_lock():
+                        pass
+
     def test_alias_paths_share_process_lock_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

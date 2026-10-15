@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable
@@ -22,13 +23,47 @@ class EventStream:
         with self._path_locks_guard:
             self._lock = self._path_locks.setdefault(lock_key, threading.RLock())
 
+    @staticmethod
+    def _lock_backend() -> str:
+        """Pick the available advisory-lock backend, or the portable excl fallback."""
+        if os.name == "nt":
+            try:
+                import msvcrt  # noqa: F401
+            except ImportError:
+                return "excl"
+            return "msvcrt"
+        try:
+            import fcntl  # noqa: F401
+        except ImportError:
+            return "excl"
+        return "fcntl"
+
+    @staticmethod
+    def _excl_lock_timeout() -> float:
+        raw = os.environ.get("STAGEWARDEN_EVENT_STREAM_LOCK_TIMEOUT_SECONDS", "").strip()
+        if not raw:
+            return 30.0
+        try:
+            value = float(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("STAGEWARDEN_EVENT_STREAM_LOCK_TIMEOUT_SECONDS must be a positive number") from exc
+        if value <= 0:
+            raise ValueError("STAGEWARDEN_EVENT_STREAM_LOCK_TIMEOUT_SECONDS must be a positive number")
+        return value
+
     @contextmanager
     def _process_lock(self):
-        """Serialize appends across processes using a sidecar advisory lock."""
+        """Serialize appends across processes using a sidecar advisory lock.
+
+        POSIX uses flock and Windows uses msvcrt byte-range locking. When neither
+        backend is importable, an atomic ``O_CREAT|O_EXCL`` sidecar is used with a
+        bounded spin that fails closed on timeout instead of writing unserialized.
+        """
         canonical_path = self.path.resolve()
         lock_path = canonical_path.with_name(canonical_path.name + ".lock")
         with lock_path.open("a+b") as handle:
-            if os.name == "nt":
+            backend = self._lock_backend()
+            if backend == "msvcrt":
                 import msvcrt
                 handle.seek(0)
                 if handle.read(1) == b"":
@@ -42,13 +77,34 @@ class EventStream:
                 finally:
                     handle.seek(0)
                     msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
+            elif backend == "fcntl":
                 import fcntl
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
                 try:
                     yield
                 finally:
                     fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            else:
+                excl_path = lock_path.with_name(lock_path.name + ".excl")
+                deadline = time.monotonic() + self._excl_lock_timeout()
+                while True:
+                    try:
+                        fd = os.open(excl_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+                    except FileExistsError:
+                        if time.monotonic() >= deadline:
+                            raise TimeoutError(f"Timed out acquiring event stream lock {excl_path}")
+                        time.sleep(0.05)
+                        continue
+                    os.write(fd, str(os.getpid()).encode("ascii"))
+                    os.close(fd)
+                    break
+                try:
+                    yield
+                finally:
+                    try:
+                        os.unlink(excl_path)
+                    except FileNotFoundError:
+                        pass
 
     def append(self, event: str, *, tree_id: str, node_id: str | None = None, parent_node_id: str | None = None, purpose: str = "", message: str = "", **details: Any) -> dict[str, Any]:
         payload = {
