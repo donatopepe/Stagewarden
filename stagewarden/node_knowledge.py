@@ -41,7 +41,7 @@ class NodeKnowledgeStore:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(str(path))
+        self.connection = sqlite3.connect(str(path), check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.connection.executescript(
             """

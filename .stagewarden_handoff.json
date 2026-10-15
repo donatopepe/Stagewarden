@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Codemode rejects oversized or invalid UTF-8 append payloads before context mutation; revision unchanged. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (319.62s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Codemode append handles bool available_input without treating True as 1-byte budget; uses 12000-byte fallback and rejects oversized writes. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.88s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

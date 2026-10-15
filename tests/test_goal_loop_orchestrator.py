@@ -224,6 +224,28 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertNotIn("private root fact", other.compacted_context)
             self.assertFalse(orchestrator.codemode_context(root.node_id, "eval", text="__import__('os').system('true')")["ok"])
 
+    def test_node_context_expected_revision_serializes_concurrent_appends(self) -> None:
+        import threading
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "CAS test", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            barrier = threading.Barrier(3)
+            results = []
+            def append(text: str) -> None:
+                barrier.wait()
+                results.append(orchestrator.codemode_context(node.node_id, "append", text=text, expected_revision=0))
+            workers = [threading.Thread(target=append, args=(f"note-{idx}",)) for idx in range(2)]
+            for worker in workers:
+                worker.start()
+            barrier.wait()
+            for worker in workers:
+                worker.join(timeout=5)
+            self.assertTrue(all(not worker.is_alive() for worker in workers))
+            self.assertEqual(sum(result["ok"] for result in results), 1)
+            self.assertEqual(sum(result.get("error") == "context revision conflict" for result in results), 1)
+            self.assertEqual(node.context_revision, 1)
+
     def test_node_context_restores_from_persisted_revision_after_restart(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root_path = Path(tmp)

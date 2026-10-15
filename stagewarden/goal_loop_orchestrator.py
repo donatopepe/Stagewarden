@@ -128,6 +128,7 @@ class NodeState:
         "max_tool_calls": 40,
         "max_mutations": 20,
     })
+    _context_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -716,6 +717,14 @@ Do NOT include any text before or after the JSON object.'''
             return {"ok": False, "error": f"unknown node: {node_id}"}
         if not isinstance(operation, str) or operation not in {"read", "append"}:
             return {"ok": False, "error": "operation must be read or append with non-empty text"}
+        with node._context_lock:
+            return self._codemode_context_locked(node, operation, text=text, expected_revision=expected_revision)
+
+    def _codemode_context_locked(
+        self, node: NodeState, operation: str, *, text: str,
+        expected_revision: int | None,
+    ) -> dict[str, Any]:
+        node_id = node.node_id
         if expected_revision is not None:
             if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
                 return {"ok": False, "error": "expected_revision must be a non-negative integer"}
