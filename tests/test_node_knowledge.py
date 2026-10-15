@@ -8,6 +8,16 @@ from stagewarden.node_knowledge import NodeKnowledgeStore
 
 
 class NodeKnowledgeStoreTests(unittest.TestCase):
+    def test_file_read_begin_rejects_bool_or_malformed_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:
+            base = dict(tree_id="tree", node_id="node", path="file.txt", purpose="read", total_chars=0, content_hash="hash")
+            for field, value in (("chunk_size", True), ("chunk_size", 0), ("total_chars", True), ("total_chars", -1)):
+                kwargs = {**base, "chunk_size": 16, field: value}
+                with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                    store.begin_file_read(**kwargs)
+            accepted = store.begin_file_read(**{**base, "chunk_size": 16, "node_id": ""})
+            self.assertEqual(accepted["node_id"], "")
+
     def test_retrieval_scope_matrix_keeps_node_context_isolated(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with NodeKnowledgeStore(Path(tmp) / "knowledge.sqlite") as store:

@@ -309,6 +309,14 @@ class NodeKnowledgeStore:
         session_id: str | None = None,
     ) -> dict[str, Any]:
         identifier = session_id or f"file-read-{self._hash(f'{tree_id}:{node_id}:{path}:{content_hash}')[-16:]}"
+        if not all(isinstance(value, str) for value in (tree_id, node_id, path, purpose, content_hash, identifier)):
+            raise ValueError("File read identity fields must be strings.")
+        if not tree_id or not path or not content_hash or not identifier:
+            raise ValueError("File read identity fields must be non-empty.")
+        if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size <= 0:
+            raise ValueError("File read chunk size must be a positive integer.")
+        if isinstance(total_chars, bool) or not isinstance(total_chars, int) or total_chars < 0:
+            raise ValueError("File read total_chars must be a non-negative integer.")
         with self._lock:
             existing = self.connection.execute(
                 "SELECT tree_id, node_id, path, purpose, chunk_size, total_chars, content_hash FROM file_reads WHERE session_id = ?",

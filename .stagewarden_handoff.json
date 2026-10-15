@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "NodeKnowledgeStore serializes capsule reads/writes and knowledge search using RLock for cross-thread SQLite safety. Focused knowledge+goal-loop 104 passed/57 subtests; full suite 799 passed, 5 skipped, 352 subtests (333.30s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "NodeKnowledgeStore serializes file-read session/checkpoint operations under RLock; chunk offset validation and commit atomic cross-thread. Focused knowledge+file-read 49 passed/31 subtests; full suite 799 passed, 5 skipped, 352 subtests (329.33s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

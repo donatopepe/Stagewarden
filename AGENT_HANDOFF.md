@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- NodeKnowledgeStore file-read session begin/status/chunk checkpoint/complete/content/count methods now all execute under shared RLock; checkpoint validation and offset update atomic against competing threads. Focused knowledge+file-read 49 passed/31 subtests; full suite 799 passed, 5 skipped, 352 subtests (329.33s).
 - NodeKnowledgeStore now serializes capsule read/write and general knowledge search with its RLock, extending cross-thread SQLite safety beyond context methods. Focused knowledge+goal-loop 104 passed/57 subtests; full suite 799 passed, 5 skipped, 352 subtests (333.30s).
 - Primary EventStream failure now returns without propagating into lifecycle executor after best-effort ProjectHandoff failure record; avoids crashing serial loop while explicitly not claiming primary event persisted. Test updated to require best-effort handoff and no exception. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (335.32s).
 - Primary EventStream failure is now additionally recorded through best-effort ProjectHandoff when event append fails; original exception still propagates, no false event success. Regression checks handoff failure phase. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (347.96s).
