@@ -4,6 +4,7 @@ import ast
 import hashlib
 import json
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -40,6 +41,7 @@ class NodeKnowledgeStore:
 
     def __init__(self, path: Path) -> None:
         self.path = path
+        self._lock = threading.RLock()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(str(path), check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
@@ -240,12 +242,13 @@ class NodeKnowledgeStore:
         self, *, tree_id: str, node_id: str, node_uuid: str, revision: int,
     ) -> bool:
         entry_id = f"node-context-{node_uuid}-{revision}"
-        row = self.connection.execute(
-            "SELECT 1 FROM knowledge WHERE entry_id = ? AND namespace = 'context' "
-            "AND tree_id = ? AND node_id = ?",
-            (entry_id, tree_id, node_id),
-        ).fetchone()
-        return row is not None
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT 1 FROM knowledge WHERE entry_id = ? AND namespace = 'context' "
+                "AND tree_id = ? AND node_id = ?",
+                (entry_id, tree_id, node_id),
+            ).fetchone()
+            return row is not None
 
     def record_context(
         self,
@@ -266,17 +269,18 @@ class NodeKnowledgeStore:
         source = {"type": "runtime", "node_id": node_id, "purpose": purpose}
         if node_uuid is not None:
             source["node_uuid"] = node_uuid
-        self.connection.execute(
-            """
-            INSERT OR REPLACE INTO knowledge
-            (entry_id, namespace, tree_id, node_id, parent_node_id, kind, purpose, status,
-             title, content, source_json, content_hash)
-            VALUES (?, 'context', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (identifier, tree_id, node_id, parent_node_id, kind, purpose, status, title, clean, json.dumps(source), self._hash(clean)),
-        )
-        self.connection.commit()
-        return identifier
+        with self._lock:
+            self.connection.execute(
+                """
+                INSERT OR REPLACE INTO knowledge
+                (entry_id, namespace, tree_id, node_id, parent_node_id, kind, purpose, status,
+                 title, content, source_json, content_hash)
+                VALUES (?, 'context', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (identifier, tree_id, node_id, parent_node_id, kind, purpose, status, title, clean, json.dumps(source), self._hash(clean)),
+            )
+            self.connection.commit()
+            return identifier
 
     def begin_file_read(
         self,

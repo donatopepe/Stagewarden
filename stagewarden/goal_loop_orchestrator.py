@@ -718,6 +718,11 @@ Do NOT include any text before or after the JSON object.'''
         if not isinstance(operation, str) or operation not in {"read", "append"}:
             return {"ok": False, "error": "operation must be read or append with non-empty text"}
         with node._context_lock:
+            if operation == "read":
+                try:
+                    return self._codemode_context_locked(node, operation, text=text, expected_revision=expected_revision)
+                except Exception as exc:
+                    return {"ok": False, "error": f"context read failed: {exc.__class__.__name__}"}
             previous_context = node.compacted_context
             previous_revision = node.context_revision
             try:
