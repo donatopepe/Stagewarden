@@ -348,6 +348,14 @@ class NodeKnowledgeStore:
     def checkpoint_file_chunk(self, session_id: str, *, start: int, content: str, content_hash: str) -> dict[str, Any]:
         if isinstance(start, bool) or not isinstance(start, int):
             raise ValueError("File checkpoint start offset must be an integer.")
+        if not isinstance(session_id, str) or not session_id:
+            raise ValueError("File checkpoint session ID must be a non-empty string.")
+        if not isinstance(content, str) or not isinstance(content_hash, str) or not content_hash:
+            raise ValueError("File checkpoint content and hash must be strings; hash must be non-empty.")
+        try:
+            content.encode("utf-8", errors="strict")
+        except UnicodeEncodeError as exc:
+            raise ValueError("File checkpoint content must contain valid Unicode.") from exc
         with self._lock:
             state = self.file_read_status(session_id)
             if state["status"] != "active":
@@ -370,6 +378,10 @@ class NodeKnowledgeStore:
             return self.file_read_status(session_id)
 
     def complete_file_read(self, session_id: str, *, content_hash: str) -> dict[str, Any]:
+        if not isinstance(session_id, str) or not session_id:
+            raise ValueError("File read session ID must be a non-empty string.")
+        if not isinstance(content_hash, str) or not content_hash:
+            raise ValueError("File read content hash must be a non-empty string.")
         with self._lock:
             state = self.file_read_status(session_id)
             if state["status"] != "active":

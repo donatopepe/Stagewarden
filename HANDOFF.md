@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- File-read session creation validates strict integer chunk/total limits (bool rejected); preserves empty executor node ID compatibility. Focused 50 passed/35 subtests; full suite 800 passed, 5 skipped, 356 subtests (326.15s).
 - NodeKnowledgeStore file-read session/checkpoint APIs serialized under RLock, making offset validation+commit atomic cross-thread; focused 49 passed/31 subtests; full suite 799 passed, 5 skipped, 352 subtests (329.33s).
 - NodeKnowledgeStore serializes capsule operations and knowledge search with RLock for cross-thread SQLite safety. Focused 104 passed/57 subtests; full suite 799 passed, 5 skipped, 352 subtests (333.30s).
 - EventStream primary lifecycle write failure now best-effort handoff-records error and returns without crashing executor; does not claim primary audit success. Goal-loop 84 passed/36 subtests; full suite 799 passed, 5 skipped, 352 subtests (335.32s).

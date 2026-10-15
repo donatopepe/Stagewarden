@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "NodeKnowledgeStore serializes file-read session/checkpoint operations under RLock; chunk offset validation and commit atomic cross-thread. Focused knowledge+file-read 49 passed/31 subtests; full suite 799 passed, 5 skipped, 352 subtests (329.33s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "File-read session creation strictly validates integer chunk/total limits and rejects bool values; empty node ID remains compatible. Focused knowledge/file-read 50 passed/35 subtests; full suite 800 passed, 5 skipped, 356 subtests (326.15s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

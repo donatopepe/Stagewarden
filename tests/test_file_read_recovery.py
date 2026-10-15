@@ -56,6 +56,14 @@ class FileReadRecoveryTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         store.checkpoint_file_chunk(session["session_id"], start=raw_start, content="a", content_hash=digest)  # type: ignore[arg-type]
                     self.assertEqual(store.file_read_status(session["session_id"])["next_offset"], 0)
+                for raw_content in (None, object(), "\\ud800"):
+                    with self.subTest(content=repr(raw_content)), self.assertRaises(ValueError):
+                        store.checkpoint_file_chunk(session["session_id"], start=0, content=raw_content, content_hash=digest)  # type: ignore[arg-type]
+                    self.assertEqual(store.file_read_status(session["session_id"])["next_offset"], 0)
+                for raw_hash in (None, ""):
+                    with self.subTest(content_hash=raw_hash), self.assertRaises(ValueError):
+                        store.checkpoint_file_chunk(session["session_id"], start=0, content="a", content_hash=raw_hash)  # type: ignore[arg-type]
+                    self.assertEqual(store.file_read_status(session["session_id"])["next_offset"], 0)
 
     def test_file_read_checkpoint_rejects_oversized_chunk_and_total_overrun(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
