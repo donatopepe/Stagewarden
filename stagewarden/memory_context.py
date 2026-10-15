@@ -203,6 +203,9 @@ def load_memory_context(
                         end //= 2
                     if not fitted:
                         issues.append(_issue("error", "no truncated memory candidate fits token budget"))
+                        content = ""
+                        final_token_count = 0
+                        return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
             try:
                 final_token_count = token_counter(content)
                 if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
