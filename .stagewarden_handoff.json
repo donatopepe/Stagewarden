@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "EventStream verification halts at first sequence, previous-hash, or event-digest discontinuity; only valid prefix counts and malicious suffix is not examined. Digest tamper regression and full suite pass: 777 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "EventStream verification halts at first sequence, previous-hash, or event-digest discontinuity; append strips caller-forged reserved chain metadata before canonicalizing. Regression and full suite pass: 778 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

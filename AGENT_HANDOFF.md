@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Closed metadata spoofing path: `append(..., **details)` now strips caller-supplied `event_sequence`, `previous_event_hash`, `event_hash` before writing authoritative chain fields. Regression for forged metadata then valid second append. EventStream 28 passed/7 subtests; full suite 778 passed, 5 skipped, 339 subtests (319.51s).
 - Hash-chain hardening completo: sequence, previous-hash e content-digest mismatch interrompono verify al primo errore. Aggiunto digest tampering + malicious tail test. EventStream 27 passed/7 subtests; full suite 777 passed, 5 skipped, 339 subtests (319.13s).
 - Integrity chain fail-closed completato: previous-hash mismatch e record hash con digest errato ora terminano scansione al primo failure, oltre a sequence gap. Aggiunto test mismatch+tail maligno; EventStream 26 passed/7 subtests; full suite 776 passed, 5 skipped, 339 subtests (319.91s).
 - Chain verifier fail-closed completato: sequence discontinuity ora interrompe scansione al primo record fuori sequenza (prima registrava errore ma esaminava suffix). Regression muta seq=99 e tail seq=100, attesta `events_verified=1` e solo primo errore. EventStream 25 passed/7 subtests; full suite 775 passed, 5 skipped, 339 subtests (319.52s).

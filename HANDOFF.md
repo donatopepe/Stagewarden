@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Prevented callers forging EventStream chain metadata through `append(**details)` by dropping reserved keys and writing canonical sequence/parent/digest. Focused 28 passed/7 subtests; full suite 778 passed, 5 skipped, 339 subtests (319.51s).
 - Added regression proving verifier stops at first event-digest mismatch and does not inspect hostile suffix. Integrity now halts on sequence/previous-hash/digest breaks. EventStream 27 passed/7 subtests; full suite 777 passed, 5 skipped, 339 subtests (319.13s).
 - Hash-chain verifier halts at first previous-hash mismatch or event-digest mismatch, not scanning later suffix; regression verifies valid-prefix count with malicious tail. Focused 26 passed/7 subtests; full suite 776 passed, 5 skipped, 339 subtests (319.91s).
 - Integrity verifier now halts on first sequence discontinuity; regression injects sequence 99 then corrupted tail seq 100 and verifies only valid prefix is counted. Focused 25 passed/7 subtests; full suite 775 passed, 5 skipped, 339 subtests (319.52s).
