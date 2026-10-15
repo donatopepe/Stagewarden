@@ -150,6 +150,14 @@ class AgentConfig:
     def settings_path(self) -> Path:
         return (self.workspace_root / self.settings_filename).resolve()
 
+    def memory_context_with_budget(self, max_tokens: int, token_counter, *, counter_name: str):
+        from .memory_context import load_memory_context
+        return load_memory_context(
+            self.workspace_root, self.settings_path,
+            max_tokens=max_tokens, token_counter=token_counter,
+            token_counter_name=counter_name,
+        )
+
     @property
     def memory_context(self):
         from .memory_context import load_memory_context

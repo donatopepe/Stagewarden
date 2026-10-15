@@ -1349,6 +1349,10 @@ class Executor:
         except OSError:
             return
 
+    def _estimate_memory_tokens(self, text: str) -> int:
+        """Use the executor's existing conservative char/token estimate, not provider exactness."""
+        return (len(text) + int(self._context_chars_per_token) - 1) // int(self._context_chars_per_token)
+
     def _context_budget(
         self,
         model: str,
@@ -1531,7 +1535,16 @@ class Executor:
             for item in plan
         )
         memory_summary = _executor_prompting.bounded_context(self.memory.summarize(), 2000, label="memory_summary")
-        external_memory = self.config.memory_context
+        available_memory_tokens = (provider_limits or {}).get("available_input")
+        if isinstance(available_memory_tokens, int) and not isinstance(available_memory_tokens, bool):
+            memory_budget = max(0, min(available_memory_tokens, 4000))
+            memory_counter = self._estimate_memory_tokens
+            external_memory = self.config.memory_context_with_budget(
+                memory_budget, memory_counter,
+                counter_name=f"executor_char_ratio_{self._context_chars_per_token:g}_not_provider_tokenizer",
+            )
+        else:
+            external_memory = self.config.memory_context
         execution_log = _executor_prompting.bounded_context(self.memory.detailed_summary(), 4000, label="execution_log")
         handoff_log = _executor_prompting.bounded_context(self.project_handoff.detailed_summary(), 4000, label="handoff_log")
         active_role = self._role_for_step(task=task, step=step)

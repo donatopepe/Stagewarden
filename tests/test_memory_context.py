@@ -52,9 +52,14 @@ class MemoryContextTests(unittest.TestCase):
             path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
             missing_counter = load_memory_context(root, path, max_tokens=20)
             self.assertFalse(missing_counter.ok)
-            compacted = load_memory_context(root, path, max_tokens=20, token_counter=lambda text: (len(text) + 3) // 4)
+            counter = lambda text: (len(text) + 3) // 4
+            compacted = load_memory_context(root, path, max_tokens=20, token_counter=counter, token_counter_name="test_char_estimator")
             self.assertTrue(compacted.ok)
             self.assertLessEqual((len(compacted.content) + 3) // 4, 20)
+            self.assertEqual(compacted.token_count, counter(compacted.content))
+            self.assertEqual(compacted.token_limit, 20)
+            self.assertEqual(compacted.token_counter_name, "test_char_estimator")
+            self.assertEqual(compacted.report()["content_tokens"], compacted.token_count)
             self.assertIn("truncated by memory token budget", compacted.content)
 
     def test_missing_optional_file_is_warning(self) -> None:
@@ -77,6 +82,30 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path)
             self.assertFalse(context.ok)
             self.assertEqual(sum(issue.level == "error" for issue in context.issues), 2)
+
+    def test_prompt_memory_uses_available_input_budget_and_reports_estimator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("critical memory phrase " * 200, encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            step = PlanStep(id="step", title="Read context", instruction="inspect", validation="context")
+            packet = executor._build_model_communication_packet(
+                task="inspect", step=step, plan=[step], last_observation="none",
+                provider_limits={"available_input": 80},
+            )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertIn("critical memory phrase", section.body)
+            self.assertIn("truncated by memory token budget", section.body)
+            context = executor.config.memory_context_with_budget(
+                80, executor._estimate_memory_tokens,
+                counter_name="executor_configured_estimator_not_provider_tokenizer",
+            )
+            self.assertLessEqual(context.token_count, 80)
+            self.assertIn("not_provider_tokenizer", context.token_counter_name)
+            executor.close()
 
     def test_prompt_includes_configured_context_without_writing_external_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

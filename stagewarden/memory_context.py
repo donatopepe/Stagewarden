@@ -28,6 +28,9 @@ class MemoryContext:
     files: tuple[str, ...]
     issues: tuple[MemoryContextIssue, ...]
     max_chars: int
+    token_limit: int | None = None
+    token_counter_name: str | None = None
+    token_count: int | None = None
 
     @property
     def ok(self) -> bool:
@@ -45,6 +48,9 @@ class MemoryContext:
             ],
             "max_chars": self.max_chars,
             "content_chars": len(self.content),
+            "token_limit": self.token_limit,
+            "token_counter": self.token_counter_name,
+            "content_tokens": self.token_count,
         }
 
 
@@ -83,6 +89,7 @@ def load_memory_context(
     *,
     max_tokens: int | None = None,
     token_counter: Callable[[str], int] | None = None,
+    token_counter_name: str | None = None,
 ) -> MemoryContext:
     issues: list[MemoryContextIssue] = []
     try:
@@ -150,21 +157,22 @@ def load_memory_context(
                 chunks.append(f"## {target.name}\n{text}")
                 loaded.append(str(target))
     content = "\n\n".join(chunks)
+    final_token_count: int | None = None
     if len(content) > max_chars:
         content = content[:max_chars].rstrip() + "\n[truncated by memory.max_chars]"
     if max_tokens is not None:
         if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens < 0:
             issues.append(_issue("error", "max_tokens must be a non-negative integer"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name)
         if token_counter is None:
             issues.append(_issue("error", "token_counter is required when max_tokens is set"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name)
         try:
             token_count = token_counter(content)
             if isinstance(token_count, bool) or not isinstance(token_count, int) or token_count < 0:
                 raise ValueError("token counter returned invalid count")
             if token_count > max_tokens:
-                suffix = "\\n[truncated by memory token budget]"
+                suffix = "\n[truncated by memory token budget]"
                 low, high = 0, len(content)
                 while low < high:
                     middle = (low + high + 1) // 2
@@ -175,10 +183,15 @@ def load_memory_context(
                         high = middle - 1
                 candidate = content[:low].rstrip() + suffix
                 content = candidate if token_counter(candidate) <= max_tokens else ""
+            final_token_count = token_counter(content)
+            if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
+                raise ValueError("token counter returned invalid count")
+            if final_token_count > max_tokens:
+                raise ValueError("compacted memory exceeds token budget")
         except Exception as exc:
             issues.append(_issue("error", f"token counting failed: {exc}"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
-    return MemoryContext(True, content, tuple(loaded), tuple(issues), max_chars)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name)
+    return MemoryContext(True, content, tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)
 
 
 def render_memory_context(context: MemoryContext) -> str:
