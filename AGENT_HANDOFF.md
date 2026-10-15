@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Replay collision fix now retains both active operations when operation ID is reused across nodes, rather than dropping earlier node's entry; qualified keys unique under repeated collisions. Added two-node retention regression. EventStream 37 passed/12 subtests; full suite 787 passed, 5 skipped, 344 subtests (317.89s).
 - Replay now preserves same operation ID active on multiple nodes by keying colliding in-flight records with node-qualified replay keys; completion matches operation ID + node ID. Collision regression now passes, focused 36 passed/12 subtests; full suite 786 passed, 5 skipped, 344 subtests (317.08s).
 - Replay tool completion is node-scoped: `tool_result`/`tool_recovery` clears only matching node ID; regression covers duplicate operation IDs across nodes. EventStream 36 passed/12 subtests; full suite 786 passed, 5 skipped, 344 subtests (317.09s); compileall, JSON, diff checks pass.
 - Terminal replay cleanup now recognizes both cancelled/canceled status spellings and explicit node terminal event variants; regression iterates terminal event names. EventStream 35 passed/12 subtests; full suite 785 passed, 5 skipped, 344 subtests (316.74s); compileall/diff-check pass.

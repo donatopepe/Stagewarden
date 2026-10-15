@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Replay retains active operations with identical IDs on different nodes using qualified replay keys; completion matches both ID and node. EventStream 36 passed/12 subtests; full suite 786 passed, 5 skipped, 344 subtests (317.08s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Replay retains all active operations when IDs collide across nodes via unique qualified keys; completion matches operation ID and node. EventStream 37 passed/12 subtests; full suite 787 passed, 5 skipped, 344 subtests (317.89s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

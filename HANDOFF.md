@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Replay now retains all active operations for reused IDs across nodes with unique node-qualified keys; regression covers both starts. EventStream 37 passed/12 subtests; full suite 787 passed, 5 skipped, 344 subtests (317.89s).
 - Replay preserves colliding operation IDs across nodes using qualified keys and node-scoped completion; focused 36 passed/12 subtests; full suite 786 passed, 5 skipped, 344 subtests (317.08s).
 - Replay completion/recovery clears in-flight records only for matching node ID; duplicate operation ID on another node stays active. EventStream 36 passed/12 subtests; full suite 786 passed, 5 skipped, 344 subtests (317.09s); compileall/JSON/diff checks pass.
 - Replay recognizes cancelled/canceled state and node terminal event variants; EventStream 35 passed/12 subtests; full suite 785 passed, 5 skipped, 344 subtests (316.74s); compileall/diff-check pass.

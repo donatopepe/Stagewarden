@@ -416,6 +416,18 @@ class EventStreamTests(unittest.TestCase):
             active = stream.replay()["in_flight_tools"]
             self.assertEqual({item["node_id"] for item in active.values()}, {"node-a", "node-b"})
 
+    def test_replay_checkpoint_updates_matching_duplicate_operation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("tool_started", tree_id="tree", node_id="node-a", operation_id="shared", message="old")
+            stream.append("tool_started", tree_id="tree", node_id="node-b", operation_id="shared", message="other")
+            stream.append("tool_checkpoint", tree_id="tree", node_id="node-a", operation_id="shared", message="checkpoint")
+            active = stream.replay()["in_flight_tools"]
+            node_a = next(item for item in active.values() if item["node_id"] == "node-a")
+            node_b = next(item for item in active.values() if item["node_id"] == "node-b")
+            self.assertEqual(node_a["message"], "checkpoint")
+            self.assertEqual(node_b["message"], "other")
+
     def test_replay_does_not_clear_other_nodes_operation_with_same_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")
