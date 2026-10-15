@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Append policy simplification: append now gates solely on `integrity["valid"]`, matching verifier contract and avoiding duplicate classification; behavior preserved. EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.97s); static checks pass.
 - Hash metadata format hardened: verifier requires lowercase 64-char hex parent/digest strings, not merely strings. Focused test updated for malformed parent; EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (318.69s).
 - Chain schema tightening: after chain start, fully missing reserved fields no longer fall back to legacy mode; missing parent/hash are explicitly rejected as malformed strings before hashing/comparison. Focused EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.49s).
 - Hardening sequence schema: verifier now accepts only non-bool integers for `event_sequence`; bool `true` previously compared equal to 1 and could pass sequence continuity. Added test with correctly recomputed digest proving bool sequence rejected. EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (319.03s).

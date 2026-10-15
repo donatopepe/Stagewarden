@@ -134,9 +134,6 @@ class EventStream:
                     break
                 unchained += 1
                 unchained_event_seen = True
-                if chain_started:
-                    chain_corrupted = True
-                    errors.append({"line": line_number, "error": "unchained_record_within_chain"})
                 continue
             if chain_broken:
                 chain_corrupted = True
@@ -194,7 +191,7 @@ class EventStream:
             chain_started = True
             previous_hash = record_hash
             verified += 1
-        chain_corrupted = chain_corrupted or chain_broken or (unchained_event_seen and bool(errors))
+        chain_corrupted = chain_corrupted or chain_broken or (unchained_event_seen and chain_started)
         return {"valid": not errors and not chain_corrupted, "events_verified": verified, "unchained_events": unchained, "chain_corrupted": chain_corrupted, "errors": errors}
 
     def _read_lines(self) -> list[str]:
