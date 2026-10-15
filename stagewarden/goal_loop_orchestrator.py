@@ -684,14 +684,15 @@ Do NOT include any text before or after the JSON object.'''
         if was_compacted:
             prior = node.compacted_context
             combined = self._compact_node_text(combined, max(32, cap))
-        node.context_revision += 1
-        node.compacted_context = combined
+        next_revision = node.context_revision + 1
         self.knowledge.record_context(
             tree_id="goal-loop", node_id=node.node_id, parent_node_id=node.parent_node_id,
             purpose=node.purpose, status=node.status, content=combined,
             title=f"Node context revision {node.context_revision}", kind="node_context",
-            entry_id=f"node-context-{node.node_uuid}-{node.context_revision}", node_uuid=node.node_uuid,
+            entry_id=f"node-context-{node.node_uuid}-{next_revision}", node_uuid=node.node_uuid,
         )
+        node.context_revision = next_revision
+        node.compacted_context = combined
         if was_compacted:
             self.events.append(
                 "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,

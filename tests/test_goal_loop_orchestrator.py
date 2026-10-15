@@ -272,6 +272,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(node.context_revision, 0)
             self.assertEqual(node.compacted_context, "")
             self.assertEqual(orchestrator.events.read(event="node_context_compacted"), [])
+            self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
     def test_node_context_append_persistence_error_is_reported(self) -> None:

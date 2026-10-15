@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Codemode preserves memory alignment if append commits but subsequent audit fails; reports durable context + audit error without false rollback. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (320.25s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Node context byte caps now honor zero exactly for append and compaction; zero-budget nonempty append rejects. Goal-loop 80 passed/36 subtests; full suite 794 passed, 5 skipped, 350 subtests (321.56s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
