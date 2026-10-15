@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- File-read checkpoints now reject non-string/empty session IDs and hashes, non-string content, and invalid UTF-8 surrogate content before SQLite mutation; completion validates required IDs/hash. Regression matrix covers malformed payloads; focused file-read/knowledge tests 57 passed/40 subtests; full suite 800 passed, 5 skipped, 361 subtests (333.03s).
 - `begin_file_read` now rejects bool/non-integer/nonpositive chunk_size and bool/non-integer/negative total_chars before SQLite mutation, avoiding Python bool-as-int budget loophole. Empty node_id remains permitted for executor compatibility. Focused knowledge/file-read 50 passed/35 subtests; full suite 800 passed, 5 skipped, 356 subtests (326.15s).
 - NodeKnowledgeStore file-read session begin/status/chunk checkpoint/complete/content/count methods now all execute under shared RLock; checkpoint validation and offset update atomic against competing threads. Focused knowledge+file-read 49 passed/31 subtests; full suite 799 passed, 5 skipped, 352 subtests (329.33s).
 - NodeKnowledgeStore now serializes capsule read/write and general knowledge search with its RLock, extending cross-thread SQLite safety beyond context methods. Focused knowledge+goal-loop 104 passed/57 subtests; full suite 799 passed, 5 skipped, 352 subtests (333.30s).
