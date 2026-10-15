@@ -746,6 +746,23 @@ Do NOT include any text before or after the JSON object.'''
             try:
                 result = self._codemode_context_locked(node, operation, text=text, expected_revision=expected_revision)
             except Exception as exc:
+                persisted_revision = previous_revision + 1
+                try:
+                    persisted = self.knowledge.has_context_revision(
+                        tree_id="goal-loop", node_id=node.node_id,
+                        node_uuid=node.node_uuid, revision=persisted_revision,
+                    )
+                except Exception:
+                    persisted = False
+                if persisted:
+                    # Durable state takes precedence over a later audit/log failure;
+                    # keep memory aligned with SQLite rather than advertise rollback.
+                    return {
+                        "ok": False,
+                        "error": f"context persisted but audit failed: {exc.__class__.__name__}",
+                        "node_id": node.node_id, "node_uuid": node.node_uuid,
+                        "revision": persisted_revision,
+                    }
                 node.compacted_context = previous_context
                 node.context_revision = previous_revision
                 return {"ok": False, "error": f"context persistence failed: {exc.__class__.__name__}"}

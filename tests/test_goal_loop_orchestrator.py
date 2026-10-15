@@ -230,6 +230,26 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertNotIn("private root fact", other.compacted_context)
             self.assertFalse(orchestrator.codemode_context(root.node_id, "eval", text="__import__('os').system('true')")["ok"])
 
+    def test_node_context_audit_failure_after_commit_keeps_memory_aligned(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "audit failure", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            original_append = orchestrator.events.append
+            def fail_updated_event(event, **kwargs):
+                if event == "node_context_updated":
+                    raise OSError("audit disk failure")
+                return original_append(event, **kwargs)
+            orchestrator.events.append = fail_updated_event
+            result = orchestrator.codemode_context(node.node_id, "append", text="durable note", expected_revision=0)
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error"], "context persisted but audit failed: OSError")
+            self.assertEqual(node.context_revision, 1)
+            self.assertIn("durable note", node.compacted_context)
+            self.assertTrue(orchestrator.knowledge.has_context_revision(
+                tree_id="goal-loop", node_id=node.node_id, node_uuid=node.node_uuid, revision=1,
+            ))
+
     def test_node_context_compaction_event_emitted_only_after_persist(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "compact persistence", execution_mode="mock", json_mode=True)

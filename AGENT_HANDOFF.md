@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Context compaction audit event now emitted only after SQLite revision persistence succeeds; failed append rolls back memory and emits no misleading `node_context_compacted`. Regression with tiny budget + simulated OSError. Goal-loop 79 passed/36 subtests; full suite 793 passed, 5 skipped, 350 subtests (317.40s).
 - `_append_node_context` now excludes bool from numeric budget handling too, using 12000-byte default rather than `True == 1`; regression exercises compaction path at True budget. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (317.54s).
 - Codemode read no longer routes through persistence-verification wrapper; serves atomic in-memory snapshot under node lock and reports only read failures, avoiding false failure if SQLite unavailable. Goal-loop 78 passed/36 subtests; full suite 792 passed, 5 skipped, 350 subtests (317.45s).
 - NodeKnowledgeStore now serializes context revision verification and writes via RLock, avoiding concurrent SQLite connection use despite `check_same_thread=False`; codemode catches read errors separately and does not rollback context on read failure. Full suite 792 passed, 5 skipped, 350 subtests (316.94s); goal-loop 78 passed/36 subtests.
