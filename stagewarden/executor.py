@@ -1553,13 +1553,34 @@ class Executor:
                     candidate_body, candidate.max_chars, label="hermes_obsidian_memory",
                 )
                 used = memory_counter(candidate_body)
+                if isinstance(used, bool) or not isinstance(used, int) or used < 0:
+                    candidate = self.config.memory_context_with_budget(
+                        0, memory_counter, counter_name=counter_name,
+                    )
+                    from dataclasses import replace
+                    from .memory_context import MemoryContextIssue
+                    candidate = replace(candidate, issues=candidate.issues + (MemoryContextIssue("error", "memory section counter returned invalid value"),))
+                    external_memory = candidate
+                    break
                 if used <= available_memory_tokens:
                     external_memory = candidate
                     break
-                memory_budget = max(0, memory_budget - (used - available_memory_tokens))
+                if memory_budget == 0:
+                    from dataclasses import replace
+                    from .memory_context import MemoryContextIssue
+                    candidate = replace(candidate, issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),))
+                    external_memory = candidate
+                    break
+                memory_budget = max(0, memory_budget - max(1, used - available_memory_tokens))
             else:
+                from dataclasses import replace
+                from .memory_context import MemoryContextIssue
                 external_memory = self.config.memory_context_with_budget(
                     0, memory_counter, counter_name=counter_name,
+                )
+                external_memory = replace(
+                    external_memory,
+                    issues=external_memory.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
                 )
         else:
             external_memory = self.config.memory_context

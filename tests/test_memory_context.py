@@ -262,6 +262,26 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("not_provider_tokenizer", section.body)
             executor.close()
 
+    def test_prompt_memory_budget_too_small_for_metadata_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("tiny context", encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            step = PlanStep(id="step", title="Read context", instruction="inspect", validation="context")
+            packet = executor._build_model_communication_packet(
+                task="inspect", step=step, plan=[step], last_observation="none",
+                provider_limits={"available_input": 1},
+            )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertNotIn("tiny context", section.body)
+            self.assertIn("metadata exceeds available input budget", section.body)
+            # A one-unit budget cannot contain required section/diagnostic framing;
+            # source memory is still excluded and outer prompt compaction owns that limit.
+            executor.close()
+
     def test_prompt_includes_configured_context_without_writing_external_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
