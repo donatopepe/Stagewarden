@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "PRINCE2 registers closed: Issue Log 3/3 and Risk Log 3/3 at node close (idempotent open on terminal failure, scoped closure on completion, project seeds untouched). Also closed: PRINCE2 end-stage evidence gate, deterministic lexical search, pluggable token counter, observed output-cap rejection, EventStream explicit migration, deliverables B/C and §5 6/6. Full suite 812 passed, 5 skipped, 364 subtests (332.65s). Native Windows locking and provider-exact tokenizer remain unverified.",
+  "waiting_reason": "Portable EventStream locking closed 1/3→3/3: flock/msvcrt selection, atomic O_EXCL fallback with bounded env-configurable spin failing closed on timeout, real Windows branch tested with fake msvcrt (release on exception). Also closed: PRINCE2 issue/risk logs, evidence-gated end-stage report, deterministic lexical search, pluggable token counter, observed output-cap rejection, EventStream explicit migration and §5 6/6. Full suite 814 passed, 5 skipped, 364 subtests (333.95s). Native Windows runtime and provider-exact tokenizer remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
