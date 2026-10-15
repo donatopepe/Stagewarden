@@ -160,6 +160,7 @@ class NodeState:
     })
     lessons_recorded: list[str] = field(default_factory=list)
     issues_recorded: list[str] = field(default_factory=list)
+    risks_recorded: list[str] = field(default_factory=list)
     _context_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def as_dict(self) -> dict[str, object]:
@@ -1605,6 +1606,36 @@ Do NOT include any text before or after the JSON object.'''
             sys.stderr.write(f"[goal-loop] lesson knowledge record failed for {node_state.node_id}: {exc}\n")
         node_state.lessons_recorded.append(status)
         self._record_node_issue(node_state)
+        self._record_node_risk(node_state)
+
+    def _record_node_risk(self, node_state: NodeState) -> None:
+        """PRINCE2 Risk Log: open one node-scoped risk per terminal failure, close on completion.
+
+        Risks are appended once per terminal failure status and closed when the node
+        later completes. Pre-seeded project risks are never touched unless they carry
+        this node's step_id, so the project register is preserved.
+        """
+        status = str(node_state.status)
+        register = list(getattr(self.handoff, "risk_register", []) or [])
+        if status in self._ISSUE_NODE_STATUSES and status not in node_state.risks_recorded:
+            reason = (node_state.error_message or node_state.output_summary or node_state.active_work or "").strip()
+            register.append({
+                "step_id": node_state.node_id,
+                "risk": reason or f"Node {node_state.node_id} {status} without recorded reason.",
+                "status": "open",
+                "recorded_at": utc_now(),
+            })
+            node_state.risks_recorded.append(status)
+        elif status == "completed":
+            for item in register:
+                if str(item.get("step_id", "")).strip() != node_state.node_id:
+                    continue
+                if str(item.get("status", "open")).strip().lower() == "closed":
+                    continue
+                item["status"] = "closed"
+                item["resolved_at"] = utc_now()
+                item["resolution"] = "Node completed within tolerance."
+        self.handoff.risk_register = register
 
     _ISSUE_NODE_STATUSES: frozenset[str] = frozenset({"failed", "blocked"})
 

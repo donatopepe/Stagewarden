@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Deterministic lexical search closed 3/4→4/4: field-weighted token scoring plus exact-phrase bonus, stable tie-break, empty-query behaviour preserved, no semantic claim. Also closed: pluggable token counter, observed output-cap rejection, EventStream explicit migration, deliverables B/C and §5 6/6. Full suite 810 passed, 5 skipped, 364 subtests (333.61s). Native Windows locking and provider-exact tokenizer remain unverified.",
+  "waiting_reason": "PRINCE2 Issue Log ritual closed 1/3→3/3: one issue per terminal failure status (critical/major, idempotent) and automatic closure on later completion. Also closed: deterministic lexical search, pluggable token counter, observed output-cap rejection, EventStream explicit migration, deliverables B/C and §5 6/6. Full suite 811 passed, 5 skipped, 364 subtests (333.58s). Native Windows locking and provider-exact tokenizer remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

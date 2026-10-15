@@ -402,6 +402,31 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertTrue(all(item["status"] == "closed" for item in issues))
             self.assertTrue(all(item.get("resolution") for item in issues))
 
+    def test_terminal_failure_opens_node_risk_and_completion_closes_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "risk ritual", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            orchestrator.handoff.risk_register.append({"risk": "projectseedrisk", "status": "open", "recorded_at": "seed"})
+            node = orchestrator.nodes["root.scope"]
+            node.status = "blocked"
+            node.error_message = "blockedriskpayload"
+            orchestrator._record_node_execution_to_handoff(node)
+            orchestrator._record_node_execution_to_handoff(node)
+            scoped = [item for item in orchestrator.handoff.risk_register if item.get("step_id") == node.node_id]
+            self.assertEqual(len(scoped), 1)
+            self.assertEqual(scoped[0]["status"], "open")
+            self.assertIn("blockedriskpayload", scoped[0]["risk"])
+            node.status = "failed"
+            node.error_message = "failedriskpayload"
+            orchestrator._record_node_execution_to_handoff(node)
+            scoped = [item for item in orchestrator.handoff.risk_register if item.get("step_id") == node.node_id]
+            self.assertEqual(len(scoped), 2)
+            node.status = "completed"
+            orchestrator._record_node_execution_to_handoff(node)
+            self.assertTrue(all(item["status"] == "closed" for item in scoped))
+            seeds = [item for item in orchestrator.handoff.risk_register if item.get("risk") == "projectseedrisk"]
+            self.assertEqual(seeds[0]["status"], "open")
+
     def test_node_event_primary_audit_failure_attempts_secondary_handoff_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "primary audit failure", execution_mode="mock", json_mode=True)
