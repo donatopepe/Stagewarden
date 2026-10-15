@@ -188,6 +188,15 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertFalse(orchestrator.codemode_context(root.node_id, "append", text="bad revision", expected_revision=True)["ok"])
             self.assertFalse(orchestrator.codemode_context(root.node_id, "append", text=None)["ok"])
             self.assertFalse(orchestrator.codemode_context(root.node_id, None)["ok"])
+            revision_before_oversize = root.context_revision
+            root.context_budget["available_input"] = 128
+            oversize = orchestrator.codemode_context(
+                root.node_id, "append", text="x" * 129, expected_revision=revision_before_oversize,
+            )
+            self.assertFalse(oversize["ok"])
+            self.assertEqual(oversize["error"], "context append exceeds node byte budget")
+            self.assertEqual(root.context_revision, revision_before_oversize)
+            root.context_budget["available_input"] = None
             self.assertIn("private root fact", orchestrator.codemode_context(root.node_id, "read")["context"])
             stale_read = orchestrator.codemode_context(root.node_id, "read", expected_revision=0)
             self.assertFalse(stale_read["ok"])
