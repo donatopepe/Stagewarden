@@ -1564,6 +1564,8 @@ class Executor:
                 candidate_body = _executor_prompting.bounded_context(
                     candidate_body, candidate.max_chars, label="hermes_obsidian_memory",
                 )
+                from dataclasses import replace
+                candidate = replace(candidate, content=candidate_body)
                 try:
                     used = memory_counter(candidate_body)
                 except Exception as exc:
@@ -1577,9 +1579,6 @@ class Executor:
                     )
                     break
                 if isinstance(used, bool) or not isinstance(used, int) or used < 0:
-                    candidate = self.config.memory_context_with_budget(
-                        0, memory_counter, counter_name=counter_name,
-                    )
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     candidate = replace(candidate, issues=candidate.issues + (MemoryContextIssue("error", "memory section counter returned invalid value"),))
@@ -1613,15 +1612,22 @@ class Executor:
                     )
                     break
                 memory_budget = next_budget
+                if memory_budget == 0:
+                    from dataclasses import replace
+                    from .memory_context import MemoryContextIssue
+                    external_memory = replace(
+                        candidate, content="", token_count=0,
+                        issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
+                    )
+                    break
             else:
                 from dataclasses import replace
                 from .memory_context import MemoryContextIssue
-                external_memory = self.config.memory_context_with_budget(
-                    0, memory_counter, counter_name=counter_name,
-                )
                 external_memory = replace(
-                    external_memory,
-                    issues=external_memory.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
+                    candidate,
+                    content="",
+                    token_count=0,
+                    issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
                 )
         else:
             try:
@@ -1635,7 +1641,7 @@ class Executor:
                 )
         self._external_memory_context = external_memory
         external_memory_body = _executor_prompting.render_external_memory_context(external_memory)
-        if external_memory.token_limit is not None:
+        if external_memory.token_limit is not None and "[accounting: " not in external_memory_body:
             external_memory_body += f"\n\n[accounting: {external_memory.token_counter_name}; tokens={external_memory.token_count}/{external_memory.token_limit}]"
         if len(external_memory_body) > external_memory.max_chars:
             suffix = "\n[truncated by memory.max_chars]" if external_memory.token_limit is None else "\n[truncated hermes_obsidian_memory]"

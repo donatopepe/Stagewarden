@@ -302,6 +302,34 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("not_provider_tokenizer", section.body)
             executor.close()
 
+    def test_budget_loop_does_not_reload_memory_on_error_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("private payload", encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            calls = 0
+            original = type(executor.config).memory_context_with_budget
+            def fail_second_load(config, max_tokens, token_counter, *, counter_name):
+                nonlocal calls
+                calls += 1
+                if calls > 1:
+                    raise AssertionError("memory loader repeated in budget error handling")
+                return original(config, max_tokens, token_counter, counter_name=counter_name)
+            with patch.object(type(executor.config), "memory_context_with_budget", new=fail_second_load):
+                step = PlanStep(id="step", title="Read", instruction="inspect", validation="v")
+                packet = executor._build_model_communication_packet(
+                    task="inspect", step=step, plan=[step], last_observation="none",
+                    provider_limits={"available_input": 1},
+                )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertLessEqual(calls, 1)
+            self.assertNotIn("private payload", section.body)
+            self.assertIn("metadata exceeds available input budget", section.body)
+            executor.close()
+
     def test_prompt_memory_loader_exception_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
