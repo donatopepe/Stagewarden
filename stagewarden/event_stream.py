@@ -119,6 +119,8 @@ class EventStream:
         if not self.path.exists():
             return {"valid": True, "events_verified": 0, "unchained_events": 0,
                     "chain_started": False, "verified_lines": 0, "errors": []}
+        signed_stream = False
+        pending_prefix_errors = False
         for line_number, line in enumerate(self._read_lines(), start=1):
             if not line.strip():
                 continue
@@ -126,21 +128,31 @@ class EventStream:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 errors.append({"line": line_number, "error": "invalid_json"})
-                if chain_started or unchained_event_seen:
+                if chain_started or unchained_event_seen or signed_stream:
                     chain_broken = True
                     break
+                pending_prefix_errors = True
                 continue
             if not isinstance(record, dict):
                 errors.append({"line": line_number, "error": "invalid_record"})
-                if chain_started or unchained_event_seen:
+                if chain_started or unchained_event_seen or signed_stream:
                     chain_broken = True
                     break
+                pending_prefix_errors = True
                 continue
             details = record.get("details")
             details = details if isinstance(details, dict) else {}
             record_sequence = details.get("event_sequence")
             record_hash = details.get("event_hash")
             record_previous = details.get("previous_event_hash")
+            has_chain_metadata = any(value is not None for value in (record_sequence, record_hash, record_previous))
+            if has_chain_metadata and pending_prefix_errors and not chain_started:
+                chain_corrupted = True
+                verified_lines = 0
+                errors.append({"line": line_number, "error": "invalid_prefix_before_chain"})
+                break
+            if has_chain_metadata:
+                signed_stream = True
             if record_sequence is None and record_hash is None and record_previous is None:
                 if chain_started:
                     chain_corrupted = True
@@ -321,6 +333,8 @@ class EventStream:
                     state["node_uuid"] = details["node_uuid"]
                 state["last_event"] = event_item.get("event")
                 state["message"] = event_item.get("message", "")
+                # Event identity is operation-local only when explicitly recorded;
+                # reject ambiguous duplicate starts rather than silently overwrite.
                 details = event_item.get("details")
                 if isinstance(details, dict):
                     state.update({
