@@ -415,8 +415,9 @@ class EventStreamTests(unittest.TestCase):
             stream.append("tool_started", tree_id="tree", node_id="node-b", operation_id="shared", tool="shell")
             stream.append("tool_result", tree_id="tree", node_id="node-a", operation_id="shared", success=True)
             active = stream.replay()["in_flight_tools"]
-            self.assertIn("shared", active)
-            self.assertEqual(active["shared"]["node_id"], "node-b")
+            self.assertEqual(len(active), 1)
+            self.assertEqual(next(iter(active.values()))["node_id"], "node-b")
+            self.assertEqual(next(iter(active.values()))["operation_id"], "shared")
 
     def test_replay_projects_in_flight_tool_and_clears_on_completion(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

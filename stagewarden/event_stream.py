@@ -303,7 +303,15 @@ class EventStream:
                 details = {}
             operation_id = details.get("operation_id")
             if isinstance(operation_id, str) and operation_id and event_name in {"tool_started", "tool_checkpoint"}:
-                in_flight_tools[operation_id] = {
+                prior_operation = in_flight_tools.get(operation_id)
+                prior_node_id = prior_operation.get("node_id") if prior_operation else None
+                if prior_operation is not None and prior_node_id != event_item.get("node_id"):
+                    in_flight_tools.pop(operation_id, None)
+                    operation_key = f"{event_item.get('node_id') or '<unknown>'}:{operation_id}"
+                else:
+                    operation_key = operation_id
+                in_flight_tools[operation_key] = {
+                    "operation_id": operation_id,
                     "operation_id": operation_id,
                     "node_id": event_item.get("node_id"),
                     "tool": details.get("tool"),
@@ -314,9 +322,13 @@ class EventStream:
                     "status": "in_flight",
                 }
             elif isinstance(operation_id, str) and operation_id and event_name in {"tool_result", "tool_recovery"}:
-                active = in_flight_tools.get(operation_id)
-                if active is not None and active.get("node_id") == event_item.get("node_id"):
-                    in_flight_tools.pop(operation_id, None)
+                matching_keys = [
+                    key for key, active in in_flight_tools.items()
+                    if active.get("operation_id") == operation_id
+                    and active.get("node_id") == event_item.get("node_id")
+                ]
+                for key in matching_keys:
+                    in_flight_tools.pop(key, None)
             if event_name == "tool_recovery" and isinstance(operation_id, str) and operation_id:
                 details = {**details, "retry_authorized": False}
                 tool_recoveries.append({

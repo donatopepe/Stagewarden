@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Replay completion/recovery clears only matching-node in-flight tool entries; duplicate operation ID on another node stays active. EventStream focused 36 passed/12 subtests. Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Replay completion/recovery clears only matching-node in-flight tool entries; duplicate operation ID on another node stays active. EventStream 36 passed/12 subtests; full suite 786 passed, 5 skipped, 344 subtests (317.09s); compileall, JSON, diff checks pass. Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

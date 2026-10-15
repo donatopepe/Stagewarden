@@ -1,7 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
-- Replay completion/recovery clears in-flight records only for matching node ID, protecting another node on duplicate operation ID. EventStream 36 passed/12 subtests.
+- Replay completion/recovery clears in-flight records only for matching node ID; duplicate operation ID on another node stays active. EventStream 36 passed/12 subtests; full suite 786 passed, 5 skipped, 344 subtests (317.09s); compileall/JSON/diff checks pass.
 - Replay recognizes cancelled/canceled state and node terminal event variants; EventStream 35 passed/12 subtests; full suite 785 passed, 5 skipped, 344 subtests (316.74s); compileall/diff-check pass.
 - Replay also clears in-flight tools on explicit terminal node events (`node_end`, completion/failure/cancellation variants). EventStream 35 passed/7 subtests; full suite 785 passed, 5 skipped, 339 subtests (317.36s); compileall/diff-check pass.
 - Replay reconciliation clears in-flight tool records when node state reaches completed/failed/cancelled/skipped/blocked. EventStream 34 passed/7 subtests; full suite 784 passed, 5 skipped, 339 subtests (316.90s).
