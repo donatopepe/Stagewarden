@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Added explicit regression for legacy-only event stream validity and accurate unchained count. EventStream 30 passed/7 subtests; full suite 780 passed, 5 skipped, 339 subtests (317.91s).
 - Simplified legacy unchained-event integrity logic without changing compatibility: legacy-only stream remains valid; later switch into signed-chain is corruption. Focused 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.58s).
 - Simplified append guard to use `verify_integrity()["valid"]` as sole corruption predicate. Focused 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.97s).
 - EventStream chain verifier now validates parent and digest format as exactly 64 lowercase hex chars before comparison; malformed string metadata rejected. Focused 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (318.69s).

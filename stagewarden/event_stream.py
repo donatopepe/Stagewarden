@@ -121,6 +121,7 @@ class EventStream:
                 errors.append({"line": line_number, "error": "invalid_record"})
                 if chain_started or unchained_event_seen:
                     chain_broken = True
+                    break
                 continue
             details = record.get("details")
             details = details if isinstance(details, dict) else {}

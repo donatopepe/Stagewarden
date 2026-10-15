@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "EventStream legacy integrity logic simplified while preserving legacy-only validity and rejecting downgrade/transition into a signed chain. Full suite: 779 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Added explicit legacy-only EventStream compatibility test; legacy records remain valid and count accurately, while malformed tails and chain downgrade fail closed. Full suite: 780 passed, 5 skipped, 339 subtests. Native Windows runtime, provider tokenizer, output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

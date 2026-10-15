@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Added explicit legacy-only EventStream compatibility regression: two unchained records report valid=true, chain_corrupted=false, count=2. Focused 30 passed/7 subtests; full suite 780 passed, 5 skipped, 339 subtests (317.91s).
 - Legacy compatibility cleanup: simplified unchained-event classification; legacy-only stream stays valid, transition into new hashed chain remains flagged; removed unreachable duplicate branch. EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.58s).
 - Append policy simplification: append now gates solely on `integrity["valid"]`, matching verifier contract and avoiding duplicate classification; behavior preserved. EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (317.97s); static checks pass.
 - Hash metadata format hardened: verifier requires lowercase 64-char hex parent/digest strings, not merely strings. Focused test updated for malformed parent; EventStream 29 passed/7 subtests; full suite 779 passed, 5 skipped, 339 subtests (318.69s).
