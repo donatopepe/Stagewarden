@@ -280,21 +280,29 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
-    def test_node_event_primary_audit_failure_is_propagated_and_secondary_not_written(self) -> None:
+    def test_node_event_primary_audit_failure_attempts_secondary_handoff_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "primary audit failure", execution_mode="mock", json_mode=True)
             self.addCleanup(lambda: orchestrator.knowledge.close())
             node = orchestrator.nodes["root.scope"]
             original_append = orchestrator.events.append
-            calls = []
+            original_handoff = type(orchestrator.handoff).record_action
+            events_attempted = []
+            handoff_attempts = []
             def fail_primary(event, **kwargs):
-                calls.append(event)
+                events_attempted.append(event)
                 raise OSError("event log unavailable")
+            def track_handoff(_self, **kwargs):
+                handoff_attempts.append(kwargs)
             orchestrator.events.append = fail_primary
+            type(orchestrator.handoff).record_action = track_handoff
             with self.assertRaisesRegex(OSError, "event log unavailable"):
                 orchestrator._emit_node_event(node, "node_checkpoint", "checkpoint")
-            self.assertEqual(calls, ["node_checkpoint"])
+            self.assertEqual(events_attempted, ["node_checkpoint"])
+            self.assertEqual(len(handoff_attempts), 1)
+            self.assertEqual(handoff_attempts[0]["phase"], "goal_loop_node_event_persist_failure_node_checkpoint")
             orchestrator.events.append = original_append
+            type(orchestrator.handoff).record_action = original_handoff
 
     def test_node_event_survives_stderr_failure(self) -> None:
         import contextlib
