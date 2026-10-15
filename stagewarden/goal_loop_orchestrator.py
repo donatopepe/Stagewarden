@@ -715,6 +715,18 @@ Do NOT include any text before or after the JSON object.'''
         if node is None:
             return {"ok": False, "error": f"unknown node: {node_id}"}
         if operation == "read":
+            if expected_revision is not None:
+                if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+                    return {"ok": False, "error": "expected_revision must be a non-negative integer"}
+                if expected_revision != node.context_revision:
+                    return {
+                        "ok": False,
+                        "error": "context revision conflict",
+                        "node_id": node_id,
+                        "node_uuid": node.node_uuid,
+                        "expected_revision": expected_revision,
+                        "current_revision": node.context_revision,
+                    }
             return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
                     "revision": node.context_revision, "context": node.compacted_context,
                     "budget": dict(node.context_budget)}
