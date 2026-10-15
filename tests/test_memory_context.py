@@ -63,6 +63,25 @@ class MemoryContextTests(unittest.TestCase):
             self.assertTrue(all(isinstance(item, str) for item in compacted.report()["diagnostics"]))
             self.assertIn("truncated by memory token budget", compacted.content)
 
+    def test_counter_failure_after_compaction_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("memory payload " * 100, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            calls = 0
+            def flaky_counter(text: str) -> int:
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    return len(text)
+                raise RuntimeError("counter transient failure")
+            context = load_memory_context(root, path, max_tokens=10, token_counter=flaky_counter)
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertIn("counter transient failure", context.report()["diagnostics"][0])
+
     def test_missing_optional_file_is_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
