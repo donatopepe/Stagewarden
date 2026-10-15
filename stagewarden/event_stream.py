@@ -327,6 +327,11 @@ class EventStream:
                 })
 
             event_node_id = event_item.get("node_id")
+            terminal_event_names = {"node_end", "node_completed", "node_failed", "node_cancelled", "node_canceled"}
+            if event_name in terminal_event_names and isinstance(event_node_id, str) and event_node_id:
+                for active_id, active in list(in_flight_tools.items()):
+                    if active.get("node_id") == event_node_id:
+                        in_flight_tools.pop(active_id, None)
             if isinstance(event_node_id, str) and event_node_id:
                 state = nodes.setdefault(event_node_id, {"node_id": event_node_id})
                 state.update({key: event_item.get(key) for key in ("parent_node_id", "purpose") if event_item.get(key) is not None})

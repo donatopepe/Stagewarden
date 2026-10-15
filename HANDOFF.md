@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Replay reconciliation clears in-flight tool records when node state reaches completed/failed/cancelled/skipped/blocked. EventStream 34 passed/7 subtests; full suite 784 passed, 5 skipped, 339 subtests (316.90s).
 - EventStream now rejects/discards prefix if malformed line precedes later signed record; prevents returning legacy-looking records before delayed chain start. Focused 33 passed/7 subtests; full suite 783 passed, 5 skipped, 339 subtests (316.49s).
 - Signed EventStream readers expose only verified prefix after corruption, using verified physical line boundary to preserve legacy prefix/blank lines; read/follow/replay do not parse hostile suffix. Focused 33 passed, 7 subtests; full suite 783 passed, 5 skipped, 339 subtests (316.99s); compileall/diff-check/JSON validation pass.
 - Simplified legacy torn-tail framing check to require final newline after record parsing; no whole-file byte recount. Focused 32 passed/7 subtests; full suite 782 passed, 5 skipped, 339 subtests (318.15s).

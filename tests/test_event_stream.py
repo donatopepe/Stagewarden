@@ -438,6 +438,13 @@ class EventStreamTests(unittest.TestCase):
             )
             self.assertEqual(stream.replay()["in_flight_tools"], {})
 
+    def test_replay_clears_in_flight_tool_on_node_end_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stream = EventStream(Path(tmp) / "events.jsonl")
+            stream.append("tool_started", tree_id="tree", node_id="node-a", operation_id="op-a", tool="shell")
+            stream.append("node_end", tree_id="tree", node_id="node-a", message="done")
+            self.assertEqual(stream.replay()["in_flight_tools"], {})
+
     def test_replay_clears_in_flight_tool_when_node_becomes_terminal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             stream = EventStream(Path(tmp) / "events.jsonl")

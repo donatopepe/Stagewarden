@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "EventStream rejects/discards prefix if malformed line precedes later signed record, preventing legacy-looking events before delayed chain start. Focused suite 33 passed/7 subtests; full suite 783 passed, 5 skipped, 339 subtests (316.49s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
+  "waiting_reason": "Replay reconciliation removes stale in-flight tool entries when node state becomes terminal. Focused EventStream 34 passed/7 subtests; full suite 784 passed, 5 skipped, 339 subtests (316.90s). Native Windows runtime, provider tokenizer/output caps, semantic compaction remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Replay reconciliation now removes in-flight operations for nodes whose replayed node state becomes terminal (completed/failed/cancelled/skipped/blocked); avoids reporting stale active tool after terminal node transition. Regression added. EventStream 34 passed/7 subtests; full suite 784 passed, 5 skipped, 339 subtests (316.90s).
 - EventStream verifier now treats malformed lines before a later signed record as corruption, clears readable prefix, and stops; avoids exposing legacy-looking records when signature chain begins only after malformed insertion. Focused 33 passed/7 subtests; full suite 783 passed, 5 skipped, 339 subtests (316.49s). Compile/JSON/diff checks pending.
 - Signed EventStream readers expose only verified prefix on corruption, using verified physical line boundary (preserves legacy prefix and blank lines); `read`, `follow`, and `replay` cannot consume untrusted suffix. EventStream 33 passed, 7 subtests; full suite 783 passed, 5 skipped, 339 subtests (316.99s); compileall, diff-check, handoff JSON validation pass.
 - Legacy append framing check simplified: newline terminator is exact criterion after JSON parsing; avoids full-file byte recount, still refuses torn final record unchanged. EventStream 32 passed/7 subtests; full suite 782 passed, 5 skipped, 339 subtests (318.15s).
