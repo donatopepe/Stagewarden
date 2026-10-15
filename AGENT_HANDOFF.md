@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Codemode context read/append now serialize per node using NodeState lock; concurrent expected_revision=0 appends yield exactly one success and one conflict. SQLite knowledge connection configured cross-thread-capable for serialized access. Test added. Goal-loop 77 passed/36 subtests; full suite 791 passed, 5 skipped, 350 subtests (317.76s).
 - Codemode append byte-budget handling excludes bool from integer budgets (Python bool subclass trap); `True` now uses conservative 12000-byte default, regression verifies over-limit payload rejected. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.88s).
 - Codemode context append now rejects invalid UTF-8 surrogate payloads cleanly before byte-count/persist; regression ensures revision unchanged. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (319.62s).
 - Codemode append now rejects a single oversized UTF-8 payload against node byte budget before mutating context/revision; regression validates failure leaves revision unchanged. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.62s).

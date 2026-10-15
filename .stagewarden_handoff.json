@@ -44,7 +44,7 @@
   ],
   "project_brief": {},
   "status": "active",
-  "waiting_reason": "Codemode append handles bool available_input without treating True as 1-byte budget; uses 12000-byte fallback and rejects oversized writes. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.88s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
+  "waiting_reason": "Per-node codemode read/append serialized for expected_revision CAS; concurrent stale appends yield one success and one conflict. Goal-loop 77 passed/36 subtests; full suite 791 passed, 5 skipped, 350 subtests (317.76s). Native Windows runtime and provider-exact tokenizer/output-cap enforcement remain unverified.",
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",

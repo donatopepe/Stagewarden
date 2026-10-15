@@ -1,6 +1,7 @@
 # Stagewarden Handoff Summary
 
 ## Current requested work (2026-10-14)
+- Per-node codemode APIs serialize read/append for optimistic CAS; race regression gives one success/one conflict. SQLite connection permits serialized cross-thread use. Goal-loop 77 passed/36 subtests; full suite 791 passed, 5 skipped, 350 subtests (317.76s).
 - Codemode append excludes bool-valued available_input from integer budget parsing; fallback 12000-byte cap applied and regression covers it. Goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.88s).
 - Codemode rejects unpaired-surrogate invalid UTF-8 payload before mutation; goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (319.62s).
 - Codemode rejects oversized individual append payload above node UTF-8 byte budget without advancing context revision; goal-loop 76 passed/36 subtests; full suite 790 passed, 5 skipped, 350 subtests (317.62s).
