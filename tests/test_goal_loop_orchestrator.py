@@ -183,6 +183,34 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             section = body.split("\n", 1)[1] if "\n" in body else ""
             self.assertGreaterEqual(len(section.encode("utf-8")), 135)
 
+    def test_compaction_routes_structural_body_into_excerpt_budget(self) -> None:
+        """An over-long structural line must not collapse the whole snapshot to its label."""
+        text = "[execution] " + "x" * 4000
+        compacted = GoalLoopOrchestrator._compact_node_text(text, 1000)
+        self.assertIn("[execution]", compacted)
+        self.assertIn("context auto-compacted", compacted)
+        self.assertLessEqual(len(compacted.encode("utf-8")), 1000)
+        self.assertGreaterEqual(len(compacted.encode("utf-8")), 800)
+
+    def test_compaction_utilisation_scales_with_cap(self) -> None:
+        text = "[execution] " + "x" * 4000
+        for cap, floor in ((1000, 800), (4000, 3200)):
+            with self.subTest(cap=cap):
+                compacted = GoalLoopOrchestrator._compact_node_text(text, cap)
+                self.assertLessEqual(len(compacted.encode("utf-8")), cap)
+                self.assertGreaterEqual(len(compacted.encode("utf-8")), floor)
+
+    def test_compaction_keeps_structural_labels_while_using_excerpts(self) -> None:
+        text = "[execution] " + "y" * 3000 + "\n\nordinary prose " * 20 + "\n[acceptance_criteria] keep me"
+        compacted = GoalLoopOrchestrator._compact_node_text(text, 1000)
+        self.assertIn("[execution]", compacted)
+        self.assertIn("[acceptance_criteria]", compacted)
+        self.assertLessEqual(len(compacted.encode("utf-8")), 1000)
+        only = GoalLoopOrchestrator._compact_node_text("[acceptance_criteria] " + "z" * 3000, 800)
+        self.assertIn("[acceptance_criteria]", only)
+        self.assertLessEqual(len(only.encode("utf-8")), 800)
+        self.assertGreaterEqual(len(only.encode("utf-8")), 600)
+
     def test_budget_estimator_uses_utf8_bytes_and_compaction_respects_byte_cap(self) -> None:
         orchestrator = GoalLoopOrchestrator(self.config, "budget estimator", execution_mode="mock", json_mode=True)
         self.addCleanup(lambda: orchestrator.knowledge.close())

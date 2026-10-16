@@ -772,6 +772,11 @@ Do NOT include any text before or after the JSON object.'''
                 longest = max(range(len(required)), key=lambda i: len(required[i].encode("utf-8")))
                 label_end = required[longest].find("]") + 1
                 if label_end > 0 and len(required[longest]) > label_end:
+                    # Keep the label as the invariant, but let the body of the over-long line
+                    # compete for the ordinary excerpt budget instead of dropping it outright:
+                    # otherwise one long structural line collapses the whole snapshot to its
+                    # label and wastes the remaining cap (90 bytes at cap 1000 or 4000).
+                    ordinary.append("\n" + required[longest][label_end:])
                     required[longest] = required[longest][:label_end] + " …"
             required_text = "\n".join(required)
             if len(required_text.encode("utf-8")) > room:
