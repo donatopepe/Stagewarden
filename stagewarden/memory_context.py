@@ -203,10 +203,10 @@ def load_memory_context(
     if max_tokens is not None:
         if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens < 0:
             issues.append(_issue("error", "max_tokens must be a non-negative integer"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, None, token_counter_name, 0)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
         if token_counter is None:
             issues.append(_issue("error", "token_counter is required when max_tokens is set"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
         try:
             token_count = token_counter(content)
             if isinstance(token_count, bool) or not isinstance(token_count, int) or token_count < 0:

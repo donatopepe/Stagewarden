@@ -1572,9 +1572,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     external_memory = replace(
-                        candidate,
-                        content="",
-                        token_count=0,
+                        candidate, content="", token_limit=None, token_count=None,
                         issues=candidate.issues + (MemoryContextIssue("error", f"memory section counter failed: {exc}"),),
                     )
                     counter_failed = True
@@ -1583,7 +1581,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     candidate = replace(
-                        candidate, content="", token_count=0,
+                        candidate, content="", token_limit=None, token_count=None,
                         issues=candidate.issues + (MemoryContextIssue("error", "memory section counter returned invalid value"),),
                     )
                     external_memory = candidate
@@ -1596,7 +1594,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     candidate = replace(
-                        candidate, content="", token_count=0,
+                        candidate, content="", token_limit=None, token_count=None,
                         issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
                     )
                     external_memory = candidate
@@ -1606,7 +1604,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     external_memory = replace(
-                        candidate, content="", token_count=0,
+                        candidate, content="", token_limit=None, token_count=None,
                         issues=candidate.issues + (MemoryContextIssue("error", "memory section budget did not converge"),),
                     )
                     break
@@ -1614,7 +1612,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     external_memory = replace(
-                        candidate, content="", token_count=0,
+                        candidate, content="", token_limit=None, token_count=None,
                         issues=candidate.issues + (MemoryContextIssue("error", "memory section budget did not converge"),),
                     )
                     break
@@ -1623,7 +1621,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     external_memory = replace(
-                        candidate, content="", token_count=0,
+                        candidate, content="", token_limit=None, token_count=None,
                         issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
                     )
                     break
@@ -1633,7 +1631,8 @@ class Executor:
                 external_memory = replace(
                     candidate,
                     content="",
-                    token_count=0,
+                    token_limit=None,
+                    token_count=None,
                     issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
                 )
         else:
