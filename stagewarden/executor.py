@@ -1582,7 +1582,10 @@ class Executor:
                 if isinstance(used, bool) or not isinstance(used, int) or used < 0:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
-                    candidate = replace(candidate, issues=candidate.issues + (MemoryContextIssue("error", "memory section counter returned invalid value"),))
+                    candidate = replace(
+                        candidate, content="", token_count=0,
+                        issues=candidate.issues + (MemoryContextIssue("error", "memory section counter returned invalid value"),),
+                    )
                     external_memory = candidate
                     counter_failed = True
                     break
@@ -1592,7 +1595,10 @@ class Executor:
                 if memory_budget == 0:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
-                    candidate = replace(candidate, issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),))
+                    candidate = replace(
+                        candidate, content="", token_count=0,
+                        issues=candidate.issues + (MemoryContextIssue("error", "memory section metadata exceeds available input budget"),),
+                    )
                     external_memory = candidate
                     break
                 next_budget = max(0, memory_budget - max(1, used - available_memory_tokens))
@@ -1600,7 +1606,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     external_memory = replace(
-                        candidate,
+                        candidate, content="", token_count=0,
                         issues=candidate.issues + (MemoryContextIssue("error", "memory section budget did not converge"),),
                     )
                     break
@@ -1608,7 +1614,7 @@ class Executor:
                     from dataclasses import replace
                     from .memory_context import MemoryContextIssue
                     external_memory = replace(
-                        candidate,
+                        candidate, content="", token_count=0,
                         issues=candidate.issues + (MemoryContextIssue("error", "memory section budget did not converge"),),
                     )
                     break

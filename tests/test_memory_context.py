@@ -386,6 +386,27 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("outer section counter failure", section.body)
             executor.close()
 
+    def test_budget_error_paths_clear_untrusted_memory_content(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("sensitive cached fragment " * 50, encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            executor._estimate_memory_tokens = lambda text: 100
+            step = PlanStep(id="step", title="Read", instruction="inspect", validation="v")
+            packet = executor._build_model_communication_packet(
+                task="inspect", step=step, plan=[step], last_observation="none",
+                provider_limits={"available_input": 1},
+            )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertNotIn("sensitive cached fragment", section.body)
+            self.assertIn("metadata exceeds available input budget", section.body)
+            self.assertFalse(executor._external_memory_context.ok)
+            self.assertEqual(executor._external_memory_context.content, "")
+            executor.close()
+
     def test_prompt_memory_budget_reports_nonconverging_outer_counter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
