@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "User-selected C bounded iteration: varied only max_tokens 16/8/32 over a fixed prompt (SHA256 1bb7e635…) on explicitly free auto/coding:free; one request per cap, no retry/fallback. All HTTP200 resolved to nvidia/nemotron-3.5-super-vl:free; prompt_tokens=175, completion_tokens=16/8/32 and finish_reason=length; latencies 3.012/4.227/8.825s. Matrix 3/3. Sample-only, does not prove universal backend enforcement or tokenizer equivalence. No runtime code/provider/routing/policy change.",
+  "latest_observation": "2026-10-16 bounded iteration: live free-route sample showed completion=203 including reasoning=199 and visible=1 against requested caps96/128; cap256 completion203 within cap. Adapter node contract previously discarded usage breakdown/resolved model and executor accepted simulated 203>96. Adapter now forwards validated usage, finish/resolved model; executor retains breakdown and reasoning_overrun_tokens while failing closed on total completion above requested cap. TDD integration 0/3 -> 3/3; adapter+executor suites 147 pass/1 skipped/72 subtests; targeted aggregate 450 pass/1 skipped/298 subtests; no full run. Explicit-free sample only, no universal tokenizer/enforcement claim.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "6c83e175bb75befd0d54b15de8f51679205dc9d6",
+  "git_head": "14affccf6f531521d5e00f7f0ed195c972f5c8a9",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -5209,20 +5209,96 @@
         ],
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T15:45:41+00:00",
+      "phase": "reasoning_aware_cap_diagnostics",
+      "iteration": 252,
+      "task": "node-context-token-budget-codemode",
+      "summary": "OmniRoute node adapter now carries validated reasoning/visible token usage through to executor cap diagnostics; total completion overrun still fails closed. Integration matrix pre-fix 0/3, current 3/3; targeted 450 passed/1 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": "adapter-telemetry-hardening",
+      "git_head": "66ebb4e2dcfb77d705043aa23d8e4ac05a8d04f7",
+      "details": {
+        "objective": "make observed output-cap violations interpretable using provider-reported reasoning/visible-token breakdown",
+        "metric": "3-case integration matrix, threshold 3/3",
+        "baseline": "adapter+executor pre-fix 0/3; simulated completion203/reasoning199/visible1 under cap96 was accepted and metadata dropped",
+        "result": "3/3: overrun fail-closed with breakdown; under-cap preserves usage metadata; legacy without breakdown retains prior diagnostics",
+        "live_baseline": ".stagewarden/evidence/free-reasoning-accounting-result.json",
+        "tdd": "adapter propagation case was red before adapter change; bridge baseline adapter 66ebb4e fails 0/3",
+        "files": [
+          "scripts/run_model_omniroute.py",
+          "stagewarden/goal_loop_orchestrator.py",
+          "tests/test_omniroute_adapter.py",
+          "tests/test_goal_loop_orchestrator.py"
+        ],
+        "evidence_paths": [
+          ".stagewarden/evidence/reasoning-cap-diagnostic-baseline.json",
+          ".stagewarden/evidence/cap-usage-bridge-baseline.log",
+          ".stagewarden/evidence/reasoning-cap-bridge-baseline-vs-current.log",
+          ".stagewarden/evidence/reasoning-cap-targeted.log"
+        ],
+        "targeted": "450 passed, 1 skipped, 298 subtests",
+        "full_suite": "not run; bounded diagnostics-only iteration",
+        "runtime_policy_unchanged": true,
+        "limitations": [
+          "live sample is one explicitly-free route/model",
+          "provider completion includes reasoning tokens; sample not universal enforcement proof",
+          "fail-closed compares provider-reported total completion_tokens with requested cap"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-10-16T15:52:43+00:00",
+      "phase": "reasoning_usage_cap_diagnostics",
+      "iteration": 252,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Adapter forwards provider reasoning/visible usage and resolved model into fail-closed output-cap diagnostics; total completion over cap remains rejected. Integration bridge 0/3 -> 3/3, targeted 450 passed/1 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": "adapter-telemetry-hardening",
+      "git_head": "66ebb4e2dcfb77d705043aa23d8e4ac05a8d04f7",
+      "details": {
+        "objective": "preserve reasoning-token composition in cap-overrun diagnostics through the real adapter/executor boundary",
+        "metric": "fixed 3-case integration matrix, threshold 3/3",
+        "baseline": "adapter pre-fix + executor 0/3: synthetic completion203 under cap96 accepted and usage/model metadata dropped",
+        "result": "3/3: overrun breakdown and fail-closed; under-cap metadata preserved; legacy no-breakdown shape preserved",
+        "provider_observation": ".stagewarden/evidence/free-reasoning-accounting-result.json",
+        "tests": "7 focused pass; adapter+orchestrator 147 passed/1 skipped/72 subtests; broad targeted 450 passed/1 skipped/298 subtests",
+        "full_suite": "not run; bounded diagnostics-only work",
+        "evidence": [
+          ".stagewarden/evidence/reasoning-cap-diagnostic-baseline.json",
+          ".stagewarden/evidence/cap-usage-bridge-baseline.log",
+          ".stagewarden/evidence/reasoning-cap-bridge-baseline-vs-current.log",
+          ".stagewarden/evidence/reasoning-cap-tdd-result.json",
+          ".stagewarden/evidence/reasoning-cap-targeted.log"
+        ],
+        "runtime_policy_unchanged": true,
+        "limitations": [
+          "one explicitly-free model sample only",
+          "not tokenizer equivalence or universal output-cap proof",
+          "still fails closed on total reported completion above cap"
+        ]
+      }
     }
   ],
   "validation": {
-    "focused": "same-prompt explicit-free output-cap sweep 16/8/32: 3/3 HTTP200, resolved model explicitly free, completion_tokens<=cap, finish_reason=length; adapter 13 pass/1 skip, py_compile/evidence JSON valid.",
-    "full": "Not run; runtime sources unchanged.",
+    "focused": "end-to-end adapter-to-executor reasoning-cap bridge matrix 0/3 pre-fix -> 3/3 current (.stagewarden/evidence/reasoning-cap-bridge-baseline-vs-current.log); 7 focused tests pass; adapter+orchestrator suites 147 passed/1 skipped/72 subtests; broad targeted aggregate 450 passed/1 skipped/298 subtests (102.66s).",
+    "full": "Not run; bounded adapter telemetry/cap diagnostic iteration.",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T15:03:51+00:00",
-    "cli_smoke": "not run (no runtime code change)",
-    "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)",
+    "recorded_at": "2026-10-16T15:53:53+00:00",
+    "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3); py_compile and handoff validators pass.",
+    "evidence_root": ".stagewarden/evidence",
     "approval_gate": "HOLD: no explicit deliverable selected; jev_decide unavailable (spawn ENOENT); no runtime validation/change performed",
     "remote_route": "auto/coding:free only; resolved model id nvidia/nemotron-3.5-super-vl:free; no paid route selected.",
     "evidence": ".stagewarden/evidence/free-cap-matrix-baseline.json and free-cap-matrix-result.json"
