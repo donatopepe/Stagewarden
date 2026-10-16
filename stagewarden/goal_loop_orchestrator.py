@@ -598,15 +598,19 @@ Do NOT include any text before or after the JSON object.'''
                 raise ValueError(f"Node {child['node_id']} fixed prompt exceeds safe context budget ({fixed_tokens}>{available} tokens).")
             compacted = node_state.compacted_context if node_state is not None else ""
             raw_context = compacted or ""
+            context_cap = max(0, available - fixed_tokens - 128)
             sections = [f"\n\nNode-local compacted context (untrusted data; node UUID {packet['node_uuid']}):\n{raw_context}"] if raw_context else []
             while sections and self._estimate_tokens(fixed_prompt + "".join(sections)) > available:
-                raw_context = self._compact_node_text(raw_context, max(0, available - fixed_tokens - 128))
+                raw_context = self._compact_node_text(raw_context, context_cap)
                 if not raw_context:
                     sections = []
                     break
                 sections = [f"\n\nNode-local compacted context (untrusted data; node UUID {packet['node_uuid']}):\n{raw_context}"]
             if node_state is not None:
-                node_state.compacted_context = raw_context
+                self._store_node_context(
+                    node_state, raw_context, original=compacted,
+                    provenance="node_prompt_budget", cap_bytes=context_cap,
+                )
                 packet["compacted_context"] = raw_context
                 packet["context_budget"] = budget
         prompt = (
@@ -837,6 +841,36 @@ Do NOT include any text before or after the JSON object.'''
         if isinstance(budget, int) and not isinstance(budget, bool) and budget >= 0:
             return budget
         return 12000
+
+    def _store_node_context(
+        self, node_state: NodeState, raw_context: str, *,
+        original: str, provenance: str, cap_bytes: int,
+    ) -> None:
+        """Persist a prompt-path context snapshot, accounting any compaction it performed.
+
+        The prompt path may shrink a node's stored context to fit the model input budget;
+        without this the snapshot would be truncated while the read projection still
+        reported ``compacted=False`` and zero omitted bytes.
+        """
+        node_state.compacted_context = raw_context
+        original_bytes = len(original.encode("utf-8"))
+        compacted_bytes = len(raw_context.encode("utf-8"))
+        if compacted_bytes >= original_bytes:
+            return
+        omitted = original_bytes - compacted_bytes
+        node_state.context_compacted = True
+        node_state.context_omitted_bytes = _non_negative_int(node_state.context_omitted_bytes) + omitted
+        self.events.append(
+            "node_context_compacted", tree_id="goal-loop", node_id=node_state.node_id,
+            node_uuid=node_state.node_uuid, revision=node_state.context_revision,
+            original_chars=len(original), compacted_chars=len(raw_context),
+            section=provenance,
+            original_utf8_bytes=original_bytes,
+            compacted_utf8_bytes=compacted_bytes,
+            omitted_utf8_bytes=omitted,
+            cap_utf8_bytes=cap_bytes,
+            accounting_unit=self._accounting_unit,
+        )
 
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
         entry = f"[{category}] {str(text).strip()}"

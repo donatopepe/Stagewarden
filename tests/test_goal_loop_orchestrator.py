@@ -480,6 +480,53 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(appended["max_bytes"], 12000)
             self.assertEqual(appended["context_utf8_bytes"], len(node.compacted_context.encode("utf-8")))
 
+    def test_prompt_path_compaction_is_accounted(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt compaction", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "6000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            expected = len(original.encode("utf-8")) - len(node.compacted_context.encode("utf-8"))
+            self.assertGreater(expected, 0)
+            self.assertIs(node.context_compacted, True)
+            self.assertEqual(node.context_omitted_bytes, expected)
+            events = [item for item in orchestrator.events.read(event="node_context_compacted") if item.get("details", {}).get("section") == "node_prompt_budget"]
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["details"]["omitted_utf8_bytes"], expected)
+            self.assertEqual(events[0]["details"]["original_utf8_bytes"] - events[0]["details"]["compacted_utf8_bytes"], expected)
+
+    def test_prompt_path_without_compaction_leaves_accounting_untouched(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt no compaction", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "12000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertIs(node.context_compacted, False)
+            self.assertEqual(node.context_omitted_bytes, 0)
+            self.assertEqual(node.compacted_context, original)
+            self.assertEqual([item for item in orchestrator.events.read(event="node_context_compacted") if item.get("details", {}).get("section") == "node_prompt_budget"], [])
+
+    def test_read_projection_reflects_prompt_path_compaction(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt compaction read", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "6000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            read = orchestrator.codemode_context(node.node_id, "read")
+            expected = len(original.encode("utf-8")) - len(node.compacted_context.encode("utf-8"))
+            self.assertIs(read["compacted"], True)
+            self.assertEqual(read["omitted_utf8_bytes"], expected)
+            self.assertEqual(read["context_utf8_bytes"], len(read["context"].encode("utf-8")))
+
     def test_codemode_read_reports_uncompacted_byte_size_as_chars_for_ascii(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "codemode read ascii", execution_mode="mock", json_mode=True)
