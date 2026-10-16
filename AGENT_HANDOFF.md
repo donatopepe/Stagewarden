@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Revalidated estimator input-type tranche and current memory/context path: focused 64 passed, 13 subtests; full suite 848 passed, 5 skipped, 367 subtests (322.29s). No further deterministic bug found in covered path. Compileall, JSON, handoff alignment, diff-check pass.
+- `_build_prompt()` validates `available_input` type/sign before compaction; bool/negative/float/string no longer trigger fallback `max(100)` char limit and fake zero-budget compaction. Regression covers invalid types. Focused context/memory 65 passed, 17 subtests; full suite 849 passed, 5 skipped, 371 subtests (322.35s); compileall/JSON/alignment/diff-check pass.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
