@@ -107,6 +107,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — separatore reale nel messaggio FILE_CHUNK (2026-10-16)
+
+- **Obiettivo:** chiudere il finding registrato nell'iterazione precedente — escape letterale `\\n` nel messaggio di `read_file_chunk` (`stagewarden/executor.py:2325`).
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 chunk normale → header `FILE_CHUNK` + newline reale + body identico a `content`, nessun escape letterale; C2 percorso auto-compaction → `auto_compacted=True` con newline reale; C3 path di failure (start oltre EOF) → nessun header inventato, nessun escape.
+- **Baseline (pre-fix, misurata inline):** `1/3` — C1 FAIL `'FILE_CHUNK 0:5/10 has_more=True auto_compacted=False\\nabcde'` (literal=True); C2 FAIL stesso escape con `auto_compacted=True`; C3 PASS.
+- **Variabile unica:** escape letterale → newline reale nel messaggio `read_file_chunk`; nessuna modifica a budget, policy, routing/provider/fallback, serialità v3.
+- **Esito:** matrice `3/3` in `/tmp/stagewarden-file-chunk-separator-final.log`; TDD con 1 regressione nuova in `tests/test_context_file_reading.py`; suite file-reading `32/32`; targeted aggregato `376/376 OK` (48.4s); CLI smoke `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-file-chunk-separator-full.log`. `grep` di controllo: zero escape letterali `\\n` residui in `stagewarden/`.
+- **File:** `stagewarden/executor.py`, `tests/test_context_file_reading.py`.
+
 ### Iterazione bounded completata — separatore reale nel contesto di nodo (2026-10-16)
 
 - **Obiettivo:** correggere l'escape letterale `\\n\\n` nell'accumulo del contesto node-scoped (`_append_node_context`), così la compattazione line-oriented vede i confini di entry e i prompt non contengono escape testuali.

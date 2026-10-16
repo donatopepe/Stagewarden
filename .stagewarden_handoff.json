@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: node-local context accumulation used a literal \\\\n\\\\n escape in _append_node_context, so line-oriented compaction treated the whole accumulated node context as a single line and prompts carried textual escapes. Fixed to real newlines; matrix 1/3 -> 3/3; TDD regression added; orchestrator 102/102; targeted 309/309; CLI smoke 3/3; full pytest 867 passed, 5 skipped, 394 subtests. Same escape class exists at stagewarden/executor.py:2325 (FILE_CHUNK message) and is recorded as the next bounded candidate instead of being fixed in the same variable. No budget, routing/provider/fallback, compaction policy, codemode or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: closed the finding recorded in the previous iteration - read_file_chunk returned a literal \\\\n escape between the FILE_CHUNK header and the content. Now a real newline; matrix 1/3 -> 3/3; TDD regression in tests/test_context_file_reading.py covering the normal chunk, the auto-compaction path and the failure path; file-reading 32/32; targeted aggregate 376/376; CLI smoke 3/3; full pytest 868 passed, 5 skipped, 394 subtests. A grep control shows zero literal \\\\n escapes left in stagewarden/. No budget, routing/provider/fallback, compaction policy, codemode or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "5ba8d3dc1433b97926d0b80fa6fe64f30e906896",
+  "git_head": "329b466acd81140e4d016080f01a4f6d3dccfca9",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4522,18 +4522,51 @@
         "full_pytest": "867 passed, 5 skipped, 394 subtests (422.45s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T08:39:22+00:00",
+      "phase": "file_chunk_separator_fixed",
+      "iteration": 233,
+      "task": "node-context-token-budget-codemode",
+      "summary": "read_file_chunk message now separates the FILE_CHUNK header from the content with a real newline; matrix 1/3 -> 3/3, targeted 376/376, full pytest 868 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "329b466acd81140e4d016080f01a4f6d3dccfca9",
+      "details": {
+        "objective": "fix literal escape separator in the read_file_chunk message",
+        "metric": "fixed 3-case matrix, threshold 3/3",
+        "baseline": "1/3 (C1/C2 literal=True, C3 pass)",
+        "result": "3/3",
+        "fixed_cases": [
+          "C1 normal chunk: header + real newline + body equals content",
+          "C2 auto-compaction path: auto_compacted=True with real newline",
+          "C3 failure path: no invented header, no literal escape"
+        ],
+        "files": [
+          "stagewarden/executor.py",
+          "tests/test_context_file_reading.py"
+        ],
+        "control_grep": "0 literal backslash-n escapes remain in stagewarden/",
+        "targeted": "376/376 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "868 passed, 5 skipped, 394 subtests (573.00s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "node context separator matrix 1/3 -> 3/3 (/tmp/stagewarden-node-context-separator-final.log); orchestrator 102/102; targeted memory_context + 8 canonical suites 309/309 OK (14.4s)",
-    "full": "867 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (422.45s) (/tmp/stagewarden-iter-node-context-separator-full.log)",
+    "focused": "file chunk separator matrix 1/3 -> 3/3 (/tmp/stagewarden-file-chunk-separator-final.log); file-reading 32/32; targeted aggregate 376/376 OK (48.4s)",
+    "full": "868 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (573.00s) (/tmp/stagewarden-iter-file-chunk-separator-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T08:22:02+00:00",
+    "recorded_at": "2026-10-16T08:39:22+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)"
   }
 }
