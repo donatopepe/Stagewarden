@@ -1061,6 +1061,14 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["observed_output_tokens"], 17)
 
+    def test_observed_output_tokens_rejects_fractional_and_malformed_values(self) -> None:
+        parse = GoalLoopOrchestrator._observed_output_tokens
+        for value in (1.5, True, -1, "1.5", "NaN", "Infinity", "bad"):
+            with self.subTest(value=value):
+                self.assertIsNone(parse({"usage": {"completion_tokens": value}}))
+        self.assertIsNone(parse({"usage": {"completion_tokens": "2.0"}}))
+        self.assertEqual(parse({"usage": {"completion_tokens": " 17 "}}), 17)
+
     def test_node_contract_preserves_reported_output_usage(self) -> None:
         result = GoalLoopOrchestrator._node_contract_result(
             {"summary": "done", "messages": [], "usage": {"completion_tokens": 23}},

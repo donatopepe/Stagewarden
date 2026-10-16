@@ -1617,9 +1617,16 @@ Do NOT include any text before or after the JSON object.'''
             value = merged[key]
             if isinstance(value, bool):
                 continue
-            try:
-                number = int(float(str(value).strip()))
-            except (TypeError, ValueError):
+            if isinstance(value, int):
+                number = value
+            elif isinstance(value, float) and value.is_integer():
+                number = int(value)
+            elif isinstance(value, str):
+                stripped = value.strip()
+                if not stripped or not stripped.isdecimal():
+                    continue
+                number = int(stripped)
+            else:
                 continue
             if number >= 0:
                 return number
