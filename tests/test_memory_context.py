@@ -88,6 +88,8 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(compacted.token_counter_name, "test_char_estimator")
             self.assertEqual(compacted.report()["content_tokens"], compacted.token_count)
             self.assertTrue(all(isinstance(item, str) for item in compacted.report()["diagnostics"]))
+            self.assertEqual(compacted.report()["token_limit"], 20)
+            self.assertEqual(compacted.report()["token_counter"], "test_char_estimator")
             self.assertIn("truncated by memory token budget", compacted.content)
 
     def test_counter_failure_after_compaction_fails_closed(self) -> None:
