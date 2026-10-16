@@ -1655,7 +1655,7 @@ class Executor:
         quality_register = _executor_prompting.bounded_context(scoped["quality"], 2500, label="quality_register")
         lessons_log = _executor_prompting.bounded_context(scoped["lessons"], 2500, label="lessons_log")
         exception_plan = _executor_prompting.bounded_context(scoped["exception_plan"], 2000, label="exception_plan")
-        model_context = _executor_prompting.model_context_files_section(self)
+        model_context = _executor_prompting.model_context_files_section(self, external_memory_context=external_memory)
         role_context = _executor_prompting.bounded_context(
             _executor_prompting.prince2_role_automation_section(self, task, step),
             2500,

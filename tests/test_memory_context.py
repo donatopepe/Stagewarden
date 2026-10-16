@@ -330,6 +330,20 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("metadata exceeds available input budget", section.body)
             executor.close()
 
+    def test_model_context_metadata_uses_explicit_resolved_memory_not_mutable_executor_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            from stagewarden.memory_context import MemoryContext, MemoryContextIssue
+            resolved = MemoryContext(True, "", (), (MemoryContextIssue("error", "resolved failure"),), 500)
+            executor._external_memory_context = MemoryContext(False, "", (), (), 500)
+            report = __import__("stagewarden.executor_prompting", fromlist=["model_context_files_section"]).model_context_files_section(
+                executor, external_memory_context=resolved,
+            )
+            self.assertIn("configured_markdown_memory: enabled=True", report)
+            self.assertIn("issues=1", report)
+            executor.close()
+
     def test_prompt_memory_loader_exception_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

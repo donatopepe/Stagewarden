@@ -466,7 +466,7 @@ def prince2_node_context_packet(executor: Any, task: str, step: PlanStep) -> str
     return "\n".join(lines)
 
 
-def model_context_files_section(executor: Any) -> str:
+def model_context_files_section(executor: Any, external_memory_context: Any | None = None) -> str:
     status = executor.git.status()
     porcelain = executor.git.status_porcelain()
     dirty_state = "unknown"
@@ -481,7 +481,7 @@ def model_context_files_section(executor: Any) -> str:
     lines = [
         f"- handoff_file: {executor.config.handoff_path.name}",
         f"- memory_file: {executor.config.memory_path.name}",
-        f"- configured_markdown_memory: enabled={executor._external_memory_context.enabled} files={len(executor._external_memory_context.files)} issues={len(executor._external_memory_context.issues)}",
+        f"- configured_markdown_memory: enabled={(external_memory_context if external_memory_context is not None else executor._external_memory_context).enabled} files={len((external_memory_context if external_memory_context is not None else executor._external_memory_context).files)} issues={len((external_memory_context if external_memory_context is not None else executor._external_memory_context).issues)}",
         f"- trace_file: {executor.config.trace_path.name}",
         f"- recovery_state: {view['recovery_state']}",
         f"- backlog_status: ready={backlog['ready']} planned={backlog['planned']} in_progress={backlog['in_progress']} blocked={backlog['blocked']} done={backlog['done']}",
