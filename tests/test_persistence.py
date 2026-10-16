@@ -138,6 +138,19 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(goal["budget_used_percentage"], 105.0)
         self.assertIn("raise budget", goal["next_action"])
 
+    def test_project_goal_usage_rejects_invalid_counts(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.set_goal(objective="Track token usage", token_budget=100)
+        for kwargs in (
+            {"input_tokens": True},
+            {"output_tokens": -1},
+            {"current_usage": 1.5},
+        ):
+            with self.subTest(kwargs=kwargs), self.assertRaisesRegex(ValueError, "non-negative integers"):
+                handoff.record_goal_token_usage(model="openai", step_id="invalid", **kwargs)
+        self.assertEqual(handoff.goal_view()["tokens_used"], 0)
+        self.assertFalse(any(entry.phase == "goal_usage" for entry in handoff.entries))
+
     def test_project_goal_records_known_zero_usage(self) -> None:
         handoff = ProjectHandoff()
         handoff.set_goal(objective="Track token usage", token_budget=100)

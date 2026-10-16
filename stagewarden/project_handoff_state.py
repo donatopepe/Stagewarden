@@ -333,10 +333,17 @@ def record_goal_token_usage(
     output_tokens: int | None = None,
     current_usage: int | None = None,
 ) -> dict[str, Any]:
+    reported = {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "current_usage": current_usage,
+    }
+    if any(value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0) for value in reported.values()):
+        raise ValueError("goal token usage values must be non-negative integers or None")
     if not handoff.goal:
         return goal_view(handoff)
-    input_count = int(input_tokens or 0)
-    output_count = int(output_tokens or 0)
+    input_count = input_tokens or 0
+    output_count = output_tokens or 0
     total = input_count + output_count
     has_reported_usage = input_tokens is not None or output_tokens is not None or current_usage is not None
     if total <= 0:
