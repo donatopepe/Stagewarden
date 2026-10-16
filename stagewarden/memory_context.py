@@ -220,7 +220,7 @@ def load_memory_context(
                     raise ValueError("token counter returned invalid suffix count")
                 if suffix_count > max_tokens:
                     issues.append(_issue("error", "token budget too small for truncation marker"))
-                    return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
+                    return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
                 else:
                     # Do not assume arbitrary pluggable counters are monotone over
                     # prefixes. Keep only candidates actually measured within budget;
@@ -242,8 +242,7 @@ def load_memory_context(
                     if not fitted:
                         issues.append(_issue("error", "no truncated memory candidate fits token budget"))
                         content = ""
-                        final_token_count = 0
-                        return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
+                        return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
             try:
                 final_token_count = token_counter(content)
                 if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
@@ -254,7 +253,10 @@ def load_memory_context(
                 raise ValueError("compacted memory exceeds token budget")
         except Exception as exc:
             issues.append(_issue("error", f"token counting failed: {exc}"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
+            return MemoryContext(
+                True, "", tuple(loaded), tuple(issues), max_chars,
+                token_counter_name=token_counter_name,
+            )
         if any(issue.level == "error" for issue in issues):
             return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)
     return MemoryContext(True, content, tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)

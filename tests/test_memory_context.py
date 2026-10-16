@@ -32,6 +32,8 @@ class MemoryContextTests(unittest.TestCase):
             MemoryContext(True, "", (), (), 10, token_limit=4, token_count=5)
         with self.assertRaisesRegex(ValueError, "token_count is required"):
             MemoryContext(True, "", (), (), 10, token_limit=4)
+        with self.assertRaisesRegex(ValueError, "token_counter_name must be non-empty"):
+            MemoryContext(True, "", (), (), 10, token_counter_name=" ")
         with self.assertRaisesRegex(ValueError, "token_limit is required"):
             MemoryContext(True, "", (), (), 10, token_count=1)
         with self.assertRaisesRegex(ValueError, "token_counter_name must be non-empty"):
@@ -111,8 +113,10 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path, max_tokens=10, token_counter=flaky_counter)
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
-            self.assertEqual(context.token_count, 0)
-            self.assertEqual(context.report()["content_tokens"], 0)
+            self.assertIsNone(context.token_limit)
+            self.assertIsNone(context.token_count)
+            self.assertIsNone(context.report()["token_limit"])
+            self.assertIsNone(context.report()["content_tokens"])
             self.assertIn("counter transient failure", context.report()["diagnostics"][0])
 
     def test_discontinuous_counter_never_returns_over_budget_suffix(self) -> None:
@@ -149,7 +153,7 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path, max_tokens=40, token_counter=counter)
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
-            self.assertEqual(context.token_count, 0)
+            self.assertIsNone(context.token_count)
             self.assertIn("token budget too small", context.report()["diagnostics"][0])
             self.assertEqual(context.report()["issue_count"], len(context.report()["issues"]))
 
@@ -185,7 +189,7 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path, max_tokens=40, token_counter=counter)
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
-            self.assertLessEqual(context.token_count, 40)
+            self.assertIsNone(context.token_count)
             self.assertIn("token budget too small", context.report()["diagnostics"][0])
 
     def test_no_fit_path_does_not_run_final_counter_on_cleared_content(self) -> None:
@@ -206,7 +210,7 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path, max_tokens=40, token_counter=counter)
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
-            self.assertEqual(context.token_count, 0)
+            self.assertIsNone(context.token_count)
             self.assertIn("no truncated memory candidate fits", context.report()["diagnostics"][0])
 
     def test_nonmonotonic_counter_that_rejects_every_sample_is_not_treated_as_fitting(self) -> None:
@@ -225,7 +229,7 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path, max_tokens=40, token_counter=counter)
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
-            self.assertEqual(context.token_count, 0)
+            self.assertIsNone(context.token_count)
             self.assertIn("no truncated memory candidate fits", context.report()["diagnostics"][0])
 
     def test_token_counter_exception_during_binary_search_fails_closed(self) -> None:
@@ -283,7 +287,7 @@ class MemoryContextTests(unittest.TestCase):
             )
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
-            self.assertEqual(context.token_count, 0)
+            self.assertIsNone(context.token_count)
             self.assertEqual(context.token_counter_name, "bad-final-counter")
             self.assertIn("invalid count", context.report()["diagnostics"][0])
 
