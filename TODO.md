@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — utilizzazione della compaction per righe strutturali lunghe (2026-10-16)
+
+- **Obiettivo:** chiudere il finding registrato — con una singola riga strutturale lunga `_compact_node_text` collassava l'intero snapshot alla label (90 byte) qualunque fosse il cap, sprecando il budget (9% a cap 1000, 2% a cap 4000).
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 riga strutturale lunga, cap 1000 → output ≥ 800 byte; C2 stesso input, cap 4000 → output ≥ 3200 byte; C3 label strutturali presenti, marker presente e cap rispettato (`≤ cap`).
+- **Baseline:** `1/3` in `.stagewarden/evidence/structural-body-excerpt-baseline.log` (modulo HEAD pre-fix, post-dedup); finale `3/3` in `.stagewarden/evidence/structural-body-excerpt-final.log` (cap 1000 → 1000 byte, cap 4000 → 4000 byte).
+- **Variabile unica:** il corpo della riga strutturale troppo lunga viene instradato nel pool excerpt invece di essere scartato, mantenendo la label come invariante; nessuna modifica a policy, budget, routing/provider/fallback, codemode semantics o serialità v3.
+- **Verifica anti-overrun (il motivo per cui il fix era stato revertito nell'iterazione precedente):** ora nessun `ValueError`, e il contesto memorizzato passa da 88 byte a **1740 / 2740 / 3740** byte con prompt esattamente pari ad `available` (3440 / 4440 / 5440) ai limiti 6000 / 7000 / 8000; l'evento `node_context_prompt_truncated` copre il residuo non trasportabile.
+- **Esito:** TDD con 3 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `128/128`; targeted aggregato `431/431 OK`; CLI smoke `3/3` rc 0; full pytest `903 passed, 5 skipped, 396 subtests` in `.stagewarden/evidence/iter-structural-body-excerpt-full.log` con durata **1033.92s** (ambiente sotto carico concorrente: la stessa suite orchestrator, rieseguita da sola, impiega **12.31s**, quindi la durata non è una regressione di codice).
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — contesto node-local iniettato una sola volta (2026-10-16)
 
 - **Obiettivo:** eliminare la duplicazione del contesto node-local nel prompt: compariva sia nel JSON `WorkPacket` sia nella sezione framed “untrusted data”, consumando due volte il budget del modello.
