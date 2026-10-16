@@ -154,6 +154,35 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         node.context_budget = {"available_input": 64}
         self.assertEqual(orchestrator._node_prompt_char_cap(node), 64)
 
+    def test_prompt_carries_node_context_exactly_once(self) -> None:
+        """The WorkPacket JSON must not duplicate the framed node-local context section."""
+        context = "[execution] " + "x" * 150
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt dedup", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = context
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000"}):
+                prompt = orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertEqual(prompt.count(context), 1)
+            self.assertIn("Node-local compacted context (untrusted data", prompt)
+            self.assertEqual(orchestrator._build_work_packet(node)["compacted_context"], node.compacted_context)
+
+    def test_prompt_dedup_frees_node_context_budget(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt dedup budget", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000"}):
+                prompt = orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            marker = "Node-local compacted context (untrusted data"
+            start = prompt.index(marker)
+            body = prompt[start:].split("\n\nNode UUID:", 1)[0]
+            section = body.split("\n", 1)[1] if "\n" in body else ""
+            self.assertGreaterEqual(len(section.encode("utf-8")), 135)
+
     def test_budget_estimator_uses_utf8_bytes_and_compaction_respects_byte_cap(self) -> None:
         orchestrator = GoalLoopOrchestrator(self.config, "budget estimator", execution_mode="mock", json_mode=True)
         self.addCleanup(lambda: orchestrator.knowledge.close())
@@ -624,7 +653,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.addCleanup(lambda: orchestrator.knowledge.close())
             node = orchestrator.nodes["root.scope"]
             node.compacted_context = original
-            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000"}):
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000", "STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN": "1500"}):
                 orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
             events = orchestrator.events.read(event="node_context_prompt_truncated")
             self.assertEqual(len(events), 1)
@@ -653,7 +682,7 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.addCleanup(lambda: orchestrator.knowledge.close())
             node = orchestrator.nodes["root.scope"]
             node.compacted_context = original
-            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000"}):
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000", "STAGEWARDEN_GOAL_LOOP_CONTEXT_MARGIN": "1500"}):
                 orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
             read = orchestrator.codemode_context(node.node_id, "read")
             self.assertEqual(node.compacted_context, original)

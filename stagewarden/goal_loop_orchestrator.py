@@ -613,9 +613,13 @@ Do NOT include any text before or after the JSON object.'''
                 )
                 packet["compacted_context"] = raw_context
                 packet["context_budget"] = budget
+        # Render the prompt's WorkPacket without the node-local context: it is injected once,
+        # in the framed untrusted-data section below, so the JSON copy only duplicated bytes
+        # inside the model window. The packet dict itself keeps the key for consumers.
+        packet_for_prompt = {key: value for key, value in packet.items() if key != "compacted_context"}
         prompt = (
             f"{template}\n\n"
-            f"WorkPacket: {json.dumps(packet, ensure_ascii=True, sort_keys=True)}\n\n"
+            f"WorkPacket: {json.dumps(packet_for_prompt, ensure_ascii=True, sort_keys=True)}\n\n"
             f"Task: {self.task}\n\n"
             f"Node: {child['node_id']}\n\n"
             f"Purpose: {child['purpose']}\n\n"
