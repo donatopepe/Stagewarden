@@ -107,6 +107,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — omissione contesto con budget ignoto resa auditabile (2026-10-16)
+
+- **Obiettivo:** quando limite input non è noto, preservare fail-closed omissione del contesto node-local ma renderla esplicita e verificabile (evitare omissione silenziosa).
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 contesto presente + budget ignoto → un evento `node_context_omitted_unknown_budget` con byte stored e motivo; C2 contesto vuoto → nessun evento; C3 budget noto → contesto iniettato, nessun evento omissione.
+- **Baseline:** `2/3` in `.stagewarden/evidence/unknown-budget-omission-baseline.log`; C1 mancava evento. Finale `3/3` in `.stagewarden/evidence/unknown-budget-omission-final.log`.
+- **Variabile unica:** evento audit-only sul ramo `available_input is None`; fail-closed invariato, nessun cap inventato né modifica a routing/provider/fallback o serialità v3.
+- **Esito:** TDD con 3 regressioni in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `131/131`; targeted aggregato `434/434 OK` (wall 261.883s sotto traffico concorrente); CLI smoke `3/3`; full pytest `906 passed, 5 skipped, 396 subtests` (347.38s). Evidenze in `.stagewarden/evidence/iter-unknown-budget-omission-{targeted,full}.log`.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — utilizzazione della compaction per righe strutturali lunghe (2026-10-16)
 
 - **Obiettivo:** chiudere il finding registrato — con una singola riga strutturale lunga `_compact_node_text` collassava l'intero snapshot alla label (90 byte) qualunque fosse il cap, sprecando il budget (9% a cap 1000, 2% a cap 4000).

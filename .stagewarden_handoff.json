@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: compaction wasted the cap for over-long structural lines - the line was trimmed to its label and the body dropped, so output was 90 bytes at any cap (9% utilisation at 1000, 2% at 4000). The body now joins the ordinary excerpt pool while the label remains the invariant: cap 1000 -> 1000 bytes, cap 4000 -> 4000, no budget overrun, and at limits 6000/7000/8000 the stored node context grew from 88 to 1740/2740/3740 bytes with prompts exactly at available (residual audited by node_context_prompt_truncated). Matrix 1/3 -> 3/3; 3 new TDD regressions; orchestrator 128/128; targeted aggregate 431/431; CLI smoke 3/3; full pytest 903 passed, 5 skipped, 396 subtests. The 1033.92s wall time reflects three queued loop prompts competing for the box (the same orchestrator suite alone takes 12.31s), not a code regression. No policy, routing/provider/fallback or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: absent provider/model input limit causes node-local context omission to remain fail-closed (no invented cap), but it was silent. The prompt path now emits node_context_omitted_unknown_budget with node UUID/revision, stored_utf8_bytes, reason and accounting unit; empty context and known-budget injection emit no such event. Matrix 2/3 -> 3/3; 3 new regressions; orchestrator 131/131; targeted aggregate 434/434; CLI smoke 3/3; full pytest 906 passed, 5 skipped, 396 subtests. No routing/provider/fallback/policy or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "54581279e82b15d5387883c4e829315f6f111507",
+  "git_head": "cbd61a06031e5a27d76836b58862ab4100f39e87",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4988,18 +4988,55 @@
         "full_pytest": "903 passed, 5 skipped, 396 subtests (1033.92s, load-affected)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T14:17:12+00:00",
+      "phase": "unknown_budget_context_omission_audited",
+      "iteration": 246,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Unknown model input budget continues to omit node-local context fail-closed, now with an explicit audit event and stored-byte accounting; matrix 2/3 -> 3/3, full pytest 906 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "cbd61a06031e5a27d76836b58862ab4100f39e87",
+      "details": {
+        "objective": "make fail-closed omission of node-local context auditable when model input budget is unknown",
+        "metric": "fixed 3-case matrix, threshold 3/3",
+        "baseline": "2/3 (omission event absent)",
+        "result": "3/3",
+        "fixed_cases": [
+          "stored context + unknown budget emits omission event with bytes/reason",
+          "empty context emits no event",
+          "known budget injects context and emits no unknown-budget omission"
+        ],
+        "files": [
+          "stagewarden/goal_loop_orchestrator.py",
+          "tests/test_goal_loop_orchestrator.py"
+        ],
+        "evidence_paths": [
+          ".stagewarden/evidence/unknown-budget-omission-baseline.log",
+          ".stagewarden/evidence/unknown-budget-omission-final.log",
+          ".stagewarden/evidence/iter-unknown-budget-omission-full.log"
+        ],
+        "targeted": "434/434 OK (261.883s under concurrent loop traffic)",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "906 passed, 5 skipped, 396 subtests (347.38s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "structural body excerpt matrix 1/3 -> 3/3 (.stagewarden/evidence/structural-body-excerpt-baseline.log vs -final.log); orchestrator 128/128 (12.31s alone); targeted aggregate 431/431 OK",
-    "full": "903 passed, 5 skipped, 396 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (1033.92s under concurrent loop load; orchestrator suite alone 12.31s) (.stagewarden/evidence/iter-structural-body-excerpt-full.log)",
+    "focused": "unknown-budget omission matrix 2/3 -> 3/3 (.stagewarden/evidence/unknown-budget-omission-baseline.log vs -final.log); orchestrator 131/131; targeted aggregate 434/434 OK (261.883s under concurrent loop load)",
+    "full": "906 passed, 5 skipped, 396 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (347.38s) (.stagewarden/evidence/iter-unknown-budget-omission-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T12:41:21+00:00",
+    "recorded_at": "2026-10-16T14:17:12+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)",
     "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)"
   }
