@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — flag di compaction del nodo persistito (2026-10-16)
+
+- **Obiettivo:** chiudere l'open issue registrato — per cap inferiori ai 73 byte del marker la compaction non era machine-detectable (`compacted=False` nonostante lo snapshot troncato) e non sopravviveva al restart.
+- **Metrica/soglia:** matrice fissa `4/4` (3 funzionali + 1 restart controllato); soglia `4/4`.
+- **Casi fissi/ordine:** C1 read su nodo fresco → `compacted=False`; C2 compaction con cap 128 (regime marker) → `compacted=True`, byte-esatto ≤ cap; C3 compaction con cap 64 (regime sub-marker) → `compacted=True`, byte == cap == `max_bytes`; C4 restart controllato (capsule persistita, stesso workspace/task, stesso `node_uuid`) → `compacted=True` dopo riapertura.
+- **Baseline:** `2/4` in `/tmp/stagewarden-node-compaction-flag-baseline.log` (C3/C4 falliscono); finale `4/4` in `/tmp/stagewarden-node-compaction-flag-final.log`.
+- **Variabile unica:** `NodeState.context_compacted` monotono, settato in `_append_node_context` quando la compaction avviene, incluso nel contratto snapshot/capsule e nel restore (anche ramo terminale), usato dalla proiezione read con il marker come backstop per snapshot scritti prima del flag. Nessuna modifica a policy, budget, routing/provider/fallback, codemode semantics o serialità v3.
+- **Esito:** TDD con 2 regressioni nuove in `tests/test_goal_loop_orchestrator.py` (e riallineamento del caso sub-marker precedente); suite orchestrator `107/107`; targeted aggregato `390/390 OK` (18.5s); CLI smoke `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-node-compaction-flag-full.log`.
+- **Ruolo residuo registrato:** ora la compaction è sempre detectabile, ma nel regime sub-marker il testo non dichiara *quanto* è stato omesso (unico bound: byte == cap); candidato successivo.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — accounting del codemode read/append (2026-10-16)
 
 - **Obiettivo:** la API codemode `read/append` deve riportare dimensioni byte-esatte, il cap del nodo e un flag di compaction; l'append non deve esporre solo un char count mentre il budget enforced è in byte.
