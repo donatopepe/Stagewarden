@@ -1086,6 +1086,12 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertIsNone(executor._safe_positive_int("1.5"))
             self.assertIsNone(executor._safe_positive_int("NaN"))
             self.assertEqual(executor._safe_positive_int("17"), 17)
+            extracted = executor._extract_usage_metadata({
+                "usage": {"prompt_tokens": "11", "completion_tokens": "1.5"},
+            })
+            self.assertEqual(extracted["input_tokens"], 11)
+            self.assertIsNone(extracted["output_tokens"])
+            self.assertEqual(extracted["current_usage"], 11)
         finally:
             executor.close()
 
