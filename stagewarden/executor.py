@@ -856,13 +856,21 @@ class Executor:
     def _safe_positive_int(self, value: object) -> int | None:
         if isinstance(value, bool):
             return None
-        try:
-            number = int(float(str(value).strip()))
-        except (TypeError, ValueError):
+        if isinstance(value, int):
+            number = value
+        elif isinstance(value, float) and value.is_integer():
+            number = int(value)
+        elif isinstance(value, str):
+            stripped = value.strip()
+            if not stripped or not stripped.isdecimal():
+                return None
+            try:
+                number = int(stripped)
+            except ValueError:
+                return None
+        else:
             return None
-        if number < 0:
-            return None
-        return number
+        return number if number >= 0 else None
 
     def _configure_handoff_accounts(self) -> ModelPreferences:
         try:

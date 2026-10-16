@@ -1069,6 +1069,26 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertIsNone(parse({"usage": {"completion_tokens": "2.0"}}))
         self.assertEqual(parse({"usage": {"completion_tokens": " 17 "}}), 17)
 
+    def test_executor_usage_extraction_rejects_fractional_counts(self) -> None:
+        from stagewarden.executor import Executor
+        from stagewarden.handoff import HandoffManager
+        from stagewarden.memory import MemoryStore
+        from stagewarden.project_handoff import ProjectHandoff
+        from stagewarden.rag import DesignRag
+        from stagewarden.router import ModelRouter
+        executor = Executor(
+            config=AgentConfig(workspace_root=self.tmp_dir), router=ModelRouter(),
+            handoff=HandoffManager(), memory=MemoryStore(),
+            project_handoff=ProjectHandoff(), rag=DesignRag(),
+        )
+        try:
+            self.assertIsNone(executor._safe_positive_int(1.5))
+            self.assertIsNone(executor._safe_positive_int("1.5"))
+            self.assertIsNone(executor._safe_positive_int("NaN"))
+            self.assertEqual(executor._safe_positive_int("17"), 17)
+        finally:
+            executor.close()
+
     def test_node_contract_preserves_reported_output_usage(self) -> None:
         result = GoalLoopOrchestrator._node_contract_result(
             {"summary": "done", "messages": [], "usage": {"completion_tokens": 23}},
