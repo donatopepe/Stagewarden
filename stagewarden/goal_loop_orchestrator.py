@@ -816,7 +816,7 @@ Do NOT include any text before or after the JSON object.'''
         entry = f"[{category}] {str(text).strip()}"
         combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
         budget = node.context_budget.get("available_input")
-        cap = max(0, budget) if isinstance(budget, int) and not isinstance(budget, bool) else 12000
+        cap = budget if isinstance(budget, int) and not isinstance(budget, bool) and budget >= 0 else 12000
         was_compacted = len(combined.encode("utf-8")) > cap
         if was_compacted:
             prior = node.compacted_context
@@ -963,7 +963,7 @@ Do NOT include any text before or after the JSON object.'''
                     "budget": dict(node.context_budget)}
         if operation == "append" and isinstance(text, str) and text.strip():
             budget = node.context_budget.get("available_input")
-            max_append_bytes = max(0, budget) if isinstance(budget, int) and not isinstance(budget, bool) else 12000
+            max_append_bytes = budget if isinstance(budget, int) and not isinstance(budget, bool) and budget >= 0 else 12000
             try:
                 append_bytes = len(text.encode("utf-8"))
             except UnicodeEncodeError:

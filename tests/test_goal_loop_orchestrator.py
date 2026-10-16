@@ -250,6 +250,12 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             )
             self.assertFalse(boolean_budget["ok"])
             self.assertEqual(boolean_budget["max_append_bytes"], 12000)
+            root.context_budget["available_input"] = -1
+            negative_budget = orchestrator.codemode_context(
+                root.node_id, "append", text="n" * 12001, expected_revision=revision_before_oversize,
+            )
+            self.assertFalse(negative_budget["ok"])
+            self.assertEqual(negative_budget["max_append_bytes"], 12000)
             root.context_budget["available_input"] = True
             root.compacted_context = "a" * 127
             compacted_boolean_budget = orchestrator._append_node_context(root, "test", "b" * 2)
