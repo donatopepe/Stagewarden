@@ -666,6 +666,18 @@ Do NOT include any text before or after the JSON object.'''
                     prompt += lessons_section
             if self._estimate_tokens(prompt) > available:
                 raise ValueError(f"Node {child['node_id']} prompt exceeds model input budget.")
+        elif node_state is not None and node_state.compacted_context:
+            # Unknown input budget: node-local context is deliberately omitted rather than
+            # risking an unproven window, but the omission must stay auditable.
+            self.events.append(
+                "node_context_omitted_unknown_budget", tree_id="goal-loop",
+                node_id=node_state.node_id, node_uuid=node_state.node_uuid,
+                revision=node_state.context_revision,
+                section="node_prompt_budget",
+                stored_utf8_bytes=len(node_state.compacted_context.encode("utf-8")),
+                reason="input budget unknown; node-local context omitted",
+                accounting_unit=self._accounting_unit,
+            )
         if node_state is not None:
             node_state.context_budget = dict(budget)
         return prompt

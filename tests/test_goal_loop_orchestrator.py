@@ -154,6 +154,45 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         node.context_budget = {"available_input": 64}
         self.assertEqual(orchestrator._node_prompt_char_cap(node), 64)
 
+    def test_unknown_budget_records_node_context_omission(self) -> None:
+        """Without a known input budget the node context is omitted; the omission must be auditable."""
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "unknown budget omission", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS", None)
+                prompt = orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertNotIn("Node-local compacted context (untrusted data", prompt)
+            events = orchestrator.events.read(event="node_context_omitted_unknown_budget")
+            self.assertEqual(len(events), 1)
+            detail = events[0]["details"]
+            self.assertEqual(detail["stored_utf8_bytes"], len(original.encode("utf-8")))
+            self.assertEqual(detail["section"], "node_prompt_budget")
+
+    def test_unknown_budget_without_context_records_no_omission(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "unknown budget empty", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS", None)
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertEqual(orchestrator.events.read(event="node_context_omitted_unknown_budget"), [])
+
+    def test_known_budget_records_no_unknown_omission(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "known budget injected", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000"}):
+                prompt = orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertIn("Node-local compacted context (untrusted data", prompt)
+            self.assertEqual(orchestrator.events.read(event="node_context_omitted_unknown_budget"), [])
+
     def test_prompt_carries_node_context_exactly_once(self) -> None:
         """The WorkPacket JSON must not duplicate the framed node-local context section."""
         context = "[execution] " + "x" * 150
