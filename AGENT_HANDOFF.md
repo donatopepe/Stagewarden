@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- `MemoryContext` enforces counter identity whenever token count exists; loader supplies explicit `unspecified_token_counter` label for callers omitting optional name. Regression covers identity and preserves explicitly configured labels. Focused 61 passed, 10 subtests; full suite 845 passed, 5 skipped, 364 subtests (322.35s); compileall/JSON/alignment/diff-check pass.
+- Error-path regression now verifies rejected sensitive memory content does not leak through adjacent `Model context files` section metadata. `tests/test_memory_context.py`: 32 passed; compileall and diff-check pass. No production behavior change.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.

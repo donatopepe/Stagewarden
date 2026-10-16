@@ -542,6 +542,9 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("metadata exceeds available input budget", section.body)
             self.assertFalse(executor._external_memory_context.ok)
             self.assertEqual(executor._external_memory_context.content, "")
+            context_section = next(item for item in packet.sections if item.title == "Model context files")
+            self.assertNotIn("sensitive cached fragment", context_section.body)
+            self.assertIn("configured_markdown_memory", context_section.body)
             executor.close()
 
     def test_prompt_memory_budget_reports_nonconverging_outer_counter(self) -> None:
