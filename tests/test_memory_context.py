@@ -229,6 +229,53 @@ class MemoryContextTests(unittest.TestCase):
             self.assertEqual(compacted.report()["token_counter"], "test_char_estimator")
             self.assertIn("truncated by memory token budget", compacted.content)
 
+    def test_token_budget_truncation_reports_included_partial_and_dropped_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            for name in ("a.md", "b.md", "c.md"):
+                (memory / name).write_text(name[0] * 2000, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["a.md", "b.md", "c.md"], "max_chars": 12000}})
+            context = load_memory_context(root, path, max_tokens=400, token_counter=len)
+            self.assertTrue(context.ok)
+            self.assertLessEqual(len(context.content), 400)
+            self.assertIn("partial=a.md", context.content)
+            self.assertIn("dropped=b.md,c.md", context.content)
+            self.assertTrue(any(issue.level == "warning" and "dropped=b.md,c.md" in issue.message for issue in context.issues))
+
+    def test_executor_prompt_surfaces_token_budget_truncation_accounting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            for name in ("a.md", "b.md", "c.md"):
+                (memory / name).write_text(name[0] * 2000, encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["a.md", "b.md", "c.md"], "max_chars": 12000}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            step = PlanStep(id="step", title="Read context", instruction="inspect", validation="v")
+            packet = executor._build_model_communication_packet(
+                task="inspect", step=step, plan=[step], last_observation="none",
+                provider_limits={"available_input": 400},
+            )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertIn("dropped=b.md,c.md", section.body)
+            executor.close()
+
+    def test_token_budget_without_truncation_reports_no_file_accounting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            for name in ("a.md", "b.md", "c.md"):
+                (memory / name).write_text(name[0] * 2000, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["a.md", "b.md", "c.md"], "max_chars": 12000}})
+            context = load_memory_context(root, path, max_tokens=100000, token_counter=len)
+            self.assertNotIn("truncated", context.content)
+            self.assertNotIn("dropped=", context.content)
+            self.assertNotIn("partial=", context.content)
+            self.assertFalse(any("truncat" in issue.message for issue in context.issues))
+
     def test_counter_failure_after_compaction_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

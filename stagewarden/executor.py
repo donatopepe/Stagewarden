@@ -1549,6 +1549,10 @@ class Executor:
         )
         memory_summary = _executor_prompting.bounded_context(self.memory.summarize(), 2000, label="memory_summary")
         available_memory_tokens = (provider_limits or {}).get("available_input")
+        # Rendered body of the accepted candidate, so the final section is not rendered a
+        # second time: re-rendering appended the diagnostics twice and could exceed the
+        # token budget this loop had already measured.
+        accepted_body: str | None = None
         if (
             isinstance(available_memory_tokens, int)
             and not isinstance(available_memory_tokens, bool)
@@ -1605,6 +1609,7 @@ class Executor:
                     break
                 if used <= available_memory_tokens:
                     external_memory = candidate
+                    accepted_body = candidate_body
                     break
                 if memory_budget == 0:
                     from dataclasses import replace
@@ -1662,7 +1667,10 @@ class Executor:
                     max_chars=12000,
                 )
         self._external_memory_context = external_memory
-        external_memory_body = _executor_prompting.render_external_memory_context(external_memory)
+        if accepted_body is not None:
+            external_memory_body = accepted_body
+        else:
+            external_memory_body = _executor_prompting.render_external_memory_context(external_memory)
         if external_memory.token_limit is not None and "[accounting: " not in external_memory_body:
             external_memory_body += f"\n\n[accounting: {external_memory.token_counter_name}; tokens={external_memory.token_count}/{external_memory.token_limit}]"
         if len(external_memory_body) > external_memory.max_chars:

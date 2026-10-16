@@ -9,7 +9,7 @@ from .runtime_env import detect_runtime_capabilities
 from .textcodec import dumps_ascii
 
 
-_MEMORY_TRUNCATION_NOTE_MARKER = "memory content truncated by memory.max_chars: "
+_MEMORY_TRUNCATION_NOTE_PREFIX = "memory content truncated by "
 
 
 def memory_truncation_accounting(context: Any) -> str:
@@ -17,12 +17,16 @@ def memory_truncation_accounting(context: Any) -> str:
 
     The executor re-bounds the rendered section marker-inclusive; without this the second
     truncation would cut the loader's file accounting away and the model would see a
-    generic marker instead of which files were dropped or partial.
+    generic marker instead of which files were dropped or partial. Both loader paths
+    (``max_chars`` and token budget) publish the note with the same message prefix.
     """
     for issue in getattr(context, "issues", ()) or ():
         message = str(getattr(issue, "message", ""))
-        if _MEMORY_TRUNCATION_NOTE_MARKER in message:
-            return message.split(_MEMORY_TRUNCATION_NOTE_MARKER, 1)[1].strip()
+        if not message.startswith(_MEMORY_TRUNCATION_NOTE_PREFIX):
+            continue
+        remainder = message[len(_MEMORY_TRUNCATION_NOTE_PREFIX):]
+        if ": " in remainder:
+            return remainder.split(": ", 1)[1].strip()
     return ""
 
 

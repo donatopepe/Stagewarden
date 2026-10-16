@@ -265,6 +265,27 @@ def load_memory_context(
                         issues.append(_issue("error", "no truncated memory candidate fits token budget"))
                         content = ""
                         return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars)
+                    note = _chunk_accounting(chunks, chunk_names, end)
+                    if note:
+                        # The accounting lengthens the suffix, so re-fit it against the
+                        # measured counter and fall back to the plain suffix when the
+                        # accounting itself does not fit.
+                        probe_end = end
+                        while probe_end > 0:
+                            probe_note = _chunk_accounting(chunks, chunk_names, probe_end) or note
+                            candidate = source_content[:probe_end].rstrip() + suffix[:-1] + f": {probe_note}]"
+                            candidate_count = token_counter(candidate)
+                            if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 0:
+                                raise ValueError("token counter returned invalid count during compaction")
+                            if candidate_count <= max_tokens:
+                                content = candidate
+                                note = probe_note
+                                break
+                            probe_end //= 2
+                        else:
+                            note = ""
+                    if note:
+                        issues.append(_issue("warning", f"memory content truncated by memory token budget: {note}"))
             try:
                 final_token_count = token_counter(content)
                 if isinstance(final_token_count, bool) or not isinstance(final_token_count, int) or final_token_count < 0:
@@ -293,6 +314,38 @@ def load_memory_context(
 _TRUNCATION_MARKER_PREFIX = "\n[truncated by memory.max_chars: "
 
 
+def _chunk_accounting(chunks: list[str], names: list[str], cut: int) -> str:
+    """Name files fully kept, partially kept and dropped before ``cut`` characters.
+
+    Single source of truth for the truncation vocabulary, shared by the ``max_chars``
+    and token-budget paths so both report the same included/partial/dropped note.
+    """
+    included: list[str] = []
+    partial: str | None = None
+    dropped: list[str] = []
+    offset = 0
+    for index, chunk in enumerate(chunks):
+        start, stop = offset, offset + len(chunk)
+        offset = stop + 2
+        if stop <= cut:
+            included.append(names[index])
+            continue
+        if start < cut:
+            partial = names[index]
+            dropped = list(names[index + 1:])
+        else:
+            dropped = list(names[index:])
+        break
+    parts: list[str] = []
+    if included:
+        parts.append("included=" + ",".join(included))
+    if partial:
+        parts.append(f"partial={partial}")
+    if dropped:
+        parts.append("dropped=" + ",".join(dropped))
+    return "; ".join(parts)
+
+
 def _truncate_chunks_to_max_chars(chunks: list[str], names: list[str], max_chars: int) -> tuple[str, str]:
     """Bound the memory payload by whole file chunks and declare what was kept.
 
@@ -302,15 +355,12 @@ def _truncate_chunks_to_max_chars(chunks: list[str], names: list[str], max_chars
     a line boundary so a file header is never left half-written.
     """
     kept: list[str] = []
-    included: list[str] = []
-    partial: str | None = None
     used = 0
     for index, chunk in enumerate(chunks):
         separator = 2 if kept else 0
         if used + separator + len(chunk) <= max_chars:
             kept.append(chunk)
             used += separator + len(chunk)
-            included.append(names[index])
             continue
         room = max_chars - used - separator
         if room > 0:
@@ -323,18 +373,9 @@ def _truncate_chunks_to_max_chars(chunks: list[str], names: list[str], max_chars
                 head = head[:cut]
             if head.strip():
                 kept.append(head)
-                partial = names[index]
         break
     payload = "\n\n".join(kept)
-    dropped = list(names[len(included) + (1 if partial else 0):])
-    parts: list[str] = []
-    if included:
-        parts.append("included=" + ",".join(included))
-    if partial:
-        parts.append(f"partial={partial}")
-    if dropped:
-        parts.append("dropped=" + ",".join(dropped))
-    note = "; ".join(parts)
+    note = _chunk_accounting(chunks, names, len(payload))
     return payload + _TRUNCATION_MARKER_PREFIX + note + "]", note
 
 
