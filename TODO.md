@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — visibilità della truncation token-budget (2026-10-16)
+
+- **Obiettivo:** Next step 3 — anche la truncation per `max_tokens` del loader deve dichiarare `included/partial/dropped` (la `max_chars` lo faceva già) e l'executor deve surfacearla nel prompt.
+- **Metrica/soglia:** matrice fissa `4/4` (3 casi funzionali + 1 guard-case); soglia `4/4`.
+- **Casi fissi/ordine:** C1 loader con token budget → accounting + warning issue; C2 percorso prompt executor → accounting nel body; C3 budget capiente → nessun accounting e nessun marker; C4 guard → il body finale resta entro il budget token misurato dal loop (niente doppia renderizzazione).
+- **Baseline:** `2/4` in `/tmp/stagewarden-memory-token-budget-visibility-baseline.log` (C1/C2 falliscono, C4 passa perché senza warning non c'era diagnostica da duplicare). Accounting senza fix render: `3/4` (C4 a 102 > 80 token). Finale: `4/4` in `/tmp/stagewarden-memory-token-budget-visibility-final.log`.
+- **Variabile unica:** accounting condiviso (`_chunk_accounting`) usato da entrambi i percorsi di truncation + warning issue + riuso del body accettato nella sezione finale; nessuna modifica a policy, routing/provider/fallback, codemode o serialità v3.
+- **Difetto collaterale chiuso:** la sezione memoria veniva renderizzata due volte (diagnostica duplicata), quindi il body finale poteva superare il budget token che il loop aveva già misurato.
+- **Esito:** TDD con 3 regressioni nuove in `tests/test_memory_context.py`; suite memory_context `46/46`; targeted aggregato `385/385 OK` (16.9s); CLI smoke `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-token-budget-visibility-full.log`.
+- **File:** `stagewarden/memory_context.py`, `stagewarden/executor.py`, `stagewarden/executor_prompting.py`, `tests/test_memory_context.py`.
+
 ### Iterazione bounded completata — accounting memoria preservato nel re-bounding executor (2026-10-16)
 
 - **Obiettivo:** Next step 3 — il secondo taglio dell'executor sulla sezione memoria (`external_memory_body[:max_chars - len(suffix)]`) non deve distruggere l'accounting file-level `included=/partial=/dropped=` prodotto dal loader.

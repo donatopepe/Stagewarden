@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: the executor's second truncation of the rendered memory section cut the loader's included=/partial=/dropped= accounting away, so the final prompt lost the loss visibility added in the previous iteration. executor_prompting.memory_truncation_accounting() now extracts the loader note and appends it to the executor suffix, guarded to keep payload room (without the guard the suffix alone measured 603 chars > 500 cap). Matrix 3/4 -> 4/4 (baseline via stash of the two source files); 3 new TDD regressions; memory_context 43/43; targeted aggregate 382/382; CLI smoke 3/3; full pytest 874 passed, 5 skipped, 394 subtests. No budget, routing/provider/fallback, codemode or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: the loader's max_tokens truncation was not loss-visible - no included/partial/dropped note and no warning issue - so the executor could not surface file loss like it does for max_chars. _chunk_accounting() is now shared by both truncation paths; the token path re-fits the enriched suffix against the measured counter and records a warning. Closing this exposed a related defect: the memory section was rendered twice (duplicate diagnostics) so the final body could exceed the token budget the loop had already measured (102 > 80); the accepted candidate body is now reused. Matrix 2/4 -> 4/4 (intermediate accounting-only fix was 3/4, C4 guard), 3 new TDD regressions, memory_context 46/46, targeted aggregate 385/385, CLI smoke 3/3, full pytest 877 passed, 5 skipped, 394 subtests. No budget policy, routing/provider/fallback, codemode or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "1acada552b2a2870aa75c457bcd34b7014553f27",
+  "git_head": "5504f4a2f15a885e67026ca599145a0b38cd750c",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4622,18 +4622,54 @@
         "full_pytest": "874 passed, 5 skipped, 394 subtests (599.17s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T09:32:12+00:00",
+      "phase": "token_budget_truncation_visibility",
+      "iteration": 236,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Token-budget truncation now reports included/partial/dropped files with a warning, and the memory section is rendered once so the body stays within the measured token budget; matrix 2/4 -> 4/4, full pytest 877 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "5504f4a2f15a885e67026ca599145a0b38cd750c",
+      "details": {
+        "objective": "make loader token-budget truncation loss-visible and surface it in the prompt without breaking the budget",
+        "metric": "fixed 4-case matrix (3 functional + 1 guard), threshold 4/4",
+        "baseline": "2/4; accounting without the render fix 3/4 (C4 at 102 > 80 tokens)",
+        "result": "4/4",
+        "fixed_cases": [
+          "C1 loader token truncation names included/partial/dropped and warns",
+          "C2 executor prompt surfaces the token-budget accounting",
+          "C3 sufficient budget keeps content unchanged with no accounting",
+          "C4 guard: final body stays within the measured token budget (single render)"
+        ],
+        "files": [
+          "stagewarden/memory_context.py",
+          "stagewarden/executor.py",
+          "stagewarden/executor_prompting.py",
+          "tests/test_memory_context.py"
+        ],
+        "side_defect_closed": "memory section was rendered twice (duplicate diagnostics) and could exceed the measured budget",
+        "targeted": "385/385 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "877 passed, 5 skipped, 394 subtests (338.03s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "memory re-bound accounting matrix 3/4 -> 4/4 (/tmp/stagewarden-memory-rebound-accounting-baseline.log vs -final.log); memory_context 43/43; targeted aggregate 382/382 OK (38.2s)",
-    "full": "874 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (599.17s) (/tmp/stagewarden-iter-memory-rebound-full.log)",
+    "focused": "token-budget visibility matrix 2/4 -> 4/4 (/tmp/stagewarden-memory-token-budget-visibility-baseline.log vs -final.log); memory_context 46/46; targeted aggregate 385/385 OK (16.9s)",
+    "full": "877 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (338.03s) (/tmp/stagewarden-iter-token-budget-visibility-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T09:14:49+00:00",
+    "recorded_at": "2026-10-16T09:32:12+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)"
   }
 }
