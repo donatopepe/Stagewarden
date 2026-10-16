@@ -1412,6 +1412,8 @@ Do NOT include any text before or after the JSON object.'''
         messages = data.get("messages", [])
         if not isinstance(messages, list):
             return None
+        if "output" in data and not isinstance(data.get("output"), str):
+            return None
         return {
             "ok": True,
             "summary": str(data.get("summary", "Node executed via pi.")),

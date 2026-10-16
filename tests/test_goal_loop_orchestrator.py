@@ -1130,6 +1130,17 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertTrue(result["ok"], result.get("error"))
         self.assertEqual(result["summary"], "second")
 
+    def test_pi_execution_rejects_wrong_typed_output_instead_of_leaking_object(self) -> None:
+        for value in ('{"secret":"payload"}', "7", "null", "[]"):
+            with self.subTest(output=value):
+                result = self._pi_exec(
+                    '{"summary":"s","messages":[],"output":' + value + '}',
+                    task="wrong output type",
+                )
+                self.assertFalse(result["ok"])
+                self.assertIn("string summary and a messages array", result["error"])
+                self.assertNotIn("secret", str(result.get("output", "")))
+
     def test_pi_execution_rejects_wrong_typed_messages_instead_of_crashing(self) -> None:
         """A wrong-typed 'messages' must fail closed, not raise inside node execution.
 
