@@ -1587,12 +1587,15 @@ Do NOT include any text before or after the JSON object.'''
                 "output": stdout[:2000],
                 "cap_violation": {"observed_output_tokens": observed_output, "requested_cap": int(requested_cap)},
             }
-        return {
+        result = {
             "ok": True,
             "summary": str(payload["summary"]),
             "messages": [item for item in messages if isinstance(item, dict)],
             "output": payload.get("output", ""),
         }
+        if observed_output is not None:
+            result["observed_output_tokens"] = observed_output
+        return result
 
     @staticmethod
     def _observed_output_tokens(payload: dict[str, Any]) -> int | None:

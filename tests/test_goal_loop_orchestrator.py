@@ -1479,6 +1479,22 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("summary", result["error"])
 
+    def test_omniroute_preserves_observed_output_usage(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "test task", execution_mode="pi")
+        self.addCleanup(lambda: orch.knowledge.close())
+        node = orch.nodes["root.scope"]
+        proc = subprocess.CompletedProcess(
+            args=["adapter"], returncode=0,
+            stdout='{"summary":"s","messages":[],"usage":{"completion_tokens":12}}', stderr="",
+        )
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_BACKEND": "omniroute"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run", return_value=proc,
+        ):
+            result = orch._pi_execution(node)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["observed_output_tokens"], 12)
+
     def test_omniroute_observed_output_token_overrun_fails_closed(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "test task", execution_mode="pi")
