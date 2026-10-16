@@ -29,9 +29,9 @@ class MemoryContextTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "token_limit"):
             MemoryContext(True, "", (), (), 10, token_limit=-1)
         with self.assertRaisesRegex(ValueError, "must not exceed"):
-            MemoryContext(True, "", (), (), 10, token_limit=4, token_count=5)
+            MemoryContext(True, "", (), (), 10, token_limit=4, token_count=5, token_counter_name="estimator")
         with self.assertRaisesRegex(ValueError, "token_count is required"):
-            MemoryContext(True, "", (), (), 10, token_limit=4)
+            MemoryContext(True, "", (), (), 10, token_limit=4, token_counter_name="estimator")
         with self.assertRaisesRegex(ValueError, "token_limit is required"):
             MemoryContext(True, "", (), (), 10, token_count=1)
         with self.assertRaisesRegex(ValueError, "token_counter_name must be non-empty"):
