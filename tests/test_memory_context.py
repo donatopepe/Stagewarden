@@ -28,6 +28,8 @@ class MemoryContextTests(unittest.TestCase):
             MemoryContext(True, "", (), (), 10, token_limit=4, token_count=True)
         with self.assertRaisesRegex(ValueError, "token_limit"):
             MemoryContext(True, "", (), (), 10, token_limit=-1)
+        with self.assertRaisesRegex(ValueError, "must not exceed"):
+            MemoryContext(True, "", (), (), 10, token_limit=4, token_count=5)
         with self.assertRaisesRegex(TypeError, "issues"):
             MemoryContext(True, "", (), ("error",), 10)
         with self.assertRaisesRegex(TypeError, "enabled flag"):

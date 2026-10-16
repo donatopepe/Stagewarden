@@ -64,6 +64,8 @@ class MemoryContext:
                 raise ValueError(f"{name} must be a non-negative integer or None")
         if self.token_counter_name is not None and not isinstance(self.token_counter_name, str):
             raise TypeError("token_counter_name must be a string or None")
+        if self.token_limit is not None and self.token_count is not None and self.token_count > self.token_limit:
+            raise ValueError("token_count must not exceed token_limit")
 
     @property
     def ok(self) -> bool:
