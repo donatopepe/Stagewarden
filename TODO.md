@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — confine metadati memoria fail-closed (2026-10-16)
+
+- **Obiettivo:** Next step 1 — rivedere i confini di injection dei metadati memoria e confermare che nessuna cache prompt/summary bypassi l'oggetto budgeted; chiudere l'unico difetto trovato con la modifica più piccola.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 executor fresco → `model_context_files_section` fail-closed senza crash; C2 contesto esplicito risolto vince; C3 `_external_memory_context` mutabile mai usato come fallback.
+- **Baseline (pre-fix):** `1/3` (C1 `AttributeError: 'Executor' object has no attribute '_external_memory_context'`; C2 ok; C3 riuso cache mutabile `enabled=True files=1`).
+- **Variabile unica:** risoluzione del contesto nella metadata section (fail-closed, niente fallback su stato mutabile) + inizializzazione a `None` di `_external_memory_context`; nessuna modifica a routing/provider/fallback, budget token, compattazione, codemode o serialità v3.
+- **Esito:** matrice `3/3` in `/tmp/stagewarden-metadata-boundary-final.log`; TDD con 2 regressioni nuove in `tests/test_memory_context.py`; targeted `memory_context` + 8 suite canoniche `308/308 OK` (13.9s); CLI smoke `baseline/model limits/events replay --json` `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-metadata-boundary-full.log`.
+- **Audit (resto del confine, esito negativo pulito):** il cap char finale di `_build_prompt` deriva da `available_input` e copre l'intero packet renderizzato; la memoria esterna ha budget token iterativo dedicato con truncation `max_chars`; le uniche altre cache sono `_file_content_cache` (letture file, fuori dal prompt) e `_external_memory_context` (record post-build, ora mai fonte per i metadati). Nessuna cache prompt/summary scavalla l'oggetto budgeted.
+- **File:** `stagewarden/executor_prompting.py`, `stagewarden/executor.py`, `tests/test_memory_context.py`.
+
 ### Iterazione bounded completata — cycle 357: HOLD — approved MVP scope remains waiting; metadata gate `6/6`
 
 - **Esito:** HOLD. Nessuna modifica runtime/test/script; nessun unchecked approved MVP slice in TODO.

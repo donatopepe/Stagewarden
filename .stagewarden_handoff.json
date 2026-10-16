@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 blackout recovery: repo main clean except runtime .pi-loop.json.lock; durable loop c05d5335 was absent from .pi-loop.json (7-day durable TTL, no on-disk prompt copy). Re-armed as 30d0c9d5 and the canonical prompt is now versioned in .pi/prompts/stagewarden-mvp-continue-loop.md, so a future loss is recoverable from git. Wet recovery baseline 4/4: compileall rc=0, handoff_alignment=ok, handoff JSON valid, targeted 271 tests OK. Full pytest after rebuilding venv_pytest on python 3.14.8 with pytest 9.1.1: 864 passed, 5 skipped, 394 subtests (384.27s). No runtime/provider/routing/seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration (AGENT_HANDOFF Next step 1): audited memory token-aware injection boundaries. Budget path is clean - the final _build_prompt char cap derived from available_input covers the whole rendered packet, external memory keeps its own iterative token budget, and no prompt/summary cache bypasses the budgeted object. One real boundary defect fixed: model_context_files_section read the mutable executor._external_memory_context, so a directly built metadata section could raise AttributeError (attribute never initialized) or reuse another node's memory metadata (enabled=True files=1). It now requires the explicitly resolved context and fails closed with a memory_diagnostics line; _external_memory_context is initialized to None in Executor.__init__ and stays a post-build record. Fixed-case matrix 1/3 -> 3/3 with 2 new TDD regressions; targeted 308/308; CLI smoke 3/3; full pytest 866 passed, 5 skipped, 394 subtests. No routing/provider/fallback, budget, compaction, codemode or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "6ca99e6235fa9b08be77aa9d44a3bb182fdd2243",
+  "git_head": "7357c6d44eb4ab9d984119206fff1e4502430fa3",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4455,17 +4455,52 @@
         "environment_gap": "tests/test_decision_classifier.py needs pytest; /usr/bin/python3 has none and venv_pytest was a broken macOS symlink tree, now rebuilt locally",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T07:58:41+00:00",
+      "phase": "memory_metadata_boundary_fail_closed",
+      "iteration": 231,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Metadata memory section now fails closed without an explicitly resolved context; mutable executor memory cache no longer feeds prompt metadata. Matrix 1/3 -> 3/3, full pytest 866 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "7357c6d44eb4ab9d984119206fff1e4502430fa3",
+      "details": {
+        "objective": "review memory token-aware injection boundaries; confirm no prompt/summary cache bypasses the budgeted object",
+        "metric": "fixed 3-case matrix, threshold 3/3",
+        "baseline": "1/3 (C1 AttributeError on _external_memory_context, C3 mutable cache reuse enabled=True files=1)",
+        "result": "3/3",
+        "fixed_cases": [
+          "C1 fresh executor metadata section fails closed without crash",
+          "C2 explicit resolved context wins",
+          "C3 mutable executor cache never used as fallback"
+        ],
+        "audit_clean": "final prompt char cap from available_input bounds the whole rendered packet; external memory has its own iterative token budget; only other cache is _file_content_cache (file reads)",
+        "files": [
+          "stagewarden/executor_prompting.py",
+          "stagewarden/executor.py",
+          "tests/test_memory_context.py"
+        ],
+        "targeted": "308/308 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "866 passed, 5 skipped, 394 subtests (318.68s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "Ran 271 tests OK (targeted 8-suite unittest: goal_loop_orchestrator, node_knowledge, context_file_reading, file_read_recovery, event_stream, executor_event_stream, mutation_execution, mutation_journal)",
-    "full": "864 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (384.27s)",
+    "focused": "metadata memory boundary matrix 3/3 (/tmp/stagewarden-metadata-boundary-final.log, baseline 1/3); targeted memory_context + 8 canonical suites 308/308 OK (13.9s)",
+    "full": "866 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (318.68s) (/tmp/stagewarden-iter-metadata-boundary-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T07:42:37+00:00"
+    "recorded_at": "2026-10-16T07:58:41+00:00",
+    "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)"
   }
 }
