@@ -90,6 +90,48 @@ class MemoryContextTests(unittest.TestCase):
             self.assertLessEqual(len(context.content), 500 + len("\n[truncated by memory.max_chars]"))
             self.assertIn("pi-memory.md", context.content)
 
+    def test_max_chars_truncation_reports_included_partial_and_dropped_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            for name in ("a.md", "b.md", "c.md"):
+                (memory / name).write_text(name[0] * 400, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["a.md", "b.md", "c.md"], "max_chars": 500}})
+            context = load_memory_context(root, path)
+            self.assertLessEqual(len(context.content.split("\n[truncated by memory.max_chars", 1)[0]), 500)
+            self.assertIn("included=a.md", context.content)
+            self.assertIn("partial=b.md", context.content)
+            self.assertIn("dropped=c.md", context.content)
+            self.assertIn("## b.md\n", context.content)
+            self.assertTrue(any(issue.level == "warning" and "truncat" in issue.message for issue in context.issues))
+
+    def test_max_chars_truncation_keeps_file_header_and_names_partial_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "a.md").write_text("a" * 700, encoding="utf-8")
+            (memory / "b.md").write_text("b" * 100, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["a.md", "b.md"], "max_chars": 500}})
+            context = load_memory_context(root, path)
+            self.assertLessEqual(len(context.content.split("\n[truncated by memory.max_chars", 1)[0]), 500)
+            self.assertIn("## a.md\n", context.content)
+            self.assertIn("partial=a.md", context.content)
+            self.assertIn("dropped=b.md", context.content)
+
+    def test_max_chars_truncation_without_loss_keeps_content_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "a.md").write_text("a" * 100, encoding="utf-8")
+            path = self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["a.md"], "max_chars": 12000}})
+            context = load_memory_context(root, path)
+            self.assertEqual(context.content, "## a.md\n" + "a" * 100)
+            self.assertNotIn("truncated", context.content)
+            self.assertFalse(any("truncat" in issue.message for issue in context.issues))
+
     def test_invalid_token_budget_fails_before_settings_are_read(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

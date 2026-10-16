@@ -187,6 +187,7 @@ def load_memory_context(
         return MemoryContext(True, "", (), tuple(issues), max_chars)
 
     chunks: list[str] = []
+    chunk_names: list[str] = []
     loaded: list[str] = []
     for root in roots:
         for raw_file in raw_files:
@@ -216,11 +217,13 @@ def load_memory_context(
                 continue
             if text:
                 chunks.append(f"## {target.name}\n{text}")
+                chunk_names.append(target.name)
                 loaded.append(str(target))
     content = "\n\n".join(chunks)
     final_token_count: int | None = None
     if len(content) > max_chars:
-        content = content[:max_chars].rstrip() + "\n[truncated by memory.max_chars]"
+        content, truncation_note = _truncate_chunks_to_max_chars(chunks, chunk_names, max_chars)
+        issues.append(_issue("warning", f"memory content truncated by memory.max_chars: {truncation_note}"))
     if max_tokens is not None:
         if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens < 0:
             issues.append(_issue("error", "max_tokens must be a non-negative integer"))
@@ -285,6 +288,54 @@ def load_memory_context(
         True, content, tuple(loaded), tuple(issues), max_chars,
         max_tokens, token_counter_name or "unspecified_token_counter", final_token_count,
     )
+
+
+_TRUNCATION_MARKER_PREFIX = "\n[truncated by memory.max_chars: "
+
+
+def _truncate_chunks_to_max_chars(chunks: list[str], names: list[str], max_chars: int) -> tuple[str, str]:
+    """Bound the memory payload by whole file chunks and declare what was kept.
+
+    ``max_chars`` bounds the payload itself, exactly as before: the accounting marker is
+    appended on top of the cap (the executor re-bounds the rendered section marker
+    inclusive), so truncation stays additive and loss-visible. Partial content is cut on
+    a line boundary so a file header is never left half-written.
+    """
+    kept: list[str] = []
+    included: list[str] = []
+    partial: str | None = None
+    used = 0
+    for index, chunk in enumerate(chunks):
+        separator = 2 if kept else 0
+        if used + separator + len(chunk) <= max_chars:
+            kept.append(chunk)
+            used += separator + len(chunk)
+            included.append(names[index])
+            continue
+        room = max_chars - used - separator
+        if room > 0:
+            head = chunk[:room]
+            # Cut on a line boundary only when that boundary is past the file header
+            # line; otherwise a single long body line would be dropped entirely and
+            # the ordinary head of the file lost. Half-written headers stay impossible.
+            cut = head.rfind("\n")
+            if cut > chunk.find("\n"):
+                head = head[:cut]
+            if head.strip():
+                kept.append(head)
+                partial = names[index]
+        break
+    payload = "\n\n".join(kept)
+    dropped = list(names[len(included) + (1 if partial else 0):])
+    parts: list[str] = []
+    if included:
+        parts.append("included=" + ",".join(included))
+    if partial:
+        parts.append(f"partial={partial}")
+    if dropped:
+        parts.append("dropped=" + ",".join(dropped))
+    note = "; ".join(parts)
+    return payload + _TRUNCATION_MARKER_PREFIX + note + "]", note
 
 
 def render_memory_context(context: MemoryContext) -> str:
