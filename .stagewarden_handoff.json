@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: absent provider/model input limit causes node-local context omission to remain fail-closed (no invented cap), but it was silent. The prompt path now emits node_context_omitted_unknown_budget with node UUID/revision, stored_utf8_bytes, reason and accounting unit; empty context and known-budget injection emit no such event. Matrix 2/3 -> 3/3; 3 new regressions; orchestrator 131/131; targeted aggregate 434/434; CLI smoke 3/3; full pytest 906 passed, 5 skipped, 396 subtests. No routing/provider/fallback/policy or v3 seriality change.",
+  "latest_observation": "2026-10-16 user selected C: one bounded live observation against explicitly free local OmniRoute route auto/coding:free resolved to nvidia/nemotron-3.5-super-vl:free (HTTP 200, 7.305s). usage reports prompt_tokens=192 for 220 UTF-8 serialized message bytes (sanity only, not tokenizer equivalence); requested max_tokens=32 returned completion_tokens=32 and finish_reason=length. Fixed observation checks 3/3. Initial same-route 16-token request timed out at 60s; successful fixture was shortened and cap changed to 32, so results are sample evidence, not controlled comparison or universal enforcement proof. Adapter unit tests 13 pass/1 skip, py_compile pass. No code/provider/fallback/policy change; evidence JSON in .stagewarden/evidence.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "cbd61a06031e5a27d76836b58862ab4100f39e87",
+  "git_head": "6ec61fe895fda21a2d09bfa13ff8ee1757576535",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -195,7 +195,7 @@
   "prince2_role_tree_baseline": {},
   "prince2_node_runtime": {},
   "goal_loop_context": {},
-  "updated_at": "2026-10-06T18:10:00+00:00",
+  "updated_at": "2026-10-16T14:46:56+00:00",
   "entries": [
     {
       "timestamp": "2026-07-09T12:02:23+00:00",
@@ -5025,19 +5025,88 @@
         "full_pytest": "906 passed, 5 skipped, 396 subtests (347.38s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T14:23:27+00:00",
+      "phase": "user_approval_gate_hold",
+      "iteration": 247,
+      "task": "node-context-token-budget-codemode",
+      "summary": "HOLD: user did not select among remaining deliverables; no runtime or policy changes made.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "blocked",
+      "model": null,
+      "action_type": null,
+      "git_head": "e9f8b7a5203b4cce6eeeec8841591412f5becb5a",
+      "details": {
+        "metric": "decision matrix 0/1 approved selections",
+        "candidates": [
+          "semantic node-context compaction",
+          "conservative cap when model input budget unknown",
+          "provider tokenizer/output-cap verification with runtime evidence"
+        ],
+        "decision_helper": "jev_decide unavailable: spawn /root/bin/jev-decide ENOENT",
+        "user_action_required": "explicitly choose one deliverable",
+        "runtime_policy_unchanged": true
+      }
+    },
+    {
+      "timestamp": "2026-10-16T14:46:56+00:00",
+      "phase": "free_route_token_cap_observed",
+      "iteration": 248,
+      "task": "node-context-token-budget-codemode",
+      "summary": "User-selected C bounded live check: explicit free route returned token usage and respected requested max_tokens=32 in one response; sample matrix 3/3. Initial cap-16 attempt timed out; caveat recorded, no general enforcement claim.",
+      "step_id": "node-context-hardening",
+      "step_title": "Verify tokenizer/output cap only with runtime evidence",
+      "step_status": "active",
+      "model": null,
+      "action_type": "runtime_observation",
+      "git_head": "34809dbdb97309ca6d1ebb3aa9f5258af94c09b7",
+      "details": {
+        "objective": "obtain one provider-backed sample of token usage and requested output-cap behavior on explicitly free route",
+        "metric": "3 fixed observation checks, threshold 3/3",
+        "cases": [
+          "usage reports positive prompt_tokens",
+          "prompt_tokens <= serialized message UTF-8 bytes as sanity bound only",
+          "max_tokens=32 returns finish_reason=length and completion_tokens<=32"
+        ],
+        "baseline": "same explicit free route, longer prompt and max_tokens=16 timed out after 60 seconds; no response",
+        "result": "3/3 sample checks on adjusted bounded fixture; not controlled comparison",
+        "route": "auto/coding:free",
+        "resolved_model": "nvidia/nemotron-3.5-super-vl:free",
+        "http_status": 200,
+        "latency_seconds": 7.305,
+        "usage_prompt_tokens": 192,
+        "serialized_messages_utf8_bytes": 220,
+        "requested_max_tokens": 32,
+        "usage_completion_tokens": 32,
+        "finish_reason": "length",
+        "tests": "tests.test_omniroute_adapter: 13 passed, 1 skipped",
+        "evidence": ".stagewarden/evidence/free-route-token-cap-observation.json",
+        "runtime_policy_unchanged": true,
+        "limitations": [
+          "one response only",
+          "UTF-8 byte bound is not tokenizer equivalence",
+          "max_tokens request sample is not universal backend enforcement proof",
+          "fallback path is not observable from response although returned model ID is explicitly free"
+        ]
+      }
     }
   ],
   "validation": {
-    "focused": "unknown-budget omission matrix 2/3 -> 3/3 (.stagewarden/evidence/unknown-budget-omission-baseline.log vs -final.log); orchestrator 131/131; targeted aggregate 434/434 OK (261.883s under concurrent loop load)",
-    "full": "906 passed, 5 skipped, 396 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (347.38s) (.stagewarden/evidence/iter-unknown-budget-omission-full.log)",
+    "focused": "live free-route observation: explicitly-free route auto/coding:free resolved to nvidia/nemotron-3.5-super-vl:free, HTTP 200, usage prompt=192, completion=32, max_tokens=32, finish_reason=length, 3/3 sample checks; baseline 16-token request timed out after 60s so successful fixture differs and is not a controlled paired comparison. tests.test_omniroute_adapter 13 passed, 1 skipped; py_compile passed.",
+    "full": "Not run; bounded provider observation only, plus targeted adapter tests.",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T14:17:12+00:00",
+    "recorded_at": "2026-10-16T14:23:27+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)",
-    "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)"
+    "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)",
+    "approval_gate": "HOLD: no explicit deliverable selected; jev_decide unavailable (spawn ENOENT); no runtime validation/change performed",
+    "remote_route": "auto/coding:free only; resolved model id nvidia/nemotron-3.5-super-vl:free; no paid route selected.",
+    "evidence": ".stagewarden/evidence/free-route-token-cap-observation.json"
   }
 }
