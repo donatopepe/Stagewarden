@@ -7,7 +7,8 @@
       "createdAt": 1792135161940,
       "recurring": true,
       "durable": true,
-      "label": "stagewarden-mvp-continue"
+      "label": "stagewarden-mvp-continue",
+      "lastFiredAt": 1792136284863
     }
   ]
 }

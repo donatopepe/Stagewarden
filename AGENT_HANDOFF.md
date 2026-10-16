@@ -4,6 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
+- Recovery 2026-10-16 (post-blackout): `main` worktree dirty only on runtime `.pi-loop.json.lock`; durable loop `c05d5335` was absent (`.pi-loop.json` had `tasks: []`), root cause = durable task TTL (auto-expire after 7 days) with no on-disk copy of the prompt. Re-armed as `30d0c9d5` (`*/5 * * * *`, recurring, durable, label `stagewarden-mvp-continue`); canonical prompt now versioned at `.pi/prompts/stagewarden-mvp-continue-loop.md`. Wet recovery baseline: `compileall` rc=0; `scripts/check_handoff_alignment.py` -> `handoff_alignment=ok`; `.stagewarden_handoff.json` JSON valid; targeted 8-suite unittest `Ran 271 tests OK` (13.5s). `unittest discover -s tests` -> `853 tests, 1 error, 5 skipped`: the error is environmental, not a regression (`tests/test_decision_classifier.py` imports `pytest`, missing from `/usr/bin/python3`; `venv_pytest` was a broken macOS symlink tree). `venv_pytest` rebuilt locally on python 3.14.8 with pytest 9.1.1 from the local wheel cache; full pytest re-run confirmed the gap is environmental: `864 passed, 5 skipped, 394 subtests` in 384.27s (`/tmp/stagewarden_recovery_pytest.log`).
 - Goal usage recording now requires non-empty model and step_id attribution; invalid identity fails before goal/audit mutation. Regression covers empty/whitespace values. Persistence tests 19 passed, 7 subtests; full suite 863 passed, 5 skipped, 389 subtests (320.55s); compileall/JSON/alignment/diff-check pass.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
@@ -118,6 +119,9 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Strict budget env distingue unset (default) da vuoto/whitespace (errore). OmniRoute max_tokens bound 1..131072 (default 4096), over-range fail-fast JSON/exit 2; adapter tests 10 passed/1 skipped/12 subtests. Full suite 764 passed/5 skipped/321 subtests (317.74s). `STAGEWARDEN_GOAL_LOOP_REQUIRE_OUTPUT_CAP` valida boolean fail-closed. Opt-in input-budget tested: 75 passed/28 subtests; full suite 762 passed/5 skipped/320 subtests (318.85s). `STAGEWARDEN_GOAL_LOOP_REQUIRE_INPUT_BUDGET=true` rifiuta limit unknown, input override esplicito consente progress. Policy input budget valida ora boolean literal; `maybe`/`2`/`enabled` rifiutati. Goal-loop 76 passed/31 subtests; full suite 766 passed/5 skipped/332 subtests (342.96s).
 
 ## Recent changes
+- `.pi/prompts/stagewarden-mvp-continue-loop.md`: new versioned canonical prompt for the durable loop, recoverable after a blackout without chat history (fallback: `git log -p -- .pi-loop.json`).
+- `.pi-loop.json`: durable task recreated as `30d0c9d5` (`*/5 * * * *`, recurring, durable); previous `c05d5335` was lost.
+- `venv_pytest/` (gitignored): rebuilt on python 3.14.8 with pytest 9.1.1; was a broken macOS symlink tree pointing at `/Library/Developer/CommandLineTools/usr/bin/python3`.
 - `stagewarden/event_stream.py`, `tests/test_event_stream.py`: sequenza + hash chain opzionali su eventi, verifica integrità e blocco append su corruzione chain; regressione anti-tamper.
 - `stagewarden/goal_loop_orchestrator.py`, `stagewarden/node_knowledge.py`: token budget skills, UTF-8 byte estimator/compaction, snapshot UUID provenance e recovery post-restart.
 - `tests/test_goal_loop_orchestrator.py`: test estimator Unicode e byte-cap compaction.
@@ -130,6 +134,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - `TODO.md`, `HANDOFF.md`, `.stagewarden_handoff.json`: contesto e roadmap.
 
 ## Important files
+- `.pi/prompts/stagewarden-mvp-continue-loop.md`: canonical durable-loop prompt (re-arm source).
 - `stagewarden/goal_loop_orchestrator.py`: node prompts/budget/compaction/codemode.
 - `stagewarden/memory_context.py`: loader Markdown.
 - `stagewarden/model_catalog.py`: limiti provider/modello.
@@ -141,6 +146,8 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - Budget da catalogo/env; limiti ignoti non si inventano.
 
 ## Open issues
+- Durable loop has a 7-day TTL (`cron_create` auto-expire): without explicit re-arming it dies like `c05d5335` did. The loop prompt now contains the re-arm step; verify task presence at every iteration and before any long stop.
+- Full pytest suite needs `venv_pytest/bin/python` (gitignored, not rebuilt by any setup script); bare `python3 -m pytest` is unavailable, so `unittest discover` reports the `test_decision_classifier` pytest import error.
 - Tokenizer provider e overhead tool/schema/system non verificati; UTF-8 byte upper bound non è token count.
 - Memory token compaction non collegata al caller; semantic/loss-aware compaction remains unverified. Structural-label preservation is conservative truncation policy, not a semantic summary.
 - Output-cap backend non verificato: OmniRoute `max_tokens` è solo request; Pi CLI senza cap documentato. Opt-in fail-closed presente.
