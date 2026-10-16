@@ -342,6 +342,8 @@ def record_goal_token_usage(
         raise ValueError("goal token usage values must be non-negative integers or None")
     if not handoff.goal:
         return goal_view(handoff)
+    if not model or not model.strip() or not step_id or not step_id.strip():
+        raise ValueError("goal token usage requires non-empty model and step_id")
     input_count = input_tokens or 0
     output_count = output_tokens or 0
     total = input_count + output_count

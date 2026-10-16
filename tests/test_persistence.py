@@ -151,6 +151,18 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(handoff.goal_view()["tokens_used"], 0)
         self.assertFalse(any(entry.phase == "goal_usage" for entry in handoff.entries))
 
+    def test_project_goal_usage_requires_attribution_before_recording(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.set_goal(objective="Track token usage", token_budget=100)
+        for model, step_id in (("", "step"), (" ", "step"), ("model", ""), ("model", " ")):
+            with self.subTest(model=model, step_id=step_id):
+                with self.assertRaisesRegex(ValueError, "non-empty model and step_id"):
+                    handoff.record_goal_token_usage(
+                        model=model, step_id=step_id, input_tokens=0, output_tokens=0,
+                    )
+        self.assertEqual(handoff.goal_view()["tokens_used"], 0)
+        self.assertFalse(any(entry.phase == "goal_usage" for entry in handoff.entries))
+
     def test_project_goal_records_known_zero_usage(self) -> None:
         handoff = ProjectHandoff()
         handoff.set_goal(objective="Track token usage", token_budget=100)
