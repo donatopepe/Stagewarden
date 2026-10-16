@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- `load_memory_context()` rejects any non-callable supplied token counter even without budget, before settings/filesystem IO; regression verifies no access. Focused memory/context 63 passed, 10 subtests; full suite 847 passed, 5 skipped, 364 subtests (322.46s); compileall, JSON, alignment and diff-check pass.
+- Invalid `available_input` regression now also asserts persisted external-memory telemetry has unset limit/count and explicit `unspecified_token_counter` label. `tests/test_memory_context.py`: 34 passed; compileall/diff-check pass; full suite pending.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.

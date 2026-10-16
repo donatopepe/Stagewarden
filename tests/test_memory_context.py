@@ -419,6 +419,9 @@ class MemoryContextTests(unittest.TestCase):
                 section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
                 self.assertIn("memory remains available", section.body)
                 self.assertNotIn("tokens=", section.body)
+                self.assertIsNone(executor._external_memory_context.token_limit)
+                self.assertIsNone(executor._external_memory_context.token_count)
+                self.assertEqual(executor._external_memory_context.token_counter_name, "unspecified_token_counter")
             executor.close()
 
     def test_prompt_memory_uses_available_input_budget_and_reports_estimator(self) -> None:
