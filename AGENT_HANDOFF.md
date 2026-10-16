@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Invalid `available_input` regression asserts persisted external-memory telemetry has unset limit/count and explicit `unspecified_token_counter` label. Memory unit 34 passed; full suite 847 passed, 5 skipped, 364 subtests (321.72s); compileall/JSON/alignment/diff-check pass.
+- `MemoryContext` constructor now requires counter identity whenever `token_count` is set, including when limit missing; regression confirms requirement and updates limit/count pair tests to reach intended validation. Focused memory/context 63 passed, 10 subtests; full suite 847 passed, 5 skipped, 364 subtests (322.39s); compileall/JSON/alignment/diff-check pass.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
