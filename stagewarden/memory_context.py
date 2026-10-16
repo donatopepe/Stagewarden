@@ -142,6 +142,9 @@ def load_memory_context(
     if max_tokens is not None and token_counter is None:
         issues.append(_issue("error", "token_counter is required when max_tokens is set"))
         return MemoryContext(True, "", (), tuple(issues), 12000)
+    if max_tokens is not None and not callable(token_counter):
+        issues.append(_issue("error", "token_counter must be callable when max_tokens is set"))
+        return MemoryContext(True, "", (), tuple(issues), 12000)
     if token_counter_name is not None and not isinstance(token_counter_name, str):
         issues.append(_issue("error", "token_counter_name must be a string when provided"))
         return MemoryContext(True, "", (), tuple(issues), 12000)
