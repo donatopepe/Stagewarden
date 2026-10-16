@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Expanded executor usage regression end-to-end: fractional completion count yields `output_tokens=None`; current usage derives only from valid reported input count, no fabricated fractional output. Orchestrator 101 passed, 50 subtests; compileall/diff-check pass.
+- `MemoryStore.record_attempt()` preserves reported zero token usage (`current_usage=0`) instead of collapsing to unknown `None`; regression checks aggregate totals. Memory/orchestrator focused 111 passed, 60 subtests; full suite 860 passed, 5 skipped, 382 subtests (322.42s); compileall/JSON/alignment/diff-check pass.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
