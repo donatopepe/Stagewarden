@@ -7,7 +7,7 @@ from unittest.mock import PropertyMock, patch
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
-from stagewarden.memory_context import MemoryContext, load_memory_context
+from stagewarden.memory_context import MemoryContext, MemoryContextIssue, load_memory_context
 from stagewarden.executor import Executor
 from stagewarden.handoff import HandoffManager
 from stagewarden.memory import MemoryStore
@@ -30,6 +30,14 @@ class MemoryContextTests(unittest.TestCase):
             MemoryContext(True, "", (), (), 10, token_limit=-1)
         with self.assertRaisesRegex(TypeError, "issues"):
             MemoryContext(True, "", (), ("error",), 10)
+        with self.assertRaisesRegex(TypeError, "enabled flag"):
+            MemoryContext(1, "", (), (), 10)
+        with self.assertRaisesRegex(ValueError, "level"):
+            MemoryContextIssue("", "message")
+        with self.assertRaisesRegex(ValueError, "message"):
+            MemoryContextIssue("error", " ")
+        with self.assertRaisesRegex(TypeError, "path"):
+            MemoryContextIssue("error", "message", 3)
 
     def test_disabled_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

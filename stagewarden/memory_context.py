@@ -21,6 +21,14 @@ class MemoryContextIssue:
     message: str
     path: str = ""
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.level, str) or not self.level.strip():
+            raise ValueError("memory issue level must be a non-empty string")
+        if not isinstance(self.message, str) or not self.message.strip():
+            raise ValueError("memory issue message must be a non-empty string")
+        if not isinstance(self.path, str):
+            raise TypeError("memory issue path must be a string")
+
     def __str__(self) -> str:
         return f"{self.level}: {self.message}" + (f" [{self.path}]" if self.path else "")
 
@@ -36,6 +44,8 @@ class MemoryContext:
     token_count: int | None = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.enabled, bool):
+            raise TypeError("memory enabled flag must be a bool")
         if not isinstance(self.content, str):
             raise TypeError("memory content must be a string")
         if not isinstance(self.files, tuple) or any(not isinstance(item, str) for item in self.files):
