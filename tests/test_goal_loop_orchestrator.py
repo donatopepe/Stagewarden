@@ -403,6 +403,40 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertIs(read["compacted"], True)
             self.assertEqual(read["context_utf8_bytes"], len(read["context"].encode("utf-8")))
 
+    def test_codemode_read_reports_omitted_bytes_for_compacted_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "omitted bytes", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            fresh = orchestrator.codemode_context(node.node_id, "read")
+            self.assertEqual(fresh["omitted_utf8_bytes"], 0)
+            node.context_budget["available_input"] = 64
+            entry = "[execution] " + "x" * 400
+            orchestrator._append_node_context(node, "execution", "x" * 400)
+            read = orchestrator.codemode_context(node.node_id, "read")
+            expected = len(entry.encode("utf-8")) - len(node.compacted_context.encode("utf-8"))
+            self.assertGreater(expected, 0)
+            self.assertEqual(read["omitted_utf8_bytes"], expected)
+
+    def test_codemode_omitted_bytes_accumulate_and_survive_reopen(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "omitted bytes reopen", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            node.context_budget["available_input"] = 64
+            orchestrator._append_node_context(node, "execution", "x" * 400)
+            first = orchestrator.codemode_context(node.node_id, "read")["omitted_utf8_bytes"]
+            orchestrator._append_node_context(node, "execution", "y" * 400)
+            second = orchestrator.codemode_context(node.node_id, "read")["omitted_utf8_bytes"]
+            self.assertGreater(first, 0)
+            self.assertGreater(second, first)
+            orchestrator._persist_node_capsule(node)
+            orchestrator.knowledge.close()
+            reopened = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "omitted bytes reopen", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: reopened.knowledge.close())
+            read = reopened.codemode_context(reopened.nodes["root.scope"].node_id, "read")
+            self.assertEqual(read["omitted_utf8_bytes"], second)
+
     def test_codemode_read_reports_uncompacted_byte_size_as_chars_for_ascii(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "codemode read ascii", execution_mode="mock", json_mode=True)

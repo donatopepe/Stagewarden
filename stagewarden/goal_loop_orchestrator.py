@@ -96,6 +96,13 @@ _UNVERIFIED_COUNTER_ACCOUNTING_UNIT = "external_token_counter_not_provider_verif
 NODE_CONTEXT_COMPACTION_MARKER = "[context auto-compacted"
 
 
+def _non_negative_int(value: Any) -> int:
+    """Coerce persisted counters defensively: anything invalid becomes 0."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return 0
+    return value
+
+
 def _load_token_counter(spec: str) -> Callable[[str], int]:
     """Resolve the goal-loop token counter, failing closed on unknown specs.
 
@@ -156,6 +163,9 @@ class NodeState:
     # Monotonic: set as soon as an append had to compact this node's context, so a
     # truncated snapshot stays detectable even when the marker cannot fit inside the cap.
     context_compacted: bool = False
+    # Monotonic byte accounting of everything compaction removed from this node's context,
+    # so callers can size the loss even when the cap is too small for an in-text marker.
+    context_omitted_bytes: int = 0
     context_budget: dict[str, Any] = field(default_factory=dict)
     last_checkpoint: str | None = None
     cycle_budget: dict[str, int] = field(default_factory=lambda: {
@@ -191,6 +201,7 @@ class NodeState:
             "context_revision": self.context_revision,
             "compacted_context": self.compacted_context,
             "context_compacted": self.context_compacted,
+            "context_omitted_bytes": self.context_omitted_bytes,
             "context_budget": dict(self.context_budget),
             "last_checkpoint": self.last_checkpoint,
             "cycle_budget": dict(self.cycle_budget),
@@ -351,6 +362,7 @@ class GoalLoopOrchestrator:
                     node.compacted_context = saved_context
                     node.context_revision = int(saved.get("context_revision", node.context_revision) or 0)
                     node.context_compacted = bool(saved.get("context_compacted", node.context_compacted))
+                    node.context_omitted_bytes = _non_negative_int(saved.get("context_omitted_bytes", node.context_omitted_bytes))
                 node.messages_received = [dict(item) for item in received] if isinstance(received, list) else []
                 node.status = str(terminal_status)
                 node.output_summary = str(saved.get("output_summary", node.output_summary) or "")
@@ -359,7 +371,7 @@ class GoalLoopOrchestrator:
             for name in (
                 "node_uuid", "status", "active_work", "session_id", "last_run_at", "output_summary",
                 "error_message", "retry_count", "cycle_id", "cycle_phase", "execution_mode", "context_revision",
-                "compacted_context", "context_compacted", "context_budget", "last_checkpoint", "messages_received",
+                "compacted_context", "context_compacted", "context_omitted_bytes", "context_budget", "last_checkpoint", "messages_received",
             ):
                 if name in saved:
                     setattr(node, name, saved[name])
@@ -845,13 +857,18 @@ Do NOT include any text before or after the JSON object.'''
         node.compacted_context = combined
         if was_compacted:
             node.context_compacted = True
+            original_utf8_bytes = len(prior.encode("utf-8")) + len(entry.encode("utf-8"))
+            compacted_utf8_bytes = len(combined.encode("utf-8"))
+            omitted = max(0, original_utf8_bytes - compacted_utf8_bytes)
+            node.context_omitted_bytes = _non_negative_int(node.context_omitted_bytes) + omitted
             self.events.append(
                 "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,
                 node_uuid=node.node_uuid, revision=node.context_revision,
                 original_chars=len(prior) + len(entry), compacted_chars=len(combined),
                 section="node_local_context",
-                original_utf8_bytes=len(prior.encode("utf-8")) + len(entry.encode("utf-8")),
-                compacted_utf8_bytes=len(combined.encode("utf-8")),
+                original_utf8_bytes=original_utf8_bytes,
+                compacted_utf8_bytes=compacted_utf8_bytes,
+                omitted_utf8_bytes=omitted,
                 cap_utf8_bytes=(self._node_prompt_char_cap(node)
                                 if isinstance(node.context_budget.get("available_input"), int)
                                 and not isinstance(node.context_budget.get("available_input"), bool)
@@ -1009,6 +1026,7 @@ Do NOT include any text before or after the JSON object.'''
             "revision": revision, "context": context,
             "context_utf8_bytes": len(context.encode("utf-8")),
             "compacted": bool(node.context_compacted) or NODE_CONTEXT_COMPACTION_MARKER in context,
+            "omitted_utf8_bytes": _non_negative_int(node.context_omitted_bytes),
             "max_bytes": self._node_prompt_char_cap(node),
             "budget": dict(node.context_budget),
         }
