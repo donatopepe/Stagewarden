@@ -64,6 +64,10 @@ class MemoryContext:
                 raise ValueError(f"{name} must be a non-negative integer or None")
         if self.token_counter_name is not None and not isinstance(self.token_counter_name, str):
             raise TypeError("token_counter_name must be a string or None")
+        if self.token_limit is not None and self.token_count is None:
+            raise ValueError("token_count is required when token_limit is set")
+        if self.token_count is not None and self.token_limit is None:
+            raise ValueError("token_limit is required when token_count is set")
         if self.token_limit is not None and self.token_count is not None and self.token_count > self.token_limit:
             raise ValueError("token_count must not exceed token_limit")
 
@@ -199,10 +203,10 @@ def load_memory_context(
     if max_tokens is not None:
         if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens < 0:
             issues.append(_issue("error", "max_tokens must be a non-negative integer"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, None, token_counter_name, 0)
         if token_counter is None:
             issues.append(_issue("error", "token_counter is required when max_tokens is set"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
         try:
             token_count = token_counter(content)
             if isinstance(token_count, bool) or not isinstance(token_count, int) or token_count < 0:
