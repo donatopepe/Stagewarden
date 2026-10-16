@@ -812,11 +812,17 @@ Do NOT include any text before or after the JSON object.'''
             current = ancestor.parent_node_id
         return lessons
 
+    @staticmethod
+    def _node_prompt_char_cap(node: NodeState) -> int:
+        budget = node.context_budget.get("available_input")
+        if isinstance(budget, int) and not isinstance(budget, bool) and budget >= 0:
+            return budget
+        return 12000
+
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
         entry = f"[{category}] {str(text).strip()}"
         combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
-        budget = node.context_budget.get("available_input")
-        cap = budget if isinstance(budget, int) and not isinstance(budget, bool) and budget >= 0 else 12000
+        cap = self._node_prompt_char_cap(node)
         was_compacted = len(combined.encode("utf-8")) > cap
         if was_compacted:
             prior = node.compacted_context
@@ -1430,8 +1436,7 @@ Do NOT include any text before or after the JSON object.'''
         if not pi_bin:
             return {"ok": False, "error": "pi executable not found", "messages": []}
 
-        prompt = node_state.prompt
-        prompt = self._compact_node_text(prompt, int(node_state.context_budget.get("available_input", 12000)) if node_state.context_budget.get("available_input") is not None else 12000)
+        prompt = self._compact_node_text(node_state.prompt, self._node_prompt_char_cap(node_state))
         tmp_path: str | None = None
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.md',
@@ -1535,7 +1540,7 @@ Do NOT include any text before or after the JSON object.'''
             child_env.pop("STAGEWARDEN_OMNIROUTE_MAX_TOKENS", None)
         try:
             proc = subprocess.run(
-                [sys.executable, str(adapter), "--node-contract", provider, self._compact_node_text(node_state.prompt, int(node_state.context_budget.get("available_input", 12000)) if node_state.context_budget.get("available_input") is not None else 12000)],
+                [sys.executable, str(adapter), "--node-contract", provider, self._compact_node_text(node_state.prompt, self._node_prompt_char_cap(node_state))],
                 capture_output=True,
                 text=True,
                 timeout=self.config.model_timeout_seconds,

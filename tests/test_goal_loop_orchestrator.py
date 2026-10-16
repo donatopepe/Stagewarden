@@ -144,6 +144,18 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
                         execution_mode="mock", json_mode=True,
                     )
 
+    def test_node_prompt_char_cap_ignores_invalid_available_input(self) -> None:
+        node = NodeState(
+            node_id="node", node_uuid="uuid", parent_node_id=None, purpose="test",
+            prompt_template_name="test", prompt="prompt", inputs=[], outputs=[],
+            acceptance_criteria=[], tests=[], tolerances={}, escalation_rule="stop", dependencies=[],
+        )
+        for value in (-1, True, 1.5, "64", None):
+            node.context_budget = {"available_input": value}
+            self.assertEqual(GoalLoopOrchestrator._node_prompt_char_cap(node), 12000)
+        node.context_budget = {"available_input": 64}
+        self.assertEqual(GoalLoopOrchestrator._node_prompt_char_cap(node), 64)
+
     def test_budget_estimator_uses_utf8_bytes_and_compaction_respects_byte_cap(self) -> None:
         orchestrator = GoalLoopOrchestrator(self.config, "budget estimator", execution_mode="mock", json_mode=True)
         self.addCleanup(lambda: orchestrator.knowledge.close())
