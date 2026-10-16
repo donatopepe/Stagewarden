@@ -107,6 +107,19 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — contesto node-local iniettato una sola volta (2026-10-16)
+
+- **Obiettivo:** eliminare la duplicazione del contesto node-local nel prompt: compariva sia nel JSON `WorkPacket` sia nella sezione framed “untrusted data”, consumando due volte il budget del modello.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 con budget noto il testo del contesto compare **esattamente una volta** nel prompt (baseline: 2); C2 guard-case — la copia unica è la sezione framed `Node-local compacted context (untrusted data` e il packet dict conserva `compacted_context` per i consumer; C3 beneficio — a budget stretto la sezione nel prompt passa da **90 a 4012 byte**.
+- **Baseline:** `1/3` in `.stagewarden/evidence/prompt-dedup-baseline.log` (modulo pre-fix `b039c27`); finale `3/3` in `.stagewarden/evidence/prompt-dedup-final.log`.
+- **Variabile unica:** il JSON `WorkPacket` renderizzato nel prompt esclude `compacted_context` (il dict del packet lo mantiene); nessuna modifica a policy, routing/provider/fallback, codemode semantics o serialità v3.
+- **Esito:** TDD con 2 regressioni nuove e 2 test preesistenti adattati al nuovo regime di budget; suite orchestrator `125/125`; targeted aggregato `428/428 OK` (17.4s); CLI smoke `3/3` rc 0; full pytest `900 passed, 5 skipped, 394 subtests` (326.79s) in `.stagewarden/evidence/iter-prompt-dedup-full.log`.
+- **Finding registrati con evidenze (prossimi candidati):**
+  1. **Utilizzazione della compaction**: con una singola riga strutturale lunga `_compact_node_text` collassa l'intero snapshot alla label (90 byte) qualunque sia il cap — 9% a cap 1000, 2% a cap 4000 (`.stagewarden/evidence/structural-body-excerpt-baseline.log`). Il fix (instradare il corpo della riga nell'excerpt) saturava il cap ma faceva eccedere il budget, perché il contesto era duplicato nel JSON del packet: con la dedup di questa iterazione il vincolo è rimosso, quindi il candidato è ora percorribile.
+  2. **Budget ignoto ⇒ contesto escluso**: con `available_input` non noto la sezione node-local non viene mai iniettata (occorrenze 0, prompt 2541 byte): da valutare con un cap conservativo esplicito.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — truncation del prompt assembly registrata (2026-10-16)
 
 - **Obiettivo:** la truncation del contesto node-local applicata **solo al prompt** (seconda fase della generazione) non lasciava traccia: per certi budget il modello riceveva 90 byte mentre il record durevole ne aveva 4012, senza evento né telemetria.

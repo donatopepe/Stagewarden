@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: the prompt-only truncation of node-local context (second generation phase) was invisible - for some input budgets the model received 90 bytes while the durable record held 4012, with no event or telemetry. _generate_node_prompt now emits node_context_prompt_truncated with stored_utf8_bytes, prompt_utf8_bytes, omitted_utf8_bytes and section=node_prompt_assembly, while deliberately leaving the durable record untouched because that loss is ephemeral and retrievable. Matrix 2/3 -> 3/3; 3 new TDD regressions; orchestrator 123/123; targeted aggregate 426/426; CLI smoke 3/3; full pytest 898 passed, 5 skipped, 394 subtests. No policy, routing/provider/fallback or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: the node-local context was injected twice into the node prompt (rendered WorkPacket JSON plus the framed untrusted section), charging the model window twice; with a tight budget the model-visible section was only 90 bytes. The prompt's WorkPacket JSON now excludes compacted_context (the packet dict keeps it), so the framed section is the single marked copy and the same budget carries the full 4012-byte context. Matrix 1/3 -> 3/3; 2 new TDD regressions plus 2 tests re-tuned to the new budget regime; orchestrator 125/125; targeted aggregate 428/428; CLI smoke 3/3; full pytest 900 passed, 5 skipped, 394 subtests. Findings recorded with evidence for the next iterations: compaction utilisation collapses to 90 bytes for a single long structural line (9% at cap 1000, 2% at cap 4000) and an unknown input budget omits node-local context entirely. No policy, routing/provider/fallback or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "648678fc55fef00d7f5f18d586f6137e86c06eb3",
+  "git_head": "16d36a9ca332699adc4e8e61711a4d45f1c82385",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4907,18 +4907,60 @@
         "full_pytest": "898 passed, 5 skipped, 394 subtests (424.04s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T12:00:28+00:00",
+      "phase": "prompt_context_deduplicated",
+      "iteration": 244,
+      "task": "node-context-token-budget-codemode",
+      "summary": "The node prompt injects the node-local context exactly once (framed section), freeing the duplicated bytes; matrix 1/3 -> 3/3 and the model-visible section grew from 90 to 4012 bytes, full pytest 900 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "16d36a9ca332699adc4e8e61711a4d45f1c82385",
+      "details": {
+        "objective": "remove the duplicated node-local context from the built prompt",
+        "metric": "fixed 3-case matrix (2 functional + 1 guard), threshold 3/3",
+        "baseline": "1/3 (two copies; model-visible section 90 bytes)",
+        "result": "3/3 (single framed copy; section 4012 bytes)",
+        "fixed_cases": [
+          "C1 the stored context text occurs exactly once in the prompt",
+          "C2 the single copy is the framed untrusted section and the packet dict still carries compacted_context",
+          "C3 de-duplication frees budget: model-visible section 90 -> 4012 bytes"
+        ],
+        "files": [
+          "stagewarden/goal_loop_orchestrator.py",
+          "tests/test_goal_loop_orchestrator.py"
+        ],
+        "evidence_paths": [
+          ".stagewarden/evidence/prompt-dedup-baseline.log",
+          ".stagewarden/evidence/prompt-dedup-final.log",
+          ".stagewarden/evidence/iter-prompt-dedup-full.log",
+          ".stagewarden/evidence/structural-body-excerpt-baseline.log"
+        ],
+        "new_findings": [
+          "compaction collapses to 90 bytes for a single long structural line (9%/2% utilisation at caps 1000/4000); the body should join the excerpt pool, now unblocked by de-duplication",
+          "unknown input budget omits node-local context entirely"
+        ],
+        "targeted": "428/428 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "900 passed, 5 skipped, 394 subtests (326.79s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "prompt assembly truncation matrix 2/3 -> 3/3 (.stagewarden/evidence/prompt-assembly-truncation-baseline.log vs -final.log); orchestrator 123/123; targeted aggregate 426/426 OK (17.5s)",
-    "full": "898 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (424.04s, serial) (.stagewarden/evidence/iter-prompt-assembly-truncation-full.log)",
+    "focused": "prompt dedup matrix 1/3 -> 3/3 (.stagewarden/evidence/prompt-dedup-baseline.log vs -final.log); orchestrator 125/125; targeted aggregate 428/428 OK (17.4s)",
+    "full": "900 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (326.79s, serial) (.stagewarden/evidence/iter-prompt-dedup-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T11:42:21+00:00",
+    "recorded_at": "2026-10-16T12:00:28+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)",
     "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)"
   }
