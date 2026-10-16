@@ -1061,6 +1061,11 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["observed_output_tokens"], 17)
 
+    def test_pi_execution_omits_output_usage_when_provider_does_not_report_it(self) -> None:
+        result = self._pi_exec('{"summary":"done","messages":[],"usage":{"prompt_tokens":99}}')
+        self.assertTrue(result["ok"])
+        self.assertNotIn("observed_output_tokens", result)
+
     def test_pi_execution_parses_clean_json(self) -> None:
         """Valid JSON output with summary/messages is parsed by the real method."""
         stdout = json.dumps({
