@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Project goal token usage validates each provided count as non-bool non-negative int or None; invalid types/sign fail before goal/event mutation. Regression covers bool/negative/fractional. Focused persistence/executor 84 passed, 137 subtests; full suite 862 passed, 5 skipped, 385 subtests (320.15s); compileall/JSON/alignment/diff-check pass.
+- Goal usage recording now requires non-empty model and step_id attribution; invalid identity fails before goal/audit mutation. Regression covers empty/whitespace values. Persistence tests 19 passed, 7 subtests; full suite 863 passed, 5 skipped, 389 subtests (320.55s); compileall/JSON/alignment/diff-check pass.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
