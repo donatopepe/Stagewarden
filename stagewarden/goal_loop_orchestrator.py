@@ -1732,22 +1732,56 @@ Do NOT include any text before or after the JSON object.'''
             return {"ok": False, "error": "OmniRoute node messages must be an array", "messages": [], "output": stdout[:2000]}
         requested_cap = child_env.get("STAGEWARDEN_OMNIROUTE_MAX_TOKENS")
         observed_output = self._observed_output_tokens(payload)
+        usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+        usage_details = usage.get("completion_tokens_details")
+        if not isinstance(usage_details, dict):
+            usage_details = {}
+        reasoning_tokens = usage.get("reasoning_tokens", usage_details.get("reasoning_tokens"))
+        visible_content_tokens = usage.get("visible_content_tokens", usage_details.get("visible_content_tokens"))
+        token_components = {
+            name: value for name, value in (
+                ("reasoning_tokens", reasoning_tokens),
+                ("visible_content_tokens", visible_content_tokens),
+            )
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        }
         if requested_cap is not None and observed_output is not None and observed_output > int(requested_cap):
-            return {
+            cap_violation = {"observed_output_tokens": observed_output, "requested_cap": int(requested_cap)}
+            reasoning = token_components.get("reasoning_tokens")
+            visible = token_components.get("visible_content_tokens")
+            if reasoning is not None:
+                # Provider breakdowns can distinguish a reasoning-heavy completion from
+                # user-visible content. Preserve and classify that decomposition without
+                # changing the existing fail-closed decision.
+                cap_violation["reasoning_tokens"] = reasoning
+                cap_violation["reasoning_overrun_tokens"] = max(0, reasoning - int(requested_cap))
+            if visible is not None:
+                cap_violation["visible_content_tokens"] = visible
+            result = {
                 "ok": False,
-                "error": f"Provider exceeded requested output cap ({observed_output}>{int(requested_cap)} tokens); cap enforcement is not verifiable, failing closed.",
+                "error": f"Provider exceeded requested output cap ({observed_output}>{int(requested_cap)} tokens); reasoning_overrun_tokens={cap_violation.get('reasoning_overrun_tokens', 'unknown')}; cap enforcement is not verifiable, failing closed.",
                 "messages": [],
                 "output": stdout[:2000],
-                "cap_violation": {"observed_output_tokens": observed_output, "requested_cap": int(requested_cap)},
+                "cap_violation": cap_violation,
+                "reasoning_token_overrun": cap_violation.get("reasoning_overrun_tokens"),
+                **token_components,
             }
+            return result
         result = {
             "ok": True,
             "summary": str(payload["summary"]),
             "messages": [item for item in messages if isinstance(item, dict)],
             "output": payload.get("output", ""),
+            **token_components,
         }
         if observed_output is not None:
             result["observed_output_tokens"] = observed_output
+        resolved_model = payload.get("resolved_model")
+        if isinstance(resolved_model, str) and resolved_model:
+            result["resolved_model"] = resolved_model
+        finish_reason = payload.get("finish_reason")
+        if isinstance(finish_reason, str):
+            result["finish_reason"] = finish_reason
         return result
 
     @staticmethod

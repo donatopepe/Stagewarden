@@ -137,9 +137,25 @@ def main() -> int:
         try:
             with urllib.request.urlopen(request, timeout=float(os.environ.get("STAGEWARDEN_OMNIROUTE_TIMEOUT", "120"))) as response:
                 data = json.load(response)
-            content = data["choices"][0]["message"].get("content", "")
+            choice = data["choices"][0]
+            message = choice["message"]
+            content = message.get("content", "")
             if not content:
                 raise ValueError("OmniRoute returned empty content")
+            usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+            output_usage: dict[str, int] = {}
+            completion_tokens = usage.get("completion_tokens")
+            if isinstance(completion_tokens, int) and not isinstance(completion_tokens, bool) and completion_tokens >= 0:
+                output_usage["completion_tokens"] = completion_tokens
+            usage_details = usage.get("completion_tokens_details")
+            if isinstance(usage_details, dict):
+                for source_key, target_key in (("reasoning_tokens", "reasoning_tokens"), ("visible_content_tokens", "visible_content_tokens")):
+                    value = usage_details.get(source_key)
+                    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                        output_usage[target_key] = value
+            direct_visible = usage.get("visible_content_tokens")
+            if isinstance(direct_visible, int) and not isinstance(direct_visible, bool) and direct_visible >= 0:
+                output_usage["visible_content_tokens"] = direct_visible
             if node_contract:
                 packet = json.loads(content)
                 if not isinstance(packet, dict) or not isinstance(packet.get("summary"), str) or not packet["summary"].strip() or not isinstance(packet.get("messages", []), list):
@@ -150,6 +166,10 @@ def main() -> int:
                     raise ValueError(f"OmniRoute node contract has unexpected fields: {', '.join(unexpected)}")
                 if not all(isinstance(item, dict) for item in packet["messages"]):
                     raise ValueError("OmniRoute node contract messages must contain objects")
+                packet["usage"] = output_usage
+                if isinstance(choice.get("finish_reason"), str):
+                    packet["finish_reason"] = choice["finish_reason"]
+                packet["resolved_model"] = data.get("model") if isinstance(data.get("model"), str) else model
                 print(json.dumps(packet, ensure_ascii=True, sort_keys=True))
             else:
                 print(content)

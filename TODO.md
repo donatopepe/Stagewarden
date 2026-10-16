@@ -125,6 +125,38 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 - **Limiti:** evidenza campionaria per un route/modello e 3 richieste; non prova enforcement universale o tokenizer equivalence. Nessun route paid o fallback usato.
 - **Validazione offline:** `tests.test_omniroute_adapter` 13 pass, 1 skip; py_compile e JSON validi. Full suite non eseguita (nessun runtime code modificato).
 
+### Iterazione bounded completata — breakdown reasoning nei diagnostici output-cap (2026-10-16)
+
+- **Obiettivo:** conservare il breakdown reasoning/visible dal response provider fino al nodo e al fail-closed cap diagnostic, così overrun dovuto a reasoning interno non appare come output visibile non spiegato.
+- **Metrica/soglia:** 3 casi end-to-end, threshold `3/3`: (1) overrun 203 vs 96 → reasoning 199, visible 1, reasoning-overrun 103 diagnosticati; (2) cap256 accetta 203 e preserva breakdown; (3) response legacy senza breakdown conserva diagnostico storico.
+- **Baseline runtime:** route esplicitamente free `auto/coding:free`, prompt breve; cap96/cap128 produssero 203 completion tokens (reasoning199, visible READY), cap256 203 entro cap. Evidence `.stagewarden/evidence/free-reasoning-accounting-result.json`.
+- **Baseline test:** response sintetica end-to-end via adapter pre-fix + executor accettata come successo sotto cap96, nessuna usage/metadata (`.stagewarden/evidence/cap-usage-bridge-baseline.log`); matrix integrazione pre-fix `0/3`, current `3/3` (`.stagewarden/evidence/reasoning-cap-bridge-baseline-vs-current.log`).
+- **Fix:** adapter propagates validated `completion_tokens`, `reasoning_tokens`, `visible_content_tokens`, `finish_reason`, `resolved_model`; executor attaches decomposition and `reasoning_overrun_tokens` to cap violation and result. Existing `observed_output_tokens > cap` fail-closed decision unchanged; legacy without breakdown retains old shape.
+- **Variabile unica:** propagation/diagnostics only; no change to cap calculation/enforcement, routing/provider/fallback or v3 seriality.
+- **Wet validation:** 4 focused regressions `4/4`; adapter+orchestrator suites `147 passed, 1 skipped, 72 subtests`; broader targeted `450 passed, 1 skipped, 298 subtests`; CLI smoke `3/3`; `py_compile`, diff check green. Full suite not run (bounded diagnostics-only change).
+- **File:** `scripts/run_model_omniroute.py`, `stagewarden/goal_loop_orchestrator.py`, tests adapter/orchestrator; evidence in `.stagewarden/evidence/reasoning-*`.
+
+### Iterazione bounded completata — breakdown reasoning nei diagnostici output-cap (2026-10-16)
+
+- **Obiettivo:** preservare il breakdown provider `reasoning_tokens`/`visible_content_tokens` fino al diagnostico output-cap. Evidenza live free-route mostrava completion 203 (reasoning 199, visible READY) sotto cap96/128, ma cap256 rientrava; adapter perdeva usage details nel node contract.
+- **Metrica/soglia:** matrice end-to-end `3/3`: (1) overrun 203>96 fail-closed con breakdown 199/1 e reasoning-overrun 103; (2) cap256 accetta e preserva usage/model/finish; (3) legacy usage senza breakdown mantiene shape diagnostica precedente.
+- **Baseline:** bridge adapter pre-fix+executor accettava simulato 203>96 come success e perdeva model/usage; `0/3` in `.stagewarden/evidence/reasoning-cap-bridge-baseline-vs-current.log` (baseline adapter dal commit HEAD `66ebb4e`).
+- **Fix:** adapter node contract propaga usage numerico validato, model risolto e finish reason; executor esegue stessa decisione fail-closed sul completion totale, arricchendo cap violation con reasoning/visible/overrun. Nessuna modifica cap/routing/policy.
+- **Esito:** red TDD adapter propagation; integration matrix `3/3`; 7 focused cap/usage tests; adapter/orchestrator suites `147 passed, 1 skipped, 72 subtests`; targeted aggregato `450 passed, 1 skipped, 298 subtests`; CLI smoke `3/3`; py_compile/diff-check verdi. Full suite non eseguita (diagnostica bounded).
+- **Rischio residuo:** evidenza provider è una route/fixture; API non garantisce universalità di enforcement/tokenizer. L'app resta fail-closed se completion totale oltre cap.
+- **File:** `scripts/run_model_omniroute.py`, `stagewarden/goal_loop_orchestrator.py`, tests adapter/orchestrator.
+
+### Iterazione bounded completata — reasoning usage nel diagnostico output-cap (2026-10-16)
+
+- **Obiettivo:** preservare il breakdown provider `reasoning_tokens`/`visible_content_tokens` nel node result e nella diagnostica quando usage completion supera cap; fail-closed invariato.
+- **Metrica/soglia:** matrice adapter→executor `3/3`: over-cap con reasoning breakdown diagnostica i componenti e fallisce chiuso; under-cap preserva usage breakdown/model/finish; schema legacy senza breakdown mantiene cap diagnostic esistente.
+- **Baseline provider:** stessa route free e prompt READY: cap 96/128 riportano completion 203, reasoning 199, visible 1; cap 256 riporta 203 entro cap. `.stagewarden/evidence/free-reasoning-accounting-result.json`.
+- **Baseline TDD:** adapter pre-fix perdeva usage e resolved model; bridge integrato accettava response 203>96 come success (`.stagewarden/evidence/cap-usage-bridge-baseline.log`); matrix pre-fix `0/3`, corrente `3/3` (`reasoning-cap-bridge-baseline-vs-current.log`).
+- **Fix:** adapter propaga usage numerico validato, resolved model e finish reason; executor estrae reasoning/visible, classifica `reasoning_overrun_tokens`, resta fail-closed sul completion totale.
+- **Esito:** focused `7/7`; adapter+orchestrator `147 passed, 1 skipped, 72 subtests`; targeted aggregato `450 passed, 1 skipped, 298 subtests` (102.66s); CLI smoke `3/3`; py_compile, diff-check e handoff checks ok. Full suite non eseguita (bounded diagnostics-only).
+- **Limiti:** osservazione su un solo route free; nessun claim universale di tokenizer/enforcement; nessun route paid/retry/fallback introdotto.
+- **File:** `scripts/run_model_omniroute.py`, `stagewarden/goal_loop_orchestrator.py`, test adapter/orchestrator.
+
 ### Follow-up bounded — cap-16 ripetuto con fixture identica (2026-10-16)
 
 - **Obiettivo:** sostituire baseline timeout-only di C con ripetizione esatta della stessa fixture, route free, cap e timeout.
@@ -177,6 +209,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 - **Verifica anti-overrun (il motivo per cui il fix era stato revertito nell'iterazione precedente):** ora nessun `ValueError`, e il contesto memorizzato passa da 88 byte a **1740 / 2740 / 3740** byte con prompt esattamente pari ad `available` (3440 / 4440 / 5440) ai limiti 6000 / 7000 / 8000; l'evento `node_context_prompt_truncated` copre il residuo non trasportabile.
 - **Esito:** TDD con 3 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `128/128`; targeted aggregato `431/431 OK`; CLI smoke `3/3` rc 0; full pytest `903 passed, 5 skipped, 396 subtests` in `.stagewarden/evidence/iter-structural-body-excerpt-full.log` con durata **1033.92s** (ambiente sotto carico concorrente: la stessa suite orchestrator, rieseguita da sola, impiega **12.31s**, quindi la durata non è una regressione di codice).
 - **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
+### Iterazione bounded completata — accounting reasoning nei diagnostici output-cap (2026-10-16)
+
+- **Obiettivo:** preservare provider-reported `reasoning_tokens`/`visible_content_tokens` attraverso adapter→executor, affinché cap violation spieghi completion oltre cap con testo visibile breve.
+- **Metrica/soglia:** fixed 3-case integration matrix `3/3`: over-cap decomposition shown; under-cap usage preserved; legacy response without breakdown retains old diagnostic.
+- **Baseline:** adapter pre-fix + executor baseline failed all 3 checks: upstream usage/model was discarded, simulated completion 203 under cap96 returned success. `.stagewarden/evidence/cap-usage-bridge-baseline.log`; matrix `.stagewarden/evidence/reasoning-cap-bridge-baseline-vs-current.log`.
+- **Fix:** forward valid completion/reasoning/visible counters, finish reason and resolved model from OpenAI-compatible response; cap remains fail-closed on total reported completion. Diagnostic includes reasoning and `reasoning_overrun_tokens` without changing cap semantics.
+- **Esito:** focused reasoning/cap tests `7/7`; adapter+orchestrator suites `147 passed, 1 skipped, 72 subtests`; broader targeted `450 passed, 1 skipped, 298 subtests` (102.66s); CLI smoke `3/3`; py_compile, JSON, handoff alignment, diff-check pass. Full suite not run; bounded adapter diagnostic slice only.
+- **Evidence live:** `.stagewarden/evidence/free-reasoning-accounting-result.json` (one explicitly-free route; cap96/128 overrun due reported reasoning; cap256 within cap). No general provider guarantee.
+- **Invariati:** route/provider/fallback/policy e serialità v3.
 
 ### Iterazione bounded completata — contesto node-local iniettato una sola volta (2026-10-16)
 

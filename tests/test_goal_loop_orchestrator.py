@@ -1980,6 +1980,22 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("summary", result["error"])
 
+    def test_omniroute_cap_overrun_without_breakdown_keeps_legacy_diagnostic(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "legacy cap diagnostic", execution_mode="pi")
+        self.addCleanup(lambda: orch.knowledge.close())
+        node = orch.nodes["root.scope"]
+        node.context_budget.update({"max_output_tokens": 96, "reserved_output": None, "available_input": 4096})
+        proc = subprocess.CompletedProcess(args=["adapter"], returncode=0,
+            stdout='{"summary":"s","messages":[],"usage":{"completion_tokens":203}}', stderr="")
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_BACKEND":"omniroute"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run", return_value=proc,
+        ):
+            result=orch._pi_execution(node)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["cap_violation"], {"observed_output_tokens":203,"requested_cap":96})
+        self.assertNotIn("reasoning_tokens", result)
+
     def test_omniroute_preserves_observed_output_usage(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
         orch = GO(self.config, "test task", execution_mode="pi")
@@ -1995,6 +2011,72 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             result = orch._pi_execution(node)
         self.assertTrue(result["ok"])
         self.assertEqual(result["observed_output_tokens"], 12)
+
+    def test_omniroute_adapter_usage_reaches_end_to_end_cap_diagnostic(self) -> None:
+        """Exercise actual adapter serializer + executor boundary with provider reasoning usage."""
+        import contextlib
+        import io
+        import sys
+        import scripts.run_model_omniroute as adapter
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "cap usage bridge", execution_mode="pi")
+        self.addCleanup(lambda: orch.knowledge.close())
+        node = orch.nodes["root.scope"]
+        node.context_budget.update({"max_output_tokens":96,"reserved_output":None,"available_input":4096})
+        body = {
+            "model":"nvidia/nemotron-3.5-super-vl:free",
+            "choices":[{"message":{"content":json.dumps({"summary":"READY","messages":[]})},"finish_reason":"stop"}],
+            "usage":{"prompt_tokens":151,"completion_tokens":203,"completion_tokens_details":{"reasoning_tokens":199,"visible_content_tokens":1}},
+        }
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def read(self): return json.dumps(body).encode()
+        def fake_run(args, **kwargs):
+            output=io.StringIO()
+            with patch.object(sys, "argv", [str(args[1]), "--node-contract", "cheap", "prompt"]):
+                with patch.object(adapter.urllib.request, "urlopen", return_value=Response()), patch.dict(
+                    os.environ, {"STAGEWARDEN_PROVIDER_MODEL": "auto/coding:free", "STAGEWARDEN_OMNIROUTE_MAX_TOKENS": "96"}):
+                    with contextlib.redirect_stdout(output):
+                        rc = adapter.main()
+            return subprocess.CompletedProcess(args=args,returncode=rc,stdout=output.getvalue(),stderr="")
+        with patch.dict(os.environ,{"STAGEWARDEN_GOAL_LOOP_BACKEND":"omniroute","STAGEWARDEN_OMNIROUTE_MAX_TOKENS":"96"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run",side_effect=fake_run
+        ):
+            result=orch._pi_execution(node)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["cap_violation"]["observed_output_tokens"],203)
+        self.assertEqual(result["cap_violation"]["reasoning_tokens"],199)
+        self.assertEqual(result["cap_violation"]["visible_content_tokens"],1)
+        self.assertEqual(result["cap_violation"]["reasoning_overrun_tokens"],103)
+
+    def test_omniroute_reasoning_token_overrun_is_visible_in_cap_violation(self) -> None:
+        from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO
+        orch = GO(self.config, "reasoning cap visibility", execution_mode="pi")
+        self.addCleanup(lambda: orch.knowledge.close())
+        node = orch.nodes["root.scope"]
+        node.context_budget.update({"max_output_tokens": 96, "reserved_output": None, "available_input": 4096})
+        proc = subprocess.CompletedProcess(
+            args=["adapter"], returncode=0,
+            stdout=json.dumps({"summary":"READY", "messages":[], "usage":{
+                "completion_tokens":203,
+                "completion_tokens_details":{"reasoning_tokens":199},
+                "visible_content_tokens":1,
+            }}), stderr="",
+        )
+        with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_BACKEND":"omniroute"}), patch(
+            "stagewarden.goal_loop_orchestrator.subprocess.run", return_value=proc,
+        ):
+            result=orch._pi_execution(node)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["cap_violation"], {
+            "observed_output_tokens":203,"requested_cap":96,
+            "reasoning_tokens":199,"visible_content_tokens":1,
+            "reasoning_overrun_tokens":103,
+        })
+        self.assertEqual(result["reasoning_tokens"],199)
+        self.assertEqual(result["visible_content_tokens"],1)
+        self.assertEqual(result["reasoning_token_overrun"],103)
 
     def test_omniroute_observed_output_token_overrun_fails_closed(self) -> None:
         from stagewarden.goal_loop_orchestrator import GoalLoopOrchestrator as GO

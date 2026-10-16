@@ -189,6 +189,47 @@ class OmniRouteAdapterTests(unittest.TestCase):
             self.assertEqual(run_model_omniroute.main(), 0)
         self.assertEqual(attempts[:2], ["auto/coding:free", "auto/best-free"])
 
+    def test_node_contract_propagates_output_usage_and_resolved_model(self) -> None:
+        envelope = {
+            "choices": [{"message": {"content": json.dumps({"summary":"ready", "messages":[]}), "reasoning":"internal"}, "finish_reason":"stop"}],
+            "model":"provider/example:free",
+            "usage":{"prompt_tokens":12, "completion_tokens":21, "completion_tokens_details":{"reasoning_tokens":18, "visible_content_tokens":3}},
+        }
+        attempts=[]
+        def fake_urlopen(request, timeout):
+            attempts.append(json.loads(request.data)["model"])
+            return _RawBodyResponse(envelope)
+        with patch.object(sys,"argv",["run_model","--node-contract","cheap","test prompt"]), patch.object(
+            run_model_omniroute.urllib.request,"urlopen",side_effect=fake_urlopen
+        ), patch.dict(os.environ,{"STAGEWARDEN_PROVIDER_MODEL":"auto/coding:free"}):
+            self.assertEqual(run_model_omniroute.main(),0)
+        import contextlib,io
+        # Re-run with stdout captured to assert the node contract carries accounting metadata.
+        captured=io.StringIO()
+        with contextlib.redirect_stdout(captured), patch.object(sys,"argv",["run_model","--node-contract","cheap","test prompt"]), patch.object(
+            run_model_omniroute.urllib.request,"urlopen",side_effect=fake_urlopen
+        ), patch.dict(os.environ,{"STAGEWARDEN_PROVIDER_MODEL":"auto/coding:free"}):
+            self.assertEqual(run_model_omniroute.main(),0)
+        packet=json.loads(captured.getvalue())
+        self.assertEqual(attempts,["auto/coding:free","auto/coding:free"])
+        self.assertEqual(packet["usage"]["completion_tokens"],21)
+        self.assertEqual(packet["usage"]["reasoning_tokens"],18)
+        self.assertEqual(packet["usage"]["visible_content_tokens"],3)
+        self.assertEqual(packet["finish_reason"],"stop")
+        self.assertEqual(packet["resolved_model"],"provider/example:free")
+
+    def test_node_contract_usage_metadata_ignores_malformed_counts(self) -> None:
+        envelope={"choices":[{"message":{"content":json.dumps({"summary":"ready","messages":[]})}}],
+                  "usage":{"completion_tokens":False,"completion_tokens_details":{"reasoning_tokens":"18","visible_content_tokens":3.5}}}
+        import contextlib,io
+        captured=io.StringIO()
+        with contextlib.redirect_stdout(captured), patch.object(sys,"argv",["run_model","--node-contract","cheap","prompt"]), patch.object(
+            run_model_omniroute.urllib.request,"urlopen",return_value=_RawBodyResponse(envelope)
+        ), patch.dict(os.environ,{"STAGEWARDEN_PROVIDER_MODEL":"auto/coding:free"}):
+            self.assertEqual(run_model_omniroute.main(),0)
+        packet=json.loads(captured.getvalue())
+        self.assertEqual(packet["usage"],{})
+
     def test_node_contract_rejects_wrong_contract_and_uses_free_fallback(self) -> None:
         attempts: list[str] = []
 
