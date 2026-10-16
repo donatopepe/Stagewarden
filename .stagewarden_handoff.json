@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: the node prompt generator compacted and rewrote node_state.compacted_context to fit the model input budget without touching the compaction flag, the omitted-byte counter or the event stream, so the codemode read could report compacted=False / 0 omitted on a truncated snapshot (invisibility reintroduced through a second path). The write-back now goes through _store_node_context(..., original=, provenance='node_prompt_budget', cap_bytes=) with the same accounting as append-driven compaction. Matrix 1/3 -> 3/3; 3 new TDD regressions; orchestrator 115/115; targeted aggregate 418/418; CLI smoke 3/3; full pytest 890 passed, 5 skipped, 394 subtests. Environment incident: the /tmp reaper deleted all /tmp/stagewarden-* evidence logs, so evidence now lives in .stagewarden/evidence/ and handoff references point there. Residual: the prompt-path write-back still creates no new knowledge-store revision/snapshot (pre-existing). No policy, routing/provider/fallback or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: two durable-context coherence gaps closed. (1) The prompt-path write-back updated node_state.compacted_context without persisting a knowledge-store revision, so the store had no record of the context the node used; it now persists a guarded revision (store failure recorded as persisted=false with persist_error instead of breaking prompt generation). (2) record_context strips content while node state kept trailing whitespace, so node context and durable record diverged by 2 bytes in the marker regime (both write points); both now normalize with the store's .strip() contract. Matrix 1/5 -> 5/5; 5 new TDD regressions; orchestrator 120/120; targeted aggregate 423/423; CLI smoke 3/3; full pytest 895 passed, 5 skipped, 394 subtests. No policy, routing/provider/fallback or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "190e83328eaca3a45bd86ce76a6dcd16dec67c32",
+  "git_head": "ccfbfebc18bef930f939799e384ccf90e813bb9c",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4831,18 +4831,57 @@
         "full_pytest": "890 passed, 5 skipped, 394 subtests (413.54s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T11:27:43+00:00",
+      "phase": "durable_context_parity",
+      "iteration": 242,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Prompt-path context snapshots are persisted as guarded revisions and both write points match the store's .strip() normalization, so node context equals its durable record; matrix 1/5 -> 5/5, full pytest 895 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "ccfbfebc18bef930f939799e384ccf90e813bb9c",
+      "details": {
+        "objective": "make the durable context record and the node context identical, including the prompt-path write-back",
+        "metric": "fixed 5-case matrix (4 functional + 1 parity), threshold 5/5",
+        "baseline": "1/5 (no revision persisted; 88 vs 86 byte mismatch in both write points)",
+        "result": "5/5",
+        "fixed_cases": [
+          "C1 prompt-path compaction persists the current revision with matching content",
+          "C2 roomy budget persists nothing and keeps the revision",
+          "C3 after a controlled reopen the restored context equals the durable record",
+          "C4 store failure: prompt still generated, accounting kept, persisted=false + persist_error recorded",
+          "C5 append-path snapshot is byte-identical to its durable record (marker regime)"
+        ],
+        "files": [
+          "stagewarden/goal_loop_orchestrator.py",
+          "tests/test_goal_loop_orchestrator.py"
+        ],
+        "evidence_paths": [
+          ".stagewarden/evidence/prompt-path-persistence-baseline.log",
+          ".stagewarden/evidence/prompt-path-persistence-final.log",
+          ".stagewarden/evidence/iter-prompt-path-persistence-full.log"
+        ],
+        "targeted": "423/423 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "895 passed, 5 skipped, 394 subtests (378.95s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "prompt-path compaction matrix 1/3 -> 3/3 (.stagewarden/evidence/prompt-compaction-baseline.log vs -final.log); orchestrator 115/115; targeted aggregate 418/418 OK (23.8s)",
-    "full": "890 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (413.54s, serial) (.stagewarden/evidence/iter-prompt-compaction-full.log)",
+    "focused": "prompt-path persistence matrix 1/5 -> 5/5 (.stagewarden/evidence/prompt-path-persistence-baseline.log vs -final.log); orchestrator 120/120; targeted aggregate 423/423 OK (17.7s)",
+    "full": "895 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (378.95s, serial) (.stagewarden/evidence/iter-prompt-path-persistence-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T11:11:52+00:00",
+    "recorded_at": "2026-10-16T11:27:43+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)",
     "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)"
   }

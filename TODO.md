@@ -107,6 +107,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — contesto del nodo e record durevole coincidono (2026-10-16)
+
+- **Obiettivo:** chiudere il residuo registrato — il write-back del percorso prompt non persisteva una revisione nel Node Knowledge Store, e il record durevole divergeva dal contesto del nodo perché lo store normalizza con `.strip()` (divergenza presente anche nel percorso append).
+- **Metrica/soglia:** matrice fissa `5/5`; soglia `5/5`.
+- **Casi fissi/ordine:** C1 compaction prompt-path → revisione corrente persistita e contenuto == contesto del nodo; C2 budget ampio → nessuna persistenza e revisione invariata; C3 dopo reopen controllato il contesto ripristinato == record durevole; C4 fallimento dello store → il prompt viene comunque generato, l'accounting resta, l'evento riporta `persisted=false` + `persist_error`; C5 percorso append (regime marker) → contesto del nodo byte-identico al record durevole.
+- **Baseline:** `1/5` in `.stagewarden/evidence/prompt-path-persistence-baseline.log` (modulo pre-fix `af0ac35`); finale `5/5` in `.stagewarden/evidence/prompt-path-persistence-final.log`. C5 al baseline: 88 vs 86 byte (`.strip()` del store).
+- **Variabile unica:** il write-back persiste una nuova revisione (guardata: un guasto dello store non rompe la generazione del prompt, ma viene registrato) e normalizza lo snapshot con lo stesso `.strip()` del store in **entrambi** i write point; nessuna modifica a policy, budget, routing/provider/fallback o serialità v3.
+- **Esito:** TDD con 5 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `120/120`; targeted aggregato `423/423 OK` (17.7s); CLI smoke `3/3` rc 0; full pytest `895 passed, 5 skipped, 394 subtests` (378.95s) in `.stagewarden/evidence/iter-prompt-path-persistence-full.log`.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — accounting della compaction nel percorso prompt (2026-10-16)
 
 - **Obiettivo:** la compaction eseguita mentre si genera il prompt del nodo riscriveva `node_state.compacted_context` **senza** aggiornare flag, contatore o eventi: la read proiezione tornava a dichiarare `compacted=False`/0 byte omessi su un contesto troncato (invisibilità reintrodotta da un secondo percorso).
