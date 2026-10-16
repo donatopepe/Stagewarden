@@ -216,7 +216,7 @@ def load_memory_context(
                 raise ValueError("compacted memory exceeds token budget")
         except Exception as exc:
             issues.append(_issue("error", f"token counting failed: {exc}"))
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name)
+            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, 0)
         if any(issue.level == "error" for issue in issues):
             return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)
     return MemoryContext(True, content, tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)

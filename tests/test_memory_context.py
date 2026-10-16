@@ -81,6 +81,8 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path, max_tokens=10, token_counter=flaky_counter)
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
+            self.assertEqual(context.token_count, 0)
+            self.assertEqual(context.report()["content_tokens"], 0)
             self.assertIn("counter transient failure", context.report()["diagnostics"][0])
 
     def test_discontinuous_counter_never_returns_over_budget_suffix(self) -> None:
@@ -251,6 +253,7 @@ class MemoryContextTests(unittest.TestCase):
             )
             self.assertFalse(context.ok)
             self.assertEqual(context.content, "")
+            self.assertEqual(context.token_count, 0)
             self.assertEqual(context.token_counter_name, "bad-final-counter")
             self.assertIn("invalid count", context.report()["diagnostics"][0])
 
