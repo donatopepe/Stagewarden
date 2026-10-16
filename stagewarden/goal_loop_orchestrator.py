@@ -821,7 +821,7 @@ Do NOT include any text before or after the JSON object.'''
 
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
         entry = f"[{category}] {str(text).strip()}"
-        combined = f"{node.compacted_context}\\n\\n{entry}" if node.compacted_context else entry
+        combined = f"{node.compacted_context}\n\n{entry}" if node.compacted_context else entry
         cap = self._node_prompt_char_cap(node)
         was_compacted = len(combined.encode("utf-8")) > cap
         if was_compacted:

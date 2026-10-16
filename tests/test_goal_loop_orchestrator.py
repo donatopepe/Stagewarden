@@ -331,6 +331,24 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
+    def test_node_context_entries_use_real_newline_separators(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "context separator", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            first = orchestrator._append_node_context(node, "test", "payload")
+            self.assertEqual(first, "[test] payload")
+            self.assertNotIn("\\n", first)
+            second = orchestrator._append_node_context(node, "note", "second")
+            self.assertEqual(second, "[test] payload\n\n[note] second")
+            self.assertNotIn("\\n", second)
+            self.assertEqual(second.split("\n"), ["[test] payload", "", "[note] second"])
+            node.context_budget["available_input"] = 200
+            orchestrator._append_node_context(node, "execution", "x" * 4000)
+            self.assertNotIn("\\n", node.compacted_context)
+            self.assertLessEqual(len(node.compacted_context.encode("utf-8")), 200)
+            self.assertIn("[context auto-compacted", node.compacted_context)
+
     def test_invalid_budget_compaction_event_reports_validated_fallback_cap(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "invalid compact cap", execution_mode="mock", json_mode=True)
