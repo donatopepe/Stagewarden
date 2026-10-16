@@ -157,6 +157,7 @@ Completa contesto isolato per nodo, token budget provider/modello, compattazione
 - `stagewarden/node_knowledge.py`: store persistente per nodo.
 
 ## Technical decisions
+- Baseline measurement and validation must never run concurrently: the first full run of this iteration started while a `git stash` baseline had the pre-fix module checked out, so pytest imported stale source and reported two false failures. Re-run clean and treat only a run with an unmoved worktree as evidence.
 - Token accounting provider-exact richiede tokenizer/usage backend caller; UTF-8 byte estimator è fallback conservativo, non equivalenza esatta. Il nome metadata dichiara esplicitamente algoritmo, non tokenizer reale.
 - Context node UUID-owned; codemode read/append soltanto, niente eval/shell/tool calls.
 - Budget da catalogo/env; limiti ignoti non si inventano.
