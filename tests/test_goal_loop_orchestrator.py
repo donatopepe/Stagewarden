@@ -527,6 +527,95 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(read["omitted_utf8_bytes"], expected)
             self.assertEqual(read["context_utf8_bytes"], len(read["context"].encode("utf-8")))
 
+    def test_prompt_path_compaction_persists_context_revision(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt persist", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "6000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertGreater(node.context_revision, 0)
+            stored = orchestrator.knowledge.get_context_revision(
+                tree_id="goal-loop", node_id=node.node_id, node_uuid=node.node_uuid, revision=node.context_revision,
+            )
+            self.assertEqual(stored, node.compacted_context)
+            self.assertTrue(orchestrator.knowledge.has_context_revision(
+                tree_id="goal-loop", node_id=node.node_id, node_uuid=node.node_uuid, revision=node.context_revision,
+            ))
+            events = [item for item in orchestrator.events.read(event="node_context_compacted") if item.get("details", {}).get("section") == "node_prompt_budget"]
+            self.assertEqual(len(events), 1)
+            self.assertIs(events[0]["details"]["persisted"], True)
+
+    def test_prompt_path_without_compaction_persists_nothing(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt no persist", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "12000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertEqual(node.context_revision, 0)
+            self.assertEqual(node.compacted_context, original)
+            self.assertFalse(orchestrator.knowledge.has_context_revision(
+                tree_id="goal-loop", node_id=node.node_id, node_uuid=node.node_uuid, revision=0,
+            ))
+            self.assertEqual([item for item in orchestrator.events.read(event="node_context_compacted") if item.get("details", {}).get("section") == "node_prompt_budget"], [])
+
+    def test_reopen_restores_prompt_path_compacted_context(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "prompt persist reopen", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "6000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            orchestrator._persist_node_capsule(node)
+            orchestrator.knowledge.close()
+            reopened = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "prompt persist reopen", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: reopened.knowledge.close())
+            restored = reopened.nodes["root.scope"]
+            stored = reopened.knowledge.get_context_revision(
+                tree_id="goal-loop", node_id=restored.node_id, node_uuid=restored.node_uuid, revision=restored.context_revision,
+            )
+            self.assertIsNotNone(stored)
+            self.assertEqual(restored.compacted_context, stored)
+
+    def test_prompt_path_persist_failure_is_recorded_without_breaking_prompt(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt persist failure", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.object(orchestrator.knowledge, "record_context", side_effect=OSError("disk failure")):
+                with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "6000"}):
+                    prompt = orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertTrue(prompt)
+            self.assertIs(node.context_compacted, True)
+            self.assertEqual(node.context_revision, 0)
+            events = [item for item in orchestrator.events.read(event="node_context_compacted") if item.get("details", {}).get("section") == "node_prompt_budget"]
+            self.assertEqual(len(events), 1)
+            self.assertIs(events[0]["details"]["persisted"], False)
+            self.assertEqual(events[0]["details"]["persist_error"], "OSError")
+
+    def test_append_context_snapshot_matches_its_durable_record(self) -> None:
+        """The knowledge store strips content, so node state must be normalized the same way."""
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "append store parity", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.context_budget["available_input"] = 128
+            orchestrator._append_node_context(node, "execution", "x" * 400)
+            stored = orchestrator.knowledge.get_context_revision(
+                tree_id="goal-loop", node_id=node.node_id, node_uuid=node.node_uuid, revision=node.context_revision,
+            )
+            self.assertIsNotNone(stored)
+            self.assertEqual(node.compacted_context, stored)
+
     def test_codemode_read_reports_uncompacted_byte_size_as_chars_for_ascii(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "codemode read ascii", execution_mode="mock", json_mode=True)

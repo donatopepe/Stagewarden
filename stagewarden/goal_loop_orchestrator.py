@@ -852,6 +852,9 @@ Do NOT include any text before or after the JSON object.'''
         without this the snapshot would be truncated while the read projection still
         reported ``compacted=False`` and zero omitted bytes.
         """
+        # The knowledge store normalizes snapshots with str.strip(); apply the same
+        # normalization here so the node state and its durable record stay byte-identical.
+        raw_context = raw_context.strip()
         node_state.compacted_context = raw_context
         original_bytes = len(original.encode("utf-8"))
         compacted_bytes = len(raw_context.encode("utf-8"))
@@ -860,16 +863,40 @@ Do NOT include any text before or after the JSON object.'''
         omitted = original_bytes - compacted_bytes
         node_state.context_compacted = True
         node_state.context_omitted_bytes = _non_negative_int(node_state.context_omitted_bytes) + omitted
+        # Persist the compacted snapshot as a new revision so the durable context record
+        # matches what the node is actually using; a store failure is recorded but must
+        # not break prompt generation.
+        next_revision = node_state.context_revision + 1
+        persisted = True
+        persist_error: str | None = None
+        try:
+            self.knowledge.record_context(
+                tree_id="goal-loop", node_id=node_state.node_id, parent_node_id=node_state.parent_node_id,
+                purpose=node_state.purpose, status=node_state.status, content=raw_context,
+                title=f"Node context revision {node_state.context_revision}", kind="node_context",
+                entry_id=f"node-context-{node_state.node_uuid}-{next_revision}", node_uuid=node_state.node_uuid,
+            )
+        except Exception as exc:  # noqa: BLE001 - prompt generation must survive a store failure
+            persisted = False
+            persist_error = exc.__class__.__name__
+        if persisted:
+            node_state.context_revision = next_revision
+        details = {
+            "original_chars": len(original), "compacted_chars": len(raw_context),
+            "section": provenance,
+            "original_utf8_bytes": original_bytes,
+            "compacted_utf8_bytes": compacted_bytes,
+            "omitted_utf8_bytes": omitted,
+            "cap_utf8_bytes": cap_bytes,
+            "persisted": persisted,
+            "accounting_unit": self._accounting_unit,
+        }
+        if persist_error is not None:
+            details["persist_error"] = persist_error
         self.events.append(
             "node_context_compacted", tree_id="goal-loop", node_id=node_state.node_id,
             node_uuid=node_state.node_uuid, revision=node_state.context_revision,
-            original_chars=len(original), compacted_chars=len(raw_context),
-            section=provenance,
-            original_utf8_bytes=original_bytes,
-            compacted_utf8_bytes=compacted_bytes,
-            omitted_utf8_bytes=omitted,
-            cap_utf8_bytes=cap_bytes,
-            accounting_unit=self._accounting_unit,
+            **details,
         )
 
     def _append_node_context(self, node: NodeState, category: str, text: str) -> str:
@@ -879,7 +906,8 @@ Do NOT include any text before or after the JSON object.'''
         was_compacted = len(combined.encode("utf-8")) > cap
         if was_compacted:
             prior = node.compacted_context
-            combined = self._compact_node_text(combined, max(32, cap))
+            # Same normalization as the durable record (record_context strips content).
+            combined = self._compact_node_text(combined, max(32, cap)).strip()
         next_revision = node.context_revision + 1
         self.knowledge.record_context(
             tree_id="goal-loop", node_id=node.node_id, parent_node_id=node.parent_node_id,
