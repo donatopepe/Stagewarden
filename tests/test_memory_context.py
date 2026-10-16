@@ -72,6 +72,28 @@ class MemoryContextTests(unittest.TestCase):
             self.assertLessEqual(len(context.content), 500 + len("\n[truncated by memory.max_chars]"))
             self.assertIn("pi-memory.md", context.content)
 
+    def test_invalid_token_budget_fails_before_settings_are_read(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            def fail_if_read(*_args, **_kwargs):
+                raise AssertionError("settings must not be read for invalid token budget")
+            with patch.object(Path, "exists", fail_if_read), patch.object(Path, "read_text", fail_if_read):
+                context = load_memory_context(root, root / "missing.json", max_tokens=True, token_counter=len)
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertIn("max_tokens must be a non-negative integer", context.report()["diagnostics"][0])
+
+    def test_missing_counter_fails_before_settings_are_read(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            def fail_if_read(*_args, **_kwargs):
+                raise AssertionError("settings must not be read without a token counter")
+            with patch.object(Path, "exists", fail_if_read), patch.object(Path, "read_text", fail_if_read):
+                context = load_memory_context(root, root / "missing.json", max_tokens=10)
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertIn("token_counter is required", context.report()["diagnostics"][0])
+
     def test_loader_rejects_blank_token_counter_identity(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
