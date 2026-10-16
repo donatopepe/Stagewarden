@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 C follow-up: repeated the identical prompt (numbered list 1..300; SHA256 in baseline file), explicit free route auto/coding:free, max_tokens=16, timeout 60s, one request/no retry. Initial baseline had timed out; repeat returned HTTP 200 in 3.073s via nvidia/nemotron-3.5-super-vl:free, prompt_tokens=167, completion_tokens=16, finish_reason=length: 3/3 sample checks. Timeout was transient, not provider behavior baseline. Single sample only; no universal tokenizer/enforcement claim. No code/runtime/provider/policy changes.",
+  "latest_observation": "User-selected C bounded iteration: varied only max_tokens 16/8/32 over a fixed prompt (SHA256 1bb7e635…) on explicitly free auto/coding:free; one request per cap, no retry/fallback. All HTTP200 resolved to nvidia/nemotron-3.5-super-vl:free; prompt_tokens=175, completion_tokens=16/8/32 and finish_reason=length; latencies 3.012/4.227/8.825s. Matrix 3/3. Sample-only, does not prove universal backend enforcement or tokenizer equivalence. No runtime code/provider/routing/policy change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "7a2b97f1932071a5bd39e17c048a9914429d659e",
+  "git_head": "6c83e175bb75befd0d54b15de8f51679205dc9d6",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -5158,22 +5158,73 @@
         ],
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T15:03:51+00:00",
+      "phase": "free_route_cap_sweep_fixed_prompt",
+      "iteration": 251,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Fixed-prompt output-cap sweep (16/8/32) on explicit free route returned matching completion token counts and finish_reason=length in 3/3 cases; sample evidence only, no runtime changes.",
+      "step_id": "node-context-hardening",
+      "step_title": "Verify tokenizer/output cap only with runtime evidence",
+      "step_status": "active",
+      "model": null,
+      "action_type": "runtime_observation",
+      "git_head": "f9d43c21975c3d1f8ad58307ae5d23192cb7a2a4",
+      "details": {
+        "objective": "hold prompt and free route fixed while sweeping requested output cap",
+        "metric": "3 checks: HTTP 200, returned model explicitly free, completion_tokens<=cap with finish_reason=length; threshold 3/3",
+        "baseline": "pre-registered matrix file; cap16 same-prompt case",
+        "cases": [
+          {
+            "cap": 16,
+            "completion_tokens": 16,
+            "finish_reason": "length",
+            "latency_seconds": 3.012
+          },
+          {
+            "cap": 8,
+            "completion_tokens": 8,
+            "finish_reason": "length",
+            "latency_seconds": 4.227
+          },
+          {
+            "cap": 32,
+            "completion_tokens": 32,
+            "finish_reason": "length",
+            "latency_seconds": 8.825
+          }
+        ],
+        "result": "3/3, resolved model nvidia/nemotron-3.5-super-vl:free, prompt_tokens=175 for each",
+        "evidence": [
+          ".stagewarden/evidence/free-cap-matrix-baseline.json",
+          ".stagewarden/evidence/free-cap-matrix-result.json",
+          ".stagewarden/evidence/free-cap-matrix-adapter-tests.log"
+        ],
+        "adapter_tests": "13 passed, 1 skipped",
+        "limitations": [
+          "single route/model sample",
+          "not universal output-cap enforcement proof",
+          "usage is not tokenizer-equivalence proof"
+        ],
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "same-fixture cap16 free-route repeat: 3/3 sample observations; .stagewarden/evidence/free-route-cap16-controlled-result.json. Adapter tests 13 passed, 1 skipped; py_compile passes.",
-    "full": "Not run; runtime observation follow-up only.",
+    "focused": "same-prompt explicit-free output-cap sweep 16/8/32: 3/3 HTTP200, resolved model explicitly free, completion_tokens<=cap, finish_reason=length; adapter 13 pass/1 skip, py_compile/evidence JSON valid.",
+    "full": "Not run; runtime sources unchanged.",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T14:58:21+00:00",
+    "recorded_at": "2026-10-16T15:03:51+00:00",
     "cli_smoke": "not run (no runtime code change)",
     "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)",
     "approval_gate": "HOLD: no explicit deliverable selected; jev_decide unavailable (spawn ENOENT); no runtime validation/change performed",
     "remote_route": "auto/coding:free only; resolved model id nvidia/nemotron-3.5-super-vl:free; no paid route selected.",
-    "evidence": ".stagewarden/evidence/free-route-cap16-controlled-baseline.json and -result.json"
+    "evidence": ".stagewarden/evidence/free-cap-matrix-baseline.json and free-cap-matrix-result.json"
   }
 }
