@@ -66,9 +66,8 @@ class MemoryStore:
         context_window_size: int | None = None,
         current_usage: int | None = None,
     ) -> None:
-        if current_usage is None:
-            derived_usage = (input_tokens or 0) + (output_tokens or 0)
-            current_usage = derived_usage if derived_usage else None
+        if current_usage is None and (input_tokens is not None or output_tokens is not None):
+            current_usage = (input_tokens or 0) + (output_tokens or 0)
         self.attempts.append(
             AttemptRecord(
                 iteration=iteration,

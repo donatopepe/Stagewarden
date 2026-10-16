@@ -223,6 +223,17 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(context["used_percentage"], 37.5)
         self.assertEqual(context["remaining_percentage"], 62.5)
 
+    def test_zero_reported_token_usage_is_preserved(self) -> None:
+        memory = MemoryStore()
+        memory.record_attempt(
+            iteration=1, step_id="zero-usage", model="chatgpt",
+            action_type="complete", action_signature="a", success=True,
+            observation="ok", input_tokens=0, output_tokens=0,
+        )
+        attempt = memory.attempts[-1]
+        self.assertEqual(attempt.current_usage, 0)
+        self.assertEqual(memory.model_usage_stats()["totals"]["current_usage"], 0)
+
     def test_tool_transcript_is_persisted_and_rendered(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / ".stagewarden_memory.json"
