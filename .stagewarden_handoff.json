@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 user selected C: one bounded live observation against explicitly free local OmniRoute route auto/coding:free resolved to nvidia/nemotron-3.5-super-vl:free (HTTP 200, 7.305s). usage reports prompt_tokens=192 for 220 UTF-8 serialized message bytes (sanity only, not tokenizer equivalence); requested max_tokens=32 returned completion_tokens=32 and finish_reason=length. Fixed observation checks 3/3. Initial same-route 16-token request timed out at 60s; successful fixture was shortened and cap changed to 32, so results are sample evidence, not controlled comparison or universal enforcement proof. Adapter unit tests 13 pass/1 skip, py_compile pass. No code/provider/fallback/policy change; evidence JSON in .stagewarden/evidence.",
+  "latest_observation": "2026-10-16 C follow-up: repeated the identical prompt (numbered list 1..300; SHA256 in baseline file), explicit free route auto/coding:free, max_tokens=16, timeout 60s, one request/no retry. Initial baseline had timed out; repeat returned HTTP 200 in 3.073s via nvidia/nemotron-3.5-super-vl:free, prompt_tokens=167, completion_tokens=16, finish_reason=length: 3/3 sample checks. Timeout was transient, not provider behavior baseline. Single sample only; no universal tokenizer/enforcement claim. No code/runtime/provider/policy changes.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "6ec61fe895fda21a2d09bfa13ff8ee1757576535",
+  "git_head": "7a2b97f1932071a5bd39e17c048a9914429d659e",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -5091,22 +5091,89 @@
           "fallback path is not observable from response although returned model ID is explicitly free"
         ]
       }
+    },
+    {
+      "timestamp": "2026-10-16T14:57:22+00:00",
+      "phase": "free_route_cap16_rechecked",
+      "iteration": 249,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Replayed exact previously timed-out free-route cap-16 fixture; it now returned HTTP 200 via explicit free model with 16 completion tokens and finish_reason=length in 3.073s. Matrix 3/3; no code changes.",
+      "step_id": "node-context-hardening",
+      "step_title": "Verify tokenizer/output cap only with runtime evidence",
+      "step_status": "active",
+      "model": null,
+      "action_type": "runtime_observation",
+      "git_head": "689fd18e9a85e565c370f3c1794f3e69ab68a8e4",
+      "details": {
+        "objective": "replace transient timeout-only baseline with exact same-fixture free-route output-cap observation",
+        "metric": "3 fixed observations, threshold 3/3",
+        "baseline": "same prompt SHA256 104e3c40521c7814020c5d812882952816e353345f2ac8d22272c029efc2f6e4, route auto/coding:free, cap 16 timed out after 60 seconds in initial attempt",
+        "result": "HTTP 200 in 3.073s; resolved model nvidia/nemotron-3.5-super-vl:free; prompt_tokens=167; completion_tokens=16; finish_reason=length",
+        "checks": [
+          "usage values present",
+          "resolved model explicitly free",
+          "finish_reason=length and completion_tokens<=16"
+        ],
+        "evidence": [
+          ".stagewarden/evidence/free-route-cap16-controlled-baseline.json",
+          ".stagewarden/evidence/free-route-cap16-controlled-result.json",
+          ".stagewarden/evidence/free-route-cap16-controlled-tests.log"
+        ],
+        "adapter_tests": "13 passed, 1 skipped",
+        "runtime_policy_unchanged": true,
+        "limitations": [
+          "one provider observation only",
+          "usage is not tokenizer equivalence proof",
+          "not universal output-cap enforcement proof"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-10-16T14:58:21+00:00",
+      "phase": "free_route_cap16_same_fixture_repeated",
+      "iteration": 250,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Repeated the same explicitly-free cap16 fixture after transient timeout; response HTTP 200 via free resolved model, 16 completion tokens and finish_reason=length; observation matrix 3/3, no code change.",
+      "step_id": "node-context-hardening",
+      "step_title": "Verify tokenizer/output cap only with runtime evidence",
+      "step_status": "active",
+      "model": null,
+      "action_type": "runtime_observation",
+      "git_head": "689fd18e9a85e565c370f3c1794f3e69ab68a8e4",
+      "details": {
+        "objective": "replace timeout-only baseline using same exact fixture and parameters on explicitly free route",
+        "metric": "fixed 3 checks threshold 3/3",
+        "baseline": "same fixture SHA256 104e3c40521c7814020c5d812882952816e353345f2ac8d22272c029efc2f6e4, auto/coding:free, max_tokens=16, timeout60 -> TimeoutError",
+        "result": "HTTP200 in3.073s; nvidia/nemotron-3.5-super-vl:free; prompt_tokens167; completion_tokens16; finish_reason=length",
+        "evidence": [
+          ".stagewarden/evidence/free-route-cap16-controlled-baseline.json",
+          ".stagewarden/evidence/free-route-cap16-controlled-result.json",
+          ".stagewarden/evidence/free-route-cap16-controlled-tests.log"
+        ],
+        "adapter_tests": "13 passed, 1 skipped",
+        "limitations": [
+          "single sample",
+          "not tokenizer equivalence",
+          "not universal output-cap enforcement"
+        ],
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "live free-route observation: explicitly-free route auto/coding:free resolved to nvidia/nemotron-3.5-super-vl:free, HTTP 200, usage prompt=192, completion=32, max_tokens=32, finish_reason=length, 3/3 sample checks; baseline 16-token request timed out after 60s so successful fixture differs and is not a controlled paired comparison. tests.test_omniroute_adapter 13 passed, 1 skipped; py_compile passed.",
-    "full": "Not run; bounded provider observation only, plus targeted adapter tests.",
+    "focused": "same-fixture cap16 free-route repeat: 3/3 sample observations; .stagewarden/evidence/free-route-cap16-controlled-result.json. Adapter tests 13 passed, 1 skipped; py_compile passes.",
+    "full": "Not run; runtime observation follow-up only.",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T14:23:27+00:00",
-    "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)",
+    "recorded_at": "2026-10-16T14:58:21+00:00",
+    "cli_smoke": "not run (no runtime code change)",
     "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)",
     "approval_gate": "HOLD: no explicit deliverable selected; jev_decide unavailable (spawn ENOENT); no runtime validation/change performed",
     "remote_route": "auto/coding:free only; resolved model id nvidia/nemotron-3.5-super-vl:free; no paid route selected.",
-    "evidence": ".stagewarden/evidence/free-route-token-cap-observation.json"
+    "evidence": ".stagewarden/evidence/free-route-cap16-controlled-baseline.json and -result.json"
   }
 }
