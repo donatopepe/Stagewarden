@@ -204,6 +204,9 @@ class Executor:
         self.prince2 = Prince2AgentPolicy()
         self._context_chars_per_token = max(1.0, float(config.context_chars_per_token))
         self._file_content_cache: dict[str, str] = {}
+        # Last resolved per-node memory context (post-build record only; never a
+        # metadata source, so it stays None until a node packet is built).
+        self._external_memory_context: Any | None = None
         self._context_compaction_count = 0
         self._active_context_budget: dict[str, object] | None = None
         self._active_prompt_chars = 0

@@ -526,6 +526,33 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("issues=1", report)
             executor.close()
 
+    def test_model_context_metadata_fails_closed_without_explicit_resolved_memory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            try:
+                self.assertIsNone(executor._external_memory_context)
+                report = __import__("stagewarden.executor_prompting", fromlist=["model_context_files_section"]).model_context_files_section(executor)
+                self.assertIn("configured_markdown_memory: enabled=False files=0 issues=1", report)
+                self.assertIn("memory context unresolved for this node", report)
+                self.assertNotIn("enabled=True", report)
+            finally:
+                executor.close()
+
+    def test_model_context_metadata_ignores_mutable_executor_cache_when_unresolved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            from stagewarden.memory_context import MemoryContext
+            try:
+                executor._external_memory_context = MemoryContext(True, "", ("secret.md",), (), 500)
+                report = __import__("stagewarden.executor_prompting", fromlist=["model_context_files_section"]).model_context_files_section(executor)
+                self.assertIn("configured_markdown_memory: enabled=False files=0 issues=1", report)
+                self.assertNotIn("secret.md", report)
+                self.assertNotIn("enabled=True", report)
+            finally:
+                executor.close()
+
     def test_prompt_memory_loader_exception_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

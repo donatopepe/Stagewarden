@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-14: per-node context/budget/revision, catalog/env budgets, reserve, compaction, serial read/append context API and token-counter gated memory loader implemented. Focused tests: 94 passed, 26 subtests. Full suite excluding external_sources: 743 passed, 5 skipped, 301 subtests. compileall/JSON/diff check pass.",
+  "latest_observation": "2026-10-16 blackout recovery: repo main clean except runtime .pi-loop.json.lock; durable loop c05d5335 was absent from .pi-loop.json (7-day durable TTL, no on-disk prompt copy). Re-armed as 30d0c9d5 and the canonical prompt is now versioned in .pi/prompts/stagewarden-mvp-continue-loop.md, so a future loss is recoverable from git. Wet recovery baseline 4/4: compileall rc=0, handoff_alignment=ok, handoff JSON valid, targeted 271 tests OK. Full pytest after rebuilding venv_pytest on python 3.14.8 with pytest 9.1.1: 864 passed, 5 skipped, 394 subtests (384.27s). No runtime/provider/routing/seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "bbae713100c5db1b700a256294a936c8e970582e",
+  "git_head": "6ca99e6235fa9b08be77aa9d44a3bb182fdd2243",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4426,13 +4426,46 @@
         "v2_migration_compatibility": "declined",
         "omniroute_multi_node": "fail_closed_external_blocker"
       }
+    },
+    {
+      "timestamp": "2026-10-16T07:42:37+00:00",
+      "phase": "blackout_recovery_loop_rearm",
+      "iteration": 230,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Recovered after blackout: durable loop re-armed as 30d0c9d5 with versioned prompt; wet recovery baseline 4/4 and full pytest 864 passed / 5 skipped.",
+      "step_id": null,
+      "step_title": null,
+      "step_status": null,
+      "model": null,
+      "action_type": null,
+      "git_head": "6ca99e6235fa9b08be77aa9d44a3bb182fdd2243",
+      "details": {
+        "loop_task_id": "30d0c9d5",
+        "lost_task_id": "c05d5335",
+        "loop_cron": "*/5 * * * *",
+        "prompt_file": ".pi/prompts/stagewarden-mvp-continue-loop.md",
+        "root_cause": "durable cron task 7-day auto-expire with no versioned prompt copy",
+        "recovery_gates": {
+          "compileall": "rc=0",
+          "handoff_alignment": "ok",
+          "handoff_json": "valid",
+          "targeted_unittest": "271 passed OK"
+        },
+        "full_pytest": "864 passed, 5 skipped, 394 subtests (384.27s)",
+        "environment_gap": "tests/test_decision_classifier.py needs pytest; /usr/bin/python3 has none and venv_pytest was a broken macOS symlink tree, now rebuilt locally",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "94 passed, 26 subtests",
-    "full": "743 passed, 5 skipped, 301 subtests; pytest --ignore=external_sources -q",
+    "focused": "Ran 271 tests OK (targeted 8-suite unittest: goal_loop_orchestrator, node_knowledge, context_file_reading, file_read_recovery, event_stream, executor_event_stream, mutation_execution, mutation_journal)",
+    "full": "864 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (384.27s)",
+    "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
-    "git_diff_check": "passed"
+    "handoff_alignment": "handoff_alignment=ok",
+    "git_diff_check": "passed",
+    "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
+    "recorded_at": "2026-10-16T07:42:37+00:00"
   }
 }
