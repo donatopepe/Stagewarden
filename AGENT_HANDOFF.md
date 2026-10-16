@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Added executor regression for malformed `available_input` metadata (`bool`, float, string): it avoids budget accounting while preserving configured memory and emits no `tokens=` claim. `tests/test_memory_context.py`: 33 passed; full suite pending.
+- Added executor regression for malformed `available_input` metadata (`bool`, float, string): it avoids budget accounting while preserving configured memory and emits no `tokens=` claim. Focused memory/context 62 passed, 10 subtests; full suite 846 passed, 5 skipped, 364 subtests (322.12s); compileall, JSON, alignment and diff-check pass.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
