@@ -1487,6 +1487,9 @@ Do NOT include any text before or after the JSON object.'''
                 if isinstance(data, dict) and "summary" in data:
                     contract = self._node_contract_result(data)
                     if contract is not None:
+                        observed_output = self._observed_output_tokens(data)
+                        if observed_output is not None:
+                            contract["observed_output_tokens"] = observed_output
                         return contract
                     return {"ok": False, "error": "Pi node contract requires a string summary and a messages array.", "messages": []}
             except (ValueError, TypeError):
@@ -1499,6 +1502,9 @@ Do NOT include any text before or after the JSON object.'''
                 data = __import__("json").loads(last)
                 contract = self._node_contract_result(data)
                 if contract is not None:
+                    observed_output = self._observed_output_tokens(data)
+                    if observed_output is not None:
+                        contract["observed_output_tokens"] = observed_output
                     return contract
                 return {"ok": False, "error": "Pi node contract requires a string summary and a messages array.", "messages": []}
             except (ValueError, TypeError):
@@ -1509,12 +1515,16 @@ Do NOT include any text before or after the JSON object.'''
             try:
                 data = __import__("json").loads(match.group(0))
                 if isinstance(data, dict):
-                    return {
+                    result = {
                         "ok": True,
                         "summary": data.get("summary", stdout[:200]),
                         "messages": data.get("messages", []),
                         "output": data.get("output", stdout),
                     }
+                    observed_output = self._observed_output_tokens(data)
+                    if observed_output is not None:
+                        result["observed_output_tokens"] = observed_output
+                    return result
             except (ValueError, TypeError):
                 pass
         # Fallback: preserve legacy behavior for Pi text output.

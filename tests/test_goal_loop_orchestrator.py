@@ -1054,6 +1054,13 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
         self.assertTrue(result["ok"], result.get("error"))
         self.assertEqual(run.call_args.args[0][:3], ["/usr/bin/pi", "--print", "--no-tools"])
 
+    def test_pi_execution_preserves_reported_output_usage(self) -> None:
+        result = self._pi_exec(
+            '{"summary":"done","messages":[],"usage":{"completion_tokens":17}}',
+        )
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["observed_output_tokens"], 17)
+
     def test_pi_execution_parses_clean_json(self) -> None:
         """Valid JSON output with summary/messages is parsed by the real method."""
         stdout = json.dumps({
