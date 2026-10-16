@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — accounting del codemode read/append (2026-10-16)
+
+- **Obiettivo:** la API codemode `read/append` deve riportare dimensioni byte-esatte, il cap del nodo e un flag di compaction; l'append non deve esporre solo un char count mentre il budget enforced è in byte.
+- **Metrica/soglia:** matrice fissa `4/4` (3 casi funzionali + 1 caso-contratto documentato); soglia `4/4`.
+- **Casi fissi/ordine:** C1 read su nodo fresco → `context_utf8_bytes=0`, `compacted=False`, `max_bytes=12000`; C2 read dopo compaction con cap 128 (≥ marker 73 byte) → `compacted=True`, byte == `len(context)` e ≤ cap; C3 append non-ASCII → byte > char e byte-exact rispetto al contesto salvato; C4 sotto la dimensione del marker (cap 64) → snapshot troncato senza marker, `compacted=False`, byte == cap (contratto documentato, non bug mascherato).
+- **Baseline:** `0/4` in `/tmp/stagewarden-codemode-accounting-baseline.log` (tutte le chiavi assenti); finale `4/4` in `/tmp/stagewarden-codemode-accounting-final.log`.
+- **Variabile unica:** proiezione read/append con byte esatti, cap del nodo e flag marker-based + costante condivisa del marker; nessuna modifica a policy, budget, routing/provider/fallback, codemode semantics o serialità v3.
+- **Esito:** TDD con 4 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `106/106`; targeted aggregato `389/389 OK` (28.1s); CLI smoke `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-codemode-accounting-full.log`.
+- **Open issue nuovo:** per cap inferiori ai 73 byte del marker la compaction non lascia marker nel testo, quindi il flag marker-based resta `False` (byte == cap è l'unico segnale). Serve un flag persistito o una policy “marker sempre presente”.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — visibilità della truncation token-budget (2026-10-16)
 
 - **Obiettivo:** Next step 3 — anche la truncation per `max_tokens` del loader deve dichiarare `included/partial/dropped` (la `max_chars` lo faceva già) e l'executor deve surfacearla nel prompt.
