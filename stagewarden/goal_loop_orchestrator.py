@@ -153,6 +153,9 @@ class NodeState:
     execution_mode: str | None = None
     context_revision: int = 0
     compacted_context: str = ""
+    # Monotonic: set as soon as an append had to compact this node's context, so a
+    # truncated snapshot stays detectable even when the marker cannot fit inside the cap.
+    context_compacted: bool = False
     context_budget: dict[str, Any] = field(default_factory=dict)
     last_checkpoint: str | None = None
     cycle_budget: dict[str, int] = field(default_factory=lambda: {
@@ -187,6 +190,7 @@ class NodeState:
             "execution_mode": self.execution_mode,
             "context_revision": self.context_revision,
             "compacted_context": self.compacted_context,
+            "context_compacted": self.context_compacted,
             "context_budget": dict(self.context_budget),
             "last_checkpoint": self.last_checkpoint,
             "cycle_budget": dict(self.cycle_budget),
@@ -346,6 +350,7 @@ class GoalLoopOrchestrator:
                 if isinstance(saved_context, str) and saved_context:
                     node.compacted_context = saved_context
                     node.context_revision = int(saved.get("context_revision", node.context_revision) or 0)
+                    node.context_compacted = bool(saved.get("context_compacted", node.context_compacted))
                 node.messages_received = [dict(item) for item in received] if isinstance(received, list) else []
                 node.status = str(terminal_status)
                 node.output_summary = str(saved.get("output_summary", node.output_summary) or "")
@@ -354,7 +359,7 @@ class GoalLoopOrchestrator:
             for name in (
                 "node_uuid", "status", "active_work", "session_id", "last_run_at", "output_summary",
                 "error_message", "retry_count", "cycle_id", "cycle_phase", "execution_mode", "context_revision",
-                "compacted_context", "context_budget", "last_checkpoint", "messages_received",
+                "compacted_context", "context_compacted", "context_budget", "last_checkpoint", "messages_received",
             ):
                 if name in saved:
                     setattr(node, name, saved[name])
@@ -839,6 +844,7 @@ Do NOT include any text before or after the JSON object.'''
         node.context_revision = next_revision
         node.compacted_context = combined
         if was_compacted:
+            node.context_compacted = True
             self.events.append(
                 "node_context_compacted", tree_id="goal-loop", node_id=node.node_id,
                 node_uuid=node.node_uuid, revision=node.context_revision,
@@ -1002,7 +1008,7 @@ Do NOT include any text before or after the JSON object.'''
             "ok": True, "node_id": node.node_id, "node_uuid": node.node_uuid,
             "revision": revision, "context": context,
             "context_utf8_bytes": len(context.encode("utf-8")),
-            "compacted": NODE_CONTEXT_COMPACTION_MARKER in context,
+            "compacted": bool(node.context_compacted) or NODE_CONTEXT_COMPACTION_MARKER in context,
             "max_bytes": self._node_prompt_char_cap(node),
             "budget": dict(node.context_budget),
         }

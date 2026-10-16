@@ -367,12 +367,11 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(compacted["context_utf8_bytes"], len(compacted["context"].encode("utf-8")))
             self.assertLessEqual(compacted["context_utf8_bytes"], 128)
 
-    def test_codemode_read_reports_truncated_snapshot_below_marker_size(self) -> None:
-        """Below the marker size the snapshot is truncated without a marker (recorded limitation).
+    def test_codemode_read_reports_compaction_below_marker_size(self) -> None:
+        """Compaction must be detectable even when the marker cannot fit inside the cap.
 
-        The read projection still reports byte-exact size, the node cap and a marker-based
-        `compacted` flag; at caps under the 73-byte marker the flag cannot be derived from
-        content and stays False while the snapshot sits exactly at the cap.
+        Below the 73-byte marker the snapshot is truncated without a marker, so the
+        persisted node flag (not content sniffing alone) carries the signal.
         """
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "codemode read small cap", execution_mode="mock", json_mode=True)
@@ -381,9 +380,27 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             node.context_budget["available_input"] = 64
             orchestrator._append_node_context(node, "execution", "x" * 400)
             read = orchestrator.codemode_context(node.node_id, "read")
-            self.assertIs(read["compacted"], False)
+            self.assertIs(read["compacted"], True)
             self.assertEqual(read["max_bytes"], 64)
             self.assertEqual(read["context_utf8_bytes"], 64)
+            self.assertEqual(read["context_utf8_bytes"], len(read["context"].encode("utf-8")))
+
+    def test_codemode_compaction_flag_survives_controlled_reopen(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "codemode reopen", execution_mode="mock", json_mode=True)
+            node = orchestrator.nodes["root.scope"]
+            node.context_budget["available_input"] = 64
+            orchestrator._append_node_context(node, "execution", "x" * 400)
+            orchestrator._persist_node_capsule(node)
+            node_uuid = node.node_uuid
+            orchestrator.knowledge.close()
+            reopened = GoalLoopOrchestrator(AgentConfig(workspace_root=root), "codemode reopen", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: reopened.knowledge.close())
+            restored = reopened.nodes["root.scope"]
+            self.assertEqual(restored.node_uuid, node_uuid)
+            read = reopened.codemode_context(restored.node_id, "read")
+            self.assertIs(read["compacted"], True)
             self.assertEqual(read["context_utf8_bytes"], len(read["context"].encode("utf-8")))
 
     def test_codemode_read_reports_uncompacted_byte_size_as_chars_for_ascii(self) -> None:
