@@ -61,6 +61,39 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             finally:
                 executor.close()
 
+    def test_file_chunk_message_uses_real_newline_separator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("abcdefghij", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=5)
+            try:
+                chunk = executor._run_action(
+                    {"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 5}, step_id="node.chunk"
+                )
+                self.assertTrue(chunk["ok"])
+                self.assertNotIn("\\n", chunk["message"])
+                header, _, body = chunk["message"].partition("\n")
+                self.assertEqual(header, "FILE_CHUNK 0:5/10 has_more=True auto_compacted=False")
+                self.assertEqual(body, chunk["content"])
+                executor._active_context_budget = {"available_input": 1}
+                executor._active_prompt_chars = 1000
+                compacted = executor._run_action(
+                    {"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 5}, step_id="node.chunk.compacted"
+                )
+                self.assertTrue(compacted["report"]["auto_compacted"])
+                self.assertNotIn("\\n", compacted["message"])
+                self.assertIn("auto_compacted=True\n", compacted["message"])
+                executor._active_context_budget = None
+                executor._active_prompt_chars = 0
+                failure = executor._run_action(
+                    {"type": "read_file_chunk", "path": "source.txt", "start": 999, "size": 5}, step_id="node.chunk.failure"
+                )
+                self.assertFalse(failure["ok"])
+                self.assertNotIn("FILE_CHUNK", failure["message"])
+                self.assertNotIn("\\n", failure["message"])
+            finally:
+                executor.close()
+
     def test_wrong_typed_file_action_fields_emit_failed_node_replay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

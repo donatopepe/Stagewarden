@@ -2322,7 +2322,7 @@ class Executor:
                     auto_compacted=auto_compacted,
                     node_uuid=budget.get("node_uuid"),
                 )
-                message = f"FILE_CHUNK {report.get('start', 0)}:{report.get('end', 0)}/{report.get('total_chars', 0)} has_more={report.get('has_more', False)} auto_compacted={auto_compacted}\\n{message}"
+                message = f"FILE_CHUNK {report.get('start', 0)}:{report.get('end', 0)}/{report.get('total_chars', 0)} has_more={report.get('has_more', False)} auto_compacted={auto_compacted}\n{message}"
             self._record_tool_transcript(iteration=iteration, step_id=step_id, tool="files", action_type=str(action_type), success=result.ok, summary=action.get("path", ""), detail=message, error_type=None if result.ok else "file_error")
             return {"ok": result.ok, "message": message, "content": result.content, "report": report, "error_type": "file_error"}
 
