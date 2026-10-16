@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- `load_memory_context()` rejects blank/non-string counter identity before settings/file processing, returning empty unaccounted fail-closed context; regression added. Focused memory/context 57 passed, 10 subtests; full suite 841 passed, 5 skipped, 364 subtests (322.31s); compileall, JSON, alignment and diff-check pass.
+- `load_memory_context()` rejects blank and non-string counter identities before settings/file processing, returning empty unaccounted fail-closed context; separate regressions. Focused memory/context 58 passed, 10 subtests; compileall and diff-check pass; full suite pending.
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
 - Budgeted-memory executor counter exception path creates unaccounted fail-closed `MemoryContext` (no false `0/limit` telemetry); regression verifies payload excluded and diagnostic retained. Focused memory/context 56 passed, 10 subtests; full suite 840 passed, 5 skipped, 364 subtests (321.11s).

@@ -134,10 +134,11 @@ def load_memory_context(
     token_counter_name: str | None = None,
 ) -> MemoryContext:
     issues: list[MemoryContextIssue] = []
-    if token_counter_name is not None and (
-        not isinstance(token_counter_name, str) or not token_counter_name.strip()
-    ):
-        issues.append(_issue("error", "token_counter_name must be a non-empty string when provided"))
+    if token_counter_name is not None and not isinstance(token_counter_name, str):
+        issues.append(_issue("error", "token_counter_name must be a string when provided"))
+        return MemoryContext(True, "", (), tuple(issues), 12000)
+    if token_counter_name is not None and not token_counter_name.strip():
+        issues.append(_issue("error", "token_counter_name must be non-empty when provided"))
         return MemoryContext(True, "", (), tuple(issues), 12000)
     try:
         payload = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
