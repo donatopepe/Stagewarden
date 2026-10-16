@@ -7,7 +7,7 @@ from unittest.mock import PropertyMock, patch
 from pathlib import Path
 
 from stagewarden.config import AgentConfig
-from stagewarden.memory_context import load_memory_context
+from stagewarden.memory_context import MemoryContext, load_memory_context
 from stagewarden.executor import Executor
 from stagewarden.handoff import HandoffManager
 from stagewarden.memory import MemoryStore
@@ -22,6 +22,14 @@ class MemoryContextTests(unittest.TestCase):
         path = root / ".stagewarden_settings.json"
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
+
+    def test_memory_context_rejects_invalid_token_telemetry(self) -> None:
+        with self.assertRaisesRegex(ValueError, "token_count"):
+            MemoryContext(True, "", (), (), 10, token_limit=4, token_count=True)
+        with self.assertRaisesRegex(ValueError, "token_limit"):
+            MemoryContext(True, "", (), (), 10, token_limit=-1)
+        with self.assertRaisesRegex(TypeError, "issues"):
+            MemoryContext(True, "", (), ("error",), 10)
 
     def test_disabled_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

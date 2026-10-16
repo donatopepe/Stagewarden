@@ -35,6 +35,22 @@ class MemoryContext:
     token_counter_name: str | None = None
     token_count: int | None = None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.content, str):
+            raise TypeError("memory content must be a string")
+        if not isinstance(self.files, tuple) or any(not isinstance(item, str) for item in self.files):
+            raise TypeError("memory files must be a tuple of strings")
+        if not isinstance(self.issues, tuple) or any(not isinstance(item, MemoryContextIssue) for item in self.issues):
+            raise TypeError("memory issues must be a tuple of MemoryContextIssue")
+        if isinstance(self.max_chars, bool) or not isinstance(self.max_chars, int) or self.max_chars < 0:
+            raise ValueError("max_chars must be a non-negative integer")
+        for name in ("token_limit", "token_count"):
+            value = getattr(self, name)
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
+                raise ValueError(f"{name} must be a non-negative integer or None")
+        if self.token_counter_name is not None and not isinstance(self.token_counter_name, str):
+            raise TypeError("token_counter_name must be a string or None")
+
     @property
     def ok(self) -> bool:
         return not any(issue.level == "error" for issue in self.issues)
