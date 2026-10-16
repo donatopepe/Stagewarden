@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration (AGENT_HANDOFF Next step 1): audited memory token-aware injection boundaries. Budget path is clean - the final _build_prompt char cap derived from available_input covers the whole rendered packet, external memory keeps its own iterative token budget, and no prompt/summary cache bypasses the budgeted object. One real boundary defect fixed: model_context_files_section read the mutable executor._external_memory_context, so a directly built metadata section could raise AttributeError (attribute never initialized) or reuse another node's memory metadata (enabled=True files=1). It now requires the explicitly resolved context and fails closed with a memory_diagnostics line; _external_memory_context is initialized to None in Executor.__init__ and stays a post-build record. Fixed-case matrix 1/3 -> 3/3 with 2 new TDD regressions; targeted 308/308; CLI smoke 3/3; full pytest 866 passed, 5 skipped, 394 subtests. No routing/provider/fallback, budget, compaction, codemode or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: node-local context accumulation used a literal \\\\n\\\\n escape in _append_node_context, so line-oriented compaction treated the whole accumulated node context as a single line and prompts carried textual escapes. Fixed to real newlines; matrix 1/3 -> 3/3; TDD regression added; orchestrator 102/102; targeted 309/309; CLI smoke 3/3; full pytest 867 passed, 5 skipped, 394 subtests. Same escape class exists at stagewarden/executor.py:2325 (FILE_CHUNK message) and is recorded as the next bounded candidate instead of being fixed in the same variable. No budget, routing/provider/fallback, compaction policy, codemode or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "7357c6d44eb4ab9d984119206fff1e4502430fa3",
+  "git_head": "5ba8d3dc1433b97926d0b80fa6fe64f30e906896",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4489,18 +4489,51 @@
         "full_pytest": "866 passed, 5 skipped, 394 subtests (318.68s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T08:22:02+00:00",
+      "phase": "node_context_separator_fixed",
+      "iteration": 232,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Node context entries now joined with real newlines instead of a literal escape; matrix 1/3 -> 3/3, orchestrator 102/102, full pytest 867 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "5ba8d3dc1433b97926d0b80fa6fe64f30e906896",
+      "details": {
+        "objective": "fix literal escape separator in node-scoped context accumulation",
+        "metric": "fixed 3-case matrix, threshold 3/3",
+        "baseline": "1/3 (C2 '[test] payload\\\\n\\\\n[note] second' literal=True; C3 bytes=200 literal=True)",
+        "result": "3/3",
+        "fixed_cases": [
+          "C1 fresh append exact entry, no literal escape",
+          "C2 second append uses real newline separator",
+          "C3 compaction under 200-byte cap keeps real newlines and stays within cap"
+        ],
+        "files": [
+          "stagewarden/goal_loop_orchestrator.py",
+          "tests/test_goal_loop_orchestrator.py"
+        ],
+        "related_open_finding": "stagewarden/executor.py:2325 carries the same literal escape in the FILE_CHUNK message",
+        "targeted": "309/309 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "867 passed, 5 skipped, 394 subtests (422.45s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "metadata memory boundary matrix 3/3 (/tmp/stagewarden-metadata-boundary-final.log, baseline 1/3); targeted memory_context + 8 canonical suites 308/308 OK (13.9s)",
-    "full": "866 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (318.68s) (/tmp/stagewarden-iter-metadata-boundary-full.log)",
+    "focused": "node context separator matrix 1/3 -> 3/3 (/tmp/stagewarden-node-context-separator-final.log); orchestrator 102/102; targeted memory_context + 8 canonical suites 309/309 OK (14.4s)",
+    "full": "867 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (422.45s) (/tmp/stagewarden-iter-node-context-separator-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T07:58:41+00:00",
+    "recorded_at": "2026-10-16T08:22:02+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)"
   }
 }

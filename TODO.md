@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — separatore reale nel contesto di nodo (2026-10-16)
+
+- **Obiettivo:** correggere l'escape letterale `\\n\\n` nell'accumulo del contesto node-scoped (`_append_node_context`), così la compattazione line-oriented vede i confini di entry e i prompt non contengono escape testuali.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 append su contesto vuoto → entry esatta e nessun `\\n` letterale; C2 secondo append → separatore `\n\n` reale; C3 append oltre cap 200 byte → compaction attiva, nessun escape letterale, output ≤ cap.
+- **Baseline (pre-fix, misurata inline):** `1/3` — C1 PASS; C2 FAIL `'[test] payload\\n\\n[note] second'` (literal=True); C3 FAIL `bytes=200 literal=True`.
+- **Variabile unica:** escape letterale → newline reale in `_append_node_context`; nessuna modifica a budget, policy, routing/provider/fallback, serialità v3.
+- **Esito:** matrice `3/3` in `/tmp/stagewarden-node-context-separator-final.log` (C3 ora `bytes=119`, struttura riconosciuta); TDD con 1 regressione nuova in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `102/102`; targeted `memory_context` + 8 suite canoniche `309/309 OK` (14.4s); CLI smoke `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-node-context-separator-full.log`.
+- **Finding correlato (non corretto qui, iterazione dedicata):** `stagewarden/executor.py:2325` contiene lo stesso escape letterale `\\n` nel messaggio `FILE_CHUNK`.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — confine metadati memoria fail-closed (2026-10-16)
 
 - **Obiettivo:** Next step 1 — rivedere i confini di injection dei metadati memoria e confermare che nessuna cache prompt/summary bypassi l'oggetto budgeted; chiudere l'unico difetto trovato con la modifica più piccola.
