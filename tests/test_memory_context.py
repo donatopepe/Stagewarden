@@ -72,6 +72,19 @@ class MemoryContextTests(unittest.TestCase):
             self.assertLessEqual(len(context.content), 500 + len("\n[truncated by memory.max_chars]"))
             self.assertIn("pi-memory.md", context.content)
 
+    def test_loader_rejects_blank_token_counter_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = self.settings(root, {})
+            context = load_memory_context(
+                root, path, max_tokens=10, token_counter=len,
+                token_counter_name="  ",
+            )
+            self.assertFalse(context.ok)
+            self.assertEqual(context.content, "")
+            self.assertIsNone(context.token_limit)
+            self.assertIn("token_counter_name must be a non-empty string", context.report()["diagnostics"][0])
+
     def test_token_budget_compacts_only_with_supplied_counter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
