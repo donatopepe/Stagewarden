@@ -104,6 +104,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 4. **Wet-run autorizzato:** casi non sensibili; registrare provider/model/usage/error, latenza/costo ed eventi; controllare che non ci siano effetti laterali e che esecuzione resti seriale.
 5. **Accettazione:** v3 invariato; accuracy entro margine preregistrato; efficienza misurabilmente migliore della baseline; ogni failure ricade sul flusso classico. Se soglia non raggiunta, mantenere modalità disattivata/scartare POC.
 
+### Iterazione bounded completata — campione tokenizer/output-cap su route free (2026-10-16)
+
+- **Obiettivo:** per deliverable C selezionato dall'utente, ottenere un campione runtime esplicito di usage token e comportamento `max_tokens`, senza test a pagamento né modifiche provider/routing.
+- **Metrica/soglia:** matrice osservativa fissa `3/3`: (1) usage `prompt_tokens` positivo; (2) sanity bound `prompt_tokens <= UTF-8 bytes` dei messaggi serializzati (non è prova di tokenizer equivalence); (3) `max_tokens=32` con risposta `finish_reason=length` e `completion_tokens <= 32`.
+- **Baseline/input:** route esplicitamente free `auto/coding:free`, fixture numerata 1..250, cap 16, timeout 60s → `TimeoutError`, nessun risultato. La risposta finale usa fixture ridotta e cap 32: variazione dichiarata, quindi non un confronto paired.
+- **Esito:** un solo retry/secondo tentativo, stessa route free, HTTP 200 in 7.305s; modello restituito `nvidia/nemotron-3.5-super-vl:free`; usage prompt 192 token, messaggi 220 UTF-8 byte; output 32 token, `finish_reason=length` → sample matrix `3/3` in `.stagewarden/evidence/free-route-token-cap-observation.json`.
+- **Limiti:** singolo sample non dimostra tokenizer equivalence o enforcement universale; response model è free ma fallback path non è osservabile; sanity byte bound soltanto. Nessuna modifica runtime/routing/provider/fallback/policy.
+- **Validazione offline:** `tests.test_omniroute_adapter` 13 pass, 1 skip; `py_compile`, handoff alignment, JSON e diff-check verdi. Evidenza `.stagewarden/evidence/free-route-token-cap-targeted.log`.
+- **Variabile unica:** osservazione runtime su backend/route esistente; nessun codice runtime modificato.
+
 ### Storico
 
 
