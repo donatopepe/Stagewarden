@@ -361,6 +361,29 @@ class MemoryContextTests(unittest.TestCase):
             self.assertIn("metadata exceeds available input budget", section.body)
             executor.close()
 
+    def test_memory_budget_counter_exception_returns_unaccounted_fail_closed_context(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("payload", encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            def fail_counter(_text):
+                raise RuntimeError("counter unavailable")
+            with patch.object(executor, "_estimate_memory_tokens", side_effect=fail_counter):
+                step = PlanStep(id="step", title="Read", instruction="inspect", validation="v")
+                packet = executor._build_model_communication_packet(
+                    task="inspect", step=step, plan=[step], last_observation="none",
+                    provider_limits={"available_input": 1000},
+                )
+            section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+            self.assertNotIn("payload", section.body)
+            self.assertIn("counter unavailable", section.body)
+            self.assertIn("memory section counter failed", section.body)
+            self.assertNotIn("tokens=0/", section.body)
+            executor.close()
+
     def test_model_context_metadata_uses_explicit_resolved_memory_not_mutable_executor_cache(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

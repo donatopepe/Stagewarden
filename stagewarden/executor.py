@@ -1553,8 +1553,7 @@ class Executor:
                     external_memory = MemoryContext(
                         enabled=True, content="", files=(),
                         issues=(MemoryContextIssue("error", f"memory token counter failed: {exc}"),),
-                        max_chars=12000, token_limit=memory_budget,
-                        token_counter_name=counter_name, token_count=0,
+                        max_chars=12000, token_counter_name=counter_name,
                     )
                     counter_failed = True
                     break
