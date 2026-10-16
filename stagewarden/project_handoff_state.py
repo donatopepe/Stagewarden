@@ -282,8 +282,12 @@ def set_goal(handoff: Any, *, objective: str, token_budget: int | None = None) -
     clean_objective = str(objective).strip()
     if not clean_objective:
         raise ValueError("Goal objective cannot be empty.")
-    if token_budget is not None and int(token_budget) <= 0:
-        raise ValueError("Goal token budget must be positive.")
+    if token_budget is not None and (
+        isinstance(token_budget, bool)
+        or not isinstance(token_budget, int)
+        or token_budget <= 0
+    ):
+        raise ValueError("Goal token budget must be a positive integer.")
     now = utc_now()
     previous = goal_view(handoff)
     goal_id = str(previous.get("goal_id") or f"goal-{now.replace(':', '').replace('+', 'Z')}")

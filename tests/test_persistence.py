@@ -163,6 +163,16 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(handoff.goal_view()["tokens_used"], 0)
         self.assertFalse(any(entry.phase == "goal_usage" for entry in handoff.entries))
 
+    def test_project_goal_rejects_malformed_budget_without_mutation(self) -> None:
+        handoff = ProjectHandoff()
+        before = handoff.goal_view()
+        for value in (True, 1.5, "10", -1, 0):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "positive integer"):
+                    handoff.set_goal(objective="Track tokens", token_budget=value)
+                self.assertEqual(handoff.goal_view(), before)
+                self.assertFalse(any(entry.phase == "goal_set" for entry in handoff.entries))
+
     def test_project_goal_records_known_zero_usage(self) -> None:
         handoff = ProjectHandoff()
         handoff.set_goal(objective="Track token usage", token_budget=100)
