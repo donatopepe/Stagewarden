@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Executor treats negative `available_input` as invalid metadata, not zero budget; regression includes negative alongside bool/float/string. Memory unit 33 passed; full suite 846 passed, 5 skipped, 364 subtests (322.09s); compileall, JSON, alignment and diff-check pass.
+- `load_memory_context()` now rejects any non-callable supplied token counter even without a token budget, before settings/filesystem IO; regression verifies no access. Focused memory/context 63 passed, 10 subtests; compileall and diff-check pass; full suite pending.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
