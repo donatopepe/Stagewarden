@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Shared Pi node contract now rejects non-string `output` values, preventing structured/object payload from leaking as node output; regression covers object/number/null/array. Orchestrator 98 passed, 43 subtests; full suite 856 passed, 5 skipped, 375 subtests (322.48s); compileall/JSON/alignment/diff-check pass.
+- Shared `_node_contract_result()` now preserves reported output-token usage too (previously Pi path and OmniRoute direct path did, shared contract used by other paths omitted it). Regression covers `usage.completion_tokens`. Orchestrator 99 passed, 43 subtests; full suite 857 passed, 5 skipped, 375 subtests (322.35s); compileall/JSON/alignment/diff-check pass.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
