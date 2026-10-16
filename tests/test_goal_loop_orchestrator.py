@@ -437,6 +437,49 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             read = reopened.codemode_context(reopened.nodes["root.scope"].node_id, "read")
             self.assertEqual(read["omitted_utf8_bytes"], second)
 
+    def test_codemode_append_reports_compaction_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "append projection", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.context_budget["available_input"] = 64
+            orchestrator.codemode_context(node.node_id, "append", text="a" * 20, expected_revision=0)
+            appended = orchestrator.codemode_context(node.node_id, "append", text="b" * 30, expected_revision=1)
+            self.assertTrue(appended["ok"])
+            self.assertIs(appended["compacted"], True)
+            self.assertGreater(appended["omitted_utf8_bytes"], 0)
+            self.assertEqual(appended["max_bytes"], 64)
+            self.assertEqual(appended["context_utf8_bytes"], len(node.compacted_context.encode("utf-8")))
+            read = orchestrator.codemode_context(node.node_id, "read")
+            self.assertEqual(appended["omitted_utf8_bytes"], read["omitted_utf8_bytes"])
+
+    def test_codemode_append_over_cap_fails_closed_before_compaction(self) -> None:
+        """A single append larger than the node cap is rejected; compaction only sees what fits."""
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "append over cap", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.context_budget["available_input"] = 64
+            rejected = orchestrator.codemode_context(node.node_id, "append", text="y" * 400, expected_revision=0)
+            self.assertFalse(rejected["ok"])
+            self.assertEqual(rejected["error"], "context append exceeds node byte budget")
+            self.assertEqual(rejected["max_append_bytes"], 64)
+            self.assertEqual(rejected["provided_bytes"], 400)
+            self.assertEqual(node.compacted_context, "")
+            self.assertIs(node.context_compacted, False)
+            self.assertEqual(node.context_omitted_bytes, 0)
+
+    def test_codemode_append_without_compaction_reports_no_loss(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "append no loss", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            appended = orchestrator.codemode_context(node.node_id, "append", text="plain note", expected_revision=0)
+            self.assertIs(appended["compacted"], False)
+            self.assertEqual(appended["omitted_utf8_bytes"], 0)
+            self.assertEqual(appended["max_bytes"], 12000)
+            self.assertEqual(appended["context_utf8_bytes"], len(node.compacted_context.encode("utf-8")))
+
     def test_codemode_read_reports_uncompacted_byte_size_as_chars_for_ascii(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "codemode read ascii", execution_mode="mock", json_mode=True)

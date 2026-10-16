@@ -1010,8 +1010,18 @@ Do NOT include any text before or after the JSON object.'''
             content = self._append_node_context(node, "codemode_note", text)
             return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
                     "revision": node.context_revision, "context_chars": len(content),
-                    "context_utf8_bytes": len(content.encode("utf-8"))}
+                    **self._context_compaction_projection(node)}
         return {"ok": False, "error": "operation must be read or append with non-empty text"}
+
+    def _context_compaction_projection(self, node: NodeState) -> dict[str, Any]:
+        """Byte-exact, loss-aware projection shared by the codemode read and append results."""
+        context = node.compacted_context
+        return {
+            "context_utf8_bytes": len(context.encode("utf-8")),
+            "compacted": bool(node.context_compacted) or NODE_CONTEXT_COMPACTION_MARKER in context,
+            "omitted_utf8_bytes": _non_negative_int(node.context_omitted_bytes),
+            "max_bytes": self._node_prompt_char_cap(node),
+        }
 
     def _codemode_read_result(self, node: NodeState, revision: int) -> dict[str, Any]:
         """Byte-exact, loss-aware read projection for the restricted codemode context API.
@@ -1020,15 +1030,11 @@ Do NOT include any text before or after the JSON object.'''
         size in bytes, the node byte cap and an explicit compaction flag instead of having
         to sniff the prose marker.
         """
-        context = node.compacted_context
         return {
             "ok": True, "node_id": node.node_id, "node_uuid": node.node_uuid,
-            "revision": revision, "context": context,
-            "context_utf8_bytes": len(context.encode("utf-8")),
-            "compacted": bool(node.context_compacted) or NODE_CONTEXT_COMPACTION_MARKER in context,
-            "omitted_utf8_bytes": _non_negative_int(node.context_omitted_bytes),
-            "max_bytes": self._node_prompt_char_cap(node),
+            "revision": revision, "context": node.compacted_context,
             "budget": dict(node.context_budget),
+            **self._context_compaction_projection(node),
         }
 
     # ── dependency resolution ───────────────────────────────────────────────
