@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — proiezione di compaction nell'append codemode (2026-10-16)
+
+- **Obiettivo:** rimuovere l'asimmetria read/append — l'append deve dichiarare se quell'append ha compattato, quanti byte ha omesso e qual è il cap, senza richiedere una read successiva.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 append che entra (cap default) → `compacted=False`, `omitted_utf8_bytes=0`, `max_bytes=12000`; C2 append compattante in regime marker (cap 128, due append) → `compacted=True`, omitted 24, uguale alla read; C3 regime sub-marker (cap 64, due append) → omitted 18, uguale alla read.
+- **Baseline:** `0/3` in `/tmp/stagewarden-codemode-append-projection-baseline.log` (misurata serialmente con stash del sorgente, poi ripristinato); finale `3/3` in `/tmp/stagewarden-codemode-append-projection-final.log`.
+- **Contratto documentato scoperto e testato:** un singolo append oltre il cap viene **rifiutato fail-closed** (`context append exceeds node byte budget`, con `max_append_bytes`/`provided_bytes`) senza compattare né mutare contesto/flag/contatore; la compaction vede solo entry che entrano.
+- **Variabile unica:** proiezione condivisa `_context_compaction_projection` usata da read e append (nessuna duplicazione della detection); nessuna modifica a policy, budget, routing/provider/fallback o serialità v3.
+- **Esito:** TDD con 3 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `112/112`; targeted aggregato `415/415 OK` (23.1s); CLI smoke `3/3` rc 0; full pytest `887 passed, 5 skipped, 394 subtests` (419.68s) seriale in `/tmp/stagewarden-iter-append-projection-full.log`.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — byte omessi esposti dalla read codemode (2026-10-16)
 
 - **Obiettivo:** chiudere il residuo registrato — la read del codemode deve dichiarare *quanto* è stato omesso dalla compaction, non solo che la compaction è avvenuta.
