@@ -107,6 +107,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — byte omessi esposti dalla read codemode (2026-10-16)
+
+- **Obiettivo:** chiudere il residuo registrato — la read del codemode deve dichiarare *quanto* è stato omesso dalla compaction, non solo che la compaction è avvenuta.
+- **Metrica/soglia:** matrice fissa `4/4` (3 funzionali + 1 accumulo/restart); soglia `4/4`.
+- **Casi fissi/ordine:** C1 nodo fresco → `omitted_utf8_bytes=0`; C2 compaction in regime marker (cap 128) → omitted == `original_utf8_bytes − compacted_utf8_bytes` (322); C3 regime sub-marker (cap 64) → omitted 348; C4 accumulo monotono su due compaction (348 → 760) e sopravvivenza al reopen controllato (760).
+- **Baseline:** `0/4` in `/tmp/stagewarden-node-omitted-bytes-baseline.log` (chiave assente); finale `4/4` in `/tmp/stagewarden-node-omitted-bytes-final.log`.
+- **Variabile unica:** contatore monotono `NodeState.context_omitted_bytes` (contratto snapshot/capsule + restore con coercizione difensiva), evento `node_context_compacted` arricchito con `omitted_utf8_bytes`, proiezione read con `omitted_utf8_bytes`; nessuna modifica a policy, budget, routing/provider/fallback, codemode semantics o serialità v3.
+- **Esito:** TDD con 2 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `109/109`; targeted aggregato `412/412 OK` (17.3s); CLI smoke `3/3` rc 0; full pytest `884 passed, 5 skipped, 394 subtests` (397.34s) in `/tmp/stagewarden-iter-omitted-bytes-full.log`, eseguita **seriale** (nessuno stash concorrente: lezione applicata).
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — flag di compaction del nodo persistito (2026-10-16)
 
 - **Obiettivo:** chiudere l'open issue registrato — per cap inferiori ai 73 byte del marker la compaction non era machine-detectable (`compacted=False` nonostante lo snapshot troncato) e non sopravviveva al restart.
