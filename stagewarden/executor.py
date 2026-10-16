@@ -1577,6 +1577,7 @@ class Executor:
                         token_count=0,
                         issues=candidate.issues + (MemoryContextIssue("error", f"memory section counter failed: {exc}"),),
                     )
+                    counter_failed = True
                     break
                 if isinstance(used, bool) or not isinstance(used, int) or used < 0:
                     from dataclasses import replace
