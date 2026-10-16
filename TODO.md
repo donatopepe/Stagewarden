@@ -107,6 +107,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — truncation del prompt assembly registrata (2026-10-16)
+
+- **Obiettivo:** la truncation del contesto node-local applicata **solo al prompt** (seconda fase della generazione) non lasciava traccia: per certi budget il modello riceveva 90 byte mentre il record durevole ne aveva 4012, senza evento né telemetria.
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 truncation prompt-only (limite 10000) → un evento `node_context_prompt_truncated` con `stored_utf8_bytes=4012`, `prompt_utf8_bytes=90`, `omitted_utf8_bytes=3922`, `section=node_prompt_assembly`; C2 budget ampio (14000) → nessun evento e contesto integrale nel prompt; C3 il record durevole resta intatto (contesto 4012, revisione 0, read `omitted_utf8_bytes=0`) — guard-case che prova che la perdita è effimera.
+- **Baseline:** `2/3` in `.stagewarden/evidence/prompt-assembly-truncation-baseline.log` (modulo pre-fix `f2900a8`); finale `3/3` in `.stagewarden/evidence/prompt-assembly-truncation-final.log`.
+- **Variabile unica:** evento di audit per la truncation prompt-only, senza write-back né modifiche al record durevole; nessuna modifica a policy, budget, routing/provider/fallback o serialità v3.
+- **Esito:** TDD con 3 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `123/123`; targeted aggregato `426/426 OK` (17.5s); CLI smoke `3/3` rc 0; full pytest `898 passed, 5 skipped, 394 subtests` (424.04s) in `.stagewarden/evidence/iter-prompt-assembly-truncation-full.log`.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — contesto del nodo e record durevole coincidono (2026-10-16)
 
 - **Obiettivo:** chiudere il residuo registrato — il write-back del percorso prompt non persisteva una revisione nel Node Knowledge Store, e il record durevole divergeva dal contesto del nodo perché lo store normalizza con `.strip()` (divergenza presente anche nel percorso append).
