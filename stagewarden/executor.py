@@ -836,14 +836,14 @@ class Executor:
                     extracted[target] = value
                     break
         if extracted.get("current_usage") is None:
-            input_tokens = extracted.get("input_tokens") or 0
-            output_tokens = extracted.get("output_tokens") or 0
-            total = input_tokens + output_tokens
-            extracted["current_usage"] = total if total else None
+            input_tokens = extracted.get("input_tokens")
+            output_tokens = extracted.get("output_tokens")
+            if input_tokens is not None or output_tokens is not None:
+                extracted["current_usage"] = (input_tokens or 0) + (output_tokens or 0)
         return extracted
 
     def _record_goal_usage(self, *, model: str, step_id: str, usage_metadata: dict[str, int | None]) -> None:
-        if not any(usage_metadata.get(key) for key in ("input_tokens", "output_tokens", "current_usage")):
+        if not any(usage_metadata.get(key) is not None for key in ("input_tokens", "output_tokens", "current_usage")):
             return
         self.project_handoff.record_goal_token_usage(
             model=model,

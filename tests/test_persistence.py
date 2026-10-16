@@ -138,6 +138,17 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(goal["budget_used_percentage"], 105.0)
         self.assertIn("raise budget", goal["next_action"])
 
+    def test_project_goal_records_known_zero_usage(self) -> None:
+        handoff = ProjectHandoff()
+        handoff.set_goal(objective="Track token usage", token_budget=100)
+        goal = handoff.record_goal_token_usage(
+            model="openai", step_id="zero", input_tokens=0, output_tokens=0,
+        )
+        self.assertEqual(goal["tokens_used"], 0)
+        self.assertTrue(any(entry.phase == "goal_usage" for entry in handoff.entries))
+        usage_entry = next(entry for entry in handoff.entries if entry.phase == "goal_usage")
+        self.assertEqual(usage_entry.details["tokens_added"], 0)
+
     def test_project_budget_roundtrip_and_spend_summary(self) -> None:
         handoff = ProjectHandoff()
         handoff.prince2_node_runtime = {

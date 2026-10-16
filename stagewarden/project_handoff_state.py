@@ -338,9 +338,10 @@ def record_goal_token_usage(
     input_count = int(input_tokens or 0)
     output_count = int(output_tokens or 0)
     total = input_count + output_count
+    has_reported_usage = input_tokens is not None or output_tokens is not None or current_usage is not None
     if total <= 0:
         total = int(current_usage or 0)
-    if total <= 0:
+    if total <= 0 and not has_reported_usage:
         return goal_view(handoff)
     previous = goal_view(handoff)
     handoff.goal["tokens_used"] = int(previous.get("tokens_used", 0) or 0) + total
