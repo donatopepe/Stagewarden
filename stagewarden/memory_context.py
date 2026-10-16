@@ -22,9 +22,13 @@ class MemoryContextIssue:
     path: str = ""
 
     def __post_init__(self) -> None:
-        if not isinstance(self.level, str) or not self.level.strip():
+        if not isinstance(self.level, str):
+            raise TypeError("memory issue level must be a string")
+        if not self.level.strip():
             raise ValueError("memory issue level must be a non-empty string")
-        if not isinstance(self.message, str) or not self.message.strip():
+        if not isinstance(self.message, str):
+            raise TypeError("memory issue message must be a string")
+        if not self.message.strip():
             raise ValueError("memory issue message must be a non-empty string")
         if not isinstance(self.path, str):
             raise TypeError("memory issue path must be a string")

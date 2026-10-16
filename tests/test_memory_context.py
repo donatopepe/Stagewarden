@@ -36,6 +36,10 @@ class MemoryContextTests(unittest.TestCase):
             MemoryContextIssue("", "message")
         with self.assertRaisesRegex(ValueError, "message"):
             MemoryContextIssue("error", " ")
+        with self.assertRaisesRegex(TypeError, "level must be a string"):
+            MemoryContextIssue(None, "message")
+        with self.assertRaisesRegex(TypeError, "message must be a string"):
+            MemoryContextIssue("error", None)
         with self.assertRaisesRegex(TypeError, "path"):
             MemoryContextIssue("error", "message", 3)
 
