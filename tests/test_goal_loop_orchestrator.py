@@ -333,6 +333,19 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertEqual(orchestrator.events.read(event="node_context_updated"), [])
             orchestrator.knowledge.record_context = original_record
 
+    def test_invalid_budget_compaction_event_reports_validated_fallback_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "invalid compact cap", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            for value in (-1, True, 1.5, "128"):
+                node.context_budget["available_input"] = value
+                node.compacted_context = ""
+                orchestrator._append_node_context(node, "execution", "x" * 13000)
+                events = orchestrator.events.read(event="node_context_compacted", node_id=node.node_id)
+                self.assertTrue(events)
+                self.assertEqual(events[-1]["details"]["cap_utf8_bytes"], 12000)
+
     def test_compaction_observability_reports_section_bytes_and_accounting_unit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "compact observability", execution_mode="mock", json_mode=True)

@@ -844,8 +844,10 @@ Do NOT include any text before or after the JSON object.'''
                 section="node_local_context",
                 original_utf8_bytes=len(prior.encode("utf-8")) + len(entry.encode("utf-8")),
                 compacted_utf8_bytes=len(combined.encode("utf-8")),
-                cap_utf8_bytes=(int(node.context_budget.get("available_input"))
-                                if isinstance(node.context_budget.get("available_input"), int) else None),
+                cap_utf8_bytes=(self._node_prompt_char_cap(node)
+                                if isinstance(node.context_budget.get("available_input"), int)
+                                and not isinstance(node.context_budget.get("available_input"), bool)
+                                and node.context_budget.get("available_input") >= 0 else 12000),
                 accounting_unit=self._accounting_unit,
             )
         self.events.append(
