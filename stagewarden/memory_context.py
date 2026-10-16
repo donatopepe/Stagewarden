@@ -66,14 +66,14 @@ class MemoryContext:
             raise TypeError("token_counter_name must be a string or None")
         if self.token_counter_name is not None and not self.token_counter_name.strip():
             raise ValueError("token_counter_name must be non-empty when provided")
+        if self.token_count is not None and self.token_counter_name is None:
+            raise ValueError("token_counter_name is required when token_count is set")
         if self.token_limit is not None and self.token_count is None:
             raise ValueError("token_count is required when token_limit is set")
         if self.token_count is not None and self.token_limit is None:
             raise ValueError("token_limit is required when token_count is set")
         if self.token_limit is not None and self.token_count is not None and self.token_count > self.token_limit:
             raise ValueError("token_count must not exceed token_limit")
-        if self.token_count is not None and self.token_counter_name is None:
-            raise ValueError("token_counter_name is required when token_count is set")
 
     @property
     def ok(self) -> bool:
