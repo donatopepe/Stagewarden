@@ -2242,7 +2242,7 @@ class Executor:
                 if not budget.get("node_uuid"):
                     budget["node_uuid"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"stagewarden:node:{step_id}"))
             available = budget.get("available_input")
-            if isinstance(available, int):
+            if isinstance(available, int) and not isinstance(available, bool) and available >= 0:
                 raw_remaining_chars = int(available * self._context_chars_per_token) - self._active_prompt_chars
                 if raw_remaining_chars <= 0:
                     self._context_compaction_count += 1

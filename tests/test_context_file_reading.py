@@ -565,6 +565,25 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertIn(f"node_uuid={first.node_uuid}", executor._render_model_communication_packet(first_packet))
             executor.close()
 
+    def test_file_chunk_budget_ignores_invalid_available_input(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "source.txt").write_text("safe chunk payload", encoding="utf-8")
+            executor = self._executor(root, file_chunk_chars=500)
+            for invalid_budget in (-1, True, 1.5, "80"):
+                executor._active_context_budget = {"available_input": invalid_budget, "model": "cheap"}
+                executor._active_prompt_chars = 500
+                before = executor._context_compaction_count
+                result = executor._run_action(
+                    {"type": "read_file_chunk", "path": "source.txt", "start": 0, "size": 100},
+                    step_id="node.invalid-budget",
+                )
+                self.assertTrue(result["ok"])
+                self.assertEqual(result["content"], "safe chunk payload")
+                self.assertFalse(result["report"]["auto_compacted"])
+                self.assertEqual(executor._context_compaction_count, before)
+            executor.close()
+
     def test_context_budget_matrix_records_provider_node_and_replay_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
