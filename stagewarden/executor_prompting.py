@@ -9,6 +9,23 @@ from .runtime_env import detect_runtime_capabilities
 from .textcodec import dumps_ascii
 
 
+_MEMORY_TRUNCATION_NOTE_MARKER = "memory content truncated by memory.max_chars: "
+
+
+def memory_truncation_accounting(context: Any) -> str:
+    """Return the loader's included/partial/dropped note when memory was truncated there.
+
+    The executor re-bounds the rendered section marker-inclusive; without this the second
+    truncation would cut the loader's file accounting away and the model would see a
+    generic marker instead of which files were dropped or partial.
+    """
+    for issue in getattr(context, "issues", ()) or ():
+        message = str(getattr(issue, "message", ""))
+        if _MEMORY_TRUNCATION_NOTE_MARKER in message:
+            return message.split(_MEMORY_TRUNCATION_NOTE_MARKER, 1)[1].strip()
+    return ""
+
+
 def render_external_memory_context(context: Any) -> str:
     from .memory_context import render_memory_context
     rendered = render_memory_context(context)

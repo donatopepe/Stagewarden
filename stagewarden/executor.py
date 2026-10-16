@@ -1667,6 +1667,13 @@ class Executor:
             external_memory_body += f"\n\n[accounting: {external_memory.token_counter_name}; tokens={external_memory.token_count}/{external_memory.token_limit}]"
         if len(external_memory_body) > external_memory.max_chars:
             suffix = "\n[truncated by memory.max_chars]" if external_memory.token_limit is None else "\n[truncated hermes_obsidian_memory]"
+            accounting = _executor_prompting.memory_truncation_accounting(external_memory)
+            if accounting:
+                candidate_suffix = suffix[:-1] + f": {accounting}]"
+                # Only adopt the file accounting when the suffix still leaves payload room,
+                # otherwise the cap itself would be violated by the suffix alone.
+                if len(candidate_suffix) < external_memory.max_chars:
+                    suffix = candidate_suffix
             external_memory_body = external_memory_body[:max(0, external_memory.max_chars - len(suffix))].rstrip() + suffix
         execution_log = _executor_prompting.bounded_context(self.memory.detailed_summary(), 4000, label="execution_log")
         handoff_log = _executor_prompting.bounded_context(self.project_handoff.detailed_summary(), 4000, label="handoff_log")
