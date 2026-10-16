@@ -92,6 +92,8 @@ def check_tolerance_violation(tolerances: dict[str, str],
 
 DEFAULT_TOKEN_COUNTER = "utf8_byte_upper_bound_v1"
 _UNVERIFIED_COUNTER_ACCOUNTING_UNIT = "external_token_counter_not_provider_verified"
+# Single source of truth for the node compaction marker text and its detection.
+NODE_CONTEXT_COMPACTION_MARKER = "[context auto-compacted"
 
 
 def _load_token_counter(spec: str) -> Callable[[str], int]:
@@ -699,7 +701,7 @@ Do NOT include any text before or after the JSON object.'''
         if max_tokens <= 0:
             return ""
         max_tokens = int(max_tokens)
-        marker = "\n\n[context auto-compacted; omitted middle; preserve node/task invariants]\n\n"
+        marker = f"\n\n{NODE_CONTEXT_COMPACTION_MARKER}; omitted middle; preserve node/task invariants]\n\n"
         if len(text.encode("utf-8")) <= max_tokens:
             return text
         marker_bytes = len(marker.encode("utf-8"))
@@ -892,8 +894,7 @@ Do NOT include any text before or after the JSON object.'''
                             "node_id": node.node_id, "node_uuid": node.node_uuid,
                             "expected_revision": expected_revision, "current_revision": revision,
                         }
-                    return {"ok": True, "node_id": node.node_id, "node_uuid": node.node_uuid,
-                            "revision": revision, "context": snapshot, "budget": budget}
+                    return self._codemode_read_result(node, revision)
                 except Exception as exc:
                     return {"ok": False, "error": f"context read failed: {exc.__class__.__name__}"}
             previous_context = node.compacted_context
@@ -966,9 +967,7 @@ Do NOT include any text before or after the JSON object.'''
                     "current_revision": node.context_revision,
                 }
         if operation == "read":
-            return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
-                    "revision": node.context_revision, "context": node.compacted_context,
-                    "budget": dict(node.context_budget)}
+            return self._codemode_read_result(node, node.context_revision)
         if operation == "append" and isinstance(text, str) and text.strip():
             budget = node.context_budget.get("available_input")
             max_append_bytes = budget if isinstance(budget, int) and not isinstance(budget, bool) and budget >= 0 else 12000
@@ -987,8 +986,26 @@ Do NOT include any text before or after the JSON object.'''
                 }
             content = self._append_node_context(node, "codemode_note", text)
             return {"ok": True, "node_id": node_id, "node_uuid": node.node_uuid,
-                    "revision": node.context_revision, "context_chars": len(content)}
+                    "revision": node.context_revision, "context_chars": len(content),
+                    "context_utf8_bytes": len(content.encode("utf-8"))}
         return {"ok": False, "error": "operation must be read or append with non-empty text"}
+
+    def _codemode_read_result(self, node: NodeState, revision: int) -> dict[str, Any]:
+        """Byte-exact, loss-aware read projection for the restricted codemode context API.
+
+        The snapshot may be a compaction of a larger history, so callers get the snapshot
+        size in bytes, the node byte cap and an explicit compaction flag instead of having
+        to sniff the prose marker.
+        """
+        context = node.compacted_context
+        return {
+            "ok": True, "node_id": node.node_id, "node_uuid": node.node_uuid,
+            "revision": revision, "context": context,
+            "context_utf8_bytes": len(context.encode("utf-8")),
+            "compacted": NODE_CONTEXT_COMPACTION_MARKER in context,
+            "max_bytes": self._node_prompt_char_cap(node),
+            "budget": dict(node.context_budget),
+        }
 
     # ── dependency resolution ───────────────────────────────────────────────
 
