@@ -1351,6 +1351,8 @@ class Executor:
 
     def _estimate_memory_tokens(self, text: str) -> int:
         """Use the executor's existing conservative char/token estimate, not provider exactness."""
+        if not isinstance(text, str):
+            raise TypeError("memory token estimator input must be a string")
         return (len(text) + int(self._context_chars_per_token) - 1) // int(self._context_chars_per_token)
 
     def _context_budget(

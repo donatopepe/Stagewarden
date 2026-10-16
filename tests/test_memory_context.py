@@ -404,6 +404,14 @@ class MemoryContextTests(unittest.TestCase):
             self.assertFalse(context.ok)
             self.assertEqual(sum(issue.level == "error" for issue in context.issues), 2)
 
+    def test_memory_estimator_rejects_invalid_text_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            executor = Executor(config=AgentConfig(workspace_root=Path(tmp)), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            for invalid_text in (None, 7, b"text"):
+                with self.subTest(value=invalid_text), self.assertRaises(TypeError):
+                    executor._estimate_memory_tokens(invalid_text)
+            executor.close()
+
     def test_invalid_available_input_type_skips_budgeted_memory_accounting(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
