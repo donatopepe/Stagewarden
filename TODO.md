@@ -107,6 +107,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — accounting memoria preservato nel re-bounding executor (2026-10-16)
+
+- **Obiettivo:** Next step 3 — il secondo taglio dell'executor sulla sezione memoria (`external_memory_body[:max_chars - len(suffix)]`) non deve distruggere l'accounting file-level `included=/partial=/dropped=` prodotto dal loader.
+- **Metrica/soglia:** matrice fissa `4/4` (3 casi funzionali + 1 guard-case); soglia `4/4`.
+- **Casi fissi/ordine:** C1 loader tronca e body entro cap → accounting presente; C2 loader tronca E executor re-bounded → accounting preservato nel prompt finale; C3 nessuna troncatura loader ma executor re-bounded → nessun accounting inventato; C4 accounting più lungo del cap → cap comunque rispettato (guard).
+- **Baseline:** `3/4` in `/tmp/stagewarden-memory-rebound-accounting-baseline.log` (sorgente pre-iterazione via stash) — C2 perdeva `dropped=c.md`. Fix senza guard: `3/4` con C4 a **603** caratteri > cap 500. Finale: `4/4` in `/tmp/stagewarden-memory-rebound-accounting-final.log`.
+- **Variabile unica:** il suffisso di troncamento dell'executor viene arricchito con l'accounting del loader **solo se** lascia spazio al payload (altrimenti resta il suffisso generico); nessuna modifica a budget, policy, routing/provider/fallback, codemode o serialità v3.
+- **Esito:** TDD con 3 regressioni nuove in `tests/test_memory_context.py`; suite memory_context `43/43`; targeted aggregato `382/382 OK` (38.2s); CLI smoke `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-memory-rebound-full.log`.
+- **File:** `stagewarden/executor.py`, `stagewarden/executor_prompting.py`, `tests/test_memory_context.py`.
+
 ### Iterazione bounded completata — visibilità della perdita nella truncation memoria (2026-10-16)
 
 - **Obiettivo:** la truncation `memory.max_chars` deve dichiarare quali file sono inclusi, parziali o scartati, invece del solo marker generico `[truncated by memory.max_chars]` (che lasciava credere che tutti i file caricati fossero nel contesto).

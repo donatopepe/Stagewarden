@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: memory max_chars truncation was invisible - it cut content mid-line (sometimes inside a '## file' header) and appended only a generic marker while files=N still listed every loaded file. It is now chunk-aware and reports included=/partial=/dropped= file names plus a warning issue; it cuts on a line boundary only past the file header, so half-written headers are impossible and single long body lines keep the legacy ordinary head. Matrix 1/3 -> 3/3 (baseline reproduced from git 9ded6ed); 3 new TDD regressions; memory_context 40/40; targeted aggregate 379/379; CLI smoke 3/3; full pytest 871 passed, 5 skipped, 394 subtests. Payload cap semantics unchanged (marker additive; executor re-bounds body marker-inclusive). No budget, routing/provider/fallback, codemode or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: the executor's second truncation of the rendered memory section cut the loader's included=/partial=/dropped= accounting away, so the final prompt lost the loss visibility added in the previous iteration. executor_prompting.memory_truncation_accounting() now extracts the loader note and appends it to the executor suffix, guarded to keep payload room (without the guard the suffix alone measured 603 chars > 500 cap). Matrix 3/4 -> 4/4 (baseline via stash of the two source files); 3 new TDD regressions; memory_context 43/43; targeted aggregate 382/382; CLI smoke 3/3; full pytest 874 passed, 5 skipped, 394 subtests. No budget, routing/provider/fallback, codemode or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "3b1ddd2b54552bab4089d14aacd272b3983ad170",
+  "git_head": "1acada552b2a2870aa75c457bcd34b7014553f27",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4588,18 +4588,52 @@
         "full_pytest": "871 passed, 5 skipped, 394 subtests (581.61s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T09:14:49+00:00",
+      "phase": "memory_rebound_accounting_preserved",
+      "iteration": 235,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Executor re-bounding of the memory section keeps the loader's included/partial/dropped accounting when it fits, with a guard that preserves the cap; matrix 3/4 -> 4/4, full pytest 874 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "1acada552b2a2870aa75c457bcd34b7014553f27",
+      "details": {
+        "objective": "preserve loader file accounting through the executor memory re-bounding",
+        "metric": "fixed 4-case matrix (3 functional + 1 guard), threshold 4/4",
+        "baseline": "3/4 (C2 lost dropped=c.md); naive fix 3/4 with C4 at 603 > 500 cap",
+        "result": "4/4",
+        "fixed_cases": [
+          "C1 loader truncates, body within cap: accounting visible",
+          "C2 loader truncates and executor re-bounds: accounting preserved",
+          "C3 no loader truncation: no fabricated file accounting",
+          "C4 accounting longer than cap: cap still respected (guard)"
+        ],
+        "files": [
+          "stagewarden/executor.py",
+          "stagewarden/executor_prompting.py",
+          "tests/test_memory_context.py"
+        ],
+        "targeted": "382/382 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "874 passed, 5 skipped, 394 subtests (599.17s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "memory truncation visibility matrix 1/3 -> 3/3 (/tmp/stagewarden-memory-truncation-visibility-baseline.log vs -final.log); memory_context 40/40; targeted aggregate 379/379 OK (42.5s)",
-    "full": "871 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (581.61s) (/tmp/stagewarden-iter-memory-truncation-full.log)",
+    "focused": "memory re-bound accounting matrix 3/4 -> 4/4 (/tmp/stagewarden-memory-rebound-accounting-baseline.log vs -final.log); memory_context 43/43; targeted aggregate 382/382 OK (38.2s)",
+    "full": "874 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (599.17s) (/tmp/stagewarden-iter-memory-rebound-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T08:56:51+00:00",
+    "recorded_at": "2026-10-16T09:14:49+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)"
   }
 }
