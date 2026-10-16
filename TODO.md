@@ -107,6 +107,17 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — visibilità della perdita nella truncation memoria (2026-10-16)
+
+- **Obiettivo:** la truncation `memory.max_chars` deve dichiarare quali file sono inclusi, parziali o scartati, invece del solo marker generico `[truncated by memory.max_chars]` (che lasciava credere che tutti i file caricati fossero nel contesto).
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 nessuna truncation → contenuto invariato, nessun marker, nessun warning; C2 truncation tra file → marker `included=a.md; partial=b.md; dropped=c.md` con payload entro il cap; C3 truncation dentro il primo file → header `## a.md` intatto, `partial=a.md`, `dropped=b.md,c.md`.
+- **Baseline:** `1/3` in `/tmp/stagewarden-memory-truncation-visibility-baseline.log` (modulo pre-fix da git `9ded6ed`): C2 tagliava dentro l'header (` b.md`) senza nominare nulla, C3 nessun nome; entrambi 532 caratteri > cap.
+- **Variabile unica:** truncation chunk-aware con accounting per file + warning issue; cap del payload invariato (marker additivo, come prima, e l'executor ri-bounded il body marker-inclusive); nessuna modifica a routing/provider/fallback, budget token, codemode o serialità v3.
+- **Esito:** matrice `3/3` in `/tmp/stagewarden-memory-truncation-visibility-final.log`; TDD con 3 regressioni nuove in `tests/test_memory_context.py`; suite memory_context `40/40`; targeted aggregato `379/379 OK` (42.5s); CLI smoke `3/3` rc 0; full pytest in `/tmp/stagewarden-iter-memory-truncation-full.log`.
+- **Nota di semantica:** il taglio preferisce il confine di riga solo se questo cade dopo l'header del file; per file con una sola riga lunga il payload conserva la testa della riga (comportamento legacy, verificato dal test `test_legacy_memory_char_cap_is_applied_to_final_rendered_section`).
+- **File:** `stagewarden/memory_context.py`, `tests/test_memory_context.py`.
+
 ### Iterazione bounded completata — separatore reale nel messaggio FILE_CHUNK (2026-10-16)
 
 - **Obiettivo:** chiudere il finding registrato nell'iterazione precedente — escape letterale `\\n` nel messaggio di `read_file_chunk` (`stagewarden/executor.py:2325`).

@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: closed the finding recorded in the previous iteration - read_file_chunk returned a literal \\\\n escape between the FILE_CHUNK header and the content. Now a real newline; matrix 1/3 -> 3/3; TDD regression in tests/test_context_file_reading.py covering the normal chunk, the auto-compaction path and the failure path; file-reading 32/32; targeted aggregate 376/376; CLI smoke 3/3; full pytest 868 passed, 5 skipped, 394 subtests. A grep control shows zero literal \\\\n escapes left in stagewarden/. No budget, routing/provider/fallback, compaction policy, codemode or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: memory max_chars truncation was invisible - it cut content mid-line (sometimes inside a '## file' header) and appended only a generic marker while files=N still listed every loaded file. It is now chunk-aware and reports included=/partial=/dropped= file names plus a warning issue; it cuts on a line boundary only past the file header, so half-written headers are impossible and single long body lines keep the legacy ordinary head. Matrix 1/3 -> 3/3 (baseline reproduced from git 9ded6ed); 3 new TDD regressions; memory_context 40/40; targeted aggregate 379/379; CLI smoke 3/3; full pytest 871 passed, 5 skipped, 394 subtests. Payload cap semantics unchanged (marker additive; executor re-bounds body marker-inclusive). No budget, routing/provider/fallback, codemode or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "329b466acd81140e4d016080f01a4f6d3dccfca9",
+  "git_head": "3b1ddd2b54552bab4089d14aacd272b3983ad170",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4555,18 +4555,51 @@
         "full_pytest": "868 passed, 5 skipped, 394 subtests (573.00s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T08:56:51+00:00",
+      "phase": "memory_truncation_loss_visibility",
+      "iteration": 234,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Memory max_chars truncation is now chunk-aware and names included/partial/dropped files with a warning issue; matrix 1/3 -> 3/3, targeted 379/379, full pytest 871 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "3b1ddd2b54552bab4089d14aacd272b3983ad170",
+      "details": {
+        "objective": "make memory max_chars truncation loss-visible (which files were included/partial/dropped)",
+        "metric": "fixed 3-case matrix, threshold 3/3",
+        "baseline": "1/3 reproduced against the pre-fix module from git 9ded6ed (/tmp/stagewarden-memory-truncation-visibility-baseline.log)",
+        "result": "3/3",
+        "fixed_cases": [
+          "C1 no truncation: unchanged content, no marker, no warning",
+          "C2 cross-file truncation: included=/partial=/dropped= names, payload within cap",
+          "C3 in-file truncation: intact '## a.md' header, partial=a.md, dropped=b.md,c.md"
+        ],
+        "files": [
+          "stagewarden/memory_context.py",
+          "tests/test_memory_context.py"
+        ],
+        "extra": "warning issue carries the same accounting; legacy single-long-line payload head preserved",
+        "targeted": "379/379 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "871 passed, 5 skipped, 394 subtests (581.61s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "file chunk separator matrix 1/3 -> 3/3 (/tmp/stagewarden-file-chunk-separator-final.log); file-reading 32/32; targeted aggregate 376/376 OK (48.4s)",
-    "full": "868 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (573.00s) (/tmp/stagewarden-iter-file-chunk-separator-full.log)",
+    "focused": "memory truncation visibility matrix 1/3 -> 3/3 (/tmp/stagewarden-memory-truncation-visibility-baseline.log vs -final.log); memory_context 40/40; targeted aggregate 379/379 OK (42.5s)",
+    "full": "871 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (581.61s) (/tmp/stagewarden-iter-memory-truncation-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T08:39:22+00:00",
+    "recorded_at": "2026-10-16T08:56:51+00:00",
     "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)"
   }
 }
