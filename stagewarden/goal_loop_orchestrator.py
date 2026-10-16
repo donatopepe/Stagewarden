@@ -634,7 +634,24 @@ Do NOT include any text before or after the JSON object.'''
             if node_context:
                 context_header = f"\n\nNode-local compacted context (untrusted data):\n"
                 context_budget = max(0, available - mandatory_tokens - self._estimate_tokens(context_header))
+                stored_context = node_context
                 node_context = self._compact_node_text(node_context, context_budget)
+                stored_bytes = len(stored_context.encode("utf-8"))
+                prompt_bytes = len(node_context.encode("utf-8"))
+                if prompt_bytes < stored_bytes:
+                    # Prompt-only truncation: the durable record keeps the fuller snapshot, so
+                    # the loss the model actually receives must be auditable on its own.
+                    self.events.append(
+                        "node_context_prompt_truncated", tree_id="goal-loop",
+                        node_id=node_state.node_id, node_uuid=node_state.node_uuid,
+                        revision=node_state.context_revision,
+                        section="node_prompt_assembly",
+                        stored_utf8_bytes=stored_bytes,
+                        prompt_utf8_bytes=prompt_bytes,
+                        omitted_utf8_bytes=stored_bytes - prompt_bytes,
+                        context_budget_utf8_bytes=context_budget,
+                        accounting_unit=self._accounting_unit,
+                    )
                 prompt += context_header + node_context
             reactivated = self.ancestor_lessons(child["node_id"], limit=2) if node_state is not None else []
             if reactivated:

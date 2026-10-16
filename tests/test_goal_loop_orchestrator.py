@@ -616,6 +616,51 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             self.assertIsNotNone(stored)
             self.assertEqual(node.compacted_context, stored)
 
+    def test_prompt_assembly_truncation_is_recorded(self) -> None:
+        """The model may receive less context than the durable record; that loss must be auditable."""
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt assembly truncation", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            events = orchestrator.events.read(event="node_context_prompt_truncated")
+            self.assertEqual(len(events), 1)
+            detail = events[0]["details"]
+            self.assertEqual(detail["section"], "node_prompt_assembly")
+            self.assertEqual(detail["stored_utf8_bytes"], len(original.encode("utf-8")))
+            self.assertLess(detail["prompt_utf8_bytes"], detail["stored_utf8_bytes"])
+            self.assertEqual(detail["omitted_utf8_bytes"], detail["stored_utf8_bytes"] - detail["prompt_utf8_bytes"])
+
+    def test_prompt_assembly_without_truncation_records_nothing(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt assembly intact", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "14000"}):
+                prompt = orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            self.assertIn(original, prompt)
+            self.assertEqual(orchestrator.events.read(event="node_context_prompt_truncated"), [])
+
+    def test_prompt_assembly_truncation_leaves_durable_record_untouched(self) -> None:
+        original = "[execution] " + "x" * 4000
+        with tempfile.TemporaryDirectory() as tmp:
+            orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "prompt assembly ephemeral", execution_mode="mock", json_mode=True)
+            self.addCleanup(lambda: orchestrator.knowledge.close())
+            node = orchestrator.nodes["root.scope"]
+            node.compacted_context = original
+            with patch.dict(os.environ, {"STAGEWARDEN_GOAL_LOOP_INPUT_TOKENS": "10000"}):
+                orchestrator._generate_node_prompt(orchestrator.blueprint["child_prompts"][0])
+            read = orchestrator.codemode_context(node.node_id, "read")
+            self.assertEqual(node.compacted_context, original)
+            self.assertEqual(node.context_revision, 0)
+            self.assertEqual(read["context_utf8_bytes"], len(original.encode("utf-8")))
+            self.assertEqual(read["omitted_utf8_bytes"], 0)
+
     def test_codemode_read_reports_uncompacted_byte_size_as_chars_for_ascii(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             orchestrator = GoalLoopOrchestrator(AgentConfig(workspace_root=Path(tmp)), "codemode read ascii", execution_mode="mock", json_mode=True)
