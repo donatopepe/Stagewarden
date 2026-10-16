@@ -107,6 +107,15 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded — HOLD al gate di approvazione utente (2026-10-16)
+
+- **Obiettivo:** scegliere il prossimo deliverable Stagewarden senza mutare comportamento non approvato.
+- **Metrica/soglia:** matrice decisionale `1/1` scelta approvata.
+- **Casi fissi:** A) compaction semantica node-local; B) cap conservativo quando input budget è ignoto; C) verifica tokenizer/output-cap solo con evidenza runtime provider.
+- **Baseline:** `0/1`: handoff non registra approvazione per alcuna opzione. A cambia retention; B attenua fail-closed omissione contesto; C richiede evidenza runtime che non è stata raccolta. Decision support locale non disponibile (`jev_decide` spawn ENOENT); non sostituito con decisione inventata.
+- **Esito:** HOLD, nessuna modifica runtime, test, policy o routing. Obiettivo utente cita Next steps ma non seleziona né approva una delle tre scelte. Chiedere selezione esplicita prima di procedere.
+- **File:** solo handoff (`TODO.md`, `AGENT_HANDOFF.md`, `HANDOFF.md`, `.stagewarden_handoff.json`).
+
 ### Iterazione bounded completata — omissione contesto con budget ignoto resa auditabile (2026-10-16)
 
 - **Obiettivo:** quando limite input non è noto, preservare fail-closed omissione del contesto node-local ma renderla esplicita e verificabile (evitare omissione silenziosa).
