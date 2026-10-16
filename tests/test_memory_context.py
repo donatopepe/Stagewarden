@@ -389,6 +389,25 @@ class MemoryContextTests(unittest.TestCase):
             self.assertFalse(context.ok)
             self.assertEqual(sum(issue.level == "error" for issue in context.issues), 2)
 
+    def test_invalid_available_input_type_skips_budgeted_memory_accounting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory = root / "memory"
+            memory.mkdir()
+            (memory / "pi-memory.md").write_text("memory remains available", encoding="utf-8")
+            self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
+            executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
+            step = PlanStep(id="step", title="Read context", instruction="inspect", validation="context")
+            for invalid_budget in (True, 1.5, "80"):
+                packet = executor._build_model_communication_packet(
+                    task="inspect", step=step, plan=[step], last_observation="none",
+                    provider_limits={"available_input": invalid_budget},
+                )
+                section = next(item for item in packet.sections if item.title == "Configured Hermes/Obsidian memory")
+                self.assertIn("memory remains available", section.body)
+                self.assertNotIn("tokens=", section.body)
+            executor.close()
+
     def test_prompt_memory_uses_available_input_budget_and_reports_estimator(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
