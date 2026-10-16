@@ -4,7 +4,7 @@
 Completa contesto isolato per nodo, token budget provider/modello, compattazione automatica e codemode ristretto; decision model va chiamato genericamente, non come nome di modello. Preservare routing/provider/fallback/policy e serialità v3.
 
 ## Current state
-- Node context compaction event's `cap_utf8_bytes` now reports validated cap via same helper (12000 fallback for malformed budget), instead of emitting invalid raw negative/bool data. Regression covers. Orchestrator 94 passed, 39 subtests; full suite 852 passed, 5 skipped, 371 subtests (323.79s); compileall/JSON/alignment/diff-check pass.
+- Refined node-cap test to use actual `root.scope` NodeState from orchestrator rather than manually constructing outdated shape. Orchestrator tests 94 passed, 39 subtests; compileall/diff-check pass. No production change.
 - Counter identity rejects blank/non-string before settings/file processing; covered by regressions. Last full suite 842 passed, 5 skipped, 364 subtests (321.26s).
 - Memory loader fail-closed cases do not fabricate 0/limit telemetry; counter errors, rejected/no-fit compaction clear token limit/count; diagnostics remain. Full suite last validated 840 passed, 5 skipped, 364 subtests (321.82s).
 - `MemoryContext` rejects blank/whitespace `token_counter_name`, preventing invalid counter identity in telemetry.
