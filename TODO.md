@@ -104,6 +104,27 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 4. **Wet-run autorizzato:** casi non sensibili; registrare provider/model/usage/error, latenza/costo ed eventi; controllare che non ci siano effetti laterali e che esecuzione resti seriale.
 5. **Accettazione:** v3 invariato; accuracy entro margine preregistrato; efficienza misurabilmente migliore della baseline; ogni failure ricade sul flusso classico. Se soglia non raggiunta, mantenere modalità disattivata/scartare POC.
 
+### Iterazione bounded completata — sweep output-cap su route free e prompt fisso (2026-10-16)
+
+- **Obiettivo:** misurare comportamento `max_tokens` del route esplicitamente free selezionato dall'utente, isolando variabile cap con prompt/provider invariati.
+- **Metrica/soglia:** 3 casi fissi; passa caso se HTTP 200, modello risolto esplicitamente free, `completion_tokens <= cap`, `finish_reason=length`; soglia `3/3`.
+- **Casi/ordine:** medesimo prompt SHA256 `1bb7e635…`, `auto/coding:free`, no retry/fallback; C1 cap 16, C2 cap 8, C3 cap 32.
+- **Baseline:** timeout precedente non era stesso prompt. Pre-registrato prima del nuovo sweep in `.stagewarden/evidence/free-cap-matrix-baseline.json`; qui C1 sul prompt fisso è riferimento cap 16.
+- **Esito:** `3/3`, tutti HTTP 200 via `nvidia/nemotron-3.5-super-vl:free`; prompt usage 175 per ogni caso; completion 16/8/32 con `finish_reason=length`; latenze 3.012/4.227/8.825s. Dati per richiesta e request hash in `.stagewarden/evidence/free-cap-matrix-result.json`.
+- **Limiti:** una sola risposta per cap su un singolo route; evidenza di coerenza in questo campione, non garanzia generale provider-side. `prompt_tokens` non prova tokenizer equivalence. Nessun route a pagamento/fallback provato o usato.
+- **Validazione locale:** `tests.test_omniroute_adapter` 13 pass, 1 skip; py_compile ed evidence JSON validi. Full suite non necessaria (nessun codice runtime modificato).
+- **File:** soli artifact evidenza e handoff; nessuna modifica a routing/provider/fallback/policy o serialità v3.
+
+### Follow-up bounded — sweep output cap con prompt invariato e route free (2026-10-16)
+
+- **Obiettivo:** verificare coerenza tra `max_tokens` richiesto e usage restituito, variando solo cap sullo stesso prompt e route esplicitamente free.
+- **Metrica/soglia:** matrice osservativa fissa `3/3`: HTTP 200, modello risolto free, `completion_tokens <= cap`, `finish_reason=length`.
+- **Casi/input fisso:** prompt numerato 1..1000 (SHA256 `1bb7e635…`), route `auto/coding:free`, una richiesta/caso, no retry/fallback; C1 cap 16, C2 cap 8, C3 cap 32.
+- **Baseline:** pre-registrata prima dello sweep in `.stagewarden/evidence/free-cap-matrix-baseline.json`; C1 è baseline dello sweep.
+- **Esito:** `3/3`, modello risolto `nvidia/nemotron-3.5-super-vl:free`, prompt_tokens 175 costanti, completion 16/8/32 e `finish_reason=length`; latenze 3.012/4.227/8.825s. Artefatto per-caso `.stagewarden/evidence/free-cap-matrix-result.json`.
+- **Limiti:** evidenza campionaria per un route/modello e 3 richieste; non prova enforcement universale o tokenizer equivalence. Nessun route paid o fallback usato.
+- **Validazione offline:** `tests.test_omniroute_adapter` 13 pass, 1 skip; py_compile e JSON validi. Full suite non eseguita (nessun runtime code modificato).
+
 ### Follow-up bounded — cap-16 ripetuto con fixture identica (2026-10-16)
 
 - **Obiettivo:** sostituire baseline timeout-only di C con ripetizione esatta della stessa fixture, route free, cap e timeout.
