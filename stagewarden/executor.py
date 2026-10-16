@@ -1417,7 +1417,7 @@ class Executor:
         packet = self._build_model_communication_packet(task=task, step=step, plan=plan, last_observation=last_observation, provider_limits=context_budget)
         rendered = self._render_model_communication_packet(packet)
         available = context_budget.get("available_input") if context_budget else None
-        if isinstance(available, int):
+        if isinstance(available, int) and not isinstance(available, bool) and available >= 0:
             max_chars = max(100, int(available * self._context_chars_per_token))
             if len(rendered) > max_chars:
                 self._context_compaction_count += 1

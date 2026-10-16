@@ -520,6 +520,20 @@ class ContextAwareFileReadingTests(unittest.TestCase):
             self.assertLess(details["after_chars"], details["before_chars"])
             executor.close()
 
+    def test_build_prompt_ignores_invalid_available_input_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            executor = self._executor(Path(tmp))
+            step = PlanStep("step-1", "Inspect", "inspect repository", "run tests", wet_run_required=False)
+            for invalid in (-1, True, 1.5, "80"):
+                with self.subTest(value=invalid):
+                    result = executor._build_prompt(
+                        task="x" * 1000, step=step, plan=[step], last_observation="y" * 1000,
+                        context_budget={"available_input": invalid, "model": "cheap"},
+                    )
+                    self.assertGreater(len(result), 100)
+                    self.assertEqual(executor._context_compaction_count, 0)
+            executor.close()
+
     def test_model_context_identity_matrix_has_node_uuid_and_distinct_cache_scope(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
