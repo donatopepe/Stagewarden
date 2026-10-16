@@ -107,6 +107,18 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 ### Storico
 
 
+### Iterazione bounded completata — accounting della compaction nel percorso prompt (2026-10-16)
+
+- **Obiettivo:** la compaction eseguita mentre si genera il prompt del nodo riscriveva `node_state.compacted_context` **senza** aggiornare flag, contatore o eventi: la read proiezione tornava a dichiarare `compacted=False`/0 byte omessi su un contesto troncato (invisibilità reintrodotta da un secondo percorso).
+- **Metrica/soglia:** matrice fissa `3/3`; soglia `3/3`.
+- **Casi fissi/ordine:** C1 compaction prompt-path (budget 6000) → flag `True`, `omitted_utf8_bytes` 3922 e un evento `node_context_compacted` con `section=node_prompt_budget` coerente; C2 budget ampio (12000) → flag `False`, contatore 0, contesto invariato e nessun evento; C3 read proiezione coerente dopo C1 (`compacted=True`, omitted 3922, byte-esatta).
+- **Baseline:** `1/3` in `.stagewarden/evidence/prompt-compaction-baseline.log` (modulo pre-fix da `19973b6`); finale `3/3` in `.stagewarden/evidence/prompt-compaction-final.log`.
+- **Variabile unica:** `_store_node_context(..., original=, provenance=, cap_bytes=)` sostituisce la scrittura diretta del contesto nel percorso prompt, applicando lo stesso accounting di `_append_node_context`; nessuna modifica a policy, budget, routing/provider/fallback o serialità v3.
+- **Incidente d'ambiente registrato:** il reaper di `/tmp` ha cancellato tutti i log `stagewarden-*` di evidenza. Nuovo standard operativo: le evidenze vivono in `.stagewarden/evidence/` (gitignored, durevoli) e i riferimenti nei file di handoff puntano lì.
+- **Esito:** TDD con 3 regressioni nuove in `tests/test_goal_loop_orchestrator.py`; suite orchestrator `115/115`; targeted aggregato `418/418 OK` (23.8s); CLI smoke `3/3` rc 0; full pytest `890 passed, 5 skipped, 394 subtests` (413.54s) in `.stagewarden/evidence/iter-prompt-compaction-full.log`.
+- **Residuo registrato:** il write-back dal percorso prompt non crea una nuova revisione/snapshot nel Node Knowledge Store (comportamento pre-esistente); il contatore e il flag sono comunque persistiti via capsule.
+- **File:** `stagewarden/goal_loop_orchestrator.py`, `tests/test_goal_loop_orchestrator.py`.
+
 ### Iterazione bounded completata — proiezione di compaction nell'append codemode (2026-10-16)
 
 - **Obiettivo:** rimuovere l'asimmetria read/append — l'append deve dichiarare se quell'append ha compattato, quanti byte ha omesso e qual è il cap, senza richiedere una read successiva.

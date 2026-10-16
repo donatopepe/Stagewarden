@@ -48,9 +48,9 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-16 bounded iteration: the codemode append result carried sizes but not the compaction projection, so a caller needed a second read to learn whether its append had truncated history. Read and append now share _context_compaction_projection (context_utf8_bytes, compacted, omitted_utf8_bytes, max_bytes). A documented fail-closed contract was discovered and covered: an append whose own bytes exceed the node cap is rejected with max_append_bytes/provided_bytes without compacting or mutating context, so compaction only sees entries that fit. Matrix 0/3 -> 3/3; 3 new TDD regressions; orchestrator 112/112; targeted aggregate 415/415; CLI smoke 3/3; full pytest 887 passed, 5 skipped, 394 subtests, run serially with the worktree unmoved. No policy, routing/provider/fallback or v3 seriality change.",
+  "latest_observation": "2026-10-16 bounded iteration: the node prompt generator compacted and rewrote node_state.compacted_context to fit the model input budget without touching the compaction flag, the omitted-byte counter or the event stream, so the codemode read could report compacted=False / 0 omitted on a truncated snapshot (invisibility reintroduced through a second path). The write-back now goes through _store_node_context(..., original=, provenance='node_prompt_budget', cap_bytes=) with the same accounting as append-driven compaction. Matrix 1/3 -> 3/3; 3 new TDD regressions; orchestrator 115/115; targeted aggregate 418/418; CLI smoke 3/3; full pytest 890 passed, 5 skipped, 394 subtests. Environment incident: the /tmp reaper deleted all /tmp/stagewarden-* evidence logs, so evidence now lives in .stagewarden/evidence/ and handoff references point there. Residual: the prompt-path write-back still creates no new knowledge-store revision/snapshot (pre-existing). No policy, routing/provider/fallback or v3 seriality change.",
   "plan_status": "Implement required-section-aware prompt compaction; persist append/revision/hash in node knowledge and restore node-local context; budget custom nodes and skills; use actual provider tokenizer/capacity; wet-run mock and regress v3. No routing/provider/fallback/parallel changes.",
-  "git_head": "5e08312b4b24983d7222f12679f44d670af3217f",
+  "git_head": "190e83328eaca3a45bd86ce76a6dcd16dec67c32",
   "git_head_baseline": "a7224e2",
   "risk_register": [
     {
@@ -4793,18 +4793,57 @@
         "full_pytest": "887 passed, 5 skipped, 394 subtests (419.68s)",
         "runtime_policy_unchanged": true
       }
+    },
+    {
+      "timestamp": "2026-10-16T11:11:52+00:00",
+      "phase": "prompt_path_compaction_accounted",
+      "iteration": 241,
+      "task": "node-context-token-budget-codemode",
+      "summary": "Prompt-path context compaction is now accounted like append-driven compaction (flag, omitted bytes, event), keeping the read projection truthful; matrix 1/3 -> 3/3, full pytest 890 passed / 5 skipped.",
+      "step_id": "node-context-hardening",
+      "step_title": "Harden budgeting, context persistence, and codemode integration",
+      "step_status": "active",
+      "model": null,
+      "action_type": null,
+      "git_head": "190e83328eaca3a45bd86ce76a6dcd16dec67c32",
+      "details": {
+        "objective": "account the compaction performed while generating the node prompt",
+        "metric": "fixed 3-case matrix, threshold 3/3",
+        "baseline": "1/3 (flag/counter/event absent for the prompt-path truncation)",
+        "result": "3/3",
+        "fixed_cases": [
+          "C1 prompt-path compaction sets the flag, the omitted-byte counter and one node_prompt_budget event",
+          "C2 roomy budget leaves flag, counter, content and events untouched",
+          "C3 codemode read projection stays coherent after the prompt-path compaction"
+        ],
+        "files": [
+          "stagewarden/goal_loop_orchestrator.py",
+          "tests/test_goal_loop_orchestrator.py"
+        ],
+        "evidence_paths": [
+          ".stagewarden/evidence/prompt-compaction-baseline.log",
+          ".stagewarden/evidence/prompt-compaction-final.log",
+          ".stagewarden/evidence/iter-prompt-compaction-full.log"
+        ],
+        "environment_incident": "/tmp reaper deleted previous evidence logs; evidence moved to .stagewarden/evidence/",
+        "targeted": "418/418 OK",
+        "cli_smoke": "3/3 rc=0",
+        "full_pytest": "890 passed, 5 skipped, 394 subtests (413.54s)",
+        "runtime_policy_unchanged": true
+      }
     }
   ],
   "validation": {
-    "focused": "codemode append projection matrix 0/3 -> 3/3 (/tmp/stagewarden-codemode-append-projection-baseline.log vs -final.log); orchestrator 112/112; targeted aggregate 415/415 OK (23.1s)",
-    "full": "887 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (419.68s, serial) (/tmp/stagewarden-iter-append-projection-full.log)",
+    "focused": "prompt-path compaction matrix 1/3 -> 3/3 (.stagewarden/evidence/prompt-compaction-baseline.log vs -final.log); orchestrator 115/115; targeted aggregate 418/418 OK (23.8s)",
+    "full": "890 passed, 5 skipped, 394 subtests; venv_pytest/bin/python -m pytest --ignore=external_sources -q (413.54s, serial) (.stagewarden/evidence/iter-prompt-compaction-full.log)",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
     "handoff_alignment": "handoff_alignment=ok",
     "git_diff_check": "passed",
     "recovery_loop": "durable task 30d0c9d5 (*/5 * * * *, recurring, durable, label stagewarden-mvp-continue); prompt versioned at .pi/prompts/stagewarden-mvp-continue-loop.md",
-    "recorded_at": "2026-10-16T10:46:41+00:00",
-    "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)"
+    "recorded_at": "2026-10-16T11:11:52+00:00",
+    "cli_smoke": "baseline/model limits/events replay --json rc=0 (3/3)",
+    "evidence_root": ".stagewarden/evidence (durable; /tmp was reaped)"
   }
 }
