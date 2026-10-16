@@ -46,6 +46,8 @@ class MemoryContextTests(unittest.TestCase):
             MemoryContext(True, "", (), (), 10, token_limit=4, token_counter_name="estimator")
         with self.assertRaisesRegex(ValueError, "token_limit is required"):
             MemoryContext(True, "", (), (), 10, token_count=1)
+        with self.assertRaisesRegex(ValueError, "token_counter_name is required"):
+            MemoryContext(True, "", (), (), 10, token_limit=4, token_count=3)
         with self.assertRaisesRegex(ValueError, "token_counter_name must be non-empty"):
             MemoryContext(True, "", (), (), 10, token_counter_name=" ")
         with self.assertRaisesRegex(TypeError, "token_counter_name must be a string"):
@@ -341,6 +343,7 @@ class MemoryContextTests(unittest.TestCase):
             context = load_memory_context(root, path, max_tokens=40, token_counter=non_monotonic)
             self.assertTrue(context.ok)
             self.assertLessEqual(context.token_count, 40)
+            self.assertEqual(context.token_counter_name, "unspecified_token_counter")
             self.assertIn("truncated by memory token budget", context.content)
 
     def test_final_counter_type_failure_fails_closed_with_counter_identity(self) -> None:

@@ -72,6 +72,8 @@ class MemoryContext:
             raise ValueError("token_limit is required when token_count is set")
         if self.token_limit is not None and self.token_count is not None and self.token_count > self.token_limit:
             raise ValueError("token_count must not exceed token_limit")
+        if self.token_count is not None and self.token_counter_name is None:
+            raise ValueError("token_counter_name is required when token_count is set")
 
     @property
     def ok(self) -> bool:
@@ -275,8 +277,14 @@ def load_memory_context(
                 token_counter_name=token_counter_name,
             )
         if any(issue.level == "error" for issue in issues):
-            return MemoryContext(True, "", tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)
-    return MemoryContext(True, content, tuple(loaded), tuple(issues), max_chars, max_tokens, token_counter_name, final_token_count)
+            return MemoryContext(
+                True, "", tuple(loaded), tuple(issues), max_chars,
+                max_tokens, token_counter_name or "unspecified_token_counter", final_token_count,
+            )
+    return MemoryContext(
+        True, content, tuple(loaded), tuple(issues), max_chars,
+        max_tokens, token_counter_name or "unspecified_token_counter", final_token_count,
+    )
 
 
 def render_memory_context(context: MemoryContext) -> str:
