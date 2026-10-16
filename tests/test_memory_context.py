@@ -28,6 +28,10 @@ class MemoryContextTests(unittest.TestCase):
             MemoryContext(True, "", (), (), 10, token_limit=4, token_count=True)
         with self.assertRaisesRegex(ValueError, "token_limit"):
             MemoryContext(True, "", (), (), 10, token_limit=-1)
+        with self.assertRaisesRegex(ValueError, "max_chars"):
+            MemoryContext(True, "", (), (), True)
+        with self.assertRaisesRegex(ValueError, "non-negative integer"):
+            MemoryContext(True, "", (), (), -1)
         with self.assertRaisesRegex(ValueError, "must not exceed"):
             MemoryContext(True, "", (), (), 10, token_limit=4, token_count=5, token_counter_name="estimator")
         with self.assertRaisesRegex(ValueError, "token_count is required"):
