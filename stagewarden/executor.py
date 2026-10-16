@@ -1536,7 +1536,11 @@ class Executor:
         )
         memory_summary = _executor_prompting.bounded_context(self.memory.summarize(), 2000, label="memory_summary")
         available_memory_tokens = (provider_limits or {}).get("available_input")
-        if isinstance(available_memory_tokens, int) and not isinstance(available_memory_tokens, bool):
+        if (
+            isinstance(available_memory_tokens, int)
+            and not isinstance(available_memory_tokens, bool)
+            and available_memory_tokens >= 0
+        ):
             memory_counter = self._estimate_memory_tokens
             counter_name = f"executor_char_ratio_{self._context_chars_per_token:g}_not_provider_tokenizer"
             memory_budget = max(0, min(available_memory_tokens, 4000))

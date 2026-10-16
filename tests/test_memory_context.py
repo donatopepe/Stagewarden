@@ -398,7 +398,7 @@ class MemoryContextTests(unittest.TestCase):
             self.settings(root, {"memory": {"enabled": True, "roots": [str(memory)], "files": ["pi-memory.md"]}})
             executor = Executor(config=AgentConfig(workspace_root=root), router=ModelRouter(), handoff=HandoffManager(), memory=MemoryStore(), project_handoff=ProjectHandoff(), rag=DesignRag())
             step = PlanStep(id="step", title="Read context", instruction="inspect", validation="context")
-            for invalid_budget in (True, 1.5, "80"):
+            for invalid_budget in (True, -1, 1.5, "80"):
                 packet = executor._build_model_communication_packet(
                     task="inspect", step=step, plan=[step], last_observation="none",
                     provider_limits={"available_input": invalid_budget},
