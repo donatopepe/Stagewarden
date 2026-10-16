@@ -104,6 +104,16 @@ Completare il contesto isolato di ogni nodo e un codemode limitato che lo usa, g
 4. **Wet-run autorizzato:** casi non sensibili; registrare provider/model/usage/error, latenza/costo ed eventi; controllare che non ci siano effetti laterali e che esecuzione resti seriale.
 5. **Accettazione:** v3 invariato; accuracy entro margine preregistrato; efficienza misurabilmente migliore della baseline; ogni failure ricade sul flusso classico. Se soglia non raggiunta, mantenere modalità disattivata/scartare POC.
 
+### Follow-up bounded — cap-16 ripetuto con fixture identica (2026-10-16)
+
+- **Obiettivo:** sostituire baseline timeout-only di C con ripetizione esatta della stessa fixture, route free, cap e timeout.
+- **Metrica/soglia:** matrice osservativa fissa `3/3`: usage presente; modello risolto esplicitamente free; `finish_reason=length` con completion ≤ cap.
+- **Baseline/input fisso:** route `auto/coding:free`, prompt numerato 1..300 (SHA256 registrato), `max_tokens=16`, timeout 60s, una richiesta/no retry; primo run precedente era `TimeoutError`.
+- **Esito:** stessa fixture e stessi parametri ripetuti una volta → HTTP 200 in 3.073s, modello `nvidia/nemotron-3.5-super-vl:free`, prompt usage 167, completion 16, `finish_reason=length`; **3/3**. Il timeout era transitorio, non baseline del comportamento provider.
+- **Limiti:** singola osservazione; non prova equivalenza tokenizer o enforcement universale. Nessuna variazione route, fallback o codice runtime.
+- **Evidenza:** `.stagewarden/evidence/free-route-cap16-controlled-baseline.json`, `-result.json`, `-tests.log`.
+- **Test locale:** adapter `13 passed, 1 skipped`; py_compile ok.
+
 ### Iterazione bounded completata — campione tokenizer/output-cap su route free (2026-10-16)
 
 - **Obiettivo:** per deliverable C selezionato dall'utente, ottenere un campione runtime esplicito di usage token e comportamento `max_tokens`, senza test a pagamento né modifiche provider/routing.
