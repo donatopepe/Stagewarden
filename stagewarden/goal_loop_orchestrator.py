@@ -1414,12 +1414,16 @@ Do NOT include any text before or after the JSON object.'''
             return None
         if "output" in data and not isinstance(data.get("output"), str):
             return None
-        return {
+        result = {
             "ok": True,
             "summary": str(data.get("summary", "Node executed via pi.")),
             "messages": [item for item in messages if isinstance(item, dict)],
             "output": data.get("output", ""),
         }
+        observed_output = GoalLoopOrchestrator._observed_output_tokens(data)
+        if observed_output is not None:
+            result["observed_output_tokens"] = observed_output
+        return result
 
     def _pi_execution(self, node_state: NodeState) -> dict[str, Any]:
         """Execute one node through the selected user-owned model boundary."""
