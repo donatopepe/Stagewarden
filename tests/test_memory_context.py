@@ -32,6 +32,14 @@ class MemoryContextTests(unittest.TestCase):
             MemoryContext(True, "", (), (), True)
         with self.assertRaisesRegex(ValueError, "non-negative integer"):
             MemoryContext(True, "", (), (), -1)
+        with self.assertRaisesRegex(TypeError, "memory content"):
+            MemoryContext(True, None, (), (), 10)
+        with self.assertRaisesRegex(TypeError, "files"):
+            MemoryContext(True, "", ["memory.md"], (), 10)
+        with self.assertRaisesRegex(TypeError, "files"):
+            MemoryContext(True, "", ("memory.md", 3), (), 10)
+        with self.assertRaisesRegex(TypeError, "issues"):
+            MemoryContext(True, "", (), [MemoryContextIssue("error", "bad")], 10)
         with self.assertRaisesRegex(ValueError, "must not exceed"):
             MemoryContext(True, "", (), (), 10, token_limit=4, token_count=5, token_counter_name="estimator")
         with self.assertRaisesRegex(ValueError, "token_count is required"):
