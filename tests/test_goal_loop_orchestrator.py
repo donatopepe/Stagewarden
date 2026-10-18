@@ -222,6 +222,367 @@ class GoalLoopPiExecutionTests(unittest.TestCase):
             section = body.split("\n", 1)[1] if "\n" in body else ""
             self.assertGreaterEqual(len(section.encode("utf-8")), 135)
 
+    def test_semantic_compaction_rejects_duplicate_labels_from_mutating_mapping(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic classifier mutation", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class MutatingClassifier:
+            backend = "test"
+            def classify(self, request):
+                request.labels = ("section_0", "section_0")
+                return DecisionResult("section_0", 1.0, "test", "generic", {"section_0": 1.0})
+
+        orchestrator._decision_classifier = MutatingClassifier()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_preserves_original_keyboard_interrupt_from_classifier(self) -> None:
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic classifier original interrupt", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class InterruptingClassifier:
+            backend = "test"
+            def classify(self, request):
+                raise KeyboardInterrupt("classifier interrupt")
+
+        class InterruptingFallback(GoalLoopOrchestrator):
+            @staticmethod
+            def _compact_node_text(text, max_tokens):
+                raise KeyboardInterrupt("fallback interrupt")
+
+        interrupting = InterruptingFallback(self.config, "semantic classifier original interrupt", execution_mode="mock", json_mode=True)
+        self.addCleanup(interrupting.knowledge.close)
+        interrupting._decision_classifier = InterruptingClassifier()
+        with self.assertRaisesRegex(KeyboardInterrupt, "classifier interrupt"):
+            interrupting._semantic_compact_node_text(text, 100)
+
+    def test_semantic_compaction_does_not_swallow_keyboard_interrupt_from_fallback(self) -> None:
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic fallback keyboard interrupt", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class InterruptingClassifier:
+            backend = "test"
+            def classify(self, request):
+                raise RuntimeError("classifier unavailable")
+
+        orchestrator._decision_classifier = InterruptingClassifier()
+        with patch.object(GoalLoopOrchestrator, "_compact_node_text", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                orchestrator._semantic_compact_node_text(text, 100)
+
+    def test_semantic_compaction_propagates_generator_exit_from_classifier(self) -> None:
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic classifier generator exit", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class ExitingClassifier:
+            backend = "test"
+            def classify(self, request):
+                raise GeneratorExit()
+
+        orchestrator._decision_classifier = ExitingClassifier()
+        with self.assertRaises(GeneratorExit):
+            orchestrator._semantic_compact_node_text(text, 100)
+
+    def test_semantic_compaction_propagates_keyboard_interrupt_from_classifier(self) -> None:
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic classifier keyboard interrupt", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class InterruptingClassifier:
+            backend = "test"
+            def classify(self, request):
+                raise KeyboardInterrupt()
+
+        orchestrator._decision_classifier = InterruptingClassifier()
+        with self.assertRaises(KeyboardInterrupt):
+            orchestrator._semantic_compact_node_text(text, 100)
+
+    def test_semantic_compaction_propagates_system_exit_from_classifier(self) -> None:
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic classifier system exit", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class ExitingClassifier:
+            backend = "test"
+            def classify(self, request):
+                raise SystemExit("backend requested process exit")
+
+        orchestrator._decision_classifier = ExitingClassifier()
+        with self.assertRaisesRegex(SystemExit, "backend requested process exit"):
+            orchestrator._semantic_compact_node_text(text, 100)
+
+    def test_semantic_compaction_falls_back_if_classifier_returns_none(self) -> None:
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic classifier none", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class EmptyClassifier:
+            backend = "test"
+            def classify(self, request):
+                return None
+
+        orchestrator._decision_classifier = EmptyClassifier()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_falls_back_if_classifier_omits_required_fields(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic missing fields", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class PartialResult:
+            label = "section_0"
+
+        class Fake:
+            backend = "test"
+            def classify(self, request):
+                return PartialResult()
+
+        orchestrator._decision_classifier = Fake()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_rejects_classifier_result_with_wrong_container_type(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic distribution container", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class Fake:
+            backend = "test"
+            def classify(self, request):
+                return DecisionResult("section_0", 1.0, "test", "generic", [("section_0", 1.0)])
+
+        orchestrator._decision_classifier = Fake()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_fallbacks_on_distribution_mutating_itself_during_sum(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic distribution sum mutation", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class MutatingFloat(float):
+            def __new__(cls, value, mapping):
+                obj = super().__new__(cls, value)
+                obj.mapping = mapping
+                return obj
+            def __add__(self, other):
+                self.mapping.clear()
+                return super().__add__(other)
+
+        class Fake:
+            backend = "test"
+            def classify(self, request):
+                distribution = {"section_0": 0.8, "section_1": 0.2}
+                distribution["section_0"] = MutatingFloat(0.8, distribution)
+                return DecisionResult("section_0", 1.0, "test", "generic", distribution)
+
+        orchestrator._decision_classifier = Fake()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_rejects_dict_mutation_during_validation(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Preserve node boundaries.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic mapping mutation", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class MutatingDict(dict):
+            def values(self):
+                self.clear()
+                return [1.0, 0.0]
+
+        class Fake:
+            backend = "test"
+            def classify(self, request):
+                return DecisionResult("section_0", 1.0, "test", "generic", MutatingDict({"section_0": 1.0, "section_1": 0.0}))
+
+        orchestrator._decision_classifier = Fake()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_rejects_distribution_dict_subclass(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Keep node boundary.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic distribution mapping", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class OddDict(dict):
+            def values(self):
+                return [1.0, 0.0]
+            def get(self, key, default=None):
+                return 1.0
+
+        class Fake:
+            backend = "test"
+            def classify(self, request):
+                return DecisionResult("section_0", 1.0, "test", "generic", OddDict({"section_0": 0.5, "section_1": 0.5}))
+
+        orchestrator._decision_classifier = Fake()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_rejects_float_subclass_with_nan_coercion(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "History.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic float subclass", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class WeirdFloat(float):
+            def __float__(self):
+                return float("nan")
+
+        class Fake:
+            backend = "test"
+            def classify(self, request):
+                return DecisionResult("section_0", 1.0, "test", "generic", {
+                    "section_0": WeirdFloat(1.0), "section_1": 0.0,
+                })
+
+        orchestrator._decision_classifier = Fake()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_rejects_custom_integer_subclasses_in_distribution(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Preserve node scope.\nUseful detail.\n" + "Historical note.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic numeric subclass", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class StrangeInt(int):
+            def __float__(self):
+                return 0.0
+
+        class Fake:
+            backend = "test"
+            def classify(self, request):
+                return DecisionResult("section_0", 1.0, "test", "generic", {
+                    "section_0": StrangeInt(1), "section_1": 0,
+                })
+
+        orchestrator._decision_classifier = Fake()
+        expected = GoalLoopOrchestrator._compact_node_text(text, 100)
+        self.assertEqual(orchestrator._semantic_compact_node_text(text, 100), expected)
+
+    def test_semantic_compaction_uses_generic_classifier_and_preserves_required_sections(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Never change provider routing.\n[acceptance_criteria] Keep v3 serial.\nRelevant: preserve node UUID.\n" + "Obsolete historical detail. " * 30
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic compact", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class KeepRequired:
+            backend = "test"
+            def classify(self, request):
+                self.request = request
+                return DecisionResult("section_0", 1.0, "test", "generic", {"section_0": 1.0, "section_1": 0.0})
+
+        classifier = KeepRequired()
+        orchestrator._decision_classifier = classifier
+        compacted = orchestrator._semantic_compact_node_text(text, 220)
+        self.assertIn("[invariant] Never change provider routing.", compacted)
+        self.assertIn("[acceptance_criteria] Keep v3 serial.", compacted)
+        self.assertIn("Relevant: preserve node UUID.", compacted)
+        self.assertNotIn("Obsolete historical detail.", compacted)
+        self.assertEqual(classifier.request.labels, ("section_0", "section_1"))
+        self.assertLessEqual(len(compacted.encode("utf-8")), 220)
+
+    def test_semantic_compaction_allows_float_rounding_but_rejects_material_sum_error(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Keep node scope.\nFirst optional.\nSecond optional.\n" + "Historical detail.\n" * 10
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic distribution precision", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class Distribution:
+            backend = "test"
+            def __init__(self, values, label="section_0"): self.values, self.label = values, label
+            def classify(self, request):
+                self.request = request
+                return DecisionResult(self.label, 0.8, "test", "generic", self.values)
+
+        original = GoalLoopOrchestrator._compact_node_text(text, 120)
+        classifier = Distribution({"section_0": 0.8, "section_1": 0.19999999999999998}, label="section_0")
+        orchestrator._decision_classifier = classifier
+        accepted = orchestrator._semantic_compact_node_text(text, 120)
+        self.assertTrue(hasattr(classifier, "request"))
+        classifier = Distribution({"section_0": 0.8, "section_1": 0.199})
+        orchestrator._decision_classifier = classifier
+        rejected = orchestrator._semantic_compact_node_text(text, 120)
+        self.assertEqual(rejected, original)
+        self.assertTrue(hasattr(classifier, "request"))
+        self.assertEqual(classifier.request.labels, tuple(f"section_{index}" for index in range(12)))
+
+    def test_semantic_compaction_never_offers_indented_structural_lines_as_optional(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "  [invariant] Keep node UUID.\nOptional detail.\n" + "Historical note.\n" * 11
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic structural filtering", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class Capture:
+            backend = "test"
+            def classify(self, request):
+                self.request = request
+                distribution = {label: (1.0 if label == "section_0" else 0.0) for label in request.labels}
+                return DecisionResult("section_0", 1.0, "test", "generic", distribution)
+
+        classifier = Capture()
+        orchestrator._decision_classifier = classifier
+        compacted = orchestrator._semantic_compact_node_text(text, 220)
+        offered = json.loads(classifier.request.text)["node_context_sections"]
+        self.assertEqual(offered, ["Optional detail."] + ["Historical note."] * 11)
+        self.assertTrue(any(line.lstrip().startswith("[invariant]") for line in compacted.splitlines()))
+
+    def test_semantic_compaction_rejects_low_confidence_and_malformed_distribution(self) -> None:
+        from stagewarden.decision_classifier import DecisionResult
+        text = "[invariant] Keep node scope.\nUseful note.\n" + "Historical detail. " * 30
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic confidence", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class Ambiguous:
+            backend = "test"
+            def __init__(self, confidence, distribution):
+                self.confidence, self.distribution = confidence, distribution
+            def classify(self, request):
+                return DecisionResult("section_0", self.confidence, "test", "generic", self.distribution)
+
+        baseline = GoalLoopOrchestrator._compact_node_text(text, 120)
+        for fake in (Ambiguous(0.51, {"section_0": 0.51, "section_1": 0.49}),
+                     Ambiguous(0.99, {"section_0": 0.6, "section_1": 0.4}),
+                     Ambiguous(0.99, {"section_0": 1.0}),
+                     Ambiguous(float("nan"), {"section_0": 1.0, "section_1": 0.0}),
+                     Ambiguous(0.99, {"section_0": float("nan"), "section_1": 0.0}),
+                     Ambiguous(True, {"section_0": 1.0, "section_1": 0.0}),
+                     Ambiguous(1.0, {"section_0": True, "section_1": False}),
+                     Ambiguous("0.99", {"section_0": 1.0, "section_1": 0.0}),
+                     Ambiguous(0.99, {"section_0": "1.0", "section_1": 0.0}),
+                     Ambiguous(10**10000, {"section_0": 1.0, "section_1": 0.0}),
+                     Ambiguous(0.99, {"section_0": 10**10000, "section_1": 0.0})):
+            with self.subTest(confidence=fake.confidence, distribution=fake.distribution):
+                orchestrator._decision_classifier = fake
+                self.assertEqual(orchestrator._semantic_compact_node_text(text, 120), baseline)
+
+    def test_semantic_compaction_falls_back_on_invalid_classifier_output(self) -> None:
+        text = "[invariant] Preserve node boundary.\n" + "ordinary detail. " * 30
+        orchestrator = GoalLoopOrchestrator(self.config, "semantic fallback", execution_mode="mock", json_mode=True)
+        self.addCleanup(orchestrator.knowledge.close)
+
+        class Invalid:
+            backend = "test"
+            def classify(self, request):
+                raise ValueError("invalid output")
+
+        orchestrator._decision_classifier = Invalid()
+        result = orchestrator._semantic_compact_node_text(text, 100)
+        self.assertEqual(result, GoalLoopOrchestrator._compact_node_text(text, 100))
+        self.assertLessEqual(len(result.encode("utf-8")), 100)
+
     def test_compaction_routes_structural_body_into_excerpt_budget(self) -> None:
         """An over-long structural line must not collapse the whole snapshot to its label."""
         text = "[execution] " + "x" * 4000

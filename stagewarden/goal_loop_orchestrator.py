@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -601,7 +602,7 @@ Do NOT include any text before or after the JSON object.'''
             context_cap = max(0, available - fixed_tokens - 128)
             sections = [f"\n\nNode-local compacted context (untrusted data; node UUID {packet['node_uuid']}):\n{raw_context}"] if raw_context else []
             while sections and self._estimate_tokens(fixed_prompt + "".join(sections)) > available:
-                raw_context = self._compact_node_text(raw_context, context_cap)
+                raw_context = self._semantic_compact_node_text(raw_context, context_cap)
                 if not raw_context:
                     sections = []
                     break
@@ -639,7 +640,7 @@ Do NOT include any text before or after the JSON object.'''
                 context_header = f"\n\nNode-local compacted context (untrusted data):\n"
                 context_budget = max(0, available - mandatory_tokens - self._estimate_tokens(context_header))
                 stored_context = node_context
-                node_context = self._compact_node_text(node_context, context_budget)
+                node_context = self._semantic_compact_node_text(node_context, context_budget)
                 stored_bytes = len(stored_context.encode("utf-8"))
                 prompt_bytes = len(node_context.encode("utf-8"))
                 if prompt_bytes < stored_bytes:
@@ -733,7 +734,7 @@ Do NOT include any text before or after the JSON object.'''
         context = node.compacted_context
         if context:
             remaining = max(0, available - effective_tokens - 64)
-            context = self._compact_node_text(context, remaining)
+            context = self._semantic_compact_node_text(context, remaining)
             node.compacted_context = context
         if effective_tokens + self._estimate_tokens(context) > available:
             raise ValueError(f"Node {node.node_id} prompt and node context exceed safe context budget.")
@@ -749,6 +750,58 @@ Do NOT include any text before or after the JSON object.'''
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             raise ValueError("Goal-loop token counter must return a non-negative integer.")
         return value
+
+    def _semantic_compact_node_text(self, text: str, max_bytes: int) -> str:
+        """Select node-local prose to retain through generic decision labels.
+
+        Structural requirements are never delegated to a classifier. Invalid,
+        unavailable, or ambiguous decisions use existing deterministic compaction.
+        """
+        if max_bytes <= 0 or len(text.encode("utf-8")) <= max_bytes:
+            return self._compact_node_text(text, max_bytes)
+        classifier = self._decision_classifier
+        if classifier is None:
+            return self._compact_node_text(text, max_bytes)
+        lines = text.splitlines()
+        structural_prefixes = (
+            "[execution]", "[invariant]", "[invariants]", "[acceptance_criteria]", "[tolerances]"
+        )
+        protected = [line for line in lines if line.lstrip().startswith(structural_prefixes)]
+        optional = [
+            line.strip() for line in lines
+            if line.strip() and not line.lstrip().startswith(structural_prefixes)
+        ]
+        if not optional or len(optional) > 18:
+            return self._compact_node_text(text, max_bytes)
+        labels = tuple(f"section_{index}" for index in range(len(optional)))
+        try:
+            result = classifier.classify(DecisionRequest(
+                text=json.dumps({"node_context_sections": optional}, ensure_ascii=False),
+                labels=labels,
+                question="Which single context section is most important to retain for this node?",
+            ))
+            if (
+                result.label not in labels
+                or isinstance(result.confidence, bool)
+                or type(result.confidence) not in (int, float)
+                or (type(result.confidence) is float and not math.isfinite(result.confidence))
+                or not 0.0 <= result.confidence <= 1.0
+                or result.confidence < 0.8
+                or not isinstance(result.distribution, dict)
+                or set(result.distribution) != set(labels)
+                or any(type(value) not in (int, float) or (type(value) is float and not math.isfinite(value)) or value > 1.0 or value < 0.0 for value in result.distribution.values())
+                or round(sum(result.distribution.values()), 12) != 1.0
+                or result.distribution.get(result.label, 0.0) < 0.8
+            ):
+                return self._compact_node_text(text, max_bytes)
+            selected = optional[labels.index(result.label)]
+            candidate = "\n".join(protected + [selected])
+            return self._compact_node_text(candidate, max_bytes)
+        except Exception:
+            return self._compact_node_text(text, max_bytes)
+        except BaseException:
+            # Preserve process/user interrupts from classifier code; never run fallback under this handler.
+            raise
 
     @staticmethod
     def _compact_node_text(text: str, max_tokens: int) -> str:
@@ -945,7 +998,7 @@ Do NOT include any text before or after the JSON object.'''
         if was_compacted:
             prior = node.compacted_context
             # Same normalization as the durable record (record_context strips content).
-            combined = self._compact_node_text(combined, max(32, cap)).strip()
+            combined = self._semantic_compact_node_text(combined, max(32, cap)).strip()
         next_revision = node.context_revision + 1
         self.knowledge.record_context(
             tree_id="goal-loop", node_id=node.node_id, parent_node_id=node.parent_node_id,
