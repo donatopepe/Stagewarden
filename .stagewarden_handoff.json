@@ -48,7 +48,7 @@
   "current_step_id": "node-context-hardening",
   "current_step_title": "Harden budgeting, context persistence, and codemode integration",
   "current_step_status": "active",
-  "latest_observation": "2026-10-18: user authorized autonomous resolution. Classifier BaseException (KeyboardInterrupt, GeneratorExit, SystemExit) propagates; ordinary Exception uses deterministic fallback. Contradictory tests corrected. Orchestrator suite 153 passed/63 subtests (14.86s); focused interrupts 5 passed; compileall, handoff alignment, diff-check pass. Backend remains unavailable; no backend checks/network absent configuration change. Evidence .stagewarden/evidence/2026-10-18-classifier-interrupt-policy.json.",
+  "latest_observation": "2026-10-18: durable-memory counter failure-path tests passed 3 cases (search exception, post-candidate failure, fail-closed accounting; 0.03s), synthetic counters. No backend/environment inspection or network request. Conservative unknown-input-budget cap remains unapproved; classifier backend unavailable. Evidence .stagewarden/evidence/2026-10-18-durable-memory-failure-contract.json. Prior interrupt policy unchanged.",
   "plan_status": "User approved semantic/loss-aware context compaction. Continue TDD generic classifier-assisted compaction with strict invariant/acceptance preservation and deterministic fallback. Conservative unknown-budget cap remains gated. Preserve node scoping, provider/fallback/policy and v3 serial execution; never hardcode provider/model.",
   "git_head": "14affccf6f531521d5e00f7f0ed195c972f5c8a9",
   "git_head_baseline": "a7224e2",
@@ -5289,7 +5289,7 @@
   ],
   "validation": {
     "focused": "2026-10-18 interrupt policy: baseline focused run exited 2 due to uncaught KeyboardInterrupt; after test corrections, tests/test_goal_loop_orchestrator.py passed 153 tests/63 subtests (14.86s), with the five interrupt/fallback cases passing again (0.33s). Evidence .stagewarden/evidence/2026-10-18-classifier-interrupt-policy.json. Prior adapter/cap evidence remains recorded elsewhere in this validation object.",
-    "full": "Not run; bounded interrupt-policy/test reconciliation iteration. Targeted orchestrator module passed 153 tests/63 subtests (14.86s).",
+    "full": "venv_pytest/bin/python -m pytest --ignore=external_sources -q: 930 passed, 5 skipped, 407 subtests passed in 708.48s (2026-10-18). Five skips remain unvalidated; classifier backend unavailable, so remote classifier behavior unvalidated.",
     "unittest_discovery": "853 tests, 1 error, 5 skipped; the error is environmental (pytest missing for tests/test_decision_classifier.py under /usr/bin/python3)",
     "compileall": "passed",
     "json": "passed",
