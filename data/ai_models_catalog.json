@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-31T09:49:24+00:00",
+  "generated_at": "2026-10-12T10:56:39+00:00",
   "models": [
     {
       "aliases": [
@@ -118,31 +118,18 @@
     },
     {
       "aliases": [
-        "Claude Opus 4",
         "anthropic/claude-opus-4",
-        "anthropic:claude-opus-4",
-        "claude opus 4"
+        "anthropic:claude-opus-4"
       ],
-      "blended_price_usd_per_1m_tokens": 30.0,
-      "context_window": 200000,
-      "cost_per_input_token_usd": 1.5e-05,
-      "cost_per_output_token_usd": 7.5e-05,
-      "features": [
-        "file",
-        "image",
-        "include_reasoning",
-        "output:text",
-        "reasoning",
-        "stop",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "anthropic/claude-opus-4",
-      "model_name": "Claude Opus 4",
+      "model_name": "anthropic/claude-opus-4",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -297,7 +284,7 @@
         "claude sonnet 4"
       ],
       "blended_price_usd_per_1m_tokens": 6.0,
-      "context_window": 1000000,
+      "context_window": 200000,
       "cost_per_input_token_usd": 3e-06,
       "cost_per_output_token_usd": 1.5e-05,
       "features": [
@@ -427,22 +414,13 @@
       "cost_per_input_token_usd": 2.5e-07,
       "cost_per_output_token_usd": 8e-07,
       "features": [
-        "frequency_penalty",
         "include_reasoning",
-        "logit_bias",
-        "logprobs",
         "output:text",
-        "presence_penalty",
         "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "structured_output",
         "temperature",
         "text",
         "tool_use",
         "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -582,20 +560,15 @@
         "deepseek: deepseek v3 0324",
         "deepseek:deepseek-chat-v3-0324"
       ],
-      "blended_price_usd_per_1m_tokens": 0.44,
+      "blended_price_usd_per_1m_tokens": 0.5,
       "context_window": 163840,
-      "cost_per_input_token_usd": 2.5e-07,
-      "cost_per_output_token_usd": 1e-06,
+      "cost_per_input_token_usd": 2.9e-07,
+      "cost_per_output_token_usd": 1.14e-06,
       "features": [
         "frequency_penalty",
-        "logit_bias",
         "logprobs",
-        "min_p",
         "output:text",
-        "presence_penalty",
-        "repetition_penalty",
         "seed",
-        "stop",
         "structured_output",
         "temperature",
         "text",
@@ -621,10 +594,10 @@
         "deepseek: deepseek v3.1",
         "deepseek:deepseek-chat-v3.1"
       ],
-      "blended_price_usd_per_1m_tokens": 0.83,
+      "blended_price_usd_per_1m_tokens": 0.43,
       "context_window": 163840,
-      "cost_per_input_token_usd": 5.5e-07,
-      "cost_per_output_token_usd": 1.65e-06,
+      "cost_per_input_token_usd": 2.5e-07,
+      "cost_per_output_token_usd": 9.5e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -694,33 +667,18 @@
     },
     {
       "aliases": [
-        "DeepSeek: R1 Distill Llama 70B",
         "deepseek/deepseek-r1-distill-llama-70b",
-        "deepseek: r1 distill llama 70b",
         "deepseek:deepseek-r1-distill-llama-70b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.8,
-      "context_window": 8192,
-      "cost_per_input_token_usd": 8e-07,
-      "cost_per_output_token_usd": 8e-07,
-      "features": [
-        "frequency_penalty",
-        "include_reasoning",
-        "output:text",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "temperature",
-        "text",
-        "top_k",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "deepseek/deepseek-r1-distill-llama-70b",
-      "model_name": "DeepSeek: R1 Distill Llama 70B",
+      "model_name": "deepseek/deepseek-r1-distill-llama-70b",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -741,13 +699,8 @@
       "features": [
         "frequency_penalty",
         "include_reasoning",
-        "logit_bias",
-        "min_p",
         "output:text",
-        "presence_penalty",
         "reasoning",
-        "repetition_penalty",
-        "seed",
         "stop",
         "structured_output",
         "temperature",
@@ -793,10 +746,10 @@
         "deepseek: deepseek v3.2",
         "deepseek:deepseek-v3.2"
       ],
-      "blended_price_usd_per_1m_tokens": 0.3,
+      "blended_price_usd_per_1m_tokens": 0.39,
       "context_window": 163840,
-      "cost_per_input_token_usd": 2.69e-07,
-      "cost_per_output_token_usd": 4e-07,
+      "cost_per_input_token_usd": 2.59e-07,
+      "cost_per_output_token_usd": 8e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1020,35 +973,18 @@
     },
     {
       "aliases": [
-        "Google: Gemini 2.5 Pro Preview 05-06",
         "google/gemini-2.5-pro-preview-05-06",
-        "google: gemini 2.5 pro preview 05-06",
         "google:gemini-2.5-pro-preview-05-06"
       ],
-      "blended_price_usd_per_1m_tokens": 3.44,
-      "context_window": 1048576,
-      "cost_per_input_token_usd": 1.25e-06,
-      "cost_per_output_token_usd": 1e-05,
-      "features": [
-        "audio",
-        "file",
-        "image",
-        "include_reasoning",
-        "output:text",
-        "reasoning",
-        "seed",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_p",
-        "video"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "google/gemini-2.5-pro-preview-05-06",
-      "model_name": "Google: Gemini 2.5 Pro Preview 05-06",
+      "model_name": "google/gemini-2.5-pro-preview-05-06",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1509,8 +1445,8 @@
       ],
       "blended_price_usd_per_1m_tokens": 0.14,
       "context_window": 262144,
-      "cost_per_input_token_usd": 7e-08,
-      "cost_per_output_token_usd": 3.4e-07,
+      "cost_per_input_token_usd": 9e-08,
+      "cost_per_output_token_usd": 3e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -1877,10 +1813,10 @@
         "minimax: minimax m2",
         "minimax:minimax-m2"
       ],
-      "blended_price_usd_per_1m_tokens": 0.45,
+      "blended_price_usd_per_1m_tokens": 0.53,
       "context_window": 204800,
-      "cost_per_input_token_usd": 2.55e-07,
-      "cost_per_output_token_usd": 1.02e-06,
+      "cost_per_input_token_usd": 3e-07,
+      "cost_per_output_token_usd": 1.2e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1921,19 +1857,13 @@
       "cost_per_input_token_usd": 3e-07,
       "cost_per_output_token_usd": 1.2e-06,
       "features": [
-        "frequency_penalty",
         "include_reasoning",
         "output:text",
-        "presence_penalty",
         "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
         "structured_output",
         "temperature",
         "text",
         "tool_use",
-        "top_k",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -2014,15 +1944,14 @@
         "minimax: minimax m2.7",
         "minimax:minimax-m2.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.53,
+      "blended_price_usd_per_1m_tokens": 0.37,
       "context_window": 204800,
-      "cost_per_input_token_usd": 3e-07,
-      "cost_per_output_token_usd": 1.2e-06,
+      "cost_per_input_token_usd": 2.1e-07,
+      "cost_per_output_token_usd": 8.4e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
         "logit_bias",
-        "logprobs",
         "min_p",
         "output:text",
         "presence_penalty",
@@ -2035,7 +1964,6 @@
         "text",
         "tool_use",
         "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -2272,7 +2200,6 @@
         "temperature",
         "text",
         "tool_use",
-        "top_k",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -2307,8 +2234,10 @@
         "repetition_penalty",
         "seed",
         "stop",
+        "structured_output",
         "temperature",
         "text",
+        "tool_use",
         "top_k",
         "top_logprobs",
         "top_p"
@@ -2330,10 +2259,10 @@
         "mistralai/mistral-small-3.2-24b-instruct",
         "mistralai:mistral-small-3.2-24b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.11,
-      "context_window": 131072,
-      "cost_per_input_token_usd": 7.5e-08,
-      "cost_per_output_token_usd": 2e-07,
+      "blended_price_usd_per_1m_tokens": 0.13,
+      "context_window": 256000,
+      "cost_per_input_token_usd": 9.375e-08,
+      "cost_per_output_token_usd": 2.5e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -2498,10 +2427,10 @@
         "moonshotai: kimi k2.5",
         "moonshotai:kimi-k2.5"
       ],
-      "blended_price_usd_per_1m_tokens": 0.9,
+      "blended_price_usd_per_1m_tokens": 1.0,
       "context_window": 262144,
-      "cost_per_input_token_usd": 4.5e-07,
-      "cost_per_output_token_usd": 2.25e-06,
+      "cost_per_input_token_usd": 5e-07,
+      "cost_per_output_token_usd": 2.5e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -2589,32 +2518,18 @@
     },
     {
       "aliases": [
-        "Nous: Hermes 4 70B",
-        "nous: hermes 4 70b",
         "nousresearch/hermes-4-70b",
         "nousresearch:hermes-4-70b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.2,
-      "context_window": 131072,
-      "cost_per_input_token_usd": 1.3e-07,
-      "cost_per_output_token_usd": 4e-07,
-      "features": [
-        "frequency_penalty",
-        "include_reasoning",
-        "output:text",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "structured_output",
-        "temperature",
-        "text",
-        "top_k",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "nousresearch/hermes-4-70b",
-      "model_name": "Nous: Hermes 4 70B",
+      "model_name": "nousresearch/hermes-4-70b",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -2648,10 +2563,10 @@
         "nvidia: nemotron 3 super",
         "nvidia:nemotron-3-super-120b-a12b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.16,
-      "context_window": 1000000,
-      "cost_per_input_token_usd": 8.5e-08,
-      "cost_per_output_token_usd": 4e-07,
+      "blended_price_usd_per_1m_tokens": 0.17,
+      "context_window": 262144,
+      "cost_per_input_token_usd": 8e-08,
+      "cost_per_output_token_usd": 4.5e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -2901,7 +2816,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -2966,22 +2882,19 @@
       "cost_per_output_token_usd": 1e-05,
       "features": [
         "file",
-        "frequency_penalty",
         "image",
         "include_reasoning",
-        "logit_bias",
         "logprobs",
         "output:image",
         "output:text",
-        "presence_penalty",
         "reasoning",
         "seed",
-        "stop",
         "structured_output",
         "temperature",
         "text",
         "top_logprobs",
-        "top_p"
+        "top_p",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3014,7 +2927,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3047,7 +2961,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3080,7 +2995,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3113,7 +3029,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3165,7 +3082,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 27,
       "latency_rank": null,
@@ -3197,7 +3115,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3229,7 +3148,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -3262,7 +3182,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3292,7 +3213,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3324,7 +3246,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -3357,7 +3280,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3390,7 +3314,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 3,
       "latency_rank": null,
@@ -3423,7 +3348,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 2,
       "latency_rank": null,
@@ -3456,7 +3382,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 32,
       "latency_rank": null,
@@ -3489,7 +3416,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -3522,7 +3450,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -3622,10 +3551,10 @@
         "openai/gpt-oss-20b",
         "openai:gpt-oss-20b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.06,
+      "blended_price_usd_per_1m_tokens": 0.04,
       "context_window": 131072,
-      "cost_per_input_token_usd": 3e-08,
-      "cost_per_output_token_usd": 1.3e-07,
+      "cost_per_input_token_usd": 1.8e-08,
+      "cost_per_output_token_usd": 9e-08,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -3843,6 +3772,7 @@
         "repetition_penalty",
         "seed",
         "stop",
+        "structured_output",
         "temperature",
         "text",
         "top_k",
@@ -3865,10 +3795,10 @@
         "qwen: qwen2.5 vl 72b instruct",
         "qwen:qwen2.5-vl-72b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.38,
+      "blended_price_usd_per_1m_tokens": 0.85,
       "context_window": 128000,
-      "cost_per_input_token_usd": 2.5e-07,
-      "cost_per_output_token_usd": 7.5e-07,
+      "cost_per_input_token_usd": 8e-07,
+      "cost_per_output_token_usd": 1e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -3923,26 +3853,21 @@
         "qwen: qwen3 235b a22b thinking 2507",
         "qwen:qwen3-235b-a22b-thinking-2507"
       ],
-      "blended_price_usd_per_1m_tokens": 0.75,
-      "context_window": 131072,
-      "cost_per_input_token_usd": 2.3e-07,
-      "cost_per_output_token_usd": 2.3e-06,
+      "blended_price_usd_per_1m_tokens": 1.21,
+      "context_window": 128000,
+      "cost_per_input_token_usd": 4.5e-07,
+      "cost_per_output_token_usd": 3.5e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
-        "logprobs",
         "output:text",
         "presence_penalty",
         "reasoning",
-        "repetition_penalty",
-        "seed",
         "stop",
-        "structured_output",
         "temperature",
         "text",
         "tool_use",
         "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -3962,10 +3887,10 @@
         "qwen: qwen3 30b a3b instruct 2507",
         "qwen:qwen3-30b-a3b-instruct-2507"
       ],
-      "blended_price_usd_per_1m_tokens": 0.08,
+      "blended_price_usd_per_1m_tokens": 0.15,
       "context_window": 262144,
-      "cost_per_input_token_usd": 4.815e-08,
-      "cost_per_output_token_usd": 1.9305e-07,
+      "cost_per_input_token_usd": 1e-07,
+      "cost_per_output_token_usd": 3e-07,
       "features": [
         "frequency_penalty",
         "logit_bias",
@@ -3995,34 +3920,18 @@
     },
     {
       "aliases": [
-        "Qwen: Qwen3 30B A3B Thinking 2507",
         "qwen/qwen3-30b-a3b-thinking-2507",
-        "qwen: qwen3 30b a3b thinking 2507",
         "qwen:qwen3-30b-a3b-thinking-2507"
       ],
-      "blended_price_usd_per_1m_tokens": 0.75,
-      "context_window": 81920,
-      "cost_per_input_token_usd": 2e-07,
-      "cost_per_output_token_usd": 2.4e-06,
-      "features": [
-        "frequency_penalty",
-        "include_reasoning",
-        "output:text",
-        "presence_penalty",
-        "reasoning",
-        "seed",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_k",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "qwen/qwen3-30b-a3b-thinking-2507",
-      "model_name": "Qwen: Qwen3 30B A3B Thinking 2507",
+      "model_name": "qwen/qwen3-30b-a3b-thinking-2507",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -4081,18 +3990,13 @@
       "cost_per_output_token_usd": 2.8e-07,
       "features": [
         "frequency_penalty",
-        "logprobs",
         "output:text",
-        "presence_penalty",
-        "repetition_penalty",
-        "seed",
         "stop",
         "structured_output",
         "temperature",
         "text",
         "tool_use",
         "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -4163,34 +4067,18 @@
     },
     {
       "aliases": [
-        "Qwen: Qwen3 Max",
         "qwen/qwen3-max",
-        "qwen: qwen3 max",
         "qwen:qwen3-max"
       ],
-      "blended_price_usd_per_1m_tokens": 1.56,
-      "context_window": 262144,
-      "cost_per_input_token_usd": 7.8e-07,
-      "cost_per_output_token_usd": 3.9e-06,
-      "features": [
-        "frequency_penalty",
-        "logprobs",
-        "output:text",
-        "presence_penalty",
-        "seed",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "qwen/qwen3-max",
-      "model_name": "Qwen: Qwen3 Max",
+      "model_name": "qwen/qwen3-max",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -4204,9 +4092,9 @@
         "qwen: qwen3 next 80b a3b instruct",
         "qwen:qwen3-next-80b-a3b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.34,
+      "blended_price_usd_per_1m_tokens": 0.35,
       "context_window": 262144,
-      "cost_per_input_token_usd": 9e-08,
+      "cost_per_input_token_usd": 1e-07,
       "cost_per_output_token_usd": 1.1e-06,
       "features": [
         "frequency_penalty",
@@ -4282,10 +4170,10 @@
         "qwen: qwen3.5 397b a17b",
         "qwen:qwen3.5-397b-a17b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.88,
+      "blended_price_usd_per_1m_tokens": 1.29,
       "context_window": 262144,
-      "cost_per_input_token_usd": 3.9e-07,
-      "cost_per_output_token_usd": 2.34e-06,
+      "cost_per_input_token_usd": 5.5e-07,
+      "cost_per_output_token_usd": 3.5e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -4921,10 +4809,10 @@
         "z-ai:glm-4.6",
         "z.ai: glm 4.6"
       ],
-      "blended_price_usd_per_1m_tokens": 0.76,
+      "blended_price_usd_per_1m_tokens": 0.88,
       "context_window": 204800,
-      "cost_per_input_token_usd": 4.3e-07,
-      "cost_per_output_token_usd": 1.75e-06,
+      "cost_per_input_token_usd": 5e-07,
+      "cost_per_output_token_usd": 2e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -4980,10 +4868,10 @@
         "z-ai:glm-4.7",
         "z.ai: glm 4.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.74,
+      "blended_price_usd_per_1m_tokens": 1.0,
       "context_window": 204800,
-      "cost_per_input_token_usd": 4e-07,
-      "cost_per_output_token_usd": 1.75e-06,
+      "cost_per_input_token_usd": 6e-07,
+      "cost_per_output_token_usd": 2.2e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -5021,8 +4909,8 @@
         "z.ai: glm 4.7 flash"
       ],
       "blended_price_usd_per_1m_tokens": 0.15,
-      "context_window": 202752,
-      "cost_per_input_token_usd": 6e-08,
+      "context_window": 200000,
+      "cost_per_input_token_usd": 6.05e-08,
       "cost_per_output_token_usd": 4e-07,
       "features": [
         "frequency_penalty",
@@ -5068,9 +4956,7 @@
       "features": [
         "frequency_penalty",
         "include_reasoning",
-        "logit_bias",
         "logprobs",
-        "min_p",
         "output:text",
         "presence_penalty",
         "reasoning",
@@ -5235,7 +5121,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 27,
       "latency_rank": null,
@@ -5268,7 +5155,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -5301,7 +5189,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -5335,7 +5224,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 3,
       "latency_rank": null,
@@ -5369,7 +5259,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 2,
       "latency_rank": null,
@@ -5404,7 +5295,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 32,
       "latency_rank": null,
@@ -5439,7 +5331,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -5905,7 +5798,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -5981,7 +5875,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6015,7 +5910,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6049,7 +5945,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6082,7 +5979,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6135,7 +6033,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 27,
       "latency_rank": null,
@@ -6167,7 +6066,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6199,7 +6099,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -6232,7 +6133,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6285,7 +6187,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -6319,7 +6222,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
@@ -6373,7 +6277,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 3,
       "latency_rank": null,
@@ -6427,7 +6332,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 2,
       "latency_rank": null,
@@ -6461,7 +6367,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 32,
       "latency_rank": null,
@@ -6495,7 +6402,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": 13,
       "latency_rank": null,
@@ -6529,7 +6437,8 @@
         "seed",
         "structured_output",
         "text",
-        "tool_use"
+        "tool_use",
+        "verbosity"
       ],
       "intelligence_rank": null,
       "latency_rank": null,
