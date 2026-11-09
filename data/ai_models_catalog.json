@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T11:16:15+00:00",
+  "generated_at": "2026-11-09T11:39:50+00:00",
   "models": [
     {
       "aliases": [
@@ -1222,10 +1222,10 @@
         "google: gemma 3 27b",
         "google:gemma-3-27b-it"
       ],
-      "blended_price_usd_per_1m_tokens": 0.15,
+      "blended_price_usd_per_1m_tokens": 0.17,
       "context_window": 131072,
       "cost_per_input_token_usd": 8e-08,
-      "cost_per_output_token_usd": 3.5e-07,
+      "cost_per_output_token_usd": 4.5e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -1401,10 +1401,10 @@
         "google: gemma 4 26b a4b ",
         "google:gemma-4-26b-a4b-it"
       ],
-      "blended_price_usd_per_1m_tokens": 0.15,
+      "blended_price_usd_per_1m_tokens": 0.14,
       "context_window": 262144,
-      "cost_per_input_token_usd": 9.9e-08,
-      "cost_per_output_token_usd": 2.97e-07,
+      "cost_per_input_token_usd": 9e-08,
+      "cost_per_output_token_usd": 3e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -1550,30 +1550,18 @@
     },
     {
       "aliases": [
-        "Inception: Mercury 2",
         "inception/mercury-2",
-        "inception: mercury 2",
         "inception:mercury-2"
       ],
-      "blended_price_usd_per_1m_tokens": 0.38,
-      "context_window": 128000,
-      "cost_per_input_token_usd": 2.5e-07,
-      "cost_per_output_token_usd": 7.5e-07,
-      "features": [
-        "include_reasoning",
-        "output:text",
-        "reasoning",
-        "reasoning_effort",
-        "stop",
-        "structured_output",
-        "temperature",
-        "text",
-        "tool_use"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "inception/mercury-2",
-      "model_name": "Inception: Mercury 2",
+      "model_name": "inception/mercury-2",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1702,26 +1690,18 @@
     },
     {
       "aliases": [
-        "MiniMax: MiniMax-01",
         "minimax/minimax-01",
-        "minimax: minimax-01",
         "minimax:minimax-01"
       ],
-      "blended_price_usd_per_1m_tokens": 0.43,
-      "context_window": 1000192,
-      "cost_per_input_token_usd": 2e-07,
-      "cost_per_output_token_usd": 1.1e-06,
-      "features": [
-        "image",
-        "output:text",
-        "temperature",
-        "text",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "minimax/minimax-01",
-      "model_name": "MiniMax: MiniMax-01",
+      "model_name": "minimax/minimax-01",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1766,28 +1746,18 @@
     },
     {
       "aliases": [
-        "MiniMax: MiniMax M2",
         "minimax/minimax-m2",
-        "minimax: minimax m2",
         "minimax:minimax-m2"
       ],
-      "blended_price_usd_per_1m_tokens": 0.45,
-      "context_window": 204800,
-      "cost_per_input_token_usd": 2.55e-07,
-      "cost_per_output_token_usd": 1.02e-06,
-      "features": [
-        "include_reasoning",
-        "output:text",
-        "reasoning",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "minimax/minimax-m2",
-      "model_name": "MiniMax: MiniMax M2",
+      "model_name": "minimax/minimax-m2",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1796,29 +1766,18 @@
     },
     {
       "aliases": [
-        "MiniMax: MiniMax M2.1",
         "minimax/minimax-m2.1",
-        "minimax: minimax m2.1",
         "minimax:minimax-m2.1"
       ],
-      "blended_price_usd_per_1m_tokens": 0.53,
-      "context_window": 204800,
-      "cost_per_input_token_usd": 3e-07,
-      "cost_per_output_token_usd": 1.2e-06,
-      "features": [
-        "include_reasoning",
-        "output:text",
-        "reasoning",
-        "structured_output",
-        "temperature",
-        "text",
-        "tool_use",
-        "top_p"
-      ],
+      "blended_price_usd_per_1m_tokens": null,
+      "context_window": null,
+      "cost_per_input_token_usd": null,
+      "cost_per_output_token_usd": null,
+      "features": [],
       "intelligence_rank": null,
       "latency_rank": null,
       "model_id": "minimax/minimax-m2.1",
-      "model_name": "MiniMax: MiniMax M2.1",
+      "model_name": "minimax/minimax-m2.1",
       "openness": "proprietary",
       "pricing_source": "openrouter",
       "provider": "cheap",
@@ -1832,10 +1791,10 @@
         "minimax: minimax m2.5",
         "minimax:minimax-m2.5"
       ],
-      "blended_price_usd_per_1m_tokens": 0.44,
+      "blended_price_usd_per_1m_tokens": 0.53,
       "context_window": 204800,
-      "cost_per_input_token_usd": 2.7e-07,
-      "cost_per_output_token_usd": 9.5e-07,
+      "cost_per_input_token_usd": 3e-07,
+      "cost_per_output_token_usd": 1.2e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -1893,15 +1852,13 @@
         "minimax: minimax m2.7",
         "minimax:minimax-m2.7"
       ],
-      "blended_price_usd_per_1m_tokens": 0.53,
+      "blended_price_usd_per_1m_tokens": 0.37,
       "context_window": 204800,
-      "cost_per_input_token_usd": 3e-07,
-      "cost_per_output_token_usd": 1.2e-06,
+      "cost_per_input_token_usd": 2.1e-07,
+      "cost_per_output_token_usd": 8.4e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
-        "logit_bias",
-        "min_p",
         "output:text",
         "presence_penalty",
         "reasoning",
@@ -2208,10 +2165,10 @@
         "mistralai/mistral-small-3.2-24b-instruct",
         "mistralai:mistral-small-3.2-24b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.11,
+      "blended_price_usd_per_1m_tokens": 0.15,
       "context_window": 256000,
-      "cost_per_input_token_usd": 7.5e-08,
-      "cost_per_output_token_usd": 2e-07,
+      "cost_per_input_token_usd": 1e-07,
+      "cost_per_output_token_usd": 3e-07,
       "features": [
         "frequency_penalty",
         "image",
@@ -2288,6 +2245,7 @@
       "cost_per_output_token_usd": 2.5e-06,
       "features": [
         "frequency_penalty",
+        "logprobs",
         "output:text",
         "presence_penalty",
         "repetition_penalty",
@@ -2298,6 +2256,7 @@
         "text",
         "tool_use",
         "top_k",
+        "top_logprobs",
         "top_p"
       ],
       "intelligence_rank": null,
@@ -2374,10 +2333,10 @@
         "moonshotai: kimi k2.5",
         "moonshotai:kimi-k2.5"
       ],
-      "blended_price_usd_per_1m_tokens": 1.0,
+      "blended_price_usd_per_1m_tokens": 1.23,
       "context_window": 262144,
-      "cost_per_input_token_usd": 5e-07,
-      "cost_per_output_token_usd": 2.5e-06,
+      "cost_per_input_token_usd": 5.32e-07,
+      "cost_per_output_token_usd": 3.325e-06,
       "features": [
         "frequency_penalty",
         "image",
@@ -2443,11 +2402,14 @@
       "features": [
         "frequency_penalty",
         "include_reasoning",
+        "logit_bias",
         "logprobs",
         "output:text",
         "presence_penalty",
         "reasoning",
         "repetition_penalty",
+        "seed",
+        "stop",
         "structured_output",
         "temperature",
         "text",
@@ -2512,10 +2474,10 @@
         "nvidia: nemotron 3 super",
         "nvidia:nemotron-3-super-120b-a12b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.83,
+      "blended_price_usd_per_1m_tokens": 0.16,
       "context_window": 1048576,
-      "cost_per_input_token_usd": 3e-07,
-      "cost_per_output_token_usd": 2.4e-06,
+      "cost_per_input_token_usd": 7.5e-08,
+      "cost_per_output_token_usd": 4e-07,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -3487,10 +3449,10 @@
         "openai/gpt-oss-20b",
         "openai:gpt-oss-20b"
       ],
-      "blended_price_usd_per_1m_tokens": 0.06,
+      "blended_price_usd_per_1m_tokens": 0.04,
       "context_window": 131072,
-      "cost_per_input_token_usd": 3e-08,
-      "cost_per_output_token_usd": 1.3e-07,
+      "cost_per_input_token_usd": 1.8e-08,
+      "cost_per_output_token_usd": 9e-08,
       "features": [
         "frequency_penalty",
         "include_reasoning",
@@ -3906,10 +3868,10 @@
         "qwen: qwen3 coder 30b a3b instruct",
         "qwen:qwen3-coder-30b-a3b-instruct"
       ],
-      "blended_price_usd_per_1m_tokens": 0.12,
+      "blended_price_usd_per_1m_tokens": 0.26,
       "context_window": 262144,
-      "cost_per_input_token_usd": 7e-08,
-      "cost_per_output_token_usd": 2.8e-07,
+      "cost_per_input_token_usd": 1.5e-07,
+      "cost_per_output_token_usd": 6e-07,
       "features": [
         "frequency_penalty",
         "output:text",
@@ -4073,9 +4035,9 @@
         "qwen: qwen3.5 397b a17b",
         "qwen:qwen3.5-397b-a17b"
       ],
-      "blended_price_usd_per_1m_tokens": 1.28,
+      "blended_price_usd_per_1m_tokens": 1.35,
       "context_window": 262144,
-      "cost_per_input_token_usd": 5e-07,
+      "cost_per_input_token_usd": 6e-07,
       "cost_per_output_token_usd": 3.6e-06,
       "features": [
         "frequency_penalty",
@@ -4618,10 +4580,10 @@
         "z-ai:glm-4.5-air",
         "z.ai: glm 4.5 air"
       ],
-      "blended_price_usd_per_1m_tokens": 0.31,
+      "blended_price_usd_per_1m_tokens": 0.43,
       "context_window": 131072,
-      "cost_per_input_token_usd": 1.3e-07,
-      "cost_per_output_token_usd": 8.5e-07,
+      "cost_per_input_token_usd": 2e-07,
+      "cost_per_output_token_usd": 1.1e-06,
       "features": [
         "frequency_penalty",
         "include_reasoning",
